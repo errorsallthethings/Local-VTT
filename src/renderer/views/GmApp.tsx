@@ -20,7 +20,6 @@ import type {
   Campaign,
   CampaignSceneEntry,
   CampaignSceneFolder,
-  CampaignSummary,
   DisplayCalibration,
   FogSettings,
   GridSettings,
@@ -36,40 +35,34 @@ import { SceneLibraryPanel } from "../components/scenes/SceneLibraryPanel";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type FogOperation } from "../components/tools/ToolsMenu";
 import type { FogTool } from "../canvas/fogRenderer";
+import { useCampaignActions } from "../hooks/useCampaignActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
-import { mergeCampaignDraft } from "../lib/campaignDraft";
 
 type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
 type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };
 
 export function GmApp() {
+  const workspace = useCampaignWorkspace();
   const {
     campaignPath,
-    setCampaignPath,
     campaign,
-    setCampaign,
     missingAssets,
-    setMissingAssets,
     activeScene,
     setActiveScene,
     sceneDrafts,
     setSceneDrafts,
     dirtySceneIds,
-    setDirtySceneIds,
     campaignDirty,
-    setCampaignDirty,
     saveState,
-    setSaveState,
     error,
     dirtyCount,
     hasUnsavedChanges,
     run,
     applySummary,
-    clearWorkspaceState,
     setSceneClean,
     updateScene,
     updateCampaignDraft
-  } = useCampaignWorkspace();
+  } = workspace;
   const [sceneDialog, setSceneDialog] = useState<SceneNameDialog | null>(null);
   const [folderDialog, setFolderDialog] = useState<FolderNameDialog | null>(null);
   const [campaignNameDialogOpen, setCampaignNameDialogOpen] = useState(false);
@@ -179,6 +172,29 @@ export function GmApp() {
     setOpenFolderMenuId(null);
     setCollapsedFolderIds(new Set());
   };
+
+  const {
+    createCampaign,
+    openCampaign,
+    loadScene,
+    moveSceneToFolder,
+    saveSceneById,
+    saveCampaign,
+    importMap,
+    confirmDeleteMapAsset,
+    saveFolderScenes,
+    deleteScene,
+    deleteFolder
+  } = useCampaignActions({
+    workspace,
+    mapAssetToDelete,
+    onResetSceneLibraryUi: resetSceneLibraryUi,
+    onCloseSceneMenu: () => setOpenSceneMenuId(null),
+    onCloseFolderMenu: () => setOpenFolderMenuId(null),
+    onMapAssetDeleteHandled: () => setMapAssetToDelete(null),
+    onSceneDeleteHandled: () => setSceneToDelete(null),
+    onFolderDeleteHandled: () => setFolderToDelete(null)
+  });
 
   const updateVideoPlayback = (patch: Partial<VideoPlaybackSettings>) => {
     if (!activeScene) {
@@ -321,26 +337,6 @@ export function GmApp() {
       });
     });
 
-  const createCampaign = () =>
-    run(async () => {
-      const summary = await window.localVtt.createCampaign();
-      if (summary) {
-        applySummary(summary);
-        clearWorkspaceState();
-        resetSceneLibraryUi();
-      }
-    });
-
-  const openCampaign = () =>
-    run(async () => {
-      const summary = await window.localVtt.openCampaign();
-      if (summary) {
-        applySummary(summary);
-        clearWorkspaceState();
-        resetSceneLibraryUi();
-      }
-    });
-
   const openSceneDialog = () => {
     setNewSceneName("New Battle Map");
     setSceneDialog({ mode: "create" });
@@ -418,53 +414,6 @@ export function GmApp() {
       setSceneDialog(null);
     });
 
-  const loadScene = (sceneId: string) =>
-    run(async () => {
-      if (!campaignPath) {
-        return;
-      }
-      setOpenSceneMenuId(null);
-      const draft = sceneDrafts[sceneId];
-      setActiveScene(draft ?? (await window.localVtt.loadScene(campaignPath, sceneId)));
-    });
-
-  const moveSceneToFolder = (sceneId: string, folderId?: string) => {
-    if (!campaign) {
-      return;
-    }
-    const nextCampaign = {
-      ...campaign,
-      scenes: campaign.scenes.map((scene) => (scene.id === sceneId ? { ...scene, folderId } : scene)),
-      updatedAt: new Date().toISOString()
-    };
-    updateCampaignDraft(nextCampaign);
-  };
-
-  const saveSceneById = async (sceneId: string) => {
-    const ok = await run(async () => {
-      if (!campaignPath) {
-        return;
-      }
-      const sceneToSave = sceneDrafts[sceneId] ?? (activeScene?.id === sceneId ? activeScene : null);
-      if (!sceneToSave || !dirtySceneIds.has(sceneId)) {
-        return;
-      }
-
-      setSaveState("saving");
-      const result = await window.localVtt.saveScene(campaignPath, sceneToSave);
-      applySummary(result.campaignSummary, campaignDirty);
-      if (activeScene?.id === sceneId) {
-        setActiveScene(result.scene);
-      }
-      setSceneClean(result.scene);
-      setSaveState("saved");
-      window.setTimeout(() => setSaveState("idle"), 1500);
-    });
-    if (!ok) {
-      setSaveState("error");
-    }
-  };
-
   const openCampaignRenameDialog = () => {
     if (!campaign) {
       return;
@@ -484,83 +433,6 @@ export function GmApp() {
     updateCampaignDraft({ ...campaign, name, updatedAt: new Date().toISOString() });
     setCampaignNameDialogOpen(false);
   };
-
-  const saveCampaign = async () => {
-    const ok = await run(async () => {
-      if (!campaignPath || !campaign || !hasUnsavedChanges) {
-        return;
-      }
-
-      setSaveState("saving");
-      let latestSummary: CampaignSummary | null = null;
-      if (campaignDirty) {
-        latestSummary = await window.localVtt.saveCampaign(campaignPath, campaign);
-      }
-      for (const sceneId of dirtySceneIds) {
-        const scene = sceneDrafts[sceneId] ?? (activeScene?.id === sceneId ? activeScene : null);
-        if (scene) {
-          const result = await window.localVtt.saveScene(campaignPath, scene);
-          latestSummary = result.campaignSummary;
-          if (activeScene?.id === sceneId) {
-            setActiveScene(result.scene);
-          }
-        }
-      }
-      if (latestSummary) {
-        applySummary(latestSummary);
-      }
-      setSceneDrafts({});
-      setDirtySceneIds(new Set());
-      setCampaignDirty(false);
-      setSaveState("saved");
-      window.setTimeout(() => setSaveState("idle"), 1500);
-    });
-    if (!ok) {
-      setSaveState("error");
-    }
-    return ok;
-  };
-
-  const importMap = () =>
-    run(async () => {
-      if (!campaignPath || !campaign || !activeScene) {
-        return;
-      }
-      const result = await window.localVtt.importMap(campaignPath);
-      if (!result) {
-        return;
-      }
-      const baseCampaign = campaignDirty ? mergeCampaignDraft(result.campaignSummary.campaign, campaign) : result.campaignSummary.campaign;
-      const nextCampaign = {
-        ...baseCampaign,
-        scenes: baseCampaign.scenes.map((entry) =>
-          entry.id === activeScene.id ? { ...entry, mapAssetId: result.asset.id } : entry
-        )
-      };
-      setCampaignPath(result.campaignSummary.campaignPath);
-      setMissingAssets(result.campaignSummary.missingAssets);
-      setCampaign(nextCampaign);
-      updateScene({ ...activeScene, mapAssetId: result.asset.id, updatedAt: new Date().toISOString() }, nextCampaign);
-    });
-
-  const confirmDeleteMapAsset = () =>
-    run(async () => {
-      if (!campaignPath || !activeScene || !mapAssetToDelete) {
-        return;
-      }
-      const wasDirty = dirtySceneIds.has(activeScene.id);
-      const result = await window.localVtt.deleteMapAsset(campaignPath, activeScene.id, mapAssetToDelete.id);
-      applySummary(result.campaignSummary, campaignDirty);
-      const updatedActiveScene = { ...activeScene, mapAssetId: undefined, updatedAt: new Date().toISOString() };
-      setActiveScene(wasDirty ? updatedActiveScene : result.scene);
-      if (wasDirty) {
-        setSceneDrafts((drafts) => ({ ...drafts, [updatedActiveScene.id]: updatedActiveScene }));
-        setDirtySceneIds((ids) => new Set(ids).add(updatedActiveScene.id));
-      } else {
-        setSceneClean(result.scene);
-      }
-      setMapAssetToDelete(null);
-    });
 
   const sendToPlayer = () =>
     run(async () => {
@@ -582,57 +454,6 @@ export function GmApp() {
       await window.localVtt.closePlayerView();
       setPlayerMenuOpen(false);
     });
-
-  const saveFolderScenes = async (folderId: string) => {
-    if (!campaign) {
-      return;
-    }
-    const dirtySceneIdsInFolder = campaign.scenes
-      .filter((scene) => scene.folderId === folderId && dirtySceneIds.has(scene.id))
-      .map((scene) => scene.id);
-    for (const sceneId of dirtySceneIdsInFolder) {
-      await saveSceneById(sceneId);
-    }
-  };
-
-  const deleteScene = () =>
-    run(async () => {
-      if (!campaignPath || !sceneToDelete) {
-        return;
-      }
-      const deletedSceneId = sceneToDelete.id;
-      const summary = await window.localVtt.deleteScene(campaignPath, deletedSceneId);
-      applySummary(summary, campaignDirty);
-      setSceneDrafts((drafts) => {
-        const next = { ...drafts };
-        delete next[deletedSceneId];
-        return next;
-      });
-      setDirtySceneIds((ids) => {
-        const next = new Set(ids);
-        next.delete(deletedSceneId);
-        return next;
-      });
-      if (activeScene?.id === deletedSceneId) {
-        setActiveScene(null);
-      }
-      setSceneToDelete(null);
-      setOpenSceneMenuId(null);
-    });
-
-  const deleteFolder = () => {
-    if (!campaign || !folderToDelete) {
-      return;
-    }
-    updateCampaignDraft({
-      ...campaign,
-      sceneFolders: campaign.sceneFolders.filter((folder) => folder.id !== folderToDelete.id),
-      scenes: campaign.scenes.map((scene) => (scene.folderId === folderToDelete.id ? { ...scene, folderId: undefined } : scene)),
-      updatedAt: new Date().toISOString()
-    });
-    setFolderToDelete(null);
-    setOpenFolderMenuId(null);
-  };
 
   const toggleFolderCollapsed = (folderId: string) => {
     setCollapsedFolderIds((ids) => {
@@ -1045,7 +866,7 @@ export function GmApp() {
             onMouseDown={(event) => event.stopPropagation()}
             onSubmit={(event) => {
               event.preventDefault();
-              void deleteScene();
+              void deleteScene(sceneToDelete);
             }}
           >
             <h2>Delete Scene</h2>
@@ -1071,7 +892,7 @@ export function GmApp() {
             onMouseDown={(event) => event.stopPropagation()}
             onSubmit={(event) => {
               event.preventDefault();
-              deleteFolder();
+              deleteFolder(folderToDelete);
             }}
           >
             <h2>Delete Scene Folder</h2>
