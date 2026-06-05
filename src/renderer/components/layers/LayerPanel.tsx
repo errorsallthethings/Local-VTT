@@ -19,6 +19,7 @@ import {
   UsersRound
 } from "lucide-react";
 import type { Asset, FogSettings, GridSettings, GridType, Layer, MapTransform, Scene } from "../../../shared/localvtt";
+import { ColorSettingRow } from "../controls/ColorPickerField";
 import { DebouncedNumberInput } from "../controls/DebouncedNumberInput";
 
 export function LayerPanel({
@@ -32,7 +33,9 @@ export function LayerPanel({
   onMoveLayer,
   onSetLayerOrderLocked,
   onImportMap,
-  onDeleteMap
+  onDeleteMap,
+  onOpenFogColor,
+  onOpenGridColor
 }: {
   scene: Scene;
   mapAsset: Asset | null;
@@ -45,6 +48,8 @@ export function LayerPanel({
   onSetLayerOrderLocked: (locked: boolean) => void;
   onImportMap: () => void;
   onDeleteMap: (asset: Asset) => void;
+  onOpenFogColor: () => void;
+  onOpenGridColor: () => void;
 }) {
   const sortedLayers = [...scene.layers].sort((a, b) => b.order - a.order);
   const visualGridEnabled = scene.grid.type !== "gridless";
@@ -196,10 +201,7 @@ export function LayerPanel({
                         onChange={(event) => onUpdateFog({ playerOpacity: Number(event.target.value), opacity: Number(event.target.value) })}
                       />
                     </label>
-                    <label className="setting-row">
-                      <span>Color</span>
-                      <input type="color" value={scene.fog.color} onChange={(event) => onUpdateFog({ color: event.target.value })} />
-                    </label>
+                    <ColorSettingRow label="Color" value={scene.fog.color} onOpen={onOpenFogColor} />
                   </div>
                   <label className="setting-row checkbox-setting-row">
                     <span>Preview fog on GM View</span>
@@ -271,10 +273,7 @@ export function LayerPanel({
                             onChange={(event) => onUpdateGrid({ lineThickness: Number(event.target.value) })}
                           />
                         </label>
-                        <label className="setting-row">
-                          <span>Color</span>
-                          <input type="color" value={scene.grid.color} onChange={(event) => onUpdateGrid({ color: event.target.value })} />
-                        </label>
+                        <ColorSettingRow label="Color" value={scene.grid.color} onOpen={onOpenGridColor} />
                       </div>
                       <div className="control-divider" />
                       <div className="settings-grid">

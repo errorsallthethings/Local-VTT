@@ -1,9 +1,9 @@
 .panel {
   display: grid;
   gap: 12px;
-  border: 1px solid #252e3a;
-  border-radius: 8px;
-  background: #171e27;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-panel);
+  background: var(--color-bg-panel);
   padding: 12px;
 }
 
@@ -34,10 +34,10 @@
 }
 
 .calibration-readout {
-  border: 1px solid #293241;
-  border-radius: 6px;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-control);
   background: #121821;
-  color: #aeb8c7;
+  color: var(--color-text-soft);
   padding: 8px;
   font-size: 12px;
 }

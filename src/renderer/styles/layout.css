@@ -13,7 +13,7 @@
   min-width: 0;
   overflow: hidden;
   border-color: #242c38;
-  background: #141a22;
+  background: var(--color-bg-panel-muted);
   padding: 14px;
 }
 
@@ -79,7 +79,7 @@
 }
 
 .panel-collapse-button:active:not(:disabled) {
-  color: #7aa2f7;
+  color: var(--color-accent);
 }
 
 .sidebar-collapse-button {
@@ -212,7 +212,7 @@
   grid-template-rows: auto auto minmax(0, 1fr) 32px;
   min-width: 0;
   min-height: 0;
-  background: #0d1117;
+  background: var(--color-bg-workspace);
 }
 
 .topbar {

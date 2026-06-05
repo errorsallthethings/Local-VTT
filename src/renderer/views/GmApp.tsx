@@ -22,6 +22,7 @@ import type {
   VideoPlaybackSettings
 } from "../../shared/localvtt";
 import { CampaignPanel } from "../components/campaign/CampaignPanel";
+import { ColorPickerField } from "../components/controls/ColorPickerField";
 import { LayerPanel } from "../components/layers/LayerPanel";
 import { ConfirmDialog } from "../components/modals/ConfirmDialog";
 import { NameDialog } from "../components/modals/NameDialog";
@@ -41,6 +42,7 @@ import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
 type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };
 type FolderColorDialog = { folderId: string; folderName: string };
+type SceneColorDialog = { kind: "fog" | "grid"; title: string; value: string };
 type WorkspaceLayout = {
   leftWidth: number;
   rightWidth: number;
@@ -87,6 +89,7 @@ export function GmApp() {
   const [sceneDialog, setSceneDialog] = useState<SceneNameDialog | null>(null);
   const [folderDialog, setFolderDialog] = useState<FolderNameDialog | null>(null);
   const [folderColorDialog, setFolderColorDialog] = useState<FolderColorDialog | null>(null);
+  const [sceneColorDialog, setSceneColorDialog] = useState<SceneColorDialog | null>(null);
   const [campaignNameDialogOpen, setCampaignNameDialogOpen] = useState(false);
   const [sceneToDelete, setSceneToDelete] = useState<CampaignSceneEntry | null>(null);
   const [folderToDelete, setFolderToDelete] = useState<CampaignSceneFolder | null>(null);
@@ -138,6 +141,7 @@ export function GmApp() {
       !sceneDialog &&
       !folderDialog &&
       !folderColorDialog &&
+      !sceneColorDialog &&
       !campaignNameDialogOpen &&
       !playerDisplayDialogOpen &&
       !playerViewDisplayDialogOpen &&
@@ -159,6 +163,7 @@ export function GmApp() {
         setSceneDialog(null);
         setFolderDialog(null);
         setFolderColorDialog(null);
+        setSceneColorDialog(null);
         setCampaignNameDialogOpen(false);
         setPlayerDisplayDialogOpen(false);
         setPlayerViewDisplayDialogOpen(false);
@@ -190,6 +195,7 @@ export function GmApp() {
     playerDisplayDialogOpen,
     playerViewDisplayDialogOpen,
     playerMenuOpen,
+    sceneColorDialog,
     sceneDialog,
     sceneToDelete
   ]);
@@ -437,6 +443,33 @@ export function GmApp() {
       updatedAt: new Date().toISOString()
     });
     setFolderColorDialog(null);
+  };
+
+  const openSceneColorDialog = (kind: SceneColorDialog["kind"]) => {
+    if (!activeScene) {
+      return;
+    }
+    setSceneColorDialog({
+      kind,
+      title: kind === "fog" ? "Fog Color" : "Grid Color",
+      value: kind === "fog" ? activeScene.fog.color : activeScene.grid.color
+    });
+  };
+
+  const updateSceneColorDraft = (value: string) => {
+    setSceneColorDialog((dialog) => (dialog ? { ...dialog, value } : dialog));
+  };
+
+  const submitSceneColor = () => {
+    if (!sceneColorDialog) {
+      return;
+    }
+    if (sceneColorDialog.kind === "fog") {
+      updateFog({ color: sceneColorDialog.value });
+    } else {
+      updateGrid({ color: sceneColorDialog.value });
+    }
+    setSceneColorDialog(null);
   };
 
   const submitSceneName = () =>
@@ -765,6 +798,8 @@ export function GmApp() {
                   onSetLayerOrderLocked={setLayerOrderLocked}
                   onImportMap={importMap}
                   onDeleteMap={setMapAssetToDelete}
+                  onOpenFogColor={() => openSceneColorDialog("fog")}
+                  onOpenGridColor={() => openSceneColorDialog("grid")}
                 />
 
                 <section className="panel">
@@ -821,13 +856,23 @@ export function GmApp() {
         <div className="modal-backdrop" onMouseDown={() => setFolderColorDialog(null)}>
           <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
             <h2>Change Folder Color</h2>
-            <label>
-              {folderColorDialog.folderName}
-              <input type="color" value={newFolderColor} onChange={(event) => setNewFolderColor(event.target.value)} />
-            </label>
+            <ColorPickerField label={folderColorDialog.folderName} value={newFolderColor} onChange={setNewFolderColor} />
             <div className="button-row modal-actions">
               <button onClick={() => setFolderColorDialog(null)}>Cancel</button>
               <button onClick={submitFolderColor}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sceneColorDialog && (
+        <div className="modal-backdrop" onMouseDown={() => setSceneColorDialog(null)}>
+          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
+            <h2>{sceneColorDialog.title}</h2>
+            <ColorPickerField label="Color" value={sceneColorDialog.value} onChange={updateSceneColorDraft} />
+            <div className="button-row modal-actions">
+              <button onClick={() => setSceneColorDialog(null)}>Cancel</button>
+              <button onClick={submitSceneColor}>Save</button>
             </div>
           </div>
         </div>
