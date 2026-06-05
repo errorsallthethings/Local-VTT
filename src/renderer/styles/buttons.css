@@ -1,0 +1,81 @@
+.compact-button,
+.icon-button {
+  height: 30px;
+  min-width: 42px;
+  padding: 4px 7px;
+  font-size: 12px;
+}
+
+.icon-button {
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
+}
+
+.compact-button.danger,
+.icon-button.danger,
+.danger-button {
+  border-color: #6f3434;
+  background: #351d1f;
+  color: #ffd2d2;
+}
+
+.scene-save-dirty {
+  border-color: #2f8f5b;
+  background: #173525;
+  color: #a7f3c5;
+}
+
+.scene-save-dirty:hover:not(:disabled) {
+  background: #1d4630;
+}
+
+.scene-menu-wrap {
+  position: relative;
+}
+
+.scene-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 8;
+  display: grid;
+  gap: 4px;
+  min-width: 132px;
+  border: 1px solid #303a49;
+  border-radius: 8px;
+  background: #171e27;
+  box-shadow: 0 12px 34px rgb(0 0 0 / 0.38);
+  padding: 5px;
+}
+
+.scene-menu button {
+  justify-content: flex-start;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 7px 8px;
+}
+
+.scene-menu button:hover {
+  background: #253040;
+}
+
+.scene-menu .danger-menu-item {
+  color: #ffd2d2;
+}
+
+.scene-menu .danger-menu-item:hover {
+  background: #3b2023;
+}
+
+.toolbar-menu {
+  top: calc(100% + 8px);
+  min-width: 168px;
+}
+
+.compact-button.danger:hover:not(:disabled),
+.icon-button.danger:hover:not(:disabled),
+.danger-button:hover:not(:disabled) {
+  background: #482426;
+}

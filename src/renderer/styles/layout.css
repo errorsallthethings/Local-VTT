@@ -1,0 +1,256 @@
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--left-sidebar-width, 280px) minmax(420px, 1fr) var(--right-inspector-width, 330px);
+  height: 100vh;
+}
+
+.sidebar,
+.inspector {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  overflow: hidden;
+  border-color: #242c38;
+  background: #141a22;
+  padding: 14px;
+}
+
+.panel-region-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.sidebar {
+  border-right: 1px solid #242c38;
+}
+
+.inspector {
+  border-left: 1px solid #242c38;
+}
+
+.sidebar-collapsed .sidebar,
+.inspector-collapsed .inspector {
+  align-items: center;
+  padding: 8px 6px;
+}
+
+.panel-spine-label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  color: #aeb8c7;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+}
+
+.sidebar .panel-spine-label {
+  transform: rotate(180deg);
+}
+
+.panel-collapse-button {
+  position: absolute;
+  top: 14px;
+  z-index: 7;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  border-color: transparent;
+  background: transparent;
+  color: #8f9bad;
+  box-shadow: none;
+}
+
+.panel-collapse-button:hover:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  color: #dfe6ef;
+}
+
+.panel-collapse-button:active:not(:disabled) {
+  color: #7aa2f7;
+}
+
+.sidebar-collapse-button {
+  right: -1px;
+}
+
+.inspector-collapse-button {
+  left: -1px;
+}
+
+.panel-resize-handle {
+  position: absolute;
+  top: 0;
+  z-index: 6;
+  width: 12px;
+  min-width: 12px;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #627086;
+  padding: 0;
+  cursor: col-resize;
+}
+
+.panel-resize-handle:hover {
+  background: rgb(122 162 247 / 0.08);
+  color: #a9c1f7;
+}
+
+.panel-resize-handle-left {
+  right: -6px;
+}
+
+.panel-resize-handle-right {
+  left: -6px;
+}
+
+.resizing-panels,
+.resizing-panels * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 56px;
+}
+
+.brand h1,
+.topbar h2,
+.panel h2 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.brand h1 {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 24px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaign-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.campaign-title-row p {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaign-title-row .icon-button {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+}
+
+.panel-title-row {
+  justify-content: space-between;
+}
+
+.panel-title-row p {
+  margin: 0;
+  color: #f2f6fb;
+  font-size: 14px;
+}
+
+.campaign-action-row {
+  flex-wrap: nowrap;
+}
+
+.file-path-block {
+  display: grid;
+  gap: 4px;
+}
+
+.file-path-block > span {
+  color: #aeb8c7;
+  font-size: 12px;
+}
+
+.brand p,
+.topbar span,
+.panel p,
+.path-text {
+  margin: 4px 0 0;
+  color: #9aa6b7;
+  font-size: 13px;
+}
+
+.path-text {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) 32px;
+  min-width: 0;
+  min-height: 0;
+  background: #0d1117;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 72px;
+  border-bottom: 1px solid #242c38;
+  padding: 12px 16px;
+}
+
+.topbar h2 {
+  font-size: 19px;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  margin-bottom: -6px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  color: #f2f6fb;
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+.section-actions {
+  display: flex;
+  gap: 6px;
+}

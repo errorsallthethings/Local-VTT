@@ -1,7 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { type CSSProperties, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useState } from "react";
 import {
   FilePlus,
-  FolderPlus
+  FolderPlus,
+  GripVertical,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen
 } from "lucide-react";
 import { DEFAULT_VIDEO_PLAYBACK } from "../../shared/localvtt";
 import type {
@@ -35,6 +40,25 @@ import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 
 type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
 type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };
+type WorkspaceLayout = {
+  leftWidth: number;
+  rightWidth: number;
+  leftCollapsed: boolean;
+  rightCollapsed: boolean;
+};
+
+const WORKSPACE_LAYOUT_STORAGE_KEY = "localvtt.gmWorkspaceLayout";
+const DEFAULT_WORKSPACE_LAYOUT: WorkspaceLayout = {
+  leftWidth: 280,
+  rightWidth: 330,
+  leftCollapsed: false,
+  rightCollapsed: false
+};
+const MIN_LEFT_PANEL_WIDTH = 260;
+const MIN_RIGHT_PANEL_WIDTH = 250;
+const COMPACT_RIGHT_PANEL_WIDTH = 280;
+const MAX_PANEL_WIDTH = 520;
+const COLLAPSED_RAIL_WIDTH = 44;
 
 export function GmApp() {
   const workspace = useCampaignWorkspace();
@@ -79,6 +103,7 @@ export function GmApp() {
   const [newFolderName, setNewFolderName] = useState("New Folder");
   const [newCampaignName, setNewCampaignName] = useState("");
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
+  const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
 
   const mapAsset = useMemo(() => {
     if (!campaign || !activeScene?.mapAssetId) {
@@ -166,6 +191,10 @@ export function GmApp() {
   useEffect(() => {
     void refreshDisplays();
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(workspaceLayout));
+  }, [workspaceLayout]);
 
   const resetSceneLibraryUi = () => {
     setOpenSceneMenuId(null);
@@ -477,6 +506,55 @@ export function GmApp() {
     });
   };
 
+  const toggleWorkspacePanel = (side: "left" | "right") => {
+    setWorkspaceLayout((layout) =>
+      side === "left" ? { ...layout, leftCollapsed: !layout.leftCollapsed } : { ...layout, rightCollapsed: !layout.rightCollapsed }
+    );
+  };
+
+  const startPanelResize = (side: "left" | "right", event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = side === "left" ? workspaceLayout.leftWidth : workspaceLayout.rightWidth;
+
+    const resizePanel = (moveEvent: PointerEvent) => {
+      const delta = side === "left" ? moveEvent.clientX - startX : startX - moveEvent.clientX;
+      const minWidth = side === "left" ? MIN_LEFT_PANEL_WIDTH : MIN_RIGHT_PANEL_WIDTH;
+      const width = clamp(startWidth + delta, minWidth, MAX_PANEL_WIDTH);
+      setWorkspaceLayout((layout) => (side === "left" ? { ...layout, leftWidth: width } : { ...layout, rightWidth: width }));
+    };
+    const stopResize = () => {
+      document.body.classList.remove("resizing-panels");
+      window.removeEventListener("pointermove", resizePanel);
+      window.removeEventListener("pointerup", stopResize);
+    };
+
+    document.body.classList.add("resizing-panels");
+    window.addEventListener("pointermove", resizePanel);
+    window.addEventListener("pointerup", stopResize, { once: true });
+  };
+
+  const resetPanelWidth = (side: "left" | "right") => {
+    setWorkspaceLayout((layout) =>
+      side === "left"
+        ? { ...layout, leftWidth: DEFAULT_WORKSPACE_LAYOUT.leftWidth }
+        : { ...layout, rightWidth: DEFAULT_WORKSPACE_LAYOUT.rightWidth }
+    );
+  };
+
+  const appShellStyle = {
+    "--left-sidebar-width": `${workspaceLayout.leftCollapsed ? COLLAPSED_RAIL_WIDTH : workspaceLayout.leftWidth}px`,
+    "--right-inspector-width": `${workspaceLayout.rightCollapsed ? COLLAPSED_RAIL_WIDTH : workspaceLayout.rightWidth}px`
+  } as CSSProperties;
+  const appShellClassName = [
+    "app-shell",
+    workspaceLayout.leftCollapsed ? "sidebar-collapsed" : "",
+    workspaceLayout.rightCollapsed ? "inspector-collapsed" : "",
+    !workspaceLayout.rightCollapsed && workspaceLayout.rightWidth <= COMPACT_RIGHT_PANEL_WIDTH ? "inspector-compact" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   useEffect(() => {
     const removeListener = window.localVtt.onSaveBeforeClose(() => {
       void saveCampaign().then((ok) => {
@@ -489,57 +567,81 @@ export function GmApp() {
   });
 
   return (
-    <div className="app-shell">
+    <div className={appShellClassName} style={appShellStyle}>
       <aside className="sidebar">
-        <header className="brand">
-          <h1>Local VTT</h1>
-        </header>
+        <button
+          className="icon-button panel-collapse-button sidebar-collapse-button"
+          aria-label={workspaceLayout.leftCollapsed ? "Expand left sidebar" : "Collapse left sidebar"}
+          title={workspaceLayout.leftCollapsed ? "Expand left sidebar" : "Collapse left sidebar"}
+          onClick={() => toggleWorkspacePanel("left")}
+        >
+          {workspaceLayout.leftCollapsed ? <PanelLeftOpen size={16} aria-hidden="true" /> : <PanelLeftClose size={16} aria-hidden="true" />}
+        </button>
+        {workspaceLayout.leftCollapsed && <div className="panel-spine-label">Campaign / Scenes</div>}
+        {!workspaceLayout.leftCollapsed && (
+          <div className="panel-region-content">
+            <header className="brand">
+              <h1>Local VTT</h1>
+            </header>
 
-        <div className="section-heading">
-          <h2>Campaign</h2>
-        </div>
-        <CampaignPanel
-          campaign={campaign}
-          campaignPath={campaignPath}
-          missingAssets={missingAssets}
-          hasUnsavedChanges={hasUnsavedChanges}
-          onCreateCampaign={createCampaign}
-          onOpenCampaign={openCampaign}
-          onSaveCampaign={() => void saveCampaign()}
-          onRenameCampaign={openCampaignRenameDialog}
-        />
+            <div className="section-heading">
+              <h2>Campaign</h2>
+            </div>
+            <CampaignPanel
+              campaign={campaign}
+              campaignPath={campaignPath}
+              missingAssets={missingAssets}
+              hasUnsavedChanges={hasUnsavedChanges}
+              onCreateCampaign={createCampaign}
+              onOpenCampaign={openCampaign}
+              onSaveCampaign={() => void saveCampaign()}
+              onRenameCampaign={openCampaignRenameDialog}
+            />
 
-        <div className="section-heading">
-          <h2>Scenes</h2>
-          <div className="section-actions">
-            <button className="icon-button" disabled={!campaignPath} aria-label="Add Scene" title="Add Scene" onClick={openSceneDialog}>
-              <FilePlus size={16} aria-hidden="true" />
-            </button>
-            <button className="icon-button" disabled={!campaign} aria-label="Add Scene Folder" title="Add Scene Folder" onClick={openFolderDialog}>
-              <FolderPlus size={16} aria-hidden="true" />
-            </button>
+            <div className="section-heading">
+              <h2>Scenes</h2>
+              <div className="section-actions">
+                <button className="icon-button" disabled={!campaignPath} aria-label="Add Scene" title="Add Scene" onClick={openSceneDialog}>
+                  <FilePlus size={16} aria-hidden="true" />
+                </button>
+                <button className="icon-button" disabled={!campaign} aria-label="Add Scene Folder" title="Add Scene Folder" onClick={openFolderDialog}>
+                  <FolderPlus size={16} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+            <SceneLibraryPanel
+              campaign={campaign}
+              activeScene={activeScene}
+              dirtySceneIds={dirtySceneIds}
+              sceneThumbnailAssets={sceneThumbnailAssets}
+              collapsedFolderIds={collapsedFolderIds}
+              openSceneMenuId={openSceneMenuId}
+              openFolderMenuId={openFolderMenuId}
+              onLoadScene={(sceneId) => void loadScene(sceneId)}
+              onSaveScene={(sceneId) => void saveSceneById(sceneId)}
+              onSaveFolderScenes={(folderId) => void saveFolderScenes(folderId)}
+              onMoveSceneToFolder={moveSceneToFolder}
+              onToggleFolderCollapsed={toggleFolderCollapsed}
+              onToggleSceneMenu={(sceneId) => setOpenSceneMenuId(openSceneMenuId === sceneId ? null : sceneId)}
+              onToggleFolderMenu={(folderId) => setOpenFolderMenuId(openFolderMenuId === folderId ? null : folderId)}
+              onRenameScene={openRenameDialog}
+              onDeleteScene={setSceneToDelete}
+              onRenameFolder={openRenameFolderDialog}
+              onDeleteFolder={setFolderToDelete}
+            />
           </div>
-        </div>
-        <SceneLibraryPanel
-          campaign={campaign}
-          activeScene={activeScene}
-          dirtySceneIds={dirtySceneIds}
-          sceneThumbnailAssets={sceneThumbnailAssets}
-          collapsedFolderIds={collapsedFolderIds}
-          openSceneMenuId={openSceneMenuId}
-          openFolderMenuId={openFolderMenuId}
-          onLoadScene={(sceneId) => void loadScene(sceneId)}
-          onSaveScene={(sceneId) => void saveSceneById(sceneId)}
-          onSaveFolderScenes={(folderId) => void saveFolderScenes(folderId)}
-          onMoveSceneToFolder={moveSceneToFolder}
-          onToggleFolderCollapsed={toggleFolderCollapsed}
-          onToggleSceneMenu={(sceneId) => setOpenSceneMenuId(openSceneMenuId === sceneId ? null : sceneId)}
-          onToggleFolderMenu={(folderId) => setOpenFolderMenuId(openFolderMenuId === folderId ? null : folderId)}
-          onRenameScene={openRenameDialog}
-          onDeleteScene={setSceneToDelete}
-          onRenameFolder={openRenameFolderDialog}
-          onDeleteFolder={setFolderToDelete}
-        />
+        )}
+        {!workspaceLayout.leftCollapsed && (
+          <button
+            className="panel-resize-handle panel-resize-handle-left"
+            aria-label="Resize left sidebar"
+            title="Drag to resize. Double-click to reset."
+            onDoubleClick={() => resetPanelWidth("left")}
+            onPointerDown={(event) => startPanelResize("left", event)}
+          >
+            <GripVertical size={14} aria-hidden="true" />
+          </button>
+        )}
       </aside>
 
       <main className="workspace">
@@ -553,7 +655,7 @@ export function GmApp() {
           onClosePlayerView={closePlayerView}
         />
 
-        {error && <div className="error-banner">{error}</div>}
+        <div className={error ? "error-banner" : "error-banner error-banner-empty"}>{error}</div>
 
         <div className="canvas-stage">
           {activeScene && (
@@ -611,32 +713,56 @@ export function GmApp() {
       </main>
 
       <aside className="inspector">
-        {activeScene ? (
-          <>
-            <LayerPanel
-              scene={activeScene}
-              mapAsset={mapAsset}
-              onChange={updateScene}
-              onUpdateGrid={updateGrid}
-              onUpdateFog={updateFog}
-              onUpdateMapTransform={updateMapTransform}
-              onFitGridToMapDimensions={fitGridToMapDimensions}
-              onMoveLayer={moveLayer}
-              onSetLayerOrderLocked={setLayerOrderLocked}
-              onImportMap={importMap}
-              onDeleteMap={setMapAssetToDelete}
-            />
+        <button
+          className="icon-button panel-collapse-button inspector-collapse-button"
+          aria-label={workspaceLayout.rightCollapsed ? "Expand right inspector" : "Collapse right inspector"}
+          title={workspaceLayout.rightCollapsed ? "Expand right inspector" : "Collapse right inspector"}
+          onClick={() => toggleWorkspacePanel("right")}
+        >
+          {workspaceLayout.rightCollapsed ? <PanelRightOpen size={16} aria-hidden="true" /> : <PanelRightClose size={16} aria-hidden="true" />}
+        </button>
+        {workspaceLayout.rightCollapsed && <div className="panel-spine-label">Layers</div>}
+        {!workspaceLayout.rightCollapsed && (
+          <div className="panel-region-content">
+            {activeScene ? (
+              <>
+                <LayerPanel
+                  scene={activeScene}
+                  mapAsset={mapAsset}
+                  onChange={updateScene}
+                  onUpdateGrid={updateGrid}
+                  onUpdateFog={updateFog}
+                  onUpdateMapTransform={updateMapTransform}
+                  onFitGridToMapDimensions={fitGridToMapDimensions}
+                  onMoveLayer={moveLayer}
+                  onSetLayerOrderLocked={setLayerOrderLocked}
+                  onImportMap={importMap}
+                  onDeleteMap={setMapAssetToDelete}
+                />
 
-            <section className="panel">
-              <h2>Phase Placeholders</h2>
-              <p>Fog, tokens, walls, lights, drawings, measurements, and animated overlays are typed in the scene model and ready for later renderer tools.</p>
-            </section>
-          </>
-        ) : (
-          <section className="panel">
-            <h2>Ready</h2>
-            <p>Create a campaign, add a scene, import a map, then send it to Player View.</p>
-          </section>
+                <section className="panel">
+                  <h2>Phase Placeholders</h2>
+                  <p>Fog, tokens, walls, lights, drawings, measurements, and animated overlays are typed in the scene model and ready for later renderer tools.</p>
+                </section>
+              </>
+            ) : (
+              <section className="panel">
+                <h2>Ready</h2>
+                <p>Create a campaign, add a scene, import a map, then send it to Player View.</p>
+              </section>
+            )}
+          </div>
+        )}
+        {!workspaceLayout.rightCollapsed && (
+          <button
+            className="panel-resize-handle panel-resize-handle-right"
+            aria-label="Resize right inspector"
+            title="Drag to resize. Double-click to reset."
+            onDoubleClick={() => resetPanelWidth("right")}
+            onPointerDown={(event) => startPanelResize("right", event)}
+          >
+            <GripVertical size={14} aria-hidden="true" />
+          </button>
         )}
       </aside>
 
@@ -759,4 +885,26 @@ function loadImageDimensions(src: string): Promise<{ width: number; height: numb
     image.onerror = () => reject(new Error("Unable to read the selected map image dimensions."));
     image.src = src;
   });
+}
+
+function loadWorkspaceLayout(): WorkspaceLayout {
+  try {
+    const value = window.localStorage.getItem(WORKSPACE_LAYOUT_STORAGE_KEY);
+    if (!value) {
+      return DEFAULT_WORKSPACE_LAYOUT;
+    }
+    const parsed = JSON.parse(value) as Partial<WorkspaceLayout>;
+    return {
+      leftWidth: clamp(parsed.leftWidth ?? DEFAULT_WORKSPACE_LAYOUT.leftWidth, MIN_LEFT_PANEL_WIDTH, MAX_PANEL_WIDTH),
+      rightWidth: clamp(parsed.rightWidth ?? DEFAULT_WORKSPACE_LAYOUT.rightWidth, MIN_RIGHT_PANEL_WIDTH, MAX_PANEL_WIDTH),
+      leftCollapsed: parsed.leftCollapsed ?? DEFAULT_WORKSPACE_LAYOUT.leftCollapsed,
+      rightCollapsed: parsed.rightCollapsed ?? DEFAULT_WORKSPACE_LAYOUT.rightCollapsed
+    };
+  } catch {
+    return DEFAULT_WORKSPACE_LAYOUT;
+  }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }

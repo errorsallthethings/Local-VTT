@@ -1,0 +1,160 @@
+.canvas-stage {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  background: #05070a;
+}
+
+.scene-canvas-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+.scene-video-map {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  max-height: none;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.scene-canvas {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+  z-index: 1;
+}
+
+.scene-canvas:active {
+  cursor: grabbing;
+}
+
+.scene-canvas.scene-canvas-tool-brush,
+.scene-canvas.scene-canvas-tool-rectangle,
+.scene-canvas.scene-canvas-tool-polygon {
+  cursor: crosshair;
+}
+
+.scene-canvas.scene-canvas-tool-brush:active,
+.scene-canvas.scene-canvas-tool-rectangle:active,
+.scene-canvas.scene-canvas-tool-polygon:active {
+  cursor: crosshair;
+}
+
+.scene-canvas.scene-canvas-panning,
+.scene-canvas.scene-canvas-panning:active {
+  cursor: grabbing;
+}
+
+.fog-tool-status {
+  position: absolute;
+  left: 10px;
+  bottom: 12px;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  max-width: min(760px, calc(100% - 24px));
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: rgb(8 12 18 / 0.82);
+  color: #d7e0ec;
+  padding: 7px 9px;
+  font-size: 12px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.fog-tool-status strong {
+  color: #f2f6fb;
+}
+
+.video-debug {
+  position: absolute;
+  right: 10px;
+  bottom: 56px;
+  z-index: 2;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: rgb(8 12 18 / 0.78);
+  color: #d7e0ec;
+  padding: 6px 8px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre;
+  pointer-events: none;
+}
+
+.gm-view-settings {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 4;
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.gm-view-settings > .icon-button {
+  border-color: #425066;
+  background: rgb(23 30 39 / 0.92);
+  box-shadow: 0 8px 26px rgb(0 0 0 / 0.34);
+}
+
+.gm-settings-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  display: grid;
+  gap: 4px;
+  min-width: 220px;
+  border: 1px solid #303a49;
+  border-radius: 8px;
+  background: #171e27;
+  box-shadow: 0 12px 34px rgb(0 0 0 / 0.38);
+  padding: 5px;
+}
+
+.gm-settings-menu button {
+  justify-content: flex-start;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 8px;
+}
+
+.gm-settings-menu button:hover:not(:disabled) {
+  background: #253040;
+}
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  overflow: hidden;
+  border-top: 1px solid #242c38;
+  color: #9aa6b7;
+  padding: 0 14px;
+  font-size: 12px;
+}
+
+.statusbar span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

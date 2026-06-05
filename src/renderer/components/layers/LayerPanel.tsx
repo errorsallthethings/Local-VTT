@@ -2,12 +2,21 @@ import { useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
-  ChevronDown,
-  ChevronRight,
+  Box,
+  CloudFog,
+  CloudSun,
+  Grid3X3,
   Import,
+  Image,
+  Layers,
+  Lightbulb,
   Lock,
+  Settings,
+  Shield,
+  Sparkles,
   Trash2,
-  Unlock
+  Unlock,
+  UsersRound
 } from "lucide-react";
 import type { Asset, FogSettings, GridSettings, GridType, Layer, MapTransform, Scene } from "../../../shared/localvtt";
 import { DebouncedNumberInput } from "../controls/DebouncedNumberInput";
@@ -101,19 +110,12 @@ export function LayerPanel({
           const isExpanded = expandedLayerIds.has(layer.id);
           return (
             <div className={isExpandable ? "layer-row expandable-layer-row" : "layer-row"} key={layer.id}>
-              {isExpandable ? (
-                <button
-                  className="icon-button layer-expand-button"
-                  aria-label={isExpanded ? `Collapse ${layer.name}` : `Expand ${layer.name}`}
-                  title={isExpanded ? "Collapse layer settings" : "Expand layer settings"}
-                  onClick={() => toggleLayerExpanded(layer.id)}
-                >
-                  {isExpanded ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
-                </button>
-              ) : (
-                <span className="layer-expand-spacer" aria-hidden="true" />
-              )}
-              <span>{layer.name}</span>
+              <span className="layer-kind-icon" title={layer.name} aria-hidden="true">
+                {getLayerIcon(layer)}
+              </span>
+              <span className="layer-name" title={layer.name}>
+                {layer.name}
+              </span>
               <label title="Visible in GM View">
                 GM
                 <input
@@ -130,6 +132,15 @@ export function LayerPanel({
                   onChange={(event) => updateLayer(layer.id, { visibleInPlayer: event.target.checked })}
                 />
               </label>
+              <button
+                className={isExpanded ? "icon-button layer-settings-button layer-settings-active" : "icon-button layer-settings-button"}
+                aria-label={isExpandable ? (isExpanded ? `Collapse ${layer.name} settings` : `Expand ${layer.name} settings`) : `${layer.name} settings unavailable`}
+                title={isExpandable ? (isExpanded ? "Collapse layer settings" : "Expand layer settings") : "No layer settings yet"}
+                disabled={!isExpandable}
+                onClick={() => toggleLayerExpanded(layer.id)}
+              >
+                <Settings size={15} aria-hidden="true" />
+              </button>
               {!scene.layerOrderLocked && (
                 <div className="layer-order-controls">
                   <button
@@ -381,6 +392,31 @@ export function LayerPanel({
       </div>
     </section>
   );
+}
+
+function getLayerIcon(layer: Layer) {
+  switch (layer.kind) {
+    case "map":
+      return <Image size={16} />;
+    case "grid":
+      return <Grid3X3 size={16} />;
+    case "fog":
+      return <CloudFog size={16} />;
+    case "weather":
+      return <CloudSun size={16} />;
+    case "token":
+      return <UsersRound size={16} />;
+    case "foreground":
+      return <Layers size={16} />;
+    case "object":
+      return <Box size={16} />;
+    case "lighting":
+      return <Lightbulb size={16} />;
+    case "gm":
+      return <Shield size={16} />;
+    default:
+      return <Sparkles size={16} />;
+  }
 }
 
 function getFitModeHelp(fitMode: MapTransform["fitMode"]): string {

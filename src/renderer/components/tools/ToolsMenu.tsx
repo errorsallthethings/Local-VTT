@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Eye, Paintbrush, Square, Trash2, Triangle, Undo2 } from "lucide-react";
+import { CloudFog, Paintbrush, Square, Trash2, Triangle, Undo2 } from "lucide-react";
 import type { FogTool } from "../../canvas/fogRenderer";
 
 export type FogOperation = "reveal" | "hide";
@@ -63,7 +63,7 @@ export function ToolsMenu({
             }
           }}
         >
-          <Eye size={18} aria-hidden="true" />
+          <CloudFog size={18} aria-hidden="true" />
         </button>
       </div>
 

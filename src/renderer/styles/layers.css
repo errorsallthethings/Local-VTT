@@ -1,0 +1,103 @@
+.layer-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+  gap: 6px;
+  align-items: center;
+  border: 1px solid #293241;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.expandable-layer-row {
+  align-items: center;
+}
+
+.layer-kind-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  border: 1px solid #303a49;
+  border-radius: 5px;
+  background: #151c25;
+  color: #a9c1f7;
+}
+
+.layer-settings-button {
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  border-color: transparent;
+  background: transparent;
+  color: #aeb8c7;
+}
+
+.layer-settings-button:hover:not(:disabled),
+.layer-settings-active {
+  background: #253040;
+  color: #dfe6ef;
+}
+
+.layer-order-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.layer-detail-controls {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid #293241;
+  padding-top: 8px;
+  min-width: 0;
+}
+
+.map-layer-controls {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.map-layer-controls label,
+.map-layer-controls .panel-subgrid {
+  grid-column: 1 / -1;
+}
+
+.stacked-control {
+  display: grid !important;
+  gap: 6px;
+  align-items: stretch !important;
+}
+
+.control-divider {
+  height: 1px;
+  background: #293241;
+}
+
+.layer-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-row .layer-name {
+  color: #dfe6ef;
+}
+
+.inspector-compact .layer-row {
+  grid-template-columns: auto auto auto auto;
+}
+
+.inspector-compact .layer-name {
+  display: none;
+}
+
+.inspector-compact .layer-row label {
+  gap: 4px;
+}
+
+.inspector-compact .layer-order-controls {
+  grid-column: 1 / -1;
+  justify-content: end;
+}
