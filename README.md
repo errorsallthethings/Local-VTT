@@ -52,6 +52,12 @@ Build renderer and Electron files:
 npm run build
 ```
 
+Run the Vitest suite:
+
+```bash
+npm test
+```
+
 ## Packaging Notes
 
 Packaging is configured with `electron-builder`, but signing, notarization, icons, auto-update, and installer polish are deferred.
@@ -83,18 +89,23 @@ npm run package:win
 - Basic default layer model.
 - Missing asset warnings.
 
-## Phase 2A Started
+## Phase 2A Implemented / In Progress
 
 - `.mp4` and `.webm` maps can be imported as video map assets.
 - Video maps render in the GM and Player canvas, muted and looped.
 - Video map playback can be paused/resumed, muted/unmuted, and inspected with optional diagnostics from the GM settings menu.
+- Video map scenes show a lightweight video thumbnail fallback in the scene list.
 - Animated `.gif` image maps are redrawn continuously when used as the active map.
 - Grid mode supports gridless, square, and hex options from the Grid Layer.
 - Static image maps can use known map grid dimensions, such as 44x25, to calculate a matching grid cell size.
 - Player View can be opened, fullscreened, exited from fullscreen, and closed from the Player View menu.
+- Player View can target a saved display and optionally open fullscreen there. If the saved display is missing, LocalVTT falls back to a normal draggable Player View window.
 - Player Display Scale is available from the GM settings menu.
 - Measurement settings are available from the GM settings menu.
 - Static image scene thumbnails are shown in the scene list when available.
+- GM View side panels can be resized, collapsed, and restored with persistent local workspace layout preferences.
+- Scene folders support collapse state persistence, drag/drop targets, folder colors, and color preset swatches.
+- CSS design tokens are defined in `src/renderer/styles/base.css` to support repeated UI values and future theme work.
 
 ## Map Fit Modes
 
@@ -137,20 +148,31 @@ Manual fog of war is currently implemented with a floating GM canvas Tools Menu.
 - The Campaign panel contains campaign name editing, New/Open/Save Campaign actions, and the local campaign file path.
 - The Scene list uses compact scene cards with the scene name, thumbnail preview, per-scene save button, and scene actions menu.
 - Scene folders can organize scenes in the sidebar. Scenes can be dragged into folders or back to Unfiled Scenes.
-- Folder actions support rename, delete, and saving all dirty scenes in that folder.
+- Scene folders visually wrap their scenes, can be collapsed, and can use custom folder colors.
+- Folder actions support rename, color, delete, and saving all dirty scenes in that folder.
+- Deleting a folder does not delete its scenes; scenes in that folder move back to Unfiled Scenes.
 - Layer settings are collapsible. Map, Grid, and Fog of War layer settings expand only when needed.
+- Fog and Grid color controls use compact color rows that open a modal picker with native color selection and reusable swatches.
 - The floating Tools Menu is intended to become the home for future GM tools such as drawings, ruler, pings, walls, lighting, and tokens.
+
+## Styling Notes
+
+- Global styles are split across focused files in `src/renderer/styles/`, with `src/renderer/styles.css` serving as the import manifest.
+- Shared CSS custom properties live in `src/renderer/styles/base.css`.
+- Current color preset swatches are centralized in `src/renderer/components/controls/ColorPickerField.tsx`.
+- The current UI is dark-theme-first. The token structure is intended to make later light/custom themes easier without adding Sass/Less yet.
 
 ## Roadmap
 
-- Near-term: scene folder polish, including folder ordering, folder collapse/expand state, and stronger drag/drop affordances.
+- Near-term: scene folder ordering and any remaining drag/drop affordance polish.
 - Near-term: polish static and video scene thumbnails, including video first-frame thumbnails if reliable cross-platform.
-- Phase 2: Player View fullscreen targeting, display calibration refinement, hex/gridless polish, improved grid alignment.
-- Phase 3: manual fog of war polish, player-preview mode, fog persistence refinements, and later vision-aware fog structures.
+- Phase 2: display calibration refinement, hex/gridless polish, improved grid alignment, and continued GM workspace polish.
+- Phase 3: manual fog of war polish, fog shape management, player-preview mode, fog persistence refinements, and later vision-aware fog structures.
 - Phase 4: GM tokens, optional player-visible tokens, token image import, aura, light/vision data model.
 - Phase 5: wall, door, and window drawing and editing.
 - Phase 6: light sources, ambient light/darkness, bright/dim radius, optional wall-blocked lighting.
 - Phase 7: drawings, pings, laser pointer, ruler, and spell templates.
 - Phase 8: imported animated overlays/effects, opacity/scale/rotation, optional polygon masking.
+- Future polish: typed localization/string resources once UI wording stabilizes.
 
 Deferred features are represented in the TypeScript scene model so saved data can evolve without a redesign.
