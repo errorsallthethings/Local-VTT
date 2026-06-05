@@ -1,5 +1,5 @@
 # Local VTT
-LocalVTT is a lightweight, local-first Electron desktop app focodr in-person tabletop RPG sessions. It is designed for a Game Master with a private control display and a second player-facing display, such as a TV used as a physical battle map.
+LocalVTT is a lightweight, local-first Electron desktop app for in-person tabletop RPG sessions. It is designed for a Game Master with a private control display and a second player-facing display, such as a TV used as a physical battle map.
 
 No login, accounts, cloud sync, or internet connection are required during use. Campaigns are stored as portable local folders.
 

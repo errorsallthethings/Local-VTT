@@ -27,6 +27,7 @@ let lastPlayerProjection: unknown = null;
 let gmHasUnsavedChanges = false;
 let forceCloseGmWindow = false;
 const openedCampaignPaths = new Set<string>();
+const knownAssetPaths = new Set<string>();
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -102,7 +103,7 @@ function sceneFile(campaignPath: string, sceneId: string): string {
 
 function resolveAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
   const normalizedCampaign = normalizeCampaign(campaign);
-  return {
+  const resolvedCampaign = {
     ...normalizedCampaign,
     assets: normalizedCampaign.assets.map((asset) => ({
       ...asset,
@@ -110,6 +111,8 @@ function resolveAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
       thumbnailAbsolutePath: asset.thumbnailRelativePath ? path.resolve(campaignPath, asset.thumbnailRelativePath) : undefined
     }))
   };
+  registerAssetPaths(resolvedCampaign);
+  return resolvedCampaign;
 }
 
 function assertInsideCampaign(campaignPath: string, candidatePath: string): void {
@@ -123,6 +126,17 @@ function assertInsideCampaign(campaignPath: string, candidatePath: string): void
 
 function registerCampaignPath(campaignPath: string): void {
   openedCampaignPaths.add(path.resolve(campaignPath));
+}
+
+function registerAssetPaths(campaign: Campaign): void {
+  for (const asset of normalizeCampaign(campaign).assets) {
+    if (asset.absolutePath) {
+      knownAssetPaths.add(path.resolve(asset.absolutePath));
+    }
+    if (asset.thumbnailAbsolutePath) {
+      knownAssetPaths.add(path.resolve(asset.thumbnailAbsolutePath));
+    }
+  }
 }
 
 function assertKnownCampaignPath(campaignPath: string): void {
@@ -140,6 +154,10 @@ function isInsideOpenedCampaign(candidatePath: string): boolean {
       return false;
     }
   });
+}
+
+function isKnownAssetPath(candidatePath: string): boolean {
+  return knownAssetPaths.has(path.resolve(candidatePath));
 }
 
 async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSummary> {
@@ -312,8 +330,8 @@ app.whenReady().then(() => {
     }
 
     const filePath = path.resolve(decodeURIComponent(url.pathname.slice(1)));
-    if (!isInsideOpenedCampaign(filePath)) {
-      return new Response("LocalVTT asset is outside an opened campaign folder.", { status: 403 });
+    if (!isInsideOpenedCampaign(filePath) || !isKnownAssetPath(filePath)) {
+      return new Response("LocalVTT asset is not registered for an opened campaign.", { status: 403 });
     }
     return net.fetch(pathToFileURL(filePath).toString());
   });
