@@ -44,6 +44,7 @@ export interface DisplayCalibration {
   mode: "manual" | "screen-size" | "grid-cell";
   selectedDisplayId?: number;
   selectedDisplayLabel?: string;
+  openPlayerViewFullscreen: boolean;
   pixelsPerInch: number;
   inchesPerGridCell: number;
   screenDiagonalInches: number;
@@ -275,6 +276,7 @@ export const DEFAULT_GRID: GridSettings = {
 export const DEFAULT_CALIBRATION: DisplayCalibration = {
   physicalScaleEnabled: false,
   mode: "manual",
+  openPlayerViewFullscreen: false,
   pixelsPerInch: 100,
   inchesPerGridCell: 1,
   screenDiagonalInches: 23.8,

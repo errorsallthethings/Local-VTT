@@ -25,6 +25,7 @@ import { SceneCanvas } from "../components/SceneCanvas";
 import { SceneLibraryPanel } from "../components/scenes/SceneLibraryPanel";
 import { MeasurementPanel } from "../components/settings/MeasurementPanel";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
+import { PlayerViewDisplayPanel } from "../components/settings/PlayerViewDisplayPanel";
 import { ToolsMenu, type FogOperation } from "../components/tools/ToolsMenu";
 import { GmSettingsMenu } from "../components/workspace/GmSettingsMenu";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
@@ -49,6 +50,7 @@ export function GmApp() {
     campaignDirty,
     saveState,
     error,
+    setError,
     dirtyCount,
     hasUnsavedChanges,
     run,
@@ -69,6 +71,7 @@ export function GmApp() {
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
   const [gmSettingsOpen, setGmSettingsOpen] = useState(false);
   const [playerDisplayDialogOpen, setPlayerDisplayDialogOpen] = useState(false);
+  const [playerViewDisplayDialogOpen, setPlayerViewDisplayDialogOpen] = useState(false);
   const [measurementDialogOpen, setMeasurementDialogOpen] = useState(false);
   const [activeFogTool, setActiveFogTool] = useState<FogTool | null>(null);
   const [fogOperation, setFogOperation] = useState<FogOperation>("reveal");
@@ -108,6 +111,7 @@ export function GmApp() {
       !folderDialog &&
       !campaignNameDialogOpen &&
       !playerDisplayDialogOpen &&
+      !playerViewDisplayDialogOpen &&
       !measurementDialogOpen &&
       !sceneToDelete &&
       !folderToDelete &&
@@ -127,6 +131,7 @@ export function GmApp() {
         setFolderDialog(null);
         setCampaignNameDialogOpen(false);
         setPlayerDisplayDialogOpen(false);
+        setPlayerViewDisplayDialogOpen(false);
         setMeasurementDialogOpen(false);
         setSceneToDelete(null);
         setFolderToDelete(null);
@@ -152,6 +157,7 @@ export function GmApp() {
     openFolderMenuId,
     openSceneMenuId,
     playerDisplayDialogOpen,
+    playerViewDisplayDialogOpen,
     playerMenuOpen,
     sceneDialog,
     sceneToDelete
@@ -433,8 +439,14 @@ export function GmApp() {
       if (!campaign || !activeScene) {
         return;
       }
-      await window.localVtt.openPlayerView();
+      const openResult = await window.localVtt.openPlayerView({
+        displayId: campaign.playerDisplay.selectedDisplayId,
+        fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
+      });
       await window.localVtt.sendSceneToPlayer(campaign, activeScene);
+      if (!openResult.displayFound && campaign.playerDisplay.selectedDisplayLabel) {
+        setError(`Saved Player View display not found: ${campaign.playerDisplay.selectedDisplayLabel}. Opened Player View normally.`);
+      }
     });
 
   const setPlayerFullscreen = (fullscreen: boolean) =>
@@ -571,6 +583,10 @@ export function GmApp() {
               setPlayerDisplayDialogOpen(true);
               setGmSettingsOpen(false);
             }}
+            onOpenPlayerViewDisplay={() => {
+              setPlayerViewDisplayDialogOpen(true);
+              setGmSettingsOpen(false);
+            }}
             onOpenMeasurement={() => {
               setMeasurementDialogOpen(true);
               setGmSettingsOpen(false);
@@ -660,6 +676,17 @@ export function GmApp() {
         <SettingsModal onClose={() => setPlayerDisplayDialogOpen(false)}>
           <PlayerDisplayScalePanel
             scene={activeScene}
+            calibration={campaign.playerDisplay}
+            displays={displays}
+            onApply={updatePlayerDisplay}
+            onRefreshDisplays={refreshDisplays}
+          />
+        </SettingsModal>
+      )}
+
+      {playerViewDisplayDialogOpen && campaign && (
+        <SettingsModal onClose={() => setPlayerViewDisplayDialogOpen(false)}>
+          <PlayerViewDisplayPanel
             calibration={campaign.playerDisplay}
             displays={displays}
             onApply={updatePlayerDisplay}

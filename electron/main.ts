@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, screen } from "electron";
 import { copyFile, mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -635,7 +635,7 @@ ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: 
   return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: updatedScene };
 });
 
-ipcMain.handle("player:open", async () => {
+ipcMain.handle("player:open", async (_event, options?: { displayId?: number; fullscreen?: boolean }) => {
   if (playerWindow?.isDestroyed()) {
     playerWindow = null;
   }
@@ -645,12 +645,20 @@ ipcMain.handle("player:open", async () => {
       playerWindow = null;
     });
   }
+  const targetDisplay = typeof options?.displayId === "number" ? screen.getAllDisplays().find((display) => display.id === options.displayId) : null;
+  if (targetDisplay) {
+    playerWindow.setFullScreen(false);
+    playerWindow.setBounds(targetDisplay.bounds);
+  }
   playerWindow.show();
   playerWindow.focus();
+  if (options?.fullscreen && targetDisplay) {
+    playerWindow.setFullScreen(true);
+  }
   if (lastPlayerProjection) {
     sendToPlayerWhenReady(lastPlayerProjection);
   }
-  return true;
+  return { ok: true, displayFound: typeof options?.displayId === "number" ? Boolean(targetDisplay) : true };
 });
 
 ipcMain.handle("player:sendScene", async (_event, campaign: Campaign, scene: Scene) => {
@@ -693,7 +701,6 @@ ipcMain.handle("player:close", async () => {
 ipcMain.handle("player:getLastState", async () => lastPlayerProjection);
 
 ipcMain.handle("app:getDisplays", async () => {
-  const { screen } = await import("electron");
   return screen.getAllDisplays().map((display) => ({
     id: display.id,
     label: display.label,

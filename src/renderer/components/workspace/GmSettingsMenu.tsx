@@ -9,6 +9,7 @@ interface GmSettingsMenuProps {
   videoPlayback: VideoPlaybackSettings;
   onToggleOpen: () => void;
   onOpenPlayerDisplayScale: () => void;
+  onOpenPlayerViewDisplay: () => void;
   onOpenMeasurement: () => void;
   onUpdateVideoPlayback: (patch: Partial<VideoPlaybackSettings>) => void;
 }
@@ -21,6 +22,7 @@ export function GmSettingsMenu({
   videoPlayback,
   onToggleOpen,
   onOpenPlayerDisplayScale,
+  onOpenPlayerViewDisplay,
   onOpenMeasurement,
   onUpdateVideoPlayback
 }: GmSettingsMenuProps) {
@@ -34,6 +36,10 @@ export function GmSettingsMenu({
           <button disabled={!campaign || !activeScene} onClick={onOpenPlayerDisplayScale}>
             <MonitorUp size={14} aria-hidden="true" />
             Player Display Scale
+          </button>
+          <button disabled={!campaign} onClick={onOpenPlayerViewDisplay}>
+            <MonitorUp size={14} aria-hidden="true" />
+            Player View Display
           </button>
           <button disabled={!activeScene} onClick={onOpenMeasurement}>
             <Ruler size={14} aria-hidden="true" />

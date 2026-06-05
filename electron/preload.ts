@@ -20,7 +20,8 @@ const api = {
     ipcRenderer.invoke("asset:importMap", campaignPath) as Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>,
   deleteMapAsset: (campaignPath: string, sceneId: string, assetId: string) =>
     ipcRenderer.invoke("asset:deleteMap", campaignPath, sceneId, assetId) as Promise<{ campaignSummary: CampaignSummary; scene: Scene }>,
-  openPlayerView: () => ipcRenderer.invoke("player:open") as Promise<boolean>,
+  openPlayerView: (options?: { displayId?: number; fullscreen?: boolean }) =>
+    ipcRenderer.invoke("player:open", options) as Promise<{ ok: boolean; displayFound: boolean }>,
   sendSceneToPlayer: (campaign: Campaign, scene: Scene) =>
     ipcRenderer.invoke("player:sendScene", campaign, scene) as Promise<boolean>,
   updatePlayerSceneIfOpen: (campaign: Campaign, scene: Scene) =>

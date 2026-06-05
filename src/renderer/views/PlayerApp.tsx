@@ -71,6 +71,7 @@ function emptyCampaign(name: string) {
     defaultCalibration: {
       physicalScaleEnabled: false,
       mode: "manual" as const,
+      openPlayerViewFullscreen: false,
       pixelsPerInch: 100,
       inchesPerGridCell: 1,
       screenDiagonalInches: 23.8,
@@ -87,6 +88,7 @@ function projectionDisplayFallback() {
   return {
     physicalScaleEnabled: false,
     mode: "manual" as const,
+    openPlayerViewFullscreen: false,
     pixelsPerInch: 100,
     inchesPerGridCell: 1,
     screenDiagonalInches: 23.8,
