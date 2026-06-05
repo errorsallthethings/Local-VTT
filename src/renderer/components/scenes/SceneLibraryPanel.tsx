@@ -1,5 +1,5 @@
 import type { DragEvent } from "react";
-import { Edit3, EllipsisVertical, Folder, FolderOpen, Save, Trash2 } from "lucide-react";
+import { Edit3, EllipsisVertical, Folder, FolderOpen, Save, Trash2, Video } from "lucide-react";
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../../shared/localvtt";
 
 interface SceneLibraryPanelProps {
@@ -182,6 +182,15 @@ export function SceneLibraryPanel({
 }
 
 function SceneThumbnail({ asset }: { asset: Asset | null }) {
+  if (asset?.mediaType === "video") {
+    return (
+      <div className="scene-thumbnail scene-thumbnail-video" aria-label="Video map">
+        <Video size={18} aria-hidden="true" />
+        <span>Video</span>
+      </div>
+    );
+  }
+
   if (!asset?.thumbnailAbsolutePath) {
     return (
       <div className="scene-thumbnail scene-thumbnail-empty" aria-hidden="true">

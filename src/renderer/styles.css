@@ -590,6 +590,23 @@ label {
   object-fit: cover;
 }
 
+.scene-thumbnail-video {
+  grid-template-columns: auto auto;
+  justify-content: center;
+  gap: 6px;
+  background:
+    linear-gradient(135deg, rgb(122 162 247 / 0.18), rgb(76 191 120 / 0.12)),
+    #101720;
+  color: #dce7f7;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.scene-thumbnail-video svg {
+  color: #7aa2f7;
+}
+
 .scene-thumbnail-empty span {
   width: 18px;
   height: 12px;
