@@ -1,18 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  EllipsisVertical,
   FilePlus,
-  FolderPlus,
-  Maximize2,
-  Minimize2,
-  MonitorUp,
-  Pause,
-  Play,
-  Ruler,
-  Settings,
-  Volume2,
-  VolumeX,
-  X
+  FolderPlus
 } from "lucide-react";
 import { DEFAULT_VIDEO_PLAYBACK } from "../../shared/localvtt";
 import type {
@@ -37,6 +26,8 @@ import { SceneLibraryPanel } from "../components/scenes/SceneLibraryPanel";
 import { MeasurementPanel } from "../components/settings/MeasurementPanel";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type FogOperation } from "../components/tools/ToolsMenu";
+import { GmSettingsMenu } from "../components/workspace/GmSettingsMenu";
+import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import type { FogTool } from "../canvas/fogRenderer";
 import { useCampaignActions } from "../hooks/useCampaignActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
@@ -536,49 +527,15 @@ export function GmApp() {
       </aside>
 
       <main className="workspace">
-        <div className="topbar">
-          <div>
-            <h2>{activeScene?.name ?? "Create or open a scene"}</h2>
-            <span>{mapAsset ? `${mapAsset.name} (${mapAsset.mediaType})` : "No map imported"}</span>
-          </div>
-          <div className="toolbar-groups">
-            <div className="toolbar-block">
-              <div className="toolbar-label">Player View</div>
-              <div className="toolbar-group" aria-label="Player View actions">
-                <button disabled={!activeScene} onClick={sendToPlayer}>
-                  <MonitorUp size={16} aria-hidden="true" />
-                  Send
-                </button>
-                <div className="scene-menu-wrap">
-                  <button
-                    className="icon-button"
-                    aria-label="Player View actions"
-                    title="Player View actions"
-                    onClick={() => setPlayerMenuOpen((open) => !open)}
-                  >
-                    <EllipsisVertical size={16} aria-hidden="true" />
-                  </button>
-                  {playerMenuOpen && (
-                    <div className="scene-menu toolbar-menu">
-                      <button onClick={() => void setPlayerFullscreen(true)}>
-                        <Maximize2 size={14} aria-hidden="true" />
-                        Fullscreen
-                      </button>
-                      <button onClick={() => void setPlayerFullscreen(false)}>
-                        <Minimize2 size={14} aria-hidden="true" />
-                        Exit fullscreen
-                      </button>
-                      <button className="danger-menu-item" onClick={closePlayerView}>
-                        <X size={14} aria-hidden="true" />
-                        Close window
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <WorkspaceTopbar
+          activeScene={activeScene}
+          mapAsset={mapAsset}
+          playerMenuOpen={playerMenuOpen}
+          onSendToPlayer={sendToPlayer}
+          onTogglePlayerMenu={() => setPlayerMenuOpen((open) => !open)}
+          onSetPlayerFullscreen={(fullscreen) => void setPlayerFullscreen(fullscreen)}
+          onClosePlayerView={closePlayerView}
+        />
 
         {error && <div className="error-banner">{error}</div>}
 
@@ -603,55 +560,23 @@ export function GmApp() {
             fogTool={activeFogTool}
             onSceneChange={updateScene}
           />
-          <div className="gm-view-settings">
-            <button
-              className="icon-button"
-              aria-label="GM view settings"
-              title="GM view settings"
-              onClick={() => setGmSettingsOpen((open) => !open)}
-            >
-              <Settings size={16} aria-hidden="true" />
-            </button>
-            {gmSettingsOpen && (
-              <div className="gm-settings-menu">
-                <button
-                  disabled={!campaign || !activeScene}
-                  onClick={() => {
-                    setPlayerDisplayDialogOpen(true);
-                    setGmSettingsOpen(false);
-                  }}
-                >
-                  <MonitorUp size={14} aria-hidden="true" />
-                  Player Display Scale
-                </button>
-                <button
-                  disabled={!activeScene}
-                  onClick={() => {
-                    setMeasurementDialogOpen(true);
-                    setGmSettingsOpen(false);
-                  }}
-                >
-                  <Ruler size={14} aria-hidden="true" />
-                  Measurement
-                </button>
-                <button
-                  disabled={!activeMapIsVideo}
-                  onClick={() => updateVideoPlayback({ diagnosticsVisible: !videoPlayback.diagnosticsVisible })}
-                >
-                  <Settings size={14} aria-hidden="true" />
-                  {videoPlayback.diagnosticsVisible ? "Hide video diagnostics" : "Show video diagnostics"}
-                </button>
-                <button disabled={!activeMapIsVideo} onClick={() => updateVideoPlayback({ paused: !videoPlayback.paused })}>
-                  {videoPlayback.paused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}
-                  {videoPlayback.paused ? "Play video" : "Pause video"}
-                </button>
-                <button disabled={!activeMapIsVideo} onClick={() => updateVideoPlayback({ muted: !videoPlayback.muted })}>
-                  {videoPlayback.muted ? <Volume2 size={14} aria-hidden="true" /> : <VolumeX size={14} aria-hidden="true" />}
-                  {videoPlayback.muted ? "Unmute video" : "Mute video"}
-                </button>
-              </div>
-            )}
-          </div>
+          <GmSettingsMenu
+            open={gmSettingsOpen}
+            campaign={campaign}
+            activeScene={activeScene}
+            activeMapIsVideo={activeMapIsVideo}
+            videoPlayback={videoPlayback}
+            onToggleOpen={() => setGmSettingsOpen((open) => !open)}
+            onOpenPlayerDisplayScale={() => {
+              setPlayerDisplayDialogOpen(true);
+              setGmSettingsOpen(false);
+            }}
+            onOpenMeasurement={() => {
+              setMeasurementDialogOpen(true);
+              setGmSettingsOpen(false);
+            }}
+            onUpdateVideoPlayback={updateVideoPlayback}
+          />
         </div>
 
         <footer className="statusbar">
