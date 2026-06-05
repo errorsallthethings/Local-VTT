@@ -10,6 +10,7 @@
     "build": "npm run typecheck && npm run build:electron && vite build",
     "build:electron": "tsc -p tsconfig.electron.json",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "preview": "vite preview --host 127.0.0.1",
     "package:mac": "npm run build && electron-builder --mac",
     "package:win": "npm run build && electron-builder --win"
@@ -29,6 +30,7 @@
     "@types/react-dom": "^19.0.0",
     "concurrently": "^9.1.0",
     "electron-builder": "^25.1.0",
+    "vitest": "^4.1.8",
     "wait-on": "^8.0.0"
   },
   "build": {

@@ -1,18 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Edit3,
   EllipsisVertical,
   FilePlus,
-  FolderOpen,
   FolderPlus,
   Maximize2,
   Minimize2,
   MonitorUp,
   Pause,
   Play,
-  Plus,
   Ruler,
-  Save,
   Settings,
   Volume2,
   VolumeX,
@@ -33,6 +29,7 @@ import type {
   Scene,
   VideoPlaybackSettings
 } from "../../shared/localvtt";
+import { CampaignPanel } from "../components/campaign/CampaignPanel";
 import { LayerPanel } from "../components/layers/LayerPanel";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { SceneLibraryPanel } from "../components/scenes/SceneLibraryPanel";
@@ -713,49 +710,16 @@ export function GmApp() {
         <div className="section-heading">
           <h2>Campaign</h2>
         </div>
-        <section className="panel">
-          <div className="campaign-title-row panel-title-row">
-            <p>{campaign ? campaign.name : "No campaign open"}</p>
-            {campaign && (
-              <button className="icon-button" aria-label="Edit campaign name" title="Edit campaign name" onClick={openCampaignRenameDialog}>
-                <Edit3 size={14} aria-hidden="true" />
-              </button>
-            )}
-          </div>
-          <div className="button-row campaign-action-row">
-            <button className="icon-button" aria-label="New Campaign" title="New Campaign" onClick={createCampaign}>
-              <Plus size={16} aria-hidden="true" />
-            </button>
-            <button className="icon-button" aria-label="Open Campaign" title="Open Campaign" onClick={openCampaign}>
-              <FolderOpen size={16} aria-hidden="true" />
-            </button>
-            <button
-              className={hasUnsavedChanges ? "icon-button dirty-save" : "icon-button"}
-              disabled={!hasUnsavedChanges}
-              aria-label="Save Campaign"
-              title="Save Campaign"
-              onClick={saveCampaign}
-            >
-              <Save size={16} aria-hidden="true" />
-            </button>
-          </div>
-          {campaignPath && (
-            <div className="file-path-block">
-              <span>File Path</span>
-              <p className="path-text" title={campaignPath}>
-                {campaignPath}
-              </p>
-            </div>
-          )}
-          {missingAssets.length > 0 && (
-            <div className="warning">
-              Missing assets:
-              {missingAssets.map((asset) => (
-                <div key={asset}>{asset}</div>
-              ))}
-            </div>
-          )}
-        </section>
+        <CampaignPanel
+          campaign={campaign}
+          campaignPath={campaignPath}
+          missingAssets={missingAssets}
+          hasUnsavedChanges={hasUnsavedChanges}
+          onCreateCampaign={createCampaign}
+          onOpenCampaign={openCampaign}
+          onSaveCampaign={() => void saveCampaign()}
+          onRenameCampaign={openCampaignRenameDialog}
+        />
 
         <div className="section-heading">
           <h2>Scenes</h2>

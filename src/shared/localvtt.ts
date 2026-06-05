@@ -460,7 +460,7 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene): PlayerS
     usedAssetIds.add(normalizedScene.mapAssetId);
   }
   for (const token of normalizedScene.tokens) {
-    if (token.visibleInPlayer && token.assetId) {
+    if (token.visibleInPlayer && !token.hidden && token.assetId) {
       usedAssetIds.add(token.assetId);
     }
   }
