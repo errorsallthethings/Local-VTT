@@ -24,14 +24,17 @@ import type {
   FogSettings,
   GridSettings,
   MapTransform,
-  MeasurementUnit,
   Scene,
   VideoPlaybackSettings
 } from "../../shared/localvtt";
 import { CampaignPanel } from "../components/campaign/CampaignPanel";
 import { LayerPanel } from "../components/layers/LayerPanel";
+import { ConfirmDialog } from "../components/modals/ConfirmDialog";
+import { NameDialog } from "../components/modals/NameDialog";
+import { SettingsModal } from "../components/modals/SettingsModal";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { SceneLibraryPanel } from "../components/scenes/SceneLibraryPanel";
+import { MeasurementPanel } from "../components/settings/MeasurementPanel";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type FogOperation } from "../components/tools/ToolsMenu";
 import type { FogTool } from "../canvas/fogRenderer";
@@ -693,272 +696,101 @@ export function GmApp() {
       </aside>
 
       {sceneDialog && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setSceneDialog(null)}>
-          <form
-            className="modal"
-            onMouseDown={(event) => event.stopPropagation()}
-            onSubmit={(event) => {
-              event.preventDefault();
-              void submitSceneName();
-            }}
-          >
-            <h2>{sceneDialog.mode === "create" ? "New Scene" : "Rename Scene"}</h2>
-            <label>
-              Scene name
-              <input
-                autoFocus
-                value={newSceneName}
-                onChange={(event) => setNewSceneName(event.target.value)}
-                onFocus={(event) => event.currentTarget.select()}
-              />
-            </label>
-            <div className="button-row modal-actions">
-              <button type="button" onClick={() => setSceneDialog(null)}>
-                Cancel
-              </button>
-              <button type="submit" disabled={!newSceneName.trim()}>
-                {sceneDialog.mode === "create" ? "Create" : "Save"}
-              </button>
-            </div>
-          </form>
-        </div>
+        <NameDialog
+          title={sceneDialog.mode === "create" ? "New Scene" : "Rename Scene"}
+          label="Scene name"
+          value={newSceneName}
+          submitLabel={sceneDialog.mode === "create" ? "Create" : "Save"}
+          onChange={setNewSceneName}
+          onCancel={() => setSceneDialog(null)}
+          onSubmit={() => void submitSceneName()}
+        />
       )}
 
       {folderDialog && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setFolderDialog(null)}>
-          <form
-            className="modal"
-            onMouseDown={(event) => event.stopPropagation()}
-            onSubmit={(event) => {
-              event.preventDefault();
-              submitFolderName();
-            }}
-          >
-            <h2>{folderDialog.mode === "create" ? "New Scene Folder" : "Rename Scene Folder"}</h2>
-            <label>
-              Folder name
-              <input
-                autoFocus
-                value={newFolderName}
-                onChange={(event) => setNewFolderName(event.target.value)}
-                onFocus={(event) => event.currentTarget.select()}
-              />
-            </label>
-            <div className="button-row modal-actions">
-              <button type="button" onClick={() => setFolderDialog(null)}>
-                Cancel
-              </button>
-              <button type="submit" disabled={!newFolderName.trim()}>
-                {folderDialog.mode === "create" ? "Create" : "Save"}
-              </button>
-            </div>
-          </form>
-        </div>
+        <NameDialog
+          title={folderDialog.mode === "create" ? "New Scene Folder" : "Rename Scene Folder"}
+          label="Folder name"
+          value={newFolderName}
+          submitLabel={folderDialog.mode === "create" ? "Create" : "Save"}
+          onChange={setNewFolderName}
+          onCancel={() => setFolderDialog(null)}
+          onSubmit={submitFolderName}
+        />
       )}
 
       {campaignNameDialogOpen && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setCampaignNameDialogOpen(false)}>
-          <form
-            className="modal"
-            onMouseDown={(event) => event.stopPropagation()}
-            onSubmit={(event) => {
-              event.preventDefault();
-              submitCampaignName();
-            }}
-          >
-            <h2>Rename Campaign</h2>
-            <label>
-              Campaign name
-              <input
-                autoFocus
-                value={newCampaignName}
-                onChange={(event) => setNewCampaignName(event.target.value)}
-                onFocus={(event) => event.currentTarget.select()}
-              />
-            </label>
-            <div className="button-row modal-actions">
-              <button type="button" onClick={() => setCampaignNameDialogOpen(false)}>
-                Cancel
-              </button>
-              <button type="submit" disabled={!newCampaignName.trim()}>
-                Save
-              </button>
-            </div>
-          </form>
-        </div>
+        <NameDialog
+          title="Rename Campaign"
+          label="Campaign name"
+          value={newCampaignName}
+          submitLabel="Save"
+          onChange={setNewCampaignName}
+          onCancel={() => setCampaignNameDialogOpen(false)}
+          onSubmit={submitCampaignName}
+        />
       )}
 
       {playerDisplayDialogOpen && campaign && activeScene && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setPlayerDisplayDialogOpen(false)}>
-          <div className="modal settings-modal" onMouseDown={(event) => event.stopPropagation()}>
-            <PlayerDisplayScalePanel
-              scene={activeScene}
-              calibration={campaign.playerDisplay}
-              displays={displays}
-              onApply={updatePlayerDisplay}
-              onRefreshDisplays={refreshDisplays}
-            />
-            <div className="button-row modal-actions">
-              <button type="button" onClick={() => setPlayerDisplayDialogOpen(false)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <SettingsModal onClose={() => setPlayerDisplayDialogOpen(false)}>
+          <PlayerDisplayScalePanel
+            scene={activeScene}
+            calibration={campaign.playerDisplay}
+            displays={displays}
+            onApply={updatePlayerDisplay}
+            onRefreshDisplays={refreshDisplays}
+          />
+        </SettingsModal>
       )}
 
       {measurementDialogOpen && activeScene && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setMeasurementDialogOpen(false)}>
-          <div className="modal settings-modal" onMouseDown={(event) => event.stopPropagation()}>
-            <section className="panel">
-              <h2>Measurement</h2>
-              <div className="panel-subgrid">
-                <label>
-                  Units per cell
-                  <input
-                    type="number"
-                    min={0.1}
-                    step={0.5}
-                    value={activeScene.grid.measurement.unitsPerGridCell}
-                    onChange={(event) => updateMeasurement({ unitsPerGridCell: Number(event.target.value) })}
-                  />
-                </label>
-                <label>
-                  Unit
-                  <select
-                    value={activeScene.grid.measurement.unit}
-                    onChange={(event) => updateMeasurement({ unit: event.target.value as MeasurementUnit })}
-                  >
-                    <option value="feet">Feet</option>
-                    <option value="meters">Meters</option>
-                    <option value="miles">Miles</option>
-                  </select>
-                </label>
-              </div>
-              <label>
-                Distance mode
-                <select
-                  value={activeScene.grid.measurement.distanceMode}
-                  onChange={(event) =>
-                    updateMeasurement({ distanceMode: event.target.value as GridSettings["measurement"]["distanceMode"] })
-                  }
-                >
-                  <option value="euclidean">Euclidean</option>
-                  <option value="manhattan">Manhattan</option>
-                  <option value="grid">Grid snapped</option>
-                  <option value="diagonal-5-10">5/10/5/10 diagonals</option>
-                </select>
-              </label>
-            </section>
-            <div className="button-row modal-actions">
-              <button type="button" onClick={() => setMeasurementDialogOpen(false)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <SettingsModal onClose={() => setMeasurementDialogOpen(false)}>
+          <MeasurementPanel measurement={activeScene.grid.measurement} onChange={updateMeasurement} />
+        </SettingsModal>
       )}
 
       {sceneToDelete && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setSceneToDelete(null)}>
-          <form
-            className="modal"
-            onMouseDown={(event) => event.stopPropagation()}
-            onSubmit={(event) => {
-              event.preventDefault();
-              void deleteScene(sceneToDelete);
-            }}
-          >
-            <h2>Delete Scene</h2>
-            <p>
-              Delete <strong>{sceneToDelete.name}</strong>? This removes the scene JSON file from the campaign folder.
-            </p>
-            <div className="button-row modal-actions">
-              <button type="button" onClick={() => setSceneToDelete(null)}>
-                Cancel
-              </button>
-              <button type="submit" className="danger-button">
-                Delete
-              </button>
-            </div>
-          </form>
-        </div>
+        <ConfirmDialog
+          title="Delete Scene"
+          confirmLabel="Delete"
+          onCancel={() => setSceneToDelete(null)}
+          onConfirm={() => void deleteScene(sceneToDelete)}
+        >
+          Delete <strong>{sceneToDelete.name}</strong>? This removes the scene JSON file from the campaign folder.
+        </ConfirmDialog>
       )}
 
       {folderToDelete && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setFolderToDelete(null)}>
-          <form
-            className="modal"
-            onMouseDown={(event) => event.stopPropagation()}
-            onSubmit={(event) => {
-              event.preventDefault();
-              deleteFolder(folderToDelete);
-            }}
-          >
-            <h2>Delete Scene Folder</h2>
-            <p>
-              Delete <strong>{folderToDelete.name}</strong>? Scenes in this folder will move to Unfiled Scenes.
-            </p>
-            <div className="button-row modal-actions">
-              <button type="button" onClick={() => setFolderToDelete(null)}>
-                Cancel
-              </button>
-              <button type="submit" className="danger-button">
-                Delete Folder
-              </button>
-            </div>
-          </form>
-        </div>
+        <ConfirmDialog
+          title="Delete Scene Folder"
+          confirmLabel="Delete Folder"
+          onCancel={() => setFolderToDelete(null)}
+          onConfirm={() => deleteFolder(folderToDelete)}
+        >
+          Delete <strong>{folderToDelete.name}</strong>? Scenes in this folder will move to Unfiled Scenes.
+        </ConfirmDialog>
       )}
 
       {mapAssetToDelete && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setMapAssetToDelete(null)}>
-          <form
-            className="modal"
-            onMouseDown={(event) => event.stopPropagation()}
-            onSubmit={(event) => {
-              event.preventDefault();
-              void confirmDeleteMapAsset();
-            }}
-          >
-            <h2>Delete Map Asset</h2>
-            <p>
-              Delete <strong>{mapAssetToDelete.name}</strong> from the campaign folder? This cannot be undone.
-            </p>
-            <div className="button-row modal-actions">
-              <button type="button" onClick={() => setMapAssetToDelete(null)}>
-                Cancel
-              </button>
-              <button type="submit" className="danger-button">
-                Delete Asset
-              </button>
-            </div>
-          </form>
-        </div>
+        <ConfirmDialog
+          title="Delete Map Asset"
+          confirmLabel="Delete Asset"
+          onCancel={() => setMapAssetToDelete(null)}
+          onConfirm={() => void confirmDeleteMapAsset()}
+        >
+          Delete <strong>{mapAssetToDelete.name}</strong> from the campaign folder? This cannot be undone.
+        </ConfirmDialog>
       )}
 
       {confirmClearFogOpen && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setConfirmClearFogOpen(false)}>
-          <form
-            className="modal"
-            onMouseDown={(event) => event.stopPropagation()}
-            onSubmit={(event) => {
-              event.preventDefault();
-              clearFogShapes();
-            }}
-          >
-            <h2>Clear Fog Shapes</h2>
-            <p>Delete all fog reveal and hide shapes from this scene? This cannot be undone.</p>
-            <div className="button-row modal-actions">
-              <button type="button" onClick={() => setConfirmClearFogOpen(false)}>
-                Cancel
-              </button>
-              <button type="submit" className="danger-button">
-                Clear Fog
-              </button>
-            </div>
-          </form>
-        </div>
+        <ConfirmDialog
+          title="Clear Fog Shapes"
+          confirmLabel="Clear Fog"
+          onCancel={() => setConfirmClearFogOpen(false)}
+          onConfirm={clearFogShapes}
+        >
+          Delete all fog reveal and hide shapes from this scene? This cannot be undone.
+        </ConfirmDialog>
       )}
     </div>
   );
