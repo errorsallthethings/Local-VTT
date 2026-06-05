@@ -1,0 +1,112 @@
+import { useEffect, useState } from "react";
+import type { Campaign, CampaignSummary, Scene } from "../../shared/localvtt";
+import { mergeCampaignDraft } from "../lib/campaignDraft";
+
+export type SaveState = "idle" | "saving" | "saved" | "error";
+
+export function useCampaignWorkspace() {
+  const [campaignPath, setCampaignPath] = useState<string | null>(null);
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [missingAssets, setMissingAssets] = useState<string[]>([]);
+  const [activeScene, setActiveScene] = useState<Scene | null>(null);
+  const [sceneDrafts, setSceneDrafts] = useState<Record<string, Scene>>({});
+  const [dirtySceneIds, setDirtySceneIds] = useState<Set<string>>(() => new Set());
+  const [campaignDirty, setCampaignDirty] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  const dirtyCount = dirtySceneIds.size;
+  const hasUnsavedChanges = dirtyCount > 0 || campaignDirty;
+
+  useEffect(() => {
+    window.localVtt.setUnsavedChanges(hasUnsavedChanges);
+    return () => window.localVtt.setUnsavedChanges(false);
+  }, [hasUnsavedChanges]);
+
+  const run = async (action: () => Promise<void>) => {
+    setError(null);
+    try {
+      await action();
+      return true;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong.");
+      return false;
+    }
+  };
+
+  const applySummary = (summary: CampaignSummary, preserveCampaignDraft = false) => {
+    setCampaignPath(summary.campaignPath);
+    setCampaign((currentCampaign) =>
+      preserveCampaignDraft && currentCampaign ? mergeCampaignDraft(summary.campaign, currentCampaign) : summary.campaign
+    );
+    setMissingAssets(summary.missingAssets);
+  };
+
+  const clearWorkspaceState = () => {
+    setActiveScene(null);
+    setSceneDrafts({});
+    setDirtySceneIds(new Set());
+    setCampaignDirty(false);
+    setSaveState("idle");
+  };
+
+  const setSceneClean = (scene: Scene) => {
+    setSceneDrafts((drafts) => {
+      const next = { ...drafts };
+      delete next[scene.id];
+      return next;
+    });
+    setDirtySceneIds((ids) => {
+      const next = new Set(ids);
+      next.delete(scene.id);
+      return next;
+    });
+  };
+
+  const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign) => {
+    setActiveScene(nextScene);
+    setSceneDrafts((drafts) => ({ ...drafts, [nextScene.id]: nextScene }));
+    setDirtySceneIds((ids) => new Set(ids).add(nextScene.id));
+    setSaveState("idle");
+    if (syncCampaign) {
+      void window.localVtt.updatePlayerSceneIfOpen(syncCampaign, nextScene);
+    }
+  };
+
+  const updateCampaignDraft = (nextCampaign: Campaign) => {
+    setCampaign(nextCampaign);
+    setCampaignDirty(true);
+    if (activeScene) {
+      void window.localVtt.updatePlayerSceneIfOpen(nextCampaign, activeScene);
+    }
+  };
+
+  return {
+    campaignPath,
+    setCampaignPath,
+    campaign,
+    setCampaign,
+    missingAssets,
+    setMissingAssets,
+    activeScene,
+    setActiveScene,
+    sceneDrafts,
+    setSceneDrafts,
+    dirtySceneIds,
+    setDirtySceneIds,
+    campaignDirty,
+    setCampaignDirty,
+    saveState,
+    setSaveState,
+    error,
+    setError,
+    dirtyCount,
+    hasUnsavedChanges,
+    run,
+    applySummary,
+    clearWorkspaceState,
+    setSceneClean,
+    updateScene,
+    updateCampaignDraft
+  };
+}

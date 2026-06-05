@@ -36,20 +36,40 @@ import { SceneLibraryPanel } from "../components/scenes/SceneLibraryPanel";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type FogOperation } from "../components/tools/ToolsMenu";
 import type { FogTool } from "../canvas/fogRenderer";
+import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { mergeCampaignDraft } from "../lib/campaignDraft";
 
-type SaveState = "idle" | "saving" | "saved" | "error";
 type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
 type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };
 
 export function GmApp() {
-  const [campaignPath, setCampaignPath] = useState<string | null>(null);
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [missingAssets, setMissingAssets] = useState<string[]>([]);
-  const [activeScene, setActiveScene] = useState<Scene | null>(null);
-  const [sceneDrafts, setSceneDrafts] = useState<Record<string, Scene>>({});
-  const [dirtySceneIds, setDirtySceneIds] = useState<Set<string>>(() => new Set());
-  const [campaignDirty, setCampaignDirty] = useState(false);
+  const {
+    campaignPath,
+    setCampaignPath,
+    campaign,
+    setCampaign,
+    missingAssets,
+    setMissingAssets,
+    activeScene,
+    setActiveScene,
+    sceneDrafts,
+    setSceneDrafts,
+    dirtySceneIds,
+    setDirtySceneIds,
+    campaignDirty,
+    setCampaignDirty,
+    saveState,
+    setSaveState,
+    error,
+    dirtyCount,
+    hasUnsavedChanges,
+    run,
+    applySummary,
+    clearWorkspaceState,
+    setSceneClean,
+    updateScene,
+    updateCampaignDraft
+  } = useCampaignWorkspace();
   const [sceneDialog, setSceneDialog] = useState<SceneNameDialog | null>(null);
   const [folderDialog, setFolderDialog] = useState<FolderNameDialog | null>(null);
   const [campaignNameDialogOpen, setCampaignNameDialogOpen] = useState(false);
@@ -69,12 +89,7 @@ export function GmApp() {
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
   const [newFolderName, setNewFolderName] = useState("New Folder");
   const [newCampaignName, setNewCampaignName] = useState("");
-  const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [error, setError] = useState<string | null>(null);
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
-
-  const dirtyCount = dirtySceneIds.size;
-  const hasUnsavedChanges = dirtyCount > 0 || campaignDirty;
 
   const mapAsset = useMemo(() => {
     if (!campaign || !activeScene?.mapAssetId) {
@@ -159,70 +174,10 @@ export function GmApp() {
     void refreshDisplays();
   }, []);
 
-  useEffect(() => {
-    window.localVtt.setUnsavedChanges(hasUnsavedChanges);
-    return () => window.localVtt.setUnsavedChanges(false);
-  }, [hasUnsavedChanges]);
-
-  const applySummary = (summary: CampaignSummary, preserveCampaignDraft = false) => {
-    setCampaignPath(summary.campaignPath);
-    setCampaign((currentCampaign) =>
-      preserveCampaignDraft && currentCampaign ? mergeCampaignDraft(summary.campaign, currentCampaign) : summary.campaign
-    );
-    setMissingAssets(summary.missingAssets);
-  };
-
-  const run = async (action: () => Promise<void>) => {
-    setError(null);
-    try {
-      await action();
-      return true;
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Something went wrong.");
-      return false;
-    }
-  };
-
-  const clearWorkspaceState = () => {
-    setActiveScene(null);
-    setSceneDrafts({});
-    setDirtySceneIds(new Set());
-    setCampaignDirty(false);
+  const resetSceneLibraryUi = () => {
     setOpenSceneMenuId(null);
     setOpenFolderMenuId(null);
     setCollapsedFolderIds(new Set());
-    setSaveState("idle");
-  };
-
-  const setSceneClean = (scene: Scene) => {
-    setSceneDrafts((drafts) => {
-      const next = { ...drafts };
-      delete next[scene.id];
-      return next;
-    });
-    setDirtySceneIds((ids) => {
-      const next = new Set(ids);
-      next.delete(scene.id);
-      return next;
-    });
-  };
-
-  const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign) => {
-    setActiveScene(nextScene);
-    setSceneDrafts((drafts) => ({ ...drafts, [nextScene.id]: nextScene }));
-    setDirtySceneIds((ids) => new Set(ids).add(nextScene.id));
-    setSaveState("idle");
-    if (syncCampaign) {
-      void window.localVtt.updatePlayerSceneIfOpen(syncCampaign, nextScene);
-    }
-  };
-
-  const updateCampaignDraft = (nextCampaign: Campaign) => {
-    setCampaign(nextCampaign);
-    setCampaignDirty(true);
-    if (activeScene) {
-      void window.localVtt.updatePlayerSceneIfOpen(nextCampaign, activeScene);
-    }
   };
 
   const updateVideoPlayback = (patch: Partial<VideoPlaybackSettings>) => {
@@ -372,6 +327,7 @@ export function GmApp() {
       if (summary) {
         applySummary(summary);
         clearWorkspaceState();
+        resetSceneLibraryUi();
       }
     });
 
@@ -381,6 +337,7 @@ export function GmApp() {
       if (summary) {
         applySummary(summary);
         clearWorkspaceState();
+        resetSceneLibraryUi();
       }
     });
 
@@ -550,7 +507,7 @@ export function GmApp() {
         }
       }
       if (latestSummary) {
-      applySummary(latestSummary);
+        applySummary(latestSummary);
       }
       setSceneDrafts({});
       setDirtySceneIds(new Set());
@@ -573,8 +530,6 @@ export function GmApp() {
       if (!result) {
         return;
       }
-      setCampaignPath(result.campaignSummary.campaignPath);
-      setMissingAssets(result.campaignSummary.missingAssets);
       const baseCampaign = campaignDirty ? mergeCampaignDraft(result.campaignSummary.campaign, campaign) : result.campaignSummary.campaign;
       const nextCampaign = {
         ...baseCampaign,
@@ -582,6 +537,8 @@ export function GmApp() {
           entry.id === activeScene.id ? { ...entry, mapAssetId: result.asset.id } : entry
         )
       };
+      setCampaignPath(result.campaignSummary.campaignPath);
+      setMissingAssets(result.campaignSummary.missingAssets);
       setCampaign(nextCampaign);
       updateScene({ ...activeScene, mapAssetId: result.asset.id, updatedAt: new Date().toISOString() }, nextCampaign);
     });
