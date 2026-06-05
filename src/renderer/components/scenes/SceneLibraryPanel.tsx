@@ -1,5 +1,5 @@
-import { useState, type DragEvent } from "react";
-import { Edit3, EllipsisVertical, Folder, FolderOpen, Save, Trash2, Video } from "lucide-react";
+import { useState, type CSSProperties, type DragEvent } from "react";
+import { Edit3, EllipsisVertical, Folder, FolderOpen, Palette, Save, Trash2, Video } from "lucide-react";
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../../shared/localvtt";
 
 interface SceneLibraryPanelProps {
@@ -20,6 +20,7 @@ interface SceneLibraryPanelProps {
   onRenameScene: (scene: CampaignSceneEntry) => void;
   onDeleteScene: (scene: CampaignSceneEntry) => void;
   onRenameFolder: (folder: CampaignSceneFolder) => void;
+  onChangeFolderColor: (folder: CampaignSceneFolder) => void;
   onDeleteFolder: (folder: CampaignSceneFolder) => void;
 }
 
@@ -41,6 +42,7 @@ export function SceneLibraryPanel({
   onRenameScene,
   onDeleteScene,
   onRenameFolder,
+  onChangeFolderColor,
   onDeleteFolder
 }: SceneLibraryPanelProps) {
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
@@ -144,10 +146,15 @@ export function SceneLibraryPanel({
           const folderScenes = campaign.scenes.filter((scene) => scene.folderId === folder.id);
           const folderHasDirtyScenes = folderScenes.some((scene) => dirtySceneIds.has(scene.id));
           const isCollapsed = collapsedFolderIds.has(folder.id);
+          const folderStyle = {
+            "--scene-folder-color": folder.color,
+            "--scene-folder-color-bg": hexToRgba(folder.color, 0.13)
+          } as CSSProperties;
           return (
             <div
               className={dropTargetId === folder.id ? "scene-folder scene-folder-drop-target" : "scene-folder"}
               key={folder.id}
+              style={folderStyle}
               onDragOver={(event) => onSceneDragOver(event, folder.id)}
               onDragLeave={(event) => onSceneDragLeave(event, folder.id)}
               onDrop={(event) => onSceneDrop(event, folder.id)}
@@ -188,9 +195,13 @@ export function SceneLibraryPanel({
                         <Edit3 size={14} aria-hidden="true" />
                         Rename
                       </button>
+                      <button onClick={() => onChangeFolderColor(folder)}>
+                        <Palette size={14} aria-hidden="true" />
+                        Color
+                      </button>
                       <button className="danger-menu-item" onClick={() => onDeleteFolder(folder)}>
                         <Trash2 size={14} aria-hidden="true" />
-                        Delete folder
+                        Delete
                       </button>
                     </div>
                   )}
@@ -216,6 +227,18 @@ export function SceneLibraryPanel({
       </div>
     </section>
   );
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const fallback = "rgb(122 162 247 / 0.13)";
+  const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!match) {
+    return fallback;
+  }
+  const red = Number.parseInt(match[1], 16);
+  const green = Number.parseInt(match[2], 16);
+  const blue = Number.parseInt(match[3], 16);
+  return `rgb(${red} ${green} ${blue} / ${alpha})`;
 }
 
 function SceneThumbnail({ asset }: { asset: Asset | null }) {

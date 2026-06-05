@@ -8,7 +8,7 @@ import {
   PanelRightClose,
   PanelRightOpen
 } from "lucide-react";
-import { DEFAULT_VIDEO_PLAYBACK } from "../../shared/localvtt";
+import { DEFAULT_SCENE_FOLDER_COLOR, DEFAULT_VIDEO_PLAYBACK } from "../../shared/localvtt";
 import type {
   Asset,
   Campaign,
@@ -40,6 +40,7 @@ import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 
 type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
 type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };
+type FolderColorDialog = { folderId: string; folderName: string };
 type WorkspaceLayout = {
   leftWidth: number;
   rightWidth: number;
@@ -85,6 +86,7 @@ export function GmApp() {
   } = workspace;
   const [sceneDialog, setSceneDialog] = useState<SceneNameDialog | null>(null);
   const [folderDialog, setFolderDialog] = useState<FolderNameDialog | null>(null);
+  const [folderColorDialog, setFolderColorDialog] = useState<FolderColorDialog | null>(null);
   const [campaignNameDialogOpen, setCampaignNameDialogOpen] = useState(false);
   const [sceneToDelete, setSceneToDelete] = useState<CampaignSceneEntry | null>(null);
   const [folderToDelete, setFolderToDelete] = useState<CampaignSceneFolder | null>(null);
@@ -101,6 +103,7 @@ export function GmApp() {
   const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
   const [newFolderName, setNewFolderName] = useState("New Folder");
+  const [newFolderColor, setNewFolderColor] = useState(DEFAULT_SCENE_FOLDER_COLOR);
   const [newCampaignName, setNewCampaignName] = useState("");
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
@@ -134,6 +137,7 @@ export function GmApp() {
     if (
       !sceneDialog &&
       !folderDialog &&
+      !folderColorDialog &&
       !campaignNameDialogOpen &&
       !playerDisplayDialogOpen &&
       !playerViewDisplayDialogOpen &&
@@ -154,6 +158,7 @@ export function GmApp() {
       if (event.key === "Escape") {
         setSceneDialog(null);
         setFolderDialog(null);
+        setFolderColorDialog(null);
         setCampaignNameDialogOpen(false);
         setPlayerDisplayDialogOpen(false);
         setPlayerViewDisplayDialogOpen(false);
@@ -174,6 +179,7 @@ export function GmApp() {
   }, [
     campaignNameDialogOpen,
     confirmClearFogOpen,
+    folderColorDialog,
     folderDialog,
     folderToDelete,
     gmSettingsOpen,
@@ -387,6 +393,12 @@ export function GmApp() {
     setFolderDialog({ mode: "rename", folderId: folder.id });
   };
 
+  const openFolderColorDialog = (folder: CampaignSceneFolder) => {
+    setOpenFolderMenuId(null);
+    setNewFolderColor(folder.color);
+    setFolderColorDialog({ folderId: folder.id, folderName: folder.name });
+  };
+
   const submitFolderName = () => {
     if (!campaign || !folderDialog) {
       return;
@@ -401,7 +413,7 @@ export function GmApp() {
       folderDialog.mode === "create"
         ? {
             ...campaign,
-            sceneFolders: [...campaign.sceneFolders, { id: crypto.randomUUID(), name, createdAt: now }],
+            sceneFolders: [...campaign.sceneFolders, { id: crypto.randomUUID(), name, color: DEFAULT_SCENE_FOLDER_COLOR, createdAt: now }],
             updatedAt: now
           }
         : {
@@ -411,6 +423,20 @@ export function GmApp() {
           };
     updateCampaignDraft(nextCampaign);
     setFolderDialog(null);
+  };
+
+  const submitFolderColor = () => {
+    if (!campaign || !folderColorDialog) {
+      return;
+    }
+    updateCampaignDraft({
+      ...campaign,
+      sceneFolders: campaign.sceneFolders.map((folder) =>
+        folder.id === folderColorDialog.folderId ? { ...folder, color: newFolderColor } : folder
+      ),
+      updatedAt: new Date().toISOString()
+    });
+    setFolderColorDialog(null);
   };
 
   const submitSceneName = () =>
@@ -624,11 +650,12 @@ export function GmApp() {
               onToggleFolderCollapsed={toggleFolderCollapsed}
               onToggleSceneMenu={(sceneId) => setOpenSceneMenuId(openSceneMenuId === sceneId ? null : sceneId)}
               onToggleFolderMenu={(folderId) => setOpenFolderMenuId(openFolderMenuId === folderId ? null : folderId)}
-              onRenameScene={openRenameDialog}
-              onDeleteScene={setSceneToDelete}
-              onRenameFolder={openRenameFolderDialog}
-              onDeleteFolder={setFolderToDelete}
-            />
+          onRenameScene={openRenameDialog}
+          onDeleteScene={setSceneToDelete}
+          onRenameFolder={openRenameFolderDialog}
+          onChangeFolderColor={openFolderColorDialog}
+          onDeleteFolder={setFolderToDelete}
+        />
           </div>
         )}
         {!workspaceLayout.leftCollapsed && (
@@ -788,6 +815,22 @@ export function GmApp() {
           onCancel={() => setFolderDialog(null)}
           onSubmit={submitFolderName}
         />
+      )}
+
+      {folderColorDialog && (
+        <div className="modal-backdrop" onMouseDown={() => setFolderColorDialog(null)}>
+          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
+            <h2>Change Folder Color</h2>
+            <label>
+              {folderColorDialog.folderName}
+              <input type="color" value={newFolderColor} onChange={(event) => setNewFolderColor(event.target.value)} />
+            </label>
+            <div className="button-row modal-actions">
+              <button onClick={() => setFolderColorDialog(null)}>Cancel</button>
+              <button onClick={submitFolderColor}>Save</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {campaignNameDialogOpen && (

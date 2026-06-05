@@ -8,7 +8,13 @@
   display: grid;
   gap: 7px;
   min-width: 0;
+  border: 1px solid rgb(41 50 65 / 0.9);
+  border-left: 3px solid var(--scene-folder-color, #7aa2f7);
   border-radius: 7px;
+  background:
+    linear-gradient(90deg, var(--scene-folder-color-bg, rgb(122 162 247 / 0.13)), rgb(21 28 37 / 0) 64%),
+    #121821;
+  padding: 5px;
 }
 
 .scene-folder-header {
@@ -17,9 +23,9 @@
   align-items: center;
   gap: 6px;
   min-height: 32px;
-  border: 1px solid #293241;
+  border: 1px solid rgb(41 50 65 / 0.72);
   border-radius: 6px;
-  background: #151c25;
+  background: rgb(21 28 37 / 0.82);
   padding: 4px 6px;
   transition:
     border-color 120ms ease,
@@ -83,7 +89,19 @@
 
 .scene-folder-unfiled {
   border-top: 1px solid #293241;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: 0;
+  background: transparent;
   padding-top: 8px;
+  padding-right: 0;
+  padding-bottom: 0;
+  padding-left: 0;
+}
+
+.scene-folder-unfiled .scene-folder-header {
+  background: #151c25;
 }
 
 .scene-folder-unfiled.scene-folder-drop-target {

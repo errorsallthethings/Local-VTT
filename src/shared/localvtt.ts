@@ -222,6 +222,7 @@ export interface CampaignSceneFolder {
   id: string;
   name: string;
   createdAt: string;
+  color: string;
 }
 
 export interface SceneLibrarySettings {
@@ -304,6 +305,8 @@ export const DEFAULT_VIDEO_PLAYBACK: VideoPlaybackSettings = {
   paused: false,
   muted: true
 };
+
+export const DEFAULT_SCENE_FOLDER_COLOR = "#7aa2f7";
 
 export const DEFAULT_FOG: FogSettings = {
   mode: "revealed",
@@ -447,7 +450,10 @@ function normalizeFog(fog?: Partial<FogSettings>): FogSettings {
 }
 
 export function normalizeCampaign(campaign: Campaign): Campaign {
-  const sceneFolders = campaign.sceneFolders ?? [];
+  const sceneFolders = (campaign.sceneFolders ?? []).map((folder) => ({
+    ...folder,
+    color: normalizeColor(folder.color)
+  }));
   const folderIds = new Set(sceneFolders.map((folder) => folder.id));
   const collapsedFolderIds = (campaign.sceneLibrary?.collapsedFolderIds ?? []).filter((folderId) => folderIds.has(folderId));
 
@@ -462,6 +468,10 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
     scenes: campaign.scenes ?? [],
     assets: campaign.assets ?? []
   };
+}
+
+function normalizeColor(color: unknown): string {
+  return typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color) ? color : DEFAULT_SCENE_FOLDER_COLOR;
 }
 
 export function projectSceneForPlayer(campaign: Campaign, scene: Scene): PlayerSceneProjection {

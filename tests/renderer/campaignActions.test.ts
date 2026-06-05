@@ -49,8 +49,8 @@ describe("campaign action helpers", () => {
   it("removes a folder and unfiles scenes assigned to it", () => {
     const campaign = createDefaultCampaign("Campaign");
     campaign.sceneFolders = [
-      { id: "folder-a", name: "A", createdAt: "before" },
-      { id: "folder-b", name: "B", createdAt: "before" }
+      { id: "folder-a", name: "A", color: "#7aa2f7", createdAt: "before" },
+      { id: "folder-b", name: "B", color: "#4cbf78", createdAt: "before" }
     ];
     campaign.sceneLibrary = { collapsedFolderIds: ["folder-a", "folder-b"] };
     campaign.scenes = [

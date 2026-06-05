@@ -10,6 +10,7 @@ import {
   DEFAULT_LAYERS,
   DEFAULT_MAP_TRANSFORM,
   DEFAULT_MEASUREMENT,
+  DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
   isPlayerSceneProjection,
   normalizeCampaign,
@@ -93,6 +94,7 @@ it("normalizeCampaign preserves valid collapsed scene folders only", () => {
   const normalized = normalizeCampaign(campaign);
 
   expect(normalized.sceneLibrary.collapsedFolderIds).toEqual(["folder-1"]);
+  expect(normalized.sceneFolders[0].color).toBe(DEFAULT_SCENE_FOLDER_COLOR);
 });
 
 it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
