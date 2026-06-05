@@ -1,4 +1,4 @@
-import type { DragEvent } from "react";
+import { useState, type DragEvent } from "react";
 import { Edit3, EllipsisVertical, Folder, FolderOpen, Save, Trash2, Video } from "lucide-react";
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../../shared/localvtt";
 
@@ -43,6 +43,10 @@ export function SceneLibraryPanel({
   onRenameFolder,
   onDeleteFolder
 }: SceneLibraryPanelProps) {
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
+  const getDropTargetId = (folderId?: string) => folderId ?? "root";
+
   const renderSceneCard = (scene: CampaignSceneEntry) => {
     const isDirty = dirtySceneIds.has(scene.id);
     const thumbnailAsset = sceneThumbnailAssets.get(scene.id);
@@ -55,6 +59,7 @@ export function SceneLibraryPanel({
           event.dataTransfer.setData("application/x-localvtt-scene-id", scene.id);
           event.dataTransfer.effectAllowed = "move";
         }}
+        onDragEnd={() => setDropTargetId(null)}
       >
         <button className="scene-select" title={scene.name} onClick={() => onLoadScene(scene.id)}>
           {scene.name}
@@ -100,24 +105,51 @@ export function SceneLibraryPanel({
   const onSceneDrop = (event: DragEvent<HTMLElement>, folderId?: string) => {
     event.preventDefault();
     event.stopPropagation();
+    setDropTargetId(null);
     const sceneId = event.dataTransfer.getData("application/x-localvtt-scene-id");
     if (sceneId) {
       onMoveSceneToFolder(sceneId, folderId);
     }
   };
 
+  const onSceneDragOver = (event: DragEvent<HTMLElement>, folderId?: string) => {
+    if (!event.dataTransfer.types.includes("application/x-localvtt-scene-id")) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "move";
+    setDropTargetId(getDropTargetId(folderId));
+  };
+
+  const onSceneDragLeave = (event: DragEvent<HTMLElement>, folderId?: string) => {
+    const nextTarget = event.relatedTarget;
+    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
+      return;
+    }
+    if (dropTargetId === getDropTargetId(folderId)) {
+      setDropTargetId(null);
+    }
+  };
+
   return (
     <section className="panel grow scene-panel">
-      <div className="scene-list" onDragOver={(event) => event.preventDefault()} onDrop={(event) => onSceneDrop(event)}>
+      <div
+        className="scene-list"
+        onDragOver={(event) => onSceneDragOver(event)}
+        onDragLeave={(event) => onSceneDragLeave(event)}
+        onDrop={(event) => onSceneDrop(event)}
+      >
         {campaign?.sceneFolders.map((folder) => {
           const folderScenes = campaign.scenes.filter((scene) => scene.folderId === folder.id);
           const folderHasDirtyScenes = folderScenes.some((scene) => dirtySceneIds.has(scene.id));
           const isCollapsed = collapsedFolderIds.has(folder.id);
           return (
             <div
-              className="scene-folder"
+              className={dropTargetId === folder.id ? "scene-folder scene-folder-drop-target" : "scene-folder"}
               key={folder.id}
-              onDragOver={(event) => event.preventDefault()}
+              onDragOver={(event) => onSceneDragOver(event, folder.id)}
+              onDragLeave={(event) => onSceneDragLeave(event, folder.id)}
               onDrop={(event) => onSceneDrop(event, folder.id)}
             >
               <div className="scene-folder-header">
@@ -172,7 +204,12 @@ export function SceneLibraryPanel({
             </div>
           );
         })}
-        <div className="scene-folder scene-folder-unfiled" onDragOver={(event) => event.preventDefault()} onDrop={(event) => onSceneDrop(event)}>
+        <div
+          className={dropTargetId === "root" ? "scene-folder scene-folder-unfiled scene-folder-drop-target" : "scene-folder scene-folder-unfiled"}
+          onDragOver={(event) => onSceneDragOver(event)}
+          onDragLeave={(event) => onSceneDragLeave(event)}
+          onDrop={(event) => onSceneDrop(event)}
+        >
           {campaign && campaign.sceneFolders.length > 0 && <div className="scene-folder-header unfiled-header">Unfiled Scenes</div>}
           <div className="scene-folder-scenes">{campaign?.scenes.filter((scene) => !scene.folderId).map(renderSceneCard)}</div>
         </div>

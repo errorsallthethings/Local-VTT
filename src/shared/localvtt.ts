@@ -224,6 +224,10 @@ export interface CampaignSceneFolder {
   createdAt: string;
 }
 
+export interface SceneLibrarySettings {
+  collapsedFolderIds: string[];
+}
+
 export interface Campaign {
   id: string;
   name: string;
@@ -234,6 +238,7 @@ export interface Campaign {
   defaultMeasurement: MeasurementSettings;
   defaultCalibration: DisplayCalibration;
   playerDisplay: DisplayCalibration;
+  sceneLibrary: SceneLibrarySettings;
   sceneFolders: CampaignSceneFolder[];
   scenes: CampaignSceneEntry[];
   assets: Asset[];
@@ -335,6 +340,7 @@ export function createDefaultCampaign(name: string): Campaign {
     defaultMeasurement: { ...DEFAULT_MEASUREMENT },
     defaultCalibration: { ...DEFAULT_CALIBRATION },
     playerDisplay: { ...DEFAULT_CALIBRATION },
+    sceneLibrary: { collapsedFolderIds: [] },
     sceneFolders: [],
     scenes: [],
     assets: []
@@ -441,13 +447,18 @@ function normalizeFog(fog?: Partial<FogSettings>): FogSettings {
 }
 
 export function normalizeCampaign(campaign: Campaign): Campaign {
+  const sceneFolders = campaign.sceneFolders ?? [];
+  const folderIds = new Set(sceneFolders.map((folder) => folder.id));
+  const collapsedFolderIds = (campaign.sceneLibrary?.collapsedFolderIds ?? []).filter((folderId) => folderIds.has(folderId));
+
   return {
     ...campaign,
     defaultGrid: { ...DEFAULT_GRID, ...(campaign.defaultGrid ?? {}), measurement: { ...DEFAULT_MEASUREMENT, ...(campaign.defaultGrid?.measurement ?? {}) } },
     defaultMeasurement: { ...DEFAULT_MEASUREMENT, ...(campaign.defaultMeasurement ?? {}) },
     defaultCalibration: { ...DEFAULT_CALIBRATION, ...(campaign.defaultCalibration ?? {}) },
     playerDisplay: { ...DEFAULT_CALIBRATION, ...(campaign.playerDisplay ?? campaign.defaultCalibration ?? {}) },
-    sceneFolders: campaign.sceneFolders ?? [],
+    sceneLibrary: { collapsedFolderIds },
+    sceneFolders,
     scenes: campaign.scenes ?? [],
     assets: campaign.assets ?? []
   };

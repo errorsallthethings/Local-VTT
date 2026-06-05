@@ -67,7 +67,6 @@ export function GmApp() {
   const [mapAssetToDelete, setMapAssetToDelete] = useState<Asset | null>(null);
   const [openSceneMenuId, setOpenSceneMenuId] = useState<string | null>(null);
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null);
-  const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(() => new Set());
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
   const [gmSettingsOpen, setGmSettingsOpen] = useState(false);
   const [playerDisplayDialogOpen, setPlayerDisplayDialogOpen] = useState(false);
@@ -89,6 +88,7 @@ export function GmApp() {
   }, [activeScene?.mapAssetId, campaign]);
   const activeMapIsVideo = mapAsset?.mediaType === "video";
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
+  const collapsedFolderIds = useMemo(() => new Set(campaign?.sceneLibrary.collapsedFolderIds ?? []), [campaign?.sceneLibrary.collapsedFolderIds]);
   const sceneThumbnailAssets = useMemo(() => {
     const assetsById = new Map((campaign?.assets ?? []).map((asset) => [asset.id, asset]));
     return new Map(
@@ -170,7 +170,6 @@ export function GmApp() {
   const resetSceneLibraryUi = () => {
     setOpenSceneMenuId(null);
     setOpenFolderMenuId(null);
-    setCollapsedFolderIds(new Set());
   };
 
   const {
@@ -462,14 +461,19 @@ export function GmApp() {
     });
 
   const toggleFolderCollapsed = (folderId: string) => {
-    setCollapsedFolderIds((ids) => {
-      const nextIds = new Set(ids);
-      if (nextIds.has(folderId)) {
-        nextIds.delete(folderId);
-      } else {
-        nextIds.add(folderId);
-      }
-      return nextIds;
+    if (!campaign) {
+      return;
+    }
+    const nextIds = new Set(campaign.sceneLibrary.collapsedFolderIds);
+    if (nextIds.has(folderId)) {
+      nextIds.delete(folderId);
+    } else {
+      nextIds.add(folderId);
+    }
+    updateCampaignDraft({
+      ...campaign,
+      sceneLibrary: { ...campaign.sceneLibrary, collapsedFolderIds: [...nextIds] },
+      updatedAt: new Date().toISOString()
     });
   };
 

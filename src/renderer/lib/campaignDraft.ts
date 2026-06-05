@@ -6,6 +6,7 @@ export function mergeCampaignDraft(summaryCampaign: Campaign, draftCampaign: Cam
     ...summaryCampaign,
     name: draftCampaign.name,
     description: draftCampaign.description,
+    sceneLibrary: draftCampaign.sceneLibrary,
     sceneFolders: draftCampaign.sceneFolders,
     scenes: summaryCampaign.scenes.map((scene) => {
       const draftScene = draftScenesById.get(scene.id);

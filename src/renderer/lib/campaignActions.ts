@@ -24,6 +24,10 @@ export function moveSceneEntryToFolder(campaign: Campaign, sceneId: string, fold
 export function removeFolderFromCampaign(campaign: Campaign, folderId: string, updatedAt: string): Campaign {
   return {
     ...campaign,
+    sceneLibrary: {
+      ...campaign.sceneLibrary,
+      collapsedFolderIds: campaign.sceneLibrary.collapsedFolderIds.filter((collapsedFolderId) => collapsedFolderId !== folderId)
+    },
     sceneFolders: campaign.sceneFolders.filter((folder) => folder.id !== folderId),
     scenes: campaign.scenes.map((scene) => (scene.folderId === folderId ? { ...scene, folderId: undefined } : scene)),
     updatedAt

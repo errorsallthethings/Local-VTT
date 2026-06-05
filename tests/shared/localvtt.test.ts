@@ -78,8 +78,21 @@ it("normalizeCampaign fills portable campaign defaults and empty collections", (
   expect(normalized.defaultMeasurement).toEqual(DEFAULT_MEASUREMENT);
   expect(normalized.defaultCalibration).toEqual(DEFAULT_CALIBRATION);
   expect(normalized.playerDisplay).toEqual(DEFAULT_CALIBRATION);
+  expect(normalized.sceneLibrary).toEqual({ collapsedFolderIds: [] });
   expect(normalized.sceneFolders).toEqual([]);
   expect(normalized.assets).toEqual([]);
+});
+
+it("normalizeCampaign preserves valid collapsed scene folders only", () => {
+  const campaign = {
+    ...createDefaultCampaign("Campaign"),
+    sceneLibrary: { collapsedFolderIds: ["folder-1", "missing-folder"] },
+    sceneFolders: [{ id: "folder-1", name: "Chapter 1", createdAt: now }]
+  };
+
+  const normalized = normalizeCampaign(campaign);
+
+  expect(normalized.sceneLibrary.collapsedFolderIds).toEqual(["folder-1"]);
 });
 
 it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {

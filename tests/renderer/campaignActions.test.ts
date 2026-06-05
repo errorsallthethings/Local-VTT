@@ -52,6 +52,7 @@ describe("campaign action helpers", () => {
       { id: "folder-a", name: "A", createdAt: "before" },
       { id: "folder-b", name: "B", createdAt: "before" }
     ];
+    campaign.sceneLibrary = { collapsedFolderIds: ["folder-a", "folder-b"] };
     campaign.scenes = [
       { id: "scene-1", name: "One", file: "one.json", folderId: "folder-a" },
       { id: "scene-2", name: "Two", file: "two.json", folderId: "folder-b" }
@@ -60,6 +61,7 @@ describe("campaign action helpers", () => {
     const next = removeFolderFromCampaign(campaign, "folder-a", "now");
 
     expect(next.sceneFolders.map((folder) => folder.id)).toEqual(["folder-b"]);
+    expect(next.sceneLibrary.collapsedFolderIds).toEqual(["folder-b"]);
     expect(next.scenes).toEqual([
       { id: "scene-1", name: "One", file: "one.json", folderId: undefined },
       { id: "scene-2", name: "Two", file: "two.json", folderId: "folder-b" }

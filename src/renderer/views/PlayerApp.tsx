@@ -43,6 +43,7 @@ function emptyCampaign(name: string) {
     createdAt: "",
     updatedAt: "",
     sceneFolders: [],
+    sceneLibrary: { collapsedFolderIds: [] },
     scenes: [],
     assets: [],
     defaultGrid: {
