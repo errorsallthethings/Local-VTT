@@ -842,7 +842,7 @@ export function GmApp() {
 
   return (
     <div className={appShellClassName} style={appShellStyle}>
-      <aside className="sidebar">
+      <aside className="sidebar" onPointerDown={() => setActiveFogTool(null)}>
         <button
           className="icon-button panel-collapse-button sidebar-collapse-button"
           aria-label={workspaceLayout.leftCollapsed ? "Expand left sidebar" : "Collapse left sidebar"}
@@ -994,7 +994,7 @@ export function GmApp() {
         </footer>
       </main>
 
-      <aside className="inspector">
+      <aside className="inspector" onPointerDown={() => setActiveFogTool(null)}>
         <button
           className="icon-button panel-collapse-button inspector-collapse-button"
           aria-label={workspaceLayout.rightCollapsed ? "Expand right inspector" : "Collapse right inspector"}

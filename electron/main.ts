@@ -346,31 +346,74 @@ function createImageMapThumbnail(sourcePath: string): Buffer | undefined {
 }
 
 async function createTokenThumbnail(campaignPath: string, sourcePath: string, assetId: string): Promise<string | undefined> {
-  const image = nativeImage.createFromPath(sourcePath);
-  const sourceSize = image.getSize();
-  if (image.isEmpty() || sourceSize.width <= 0 || sourceSize.height <= 0) {
+  const thumbnail = await createSquareImageThumbnail(sourcePath);
+  if (!thumbnail) {
     return undefined;
   }
-
-  const cropSize = Math.min(sourceSize.width, sourceSize.height);
-  const cropped = image.crop({
-    x: Math.max(0, Math.floor((sourceSize.width - cropSize) / 2)),
-    y: Math.max(0, Math.floor((sourceSize.height - cropSize) / 2)),
-    width: cropSize,
-    height: cropSize
-  });
-  const maxSize = 512;
-  const thumbnailSize = Math.min(maxSize, cropSize);
-  const thumbnail = cropped.resize({
-    width: thumbnailSize,
-    height: thumbnailSize,
-    quality: "best"
-  });
   const relativePath = path.join("assets", "thumbnails", `${assetId}.jpg`).replaceAll(path.sep, "/");
   const destination = path.resolve(campaignPath, relativePath);
   assertInsideCampaign(campaignPath, destination);
-  await writeFile(destination, thumbnail.toJPEG(86));
+  await writeFile(destination, thumbnail);
   return relativePath;
+}
+
+async function createSquareImageThumbnail(sourcePath: string): Promise<Buffer | undefined> {
+  const win = new BrowserWindow({
+    show: false,
+    width: 512,
+    height: 512,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      webSecurity: false
+    }
+  });
+
+  try {
+    await win.loadURL("data:text/html,<html><body></body></html>");
+    const sourceUrl = pathToFileURL(sourcePath).toString();
+    const dataUrl = await win.webContents.executeJavaScript(
+      `
+        new Promise((resolve) => {
+          const image = new Image();
+          image.onload = () => {
+            const sourceWidth = image.naturalWidth || image.width;
+            const sourceHeight = image.naturalHeight || image.height;
+            if (!sourceWidth || !sourceHeight) {
+              resolve(null);
+              return;
+            }
+            const cropSize = Math.min(sourceWidth, sourceHeight);
+            const sourceX = Math.max(0, Math.floor((sourceWidth - cropSize) / 2));
+            const sourceY = Math.max(0, Math.floor((sourceHeight - cropSize) / 2));
+            const outputSize = Math.min(512, cropSize);
+            const canvas = document.createElement("canvas");
+            canvas.width = outputSize;
+            canvas.height = outputSize;
+            const context = canvas.getContext("2d");
+            if (!context) {
+              resolve(null);
+              return;
+            }
+            context.drawImage(image, sourceX, sourceY, cropSize, cropSize, 0, 0, outputSize, outputSize);
+            resolve(canvas.toDataURL("image/jpeg", 0.86));
+          };
+          image.onerror = () => resolve(null);
+          image.src = ${JSON.stringify(sourceUrl)};
+        })
+      `,
+      true
+    );
+    if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/jpeg;base64,")) {
+      return undefined;
+    }
+    return Buffer.from(dataUrl.split(",")[1], "base64");
+  } finally {
+    if (!win.isDestroyed()) {
+      win.destroy();
+    }
+  }
 }
 
 async function createVideoMapThumbnail(sourcePath: string): Promise<Buffer | undefined> {

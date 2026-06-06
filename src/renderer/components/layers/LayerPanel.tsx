@@ -44,6 +44,10 @@ import {
 import { ColorSettingRow } from "../controls/ColorPickerField";
 import { DebouncedNumberInput } from "../controls/DebouncedNumberInput";
 
+type DropPlacement = "before" | "after";
+type FogShapeDropTarget = { shapeId: string; placement: DropPlacement } | null;
+type TokenDropTarget = { tokenId: string; placement: DropPlacement } | null;
+
 export function LayerPanel({
   scene,
   mapAsset,
@@ -96,6 +100,7 @@ export function LayerPanel({
   const [expandedLayerIds, setExpandedLayerIds] = useState<Set<string>>(() => new Set());
   const [settingsLayerIds, setSettingsLayerIds] = useState<Set<string>>(() => new Set());
   const [draggedFogShapeId, setDraggedFogShapeId] = useState<string | null>(null);
+  const [fogShapeDropTarget, setFogShapeDropTarget] = useState<FogShapeDropTarget>(null);
 
   useEffect(() => {
     if (scene.mapAssetId) {
@@ -184,18 +189,24 @@ export function LayerPanel({
     });
   };
 
-  const moveFogShape = (sourceShapeId: string, targetShapeId: string) => {
+  const moveFogShape = (sourceShapeId: string, targetShapeId: string, placement: DropPlacement) => {
     if (sourceShapeId === targetShapeId) {
       return;
     }
-    const sourceIndex = scene.fog.shapes.findIndex((shape) => shape.id === sourceShapeId);
-    const targetIndex = scene.fog.shapes.findIndex((shape) => shape.id === targetShapeId);
-    if (sourceIndex < 0 || targetIndex < 0) {
+    const namedShapes = scene.fog.shapes.map((shape, index) => ({
+      ...shape,
+      name: shape.name?.trim() || formatFogShapeLabel(shape.operation, shape.kind, index)
+    }));
+    const sourceShape = namedShapes.find((shape) => shape.id === sourceShapeId);
+    if (!sourceShape) {
       return;
     }
-    const shapes = [...scene.fog.shapes];
-    const [sourceShape] = shapes.splice(sourceIndex, 1);
-    shapes.splice(targetIndex, 0, sourceShape);
+    const shapes = namedShapes.filter((shape) => shape.id !== sourceShapeId);
+    const targetIndex = shapes.findIndex((shape) => shape.id === targetShapeId);
+    if (targetIndex < 0) {
+      return;
+    }
+    shapes.splice(placement === "after" ? targetIndex + 1 : targetIndex, 0, sourceShape);
     onUpdateFog({ shapes });
   };
 
@@ -228,8 +239,7 @@ export function LayerPanel({
       mode,
       gmOpacity: mode === "revealed" ? 0 : 0.5,
       playerOpacity: opacity,
-      opacity,
-      shapes: []
+      opacity
     });
   };
 
@@ -374,7 +384,9 @@ export function LayerPanel({
                   scene={scene}
                   selectedFogShapeId={selectedFogShapeId}
                   draggedFogShapeId={draggedFogShapeId}
+                  fogShapeDropTarget={fogShapeDropTarget}
                   onDraggedFogShapeIdChange={setDraggedFogShapeId}
+                  onFogShapeDropTargetChange={setFogShapeDropTarget}
                   onMoveFogShape={moveFogShape}
                   onSelectFogShape={onSelectFogShape}
                   onRenameFogShape={onRenameFogShape}
@@ -383,7 +395,7 @@ export function LayerPanel({
               )}
               {layer.id === "token" && isExpanded && (
                 <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
-                  <button className="import-map-next-step" onClick={onImportToken}>
+                  <button className={scene.tokens.length === 0 ? "import-map-next-step" : "token-import-button"} onClick={onImportToken}>
                     <Import size={16} aria-hidden="true" />
                     Import Token
                   </button>
@@ -593,7 +605,9 @@ function FogShapeList({
   scene,
   selectedFogShapeId,
   draggedFogShapeId,
+  fogShapeDropTarget,
   onDraggedFogShapeIdChange,
+  onFogShapeDropTargetChange,
   onMoveFogShape,
   onSelectFogShape,
   onRenameFogShape,
@@ -602,8 +616,10 @@ function FogShapeList({
   scene: Scene;
   selectedFogShapeId: string | null;
   draggedFogShapeId: string | null;
+  fogShapeDropTarget: FogShapeDropTarget;
   onDraggedFogShapeIdChange: (shapeId: string | null) => void;
-  onMoveFogShape: (sourceShapeId: string, targetShapeId: string) => void;
+  onFogShapeDropTargetChange: (target: FogShapeDropTarget) => void;
+  onMoveFogShape: (sourceShapeId: string, targetShapeId: string, placement: DropPlacement) => void;
   onSelectFogShape: (shapeId: string | null) => void;
   onRenameFogShape: (shapeId: string, fallbackName: string) => void;
   onUpdateFog: (patch: Partial<FogSettings>) => void;
@@ -634,6 +650,7 @@ function FogShapeList({
             const fallbackName = formatFogShapeLabel(shape.operation, shape.kind, shapeIndex);
             const label = shape.name?.trim() || fallbackName;
             const isSelected = selectedFogShapeId === shape.id;
+            const dropPlacement = fogShapeDropTarget?.shapeId === shape.id && draggedFogShapeId !== shape.id ? fogShapeDropTarget.placement : null;
             const gmVisibilityButtonClass = [
               "icon-button",
               "fog-shape-action-button",
@@ -655,7 +672,8 @@ function FogShapeList({
                   "fog-layer-shape-row",
                   isVisibleInGm || isVisibleInPlayer ? "" : "fog-shape-row-muted",
                   isSelected ? "fog-shape-row-selected" : "",
-                  draggedFogShapeId === shape.id ? "fog-shape-row-dragging" : ""
+                  draggedFogShapeId === shape.id ? "fog-shape-row-dragging" : "",
+                  dropPlacement ? `fog-shape-row-drop-${dropPlacement}` : ""
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -665,24 +683,40 @@ function FogShapeList({
                 onDragStart={(event) => {
                   onDraggedFogShapeIdChange(shape.id);
                   event.dataTransfer.setData("application/x-localvtt-fog-shape-id", shape.id);
+                  event.dataTransfer.setData("text/plain", shape.id);
                   event.dataTransfer.effectAllowed = "move";
                 }}
                 onDragOver={(event) => {
-                  if (!event.dataTransfer.types.includes("application/x-localvtt-fog-shape-id")) {
+                  if (!draggedFogShapeId && !event.dataTransfer.types.includes("application/x-localvtt-fog-shape-id")) {
                     return;
                   }
                   event.preventDefault();
                   event.dataTransfer.dropEffect = "move";
+                  if (draggedFogShapeId !== shape.id) {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    onFogShapeDropTargetChange({
+                      shapeId: shape.id,
+                      placement: event.clientY > rect.top + rect.height / 2 ? "after" : "before"
+                    });
+                  }
                 }}
                 onDrop={(event) => {
                   event.preventDefault();
-                  const sourceShapeId = event.dataTransfer.getData("application/x-localvtt-fog-shape-id");
+                  const sourceShapeId = event.dataTransfer.getData("application/x-localvtt-fog-shape-id") || event.dataTransfer.getData("text/plain") || draggedFogShapeId;
+                  const placement = fogShapeDropTarget?.shapeId === shape.id ? fogShapeDropTarget.placement : "before";
                   if (sourceShapeId) {
-                    onMoveFogShape(sourceShapeId, shape.id);
+                    onMoveFogShape(sourceShapeId, shape.id, placement);
                   }
                   onDraggedFogShapeIdChange(null);
+                  onFogShapeDropTargetChange(null);
                 }}
-                onDragEnd={() => onDraggedFogShapeIdChange(null)}
+                onDragEnd={() => {
+                  if (draggedFogShapeId && fogShapeDropTarget) {
+                    onMoveFogShape(draggedFogShapeId, fogShapeDropTarget.shapeId, fogShapeDropTarget.placement);
+                  }
+                  onDraggedFogShapeIdChange(null);
+                  onFogShapeDropTargetChange(null);
+                }}
               >
                 <GripVertical className="fog-shape-drag-handle" size={14} aria-hidden="true" />
                 <span className="fog-shape-kind-icon" title={`${shape.kind} shape`} aria-hidden="true">
@@ -916,6 +950,7 @@ function TokenList({
   onOpenTokenColor: (tokenId: string, value: string, kind: "border" | "glow") => void;
 }) {
   const [draggedTokenId, setDraggedTokenId] = useState<string | null>(null);
+  const [tokenDropTarget, setTokenDropTarget] = useState<TokenDropTarget>(null);
   const [openTokenMenuId, setOpenTokenMenuId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -933,18 +968,20 @@ function TokenList({
     return () => window.removeEventListener("mousedown", closeTokenMenu);
   }, [openTokenMenuId]);
 
-  const moveToken = (sourceTokenId: string, targetTokenId: string) => {
+  const moveToken = (sourceTokenId: string, targetTokenId: string, placement: DropPlacement) => {
     if (sourceTokenId === targetTokenId) {
       return;
     }
-    const sourceIndex = scene.tokens.findIndex((token) => token.id === sourceTokenId);
-    const targetIndex = scene.tokens.findIndex((token) => token.id === targetTokenId);
-    if (sourceIndex < 0 || targetIndex < 0) {
+    const sourceToken = scene.tokens.find((token) => token.id === sourceTokenId);
+    if (!sourceToken) {
       return;
     }
-    const tokens = [...scene.tokens];
-    const [sourceToken] = tokens.splice(sourceIndex, 1);
-    tokens.splice(targetIndex, 0, sourceToken);
+    const tokens = scene.tokens.filter((token) => token.id !== sourceTokenId);
+    const targetIndex = tokens.findIndex((token) => token.id === targetTokenId);
+    if (targetIndex < 0) {
+      return;
+    }
+    tokens.splice(placement === "after" ? targetIndex + 1 : targetIndex, 0, sourceToken);
     onUpdateTokens(tokens.map((token, index) => ({ ...token, order: index })));
   };
 
@@ -975,6 +1012,7 @@ function TokenList({
             const assetName = asset?.name;
             const label = token.name?.trim() || assetName || `Token ${tokenIndex + 1}`;
             const isSelected = selectedTokenId === token.id;
+            const dropPlacement = tokenDropTarget?.tokenId === token.id && draggedTokenId !== token.id ? tokenDropTarget.placement : null;
             const gmVisibilityButtonClass = [
               "icon-button",
               "fog-shape-action-button",
@@ -996,7 +1034,8 @@ function TokenList({
                   isVisibleInGm || isVisibleInPlayer ? "" : "fog-shape-row-muted",
                   isSelected ? "fog-shape-row-selected" : "",
                   "token-shape-row",
-                  draggedTokenId === token.id ? "fog-shape-row-dragging" : ""
+                  draggedTokenId === token.id ? "fog-shape-row-dragging" : "",
+                  dropPlacement ? `fog-shape-row-drop-${dropPlacement}` : ""
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -1006,24 +1045,40 @@ function TokenList({
                 onDragStart={(event) => {
                   setDraggedTokenId(token.id);
                   event.dataTransfer.setData("application/x-localvtt-token-id", token.id);
+                  event.dataTransfer.setData("text/plain", token.id);
                   event.dataTransfer.effectAllowed = "move";
                 }}
                 onDragOver={(event) => {
-                  if (!event.dataTransfer.types.includes("application/x-localvtt-token-id")) {
+                  if (!draggedTokenId && !event.dataTransfer.types.includes("application/x-localvtt-token-id")) {
                     return;
                   }
                   event.preventDefault();
                   event.dataTransfer.dropEffect = "move";
+                  if (draggedTokenId !== token.id) {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setTokenDropTarget({
+                      tokenId: token.id,
+                      placement: event.clientY > rect.top + rect.height / 2 ? "after" : "before"
+                    });
+                  }
                 }}
                 onDrop={(event) => {
                   event.preventDefault();
-                  const sourceTokenId = event.dataTransfer.getData("application/x-localvtt-token-id");
+                  const sourceTokenId = event.dataTransfer.getData("application/x-localvtt-token-id") || event.dataTransfer.getData("text/plain") || draggedTokenId;
+                  const placement = tokenDropTarget?.tokenId === token.id ? tokenDropTarget.placement : "before";
                   if (sourceTokenId) {
-                    moveToken(sourceTokenId, token.id);
+                    moveToken(sourceTokenId, token.id, placement);
                   }
                   setDraggedTokenId(null);
+                  setTokenDropTarget(null);
                 }}
-                onDragEnd={() => setDraggedTokenId(null)}
+                onDragEnd={() => {
+                  if (draggedTokenId && tokenDropTarget) {
+                    moveToken(draggedTokenId, tokenDropTarget.tokenId, tokenDropTarget.placement);
+                  }
+                  setDraggedTokenId(null);
+                  setTokenDropTarget(null);
+                }}
               >
                 <GripVertical className="fog-shape-drag-handle" size={14} aria-hidden="true" />
                 <TokenRowThumbnail asset={asset ?? null} label={label} />

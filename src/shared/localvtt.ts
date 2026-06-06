@@ -469,6 +469,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeFog(fog?: Partial<FogSettings>): FogSettings {
   const legacyOpacity = fog?.opacity ?? DEFAULT_FOG.opacity;
+  const usedShapeIds = new Set<string>();
   return {
     ...DEFAULT_FOG,
     ...(fog ?? {}),
@@ -476,16 +477,38 @@ function normalizeFog(fog?: Partial<FogSettings>): FogSettings {
     gmOpacity: fog?.gmOpacity ?? Math.min(legacyOpacity, 0.5),
     playerOpacity: fog?.playerOpacity ?? legacyOpacity,
     newShapesVisibleInPlayer: fog?.newShapesVisibleInPlayer ?? DEFAULT_FOG.newShapesVisibleInPlayer,
-    shapes: (fog?.shapes ?? []).map((shape) => {
+    shapes: (fog?.shapes ?? []).map((shape, index) => {
       const legacyVisible = shape.visible ?? true;
+      const shapeId = getUniqueFogShapeId(shape.id, index, usedShapeIds);
       return {
         ...shape,
+        id: shapeId,
+        name: typeof shape.name === "string" && shape.name.trim() ? shape.name : formatDefaultFogShapeName(shape.operation, shape.kind, index),
         visible: legacyVisible,
         visibleInGm: shape.visibleInGm ?? legacyVisible,
         visibleInPlayer: shape.visibleInPlayer ?? legacyVisible
       };
     })
   };
+}
+
+function getUniqueFogShapeId(id: unknown, index: number, usedIds: Set<string>): string {
+  const rawId = typeof id === "string" ? id.trim() : "";
+  const baseId = rawId || `fog-shape-${index + 1}`;
+  let candidateId = baseId;
+  let suffix = 2;
+  while (usedIds.has(candidateId)) {
+    candidateId = `${baseId}-${suffix}`;
+    suffix += 1;
+  }
+  usedIds.add(candidateId);
+  return candidateId;
+}
+
+function formatDefaultFogShapeName(operation: FogShape["operation"], kind: FogShape["kind"], index: number): string {
+  const operationLabel = operation === "reveal" ? "Reveal" : "Hide";
+  const kindLabel = kind[0].toUpperCase() + kind.slice(1);
+  return `${operationLabel} ${kindLabel} ${index + 1}`;
 }
 
 function normalizeTokens(tokens?: Token[]): Token[] {

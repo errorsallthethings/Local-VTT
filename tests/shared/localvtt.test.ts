@@ -108,6 +108,20 @@ it("normalizeScene makes legacy fog shapes visible in GM and Player views", () =
   expect(normalized.fog.shapes[1].visibleInPlayer).toBe(false);
 });
 
+it("normalizeScene assigns stable ids to legacy fog shapes without ids", () => {
+  const scene = createDefaultScene("Legacy Fog Ids");
+  scene.fog.shapes = [
+    { operation: "reveal", kind: "rectangle", points: [{ x: 0, y: 0 }, { x: 10, y: 10 }] },
+    { id: "", operation: "hide", kind: "brush", points: [{ x: 5, y: 5 }], radius: 12 },
+    { id: "fog-shape-1", operation: "reveal", kind: "polygon", points: [{ x: 0, y: 0 }, { x: 5, y: 10 }, { x: 10, y: 0 }] }
+  ] as Scene["fog"]["shapes"];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.fog.shapes.map((shape) => shape.id)).toEqual(["fog-shape-1", "fog-shape-2", "fog-shape-1-2"]);
+  expect(normalized.fog.shapes.map((shape) => shape.name)).toEqual(["Reveal Rectangle 1", "Hide Brush 2", "Reveal Polygon 3"]);
+});
+
 it("normalizeCampaign fills portable campaign defaults and empty collections", () => {
   const campaign = {
     id: "campaign-1",

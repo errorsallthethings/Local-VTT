@@ -111,7 +111,7 @@ export function SceneCanvas({
   const canShowMap = mode === "gm" ? mapLayer?.visibleInGm : mapLayer?.visibleInPlayer;
   const canShowGrid = mode === "gm" ? gridLayer?.visibleInGm : gridLayer?.visibleInPlayer;
   const canShowFog = mode === "gm" ? fogLayer?.visibleInGm : fogLayer?.visibleInPlayer;
-  const canShowTokens = mode === "gm" ? tokenLayer?.visibleInGm : true;
+  const canShowTokens = mode === "gm" ? tokenLayer?.visibleInGm : tokenLayer?.visibleInPlayer;
   const isVideoMap = Boolean(canShowMap && mapAsset?.mediaType === "video" && assetUrl);
   const playerDisplayScale = getPlayerDisplayScale(campaign, scene, mode);
   const videoPlayback = scene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
@@ -468,6 +468,7 @@ export function SceneCanvas({
               ...scene.fog.shapes,
               {
                 id: crypto.randomUUID(),
+                name: formatDefaultFogShapeName(fogDrag.operation, fogDrag.kind, scene.fog.shapes.length),
                 operation: fogDrag.operation,
                 kind: fogDrag.kind,
                 points: fogDrag.kind === "brush" ? normalizeBrushPoints(fogDrag.points, fogDrag.current) : [fogDrag.start, fogDrag.current],
@@ -571,6 +572,7 @@ export function SceneCanvas({
           ...scene.fog.shapes,
           {
             id: crypto.randomUUID(),
+            name: formatDefaultFogShapeName(draft.operation, "polygon", scene.fog.shapes.length),
             operation: draft.operation,
             kind: "polygon",
             points: draft.points,
@@ -611,7 +613,11 @@ export function SceneCanvas({
                 setMapLoadStatus("ready");
                 playActiveWhenReady(index);
               }}
-              onError={() => setMapLoadStatus("error")}
+              onError={() => {
+                if (index === activeVideoIndex) {
+                  setMapLoadStatus("error");
+                }
+              }}
               onPause={() => recoverUnexpectedPause(index)}
             />
           )
@@ -714,6 +720,12 @@ function getCanvasToolClass(fogTool: FogTool | null): string {
     return "scene-canvas-tool-polygon";
   }
   return "scene-canvas-tool-rectangle";
+}
+
+function formatDefaultFogShapeName(operation: "reveal" | "hide", kind: "brush" | "rectangle" | "polygon" | "circle", index: number): string {
+  const operationLabel = operation === "reveal" ? "Reveal" : "Hide";
+  const kindLabel = kind[0].toUpperCase() + kind.slice(1);
+  return `${operationLabel} ${kindLabel} ${index + 1}`;
 }
 
 function getVisibleTokens(scene: Scene, mode: "gm" | "player"): Token[] {
@@ -913,15 +925,68 @@ function drawTokens(
       continue;
     }
     const renderToken = mode === "gm" && tokenDragPreview?.tokenId === token.id ? { ...token, position: tokenDragPreview.currentPosition } : token;
+    const shouldClipToFog = mode === "player" && scene.fog.mode !== "revealed";
+    ctx.save();
+    if (shouldClipToFog && !clipToPlayerRevealShapes(ctx, scene)) {
+      ctx.restore();
+      continue;
+    }
     if (renderToken.footprintVisible) {
       drawTokenFootprint(ctx, scene, renderToken, mode);
     }
     const image = loadedImages.get(token.assetId);
     if (!image) {
       drawTokenPlaceholder(ctx, renderToken, selectedTokenId === token.id);
+      ctx.restore();
       continue;
     }
     drawToken(ctx, renderToken, image, selectedTokenId === token.id && mode === "gm");
+    ctx.restore();
+  }
+}
+
+function clipToPlayerRevealShapes(ctx: CanvasRenderingContext2D, scene: Scene): boolean {
+  const revealShapes = scene.fog.shapes.filter((shape) => {
+    const isVisible = shape.visibleInPlayer ?? shape.visible ?? true;
+    return isVisible && shape.operation === "reveal";
+  });
+  if (revealShapes.length === 0) {
+    return false;
+  }
+
+  ctx.beginPath();
+  for (const shape of revealShapes) {
+    traceFogShapePath(ctx, shape);
+  }
+  ctx.clip();
+  return true;
+}
+
+function traceFogShapePath(ctx: CanvasRenderingContext2D, shape: Scene["fog"]["shapes"][number]) {
+  if (shape.kind === "rectangle" && shape.points.length >= 2) {
+    const [a, b] = shape.points;
+    ctx.rect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+    return;
+  }
+  if (shape.kind === "polygon" && shape.points.length >= 3) {
+    ctx.moveTo(shape.points[0].x, shape.points[0].y);
+    for (const point of shape.points.slice(1)) {
+      ctx.lineTo(point.x, point.y);
+    }
+    ctx.closePath();
+    return;
+  }
+  if (shape.kind === "brush" && shape.points.length >= 1) {
+    const radius = Math.max(1, shape.radius ?? 24);
+    for (const point of shape.points) {
+      ctx.moveTo(point.x + radius, point.y);
+      ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+    }
+    return;
+  }
+  if (shape.kind === "circle" && shape.points[0] && shape.radius) {
+    ctx.moveTo(shape.points[0].x + shape.radius, shape.points[0].y);
+    ctx.arc(shape.points[0].x, shape.points[0].y, shape.radius, 0, Math.PI * 2);
   }
 }
 
@@ -1140,13 +1205,35 @@ function drawToken(ctx: CanvasRenderingContext2D, token: Token, image: HTMLImage
   ctx.save();
   applyTokenMask(ctx, x, y, width, height, mask);
   ctx.clip();
-  ctx.drawImage(image, x, y, width, height);
+  drawCroppedImage(ctx, image, x, y, width, height);
   ctx.restore();
 
   drawTokenBorder(ctx, x, y, width, height, mask, borderStyle, borderColor, borderWidth, glowColor);
   if (selected) {
     drawTokenSelectionOutline(ctx, x, y, width, height, mask);
   }
+}
+
+function drawCroppedImage(ctx: CanvasRenderingContext2D, image: HTMLImageElement, x: number, y: number, width: number, height: number) {
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  if (sourceWidth <= 0 || sourceHeight <= 0) {
+    return;
+  }
+  const sourceAspect = sourceWidth / sourceHeight;
+  const targetAspect = width / height;
+  let cropX = 0;
+  let cropY = 0;
+  let cropWidth = sourceWidth;
+  let cropHeight = sourceHeight;
+  if (sourceAspect > targetAspect) {
+    cropWidth = sourceHeight * targetAspect;
+    cropX = (sourceWidth - cropWidth) / 2;
+  } else if (sourceAspect < targetAspect) {
+    cropHeight = sourceWidth / targetAspect;
+    cropY = (sourceHeight - cropHeight) / 2;
+  }
+  ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, x, y, width, height);
 }
 
 function drawTokenPlaceholder(ctx: CanvasRenderingContext2D, token: Token, selected: boolean) {
