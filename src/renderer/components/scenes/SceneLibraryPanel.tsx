@@ -6,6 +6,7 @@ import {
   EllipsisVertical,
   Folder,
   FolderOpen,
+  GripVertical,
   Image as ImageIcon,
   ImageOff,
   Map,
@@ -64,6 +65,7 @@ export function SceneLibraryPanel({
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
   const getDropTargetId = (folderId?: string) => folderId ?? "root";
+  const unfiledScenes = campaign?.scenes.filter((scene) => !scene.folderId) ?? [];
 
   const renderSceneCard = (scene: CampaignSceneEntry) => {
     const isDirty = dirtySceneIds.has(scene.id);
@@ -94,8 +96,9 @@ export function SceneLibraryPanel({
         }}
         onDragEnd={() => setDropTargetId(null)}
       >
-        <div className="scene-select">
-          {scene.name}
+        <div className="scene-title-row">
+          <GripVertical className="scene-drag-handle" size={15} aria-hidden="true" />
+          <div className="scene-select">{scene.name}</div>
         </div>
         <div className="scene-row-body">
           <SceneThumbnail asset={thumbnailAsset ?? null} />
@@ -171,7 +174,7 @@ export function SceneLibraryPanel({
   return (
     <section className="panel grow scene-panel">
       <div
-        className="scene-list"
+        className={dropTargetId ? "scene-list scene-list-drag-active" : "scene-list"}
         onDragOver={(event) => onSceneDragOver(event)}
         onDragLeave={(event) => onSceneDragLeave(event)}
         onDrop={(event) => onSceneDrop(event)}
@@ -186,9 +189,16 @@ export function SceneLibraryPanel({
             "--scene-folder-color": folder.color,
             "--scene-folder-color-bg": hexToRgba(folder.color, 0.13)
           } as CSSProperties;
+          const folderClassName = [
+            "scene-folder",
+            isCollapsed ? "scene-folder-collapsed" : "",
+            dropTargetId === folder.id ? "scene-folder-drop-target" : ""
+          ]
+            .filter(Boolean)
+            .join(" ");
           return (
             <div
-              className={dropTargetId === folder.id ? "scene-folder scene-folder-drop-target" : "scene-folder"}
+              className={folderClassName}
               key={folder.id}
               style={folderStyle}
               onDragOver={(event) => onSceneDragOver(event, folder.id)}
@@ -266,7 +276,9 @@ export function SceneLibraryPanel({
           onDrop={(event) => onSceneDrop(event)}
         >
           {campaign && campaign.sceneFolders.length > 0 && <div className="scene-folder-header unfiled-header">Unfiled Scenes</div>}
-          <div className="scene-folder-scenes">{campaign?.scenes.filter((scene) => !scene.folderId).map(renderSceneCard)}</div>
+          <div className="scene-folder-scenes">
+            {unfiledScenes.length > 0 ? unfiledScenes.map(renderSceneCard) : campaign && <div className="scene-folder-empty">Drop scenes here</div>}
+          </div>
         </div>
       </div>
     </section>

@@ -4,6 +4,10 @@
   gap: 8px;
 }
 
+.scene-list-drag-active {
+  cursor: grabbing;
+}
+
 .scene-folder {
   display: grid;
   gap: 7px;
@@ -15,6 +19,10 @@
     linear-gradient(90deg, var(--scene-folder-color-bg, rgb(122 162 247 / 0.13)), rgb(21 28 37 / 0) 64%),
     #121821;
   padding: 5px;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .scene-folder-header {
@@ -37,6 +45,29 @@
   border-color: #7aa2f7;
   background: #1d2a3e;
   box-shadow: 0 0 0 1px rgb(122 162 247 / 0.28);
+}
+
+.scene-folder-drop-target {
+  border-color: #7aa2f7;
+  background:
+    linear-gradient(90deg, var(--scene-folder-color-bg, rgb(122 162 247 / 0.18)), rgb(122 162 247 / 0.06) 70%),
+    #172031;
+  box-shadow:
+    inset 0 0 0 1px rgb(122 162 247 / 0.22),
+    0 0 0 1px rgb(122 162 247 / 0.18);
+}
+
+.scene-folder-collapsed.scene-folder-drop-target::after {
+  display: grid;
+  place-items: center;
+  min-height: 34px;
+  border: 1px dashed rgb(122 162 247 / 0.7);
+  border-radius: 6px;
+  background: rgb(122 162 247 / 0.08);
+  color: #dce7f7;
+  content: "Drop scene into folder";
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .scene-folder-header > span,
@@ -79,6 +110,7 @@
   border-radius: 6px;
   color: #748094;
   font-size: 12px;
+  font-weight: 700;
 }
 
 .scene-folder-drop-target .scene-folder-empty {
@@ -147,6 +179,26 @@
 .scene-row:focus-visible {
   outline: 2px solid #7aa2f7;
   outline-offset: 2px;
+}
+
+.scene-title-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.scene-drag-handle {
+  color: #748094;
+  cursor: grab;
+  opacity: 0.72;
+}
+
+.scene-row:hover .scene-drag-handle,
+.scene-row:focus-visible .scene-drag-handle {
+  color: #aeb9ca;
+  opacity: 1;
 }
 
 .scene-select {
