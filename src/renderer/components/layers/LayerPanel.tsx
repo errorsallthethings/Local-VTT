@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -56,6 +56,18 @@ export function LayerPanel({
   const canFitGridToMap = mapAsset?.mediaType === "image";
   const fitModeHelp = getFitModeHelp(scene.mapTransform.fitMode);
   const [expandedLayerIds, setExpandedLayerIds] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    if (scene.mapAssetId) {
+      return;
+    }
+    setExpandedLayerIds((ids) => {
+      if (ids.has("map")) {
+        return ids;
+      }
+      return new Set([...ids, "map"]);
+    });
+  }, [scene.id, scene.mapAssetId]);
 
   const updateLayer = (layerId: string, patch: Partial<Layer>) => {
     const nextGrid =
@@ -378,7 +390,7 @@ export function LayerPanel({
                       </div>
                     </>
                   ) : (
-                    <button onClick={onImportMap}>
+                    <button className="import-map-next-step" onClick={onImportMap}>
                       <Import size={16} aria-hidden="true" />
                       Import Map
                     </button>

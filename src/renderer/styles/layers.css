@@ -63,6 +63,27 @@
   grid-column: 1 / -1;
 }
 
+.import-map-next-step {
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  border-color: #7aa2f7;
+  background:
+    linear-gradient(135deg, rgb(122 162 247 / 0.28), rgb(76 191 120 / 0.16)),
+    #202733;
+  color: #f2f6fb;
+  font-weight: 800;
+  box-shadow:
+    0 0 0 1px rgb(122 162 247 / 0.22),
+    0 10px 26px rgb(0 0 0 / 0.24);
+}
+
+.import-map-next-step:hover:not(:disabled) {
+  border-color: #9ab9ff;
+  background:
+    linear-gradient(135deg, rgb(122 162 247 / 0.36), rgb(76 191 120 / 0.22)),
+    #253040;
+}
+
 .stacked-control {
   display: grid !important;
   gap: 6px;

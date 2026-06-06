@@ -39,10 +39,13 @@ interface LoadedMap {
   ready: boolean;
 }
 
+type MapLoadStatus = "idle" | "loading" | "ready" | "error";
+
 export function SceneCanvas({ campaign, scene, mode, className, interactive = true, fogTool = null, onSceneChange }: SceneCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, zoom: 1 });
   const [loadedMap, setLoadedMap] = useState<LoadedMap | null>(null);
+  const [mapLoadStatus, setMapLoadStatus] = useState<MapLoadStatus>("idle");
   const [fogPreview, setFogPreview] = useState<FogDrag | null>(null);
   const [polygonDraft, setPolygonDraft] = useState<FogPolygonDraft | null>(null);
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
@@ -114,13 +117,16 @@ export function SceneCanvas({ campaign, scene, mode, className, interactive = tr
   useEffect(() => {
     if (!assetUrl || !mapAsset || mapAsset.mediaType === "video") {
       setLoadedMap(null);
+      setMapLoadStatus(mapAsset?.mediaType === "video" && assetUrl ? "loading" : "idle");
       return;
     }
 
     const imageAsset = mapAsset;
     const image = new Image();
     image.decoding = "async";
-    image.onload = () =>
+    setLoadedMap(null);
+    setMapLoadStatus("loading");
+    image.onload = () => {
       setLoadedMap({
         assetId: imageAsset.id,
         source: image,
@@ -128,9 +134,21 @@ export function SceneCanvas({ campaign, scene, mode, className, interactive = tr
         mediaType: "image",
         ready: true
       });
-    image.onerror = () => setLoadedMap(null);
+      setMapLoadStatus("ready");
+    };
+    image.onerror = () => {
+      setLoadedMap(null);
+      setMapLoadStatus("error");
+    };
     image.src = assetUrl;
   }, [assetUrl, mapAsset]);
+
+  useEffect(() => {
+    if (!isVideoMap) {
+      return;
+    }
+    setMapLoadStatus("loading");
+  }, [isVideoMap, mapAsset?.id, assetUrl]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -172,12 +190,15 @@ export function SceneCanvas({ campaign, scene, mode, className, interactive = tr
           // Keep the canvas pass resilient if an image asset is temporarily unavailable.
         }
         ctx.globalAlpha = 1;
-      } else if (!isVideoMap) {
+      } else if (!isVideoMap && (!canShowMap || !mapAsset)) {
         ctx.fillStyle = "#242a32";
         ctx.fillRect(0, 0, 1600, 1000);
         ctx.fillStyle = "#8792a2";
         ctx.font = "24px system-ui, sans-serif";
         ctx.fillText("Import a map to begin", 48, 64);
+      } else if (!isVideoMap) {
+        ctx.fillStyle = "#111720";
+        ctx.fillRect(0, 0, 1600, 1000);
       }
 
       const showGrid = Boolean(canShowGrid) && (mode === "gm" ? scene.grid.showOnGm : scene.grid.showOnPlayer);
@@ -417,6 +438,9 @@ export function SceneCanvas({ campaign, scene, mode, className, interactive = tr
     });
   };
 
+  const showMapOverlay = Boolean(canShowMap && mapAsset && (mapLoadStatus === "loading" || mapLoadStatus === "error"));
+  const mapOverlayMessage = mapLoadStatus === "error" ? "Map preview unavailable" : mapAsset?.mediaType === "video" ? "Loading video map..." : "Loading map...";
+
   return (
     <div className={className ?? "scene-canvas-frame"}>
       {isVideoMap &&
@@ -437,7 +461,11 @@ export function SceneCanvas({ campaign, scene, mode, className, interactive = tr
                 opacity: index === activeVideoIndex ? (mapLayer?.opacity ?? 1) : 0,
                 transform: getVideoTransform(getRenderCamera(camera, playerDisplayScale), scene)
               }}
-              onCanPlay={() => playActiveWhenReady(index)}
+              onCanPlay={() => {
+                setMapLoadStatus("ready");
+                playActiveWhenReady(index);
+              }}
+              onError={() => setMapLoadStatus("error")}
               onPause={() => recoverUnexpectedPause(index)}
             />
           )
@@ -457,7 +485,17 @@ export function SceneCanvas({ campaign, scene, mode, className, interactive = tr
       {mode === "gm" && fogTool && (
         <FogToolStatusStrip fogTool={fogTool} polygonPointCount={polygonDraft?.points.length ?? 0} brushSize={scene?.fog.brushSize ?? 0} />
       )}
+      {showMapOverlay && <MapLoadOverlay message={mapOverlayMessage} showSpinner={mapLoadStatus === "loading"} />}
       {mode === "gm" && showVideoDiagnostics && isVideoMap && videoDebug && <div className="video-debug">{videoDebug}</div>}
+    </div>
+  );
+}
+
+function MapLoadOverlay({ message, showSpinner }: { message: string; showSpinner: boolean }) {
+  return (
+    <div className="map-load-overlay" role="status" aria-live="polite">
+      {showSpinner && <span className="map-load-spinner" aria-hidden="true" />}
+      <span>{message}</span>
     </div>
   );
 }
