@@ -1,16 +1,5 @@
 import { type CSSProperties, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useState } from "react";
 import {
-  FilePlus,
-  FolderPlus,
-  GripVertical,
-  Lock,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PanelRightClose,
-  PanelRightOpen,
-  Unlock
-} from "lucide-react";
-import {
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK
@@ -27,11 +16,8 @@ import type {
   Scene,
   VideoPlaybackSettings
 } from "../../shared/localvtt";
-import { CampaignPanel } from "../components/campaign/CampaignPanel";
-import { LayerPanel } from "../components/layers/LayerPanel";
 import { SceneCanvas } from "../components/SceneCanvas";
-import { SceneLibraryPanel } from "../components/scenes/SceneLibraryPanel";
-import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
+import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type FogOperation } from "../components/tools/ToolsMenu";
 import { GmSettingsMenu } from "../components/workspace/GmSettingsMenu";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
@@ -62,6 +48,8 @@ import {
   type TokenColorDialog,
   type TokenNameDialog
 } from "./GmDialogs";
+import { GmInspector } from "./GmInspector";
+import { GmSidebar } from "./GmSidebar";
 
 export function GmApp() {
   const workspace = useCampaignWorkspace();
@@ -797,86 +785,49 @@ export function GmApp() {
 
   return (
     <div className={appShellClassName} style={appShellStyle}>
-      <aside className="sidebar" onPointerDown={() => setActiveFogTool(null)}>
-        <button
-          className="icon-button panel-collapse-button sidebar-collapse-button"
-          aria-label={workspaceLayout.leftCollapsed ? "Expand left sidebar" : "Collapse left sidebar"}
-          title={workspaceLayout.leftCollapsed ? "Expand left sidebar" : "Collapse left sidebar"}
-          onClick={() => toggleWorkspacePanel("left")}
-        >
-          {workspaceLayout.leftCollapsed ? <PanelLeftOpen size={16} aria-hidden="true" /> : <PanelLeftClose size={16} aria-hidden="true" />}
-        </button>
-        {workspaceLayout.leftCollapsed && <div className="panel-spine-label">Campaign / Scenes</div>}
-        {!workspaceLayout.leftCollapsed && (
-          <div className="panel-region-content">
-            <div className="section-heading">
-              <h2>Campaign</h2>
-            </div>
-            <CampaignPanel
-              campaign={campaign}
-              campaignPath={campaignPath}
-              missingAssets={missingAssets}
-              hasUnsavedChanges={hasUnsavedChanges}
-              onCreateCampaign={createCampaign}
-              onOpenCampaign={openCampaign}
-              onSaveCampaign={() => void saveCampaign()}
-              onRenameCampaign={openCampaignRenameDialog}
-            />
-
-            <div className="section-heading">
-              <h2>Scenes</h2>
-              <div className="section-actions">
-                <button className="icon-button" disabled={!campaignPath} aria-label="Add Scene" title="Add Scene" onClick={openSceneDialog}>
-                  <FilePlus size={16} aria-hidden="true" />
-                </button>
-                <button className="icon-button" disabled={!campaign} aria-label="Add Scene Folder" title="Add Scene Folder" onClick={openFolderDialog}>
-                  <FolderPlus size={16} aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-            <SceneLibraryPanel
-              campaign={campaign}
-              activeScene={activeScene}
-              playerSceneId={playerSceneId}
-              dirtySceneIds={dirtySceneIds}
-              sceneThumbnailAssets={sceneThumbnailAssets}
-              collapsedFolderIds={collapsedFolderIds}
-              openSceneMenuId={openSceneMenuId}
-              openFolderMenuId={openFolderMenuId}
-              onLoadScene={(sceneId) => void loadScene(sceneId)}
-              onSaveScene={(sceneId) => void saveSceneById(sceneId)}
-              onSaveFolderScenes={(folderId) => void saveFolderScenes(folderId)}
-              onMoveSceneToFolder={moveSceneToFolder}
-              onToggleFolderCollapsed={toggleFolderCollapsed}
-              onToggleSceneMenu={(sceneId) => {
-                setOpenFolderMenuId(null);
-                setOpenSceneMenuId(openSceneMenuId === sceneId ? null : sceneId);
-              }}
-              onToggleFolderMenu={(folderId) => {
-                setOpenSceneMenuId(null);
-                setOpenFolderMenuId(openFolderMenuId === folderId ? null : folderId);
-              }}
-          onRenameScene={openRenameDialog}
-          onDeleteScene={setSceneToDelete}
-          onRenameFolder={openRenameFolderDialog}
-          onChangeFolderColor={openFolderColorDialog}
-          onMoveFolder={moveFolder}
-          onDeleteFolder={setFolderToDelete}
-        />
-          </div>
-        )}
-        {!workspaceLayout.leftCollapsed && (
-          <button
-            className="panel-resize-handle panel-resize-handle-left"
-            aria-label="Resize left sidebar"
-            title="Drag to resize. Double-click to reset."
-            onDoubleClick={() => resetPanelWidth("left")}
-            onPointerDown={(event) => startPanelResize("left", event)}
-          >
-            <GripVertical size={14} aria-hidden="true" />
-          </button>
-        )}
-      </aside>
+      <GmSidebar
+        campaign={campaign}
+        campaignPath={campaignPath}
+        missingAssets={missingAssets}
+        hasUnsavedChanges={hasUnsavedChanges}
+        activeScene={activeScene}
+        playerSceneId={playerSceneId}
+        dirtySceneIds={dirtySceneIds}
+        sceneThumbnailAssets={sceneThumbnailAssets}
+        collapsedFolderIds={collapsedFolderIds}
+        openSceneMenuId={openSceneMenuId}
+        openFolderMenuId={openFolderMenuId}
+        workspaceLayout={workspaceLayout}
+        onClearActiveFogTool={() => setActiveFogTool(null)}
+        onToggleWorkspacePanel={toggleWorkspacePanel}
+        onResetPanelWidth={resetPanelWidth}
+        onStartPanelResize={startPanelResize}
+        onCreateCampaign={createCampaign}
+        onOpenCampaign={openCampaign}
+        onSaveCampaign={() => void saveCampaign()}
+        onRenameCampaign={openCampaignRenameDialog}
+        onOpenSceneDialog={openSceneDialog}
+        onOpenFolderDialog={openFolderDialog}
+        onLoadScene={(sceneId) => void loadScene(sceneId)}
+        onSaveScene={(sceneId) => void saveSceneById(sceneId)}
+        onSaveFolderScenes={(folderId) => void saveFolderScenes(folderId)}
+        onMoveSceneToFolder={moveSceneToFolder}
+        onToggleFolderCollapsed={toggleFolderCollapsed}
+        onToggleSceneMenu={(sceneId) => {
+          setOpenFolderMenuId(null);
+          setOpenSceneMenuId(openSceneMenuId === sceneId ? null : sceneId);
+        }}
+        onToggleFolderMenu={(folderId) => {
+          setOpenSceneMenuId(null);
+          setOpenFolderMenuId(openFolderMenuId === folderId ? null : folderId);
+        }}
+        onRenameScene={openRenameDialog}
+        onDeleteScene={setSceneToDelete}
+        onRenameFolder={openRenameFolderDialog}
+        onChangeFolderColor={openFolderColorDialog}
+        onMoveFolder={moveFolder}
+        onDeleteFolder={setFolderToDelete}
+      />
 
       <main className="workspace">
         <WorkspaceTopbar
@@ -949,84 +900,35 @@ export function GmApp() {
         </footer>
       </main>
 
-      <aside className="inspector" onPointerDown={() => setActiveFogTool(null)}>
-        <button
-          className="icon-button panel-collapse-button inspector-collapse-button"
-          aria-label={workspaceLayout.rightCollapsed ? "Expand right inspector" : "Collapse right inspector"}
-          title={workspaceLayout.rightCollapsed ? "Expand right inspector" : "Collapse right inspector"}
-          onClick={() => toggleWorkspacePanel("right")}
-        >
-          {workspaceLayout.rightCollapsed ? <PanelRightOpen size={16} aria-hidden="true" /> : <PanelRightClose size={16} aria-hidden="true" />}
-        </button>
-        {workspaceLayout.rightCollapsed && <div className="panel-spine-label">Layers</div>}
-        {!workspaceLayout.rightCollapsed && (
-          <div className="panel-region-content">
-            {activeScene ? (
-              <>
-                <div className="section-heading">
-                  <h2>Layers</h2>
-                  <div className="section-actions">
-                    <button
-                      className="icon-button"
-                      aria-label={activeScene.layerOrderLocked ? "Unlock layer order" : "Lock layer order"}
-                      title={activeScene.layerOrderLocked ? "Unlock layer order" : "Lock layer order"}
-                      onClick={() => setLayerOrderLocked(!activeScene.layerOrderLocked)}
-                    >
-                      {activeScene.layerOrderLocked ? <Lock size={15} aria-hidden="true" /> : <Unlock size={15} aria-hidden="true" />}
-                    </button>
-                  </div>
-                </div>
-                <LayerPanel
-                  scene={activeScene}
-                  mapAsset={mapAsset}
-                  tokenAssets={tokenAssets}
-                  selectedFogShapeId={selectedFogShapeId}
-                  selectedTokenId={selectedTokenId}
-                  onChange={updateScene}
-                  onUpdateGrid={updateGrid}
-                  onUpdateFog={updateFog}
-                  onUpdateMapTransform={updateMapTransform}
-                  onFitGridToMapDimensions={fitGridToMapDimensions}
-                  onMoveLayer={moveLayer}
-                  onImportMap={importMap}
-                  onImportToken={() => void importToken()}
-                  onDeleteMap={setMapAssetToDelete}
-                  onSelectFogShape={setSelectedFogShapeId}
-                  onSelectToken={setSelectedTokenId}
-                  onRenameFogShape={openRenameFogShapeDialog}
-                  onRenameToken={openRenameTokenDialog}
-                  onOpenFogColor={() => openSceneColorDialog("fog")}
-                  onOpenGridColor={() => openSceneColorDialog("grid")}
-                  onOpenTokenColor={openTokenColorDialog}
-                />
-
-                <div className="section-heading">
-                  <h2>Phase Placeholders</h2>
-                </div>
-                <section className="panel">
-                  <p>Fog, tokens, walls, lights, drawings, measurements, and animated overlays are typed in the scene model and ready for later renderer tools.</p>
-                </section>
-              </>
-            ) : (
-              <section className="panel">
-                <h2>Ready</h2>
-                <p>Create a campaign, add a scene, import a map, then send it to Player View.</p>
-              </section>
-            )}
-          </div>
-        )}
-        {!workspaceLayout.rightCollapsed && (
-          <button
-            className="panel-resize-handle panel-resize-handle-right"
-            aria-label="Resize right inspector"
-            title="Drag to resize. Double-click to reset."
-            onDoubleClick={() => resetPanelWidth("right")}
-            onPointerDown={(event) => startPanelResize("right", event)}
-          >
-            <GripVertical size={14} aria-hidden="true" />
-          </button>
-        )}
-      </aside>
+      <GmInspector
+        activeScene={activeScene}
+        mapAsset={mapAsset}
+        tokenAssets={tokenAssets}
+        selectedFogShapeId={selectedFogShapeId}
+        selectedTokenId={selectedTokenId}
+        workspaceLayout={workspaceLayout}
+        onClearActiveFogTool={() => setActiveFogTool(null)}
+        onToggleWorkspacePanel={toggleWorkspacePanel}
+        onResetPanelWidth={resetPanelWidth}
+        onStartPanelResize={startPanelResize}
+        onSetLayerOrderLocked={setLayerOrderLocked}
+        onChangeScene={updateScene}
+        onUpdateGrid={updateGrid}
+        onUpdateFog={updateFog}
+        onUpdateMapTransform={updateMapTransform}
+        onFitGridToMapDimensions={fitGridToMapDimensions}
+        onMoveLayer={moveLayer}
+        onImportMap={importMap}
+        onImportToken={() => void importToken()}
+        onDeleteMap={setMapAssetToDelete}
+        onSelectFogShape={setSelectedFogShapeId}
+        onSelectToken={setSelectedTokenId}
+        onRenameFogShape={openRenameFogShapeDialog}
+        onRenameToken={openRenameTokenDialog}
+        onOpenFogColor={() => openSceneColorDialog("fog")}
+        onOpenGridColor={() => openSceneColorDialog("grid")}
+        onOpenTokenColor={openTokenColorDialog}
+      />
 
       <GmDialogs
         sceneDialog={sceneDialog}
