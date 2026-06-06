@@ -18,6 +18,7 @@ export type TokenDragPreview = {
   startPosition: Point;
   currentPosition: Point;
   snappedPosition: Point;
+  waypoints: Point[];
 };
 
 export function drawTokens(
@@ -114,8 +115,8 @@ function drawTokenMovementPath(ctx: CanvasRenderingContext2D, token: Token, prev
   const startCenter = getTokenCenter(token, preview.startPosition);
   const currentCenter = getTokenCenter(token, preview.currentPosition);
   const targetCenter = getTokenCenter(token, preview.snappedPosition);
-  const distance = Math.hypot(targetCenter.x - startCenter.x, targetCenter.y - startCenter.y);
-  if (distance < 2) {
+  const pathPoints = [startCenter, ...preview.waypoints.map((waypoint) => getTokenCenter(token, waypoint)), targetCenter];
+  if (!hasMeaningfulTokenPath(pathPoints)) {
     return;
   }
 
@@ -125,20 +126,17 @@ function drawTokenMovementPath(ctx: CanvasRenderingContext2D, token: Token, prev
   ctx.setLineDash([18, 11]);
   ctx.lineWidth = 8;
   ctx.strokeStyle = "rgb(4 8 14 / 0.82)";
-  ctx.beginPath();
-  ctx.moveTo(startCenter.x, startCenter.y);
-  ctx.lineTo(targetCenter.x, targetCenter.y);
-  ctx.stroke();
+  traceTokenMovementPath(ctx, pathPoints);
 
   ctx.lineWidth = 5;
   ctx.strokeStyle = "rgb(255 255 255 / 0.95)";
-  ctx.beginPath();
-  ctx.moveTo(startCenter.x, startCenter.y);
-  ctx.lineTo(targetCenter.x, targetCenter.y);
-  ctx.stroke();
+  traceTokenMovementPath(ctx, pathPoints);
   ctx.setLineDash([]);
 
   drawTokenPathMarker(ctx, startCenter, "#f6d365", "start");
+  for (const waypoint of pathPoints.slice(1, -1)) {
+    drawTokenPathMarker(ctx, waypoint, "#d7deea", "waypoint");
+  }
   drawTokenPathMarker(ctx, targetCenter, "#7aa2f7", "target");
   if (Math.hypot(currentCenter.x - targetCenter.x, currentCenter.y - targetCenter.y) > 3) {
     drawTokenPathMarker(ctx, currentCenter, "#d7deea", "current");
@@ -153,8 +151,24 @@ function getTokenCenter(token: Token, position: Point): Point {
   };
 }
 
-function drawTokenPathMarker(ctx: CanvasRenderingContext2D, point: Point, color: string, kind: "start" | "target" | "current") {
-  const radius = kind === "current" ? 4 : 6;
+function traceTokenMovementPath(ctx: CanvasRenderingContext2D, points: Point[]) {
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (const point of points.slice(1)) {
+    ctx.lineTo(point.x, point.y);
+  }
+  ctx.stroke();
+}
+
+function hasMeaningfulTokenPath(points: Point[]) {
+  return points.some((point, index) => {
+    const previous = points[index - 1];
+    return previous ? Math.hypot(point.x - previous.x, point.y - previous.y) >= 2 : false;
+  });
+}
+
+function drawTokenPathMarker(ctx: CanvasRenderingContext2D, point: Point, color: string, kind: "start" | "target" | "current" | "waypoint") {
+  const radius = kind === "current" || kind === "waypoint" ? 4 : 6;
   ctx.save();
   ctx.setLineDash([]);
   ctx.beginPath();

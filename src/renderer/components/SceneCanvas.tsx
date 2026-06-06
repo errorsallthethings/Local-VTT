@@ -18,7 +18,7 @@ import {
 import { drawHexGrid, drawSquareGrid } from "../canvas/gridRenderer";
 import { getNearestGridPoint } from "../canvas/gridMath";
 import { drawMapSource } from "../canvas/mapRenderer";
-import { getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
+import { distanceBetween, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
 import { drawTokenDragHighlights, drawTokens, type TokenDragPreview } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
@@ -46,6 +46,16 @@ interface LoadedMap {
 }
 
 type MapLoadStatus = "idle" | "loading" | "ready" | "error";
+
+type TokenDragState = {
+  pointerId: number;
+  tokenId: string;
+  offset: Point;
+  startPosition: Point;
+  waypoints: Point[];
+  ctrlWaypointArmed: boolean;
+};
+
 export function SceneCanvas({
   campaign,
   scene,
@@ -71,7 +81,7 @@ export function SceneCanvas({
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; camera: Camera } | null>(null);
-  const tokenDragRef = useRef<{ pointerId: number; tokenId: string; offset: Point; startPosition: Point } | null>(null);
+  const tokenDragRef = useRef<TokenDragState | null>(null);
   const fogDragRef = useRef<FogDrag | null>(null);
   const polygonDraftRef = useRef<FogPolygonDraft | null>(null);
 
@@ -400,6 +410,8 @@ export function SceneCanvas({
           pointerId: event.pointerId,
           tokenId: token.id,
           startPosition: token.position,
+          waypoints: [],
+          ctrlWaypointArmed: true,
           offset: {
             x: point.x - token.position.x,
             y: point.y - token.position.y
@@ -409,7 +421,8 @@ export function SceneCanvas({
           tokenId: token.id,
           startPosition: token.position,
           currentPosition: token.position,
-          snappedPosition
+          snappedPosition,
+          waypoints: []
         });
         return;
       }
@@ -433,11 +446,25 @@ export function SceneCanvas({
         x: point.x - tokenDrag.offset.x,
         y: point.y - tokenDrag.offset.y
       };
+      const snappedPosition = getSnappedTokenPosition(currentPosition, token, scene);
+      let waypoints = tokenDrag.waypoints;
+      if (!event.ctrlKey) {
+        tokenDrag.ctrlWaypointArmed = true;
+      } else if (tokenDrag.ctrlWaypointArmed) {
+        const waypoint = scene.grid.type === "gridless" ? currentPosition : snappedPosition;
+        const previousWaypoint = waypoints[waypoints.length - 1] ?? tokenDrag.startPosition;
+        if (distanceBetween(previousWaypoint, waypoint) > 2) {
+          waypoints = [...waypoints, waypoint];
+          tokenDrag.waypoints = waypoints;
+        }
+        tokenDrag.ctrlWaypointArmed = false;
+      }
       setTokenDragPreview({
         tokenId: token.id,
         startPosition: tokenDrag.startPosition,
         currentPosition,
-        snappedPosition: getSnappedTokenPosition(currentPosition, token, scene)
+        snappedPosition,
+        waypoints
       });
       return;
     }
