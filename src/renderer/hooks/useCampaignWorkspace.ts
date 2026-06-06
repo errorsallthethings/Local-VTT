@@ -73,11 +73,11 @@ export function useCampaignWorkspace() {
     }
   };
 
-  const updateCampaignDraft = (nextCampaign: Campaign) => {
+  const updateCampaignDraft = (nextCampaign: Campaign, syncScene: Scene | null = activeScene) => {
     setCampaign(nextCampaign);
     setCampaignDirty(true);
-    if (activeScene) {
-      void window.localVtt.updatePlayerSceneIfOpen(nextCampaign, activeScene);
+    if (syncScene) {
+      void window.localVtt.updatePlayerSceneIfOpen(nextCampaign, syncScene);
     }
   };
 

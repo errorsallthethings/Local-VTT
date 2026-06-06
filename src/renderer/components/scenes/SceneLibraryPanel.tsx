@@ -2,6 +2,7 @@ import { useState, type CSSProperties, type DragEvent, type KeyboardEvent, type 
 import {
   ArrowDown,
   ArrowUp,
+  CircleCheck,
   Edit3,
   EllipsisVertical,
   Folder,
@@ -20,6 +21,7 @@ import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } 
 interface SceneLibraryPanelProps {
   campaign: Campaign | null;
   activeScene: Scene | null;
+  playerSceneId: string | null;
   dirtySceneIds: Set<string>;
   sceneThumbnailAssets: Map<string, Asset | null>;
   collapsedFolderIds: Set<string>;
@@ -43,6 +45,7 @@ interface SceneLibraryPanelProps {
 export function SceneLibraryPanel({
   campaign,
   activeScene,
+  playerSceneId,
   dirtySceneIds,
   sceneThumbnailAssets,
   collapsedFolderIds,
@@ -69,6 +72,7 @@ export function SceneLibraryPanel({
 
   const renderSceneCard = (scene: CampaignSceneEntry) => {
     const isDirty = dirtySceneIds.has(scene.id);
+    const isPlayerScene = playerSceneId === scene.id;
     const thumbnailAsset = sceneThumbnailAssets.get(scene.id);
     const loadScene = () => onLoadScene(scene.id);
     const onSceneKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -107,6 +111,9 @@ export function SceneLibraryPanel({
           >
             {scene.name}
           </div>
+          {isPlayerScene && (
+            <CircleCheck className="scene-player-indicator" size={15} aria-label="Currently shown in Player View" />
+          )}
         </div>
         <div className="scene-row-body">
           <SceneThumbnail asset={thumbnailAsset ?? null} />

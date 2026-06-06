@@ -282,6 +282,19 @@ async function chooseMapFile(): Promise<string | null> {
   return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
 }
 
+async function chooseTokenFile(): Promise<string | null> {
+  const options: Electron.OpenDialogOptions = {
+    title: "Import a token image",
+    properties: ["openFile"],
+    filters: [
+      { name: "Token images", extensions: ["jpg", "jpeg", "png", "webp", "gif"] },
+      { name: "Images", extensions: ["jpg", "jpeg", "png", "webp", "gif"] }
+    ]
+  };
+  const result = gmWindow ? await dialog.showOpenDialog(gmWindow, options) : await dialog.showOpenDialog(options);
+  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+}
+
 function safeAssetName(originalPath: string): string {
   const parsed = path.parse(originalPath);
   const cleanBase = parsed.name.replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "") || "asset";
@@ -290,6 +303,10 @@ function safeAssetName(originalPath: string): string {
 
 function allowedMapExtension(filePath: string): boolean {
   return [".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".webm"].includes(path.extname(filePath).toLowerCase());
+}
+
+function allowedTokenExtension(filePath: string): boolean {
+  return [".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(path.extname(filePath).toLowerCase());
 }
 
 function mapMediaType(filePath: string): Asset["mediaType"] {
@@ -326,6 +343,34 @@ function createImageMapThumbnail(sourcePath: string): Buffer | undefined {
     quality: "best"
   });
   return thumbnail.toJPEG(78);
+}
+
+async function createTokenThumbnail(campaignPath: string, sourcePath: string, assetId: string): Promise<string | undefined> {
+  const image = nativeImage.createFromPath(sourcePath);
+  const sourceSize = image.getSize();
+  if (image.isEmpty() || sourceSize.width <= 0 || sourceSize.height <= 0) {
+    return undefined;
+  }
+
+  const cropSize = Math.min(sourceSize.width, sourceSize.height);
+  const cropped = image.crop({
+    x: Math.max(0, Math.floor((sourceSize.width - cropSize) / 2)),
+    y: Math.max(0, Math.floor((sourceSize.height - cropSize) / 2)),
+    width: cropSize,
+    height: cropSize
+  });
+  const maxSize = 512;
+  const thumbnailSize = Math.min(maxSize, cropSize);
+  const thumbnail = cropped.resize({
+    width: thumbnailSize,
+    height: thumbnailSize,
+    quality: "best"
+  });
+  const relativePath = path.join("assets", "thumbnails", `${assetId}.jpg`).replaceAll(path.sep, "/");
+  const destination = path.resolve(campaignPath, relativePath);
+  assertInsideCampaign(campaignPath, destination);
+  await writeFile(destination, thumbnail.toJPEG(86));
+  return relativePath;
 }
 
 async function createVideoMapThumbnail(sourcePath: string): Promise<Buffer | undefined> {
@@ -631,6 +676,48 @@ ipcMain.handle("asset:importMap", async (_event, campaignPath: string) => {
     name: path.basename(sourcePath),
     kind: "map",
     mediaType: mapMediaType(sourcePath),
+    relativePath,
+    thumbnailRelativePath,
+    originalFileName: path.basename(sourcePath),
+    createdAt: new Date().toISOString(),
+    absolutePath: destination,
+    thumbnailAbsolutePath: thumbnailRelativePath ? path.resolve(campaignPath, thumbnailRelativePath) : undefined
+  };
+
+  const campaign: Campaign = {
+    ...summary.campaign,
+    assets: [...summary.campaign.assets, imported],
+    updatedAt: new Date().toISOString()
+  };
+  await writeCampaign(campaignPath, campaign);
+  return { campaignSummary: await loadCampaignFromPath(campaignPath), asset: imported };
+});
+
+ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
+  assertKnownCampaignPath(campaignPath);
+  const sourcePath = await chooseTokenFile();
+  if (!sourcePath) {
+    return null;
+  }
+
+  if (!allowedTokenExtension(sourcePath)) {
+    throw new Error("Unsupported token type. Use jpg, jpeg, png, webp, or gif.");
+  }
+
+  const summary = await loadCampaignFromPath(campaignPath);
+  const fileName = safeAssetName(sourcePath);
+  const relativePath = path.join("assets", "tokens", fileName).replaceAll(path.sep, "/");
+  const destination = path.resolve(campaignPath, relativePath);
+  assertInsideCampaign(campaignPath, destination);
+  await copyFile(sourcePath, destination);
+
+  const assetId = randomUUID();
+  const thumbnailRelativePath = await createTokenThumbnail(campaignPath, sourcePath, assetId);
+  const imported: Asset = {
+    id: assetId,
+    name: path.basename(sourcePath),
+    kind: "token",
+    mediaType: "image",
     relativePath,
     thumbnailRelativePath,
     originalFileName: path.basename(sourcePath),

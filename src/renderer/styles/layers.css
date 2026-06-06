@@ -18,6 +18,15 @@
   background: #1a222d;
 }
 
+.placeholder-layer-row .layer-kind-icon,
+.placeholder-layer-row .layer-name {
+  color: #687386;
+}
+
+.placeholder-layer-row .layer-name {
+  font-weight: 500;
+}
+
 .layer-kind-icon {
   display: grid;
   place-items: center;
@@ -101,7 +110,7 @@
 
 .fog-shape-column-header {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) 24px 24px 24px;
+  grid-template-columns: 14px 18px minmax(0, 1fr) 24px 24px 24px;
   align-items: center;
   gap: 6px;
   min-width: 0;
@@ -115,9 +124,40 @@
   min-width: 0;
 }
 
+.token-column-header {
+  grid-template-columns: 14px 24px minmax(0, 1fr) 24px 24px 24px;
+}
+
+.fog-shape-kind-icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  min-width: 18px;
+  color: #8f9bad;
+}
+
+.token-row-thumbnail {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  overflow: hidden;
+  border: 1px solid #303a49;
+  border-radius: 4px;
+  background: #202733;
+  color: #8f9bad;
+}
+
+.token-row-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .fog-shape-row {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) auto auto auto;
+  grid-template-columns: 14px 18px minmax(0, 1fr) 24px 24px 24px;
   align-items: center;
   gap: 6px;
   min-width: 0;
@@ -126,6 +166,20 @@
   background: #151c25;
   padding: 5px;
   cursor: pointer;
+}
+
+.fog-shape-row.token-shape-row {
+  grid-template-columns: 14px 24px minmax(0, 1fr) 24px 24px 24px;
+}
+
+.token-shape-row .fog-shape-name {
+  justify-self: stretch;
+  text-align: left;
+}
+
+.token-shape-row .token-menu-wrap {
+  width: 24px;
+  min-width: 24px;
 }
 
 .fog-shape-drag-handle {
@@ -201,6 +255,57 @@
 .fog-shape-action-button.danger:hover:not(:disabled) {
   border-color: transparent;
   background: transparent;
+  color: #ffd2d2;
+}
+
+.token-menu-wrap {
+  position: relative;
+  display: grid;
+}
+
+.token-settings-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  gap: 8px;
+  width: min(248px, calc(100vw - 48px));
+  border: 1px solid #3d4a61;
+  border-radius: 6px;
+  background: #151c25;
+  padding: 10px;
+  box-shadow: 0 18px 42px rgb(0 0 0 / 0.42);
+  cursor: default;
+}
+
+.token-settings-menu .settings-grid {
+  gap: 7px;
+}
+
+.token-settings-menu .setting-row {
+  grid-template-columns: 68px minmax(0, 1fr);
+}
+
+.token-menu-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  border: 0;
+  background: transparent;
+  padding: 7px 8px;
+  color: #ffd2d2;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.token-menu-delete:hover:not(:disabled) {
+  background: #3b2023;
   color: #ffd2d2;
 }
 

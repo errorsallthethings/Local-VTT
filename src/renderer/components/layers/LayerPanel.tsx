@@ -11,24 +11,45 @@ import {
   Image,
   Layers,
   Lightbulb,
+  MoreVertical,
   Eye,
   EyeOff,
   GripVertical,
+  Paintbrush,
   Settings,
   Shield,
   Sparkles,
+  Square,
   Trash2,
+  Triangle,
   User,
   UsersRound
 } from "lucide-react";
-import type { Asset, FogSettings, GridSettings, GridType, Layer, MapTransform, Scene } from "../../../shared/localvtt";
+import type { Asset, FogSettings, GridSettings, GridType, Layer, MapTransform, Point, Scene } from "../../../shared/localvtt";
+import {
+  DEFAULT_TOKEN_BORDER_COLOR,
+  DEFAULT_TOKEN_BORDER_STYLE,
+  DEFAULT_TOKEN_BORDER_WIDTH,
+  DEFAULT_TOKEN_BORDER_WIDTH_PRESET,
+  DEFAULT_TOKEN_FOOTPRINT_VISIBLE,
+  DEFAULT_TOKEN_GLOW_COLOR,
+  DEFAULT_TOKEN_MASK,
+  DEFAULT_TOKEN_SIZE_PRESET,
+  type Token,
+  type TokenBorderStyle,
+  type TokenBorderWidthPreset,
+  type TokenMask,
+  type TokenSizePreset
+} from "../../../shared/localvtt";
 import { ColorSettingRow } from "../controls/ColorPickerField";
 import { DebouncedNumberInput } from "../controls/DebouncedNumberInput";
 
 export function LayerPanel({
   scene,
   mapAsset,
+  tokenAssets,
   selectedFogShapeId,
+  selectedTokenId,
   onChange,
   onUpdateGrid,
   onUpdateFog,
@@ -36,15 +57,21 @@ export function LayerPanel({
   onFitGridToMapDimensions,
   onMoveLayer,
   onImportMap,
+  onImportToken,
   onDeleteMap,
   onSelectFogShape,
+  onSelectToken,
   onRenameFogShape,
+  onRenameToken,
   onOpenFogColor,
-  onOpenGridColor
+  onOpenGridColor,
+  onOpenTokenColor
 }: {
   scene: Scene;
   mapAsset: Asset | null;
+  tokenAssets: Map<string, Asset>;
   selectedFogShapeId: string | null;
+  selectedTokenId: string | null;
   onChange: (scene: Scene) => void;
   onUpdateGrid: (patch: Partial<GridSettings>) => void;
   onUpdateFog: (patch: Partial<FogSettings>) => void;
@@ -52,11 +79,15 @@ export function LayerPanel({
   onFitGridToMapDimensions: () => void;
   onMoveLayer: (layerId: string, direction: "up" | "down") => void;
   onImportMap: () => void;
+  onImportToken: () => void;
   onDeleteMap: (asset: Asset) => void;
   onSelectFogShape: (shapeId: string | null) => void;
+  onSelectToken: (tokenId: string | null) => void;
   onRenameFogShape: (shapeId: string, fallbackName: string) => void;
+  onRenameToken: (tokenId: string, fallbackName: string) => void;
   onOpenFogColor: () => void;
   onOpenGridColor: () => void;
+  onOpenTokenColor: (tokenId: string, value: string, kind: "border" | "glow") => void;
 }) {
   const sortedLayers = [...scene.layers].sort((a, b) => b.order - a.order);
   const visualGridEnabled = scene.grid.type !== "gridless";
@@ -90,6 +121,18 @@ export function LayerPanel({
     });
   }, [scene.fog.shapes.length]);
 
+  useEffect(() => {
+    if (scene.tokens.length === 0) {
+      return;
+    }
+    setExpandedLayerIds((ids) => {
+      if (ids.has("token")) {
+        return ids;
+      }
+      return new Set([...ids, "token"]);
+    });
+  }, [scene.tokens.length]);
+
   const updateLayer = (layerId: string, patch: Partial<Layer>) => {
     const nextGrid =
       layerId === "grid"
@@ -99,10 +142,20 @@ export function LayerPanel({
             showOnPlayer: patch.visibleInPlayer ?? scene.grid.showOnPlayer
           }
         : scene.grid;
+    const nextTokens =
+      layerId === "token" && (typeof patch.visibleInGm === "boolean" || typeof patch.visibleInPlayer === "boolean")
+        ? scene.tokens.map((token) => ({
+            ...token,
+            visibleInGm: patch.visibleInGm ?? token.visibleInGm,
+            visibleInPlayer: patch.visibleInPlayer ?? token.visibleInPlayer
+          }))
+        : scene.tokens;
     onChange({
       ...scene,
       grid: nextGrid,
-      layers: scene.layers.map((layer) => (layer.id === layerId ? { ...layer, ...patch } : layer))
+      layers: scene.layers.map((layer) => (layer.id === layerId ? { ...layer, ...patch } : layer)),
+      tokens: nextTokens,
+      updatedAt: new Date().toISOString()
     });
   };
 
@@ -124,6 +177,7 @@ export function LayerPanel({
       if (nextIds.has(layerId)) {
         nextIds.delete(layerId);
       } else {
+        nextIds.clear();
         nextIds.add(layerId);
       }
       return nextIds;
@@ -143,6 +197,22 @@ export function LayerPanel({
     const [sourceShape] = shapes.splice(sourceIndex, 1);
     shapes.splice(targetIndex, 0, sourceShape);
     onUpdateFog({ shapes });
+  };
+
+  const updateTokens = (tokens: Token[]) => {
+    onChange({ ...scene, tokens, updatedAt: new Date().toISOString() });
+  };
+
+  const updateToken = (tokenId: string, patch: Partial<Token>) => {
+    updateTokens(
+      scene.tokens.map((token) => {
+        if (token.id !== tokenId) {
+          return token;
+        }
+        const nextToken = { ...token, ...patch };
+        return patch.size ? { ...nextToken, position: getSnappedTokenPosition(nextToken.position, nextToken, scene) } : nextToken;
+      })
+    );
   };
 
   const onLayerRowClick = (event: MouseEvent<HTMLDivElement>, layerId: string, isExpandable: boolean) => {
@@ -167,13 +237,26 @@ export function LayerPanel({
     <section className="panel">
       <div className="layer-list">
         {sortedLayers.map((layer, index) => {
-          const hasLayerSettings = layer.id === "map" || layer.id === "grid" || layer.id === "fog";
-          const hasLayerContents = layer.id === "fog" && scene.fog.shapes.length > 0;
+          const hasLayerSettings =
+            (layer.id === "map" && Boolean(mapAsset)) ||
+            layer.id === "grid" ||
+            layer.id === "fog";
+          const hasLayerContents =
+            (layer.id === "map" && !mapAsset) ||
+            (layer.id === "fog" && scene.fog.shapes.length > 0) ||
+            layer.id === "token";
           const isExpanded = hasLayerContents && expandedLayerIds.has(layer.id);
           const areSettingsExpanded = settingsLayerIds.has(layer.id);
+          const isPlaceholderLayer = !hasLayerSettings && !hasLayerContents;
           return (
             <div
-              className={hasLayerContents ? "layer-row expandable-layer-row" : "layer-row"}
+              className={[
+                "layer-row",
+                hasLayerContents ? "expandable-layer-row" : "",
+                isPlaceholderLayer ? "placeholder-layer-row" : ""
+              ]
+                .filter(Boolean)
+                .join(" ")}
               key={layer.id}
               onClick={(event) => onLayerRowClick(event, layer.id, hasLayerContents)}
             >
@@ -235,7 +318,7 @@ export function LayerPanel({
               {layer.id === "fog" && areSettingsExpanded && (
                 <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
                   <label className="stacked-control">
-                    Scene starts
+                    Mode
                     <select value={scene.fog.mode} onChange={(event) => updateFogStartMode(event.target.value as FogSettings["mode"])}>
                       <option value="revealed">Fully revealed</option>
                       <option value="hidden">Fully hidden</option>
@@ -296,6 +379,26 @@ export function LayerPanel({
                   onSelectFogShape={onSelectFogShape}
                   onRenameFogShape={onRenameFogShape}
                   onUpdateFog={onUpdateFog}
+                />
+              )}
+              {layer.id === "token" && isExpanded && (
+                <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
+                  <button className="import-map-next-step" onClick={onImportToken}>
+                    <Import size={16} aria-hidden="true" />
+                    Import Token
+                  </button>
+                </div>
+              )}
+              {layer.id === "token" && isExpanded && (
+                <TokenList
+                  scene={scene}
+                  tokenAssets={tokenAssets}
+                  selectedTokenId={selectedTokenId}
+                  onSelectToken={onSelectToken}
+                  onRenameToken={onRenameToken}
+                  onUpdateToken={updateToken}
+                  onUpdateTokens={updateTokens}
+                  onOpenTokenColor={onOpenTokenColor}
                 />
               )}
               {layer.id === "grid" && areSettingsExpanded && (
@@ -393,7 +496,7 @@ export function LayerPanel({
                   )}
                 </div>
               )}
-              {layer.id === "map" && isExpanded && !mapAsset && (
+              {layer.id === "map" && !mapAsset && (isExpanded || areSettingsExpanded) && (
                 <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
                   <button className="import-map-next-step" onClick={onImportMap}>
                     <Import size={16} aria-hidden="true" />
@@ -516,6 +619,7 @@ function FogShapeList({
           <div className="fog-shape-column-header" aria-hidden="true">
             <span />
             <span />
+            <span />
             <span title="GM View">
               <Crown size={13} />
             </span>
@@ -548,6 +652,7 @@ function FogShapeList({
               <div
                 className={[
                   "fog-shape-row",
+                  "fog-layer-shape-row",
                   isVisibleInGm || isVisibleInPlayer ? "" : "fog-shape-row-muted",
                   isSelected ? "fog-shape-row-selected" : "",
                   draggedFogShapeId === shape.id ? "fog-shape-row-dragging" : ""
@@ -580,6 +685,9 @@ function FogShapeList({
                 onDragEnd={() => onDraggedFogShapeIdChange(null)}
               >
                 <GripVertical className="fog-shape-drag-handle" size={14} aria-hidden="true" />
+                <span className="fog-shape-kind-icon" title={`${shape.kind} shape`} aria-hidden="true">
+                  {getFogShapeIcon(shape.kind)}
+                </span>
                 <span className="fog-shape-name" title={label} onDoubleClick={() => onRenameFogShape(shape.id, label)}>
                   {label}
                 </span>
@@ -640,6 +748,528 @@ function FogShapeList({
       )}
     </div>
   );
+}
+
+function TokenSettings({
+  token,
+  gridSize,
+  gridType,
+  onUpdateToken,
+  onOpenTokenColor
+}: {
+  token: Token;
+  gridSize: number;
+  gridType: GridType;
+  onUpdateToken: (patch: Partial<Token>) => void;
+  onOpenTokenColor: (tokenId: string, value: string, kind: "border" | "glow") => void;
+}) {
+  const sizePreset = token.sizePreset ?? DEFAULT_TOKEN_SIZE_PRESET;
+  const borderColor = token.borderColor ?? DEFAULT_TOKEN_BORDER_COLOR;
+  const borderWidth = token.borderWidth ?? DEFAULT_TOKEN_BORDER_WIDTH;
+  const borderWidthPreset = token.borderWidthPreset ?? getBorderWidthPreset(borderWidth);
+  const borderStyle = token.borderStyle ?? DEFAULT_TOKEN_BORDER_STYLE;
+  const glowColor = token.glowColor ?? DEFAULT_TOKEN_GLOW_COLOR;
+  const customWidthCells = Math.round((token.size.width / Math.max(1, gridSize)) * 100) / 100;
+  const customHeightCells = Math.round((token.size.height / Math.max(1, gridSize)) * 100) / 100;
+  const customSizeDisabled = gridType === "hex";
+
+  const updateSizePreset = (preset: TokenSizePreset) => {
+    if (preset === "custom") {
+      onUpdateToken({ sizePreset: "custom" });
+      return;
+    }
+    onUpdateToken({
+      sizePreset: preset,
+      size: getTokenSizeForPreset(preset, gridSize, gridType)
+    });
+  };
+
+  const updateCustomSize = (axis: "width" | "height", cells: number) => {
+    const clampedCells = Math.min(10, Math.max(0.25, cells));
+    onUpdateToken({
+      sizePreset: "custom",
+      size: {
+        width: axis === "width" ? Math.max(1, gridSize) * clampedCells : token.size.width,
+        height: axis === "height" ? Math.max(1, gridSize) * clampedCells : token.size.height
+      }
+    });
+  };
+
+  return (
+    <>
+      <div className="settings-grid">
+        <label className="setting-row">
+          <span>Size</span>
+          <select value={sizePreset} onChange={(event) => updateSizePreset(event.target.value as TokenSizePreset)}>
+            <option value="tiny">Tiny/Small</option>
+            <option value="medium">Medium</option>
+            <option value="large">Large</option>
+            <option value="huge">Huge</option>
+            <option value="gargantuan">Gargantuan</option>
+            <option value="custom" disabled={customSizeDisabled}>Custom</option>
+          </select>
+        </label>
+        {sizePreset === "custom" && !customSizeDisabled && (
+          <div className="setting-row">
+            <span>Cells</span>
+            <div className="xy-inputs">
+              <label>
+                W
+                <input type="number" min={0.25} max={10} step={0.25} value={customWidthCells} onChange={(event) => updateCustomSize("width", Number(event.target.value))} />
+              </label>
+              <label>
+                H
+                <input type="number" min={0.25} max={10} step={0.25} value={customHeightCells} onChange={(event) => updateCustomSize("height", Number(event.target.value))} />
+              </label>
+            </div>
+          </div>
+        )}
+        <label className="setting-row">
+          <span>Mask</span>
+          <select value={token.mask ?? DEFAULT_TOKEN_MASK} onChange={(event) => onUpdateToken({ mask: event.target.value as TokenMask })}>
+            <option value="circle">Circle</option>
+            <option value="square">Square</option>
+            <option value="none">None</option>
+          </select>
+        </label>
+        <label className="setting-row">
+          <span>Border</span>
+          <select
+            value={borderStyle}
+            onChange={(event) => onUpdateToken({ borderStyle: event.target.value as TokenBorderStyle })}
+          >
+            <option value="none">None</option>
+            <option value="solid">Solid</option>
+            <option value="embossed">Embossed</option>
+            <option value="inner-shadow">Inner Shadow</option>
+            <option value="glow">Glow</option>
+          </select>
+        </label>
+        <ColorSettingRow label="Border Color" value={borderColor} onOpen={() => onOpenTokenColor(token.id, borderColor, "border")} />
+        {borderStyle === "glow" && <ColorSettingRow label="Glow Color" value={glowColor} onOpen={() => onOpenTokenColor(token.id, glowColor, "glow")} />}
+        <label className="setting-row">
+          <span>Border Width</span>
+          <select
+            value={borderWidthPreset}
+            onChange={(event) => {
+              const preset = event.target.value as TokenBorderWidthPreset;
+              onUpdateToken({
+                borderWidthPreset: preset,
+                borderWidth: getBorderWidthForPreset(preset, borderWidth)
+              });
+            }}
+          >
+            <option value="thin">Thin</option>
+            <option value="medium">Medium</option>
+            <option value="thick">Thick</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+        {borderWidthPreset === "custom" && (
+          <label className="setting-row">
+            <span>Pixels</span>
+            <input
+              type="number"
+              min={1}
+              max={16}
+              step={1}
+              value={borderWidth}
+              onChange={(event) => onUpdateToken({ borderWidth: Math.min(16, Math.max(1, Number(event.target.value))) })}
+            />
+          </label>
+        )}
+        <label className="setting-row">
+          <span>Footprint</span>
+          <label className="fog-operation-switch token-footprint-switch" title="Show token footprint highlight">
+            <span>Show</span>
+            <input
+              aria-label="Show token footprint highlight"
+              type="checkbox"
+              checked={!(token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE)}
+              onChange={(event) => onUpdateToken({ footprintVisible: !event.target.checked })}
+            />
+            <span>Hide</span>
+          </label>
+        </label>
+      </div>
+    </>
+  );
+}
+
+function TokenList({
+  scene,
+  tokenAssets,
+  selectedTokenId,
+  onSelectToken,
+  onRenameToken,
+  onUpdateToken,
+  onUpdateTokens,
+  onOpenTokenColor
+}: {
+  scene: Scene;
+  tokenAssets: Map<string, Asset>;
+  selectedTokenId: string | null;
+  onSelectToken: (tokenId: string | null) => void;
+  onRenameToken: (tokenId: string, fallbackName: string) => void;
+  onUpdateToken: (tokenId: string, patch: Partial<Token>) => void;
+  onUpdateTokens: (tokens: Token[]) => void;
+  onOpenTokenColor: (tokenId: string, value: string, kind: "border" | "glow") => void;
+}) {
+  const [draggedTokenId, setDraggedTokenId] = useState<string | null>(null);
+  const [openTokenMenuId, setOpenTokenMenuId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openTokenMenuId) {
+      return;
+    }
+    const closeTokenMenu = (event: globalThis.MouseEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest(".token-menu-wrap")) {
+        return;
+      }
+      setOpenTokenMenuId(null);
+    };
+    window.addEventListener("mousedown", closeTokenMenu);
+    return () => window.removeEventListener("mousedown", closeTokenMenu);
+  }, [openTokenMenuId]);
+
+  const moveToken = (sourceTokenId: string, targetTokenId: string) => {
+    if (sourceTokenId === targetTokenId) {
+      return;
+    }
+    const sourceIndex = scene.tokens.findIndex((token) => token.id === sourceTokenId);
+    const targetIndex = scene.tokens.findIndex((token) => token.id === targetTokenId);
+    if (sourceIndex < 0 || targetIndex < 0) {
+      return;
+    }
+    const tokens = [...scene.tokens];
+    const [sourceToken] = tokens.splice(sourceIndex, 1);
+    tokens.splice(targetIndex, 0, sourceToken);
+    onUpdateTokens(tokens.map((token, index) => ({ ...token, order: index })));
+  };
+
+  return (
+    <div className="layer-detail-controls fog-shape-list token-list" onClick={(event) => event.stopPropagation()}>
+      <div className="fog-shape-list-header">
+        <span>Tokens</span>
+        <small>{scene.tokens.length}</small>
+      </div>
+      {scene.tokens.length > 0 ? (
+        <>
+          <div className="fog-shape-column-header token-column-header" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span title="GM View">
+              <Crown size={13} />
+            </span>
+            <span title="Player View">
+              <User size={13} />
+            </span>
+            <span />
+          </div>
+          {scene.tokens.map((token, tokenIndex) => {
+            const isVisibleInGm = token.visibleInGm ?? !token.hidden;
+            const isVisibleInPlayer = token.visibleInPlayer;
+            const asset = token.assetId ? tokenAssets.get(token.assetId) : null;
+            const assetName = asset?.name;
+            const label = token.name?.trim() || assetName || `Token ${tokenIndex + 1}`;
+            const isSelected = selectedTokenId === token.id;
+            const gmVisibilityButtonClass = [
+              "icon-button",
+              "fog-shape-action-button",
+              isVisibleInGm ? "fog-shape-action-active" : ""
+            ]
+              .filter(Boolean)
+              .join(" ");
+            const playerVisibilityButtonClass = [
+              "icon-button",
+              "fog-shape-action-button",
+              isVisibleInPlayer ? "fog-shape-action-active" : ""
+            ]
+              .filter(Boolean)
+              .join(" ");
+            return (
+              <div
+                className={[
+                  "fog-shape-row",
+                  isVisibleInGm || isVisibleInPlayer ? "" : "fog-shape-row-muted",
+                  isSelected ? "fog-shape-row-selected" : "",
+                  "token-shape-row",
+                  draggedTokenId === token.id ? "fog-shape-row-dragging" : ""
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                key={token.id}
+                draggable
+                onClick={() => onSelectToken(token.id)}
+                onDragStart={(event) => {
+                  setDraggedTokenId(token.id);
+                  event.dataTransfer.setData("application/x-localvtt-token-id", token.id);
+                  event.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(event) => {
+                  if (!event.dataTransfer.types.includes("application/x-localvtt-token-id")) {
+                    return;
+                  }
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const sourceTokenId = event.dataTransfer.getData("application/x-localvtt-token-id");
+                  if (sourceTokenId) {
+                    moveToken(sourceTokenId, token.id);
+                  }
+                  setDraggedTokenId(null);
+                }}
+                onDragEnd={() => setDraggedTokenId(null)}
+              >
+                <GripVertical className="fog-shape-drag-handle" size={14} aria-hidden="true" />
+                <TokenRowThumbnail asset={asset ?? null} label={label} />
+                <span className="fog-shape-name" title={label} onDoubleClick={() => onRenameToken(token.id, label)}>
+                  {label}
+                </span>
+                <button
+                  className={gmVisibilityButtonClass}
+                  aria-label={isVisibleInGm ? `Hide ${label} in GM View` : `Show ${label} in GM View`}
+                  title={isVisibleInGm ? "Hide in GM View" : "Show in GM View"}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onUpdateTokens(scene.tokens.map((candidate) => (candidate.id === token.id ? { ...candidate, visibleInGm: !isVisibleInGm } : candidate)));
+                  }}
+                >
+                  {isVisibleInGm ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
+                </button>
+                <button
+                  className={playerVisibilityButtonClass}
+                  aria-label={isVisibleInPlayer ? `Hide ${label} in Player View` : `Show ${label} in Player View`}
+                  title={isVisibleInPlayer ? "Hide in Player View" : "Show in Player View"}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onUpdateTokens(scene.tokens.map((candidate) => (candidate.id === token.id ? { ...candidate, visibleInPlayer: !isVisibleInPlayer } : candidate)));
+                  }}
+                >
+                  {isVisibleInPlayer ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
+                </button>
+                <div className="token-menu-wrap">
+                  <button
+                    className="icon-button fog-shape-action-button"
+                    aria-label={`Open ${label} token menu`}
+                    title="Token options"
+                    aria-expanded={openTokenMenuId === token.id}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setOpenTokenMenuId((openId) => (openId === token.id ? null : token.id));
+                    }}
+                  >
+                    <MoreVertical size={14} aria-hidden="true" />
+                  </button>
+                  {openTokenMenuId === token.id && (
+                    <div className="token-settings-menu" onClick={(event) => event.stopPropagation()}>
+                      <TokenSettings
+                        token={token}
+                        gridSize={scene.grid.sizePx}
+                        gridType={scene.grid.type}
+                        onUpdateToken={(patch) => onUpdateToken(token.id, patch)}
+                        onOpenTokenColor={onOpenTokenColor}
+                      />
+                      <div className="control-divider" />
+                      <button
+                        className="token-menu-delete"
+                        onClick={() => {
+                          onUpdateTokens(scene.tokens.filter((candidate) => candidate.id !== token.id));
+                          if (selectedTokenId === token.id) {
+                            onSelectToken(null);
+                          }
+                          setOpenTokenMenuId(null);
+                        }}
+                      >
+                        <Trash2 size={14} aria-hidden="true" />
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </>
+      ) : (
+        <div className="inline-help">Import token images from the Token Layer.</div>
+      )}
+    </div>
+  );
+}
+
+function TokenRowThumbnail({ asset, label }: { asset: Asset | null; label: string }) {
+  const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
+  return (
+    <span className="token-row-thumbnail" title={label} aria-hidden="true">
+      {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : <UsersRound size={13} />}
+    </span>
+  );
+}
+
+function getSnappedTokenPosition(position: Point, token: Token, scene: Scene): Point {
+  if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
+    return position;
+  }
+  if (scene.grid.type === "hex") {
+    const center = {
+      x: position.x + token.size.width / 2,
+      y: position.y + token.size.height / 2
+    };
+    const snappedCenter = token.sizePreset === "large" ? getNearestHexVertex(center, scene.grid) : getNearestHexCenter(center, scene.grid);
+    return {
+      x: snappedCenter.x - token.size.width / 2,
+      y: snappedCenter.y - token.size.height / 2
+    };
+  }
+  const isHalfCell = token.size.width <= scene.grid.sizePx * 0.75 && token.size.height <= scene.grid.sizePx * 0.75;
+  if (isHalfCell) {
+    const center = {
+      x: position.x + token.size.width / 2,
+      y: position.y + token.size.height / 2
+    };
+    const snappedCenter = getNearestGridCellCenter(center, scene.grid);
+    return {
+      x: snappedCenter.x - token.size.width / 2,
+      y: snappedCenter.y - token.size.height / 2
+    };
+  }
+
+  return getNearestGridPoint(position, scene.grid);
+}
+
+function getNearestHexVertex(point: Point, grid: Scene["grid"]): Point {
+  const radius = Math.max(8, grid.sizePx / 2);
+  const center = getNearestHexCenter(point, grid);
+  let nearest = center;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  for (let side = 0; side < 6; side += 1) {
+    const angle = (Math.PI / 180) * (60 * side - 30);
+    const vertex = {
+      x: center.x + radius * Math.cos(angle),
+      y: center.y + radius * Math.sin(angle)
+    };
+    const distance = (vertex.x - point.x) ** 2 + (vertex.y - point.y) ** 2;
+    if (distance < nearestDistance) {
+      nearest = vertex;
+      nearestDistance = distance;
+    }
+  }
+  return nearest;
+}
+
+function getNearestGridPoint(point: Point, grid: Scene["grid"]): Point {
+  const size = grid.sizePx;
+  return {
+    x: Math.round((point.x - grid.offsetX) / size) * size + grid.offsetX,
+    y: Math.round((point.y - grid.offsetY) / size) * size + grid.offsetY
+  };
+}
+
+function getNearestGridCellCenter(point: Point, grid: Scene["grid"]): Point {
+  const size = grid.sizePx;
+  return {
+    x: Math.floor((point.x - grid.offsetX) / size) * size + grid.offsetX + size / 2,
+    y: Math.floor((point.y - grid.offsetY) / size) * size + grid.offsetY + size / 2
+  };
+}
+
+function getNearestHexCenter(point: Point, grid: Scene["grid"]): Point {
+  const radius = Math.max(8, grid.sizePx / 2);
+  const hexWidth = Math.sqrt(3) * radius;
+  const rowStep = radius * 1.5;
+  const approximateRow = Math.round((point.y - grid.offsetY) / rowStep);
+  let nearest = { x: grid.offsetX, y: grid.offsetY };
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  for (let row = approximateRow - 2; row <= approximateRow + 2; row += 1) {
+    const rowOffset = row % 2 === 0 ? 0 : hexWidth / 2;
+    const approximateColumn = Math.round((point.x - grid.offsetX - rowOffset) / hexWidth);
+    for (let column = approximateColumn - 2; column <= approximateColumn + 2; column += 1) {
+      const center = {
+        x: grid.offsetX + column * hexWidth + rowOffset,
+        y: grid.offsetY + row * rowStep
+      };
+      const distance = (center.x - point.x) ** 2 + (center.y - point.y) ** 2;
+      if (distance < nearestDistance) {
+        nearest = center;
+        nearestDistance = distance;
+      }
+    }
+  }
+  return nearest;
+}
+
+function getTokenSizeForPreset(preset: TokenSizePreset, gridSize: number, gridType: GridType): Token["size"] {
+  const size = Math.max(1, gridSize);
+  if (gridType === "hex") {
+    const cells = getTokenPresetCells(preset);
+    const multiplier = preset === "tiny" ? 0.42 : Math.max(0.72, cells * 0.72);
+    return {
+      width: size * multiplier,
+      height: size * multiplier
+    };
+  }
+  const cells = getTokenPresetCells(preset);
+  return {
+    width: size * cells,
+    height: size * cells
+  };
+}
+
+function getBorderWidthPreset(width: number): TokenBorderWidthPreset {
+  if (width === 3) {
+    return "thin";
+  }
+  if (width === 5) {
+    return "medium";
+  }
+  if (width === 8) {
+    return "thick";
+  }
+  return "custom";
+}
+
+function getBorderWidthForPreset(preset: TokenBorderWidthPreset, fallback: number): number {
+  switch (preset) {
+    case "thin":
+      return 3;
+    case "medium":
+      return 5;
+    case "thick":
+      return 8;
+    case "custom":
+      return fallback;
+  }
+}
+
+function getTokenPresetCells(preset: TokenSizePreset): number {
+  switch (preset) {
+    case "tiny":
+      return 0.5;
+    case "large":
+      return 2;
+    case "huge":
+      return 3;
+    case "gargantuan":
+      return 4;
+    case "medium":
+    case "custom":
+      return 1;
+  }
+}
+
+function getFogShapeIcon(kind: "brush" | "rectangle" | "polygon" | "circle") {
+  if (kind === "brush") {
+    return <Paintbrush size={13} />;
+  }
+  if (kind === "polygon") {
+    return <Triangle size={13} />;
+  }
+  return <Square size={13} />;
 }
 
 function getLayerIcon(layer: Layer) {

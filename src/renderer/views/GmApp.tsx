@@ -10,7 +10,18 @@ import {
   PanelRightOpen,
   Unlock
 } from "lucide-react";
-import { DEFAULT_SCENE_FOLDER_COLOR, DEFAULT_VIDEO_PLAYBACK } from "../../shared/localvtt";
+import {
+  DEFAULT_SCENE_FOLDER_COLOR,
+  DEFAULT_TOKEN_BORDER_COLOR,
+  DEFAULT_TOKEN_BORDER_STYLE,
+  DEFAULT_TOKEN_BORDER_WIDTH,
+  DEFAULT_TOKEN_BORDER_WIDTH_PRESET,
+  DEFAULT_TOKEN_FOOTPRINT_VISIBLE,
+  DEFAULT_TOKEN_GLOW_COLOR,
+  DEFAULT_TOKEN_MASK,
+  DEFAULT_TOKEN_SIZE_PRESET,
+  DEFAULT_VIDEO_PLAYBACK
+} from "../../shared/localvtt";
 import type {
   Asset,
   Campaign,
@@ -47,6 +58,8 @@ type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string 
 type FolderColorDialog = { folderId: string; folderName: string };
 type SceneColorDialog = { kind: "fog" | "grid"; title: string; value: string };
 type FogShapeNameDialog = { shapeId: string };
+type TokenNameDialog = { tokenId: string };
+type TokenColorDialog = { tokenId: string; tokenName: string; value: string; kind: "border" | "glow" };
 type WorkspaceLayout = {
   leftWidth: number;
   rightWidth: number;
@@ -87,12 +100,14 @@ export function GmApp() {
     run,
     applySummary,
     setSceneClean,
-    updateScene,
-    updateCampaignDraft
+    updateScene: updateWorkspaceScene,
+    updateCampaignDraft: updateWorkspaceCampaignDraft
   } = workspace;
   const [sceneDialog, setSceneDialog] = useState<SceneNameDialog | null>(null);
   const [folderDialog, setFolderDialog] = useState<FolderNameDialog | null>(null);
   const [fogShapeDialog, setFogShapeDialog] = useState<FogShapeNameDialog | null>(null);
+  const [tokenDialog, setTokenDialog] = useState<TokenNameDialog | null>(null);
+  const [tokenColorDialog, setTokenColorDialog] = useState<TokenColorDialog | null>(null);
   const [folderColorDialog, setFolderColorDialog] = useState<FolderColorDialog | null>(null);
   const [sceneColorDialog, setSceneColorDialog] = useState<SceneColorDialog | null>(null);
   const [campaignNameDialogOpen, setCampaignNameDialogOpen] = useState(false);
@@ -112,10 +127,14 @@ export function GmApp() {
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
   const [newFolderName, setNewFolderName] = useState("New Folder");
   const [newFogShapeName, setNewFogShapeName] = useState("");
+  const [newTokenName, setNewTokenName] = useState("");
+  const [newTokenBorderColor, setNewTokenBorderColor] = useState(DEFAULT_TOKEN_BORDER_COLOR);
   const [newFolderColor, setNewFolderColor] = useState(DEFAULT_SCENE_FOLDER_COLOR);
   const [newCampaignName, setNewCampaignName] = useState("");
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [selectedFogShapeId, setSelectedFogShapeId] = useState<string | null>(null);
+  const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+  const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
 
   const mapAsset = useMemo(() => {
@@ -125,6 +144,7 @@ export function GmApp() {
     return campaign.assets.find((asset) => asset.id === activeScene.mapAssetId) ?? null;
   }, [activeScene?.mapAssetId, campaign]);
   const activeMapIsVideo = mapAsset?.mediaType === "video";
+  const tokenAssets = useMemo(() => new Map((campaign?.assets ?? []).filter((asset) => asset.kind === "token").map((asset) => [asset.id, asset])), [campaign?.assets]);
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const collapsedFolderIds = useMemo(() => new Set(campaign?.sceneLibrary.collapsedFolderIds ?? []), [campaign?.sceneLibrary.collapsedFolderIds]);
   const sceneThumbnailAssets = useMemo(() => {
@@ -138,6 +158,14 @@ export function GmApp() {
     );
   }, [activeScene, campaign?.assets, campaign?.scenes, sceneDrafts]);
 
+  const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign) => {
+    updateWorkspaceScene(nextScene, nextScene.id === playerSceneId ? syncCampaign : null);
+  };
+
+  const updateCampaignDraft = (nextCampaign: Campaign) => {
+    updateWorkspaceCampaignDraft(nextCampaign, activeScene?.id === playerSceneId ? activeScene : null);
+  };
+
   const refreshDisplays = () =>
     run(async () => {
       setDisplays(await window.localVtt.getDisplays());
@@ -148,7 +176,9 @@ export function GmApp() {
       !sceneDialog &&
       !folderDialog &&
       !fogShapeDialog &&
+      !tokenDialog &&
       !folderColorDialog &&
+      !tokenColorDialog &&
       !sceneColorDialog &&
       !campaignNameDialogOpen &&
       !playerDisplayDialogOpen &&
@@ -171,7 +201,9 @@ export function GmApp() {
         setSceneDialog(null);
         setFolderDialog(null);
         setFogShapeDialog(null);
+        setTokenDialog(null);
         setFolderColorDialog(null);
+        setTokenColorDialog(null);
         setSceneColorDialog(null);
         setCampaignNameDialogOpen(false);
         setPlayerDisplayDialogOpen(false);
@@ -196,6 +228,8 @@ export function GmApp() {
     folderColorDialog,
     folderDialog,
     fogShapeDialog,
+    tokenDialog,
+    tokenColorDialog,
     folderToDelete,
     gmSettingsOpen,
     mapAssetToDelete,
@@ -211,6 +245,22 @@ export function GmApp() {
   ]);
 
   useEffect(() => {
+    if (!openSceneMenuId && !openFolderMenuId) {
+      return;
+    }
+    const closeSceneMenus = (event: MouseEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest(".scene-menu-wrap")) {
+        return;
+      }
+      setOpenSceneMenuId(null);
+      setOpenFolderMenuId(null);
+    };
+    window.addEventListener("mousedown", closeSceneMenus);
+    return () => window.removeEventListener("mousedown", closeSceneMenus);
+  }, [openFolderMenuId, openSceneMenuId]);
+
+  useEffect(() => {
     void refreshDisplays();
   }, []);
 
@@ -220,6 +270,35 @@ export function GmApp() {
     }
     setSelectedFogShapeId(null);
   }, [activeScene?.fog.shapes, selectedFogShapeId]);
+
+  useEffect(() => {
+    if (!selectedFogShapeId) {
+      return;
+    }
+    const clearFogShapeSelection = (event: MouseEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest(".fog-layer-shape-row")) {
+        return;
+      }
+      setSelectedFogShapeId(null);
+    };
+    window.addEventListener("mousedown", clearFogShapeSelection);
+    return () => window.removeEventListener("mousedown", clearFogShapeSelection);
+  }, [selectedFogShapeId]);
+
+  useEffect(() => {
+    if (!selectedTokenId || activeScene?.tokens.some((token) => token.id === selectedTokenId)) {
+      return;
+    }
+    setSelectedTokenId(null);
+  }, [activeScene?.tokens, selectedTokenId]);
+
+  useEffect(() => {
+    if (!playerSceneId || campaign?.scenes.some((scene) => scene.id === playerSceneId)) {
+      return;
+    }
+    setPlayerSceneId(null);
+  }, [campaign?.scenes, playerSceneId]);
 
   useEffect(() => {
     window.localStorage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(workspaceLayout));
@@ -285,6 +364,49 @@ export function GmApp() {
       updatedAt: new Date().toISOString()
     });
   };
+
+  const importToken = () =>
+    run(async () => {
+      if (!campaignPath || !activeScene) {
+        return;
+      }
+      const result = await window.localVtt.importToken(campaignPath);
+      if (!result) {
+        return;
+      }
+      applySummary(result.campaignSummary, campaignDirty);
+      const tokenLayer = activeScene.layers.find((layer) => layer.id === "token");
+      const tokenId = crypto.randomUUID();
+      const tokenSize = getDefaultTokenSize(activeScene);
+      const nextToken = {
+        id: tokenId,
+        name: stripFileExtension(result.asset.name),
+        assetId: result.asset.id,
+        position: getDefaultTokenPosition(activeScene),
+        size: tokenSize,
+        sizePreset: DEFAULT_TOKEN_SIZE_PRESET,
+        mask: DEFAULT_TOKEN_MASK,
+        borderColor: DEFAULT_TOKEN_BORDER_COLOR,
+        borderStyle: DEFAULT_TOKEN_BORDER_STYLE,
+        borderWidth: DEFAULT_TOKEN_BORDER_WIDTH,
+        borderWidthPreset: DEFAULT_TOKEN_BORDER_WIDTH_PRESET,
+        glowColor: DEFAULT_TOKEN_GLOW_COLOR,
+        footprintVisible: DEFAULT_TOKEN_FOOTPRINT_VISIBLE,
+        order: activeScene.tokens.length,
+        hidden: false,
+        visibleInGm: tokenLayer?.visibleInGm ?? true,
+        visibleInPlayer: tokenLayer?.visibleInPlayer ?? false
+      };
+      updateScene(
+        {
+          ...activeScene,
+          tokens: [...activeScene.tokens, nextToken],
+          updatedAt: new Date().toISOString()
+        },
+        result.campaignSummary.campaign
+      );
+      setSelectedTokenId(tokenId);
+    });
 
   const undoFogShape = () => {
     if (!activeScene || activeScene.fog.shapes.length === 0) {
@@ -422,6 +544,12 @@ export function GmApp() {
     setFogShapeDialog({ shapeId });
   };
 
+  const openRenameTokenDialog = (tokenId: string, fallbackName: string) => {
+    const tokenName = activeScene?.tokens.find((token) => token.id === tokenId)?.name?.trim();
+    setNewTokenName(tokenName || fallbackName);
+    setTokenDialog({ tokenId });
+  };
+
   const openFolderColorDialog = (folder: CampaignSceneFolder) => {
     setOpenFolderMenuId(null);
     setNewFolderColor(folder.color);
@@ -468,6 +596,22 @@ export function GmApp() {
     setFogShapeDialog(null);
   };
 
+  const submitTokenName = () => {
+    if (!activeScene || !tokenDialog) {
+      return;
+    }
+    const name = newTokenName.trim();
+    if (!name) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      tokens: activeScene.tokens.map((token) => (token.id === tokenDialog.tokenId ? { ...token, name } : token)),
+      updatedAt: new Date().toISOString()
+    });
+    setTokenDialog(null);
+  };
+
   const submitFolderColor = () => {
     if (!campaign || !folderColorDialog) {
       return;
@@ -501,6 +645,12 @@ export function GmApp() {
     });
   };
 
+  const openTokenColorDialog = (tokenId: string, value: string, kind: "border" | "glow") => {
+    const tokenName = activeScene?.tokens.find((token) => token.id === tokenId)?.name?.trim() || "Token";
+    setNewTokenBorderColor(value);
+    setTokenColorDialog({ tokenId, tokenName, value, kind });
+  };
+
   const updateSceneColorDraft = (value: string) => {
     setSceneColorDialog((dialog) => (dialog ? { ...dialog, value } : dialog));
   };
@@ -515,6 +665,24 @@ export function GmApp() {
       updateGrid({ color: sceneColorDialog.value });
     }
     setSceneColorDialog(null);
+  };
+
+  const submitTokenBorderColor = () => {
+    if (!activeScene || !tokenColorDialog) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      tokens: activeScene.tokens.map((token) =>
+        token.id === tokenColorDialog.tokenId
+          ? tokenColorDialog.kind === "glow"
+            ? { ...token, glowColor: newTokenBorderColor }
+            : { ...token, borderColor: newTokenBorderColor }
+          : token
+      ),
+      updatedAt: new Date().toISOString()
+    });
+    setTokenColorDialog(null);
   };
 
   const submitSceneName = () =>
@@ -576,6 +744,7 @@ export function GmApp() {
         fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
       });
       await window.localVtt.sendSceneToPlayer(campaign, activeScene);
+      setPlayerSceneId(activeScene.id);
       if (!openResult.displayFound && campaign.playerDisplay.selectedDisplayLabel) {
         setError(`Saved Player View display not found: ${campaign.playerDisplay.selectedDisplayLabel}. Opened Player View normally.`);
       }
@@ -590,6 +759,7 @@ export function GmApp() {
   const closePlayerView = () =>
     run(async () => {
       await window.localVtt.closePlayerView();
+      setPlayerSceneId(null);
       setPlayerMenuOpen(false);
     });
 
@@ -712,6 +882,7 @@ export function GmApp() {
             <SceneLibraryPanel
               campaign={campaign}
               activeScene={activeScene}
+              playerSceneId={playerSceneId}
               dirtySceneIds={dirtySceneIds}
               sceneThumbnailAssets={sceneThumbnailAssets}
               collapsedFolderIds={collapsedFolderIds}
@@ -722,8 +893,14 @@ export function GmApp() {
               onSaveFolderScenes={(folderId) => void saveFolderScenes(folderId)}
               onMoveSceneToFolder={moveSceneToFolder}
               onToggleFolderCollapsed={toggleFolderCollapsed}
-              onToggleSceneMenu={(sceneId) => setOpenSceneMenuId(openSceneMenuId === sceneId ? null : sceneId)}
-              onToggleFolderMenu={(folderId) => setOpenFolderMenuId(openFolderMenuId === folderId ? null : folderId)}
+              onToggleSceneMenu={(sceneId) => {
+                setOpenFolderMenuId(null);
+                setOpenSceneMenuId(openSceneMenuId === sceneId ? null : sceneId);
+              }}
+              onToggleFolderMenu={(folderId) => {
+                setOpenSceneMenuId(null);
+                setOpenFolderMenuId(openFolderMenuId === folderId ? null : folderId);
+              }}
           onRenameScene={openRenameDialog}
           onDeleteScene={setSceneToDelete}
           onRenameFolder={openRenameFolderDialog}
@@ -779,7 +956,9 @@ export function GmApp() {
             mode="gm"
             fogTool={activeFogTool}
             selectedFogShapeId={selectedFogShapeId}
+            selectedTokenId={selectedTokenId}
             onSceneChange={updateScene}
+            onSelectToken={setSelectedTokenId}
           />
           <GmSettingsMenu
             open={gmSettingsOpen}
@@ -845,7 +1024,9 @@ export function GmApp() {
                 <LayerPanel
                   scene={activeScene}
                   mapAsset={mapAsset}
+                  tokenAssets={tokenAssets}
                   selectedFogShapeId={selectedFogShapeId}
+                  selectedTokenId={selectedTokenId}
                   onChange={updateScene}
                   onUpdateGrid={updateGrid}
                   onUpdateFog={updateFog}
@@ -853,11 +1034,15 @@ export function GmApp() {
                   onFitGridToMapDimensions={fitGridToMapDimensions}
                   onMoveLayer={moveLayer}
                   onImportMap={importMap}
+                  onImportToken={() => void importToken()}
                   onDeleteMap={setMapAssetToDelete}
                   onSelectFogShape={setSelectedFogShapeId}
+                  onSelectToken={setSelectedTokenId}
                   onRenameFogShape={openRenameFogShapeDialog}
+                  onRenameToken={openRenameTokenDialog}
                   onOpenFogColor={() => openSceneColorDialog("fog")}
                   onOpenGridColor={() => openSceneColorDialog("grid")}
+                  onOpenTokenColor={openTokenColorDialog}
                 />
 
                 <div className="section-heading">
@@ -924,6 +1109,18 @@ export function GmApp() {
         />
       )}
 
+      {tokenDialog && (
+        <NameDialog
+          title="Rename Token"
+          label="Token name"
+          value={newTokenName}
+          submitLabel="Save"
+          onChange={setNewTokenName}
+          onCancel={() => setTokenDialog(null)}
+          onSubmit={submitTokenName}
+        />
+      )}
+
       {folderColorDialog && (
         <div className="modal-backdrop" onMouseDown={() => setFolderColorDialog(null)}>
           <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
@@ -945,6 +1142,19 @@ export function GmApp() {
             <div className="button-row modal-actions">
               <button onClick={() => setSceneColorDialog(null)}>Cancel</button>
               <button onClick={submitSceneColor}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tokenColorDialog && (
+        <div className="modal-backdrop" onMouseDown={() => setTokenColorDialog(null)}>
+          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
+            <h2>{tokenColorDialog.kind === "glow" ? "Token Glow Color" : "Token Border Color"}</h2>
+            <ColorPickerField label={tokenColorDialog.tokenName} value={newTokenBorderColor} onChange={setNewTokenBorderColor} />
+            <div className="button-row modal-actions">
+              <button onClick={() => setTokenColorDialog(null)}>Cancel</button>
+              <button onClick={submitTokenBorderColor}>Save</button>
             </div>
           </div>
         </div>
@@ -1045,6 +1255,29 @@ function loadImageDimensions(src: string): Promise<{ width: number; height: numb
     image.onerror = () => reject(new Error("Unable to read the selected map image dimensions."));
     image.src = src;
   });
+}
+
+function stripFileExtension(fileName: string): string {
+  return fileName.replace(/\.[^/.]+$/, "") || fileName;
+}
+
+function getDefaultTokenPosition(scene: Scene): { x: number; y: number } {
+  if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
+    return { x: 0, y: 0 };
+  }
+  return {
+    x: scene.grid.offsetX,
+    y: scene.grid.offsetY
+  };
+}
+
+function getDefaultTokenSize(scene: Scene): { width: number; height: number } {
+  const size = Math.max(1, scene.grid.sizePx);
+  if (scene.grid.type === "hex") {
+    const tokenSize = size * 0.72;
+    return { width: tokenSize, height: tokenSize };
+  }
+  return { width: size, height: size };
 }
 
 function loadWorkspaceLayout(): WorkspaceLayout {

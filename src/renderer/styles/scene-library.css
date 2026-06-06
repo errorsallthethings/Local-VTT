@@ -190,7 +190,7 @@
 
 .scene-title-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 3px;
   min-width: 0;
@@ -216,6 +216,11 @@
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.scene-player-indicator {
+  color: #4cbf78;
+  filter: drop-shadow(0 0 4px rgb(76 191 120 / 0.25));
 }
 
 .scene-row-body {

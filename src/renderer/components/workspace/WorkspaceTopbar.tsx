@@ -23,7 +23,7 @@ export function WorkspaceTopbar({
   return (
     <div className="topbar">
       <div>
-        <h2>{activeScene?.name ?? "Create or open a scene"}</h2>
+        <h2>{activeScene?.name ?? "Create or open a campaign"}</h2>
         <span>{mapAsset ? `${mapAsset.name} (${mapAsset.mediaType})` : "No map imported"}</span>
       </div>
       <div className="toolbar-groups">

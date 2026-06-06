@@ -18,6 +18,8 @@ const api = {
     ipcRenderer.invoke("scene:delete", campaignPath, sceneId) as Promise<CampaignSummary>,
   importMap: (campaignPath: string) =>
     ipcRenderer.invoke("asset:importMap", campaignPath) as Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>,
+  importToken: (campaignPath: string) =>
+    ipcRenderer.invoke("asset:importToken", campaignPath) as Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>,
   deleteMapAsset: (campaignPath: string, sceneId: string, assetId: string) =>
     ipcRenderer.invoke("asset:deleteMap", campaignPath, sceneId, assetId) as Promise<{ campaignSummary: CampaignSummary; scene: Scene }>,
   openPlayerView: (options?: { displayId?: number; fullscreen?: boolean }) =>

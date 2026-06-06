@@ -4,6 +4,10 @@ export type GridType = "square" | "hex" | "gridless";
 export type MeasurementUnit = "feet" | "meters" | "miles";
 export type WallType = "wall" | "door" | "window" | "terrain";
 export type DrawingKind = "freehand" | "line" | "rectangle" | "circle" | "cone" | "text" | "ping" | "laser";
+export type TokenSizePreset = "tiny" | "medium" | "large" | "huge" | "gargantuan" | "custom";
+export type TokenMask = "none" | "circle" | "square";
+export type TokenBorderStyle = "none" | "solid" | "embossed" | "inner-shadow" | "glow";
+export type TokenBorderWidthPreset = "thin" | "medium" | "thick" | "custom";
 
 export interface Asset {
   id: string;
@@ -119,8 +123,18 @@ export interface Token {
   assetId?: string;
   position: Point;
   size: { width: number; height: number };
+  sizePreset?: TokenSizePreset;
+  mask?: TokenMask;
+  borderColor?: string;
+  borderStyle?: TokenBorderStyle;
+  borderWidth?: number;
+  borderWidthPreset?: TokenBorderWidthPreset;
+  glowColor?: string;
+  footprintVisible?: boolean;
+  order?: number;
   auraRadius?: number;
   hidden: boolean;
+  visibleInGm?: boolean;
   visibleInPlayer: boolean;
   vision?: {
     enabled: boolean;
@@ -311,6 +325,15 @@ export const DEFAULT_VIDEO_PLAYBACK: VideoPlaybackSettings = {
   muted: true
 };
 
+export const DEFAULT_TOKEN_BORDER_COLOR = "#7aa2f7";
+export const DEFAULT_TOKEN_BORDER_STYLE: TokenBorderStyle = "none";
+export const DEFAULT_TOKEN_BORDER_WIDTH = 5;
+export const DEFAULT_TOKEN_BORDER_WIDTH_PRESET: TokenBorderWidthPreset = "medium";
+export const DEFAULT_TOKEN_GLOW_COLOR = "#7aa2f7";
+export const DEFAULT_TOKEN_FOOTPRINT_VISIBLE = false;
+export const DEFAULT_TOKEN_MASK: TokenMask = "circle";
+export const DEFAULT_TOKEN_SIZE_PRESET: TokenSizePreset = "medium";
+
 export const DEFAULT_SCENE_FOLDER_COLOR = "#7aa2f7";
 
 export const DEFAULT_FOG: FogSettings = {
@@ -427,6 +450,7 @@ export function normalizeScene(scene: Scene): Scene {
     layerOrderLocked: scene.layerOrderLocked ?? true,
     mapTransform: { ...DEFAULT_MAP_TRANSFORM, ...(scene.mapTransform ?? {}) },
     fog: normalizeFog(scene.fog),
+    tokens: normalizeTokens(scene.tokens),
     videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(scene.videoPlayback ?? {}) }
   };
 }
@@ -464,6 +488,28 @@ function normalizeFog(fog?: Partial<FogSettings>): FogSettings {
   };
 }
 
+function normalizeTokens(tokens?: Token[]): Token[] {
+  return (tokens ?? []).map((token, index) => ({
+    ...token,
+    sizePreset: token.sizePreset ?? DEFAULT_TOKEN_SIZE_PRESET,
+    mask: token.mask ?? DEFAULT_TOKEN_MASK,
+    borderColor: normalizeColor(token.borderColor, DEFAULT_TOKEN_BORDER_COLOR),
+    borderStyle: normalizeTokenBorderStyle(token.borderStyle),
+    borderWidth: Number.isFinite(token.borderWidth) ? Math.min(16, Math.max(1, token.borderWidth ?? DEFAULT_TOKEN_BORDER_WIDTH)) : DEFAULT_TOKEN_BORDER_WIDTH,
+    borderWidthPreset: token.borderWidthPreset ?? DEFAULT_TOKEN_BORDER_WIDTH_PRESET,
+    glowColor: normalizeColor(token.glowColor, normalizeColor(token.borderColor, DEFAULT_TOKEN_GLOW_COLOR)),
+    footprintVisible: token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE,
+    order: token.order ?? (tokens?.length ?? 0) - index,
+    hidden: token.hidden ?? false,
+    visibleInGm: token.visibleInGm ?? !(token.hidden ?? false),
+    visibleInPlayer: token.hidden ? false : (token.visibleInPlayer ?? false)
+  }));
+}
+
+function normalizeTokenBorderStyle(style: unknown): TokenBorderStyle {
+  return style === "solid" || style === "embossed" || style === "inner-shadow" || style === "glow" ? style : DEFAULT_TOKEN_BORDER_STYLE;
+}
+
 export function normalizeCampaign(campaign: Campaign): Campaign {
   const sceneFolders = (campaign.sceneFolders ?? []).map((folder) => ({
     ...folder,
@@ -485,8 +531,8 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
   };
 }
 
-function normalizeColor(color: unknown): string {
-  return typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color) ? color : DEFAULT_SCENE_FOLDER_COLOR;
+function normalizeColor(color: unknown, fallback = DEFAULT_SCENE_FOLDER_COLOR): string {
+  return typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback;
 }
 
 export function projectSceneForPlayer(campaign: Campaign, scene: Scene): PlayerSceneProjection {
@@ -498,7 +544,7 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene): PlayerS
     usedAssetIds.add(normalizedScene.mapAssetId);
   }
   for (const token of normalizedScene.tokens) {
-    if (token.visibleInPlayer && !token.hidden && token.assetId) {
+    if (token.visibleInPlayer && token.assetId) {
       usedAssetIds.add(token.assetId);
     }
   }
@@ -518,7 +564,7 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene): PlayerS
         shapes: normalizedScene.fog.shapes.filter((shape) => shape.visibleInPlayer ?? shape.visible ?? true)
       },
       layers: normalizedScene.layers.filter((layer) => layer.visibleInPlayer),
-      tokens: normalizedScene.tokens.filter((token) => token.visibleInPlayer && !token.hidden),
+      tokens: normalizedScene.tokens.filter((token) => token.visibleInPlayer),
       walls: [],
       drawings: normalizedScene.drawings.filter((drawing) => drawing.visibleInPlayer),
       overlays: normalizedScene.overlays.filter((overlay) => overlay.visibleInPlayer && playerLayerIds.has(overlay.layerId)),

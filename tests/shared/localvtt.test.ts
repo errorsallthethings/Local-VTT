@@ -64,6 +64,33 @@ it("normalizeScene fills default settings for older scene files", () => {
   expect(normalized.fog.newShapesVisibleInPlayer).toBe(true);
 });
 
+it("normalizeScene fills token presentation defaults for older scene files", () => {
+  const scene = createDefaultScene("Token Scene");
+  scene.tokens = [
+    {
+      id: "token-1",
+      name: "Hero",
+      assetId: "hero",
+      position: { x: 0, y: 0 },
+      size: { width: 100, height: 100 },
+      hidden: false,
+      visibleInPlayer: true
+    }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.tokens[0]).toMatchObject({
+    sizePreset: "medium",
+    mask: "circle",
+    borderColor: "#7aa2f7",
+    borderStyle: "none",
+    order: 1,
+    visibleInGm: true,
+    visibleInPlayer: true
+  });
+});
+
 it("normalizeScene makes legacy fog shapes visible in GM and Player views", () => {
   const scene = createDefaultScene("Legacy Fog");
   scene.fog.shapes = [
