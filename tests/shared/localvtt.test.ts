@@ -61,9 +61,10 @@ it("normalizeScene fills default settings for older scene files", () => {
   expect(normalized.fog.opacity).toBe(0.8);
   expect(normalized.fog.gmOpacity).toBe(0.5);
   expect(normalized.fog.playerOpacity).toBe(0.8);
+  expect(normalized.fog.newShapesVisibleInPlayer).toBe(true);
 });
 
-it("normalizeScene makes legacy fog shapes visible", () => {
+it("normalizeScene makes legacy fog shapes visible in GM and Player views", () => {
   const scene = createDefaultScene("Legacy Fog");
   scene.fog.shapes = [
     { id: "shape-1", operation: "reveal", kind: "rectangle", points: [{ x: 0, y: 0 }, { x: 10, y: 10 }] },
@@ -73,7 +74,11 @@ it("normalizeScene makes legacy fog shapes visible", () => {
   const normalized = normalizeScene(scene);
 
   expect(normalized.fog.shapes[0].visible).toBe(true);
+  expect(normalized.fog.shapes[0].visibleInGm).toBe(true);
+  expect(normalized.fog.shapes[0].visibleInPlayer).toBe(true);
   expect(normalized.fog.shapes[1].visible).toBe(false);
+  expect(normalized.fog.shapes[1].visibleInGm).toBe(false);
+  expect(normalized.fog.shapes[1].visibleInPlayer).toBe(false);
 });
 
 it("normalizeCampaign fills portable campaign defaults and empty collections", () => {
@@ -147,6 +152,10 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
     { id: "overlay-hidden", assetId: "unused", layerId: "gm", position: { x: 0, y: 0 }, scale: 1, rotation: 0, opacity: 1, visibleInPlayer: true }
   ];
   scene.notes = "Secret notes";
+  scene.fog.shapes = [
+    { id: "player-fog", operation: "reveal", kind: "rectangle", points: [], visibleInGm: true, visibleInPlayer: true },
+    { id: "gm-fog", operation: "hide", kind: "rectangle", points: [], visibleInGm: true, visibleInPlayer: false }
+  ];
 
   const projection = projectSceneForPlayer(campaign, scene);
 
@@ -166,6 +175,7 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
     projection.scene.overlays.map((overlay) => overlay.id),
   ).toEqual(["overlay-visible"]);
   expect(projection.scene.notes).toBe("");
+  expect(projection.scene.fog.shapes.map((shape) => shape.id)).toEqual(["player-fog"]);
   expect(
     projection.assets.map((projectionAsset) => projectionAsset.id).sort(),
   ).toEqual(["map", "overlay", "visible-token"]);

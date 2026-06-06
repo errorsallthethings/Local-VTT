@@ -71,7 +71,7 @@ export function SceneCanvas({ campaign, scene, mode, className, interactive = tr
   const fogLayer = scene?.layers.find((layer) => layer.id === "fog");
   const canShowMap = mode === "gm" ? mapLayer?.visibleInGm : mapLayer?.visibleInPlayer;
   const canShowGrid = mode === "gm" ? gridLayer?.visibleInGm : gridLayer?.visibleInPlayer;
-  const canShowFog = mode === "gm" ? fogLayer?.visibleInGm && scene?.fog.previewOnGm : fogLayer?.visibleInPlayer;
+  const canShowFog = mode === "gm" ? fogLayer?.visibleInGm : fogLayer?.visibleInPlayer;
   const isVideoMap = Boolean(canShowMap && mapAsset?.mediaType === "video" && assetUrl);
   const playerDisplayScale = getPlayerDisplayScale(campaign, scene, mode);
   const videoPlayback = scene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
@@ -347,6 +347,8 @@ export function SceneCanvas({ campaign, scene, mode, className, interactive = tr
                 kind: fogDrag.kind,
                 points: fogDrag.kind === "brush" ? normalizeBrushPoints(fogDrag.points, fogDrag.current) : [fogDrag.start, fogDrag.current],
                 radius: fogDrag.radius,
+                visibleInGm: true,
+                visibleInPlayer: scene.fog.newShapesVisibleInPlayer,
                 visible: true
               }
             ]
@@ -433,6 +435,8 @@ export function SceneCanvas({ campaign, scene, mode, className, interactive = tr
             operation: draft.operation,
             kind: "polygon",
             points: draft.points,
+            visibleInGm: true,
+            visibleInPlayer: scene.fog.newShapesVisibleInPlayer,
             visible: true
           }
         ]

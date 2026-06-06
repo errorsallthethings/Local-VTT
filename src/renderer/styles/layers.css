@@ -24,13 +24,15 @@
   width: 24px;
   min-width: 24px;
   height: 24px;
-  border: 1px solid #303a49;
-  border-radius: 5px;
-  background: #151c25;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: #a9c1f7;
 }
 
+.layer-visibility-button,
 .layer-settings-button {
+  position: relative;
   width: 26px;
   min-width: 26px;
   height: 26px;
@@ -39,10 +41,35 @@
   color: #aeb8c7;
 }
 
+.layer-visibility-button:hover:not(:disabled),
+.layer-visibility-active,
 .layer-settings-button:hover:not(:disabled),
 .layer-settings-active {
-  background: #253040;
+  border-color: transparent;
+  background: transparent;
   color: #dfe6ef;
+}
+
+.layer-visibility-active {
+  color: #a9c1f7;
+}
+
+.layer-visibility-active:hover:not(:disabled) {
+  color: #c6d6ff;
+}
+
+.layer-visibility-button:not(.layer-visibility-active)::after {
+  position: absolute;
+  top: 4px;
+  left: 12px;
+  width: 2px;
+  height: 20px;
+  border-radius: 999px;
+  background: #c87878;
+  content: "";
+  opacity: 0.86;
+  transform: rotate(-45deg);
+  transform-origin: center;
 }
 
 .layer-order-controls {
@@ -72,9 +99,25 @@
   font-size: 11px;
 }
 
+.fog-shape-column-header {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) 24px 24px 24px;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 5px;
+  color: #8f9bad;
+}
+
+.fog-shape-column-header span {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+
 .fog-shape-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: 14px minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 6px;
   min-width: 0;
@@ -83,6 +126,18 @@
   background: #151c25;
   padding: 5px;
   cursor: pointer;
+}
+
+.fog-shape-drag-handle {
+  color: #748094;
+  cursor: grab;
+  opacity: 0.72;
+}
+
+.fog-shape-row:hover .fog-shape-drag-handle,
+.fog-shape-row-selected .fog-shape-drag-handle {
+  color: #aeb9ca;
+  opacity: 1;
 }
 
 .fog-shape-row:hover {
@@ -114,6 +169,41 @@
   white-space: nowrap;
 }
 
+.fog-shape-action-button {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  border-color: transparent;
+  background: transparent;
+  color: #748094;
+}
+
+.fog-shape-action-button:hover:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  color: #dfe6ef;
+}
+
+.fog-shape-action-button.fog-shape-action-active {
+  color: #a9c1f7;
+}
+
+.fog-shape-action-button.fog-shape-action-active:hover:not(:disabled) {
+  color: #c6d6ff;
+}
+
+.fog-shape-action-button.danger {
+  border-color: transparent;
+  background: transparent;
+  color: #b87878;
+}
+
+.fog-shape-action-button.danger:hover:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  color: #ffd2d2;
+}
+
 .layer-detail-controls {
   grid-column: 1 / -1;
   display: grid;
@@ -131,6 +221,26 @@
 .map-layer-controls label,
 .map-layer-controls .panel-subgrid {
   grid-column: 1 / -1;
+}
+
+.fog-new-shape-row {
+  align-items: start !important;
+}
+
+.fog-new-shape-control {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.fog-new-shape-switch {
+  grid-template-columns: auto 44px auto;
+}
+
+.fog-new-shape-control small {
+  color: #8f9bad;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .import-map-next-step {

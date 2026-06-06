@@ -161,3 +161,8 @@
   width: 100%;
   min-width: 0;
 }
+
+.setting-row .fog-operation-switch input {
+  width: 44px;
+  min-width: 44px;
+}

@@ -92,6 +92,7 @@ export interface FogSettings {
   playerOpacity: number;
   brushSize: number;
   previewOnGm: boolean;
+  newShapesVisibleInPlayer: boolean;
   shapes: FogShape[];
 }
 
@@ -102,6 +103,8 @@ export interface FogShape {
   kind: "brush" | "rectangle" | "polygon" | "circle";
   points: Point[];
   radius?: number;
+  visibleInGm?: boolean;
+  visibleInPlayer?: boolean;
   visible?: boolean;
 }
 
@@ -318,6 +321,7 @@ export const DEFAULT_FOG: FogSettings = {
   playerOpacity: 0,
   brushSize: 80,
   previewOnGm: true,
+  newShapesVisibleInPlayer: true,
   shapes: []
 };
 
@@ -447,7 +451,16 @@ function normalizeFog(fog?: Partial<FogSettings>): FogSettings {
     opacity: legacyOpacity,
     gmOpacity: fog?.gmOpacity ?? Math.min(legacyOpacity, 0.5),
     playerOpacity: fog?.playerOpacity ?? legacyOpacity,
-    shapes: (fog?.shapes ?? []).map((shape) => ({ ...shape, visible: shape.visible ?? true }))
+    newShapesVisibleInPlayer: fog?.newShapesVisibleInPlayer ?? DEFAULT_FOG.newShapesVisibleInPlayer,
+    shapes: (fog?.shapes ?? []).map((shape) => {
+      const legacyVisible = shape.visible ?? true;
+      return {
+        ...shape,
+        visible: legacyVisible,
+        visibleInGm: shape.visibleInGm ?? legacyVisible,
+        visibleInPlayer: shape.visibleInPlayer ?? legacyVisible
+      };
+    })
   };
 }
 
@@ -500,6 +513,10 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene): PlayerS
     playerDisplay: normalizedCampaign.playerDisplay,
     scene: {
       ...normalizedScene,
+      fog: {
+        ...normalizedScene.fog,
+        shapes: normalizedScene.fog.shapes.filter((shape) => shape.visibleInPlayer ?? shape.visible ?? true)
+      },
       layers: normalizedScene.layers.filter((layer) => layer.visibleInPlayer),
       tokens: normalizedScene.tokens.filter((token) => token.visibleInPlayer && !token.hidden),
       walls: [],

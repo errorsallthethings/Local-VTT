@@ -32,7 +32,10 @@ export function drawFog(
 ) {
   const fog = scene.fog;
   const opacity = mode === "gm" ? fog.gmOpacity : fog.playerOpacity;
-  const shapes = [...fog.shapes.filter((shape) => shape.visible ?? true), ...getPreviewFogShapes(preview, polygonDraft)];
+  const shapes = [
+    ...fog.shapes.filter((shape) => (mode === "gm" ? shape.visibleInGm ?? shape.visible ?? true : shape.visibleInPlayer ?? shape.visible ?? true)),
+    ...getPreviewFogShapes(preview, polygonDraft)
+  ];
 
   const fogCanvas = document.createElement("canvas");
   fogCanvas.width = Math.max(1, Math.ceil(viewportWidth));
@@ -86,7 +89,7 @@ export function drawFog(
     ctx.restore();
   }
   if (mode === "gm" && selectedShapeId) {
-    const selectedShape = fog.shapes.find((shape) => shape.id === selectedShapeId && (shape.visible ?? true));
+    const selectedShape = fog.shapes.find((shape) => shape.id === selectedShapeId && (shape.visibleInGm ?? shape.visible ?? true));
     if (selectedShape) {
       ctx.save();
       ctx.translate(camera.x, camera.y);
