@@ -505,7 +505,7 @@ function getUniqueFogShapeId(id: unknown, index: number, usedIds: Set<string>): 
   return candidateId;
 }
 
-function formatDefaultFogShapeName(operation: FogShape["operation"], kind: FogShape["kind"], index: number): string {
+export function formatDefaultFogShapeName(operation: FogShape["operation"], kind: FogShape["kind"], index: number): string {
   const operationLabel = operation === "reveal" ? "Reveal" : "Hide";
   const kindLabel = kind[0].toUpperCase() + kind.slice(1);
   return `${operationLabel} ${kindLabel} ${index + 1}`;

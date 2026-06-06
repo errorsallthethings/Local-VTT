@@ -25,7 +25,7 @@ import {
   User,
   UsersRound
 } from "lucide-react";
-import type { Asset, FogSettings, GridSettings, GridType, Layer, MapTransform, Point, Scene } from "../../../shared/localvtt";
+import type { Asset, FogSettings, GridSettings, GridType, Layer, MapTransform, Scene } from "../../../shared/localvtt";
 import {
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_TOKEN_BORDER_STYLE,
@@ -35,16 +35,18 @@ import {
   DEFAULT_TOKEN_GLOW_COLOR,
   DEFAULT_TOKEN_MASK,
   DEFAULT_TOKEN_SIZE_PRESET,
+  formatDefaultFogShapeName,
   type Token,
   type TokenBorderStyle,
   type TokenBorderWidthPreset,
   type TokenMask,
   type TokenSizePreset
 } from "../../../shared/localvtt";
+import { getSnappedTokenPosition } from "../../canvas/tokenGeometry";
+import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
 import { ColorSettingRow } from "../controls/ColorPickerField";
 import { DebouncedNumberInput } from "../controls/DebouncedNumberInput";
 
-type DropPlacement = "before" | "after";
 type FogShapeDropTarget = { shapeId: string; placement: DropPlacement } | null;
 type TokenDropTarget = { tokenId: string; placement: DropPlacement } | null;
 
@@ -195,18 +197,9 @@ export function LayerPanel({
     }
     const namedShapes = scene.fog.shapes.map((shape, index) => ({
       ...shape,
-      name: shape.name?.trim() || formatFogShapeLabel(shape.operation, shape.kind, index)
+      name: shape.name?.trim() || formatDefaultFogShapeName(shape.operation, shape.kind, index)
     }));
-    const sourceShape = namedShapes.find((shape) => shape.id === sourceShapeId);
-    if (!sourceShape) {
-      return;
-    }
-    const shapes = namedShapes.filter((shape) => shape.id !== sourceShapeId);
-    const targetIndex = shapes.findIndex((shape) => shape.id === targetShapeId);
-    if (targetIndex < 0) {
-      return;
-    }
-    shapes.splice(placement === "after" ? targetIndex + 1 : targetIndex, 0, sourceShape);
+    const shapes = reorderByDropTarget(namedShapes, (shape) => shape.id, sourceShapeId, targetShapeId, placement);
     onUpdateFog({ shapes });
   };
 
@@ -595,12 +588,6 @@ export function LayerPanel({
   );
 }
 
-function formatFogShapeLabel(operation: "reveal" | "hide", kind: "brush" | "rectangle" | "polygon" | "circle", index: number): string {
-  const operationLabel = operation === "reveal" ? "Reveal" : "Hide";
-  const kindLabel = kind[0].toUpperCase() + kind.slice(1);
-  return `${operationLabel} ${kindLabel} ${index + 1}`;
-}
-
 function FogShapeList({
   scene,
   selectedFogShapeId,
@@ -647,7 +634,7 @@ function FogShapeList({
           {scene.fog.shapes.map((shape, shapeIndex) => {
             const isVisibleInGm = shape.visibleInGm ?? shape.visible ?? true;
             const isVisibleInPlayer = shape.visibleInPlayer ?? shape.visible ?? true;
-            const fallbackName = formatFogShapeLabel(shape.operation, shape.kind, shapeIndex);
+            const fallbackName = formatDefaultFogShapeName(shape.operation, shape.kind, shapeIndex);
             const label = shape.name?.trim() || fallbackName;
             const isSelected = selectedFogShapeId === shape.id;
             const dropPlacement = fogShapeDropTarget?.shapeId === shape.id && draggedFogShapeId !== shape.id ? fogShapeDropTarget.placement : null;
@@ -972,16 +959,7 @@ function TokenList({
     if (sourceTokenId === targetTokenId) {
       return;
     }
-    const sourceToken = scene.tokens.find((token) => token.id === sourceTokenId);
-    if (!sourceToken) {
-      return;
-    }
-    const tokens = scene.tokens.filter((token) => token.id !== sourceTokenId);
-    const targetIndex = tokens.findIndex((token) => token.id === targetTokenId);
-    if (targetIndex < 0) {
-      return;
-    }
-    tokens.splice(placement === "after" ? targetIndex + 1 : targetIndex, 0, sourceToken);
+    const tokens = reorderByDropTarget(scene.tokens, (token) => token.id, sourceTokenId, targetTokenId, placement);
     onUpdateTokens(tokens.map((token, index) => ({ ...token, order: index })));
   };
 
@@ -1164,98 +1142,6 @@ function TokenRowThumbnail({ asset, label }: { asset: Asset | null; label: strin
       {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : <UsersRound size={13} />}
     </span>
   );
-}
-
-function getSnappedTokenPosition(position: Point, token: Token, scene: Scene): Point {
-  if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
-    return position;
-  }
-  if (scene.grid.type === "hex") {
-    const center = {
-      x: position.x + token.size.width / 2,
-      y: position.y + token.size.height / 2
-    };
-    const snappedCenter = token.sizePreset === "large" ? getNearestHexVertex(center, scene.grid) : getNearestHexCenter(center, scene.grid);
-    return {
-      x: snappedCenter.x - token.size.width / 2,
-      y: snappedCenter.y - token.size.height / 2
-    };
-  }
-  const isHalfCell = token.size.width <= scene.grid.sizePx * 0.75 && token.size.height <= scene.grid.sizePx * 0.75;
-  if (isHalfCell) {
-    const center = {
-      x: position.x + token.size.width / 2,
-      y: position.y + token.size.height / 2
-    };
-    const snappedCenter = getNearestGridCellCenter(center, scene.grid);
-    return {
-      x: snappedCenter.x - token.size.width / 2,
-      y: snappedCenter.y - token.size.height / 2
-    };
-  }
-
-  return getNearestGridPoint(position, scene.grid);
-}
-
-function getNearestHexVertex(point: Point, grid: Scene["grid"]): Point {
-  const radius = Math.max(8, grid.sizePx / 2);
-  const center = getNearestHexCenter(point, grid);
-  let nearest = center;
-  let nearestDistance = Number.POSITIVE_INFINITY;
-  for (let side = 0; side < 6; side += 1) {
-    const angle = (Math.PI / 180) * (60 * side - 30);
-    const vertex = {
-      x: center.x + radius * Math.cos(angle),
-      y: center.y + radius * Math.sin(angle)
-    };
-    const distance = (vertex.x - point.x) ** 2 + (vertex.y - point.y) ** 2;
-    if (distance < nearestDistance) {
-      nearest = vertex;
-      nearestDistance = distance;
-    }
-  }
-  return nearest;
-}
-
-function getNearestGridPoint(point: Point, grid: Scene["grid"]): Point {
-  const size = grid.sizePx;
-  return {
-    x: Math.round((point.x - grid.offsetX) / size) * size + grid.offsetX,
-    y: Math.round((point.y - grid.offsetY) / size) * size + grid.offsetY
-  };
-}
-
-function getNearestGridCellCenter(point: Point, grid: Scene["grid"]): Point {
-  const size = grid.sizePx;
-  return {
-    x: Math.floor((point.x - grid.offsetX) / size) * size + grid.offsetX + size / 2,
-    y: Math.floor((point.y - grid.offsetY) / size) * size + grid.offsetY + size / 2
-  };
-}
-
-function getNearestHexCenter(point: Point, grid: Scene["grid"]): Point {
-  const radius = Math.max(8, grid.sizePx / 2);
-  const hexWidth = Math.sqrt(3) * radius;
-  const rowStep = radius * 1.5;
-  const approximateRow = Math.round((point.y - grid.offsetY) / rowStep);
-  let nearest = { x: grid.offsetX, y: grid.offsetY };
-  let nearestDistance = Number.POSITIVE_INFINITY;
-  for (let row = approximateRow - 2; row <= approximateRow + 2; row += 1) {
-    const rowOffset = row % 2 === 0 ? 0 : hexWidth / 2;
-    const approximateColumn = Math.round((point.x - grid.offsetX - rowOffset) / hexWidth);
-    for (let column = approximateColumn - 2; column <= approximateColumn + 2; column += 1) {
-      const center = {
-        x: grid.offsetX + column * hexWidth + rowOffset,
-        y: grid.offsetY + row * rowStep
-      };
-      const distance = (center.x - point.x) ** 2 + (center.y - point.y) ** 2;
-      if (distance < nearestDistance) {
-        nearest = center;
-        nearestDistance = distance;
-      }
-    }
-  }
-  return nearest;
 }
 
 function getTokenSizeForPreset(preset: TokenSizePreset, gridSize: number, gridType: GridType): Token["size"] {
