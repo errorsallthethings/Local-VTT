@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Crown, Eye, EyeOff, GripVertical, MoreVertical, Trash2, User, UsersRound } from "lucide-react";
+import { Copy, Crown, Eye, EyeOff, GripVertical, MoreVertical, Trash2, User, UsersRound } from "lucide-react";
 import type { Asset, Scene, Token } from "../../../shared/localvtt";
+import { duplicateToken } from "../../lib/tokenDefaults";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
 import { TokenSettings } from "./TokenSettings";
 
@@ -198,7 +199,19 @@ export function TokenList({
                       />
                       <div className="control-divider" />
                       <button
-                        className="token-menu-delete"
+                        className="token-menu-action"
+                        onClick={() => {
+                          const duplicateTokenId = crypto.randomUUID();
+                          onUpdateTokens(duplicateToken(scene.tokens, token.id, duplicateTokenId));
+                          onSelectToken(duplicateTokenId);
+                          setOpenTokenMenuId(null);
+                        }}
+                      >
+                        <Copy size={14} aria-hidden="true" />
+                        Duplicate
+                      </button>
+                      <button
+                        className="token-menu-action token-menu-delete"
                         onClick={() => {
                           onUpdateTokens(scene.tokens.filter((candidate) => candidate.id !== token.id));
                           if (selectedTokenId === token.id) {

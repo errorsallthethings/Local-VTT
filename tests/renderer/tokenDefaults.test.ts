@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createImportedToken, getDefaultTokenPosition, getDefaultTokenSize, stripFileExtension } from "../../src/renderer/lib/tokenDefaults";
-import { createDefaultScene, type Asset } from "../../src/shared/localvtt";
+import { createImportedToken, duplicateToken, getDefaultTokenPosition, getDefaultTokenSize, stripFileExtension } from "../../src/renderer/lib/tokenDefaults";
+import { createDefaultScene, type Asset, type Token } from "../../src/shared/localvtt";
 
 const tokenAsset: Asset = {
   id: "asset-1",
@@ -51,5 +51,53 @@ describe("token defaults", () => {
       mask: "circle",
       borderStyle: "none"
     });
+  });
+
+  it("duplicates tokens with a fresh id, copy name, and newest order", () => {
+    const sourceToken: Token = {
+      id: "token-1",
+      name: "Guard Scout",
+      assetId: tokenAsset.id,
+      position: { x: 12, y: 24 },
+      size: { width: 80, height: 80 },
+      sizePreset: "medium",
+      mask: "circle",
+      borderColor: "#fff",
+      borderStyle: "solid",
+      borderWidth: 5,
+      borderWidthPreset: "medium",
+      glowColor: "#fff",
+      footprintVisible: false,
+      order: 0,
+      hidden: false,
+      visibleInGm: true,
+      visibleInPlayer: false,
+      vision: { enabled: true, radius: 120 },
+      light: { enabled: true, brightRadius: 20, dimRadius: 40, color: "#ffeeaa", intensity: 0.8 }
+    };
+
+    const tokens = duplicateToken([sourceToken], sourceToken.id, "token-2");
+
+    expect(tokens).toHaveLength(2);
+    expect(tokens[1]).toMatchObject({
+      ...sourceToken,
+      id: "token-2",
+      name: "Guard Scout Copy",
+      order: 1
+    });
+    expect(tokens[1].position).not.toBe(sourceToken.position);
+    expect(tokens[1].size).not.toBe(sourceToken.size);
+    expect(tokens[1].vision).not.toBe(sourceToken.vision);
+    expect(tokens[1].light).not.toBe(sourceToken.light);
+  });
+
+  it("keeps duplicate token names unique", () => {
+    const scene = createDefaultScene("Token Scene");
+    const first = createImportedToken(scene, tokenAsset, "token-1");
+    const second = { ...first, id: "token-2", name: "Guard Scout.final Copy", order: 1 };
+
+    const tokens = duplicateToken([first, second], first.id, "token-3");
+
+    expect(tokens[2].name).toBe("Guard Scout.final Copy 2");
   });
 });

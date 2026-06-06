@@ -308,7 +308,7 @@
   grid-template-columns: 68px minmax(0, 1fr);
 }
 
-.token-menu-delete {
+.token-menu-action {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
@@ -319,10 +319,19 @@
   border: 0;
   background: transparent;
   padding: 7px 8px;
-  color: #ffd2d2;
+  color: #d7deea;
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
+}
+
+.token-menu-action:hover:not(:disabled) {
+  background: #253146;
+  color: #f3f7ff;
+}
+
+.token-menu-delete {
+  color: #ffd2d2;
 }
 
 .token-menu-delete:hover:not(:disabled) {

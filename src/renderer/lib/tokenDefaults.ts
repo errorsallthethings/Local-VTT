@@ -35,6 +35,26 @@ export function createImportedToken(scene: Scene, asset: Asset, tokenId: string)
   };
 }
 
+export function duplicateToken(tokens: readonly Token[], sourceTokenId: string, duplicateTokenId: string): Token[] {
+  const sourceToken = tokens.find((token) => token.id === sourceTokenId);
+  if (!sourceToken) {
+    return [...tokens];
+  }
+
+  const duplicate: Token = {
+    ...sourceToken,
+    id: duplicateTokenId,
+    name: getDuplicateTokenName(sourceToken.name, tokens),
+    position: { ...sourceToken.position },
+    size: { ...sourceToken.size },
+    vision: sourceToken.vision ? { ...sourceToken.vision } : undefined,
+    light: sourceToken.light ? { ...sourceToken.light } : undefined,
+    order: tokens.length
+  };
+
+  return [...tokens, duplicate].map((token, index) => ({ ...token, order: index }));
+}
+
 export function getDefaultTokenPosition(scene: Scene): { x: number; y: number } {
   if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
     return { x: 0, y: 0 };
@@ -56,4 +76,18 @@ export function getDefaultTokenSize(scene: Scene): { width: number; height: numb
 
 export function stripFileExtension(fileName: string): string {
   return fileName.replace(/\.[^/.]+$/, "") || fileName;
+}
+
+function getDuplicateTokenName(name: string, tokens: readonly Token[]): string {
+  const baseName = name.trim() || "Token";
+  const existingNames = new Set(tokens.map((token) => token.name.trim()).filter(Boolean));
+  const firstCopyName = `${baseName} Copy`;
+  if (!existingNames.has(firstCopyName)) {
+    return firstCopyName;
+  }
+  let suffix = 2;
+  while (existingNames.has(`${firstCopyName} ${suffix}`)) {
+    suffix += 1;
+  }
+  return `${firstCopyName} ${suffix}`;
 }
