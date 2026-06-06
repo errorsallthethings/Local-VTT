@@ -28,16 +28,10 @@ import type {
   VideoPlaybackSettings
 } from "../../shared/localvtt";
 import { CampaignPanel } from "../components/campaign/CampaignPanel";
-import { ColorPickerField } from "../components/controls/ColorPickerField";
 import { LayerPanel } from "../components/layers/LayerPanel";
-import { ConfirmDialog } from "../components/modals/ConfirmDialog";
-import { NameDialog } from "../components/modals/NameDialog";
-import { SettingsModal } from "../components/modals/SettingsModal";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { SceneLibraryPanel } from "../components/scenes/SceneLibraryPanel";
-import { MeasurementPanel } from "../components/settings/MeasurementPanel";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { PlayerViewDisplayPanel } from "../components/settings/PlayerViewDisplayPanel";
 import { ToolsMenu, type FogOperation } from "../components/tools/ToolsMenu";
 import { GmSettingsMenu } from "../components/workspace/GmSettingsMenu";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
@@ -58,14 +52,17 @@ import {
   type WorkspaceLayout,
   type WorkspacePanelSide
 } from "../lib/workspaceLayout";
+import {
+  GmDialogs,
+  type FogShapeNameDialog,
+  type FolderColorDialog,
+  type FolderNameDialog,
+  type SceneColorDialog,
+  type SceneNameDialog,
+  type TokenColorDialog,
+  type TokenNameDialog
+} from "./GmDialogs";
 
-type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
-type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };
-type FolderColorDialog = { folderId: string; folderName: string };
-type SceneColorDialog = { kind: "fog" | "grid"; title: string; value: string };
-type FogShapeNameDialog = { shapeId: string };
-type TokenNameDialog = { tokenId: string };
-type TokenColorDialog = { tokenId: string; tokenName: string; value: string; kind: "border" | "glow" };
 export function GmApp() {
   const workspace = useCampaignWorkspace();
   const {
@@ -1031,177 +1028,71 @@ export function GmApp() {
         )}
       </aside>
 
-      {sceneDialog && (
-        <NameDialog
-          title={sceneDialog.mode === "create" ? "New Scene" : "Rename Scene"}
-          label="Scene name"
-          value={newSceneName}
-          submitLabel={sceneDialog.mode === "create" ? "Create" : "Save"}
-          onChange={setNewSceneName}
-          onCancel={() => setSceneDialog(null)}
-          onSubmit={() => void submitSceneName()}
-        />
-      )}
-
-      {folderDialog && (
-        <NameDialog
-          title={folderDialog.mode === "create" ? "New Scene Folder" : "Rename Scene Folder"}
-          label="Folder name"
-          value={newFolderName}
-          submitLabel={folderDialog.mode === "create" ? "Create" : "Save"}
-          onChange={setNewFolderName}
-          onCancel={() => setFolderDialog(null)}
-          onSubmit={submitFolderName}
-        />
-      )}
-
-      {fogShapeDialog && (
-        <NameDialog
-          title="Rename Fog Shape"
-          label="Fog shape name"
-          value={newFogShapeName}
-          submitLabel="Save"
-          onChange={setNewFogShapeName}
-          onCancel={() => setFogShapeDialog(null)}
-          onSubmit={submitFogShapeName}
-        />
-      )}
-
-      {tokenDialog && (
-        <NameDialog
-          title="Rename Token"
-          label="Token name"
-          value={newTokenName}
-          submitLabel="Save"
-          onChange={setNewTokenName}
-          onCancel={() => setTokenDialog(null)}
-          onSubmit={submitTokenName}
-        />
-      )}
-
-      {folderColorDialog && (
-        <div className="modal-backdrop" onMouseDown={() => setFolderColorDialog(null)}>
-          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
-            <h2>Change Folder Color</h2>
-            <ColorPickerField label={folderColorDialog.folderName} value={newFolderColor} onChange={setNewFolderColor} />
-            <div className="button-row modal-actions">
-              <button onClick={() => setFolderColorDialog(null)}>Cancel</button>
-              <button onClick={submitFolderColor}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {sceneColorDialog && (
-        <div className="modal-backdrop" onMouseDown={() => setSceneColorDialog(null)}>
-          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
-            <h2>{sceneColorDialog.title}</h2>
-            <ColorPickerField label="Color" value={sceneColorDialog.value} onChange={updateSceneColorDraft} />
-            <div className="button-row modal-actions">
-              <button onClick={() => setSceneColorDialog(null)}>Cancel</button>
-              <button onClick={submitSceneColor}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tokenColorDialog && (
-        <div className="modal-backdrop" onMouseDown={() => setTokenColorDialog(null)}>
-          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
-            <h2>{tokenColorDialog.kind === "glow" ? "Token Glow Color" : "Token Border Color"}</h2>
-            <ColorPickerField label={tokenColorDialog.tokenName} value={newTokenBorderColor} onChange={setNewTokenBorderColor} />
-            <div className="button-row modal-actions">
-              <button onClick={() => setTokenColorDialog(null)}>Cancel</button>
-              <button onClick={submitTokenBorderColor}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {campaignNameDialogOpen && (
-        <NameDialog
-          title="Rename Campaign"
-          label="Campaign name"
-          value={newCampaignName}
-          submitLabel="Save"
-          onChange={setNewCampaignName}
-          onCancel={() => setCampaignNameDialogOpen(false)}
-          onSubmit={submitCampaignName}
-        />
-      )}
-
-      {playerDisplayDialogOpen && campaign && activeScene && (
-        <SettingsModal onClose={() => setPlayerDisplayDialogOpen(false)}>
-          <PlayerDisplayScalePanel
-            scene={activeScene}
-            calibration={campaign.playerDisplay}
-            displays={displays}
-            onApply={updatePlayerDisplay}
-            onRefreshDisplays={refreshDisplays}
-          />
-        </SettingsModal>
-      )}
-
-      {playerViewDisplayDialogOpen && campaign && (
-        <SettingsModal onClose={() => setPlayerViewDisplayDialogOpen(false)}>
-          <PlayerViewDisplayPanel
-            calibration={campaign.playerDisplay}
-            displays={displays}
-            onApply={updatePlayerDisplay}
-            onRefreshDisplays={refreshDisplays}
-          />
-        </SettingsModal>
-      )}
-
-      {measurementDialogOpen && activeScene && (
-        <SettingsModal onClose={() => setMeasurementDialogOpen(false)}>
-          <MeasurementPanel measurement={activeScene.grid.measurement} onChange={updateMeasurement} />
-        </SettingsModal>
-      )}
-
-      {sceneToDelete && (
-        <ConfirmDialog
-          title="Delete Scene"
-          confirmLabel="Delete"
-          onCancel={() => setSceneToDelete(null)}
-          onConfirm={() => void deleteScene(sceneToDelete)}
-        >
-          Delete <strong>{sceneToDelete.name}</strong>? This removes the scene JSON file from the campaign folder.
-        </ConfirmDialog>
-      )}
-
-      {folderToDelete && (
-        <ConfirmDialog
-          title="Delete Scene Folder"
-          confirmLabel="Delete Folder"
-          onCancel={() => setFolderToDelete(null)}
-          onConfirm={() => deleteFolder(folderToDelete)}
-        >
-          Delete <strong>{folderToDelete.name}</strong>? Scenes in this folder will move to Unfiled Scenes.
-        </ConfirmDialog>
-      )}
-
-      {mapAssetToDelete && (
-        <ConfirmDialog
-          title="Delete Map Asset"
-          confirmLabel="Delete Asset"
-          onCancel={() => setMapAssetToDelete(null)}
-          onConfirm={() => void confirmDeleteMapAsset()}
-        >
-          Delete <strong>{mapAssetToDelete.name}</strong> from the campaign folder? This cannot be undone.
-        </ConfirmDialog>
-      )}
-
-      {confirmClearFogOpen && (
-        <ConfirmDialog
-          title="Clear Fog Shapes"
-          confirmLabel="Clear Fog"
-          onCancel={() => setConfirmClearFogOpen(false)}
-          onConfirm={clearFogShapes}
-        >
-          Delete all fog reveal and hide shapes from this scene? This cannot be undone.
-        </ConfirmDialog>
-      )}
+      <GmDialogs
+        sceneDialog={sceneDialog}
+        folderDialog={folderDialog}
+        fogShapeDialog={fogShapeDialog}
+        tokenDialog={tokenDialog}
+        folderColorDialog={folderColorDialog}
+        sceneColorDialog={sceneColorDialog}
+        tokenColorDialog={tokenColorDialog}
+        campaignNameDialogOpen={campaignNameDialogOpen}
+        playerDisplayDialogOpen={playerDisplayDialogOpen}
+        playerViewDisplayDialogOpen={playerViewDisplayDialogOpen}
+        measurementDialogOpen={measurementDialogOpen}
+        sceneToDelete={sceneToDelete}
+        folderToDelete={folderToDelete}
+        mapAssetToDelete={mapAssetToDelete}
+        confirmClearFogOpen={confirmClearFogOpen}
+        campaign={campaign}
+        activeScene={activeScene}
+        displays={displays}
+        newSceneName={newSceneName}
+        newFolderName={newFolderName}
+        newFogShapeName={newFogShapeName}
+        newTokenName={newTokenName}
+        newFolderColor={newFolderColor}
+        newTokenBorderColor={newTokenBorderColor}
+        newCampaignName={newCampaignName}
+        onNewSceneNameChange={setNewSceneName}
+        onNewFolderNameChange={setNewFolderName}
+        onNewFogShapeNameChange={setNewFogShapeName}
+        onNewTokenNameChange={setNewTokenName}
+        onNewFolderColorChange={setNewFolderColor}
+        onNewTokenBorderColorChange={setNewTokenBorderColor}
+        onNewCampaignNameChange={setNewCampaignName}
+        onCancelSceneDialog={() => setSceneDialog(null)}
+        onCancelFolderDialog={() => setFolderDialog(null)}
+        onCancelFogShapeDialog={() => setFogShapeDialog(null)}
+        onCancelTokenDialog={() => setTokenDialog(null)}
+        onCancelFolderColorDialog={() => setFolderColorDialog(null)}
+        onCancelSceneColorDialog={() => setSceneColorDialog(null)}
+        onCancelTokenColorDialog={() => setTokenColorDialog(null)}
+        onCancelCampaignNameDialog={() => setCampaignNameDialogOpen(false)}
+        onCancelPlayerDisplayDialog={() => setPlayerDisplayDialogOpen(false)}
+        onCancelPlayerViewDisplayDialog={() => setPlayerViewDisplayDialogOpen(false)}
+        onCancelMeasurementDialog={() => setMeasurementDialogOpen(false)}
+        onCancelSceneDelete={() => setSceneToDelete(null)}
+        onCancelFolderDelete={() => setFolderToDelete(null)}
+        onCancelMapAssetDelete={() => setMapAssetToDelete(null)}
+        onCancelClearFog={() => setConfirmClearFogOpen(false)}
+        onSubmitSceneName={() => void submitSceneName()}
+        onSubmitFolderName={submitFolderName}
+        onSubmitFogShapeName={submitFogShapeName}
+        onSubmitTokenName={submitTokenName}
+        onSubmitFolderColor={submitFolderColor}
+        onUpdateSceneColorDraft={updateSceneColorDraft}
+        onSubmitSceneColor={submitSceneColor}
+        onSubmitTokenBorderColor={submitTokenBorderColor}
+        onSubmitCampaignName={submitCampaignName}
+        onUpdatePlayerDisplay={updatePlayerDisplay}
+        onRefreshDisplays={refreshDisplays}
+        onUpdateMeasurement={updateMeasurement}
+        onConfirmDeleteScene={(scene) => void deleteScene(scene)}
+        onConfirmDeleteFolder={deleteFolder}
+        onConfirmDeleteMapAsset={() => void confirmDeleteMapAsset()}
+        onConfirmClearFog={clearFogShapes}
+      />
     </div>
   );
 }
