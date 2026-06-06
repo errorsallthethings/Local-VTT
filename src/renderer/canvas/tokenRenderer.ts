@@ -100,11 +100,71 @@ function traceFogShapePath(ctx: CanvasRenderingContext2D, shape: Scene["fog"]["s
 
 export function drawTokenDragHighlights(ctx: CanvasRenderingContext2D, scene: Scene, preview: TokenDragPreview) {
   const token = scene.tokens.find((candidate) => candidate.id === preview.tokenId);
-  if (!token || scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
+  if (!token) {
     return;
   }
-  drawTokenFootprintHighlight(ctx, scene, token, preview.startPosition, "#f6d365", 0.12);
-  drawTokenFootprintHighlight(ctx, scene, token, preview.snappedPosition, "#7aa2f7", 0.16);
+  drawTokenMovementPath(ctx, token, preview);
+  if (scene.grid.type !== "gridless" && scene.grid.sizePx > 0) {
+    drawTokenFootprintHighlight(ctx, scene, token, preview.startPosition, "#f6d365", 0.12);
+    drawTokenFootprintHighlight(ctx, scene, token, preview.snappedPosition, "#7aa2f7", 0.16);
+  }
+}
+
+function drawTokenMovementPath(ctx: CanvasRenderingContext2D, token: Token, preview: TokenDragPreview) {
+  const startCenter = getTokenCenter(token, preview.startPosition);
+  const currentCenter = getTokenCenter(token, preview.currentPosition);
+  const targetCenter = getTokenCenter(token, preview.snappedPosition);
+  const distance = Math.hypot(targetCenter.x - startCenter.x, targetCenter.y - startCenter.y);
+  if (distance < 2) {
+    return;
+  }
+
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.setLineDash([18, 11]);
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = "rgb(4 8 14 / 0.82)";
+  ctx.beginPath();
+  ctx.moveTo(startCenter.x, startCenter.y);
+  ctx.lineTo(targetCenter.x, targetCenter.y);
+  ctx.stroke();
+
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = "rgb(255 255 255 / 0.95)";
+  ctx.beginPath();
+  ctx.moveTo(startCenter.x, startCenter.y);
+  ctx.lineTo(targetCenter.x, targetCenter.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  drawTokenPathMarker(ctx, startCenter, "#f6d365", "start");
+  drawTokenPathMarker(ctx, targetCenter, "#7aa2f7", "target");
+  if (Math.hypot(currentCenter.x - targetCenter.x, currentCenter.y - targetCenter.y) > 3) {
+    drawTokenPathMarker(ctx, currentCenter, "#d7deea", "current");
+  }
+  ctx.restore();
+}
+
+function getTokenCenter(token: Token, position: Point): Point {
+  return {
+    x: position.x + token.size.width / 2,
+    y: position.y + token.size.height / 2
+  };
+}
+
+function drawTokenPathMarker(ctx: CanvasRenderingContext2D, point: Point, color: string, kind: "start" | "target" | "current") {
+  const radius = kind === "current" ? 4 : 6;
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.strokeStyle = "rgb(4 8 14 / 0.82)";
+  ctx.lineWidth = 2;
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawTokenFootprintHighlight(ctx: CanvasRenderingContext2D, scene: Scene, token: Token, position: Point, color: string, alpha: number) {
