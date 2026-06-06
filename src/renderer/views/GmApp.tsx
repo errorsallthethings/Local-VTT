@@ -10,11 +10,7 @@ import type {
   CampaignSceneEntry,
   CampaignSceneFolder,
   DisplayCalibration,
-  FogSettings,
-  GridSettings,
-  MapTransform,
-  Scene,
-  VideoPlaybackSettings
+  Scene
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
@@ -24,6 +20,7 @@ import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import type { FogTool } from "../canvas/fogRenderer";
 import { useCampaignActions } from "../hooks/useCampaignActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
+import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { moveSceneFolder } from "../lib/campaignActions";
 import { createImportedToken } from "../lib/tokenDefaults";
 import {
@@ -303,38 +300,24 @@ export function GmApp() {
     onFolderDeleteHandled: () => setFolderToDelete(null)
   });
 
-  const updateVideoPlayback = (patch: Partial<VideoPlaybackSettings>) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(activeScene.videoPlayback ?? {}), ...patch },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateGrid = (patch: Partial<GridSettings>) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      grid: { ...activeScene.grid, ...patch },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateFog = (patch: Partial<FogSettings>) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      fog: { ...activeScene.fog, ...patch },
-      updatedAt: new Date().toISOString()
-    });
-  };
+  const {
+    updateVideoPlayback,
+    updateGrid,
+    updateFog,
+    undoFogShape,
+    clearFogShapes,
+    updateMeasurement,
+    updateMapTransform,
+    setLayerOrderLocked,
+    moveLayer,
+    fitGridToMapDimensions
+  } = useSceneEditingActions({
+    activeScene,
+    mapAsset,
+    run,
+    updateScene,
+    onClearFogConfirmed: () => setConfirmClearFogOpen(false)
+  });
 
   const importToken = () =>
     run(async () => {
@@ -359,27 +342,6 @@ export function GmApp() {
       setSelectedTokenId(tokenId);
     });
 
-  const undoFogShape = () => {
-    if (!activeScene || activeScene.fog.shapes.length === 0) {
-      return;
-    }
-    updateFog({ shapes: activeScene.fog.shapes.slice(0, -1) });
-  };
-
-  const clearFogShapes = () => {
-    updateFog({ shapes: [] });
-    setConfirmClearFogOpen(false);
-  };
-
-  const updateMeasurement = (patch: Partial<GridSettings["measurement"]>) => {
-    if (!activeScene) {
-      return;
-    }
-    updateGrid({
-      measurement: { ...activeScene.grid.measurement, ...patch }
-    });
-  };
-
   const updatePlayerDisplay = (nextDisplay: DisplayCalibration) => {
     if (!campaign) {
       return;
@@ -394,78 +356,6 @@ export function GmApp() {
       void window.localVtt.updatePlayerSceneIfOpen(nextCampaign, activeScene);
     }
   };
-
-  const updateMapTransform = (patch: Partial<MapTransform>) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      mapTransform: { ...activeScene.mapTransform, ...patch },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const setLayerOrderLocked = (locked: boolean) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      layerOrderLocked: locked,
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const moveLayer = (layerId: string, direction: "up" | "down") => {
-    if (!activeScene) {
-      return;
-    }
-    const sortedLayers = [...activeScene.layers].sort((a, b) => b.order - a.order);
-    const currentIndex = sortedLayers.findIndex((layer) => layer.id === layerId);
-    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= sortedLayers.length) {
-      return;
-    }
-
-    const nextSortedLayers = [...sortedLayers];
-    [nextSortedLayers[currentIndex], nextSortedLayers[targetIndex]] = [nextSortedLayers[targetIndex], nextSortedLayers[currentIndex]];
-    const reorderedLayers = nextSortedLayers.map((layer, index) => ({
-      ...layer,
-      order: (nextSortedLayers.length - index) * 10
-    }));
-    updateScene({
-      ...activeScene,
-      layers: reorderedLayers,
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const fitGridToMapDimensions = () =>
-    run(async () => {
-      if (!activeScene || !mapAsset?.absolutePath || mapAsset.mediaType !== "image") {
-        return;
-      }
-      const columns = Math.max(1, activeScene.grid.mapGridColumns);
-      const rows = Math.max(1, activeScene.grid.mapGridRows);
-      const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath));
-      const cellWidth = dimensions.width / columns;
-      const cellHeight = dimensions.height / rows;
-      const nextSize = Math.max(1, Math.round(((cellWidth + cellHeight) / 2) * 100) / 100);
-      const nextOffsetX = activeScene.mapTransform.fitMode === "manual" ? activeScene.mapTransform.x : 0;
-      const nextOffsetY = activeScene.mapTransform.fitMode === "manual" ? activeScene.mapTransform.y : 0;
-
-      updateScene({
-        ...activeScene,
-        grid: {
-          ...activeScene.grid,
-          sizePx: nextSize,
-          offsetX: nextOffsetX,
-          offsetY: nextOffsetY
-        },
-        updatedAt: new Date().toISOString()
-      });
-    });
 
   const openSceneDialog = () => {
     setNewSceneName("New Battle Map");
@@ -997,13 +887,4 @@ export function GmApp() {
       />
     </div>
   );
-}
-
-function loadImageDimensions(src: string): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
-    image.onerror = () => reject(new Error("Unable to read the selected map image dimensions."));
-    image.src = src;
-  });
 }
