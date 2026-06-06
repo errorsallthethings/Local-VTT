@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type DragEvent } from "react";
-import { Edit3, EllipsisVertical, Folder, FolderOpen, Palette, Save, Trash2, Video } from "lucide-react";
+import { ArrowDown, ArrowUp, Edit3, EllipsisVertical, Folder, FolderOpen, Palette, Save, Trash2, Video } from "lucide-react";
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../../shared/localvtt";
 
 interface SceneLibraryPanelProps {
@@ -21,6 +21,7 @@ interface SceneLibraryPanelProps {
   onDeleteScene: (scene: CampaignSceneEntry) => void;
   onRenameFolder: (folder: CampaignSceneFolder) => void;
   onChangeFolderColor: (folder: CampaignSceneFolder) => void;
+  onMoveFolder: (folderId: string, direction: "up" | "down") => void;
   onDeleteFolder: (folder: CampaignSceneFolder) => void;
 }
 
@@ -43,6 +44,7 @@ export function SceneLibraryPanel({
   onDeleteScene,
   onRenameFolder,
   onChangeFolderColor,
+  onMoveFolder,
   onDeleteFolder
 }: SceneLibraryPanelProps) {
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
@@ -142,10 +144,12 @@ export function SceneLibraryPanel({
         onDragLeave={(event) => onSceneDragLeave(event)}
         onDrop={(event) => onSceneDrop(event)}
       >
-        {campaign?.sceneFolders.map((folder) => {
+        {campaign?.sceneFolders.map((folder, folderIndex) => {
           const folderScenes = campaign.scenes.filter((scene) => scene.folderId === folder.id);
           const folderHasDirtyScenes = folderScenes.some((scene) => dirtySceneIds.has(scene.id));
           const isCollapsed = collapsedFolderIds.has(folder.id);
+          const canMoveUp = folderIndex > 0;
+          const canMoveDown = folderIndex < campaign.sceneFolders.length - 1;
           const folderStyle = {
             "--scene-folder-color": folder.color,
             "--scene-folder-color-bg": hexToRgba(folder.color, 0.13)
@@ -198,6 +202,14 @@ export function SceneLibraryPanel({
                       <button onClick={() => onChangeFolderColor(folder)}>
                         <Palette size={14} aria-hidden="true" />
                         Color
+                      </button>
+                      <button disabled={!canMoveUp} onClick={() => onMoveFolder(folder.id, "up")}>
+                        <ArrowUp size={14} aria-hidden="true" />
+                        Move Up
+                      </button>
+                      <button disabled={!canMoveDown} onClick={() => onMoveFolder(folder.id, "down")}>
+                        <ArrowDown size={14} aria-hidden="true" />
+                        Move Down
                       </button>
                       <button className="danger-menu-item" onClick={() => onDeleteFolder(folder)}>
                         <Trash2 size={14} aria-hidden="true" />

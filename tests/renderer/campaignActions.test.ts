@@ -3,6 +3,7 @@ import {
   applyMapAssetToCampaign,
   getDirtySceneIdsInFolder,
   getSceneDraftToSave,
+  moveSceneFolder,
   moveSceneEntryToFolder,
   removeDirtySceneId,
   removeFolderFromCampaign,
@@ -67,6 +68,37 @@ describe("campaign action helpers", () => {
       { id: "scene-2", name: "Two", file: "two.json", folderId: "folder-b" }
     ]);
     expect(next.updatedAt).toBe("now");
+  });
+
+  it("moves scene folders up and down without changing scenes", () => {
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.sceneFolders = [
+      { id: "folder-a", name: "A", color: "#7aa2f7", createdAt: "before" },
+      { id: "folder-b", name: "B", color: "#4cbf78", createdAt: "before" },
+      { id: "folder-c", name: "C", color: "#d99a35", createdAt: "before" }
+    ];
+    campaign.scenes = [{ id: "scene-1", name: "One", file: "one.json", folderId: "folder-b" }];
+
+    const movedUp = moveSceneFolder(campaign, "folder-b", "up", "now");
+    const movedDown = moveSceneFolder(campaign, "folder-b", "down", "later");
+
+    expect(movedUp.sceneFolders.map((folder) => folder.id)).toEqual(["folder-b", "folder-a", "folder-c"]);
+    expect(movedUp.scenes).toBe(campaign.scenes);
+    expect(movedUp.updatedAt).toBe("now");
+    expect(movedDown.sceneFolders.map((folder) => folder.id)).toEqual(["folder-a", "folder-c", "folder-b"]);
+    expect(movedDown.updatedAt).toBe("later");
+  });
+
+  it("does not move scene folders past the list boundaries", () => {
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.sceneFolders = [
+      { id: "folder-a", name: "A", color: "#7aa2f7", createdAt: "before" },
+      { id: "folder-b", name: "B", color: "#4cbf78", createdAt: "before" }
+    ];
+
+    expect(moveSceneFolder(campaign, "folder-a", "up", "now")).toBe(campaign);
+    expect(moveSceneFolder(campaign, "folder-b", "down", "now")).toBe(campaign);
+    expect(moveSceneFolder(campaign, "missing", "up", "now")).toBe(campaign);
   });
 
   it("applies imported map assets while preserving dirty campaign draft fields", () => {

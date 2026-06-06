@@ -34,6 +34,22 @@ export function removeFolderFromCampaign(campaign: Campaign, folderId: string, u
   };
 }
 
+export function moveSceneFolder(campaign: Campaign, folderId: string, direction: "up" | "down", updatedAt: string): Campaign {
+  const currentIndex = campaign.sceneFolders.findIndex((folder) => folder.id === folderId);
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  if (currentIndex < 0 || targetIndex < 0 || targetIndex >= campaign.sceneFolders.length) {
+    return campaign;
+  }
+
+  const sceneFolders = [...campaign.sceneFolders];
+  [sceneFolders[currentIndex], sceneFolders[targetIndex]] = [sceneFolders[targetIndex], sceneFolders[currentIndex]];
+  return {
+    ...campaign,
+    sceneFolders,
+    updatedAt
+  };
+}
+
 export function applyMapAssetToCampaign(
   summaryCampaign: Campaign,
   draftCampaign: Campaign,

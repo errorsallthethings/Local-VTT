@@ -38,6 +38,7 @@ import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import type { FogTool } from "../canvas/fogRenderer";
 import { useCampaignActions } from "../hooks/useCampaignActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
+import { moveSceneFolder } from "../lib/campaignActions";
 
 type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
 type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };
@@ -445,6 +446,14 @@ export function GmApp() {
     setFolderColorDialog(null);
   };
 
+  const moveFolder = (folderId: string, direction: "up" | "down") => {
+    if (!campaign) {
+      return;
+    }
+    updateCampaignDraft(moveSceneFolder(campaign, folderId, direction, new Date().toISOString()));
+    setOpenFolderMenuId(null);
+  };
+
   const openSceneColorDialog = (kind: SceneColorDialog["kind"]) => {
     if (!activeScene) {
       return;
@@ -687,6 +696,7 @@ export function GmApp() {
           onDeleteScene={setSceneToDelete}
           onRenameFolder={openRenameFolderDialog}
           onChangeFolderColor={openFolderColorDialog}
+          onMoveFolder={moveFolder}
           onDeleteFolder={setFolderToDelete}
         />
           </div>
