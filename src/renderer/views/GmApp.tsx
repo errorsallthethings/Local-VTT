@@ -648,10 +648,6 @@ export function GmApp() {
         {workspaceLayout.leftCollapsed && <div className="panel-spine-label">Campaign / Scenes</div>}
         {!workspaceLayout.leftCollapsed && (
           <div className="panel-region-content">
-            <header className="brand">
-              <h1>Local VTT</h1>
-            </header>
-
             <div className="section-heading">
               <h2>Campaign</h2>
             </div>

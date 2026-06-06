@@ -25,7 +25,7 @@ export function CampaignPanel({
   return (
     <section className="panel">
       <div className="campaign-title-row panel-title-row">
-        <p>{campaign ? campaign.name : "No campaign open"}</p>
+        <p className={campaign ? "campaign-name-loaded" : undefined}>{campaign ? campaign.name : "No campaign open"}</p>
         {campaign && (
           <button className="icon-button" aria-label="Edit campaign name" title="Edit campaign name" onClick={onRenameCampaign}>
             <Edit3 size={14} aria-hidden="true" />

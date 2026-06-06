@@ -161,6 +161,11 @@
   white-space: nowrap;
 }
 
+.campaign-title-row .campaign-name-loaded {
+  color: #ffffff;
+  font-weight: 800;
+}
+
 .campaign-title-row .icon-button {
   width: 24px;
   min-width: 24px;
