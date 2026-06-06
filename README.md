@@ -30,7 +30,7 @@ LocalVTT Campaign/
 
 Assets are stored with relative paths in JSON so campaign folders can be backed up or moved between computers.
 
-Imported static image maps generate small JPEG thumbnails in `assets/thumbnails/` for the scene list. Thumbnails are metadata on map assets and avoid loading full-resolution battle maps just to render the sidebar.
+Imported static image and video maps generate small JPEG thumbnails in `assets/thumbnails/` for the scene list. Video thumbnails are captured from the first frame during import when Electron can decode the source video. Thumbnails are metadata on map assets and avoid loading full-resolution battle maps or live video elements just to render the sidebar.
 
 ## Development
 
@@ -94,7 +94,7 @@ npm run package:win
 - `.mp4` and `.webm` maps can be imported as video map assets.
 - Video maps render in the GM and Player canvas, muted and looped.
 - Video map playback can be paused/resumed, muted/unmuted, and inspected with optional diagnostics from the GM settings menu.
-- Video map scenes show a lightweight video thumbnail fallback in the scene list.
+- Video map scenes use generated JPEG thumbnails when available, with a lightweight video fallback if thumbnail capture fails.
 - Animated `.gif` image maps are redrawn continuously when used as the active map.
 - Grid mode supports gridless, square, and hex options from the Grid Layer.
 - Static image maps can use known map grid dimensions, such as 44x25, to calculate a matching grid cell size.
@@ -102,7 +102,7 @@ npm run package:win
 - Player View can target a saved display and optionally open fullscreen there. If the saved display is missing, LocalVTT falls back to a normal draggable Player View window.
 - Player Display Scale is available from the GM settings menu.
 - Measurement settings are available from the GM settings menu.
-- Static image scene thumbnails are shown in the scene list when available.
+- Static image and video scene thumbnails are shown in the scene list when available.
 - GM View side panels can be resized, collapsed, and restored with persistent local workspace layout preferences.
 - Scene folders support collapse state persistence, drag/drop targets, folder colors, and color preset swatches.
 - CSS design tokens are defined in `src/renderer/styles/base.css` to support repeated UI values and future theme work.
@@ -164,8 +164,8 @@ Manual fog of war is currently implemented with a floating GM canvas Tools Menu.
 
 ## Roadmap
 
-- Near-term: scene folder ordering and any remaining drag/drop affordance polish.
-- Near-term: polish static and video scene thumbnails, including video first-frame thumbnails if reliable cross-platform.
+- Near-term: remaining scene library drag/drop affordance polish.
+- Near-term: continue static and video scene thumbnail polish, including cross-platform fallback checks.
 - Phase 2: display calibration refinement, hex/gridless polish, improved grid alignment, and continued GM workspace polish.
 - Phase 3: manual fog of war polish, fog shape management, player-preview mode, fog persistence refinements, and later vision-aware fog structures.
 - Phase 4: GM tokens, optional player-visible tokens, token image import, aura, light/vision data model.

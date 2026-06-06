@@ -204,7 +204,7 @@ async function ensureMapThumbnails(campaignPath: string, campaign: Campaign): Pr
   let changed = false;
   const assets = await Promise.all(
     normalizeCampaign(campaign).assets.map(async (asset) => {
-      if (asset.kind !== "map" || asset.mediaType !== "image") {
+      if (asset.kind !== "map") {
         return asset;
       }
       if (asset.thumbnailRelativePath) {
@@ -297,10 +297,20 @@ function mapMediaType(filePath: string): Asset["mediaType"] {
 }
 
 async function createMapThumbnail(campaignPath: string, sourcePath: string, assetId: string): Promise<string | undefined> {
-  if (mapMediaType(sourcePath) !== "image") {
+  const mediaType = mapMediaType(sourcePath);
+  const thumbnail = mediaType === "video" ? await createVideoMapThumbnail(sourcePath) : createImageMapThumbnail(sourcePath);
+  if (!thumbnail) {
     return undefined;
   }
 
+  const relativePath = path.join("assets", "thumbnails", `${assetId}.jpg`).replaceAll(path.sep, "/");
+  const destination = path.resolve(campaignPath, relativePath);
+  assertInsideCampaign(campaignPath, destination);
+  await writeFile(destination, thumbnail);
+  return relativePath;
+}
+
+function createImageMapThumbnail(sourcePath: string): Buffer | undefined {
   const image = nativeImage.createFromPath(sourcePath);
   const sourceSize = image.getSize();
   if (image.isEmpty() || sourceSize.width <= 0 || sourceSize.height <= 0) {
@@ -315,11 +325,84 @@ async function createMapThumbnail(campaignPath: string, sourcePath: string, asse
     height: Math.max(1, Math.round(sourceSize.height * scale)),
     quality: "best"
   });
-  const relativePath = path.join("assets", "thumbnails", `${assetId}.jpg`).replaceAll(path.sep, "/");
-  const destination = path.resolve(campaignPath, relativePath);
-  assertInsideCampaign(campaignPath, destination);
-  await writeFile(destination, thumbnail.toJPEG(78));
-  return relativePath;
+  return thumbnail.toJPEG(78);
+}
+
+async function createVideoMapThumbnail(sourcePath: string): Promise<Buffer | undefined> {
+  const win = new BrowserWindow({
+    show: false,
+    width: 220,
+    height: 140,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      webSecurity: false
+    }
+  });
+
+  try {
+    await win.loadURL("data:text/html,<html><body></body></html>");
+    const dataUrl = (await win.webContents.executeJavaScript(
+      `
+        new Promise((resolve) => {
+          const video = document.createElement("video");
+          const finish = (value) => {
+            clearTimeout(timeoutId);
+            video.remove();
+            resolve(value);
+          };
+          const capture = () => {
+            if (!video.videoWidth || !video.videoHeight) {
+              finish(null);
+              return;
+            }
+            const maxWidth = 180;
+            const maxHeight = 112;
+            const scale = Math.min(maxWidth / video.videoWidth, maxHeight / video.videoHeight, 1);
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+            canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              finish(null);
+              return;
+            }
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            finish(canvas.toDataURL("image/jpeg", 0.78));
+          };
+          const timeoutId = setTimeout(() => finish(null), 5000);
+          video.muted = true;
+          video.preload = "metadata";
+          video.playsInline = true;
+          video.addEventListener("error", () => finish(null), { once: true });
+          video.addEventListener("loadedmetadata", () => {
+            const seekTime = Number.isFinite(video.duration) && video.duration > 0.1 ? 0.05 : 0;
+            if (seekTime === 0) {
+              video.addEventListener("loadeddata", capture, { once: true });
+            } else {
+              video.addEventListener("seeked", capture, { once: true });
+              video.currentTime = seekTime;
+            }
+          }, { once: true });
+          video.src = ${JSON.stringify(pathToFileURL(sourcePath).toString())};
+          video.load();
+        })
+      `
+    )) as string | null;
+    return dataUrlToBuffer(dataUrl);
+  } catch {
+    return undefined;
+  } finally {
+    if (!win.isDestroyed()) {
+      win.destroy();
+    }
+  }
+}
+
+function dataUrlToBuffer(dataUrl: string | null): Buffer | undefined {
+  const match = /^data:image\/jpeg;base64,(.+)$/i.exec(dataUrl ?? "");
+  return match ? Buffer.from(match[1], "base64") : undefined;
 }
 
 app.whenReady().then(() => {

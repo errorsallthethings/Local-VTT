@@ -1,5 +1,19 @@
-import { useState, type CSSProperties, type DragEvent } from "react";
-import { ArrowDown, ArrowUp, Edit3, EllipsisVertical, Folder, FolderOpen, Palette, Save, Trash2, Video } from "lucide-react";
+import { useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Edit3,
+  EllipsisVertical,
+  Folder,
+  FolderOpen,
+  Image as ImageIcon,
+  ImageOff,
+  Map,
+  Palette,
+  Save,
+  Trash2,
+  Video
+} from "lucide-react";
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../../shared/localvtt";
 
 interface SceneLibraryPanelProps {
@@ -54,20 +68,35 @@ export function SceneLibraryPanel({
   const renderSceneCard = (scene: CampaignSceneEntry) => {
     const isDirty = dirtySceneIds.has(scene.id);
     const thumbnailAsset = sceneThumbnailAssets.get(scene.id);
+    const loadScene = () => onLoadScene(scene.id);
+    const onSceneKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        loadScene();
+      }
+    };
+    const stopSceneRowClick = (event: MouseEvent) => event.stopPropagation();
+
     return (
       <div
         key={scene.id}
         className={activeScene?.id === scene.id ? "selected scene-row" : "scene-row"}
         draggable
+        role="button"
+        tabIndex={0}
+        title={scene.name}
+        aria-label={`Load ${scene.name}`}
+        onClick={loadScene}
+        onKeyDown={onSceneKeyDown}
         onDragStart={(event) => {
           event.dataTransfer.setData("application/x-localvtt-scene-id", scene.id);
           event.dataTransfer.effectAllowed = "move";
         }}
         onDragEnd={() => setDropTargetId(null)}
       >
-        <button className="scene-select" title={scene.name} onClick={() => onLoadScene(scene.id)}>
+        <div className="scene-select">
           {scene.name}
-        </button>
+        </div>
         <div className="scene-row-body">
           <SceneThumbnail asset={thumbnailAsset ?? null} />
           <button
@@ -75,11 +104,14 @@ export function SceneLibraryPanel({
             disabled={!isDirty}
             aria-label={`Save ${scene.name}`}
             title={isDirty ? "Save scene" : "No unsaved changes"}
-            onClick={() => onSaveScene(scene.id)}
+            onClick={(event) => {
+              stopSceneRowClick(event);
+              onSaveScene(scene.id);
+            }}
           >
             <Save size={15} aria-hidden="true" />
           </button>
-          <div className="scene-menu-wrap">
+          <div className="scene-menu-wrap" onClick={stopSceneRowClick}>
             <button
               className="icon-button"
               aria-label={`Scene actions for ${scene.name}`}
@@ -254,26 +286,47 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 function SceneThumbnail({ asset }: { asset: Asset | null }) {
-  if (asset?.mediaType === "video") {
+  if (!asset) {
+    return (
+      <div className="scene-thumbnail scene-thumbnail-empty" aria-label="No map">
+        <Map size={16} aria-hidden="true" />
+        <span>No map</span>
+      </div>
+    );
+  }
+
+  if (asset.thumbnailAbsolutePath) {
+    return (
+      <div className="scene-thumbnail">
+        <img src={window.localVtt.toAssetUrl(asset.thumbnailAbsolutePath)} alt="" draggable={false} />
+        <ThumbnailBadge mediaType={asset.mediaType} />
+      </div>
+    );
+  }
+
+  if (asset.mediaType === "video") {
     return (
       <div className="scene-thumbnail scene-thumbnail-video" aria-label="Video map">
-        <Video size={18} aria-hidden="true" />
-        <span>Video</span>
+        <ThumbnailBadge mediaType="video" />
       </div>
     );
   }
 
-  if (!asset?.thumbnailAbsolutePath) {
+  if (!asset.thumbnailAbsolutePath) {
     return (
-      <div className="scene-thumbnail scene-thumbnail-empty" aria-hidden="true">
-        <span />
+      <div className="scene-thumbnail scene-thumbnail-empty" aria-label="No preview available">
+        <ImageOff size={16} aria-hidden="true" />
+        <span>No preview</span>
       </div>
     );
   }
 
+}
+
+function ThumbnailBadge({ mediaType }: { mediaType: Asset["mediaType"] }) {
   return (
-    <div className="scene-thumbnail">
-      <img src={window.localVtt.toAssetUrl(asset.thumbnailAbsolutePath)} alt="" draggable={false} />
+    <div className="scene-thumbnail-badge" title={mediaType === "video" ? "Video map" : "Image map"} aria-label={mediaType === "video" ? "Video map" : "Image map"}>
+      {mediaType === "video" ? <Video size={14} aria-hidden="true" /> : <ImageIcon size={14} aria-hidden="true" />}
     </div>
   );
 }

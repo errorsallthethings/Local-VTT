@@ -126,6 +126,7 @@
   background: #202733;
   padding: 6px;
   position: relative;
+  cursor: pointer;
 }
 
 .scene-row.selected {
@@ -133,21 +134,29 @@
   background: #23324a;
 }
 
+.scene-row:hover {
+  border-color: #3d4a61;
+  background: #263140;
+}
+
+.scene-row.selected:hover {
+  border-color: #8bb2ff;
+  background: #263852;
+}
+
+.scene-row:focus-visible {
+  outline: 2px solid #7aa2f7;
+  outline-offset: 2px;
+}
+
 .scene-select {
   min-width: 0;
   height: 24px;
-  justify-content: flex-start;
-  border: 0;
-  background: transparent;
   overflow: hidden;
   padding: 2px 4px;
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.scene-select:hover:not(:disabled) {
-  background: #2a3342;
 }
 
 .scene-row-body {
@@ -168,6 +177,7 @@
   border: 1px solid #303a49;
   border-radius: 5px;
   background: #111720;
+  position: relative;
 }
 
 .scene-thumbnail img {
@@ -177,26 +187,49 @@
 }
 
 .scene-thumbnail-video {
-  grid-template-columns: auto auto;
-  justify-content: center;
-  gap: 6px;
   background:
+    repeating-linear-gradient(90deg, rgb(220 231 247 / 0.1) 0 1px, transparent 1px 8px),
     linear-gradient(135deg, rgb(122 162 247 / 0.18), rgb(76 191 120 / 0.12)),
     #101720;
   color: #dce7f7;
+}
+
+.scene-thumbnail-badge {
+  grid-template-columns: auto;
+  justify-content: center;
+  gap: 0;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
 }
 
-.scene-thumbnail-video svg {
+.scene-thumbnail-empty {
+  grid-template-columns: auto auto;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.scene-thumbnail-badge {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  align-items: center;
+  color: #dce7f7;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.85));
+}
+
+.scene-thumbnail-video .scene-thumbnail-badge {
+  position: static;
+}
+
+.scene-thumbnail-video svg,
+.scene-thumbnail-empty svg {
   color: #7aa2f7;
 }
 
-.scene-thumbnail-empty span {
-  width: 18px;
-  height: 12px;
-  border: 1px solid #465266;
-  border-radius: 3px;
-  opacity: 0.7;
+.scene-thumbnail-empty {
+  color: #748094;
 }
