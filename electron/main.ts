@@ -699,6 +699,7 @@ ipcMain.handle("player:open", async (_event, options?: { displayId?: number; ful
   if (playerWindow?.isDestroyed()) {
     playerWindow = null;
   }
+  const createdPlayerWindow = !playerWindow;
   if (!playerWindow) {
     playerWindow = createWindow("player");
     playerWindow.on("closed", () => {
@@ -706,7 +707,7 @@ ipcMain.handle("player:open", async (_event, options?: { displayId?: number; ful
     });
   }
   const targetDisplay = typeof options?.displayId === "number" ? screen.getAllDisplays().find((display) => display.id === options.displayId) : null;
-  if (targetDisplay) {
+  if (targetDisplay && (createdPlayerWindow || !playerWindow.isFullScreen())) {
     playerWindow.setFullScreen(false);
     playerWindow.setBounds(targetDisplay.bounds);
   }
