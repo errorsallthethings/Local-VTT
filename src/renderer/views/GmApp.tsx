@@ -13,13 +13,6 @@ import {
 import {
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
-  DEFAULT_TOKEN_BORDER_STYLE,
-  DEFAULT_TOKEN_BORDER_WIDTH,
-  DEFAULT_TOKEN_BORDER_WIDTH_PRESET,
-  DEFAULT_TOKEN_FOOTPRINT_VISIBLE,
-  DEFAULT_TOKEN_GLOW_COLOR,
-  DEFAULT_TOKEN_MASK,
-  DEFAULT_TOKEN_SIZE_PRESET,
   DEFAULT_VIDEO_PLAYBACK
 } from "../../shared/localvtt";
 import type {
@@ -52,6 +45,19 @@ import type { FogTool } from "../canvas/fogRenderer";
 import { useCampaignActions } from "../hooks/useCampaignActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { moveSceneFolder } from "../lib/campaignActions";
+import { createImportedToken } from "../lib/tokenDefaults";
+import {
+  COLLAPSED_RAIL_WIDTH,
+  COMPACT_RIGHT_PANEL_WIDTH,
+  WORKSPACE_LAYOUT_STORAGE_KEY,
+  getWorkspacePanelWidth,
+  loadWorkspaceLayout,
+  resetPanelWidth as resetWorkspacePanelWidth,
+  resizePanelWidth,
+  toggleWorkspacePanel as toggleWorkspacePanelLayout,
+  type WorkspaceLayout,
+  type WorkspacePanelSide
+} from "../lib/workspaceLayout";
 
 type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
 type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };
@@ -60,26 +66,6 @@ type SceneColorDialog = { kind: "fog" | "grid"; title: string; value: string };
 type FogShapeNameDialog = { shapeId: string };
 type TokenNameDialog = { tokenId: string };
 type TokenColorDialog = { tokenId: string; tokenName: string; value: string; kind: "border" | "glow" };
-type WorkspaceLayout = {
-  leftWidth: number;
-  rightWidth: number;
-  leftCollapsed: boolean;
-  rightCollapsed: boolean;
-};
-
-const WORKSPACE_LAYOUT_STORAGE_KEY = "localvtt.gmWorkspaceLayout";
-const DEFAULT_WORKSPACE_LAYOUT: WorkspaceLayout = {
-  leftWidth: 280,
-  rightWidth: 330,
-  leftCollapsed: false,
-  rightCollapsed: false
-};
-const MIN_LEFT_PANEL_WIDTH = 260;
-const MIN_RIGHT_PANEL_WIDTH = 250;
-const COMPACT_RIGHT_PANEL_WIDTH = 280;
-const MAX_PANEL_WIDTH = 520;
-const COLLAPSED_RAIL_WIDTH = 44;
-
 export function GmApp() {
   const workspace = useCampaignWorkspace();
   const {
@@ -375,28 +361,8 @@ export function GmApp() {
         return;
       }
       applySummary(result.campaignSummary, campaignDirty);
-      const tokenLayer = activeScene.layers.find((layer) => layer.id === "token");
       const tokenId = crypto.randomUUID();
-      const tokenSize = getDefaultTokenSize(activeScene);
-      const nextToken = {
-        id: tokenId,
-        name: stripFileExtension(result.asset.name),
-        assetId: result.asset.id,
-        position: getDefaultTokenPosition(activeScene),
-        size: tokenSize,
-        sizePreset: DEFAULT_TOKEN_SIZE_PRESET,
-        mask: DEFAULT_TOKEN_MASK,
-        borderColor: DEFAULT_TOKEN_BORDER_COLOR,
-        borderStyle: DEFAULT_TOKEN_BORDER_STYLE,
-        borderWidth: DEFAULT_TOKEN_BORDER_WIDTH,
-        borderWidthPreset: DEFAULT_TOKEN_BORDER_WIDTH_PRESET,
-        glowColor: DEFAULT_TOKEN_GLOW_COLOR,
-        footprintVisible: DEFAULT_TOKEN_FOOTPRINT_VISIBLE,
-        order: activeScene.tokens.length,
-        hidden: false,
-        visibleInGm: tokenLayer?.visibleInGm ?? true,
-        visibleInPlayer: tokenLayer?.visibleInPlayer ?? false
-      };
+      const nextToken = createImportedToken(activeScene, result.asset, tokenId);
       updateScene(
         {
           ...activeScene,
@@ -780,22 +746,18 @@ export function GmApp() {
     });
   };
 
-  const toggleWorkspacePanel = (side: "left" | "right") => {
-    setWorkspaceLayout((layout) =>
-      side === "left" ? { ...layout, leftCollapsed: !layout.leftCollapsed } : { ...layout, rightCollapsed: !layout.rightCollapsed }
-    );
+  const toggleWorkspacePanel = (side: WorkspacePanelSide) => {
+    setWorkspaceLayout((layout) => toggleWorkspacePanelLayout(layout, side));
   };
 
-  const startPanelResize = (side: "left" | "right", event: ReactPointerEvent<HTMLButtonElement>) => {
+  const startPanelResize = (side: WorkspacePanelSide, event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
     const startX = event.clientX;
-    const startWidth = side === "left" ? workspaceLayout.leftWidth : workspaceLayout.rightWidth;
+    const startWidth = getWorkspacePanelWidth(workspaceLayout, side);
 
     const resizePanel = (moveEvent: PointerEvent) => {
       const delta = side === "left" ? moveEvent.clientX - startX : startX - moveEvent.clientX;
-      const minWidth = side === "left" ? MIN_LEFT_PANEL_WIDTH : MIN_RIGHT_PANEL_WIDTH;
-      const width = clamp(startWidth + delta, minWidth, MAX_PANEL_WIDTH);
-      setWorkspaceLayout((layout) => (side === "left" ? { ...layout, leftWidth: width } : { ...layout, rightWidth: width }));
+      setWorkspaceLayout((layout) => resizePanelWidth(layout, side, startWidth, delta));
     };
     const stopResize = () => {
       document.body.classList.remove("resizing-panels");
@@ -808,12 +770,8 @@ export function GmApp() {
     window.addEventListener("pointerup", stopResize, { once: true });
   };
 
-  const resetPanelWidth = (side: "left" | "right") => {
-    setWorkspaceLayout((layout) =>
-      side === "left"
-        ? { ...layout, leftWidth: DEFAULT_WORKSPACE_LAYOUT.leftWidth }
-        : { ...layout, rightWidth: DEFAULT_WORKSPACE_LAYOUT.rightWidth }
-    );
+  const resetPanelWidth = (side: WorkspacePanelSide) => {
+    setWorkspaceLayout((layout) => resetWorkspacePanelWidth(layout, side));
   };
 
   const appShellStyle = {
@@ -1255,49 +1213,4 @@ function loadImageDimensions(src: string): Promise<{ width: number; height: numb
     image.onerror = () => reject(new Error("Unable to read the selected map image dimensions."));
     image.src = src;
   });
-}
-
-function stripFileExtension(fileName: string): string {
-  return fileName.replace(/\.[^/.]+$/, "") || fileName;
-}
-
-function getDefaultTokenPosition(scene: Scene): { x: number; y: number } {
-  if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
-    return { x: 0, y: 0 };
-  }
-  return {
-    x: scene.grid.offsetX,
-    y: scene.grid.offsetY
-  };
-}
-
-function getDefaultTokenSize(scene: Scene): { width: number; height: number } {
-  const size = Math.max(1, scene.grid.sizePx);
-  if (scene.grid.type === "hex") {
-    const tokenSize = size * 0.72;
-    return { width: tokenSize, height: tokenSize };
-  }
-  return { width: size, height: size };
-}
-
-function loadWorkspaceLayout(): WorkspaceLayout {
-  try {
-    const value = window.localStorage.getItem(WORKSPACE_LAYOUT_STORAGE_KEY);
-    if (!value) {
-      return DEFAULT_WORKSPACE_LAYOUT;
-    }
-    const parsed = JSON.parse(value) as Partial<WorkspaceLayout>;
-    return {
-      leftWidth: clamp(parsed.leftWidth ?? DEFAULT_WORKSPACE_LAYOUT.leftWidth, MIN_LEFT_PANEL_WIDTH, MAX_PANEL_WIDTH),
-      rightWidth: clamp(parsed.rightWidth ?? DEFAULT_WORKSPACE_LAYOUT.rightWidth, MIN_RIGHT_PANEL_WIDTH, MAX_PANEL_WIDTH),
-      leftCollapsed: parsed.leftCollapsed ?? DEFAULT_WORKSPACE_LAYOUT.leftCollapsed,
-      rightCollapsed: parsed.rightCollapsed ?? DEFAULT_WORKSPACE_LAYOUT.rightCollapsed
-    };
-  } catch {
-    return DEFAULT_WORKSPACE_LAYOUT;
-  }
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }
