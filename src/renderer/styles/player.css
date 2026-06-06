@@ -5,6 +5,112 @@
   background: #000;
 }
 
+.player-scene-stack {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+.player-scene-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+.player-scene-layer .scene-canvas-frame {
+  width: 100%;
+  height: 100%;
+}
+
+.player-scene-layer-previous {
+  z-index: 1;
+}
+
+.player-scene-layer-current {
+  z-index: 2;
+}
+
+.player-scene-layer-pending {
+  opacity: 0;
+}
+
+.player-scene-splash {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 42%, rgb(122 162 247 / 0.14), transparent 30%),
+    #080b10;
+  color: #eef3f8;
+  animation: player-splash-fade-in 320ms ease-out both;
+}
+
+.player-scene-splash-leaving {
+  animation: player-splash-fade-out 320ms ease-in both;
+}
+
+.player-scene-splash-mark {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  transform: translateY(-8px);
+}
+
+.player-scene-splash-mark span {
+  width: 34px;
+  height: 34px;
+  border: 3px solid rgb(255 255 255 / 0.18);
+  border-top-color: #7aa2f7;
+  border-radius: 999px;
+  animation: player-loader-spin 820ms linear infinite;
+}
+
+.player-scene-splash-mark strong {
+  color: #f8fbff;
+  font-size: 24px;
+  letter-spacing: 0;
+}
+
+.player-scene-splash-mark small {
+  color: #9aa6b8;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+@keyframes player-splash-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes player-splash-fade-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes player-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .player-empty {
   display: grid;
   place-items: center;

@@ -32,6 +32,7 @@ interface SceneCanvasProps {
   selectedTokenId?: string | null;
   onSceneChange?: (scene: Scene) => void;
   onSelectToken?: (tokenId: string | null) => void;
+  onReady?: () => void;
 }
 
 interface LoadedMap {
@@ -60,7 +61,8 @@ export function SceneCanvas({
   selectedFogShapeId = null,
   selectedTokenId = null,
   onSceneChange,
-  onSelectToken
+  onSelectToken,
+  onReady
 }: SceneCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, zoom: 1 });
@@ -124,6 +126,20 @@ export function SceneCanvas({
       isVideoMap,
       paused: videoPaused
     });
+
+  const requiredTokenAssetIds = useMemo(() => tokenAssets.map((asset) => asset.id), [tokenAssets]);
+  const tokensReady = !canShowTokens || requiredTokenAssetIds.every((assetId) => loadedTokenImages.has(assetId));
+  const mapReady =
+    !canShowMap ||
+    !mapAsset ||
+    mapLoadStatus === "ready" ||
+    mapLoadStatus === "error";
+
+  useEffect(() => {
+    if (scene && mapReady && tokensReady) {
+      onReady?.();
+    }
+  }, [mapReady, onReady, scene, tokensReady]);
 
   useEffect(() => {
     polygonDraftRef.current = polygonDraft;
@@ -613,10 +629,27 @@ export function SceneCanvas({
                 setMapLoadStatus("ready");
                 playActiveWhenReady(index);
               }}
-              onError={() => {
-                if (index === activeVideoIndex) {
-                  setMapLoadStatus("error");
+              onLoadedData={() => {
+                setMapLoadStatus("ready");
+              }}
+              onPlaying={() => {
+                setMapLoadStatus("ready");
+              }}
+              onError={(event) => {
+                const video = event.currentTarget;
+                if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                  setMapLoadStatus("ready");
+                  return;
                 }
+                window.setTimeout(() => {
+                  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                    setMapLoadStatus("ready");
+                    return;
+                  }
+                  if (index === activeVideoIndex) {
+                    setMapLoadStatus((status) => (status === "ready" ? status : "error"));
+                  }
+                }, 180);
               }}
               onPause={() => recoverUnexpectedPause(index)}
             />
