@@ -10,12 +10,10 @@ import {
   Image,
   Layers,
   Lightbulb,
-  Lock,
   Settings,
   Shield,
   Sparkles,
   Trash2,
-  Unlock,
   UsersRound
 } from "lucide-react";
 import type { Asset, FogSettings, GridSettings, GridType, Layer, MapTransform, Scene } from "../../../shared/localvtt";
@@ -31,7 +29,6 @@ export function LayerPanel({
   onUpdateMapTransform,
   onFitGridToMapDimensions,
   onMoveLayer,
-  onSetLayerOrderLocked,
   onImportMap,
   onDeleteMap,
   onOpenFogColor,
@@ -45,7 +42,6 @@ export function LayerPanel({
   onUpdateMapTransform: (patch: Partial<MapTransform>) => void;
   onFitGridToMapDimensions: () => void;
   onMoveLayer: (layerId: string, direction: "up" | "down") => void;
-  onSetLayerOrderLocked: (locked: boolean) => void;
   onImportMap: () => void;
   onDeleteMap: (asset: Asset) => void;
   onOpenFogColor: () => void;
@@ -110,17 +106,6 @@ export function LayerPanel({
 
   return (
     <section className="panel">
-      <div className="panel-heading">
-        <h2>Layers</h2>
-        <button
-          className="icon-button"
-          aria-label={scene.layerOrderLocked ? "Unlock layer order" : "Lock layer order"}
-          title={scene.layerOrderLocked ? "Unlock layer order" : "Lock layer order"}
-          onClick={() => onSetLayerOrderLocked(!scene.layerOrderLocked)}
-        >
-          {scene.layerOrderLocked ? <Lock size={15} aria-hidden="true" /> : <Unlock size={15} aria-hidden="true" />}
-        </button>
-      </div>
       <div className="layer-list">
         {sortedLayers.map((layer, index) => {
           const isExpandable = layer.id === "map" || layer.id === "grid" || layer.id === "fog";

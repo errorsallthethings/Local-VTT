@@ -3,10 +3,12 @@ import {
   FilePlus,
   FolderPlus,
   GripVertical,
+  Lock,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
-  PanelRightOpen
+  PanelRightOpen,
+  Unlock
 } from "lucide-react";
 import { DEFAULT_SCENE_FOLDER_COLOR, DEFAULT_VIDEO_PLAYBACK } from "../../shared/localvtt";
 import type {
@@ -792,6 +794,19 @@ export function GmApp() {
           <div className="panel-region-content">
             {activeScene ? (
               <>
+                <div className="section-heading">
+                  <h2>Layers</h2>
+                  <div className="section-actions">
+                    <button
+                      className="icon-button"
+                      aria-label={activeScene.layerOrderLocked ? "Unlock layer order" : "Lock layer order"}
+                      title={activeScene.layerOrderLocked ? "Unlock layer order" : "Lock layer order"}
+                      onClick={() => setLayerOrderLocked(!activeScene.layerOrderLocked)}
+                    >
+                      {activeScene.layerOrderLocked ? <Lock size={15} aria-hidden="true" /> : <Unlock size={15} aria-hidden="true" />}
+                    </button>
+                  </div>
+                </div>
                 <LayerPanel
                   scene={activeScene}
                   mapAsset={mapAsset}
@@ -801,15 +816,16 @@ export function GmApp() {
                   onUpdateMapTransform={updateMapTransform}
                   onFitGridToMapDimensions={fitGridToMapDimensions}
                   onMoveLayer={moveLayer}
-                  onSetLayerOrderLocked={setLayerOrderLocked}
                   onImportMap={importMap}
                   onDeleteMap={setMapAssetToDelete}
                   onOpenFogColor={() => openSceneColorDialog("fog")}
                   onOpenGridColor={() => openSceneColorDialog("grid")}
                 />
 
-                <section className="panel">
+                <div className="section-heading">
                   <h2>Phase Placeholders</h2>
+                </div>
+                <section className="panel">
                   <p>Fog, tokens, walls, lights, drawings, measurements, and animated overlays are typed in the scene model and ready for later renderer tools.</p>
                 </section>
               </>

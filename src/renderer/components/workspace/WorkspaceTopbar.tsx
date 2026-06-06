@@ -35,7 +35,7 @@ export function WorkspaceTopbar({
               Send
             </button>
             <div className="scene-menu-wrap">
-              <button className="icon-button" aria-label="Player View actions" title="Player View actions" onClick={onTogglePlayerMenu}>
+              <button className="icon-button player-view-menu-button" aria-label="Player View actions" title="Player View actions" onClick={onTogglePlayerMenu}>
                 <EllipsisVertical size={16} aria-hidden="true" />
               </button>
               {playerMenuOpen && (

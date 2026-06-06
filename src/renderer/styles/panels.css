@@ -16,12 +16,6 @@
   overflow: auto;
 }
 
-.panel-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .panel h2 {
   color: #f2f6fb;
   font-size: 15px;

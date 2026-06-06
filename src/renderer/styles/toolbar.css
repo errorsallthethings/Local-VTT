@@ -28,6 +28,12 @@
   padding: 5px;
 }
 
+.toolbar-group .player-view-menu-button {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+}
+
 .dirty-save {
   border-color: #a9782b;
   background: #3a2816;
