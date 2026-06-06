@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -10,6 +10,8 @@ import {
   Image,
   Layers,
   Lightbulb,
+  Eye,
+  EyeOff,
   Settings,
   Shield,
   Sparkles,
@@ -23,6 +25,7 @@ import { DebouncedNumberInput } from "../controls/DebouncedNumberInput";
 export function LayerPanel({
   scene,
   mapAsset,
+  selectedFogShapeId,
   onChange,
   onUpdateGrid,
   onUpdateFog,
@@ -31,11 +34,14 @@ export function LayerPanel({
   onMoveLayer,
   onImportMap,
   onDeleteMap,
+  onSelectFogShape,
+  onRenameFogShape,
   onOpenFogColor,
   onOpenGridColor
 }: {
   scene: Scene;
   mapAsset: Asset | null;
+  selectedFogShapeId: string | null;
   onChange: (scene: Scene) => void;
   onUpdateGrid: (patch: Partial<GridSettings>) => void;
   onUpdateFog: (patch: Partial<FogSettings>) => void;
@@ -44,6 +50,8 @@ export function LayerPanel({
   onMoveLayer: (layerId: string, direction: "up" | "down") => void;
   onImportMap: () => void;
   onDeleteMap: (asset: Asset) => void;
+  onSelectFogShape: (shapeId: string | null) => void;
+  onRenameFogShape: (shapeId: string, fallbackName: string) => void;
   onOpenFogColor: () => void;
   onOpenGridColor: () => void;
 }) {
@@ -52,6 +60,8 @@ export function LayerPanel({
   const canFitGridToMap = mapAsset?.mediaType === "image";
   const fitModeHelp = getFitModeHelp(scene.mapTransform.fitMode);
   const [expandedLayerIds, setExpandedLayerIds] = useState<Set<string>>(() => new Set());
+  const [settingsLayerIds, setSettingsLayerIds] = useState<Set<string>>(() => new Set());
+  const [draggedFogShapeId, setDraggedFogShapeId] = useState<string | null>(null);
 
   useEffect(() => {
     if (scene.mapAssetId) {
@@ -64,6 +74,18 @@ export function LayerPanel({
       return new Set([...ids, "map"]);
     });
   }, [scene.id, scene.mapAssetId]);
+
+  useEffect(() => {
+    if (scene.fog.shapes.length === 0) {
+      return;
+    }
+    setExpandedLayerIds((ids) => {
+      if (ids.has("fog")) {
+        return ids;
+      }
+      return new Set([...ids, "fog"]);
+    });
+  }, [scene.fog.shapes.length]);
 
   const updateLayer = (layerId: string, patch: Partial<Layer>) => {
     const nextGrid =
@@ -93,6 +115,40 @@ export function LayerPanel({
     });
   };
 
+  const toggleLayerSettings = (layerId: string) => {
+    setSettingsLayerIds((ids) => {
+      const nextIds = new Set(ids);
+      if (nextIds.has(layerId)) {
+        nextIds.delete(layerId);
+      } else {
+        nextIds.add(layerId);
+      }
+      return nextIds;
+    });
+  };
+
+  const moveFogShape = (sourceShapeId: string, targetShapeId: string) => {
+    if (sourceShapeId === targetShapeId) {
+      return;
+    }
+    const sourceIndex = scene.fog.shapes.findIndex((shape) => shape.id === sourceShapeId);
+    const targetIndex = scene.fog.shapes.findIndex((shape) => shape.id === targetShapeId);
+    if (sourceIndex < 0 || targetIndex < 0) {
+      return;
+    }
+    const shapes = [...scene.fog.shapes];
+    const [sourceShape] = shapes.splice(sourceIndex, 1);
+    shapes.splice(targetIndex, 0, sourceShape);
+    onUpdateFog({ shapes });
+  };
+
+  const onLayerRowClick = (event: MouseEvent<HTMLDivElement>, layerId: string, isExpandable: boolean) => {
+    if (!isExpandable || (event.target as HTMLElement).closest("button,input,select,label,a")) {
+      return;
+    }
+    toggleLayerExpanded(layerId);
+  };
+
   const updateFogStartMode = (mode: FogSettings["mode"]) => {
     const opacity = mode === "revealed" ? 0 : mode === "partial" ? 0.5 : 1;
     onUpdateFog({
@@ -108,10 +164,16 @@ export function LayerPanel({
     <section className="panel">
       <div className="layer-list">
         {sortedLayers.map((layer, index) => {
-          const isExpandable = layer.id === "map" || layer.id === "grid" || layer.id === "fog";
-          const isExpanded = expandedLayerIds.has(layer.id);
+          const hasLayerSettings = layer.id === "map" || layer.id === "grid" || layer.id === "fog";
+          const hasLayerContents = layer.id === "fog" && scene.fog.shapes.length > 0;
+          const isExpanded = hasLayerContents && expandedLayerIds.has(layer.id);
+          const areSettingsExpanded = settingsLayerIds.has(layer.id);
           return (
-            <div className={isExpandable ? "layer-row expandable-layer-row" : "layer-row"} key={layer.id}>
+            <div
+              className={hasLayerContents ? "layer-row expandable-layer-row" : "layer-row"}
+              key={layer.id}
+              onClick={(event) => onLayerRowClick(event, layer.id, hasLayerContents)}
+            >
               <span className="layer-kind-icon" title={layer.name} aria-hidden="true">
                 {getLayerIcon(layer)}
               </span>
@@ -135,11 +197,11 @@ export function LayerPanel({
                 />
               </label>
               <button
-                className={isExpanded ? "icon-button layer-settings-button layer-settings-active" : "icon-button layer-settings-button"}
-                aria-label={isExpandable ? (isExpanded ? `Collapse ${layer.name} settings` : `Expand ${layer.name} settings`) : `${layer.name} settings unavailable`}
-                title={isExpandable ? (isExpanded ? "Collapse layer settings" : "Expand layer settings") : "No layer settings yet"}
-                disabled={!isExpandable}
-                onClick={() => toggleLayerExpanded(layer.id)}
+                className={areSettingsExpanded ? "icon-button layer-settings-button layer-settings-active" : "icon-button layer-settings-button"}
+                aria-label={hasLayerSettings ? (areSettingsExpanded ? `Hide ${layer.name} settings` : `Show ${layer.name} settings`) : `${layer.name} settings unavailable`}
+                title={hasLayerSettings ? (areSettingsExpanded ? "Hide layer settings" : "Show layer settings") : "No layer settings yet"}
+                disabled={!hasLayerSettings}
+                onClick={() => toggleLayerSettings(layer.id)}
               >
                 <Settings size={15} aria-hidden="true" />
               </button>
@@ -165,8 +227,8 @@ export function LayerPanel({
                   </button>
                 </div>
               )}
-              {layer.id === "fog" && isExpanded && (
-                <div className="layer-detail-controls">
+              {layer.id === "fog" && areSettingsExpanded && (
+                <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
                   <label className="stacked-control">
                     Scene starts
                     <select value={scene.fog.mode} onChange={(event) => updateFogStartMode(event.target.value as FogSettings["mode"])}>
@@ -211,8 +273,20 @@ export function LayerPanel({
                   <div className="inline-help">Fog drawing tools are available from the floating Tools Menu in the GM canvas.</div>
                 </div>
               )}
-              {layer.id === "grid" && isExpanded && (
-                <div className="layer-detail-controls">
+              {layer.id === "fog" && isExpanded && (
+                <FogShapeList
+                  scene={scene}
+                  selectedFogShapeId={selectedFogShapeId}
+                  draggedFogShapeId={draggedFogShapeId}
+                  onDraggedFogShapeIdChange={setDraggedFogShapeId}
+                  onMoveFogShape={moveFogShape}
+                  onSelectFogShape={onSelectFogShape}
+                  onRenameFogShape={onRenameFogShape}
+                  onUpdateFog={onUpdateFog}
+                />
+              )}
+              {layer.id === "grid" && areSettingsExpanded && (
+                <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
                   <label className="stacked-control">
                     Mode
                     <select value={scene.grid.type} onChange={(event) => onUpdateGrid({ type: event.target.value as GridType })}>
@@ -306,8 +380,16 @@ export function LayerPanel({
                   )}
                 </div>
               )}
-              {layer.id === "map" && isExpanded && (
-                <div className="layer-detail-controls map-layer-controls">
+              {layer.id === "map" && isExpanded && !mapAsset && (
+                <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
+                  <button className="import-map-next-step" onClick={onImportMap}>
+                    <Import size={16} aria-hidden="true" />
+                    Import Map
+                  </button>
+                </div>
+              )}
+              {layer.id === "map" && areSettingsExpanded && (
+                <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
                   {mapAsset ? (
                     <>
                       <div className="map-asset-summary">
@@ -374,12 +456,7 @@ export function LayerPanel({
                         </label>
                       </div>
                     </>
-                  ) : (
-                    <button className="import-map-next-step" onClick={onImportMap}>
-                      <Import size={16} aria-hidden="true" />
-                      Import Map
-                    </button>
-                  )}
+                  ) : null}
                 </div>
               )}
             </div>
@@ -387,6 +464,118 @@ export function LayerPanel({
         })}
       </div>
     </section>
+  );
+}
+
+function formatFogShapeLabel(operation: "reveal" | "hide", kind: "brush" | "rectangle" | "polygon" | "circle", index: number): string {
+  const operationLabel = operation === "reveal" ? "Reveal" : "Hide";
+  const kindLabel = kind[0].toUpperCase() + kind.slice(1);
+  return `${operationLabel} ${kindLabel} ${index + 1}`;
+}
+
+function FogShapeList({
+  scene,
+  selectedFogShapeId,
+  draggedFogShapeId,
+  onDraggedFogShapeIdChange,
+  onMoveFogShape,
+  onSelectFogShape,
+  onRenameFogShape,
+  onUpdateFog
+}: {
+  scene: Scene;
+  selectedFogShapeId: string | null;
+  draggedFogShapeId: string | null;
+  onDraggedFogShapeIdChange: (shapeId: string | null) => void;
+  onMoveFogShape: (sourceShapeId: string, targetShapeId: string) => void;
+  onSelectFogShape: (shapeId: string | null) => void;
+  onRenameFogShape: (shapeId: string, fallbackName: string) => void;
+  onUpdateFog: (patch: Partial<FogSettings>) => void;
+}) {
+  return (
+    <div className="layer-detail-controls fog-shape-list" onClick={(event) => event.stopPropagation()}>
+      <div className="fog-shape-list-header">
+        <span>Fog shapes</span>
+        <small>{scene.fog.shapes.length}</small>
+      </div>
+      {scene.fog.shapes.length > 0 ? (
+        scene.fog.shapes.map((shape, shapeIndex) => {
+          const isVisible = shape.visible ?? true;
+          const fallbackName = formatFogShapeLabel(shape.operation, shape.kind, shapeIndex);
+          const label = shape.name?.trim() || fallbackName;
+          const isSelected = selectedFogShapeId === shape.id;
+          return (
+            <div
+              className={[
+                "fog-shape-row",
+                isVisible ? "" : "fog-shape-row-muted",
+                isSelected ? "fog-shape-row-selected" : "",
+                draggedFogShapeId === shape.id ? "fog-shape-row-dragging" : ""
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              key={shape.id}
+              draggable
+              onClick={() => onSelectFogShape(shape.id)}
+              onDragStart={(event) => {
+                onDraggedFogShapeIdChange(shape.id);
+                event.dataTransfer.setData("application/x-localvtt-fog-shape-id", shape.id);
+                event.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(event) => {
+                if (!event.dataTransfer.types.includes("application/x-localvtt-fog-shape-id")) {
+                  return;
+                }
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                const sourceShapeId = event.dataTransfer.getData("application/x-localvtt-fog-shape-id");
+                if (sourceShapeId) {
+                  onMoveFogShape(sourceShapeId, shape.id);
+                }
+                onDraggedFogShapeIdChange(null);
+              }}
+              onDragEnd={() => onDraggedFogShapeIdChange(null)}
+            >
+              <span className="fog-shape-name" title={label} onDoubleClick={() => onRenameFogShape(shape.id, label)}>
+                {label}
+              </span>
+              <button
+                className="icon-button"
+                aria-label={isVisible ? `Hide ${label}` : `Show ${label}`}
+                title={isVisible ? "Hide fog shape" : "Show fog shape"}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onUpdateFog({
+                    shapes: scene.fog.shapes.map((candidate) => (candidate.id === shape.id ? { ...candidate, visible: !isVisible } : candidate))
+                  });
+                }}
+              >
+                {isVisible ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
+              </button>
+              <button
+                className="icon-button danger"
+                aria-label={`Delete ${label}`}
+                title="Delete fog shape"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onUpdateFog({ shapes: scene.fog.shapes.filter((candidate) => candidate.id !== shape.id) });
+                  if (selectedFogShapeId === shape.id) {
+                    onSelectFogShape(null);
+                  }
+                }}
+              >
+                <Trash2 size={14} aria-hidden="true" />
+              </button>
+            </div>
+          );
+        })
+      ) : (
+        <div className="inline-help">Draw fog reveal or hide shapes from the floating Tools Menu.</div>
+      )}
+    </div>
   );
 }
 

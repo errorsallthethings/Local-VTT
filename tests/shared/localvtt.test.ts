@@ -63,6 +63,19 @@ it("normalizeScene fills default settings for older scene files", () => {
   expect(normalized.fog.playerOpacity).toBe(0.8);
 });
 
+it("normalizeScene makes legacy fog shapes visible", () => {
+  const scene = createDefaultScene("Legacy Fog");
+  scene.fog.shapes = [
+    { id: "shape-1", operation: "reveal", kind: "rectangle", points: [{ x: 0, y: 0 }, { x: 10, y: 10 }] },
+    { id: "shape-2", operation: "hide", kind: "brush", points: [{ x: 5, y: 5 }], radius: 12, visible: false }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.fog.shapes[0].visible).toBe(true);
+  expect(normalized.fog.shapes[1].visible).toBe(false);
+});
+
 it("normalizeCampaign fills portable campaign defaults and empty collections", () => {
   const campaign = {
     id: "campaign-1",

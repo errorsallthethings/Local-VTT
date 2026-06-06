@@ -27,11 +27,12 @@ export function drawFog(
   camera: Camera,
   mode: "gm" | "player",
   preview: FogDrag | null,
-  polygonDraft: FogPolygonDraft | null = null
+  polygonDraft: FogPolygonDraft | null = null,
+  selectedShapeId: string | null = null
 ) {
   const fog = scene.fog;
   const opacity = mode === "gm" ? fog.gmOpacity : fog.playerOpacity;
-  const shapes = [...fog.shapes, ...getPreviewFogShapes(preview, polygonDraft)];
+  const shapes = [...fog.shapes.filter((shape) => shape.visible ?? true), ...getPreviewFogShapes(preview, polygonDraft)];
 
   const fogCanvas = document.createElement("canvas");
   fogCanvas.width = Math.max(1, Math.ceil(viewportWidth));
@@ -83,6 +84,16 @@ export function drawFog(
     ctx.scale(camera.zoom, camera.zoom);
     drawPolygonDraftOutline(ctx, polygonDraft);
     ctx.restore();
+  }
+  if (mode === "gm" && selectedShapeId) {
+    const selectedShape = fog.shapes.find((shape) => shape.id === selectedShapeId && (shape.visible ?? true));
+    if (selectedShape) {
+      ctx.save();
+      ctx.translate(camera.x, camera.y);
+      ctx.scale(camera.zoom, camera.zoom);
+      drawFogShapeSelection(ctx, selectedShape);
+      ctx.restore();
+    }
   }
 }
 
@@ -218,6 +229,54 @@ function drawPolygonDraftOutline(ctx: CanvasRenderingContext2D, draft: FogPolygo
     ctx.stroke();
   }
   ctx.restore();
+}
+
+function drawFogShapeSelection(ctx: CanvasRenderingContext2D, shape: FogShape) {
+  const bounds = getFogShapeBounds(shape);
+  if (!bounds) {
+    return;
+  }
+
+  const padding = Math.max(8, (shape.kind === "brush" ? shape.radius ?? 24 : 0) + 8);
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.strokeStyle = "#f6d365";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([7, 5]);
+  ctx.strokeRect(bounds.x - padding, bounds.y - padding, bounds.width + padding * 2, bounds.height + padding * 2);
+  ctx.setLineDash([]);
+  ctx.fillStyle = "rgb(246 211 101 / 0.12)";
+  ctx.fillRect(bounds.x - padding, bounds.y - padding, bounds.width + padding * 2, bounds.height + padding * 2);
+  ctx.restore();
+}
+
+function getFogShapeBounds(shape: FogShape) {
+  if (shape.kind === "rectangle" && shape.points.length >= 2) {
+    return pointsToRect(shape.points[0], shape.points[1]);
+  }
+  if (shape.kind === "circle" && shape.points[0] && shape.radius) {
+    return {
+      x: shape.points[0].x - shape.radius,
+      y: shape.points[0].y - shape.radius,
+      width: shape.radius * 2,
+      height: shape.radius * 2
+    };
+  }
+  if (shape.points.length === 0) {
+    return null;
+  }
+  const xs = shape.points.map((point) => point.x);
+  const ys = shape.points.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(1, maxX - minX),
+    height: Math.max(1, maxY - minY)
+  };
 }
 
 function traceBrushStroke(ctx: CanvasRenderingContext2D, points: Point[], radius: number) {

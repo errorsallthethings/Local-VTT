@@ -98,7 +98,15 @@ export function SceneLibraryPanel({
       >
         <div className="scene-title-row">
           <GripVertical className="scene-drag-handle" size={15} aria-hidden="true" />
-          <div className="scene-select">{scene.name}</div>
+          <div
+            className="scene-select"
+            onDoubleClick={(event) => {
+              event.stopPropagation();
+              onRenameScene(scene);
+            }}
+          >
+            {scene.name}
+          </div>
         </div>
         <div className="scene-row-body">
           <SceneThumbnail asset={thumbnailAsset ?? null} />
@@ -215,7 +223,15 @@ export function SceneLibraryPanel({
                   >
                     {isCollapsed ? <Folder size={14} aria-hidden="true" /> : <FolderOpen size={14} aria-hidden="true" />}
                   </button>
-                  {folder.name}
+                  <span
+                    className="scene-folder-name"
+                    onDoubleClick={(event) => {
+                      event.stopPropagation();
+                      onRenameFolder(folder);
+                    }}
+                  >
+                    {folder.name}
+                  </span>
                 </span>
                 <button
                   className={folderHasDirtyScenes ? "icon-button scene-save-dirty" : "icon-button"}

@@ -28,6 +28,7 @@ interface SceneCanvasProps {
   className?: string;
   interactive?: boolean;
   fogTool?: FogTool | null;
+  selectedFogShapeId?: string | null;
   onSceneChange?: (scene: Scene) => void;
 }
 
@@ -41,7 +42,7 @@ interface LoadedMap {
 
 type MapLoadStatus = "idle" | "loading" | "ready" | "error";
 
-export function SceneCanvas({ campaign, scene, mode, className, interactive = true, fogTool = null, onSceneChange }: SceneCanvasProps) {
+export function SceneCanvas({ campaign, scene, mode, className, interactive = true, fogTool = null, selectedFogShapeId = null, onSceneChange }: SceneCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, zoom: 1 });
   const [loadedMap, setLoadedMap] = useState<LoadedMap | null>(null);
@@ -211,7 +212,7 @@ export function SceneCanvas({ campaign, scene, mode, className, interactive = tr
       ctx.restore();
 
       if (canShowFog) {
-        drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft);
+        drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, selectedFogShapeId);
       }
       if (mode === "gm" && snapPoint && fogTool) {
         drawSnapMarker(ctx, snapPoint, renderCamera, getFogOperationForTool(fogTool));
@@ -239,7 +240,7 @@ export function SceneCanvas({ campaign, scene, mode, className, interactive = tr
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [camera, canShowFog, canShowGrid, canShowMap, fogPreview, fogTool, isVideoMap, loadedMap, mapLayer?.opacity, mode, playerDisplayScale, polygonDraft, scene, snapPoint]);
+  }, [camera, canShowFog, canShowGrid, canShowMap, fogPreview, fogTool, isVideoMap, loadedMap, mapLayer?.opacity, mode, playerDisplayScale, polygonDraft, scene, selectedFogShapeId, snapPoint]);
 
   const onWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
     if (!interactive) {
@@ -345,7 +346,8 @@ export function SceneCanvas({ campaign, scene, mode, className, interactive = tr
                 operation: fogDrag.operation,
                 kind: fogDrag.kind,
                 points: fogDrag.kind === "brush" ? normalizeBrushPoints(fogDrag.points, fogDrag.current) : [fogDrag.start, fogDrag.current],
-                radius: fogDrag.radius
+                radius: fogDrag.radius,
+                visible: true
               }
             ]
           },
@@ -430,7 +432,8 @@ export function SceneCanvas({ campaign, scene, mode, className, interactive = tr
             id: crypto.randomUUID(),
             operation: draft.operation,
             kind: "polygon",
-            points: draft.points
+            points: draft.points,
+            visible: true
           }
         ]
       },

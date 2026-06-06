@@ -97,10 +97,12 @@ export interface FogSettings {
 
 export interface FogShape {
   id: string;
+  name?: string;
   operation: "reveal" | "hide";
   kind: "brush" | "rectangle" | "polygon" | "circle";
   points: Point[];
   radius?: number;
+  visible?: boolean;
 }
 
 export interface Point {
@@ -445,7 +447,7 @@ function normalizeFog(fog?: Partial<FogSettings>): FogSettings {
     opacity: legacyOpacity,
     gmOpacity: fog?.gmOpacity ?? Math.min(legacyOpacity, 0.5),
     playerOpacity: fog?.playerOpacity ?? legacyOpacity,
-    shapes: fog?.shapes ?? []
+    shapes: (fog?.shapes ?? []).map((shape) => ({ ...shape, visible: shape.visible ?? true }))
   };
 }
 

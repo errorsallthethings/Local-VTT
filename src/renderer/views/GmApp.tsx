@@ -46,6 +46,7 @@ type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
 type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };
 type FolderColorDialog = { folderId: string; folderName: string };
 type SceneColorDialog = { kind: "fog" | "grid"; title: string; value: string };
+type FogShapeNameDialog = { shapeId: string };
 type WorkspaceLayout = {
   leftWidth: number;
   rightWidth: number;
@@ -91,6 +92,7 @@ export function GmApp() {
   } = workspace;
   const [sceneDialog, setSceneDialog] = useState<SceneNameDialog | null>(null);
   const [folderDialog, setFolderDialog] = useState<FolderNameDialog | null>(null);
+  const [fogShapeDialog, setFogShapeDialog] = useState<FogShapeNameDialog | null>(null);
   const [folderColorDialog, setFolderColorDialog] = useState<FolderColorDialog | null>(null);
   const [sceneColorDialog, setSceneColorDialog] = useState<SceneColorDialog | null>(null);
   const [campaignNameDialogOpen, setCampaignNameDialogOpen] = useState(false);
@@ -109,9 +111,11 @@ export function GmApp() {
   const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
   const [newFolderName, setNewFolderName] = useState("New Folder");
+  const [newFogShapeName, setNewFogShapeName] = useState("");
   const [newFolderColor, setNewFolderColor] = useState(DEFAULT_SCENE_FOLDER_COLOR);
   const [newCampaignName, setNewCampaignName] = useState("");
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
+  const [selectedFogShapeId, setSelectedFogShapeId] = useState<string | null>(null);
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
 
   const mapAsset = useMemo(() => {
@@ -143,6 +147,7 @@ export function GmApp() {
     if (
       !sceneDialog &&
       !folderDialog &&
+      !fogShapeDialog &&
       !folderColorDialog &&
       !sceneColorDialog &&
       !campaignNameDialogOpen &&
@@ -165,6 +170,7 @@ export function GmApp() {
       if (event.key === "Escape") {
         setSceneDialog(null);
         setFolderDialog(null);
+        setFogShapeDialog(null);
         setFolderColorDialog(null);
         setSceneColorDialog(null);
         setCampaignNameDialogOpen(false);
@@ -189,6 +195,7 @@ export function GmApp() {
     confirmClearFogOpen,
     folderColorDialog,
     folderDialog,
+    fogShapeDialog,
     folderToDelete,
     gmSettingsOpen,
     mapAssetToDelete,
@@ -206,6 +213,13 @@ export function GmApp() {
   useEffect(() => {
     void refreshDisplays();
   }, []);
+
+  useEffect(() => {
+    if (!selectedFogShapeId || activeScene?.fog.shapes.some((shape) => shape.id === selectedFogShapeId)) {
+      return;
+    }
+    setSelectedFogShapeId(null);
+  }, [activeScene?.fog.shapes, selectedFogShapeId]);
 
   useEffect(() => {
     window.localStorage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(workspaceLayout));
@@ -402,6 +416,12 @@ export function GmApp() {
     setFolderDialog({ mode: "rename", folderId: folder.id });
   };
 
+  const openRenameFogShapeDialog = (shapeId: string, fallbackName: string) => {
+    const shapeName = activeScene?.fog.shapes.find((shape) => shape.id === shapeId)?.name?.trim();
+    setNewFogShapeName(shapeName || fallbackName);
+    setFogShapeDialog({ shapeId });
+  };
+
   const openFolderColorDialog = (folder: CampaignSceneFolder) => {
     setOpenFolderMenuId(null);
     setNewFolderColor(folder.color);
@@ -432,6 +452,20 @@ export function GmApp() {
           };
     updateCampaignDraft(nextCampaign);
     setFolderDialog(null);
+  };
+
+  const submitFogShapeName = () => {
+    if (!activeScene || !fogShapeDialog) {
+      return;
+    }
+    const name = newFogShapeName.trim();
+    if (!name) {
+      return;
+    }
+    updateFog({
+      shapes: activeScene.fog.shapes.map((shape) => (shape.id === fogShapeDialog.shapeId ? { ...shape, name } : shape))
+    });
+    setFogShapeDialog(null);
   };
 
   const submitFolderColor = () => {
@@ -744,6 +778,7 @@ export function GmApp() {
             scene={activeScene}
             mode="gm"
             fogTool={activeFogTool}
+            selectedFogShapeId={selectedFogShapeId}
             onSceneChange={updateScene}
           />
           <GmSettingsMenu
@@ -810,6 +845,7 @@ export function GmApp() {
                 <LayerPanel
                   scene={activeScene}
                   mapAsset={mapAsset}
+                  selectedFogShapeId={selectedFogShapeId}
                   onChange={updateScene}
                   onUpdateGrid={updateGrid}
                   onUpdateFog={updateFog}
@@ -818,6 +854,8 @@ export function GmApp() {
                   onMoveLayer={moveLayer}
                   onImportMap={importMap}
                   onDeleteMap={setMapAssetToDelete}
+                  onSelectFogShape={setSelectedFogShapeId}
+                  onRenameFogShape={openRenameFogShapeDialog}
                   onOpenFogColor={() => openSceneColorDialog("fog")}
                   onOpenGridColor={() => openSceneColorDialog("grid")}
                 />
@@ -871,6 +909,18 @@ export function GmApp() {
           onChange={setNewFolderName}
           onCancel={() => setFolderDialog(null)}
           onSubmit={submitFolderName}
+        />
+      )}
+
+      {fogShapeDialog && (
+        <NameDialog
+          title="Rename Fog Shape"
+          label="Fog shape name"
+          value={newFogShapeName}
+          submitLabel="Save"
+          onChange={setNewFogShapeName}
+          onCancel={() => setFogShapeDialog(null)}
+          onSubmit={submitFogShapeName}
         />
       )}
 
