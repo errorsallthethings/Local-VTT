@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { Asset, Campaign, CampaignSummary, Scene, SquareCropRect } from "../src/shared/localvtt.js";
+import type { Asset, Campaign, CampaignSummary, PlayerSceneProjection, Scene, SquareCropRect } from "../src/shared/localvtt.js";
 
 const api = {
   createCampaign: () => ipcRenderer.invoke("campaign:create") as Promise<CampaignSummary | null>,
@@ -32,10 +32,10 @@ const api = {
     ipcRenderer.invoke("asset:deleteMap", campaignPath, sceneId, assetId) as Promise<{ campaignSummary: CampaignSummary; scene: Scene }>,
   openPlayerView: (options?: { displayId?: number; fullscreen?: boolean }) =>
     ipcRenderer.invoke("player:open", options) as Promise<{ ok: boolean; displayFound: boolean }>,
-  sendSceneToPlayer: (campaign: Campaign, scene: Scene) =>
-    ipcRenderer.invoke("player:sendScene", campaign, scene) as Promise<boolean>,
-  updatePlayerSceneIfOpen: (campaign: Campaign, scene: Scene) =>
-    ipcRenderer.invoke("player:updateSceneIfOpen", campaign, scene) as Promise<boolean>,
+  sendSceneToPlayer: (projection: PlayerSceneProjection) =>
+    ipcRenderer.invoke("player:sendScene", projection) as Promise<boolean>,
+  updatePlayerSceneIfOpen: (projection: PlayerSceneProjection) =>
+    ipcRenderer.invoke("player:updateSceneIfOpen", projection) as Promise<boolean>,
   setPlayerFullscreen: (fullscreen: boolean) =>
     ipcRenderer.invoke("player:setFullscreen", fullscreen) as Promise<boolean>,
   closePlayerView: () => ipcRenderer.invoke("player:close") as Promise<boolean>,

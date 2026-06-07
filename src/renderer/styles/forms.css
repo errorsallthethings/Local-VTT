@@ -151,6 +151,7 @@
 .color-swatch:hover:not(:disabled),
 .color-swatch.selected {
   border-color: var(--color-accent);
+  background: var(--swatch-color);
   box-shadow: 0 0 0 1px rgb(122 162 247 / 0.32);
 }
 

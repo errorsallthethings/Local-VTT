@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { projectSceneForPlayer } from "../../shared/localvtt";
 import type { Campaign, CampaignSummary, Scene } from "../../shared/localvtt";
 import { mergeCampaignDraft } from "../lib/campaignDraft";
 
@@ -69,7 +70,7 @@ export function useCampaignWorkspace() {
     setDirtySceneIds((ids) => new Set(ids).add(nextScene.id));
     setSaveState("idle");
     if (syncCampaign) {
-      void window.localVtt.updatePlayerSceneIfOpen(syncCampaign, syncScene);
+      void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(syncCampaign, syncScene));
     }
   };
 
@@ -77,7 +78,7 @@ export function useCampaignWorkspace() {
     setCampaign(nextCampaign);
     setCampaignDirty(true);
     if (syncScene) {
-      void window.localVtt.updatePlayerSceneIfOpen(nextCampaign, syncScene);
+      void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(nextCampaign, syncScene));
     }
   };
 

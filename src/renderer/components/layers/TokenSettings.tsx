@@ -13,6 +13,7 @@ import {
   type TokenMask,
   type TokenSizePreset
 } from "../../../shared/localvtt";
+import { getBorderWidthForPreset, getBorderWidthPreset, getTokenSizeForPreset } from "../../lib/tokenDefaults";
 import { ColorSettingRow } from "../controls/ColorPickerField";
 
 export function TokenSettings({
@@ -101,6 +102,9 @@ export function TokenSettings({
         <select value={borderStyle} onChange={(event) => onUpdateToken({ borderStyle: event.target.value as TokenBorderStyle })}>
           <option value="none">None</option>
           <option value="solid">Solid</option>
+          <option value="dashed">Dashed</option>
+          <option value="dotted">Dotted</option>
+          <option value="double-line">Double Line</option>
           <option value="embossed">Embossed</option>
           <option value="inner-shadow">Inner Shadow</option>
           <option value="glow">Glow</option>
@@ -132,10 +136,10 @@ export function TokenSettings({
           <input
             type="number"
             min={1}
-            max={16}
+            max={64}
             step={1}
             value={borderWidth}
-            onChange={(event) => onUpdateToken({ borderWidth: Math.min(16, Math.max(1, Number(event.target.value))) })}
+            onChange={(event) => onUpdateToken({ borderWidth: Math.min(64, Math.max(1, Number(event.target.value))) })}
           />
         </label>
       )}
@@ -154,63 +158,4 @@ export function TokenSettings({
       </label>
     </div>
   );
-}
-
-export function getTokenSizeForPreset(preset: TokenSizePreset, gridSize: number, gridType: GridType): Token["size"] {
-  const size = Math.max(1, gridSize);
-  if (gridType === "hex") {
-    const cells = getTokenPresetCells(preset);
-    const multiplier = preset === "tiny" ? 0.42 : Math.max(0.72, cells * 0.72);
-    return {
-      width: size * multiplier,
-      height: size * multiplier
-    };
-  }
-  const cells = getTokenPresetCells(preset);
-  return {
-    width: size * cells,
-    height: size * cells
-  };
-}
-
-export function getBorderWidthPreset(width: number): TokenBorderWidthPreset {
-  if (width === 3) {
-    return "thin";
-  }
-  if (width === 5) {
-    return "medium";
-  }
-  if (width === 8) {
-    return "thick";
-  }
-  return "custom";
-}
-
-export function getBorderWidthForPreset(preset: TokenBorderWidthPreset, fallback: number): number {
-  switch (preset) {
-    case "thin":
-      return 3;
-    case "medium":
-      return 5;
-    case "thick":
-      return 8;
-    case "custom":
-      return fallback;
-  }
-}
-
-function getTokenPresetCells(preset: TokenSizePreset): number {
-  switch (preset) {
-    case "tiny":
-      return 0.5;
-    case "large":
-      return 2;
-    case "huge":
-      return 3;
-    case "gargantuan":
-      return 4;
-    case "medium":
-    case "custom":
-      return 1;
-  }
 }

@@ -125,6 +125,96 @@ it("normalizeScene fills token presentation defaults for older scene files", () 
   });
 });
 
+it("normalizeScene preserves expanded token border styles", () => {
+  const scene = createDefaultScene("Token Borders");
+  scene.tokens = [
+    {
+      id: "token-1",
+      name: "Dashed",
+      position: { x: 0, y: 0 },
+      size: { width: 100, height: 100 },
+      borderStyle: "dashed",
+      hidden: false,
+      visibleInPlayer: true
+    },
+    {
+      id: "token-2",
+      name: "Dotted",
+      position: { x: 0, y: 0 },
+      size: { width: 100, height: 100 },
+      borderStyle: "dotted",
+      hidden: false,
+      visibleInPlayer: true
+    },
+    {
+      id: "token-3",
+      name: "Double",
+      position: { x: 0, y: 0 },
+      size: { width: 100, height: 100 },
+      borderStyle: "double-line",
+      hidden: false,
+      visibleInPlayer: true
+    }
+  ];
+
+  expect(normalizeScene(scene).tokens.map((token) => token.borderStyle)).toEqual(["dashed", "dotted", "double-line"]);
+});
+
+it("projectSceneForPlayer preserves expanded token border presentation", () => {
+  const campaign = createDefaultCampaign("Player Borders");
+  campaign.assets = [
+    {
+      ...asset("token-asset"),
+      kind: "token",
+      relativePath: "assets/tokens/token-asset.png",
+      originalFileName: "token-asset.png"
+    }
+  ];
+  const scene = createDefaultScene("Token Borders");
+  scene.tokens = [
+    {
+      id: "token-1",
+      name: "Dashed",
+      assetId: "token-asset",
+      position: { x: 0, y: 0 },
+      size: { width: 100, height: 100 },
+      borderColor: "#ff3366",
+      borderStyle: "dashed",
+      borderWidth: 24,
+      hidden: false,
+      visibleInPlayer: true
+    },
+    {
+      id: "token-2",
+      name: "Dotted",
+      assetId: "token-asset",
+      position: { x: 100, y: 0 },
+      size: { width: 100, height: 100 },
+      borderStyle: "dotted",
+      hidden: false,
+      visibleInPlayer: true
+    },
+    {
+      id: "token-3",
+      name: "Double",
+      assetId: "token-asset",
+      position: { x: 200, y: 0 },
+      size: { width: 100, height: 100 },
+      borderStyle: "double-line",
+      hidden: false,
+      visibleInPlayer: true
+    }
+  ];
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.scene.tokens.map((token) => token.borderStyle)).toEqual(["dashed", "dotted", "double-line"]);
+  expect(projection.scene.tokens[0]).toMatchObject({
+    borderColor: "#ff3366",
+    borderWidth: 24
+  });
+});
+
 it("normalizeScene makes legacy fog shapes visible in GM and Player views", () => {
   const scene = createDefaultScene("Legacy Fog");
   scene.fog.shapes = [

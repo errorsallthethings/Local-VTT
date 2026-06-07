@@ -16,7 +16,7 @@ import {
   createDefaultScene,
   normalizeCampaign,
   normalizeScene,
-  projectSceneForPlayer
+  type PlayerSceneProjection
 } from "../src/shared/localvtt.js";
 import { createImageMapThumbnail, createSquareImageThumbnail, createVideoMapThumbnail } from "./assets.js";
 
@@ -860,8 +860,8 @@ ipcMain.handle("player:open", async (_event, options?: { displayId?: number; ful
   return { ok: true, displayFound: typeof options?.displayId === "number" ? Boolean(targetDisplay) : true };
 });
 
-ipcMain.handle("player:sendScene", async (_event, campaign: Campaign, scene: Scene) => {
-  lastPlayerProjection = projectSceneForPlayer(campaign, scene);
+ipcMain.handle("player:sendScene", async (_event, projection: PlayerSceneProjection) => {
+  lastPlayerProjection = projection;
   if (!playerWindow || playerWindow.isDestroyed()) {
     playerWindow = createWindow("player");
   }
@@ -869,11 +869,11 @@ ipcMain.handle("player:sendScene", async (_event, campaign: Campaign, scene: Sce
   return true;
 });
 
-ipcMain.handle("player:updateSceneIfOpen", async (_event, campaign: Campaign, scene: Scene) => {
+ipcMain.handle("player:updateSceneIfOpen", async (_event, projection: PlayerSceneProjection) => {
   if (!playerWindow || playerWindow.isDestroyed()) {
     return false;
   }
-  lastPlayerProjection = projectSceneForPlayer(campaign, scene);
+  lastPlayerProjection = projection;
   sendToPlayerWhenReady(lastPlayerProjection);
   return true;
 });

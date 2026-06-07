@@ -370,28 +370,108 @@ function drawTokenBorder(
     return;
   }
 
+  const safeBorderWidth = Math.max(1, Math.min(Math.min(width, height), borderWidth));
+  const inset = safeBorderWidth / 2;
   ctx.save();
   applyTokenMask(ctx, x, y, width, height, mask);
-  ctx.lineWidth = borderWidth;
+  ctx.clip();
+  traceTokenInsetPath(ctx, x, y, width, height, mask, inset);
+  ctx.lineWidth = safeBorderWidth;
   ctx.strokeStyle = borderColor;
+  if (borderStyle === "dashed") {
+    ctx.setLineDash([Math.max(10, safeBorderWidth * 1.4), Math.max(6, safeBorderWidth * 0.7)]);
+  }
+  if (borderStyle === "dotted") {
+    ctx.setLineDash([Math.max(1, safeBorderWidth * 0.08), Math.max(14, safeBorderWidth * 1.15)]);
+    ctx.lineCap = "round";
+  }
   if (borderStyle === "glow") {
     ctx.shadowColor = glowColor;
-    ctx.shadowBlur = Math.max(18, borderWidth * 5);
-    ctx.strokeStyle = glowColor;
+    ctx.shadowBlur = Math.max(12, safeBorderWidth * 1.25);
+    ctx.strokeStyle = borderColor;
+    ctx.globalAlpha = 0.92;
   }
   if (borderStyle === "inner-shadow") {
-    ctx.strokeStyle = "rgb(0 0 0 / 0.72)";
-    ctx.lineWidth = Math.max(borderWidth, 7);
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = safeBorderWidth;
   }
-  ctx.stroke();
+  if (borderStyle !== "double-line") {
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.lineCap = "butt";
+
+  if (borderStyle === "double-line") {
+    ctx.globalAlpha = 1;
+    const outerWidth = Math.max(2, safeBorderWidth * 0.34);
+    const innerWidth = Math.max(2, safeBorderWidth * 0.26);
+    traceTokenInsetPath(ctx, x, y, width, height, mask, outerWidth / 2);
+    ctx.lineWidth = outerWidth;
+    ctx.strokeStyle = borderColor;
+    ctx.stroke();
+    traceTokenInsetPath(ctx, x, y, width, height, mask, Math.max(1, inset * 1.34));
+    ctx.lineWidth = innerWidth;
+    ctx.strokeStyle = borderColor;
+    ctx.stroke();
+  }
+
+  if (borderStyle === "inner-shadow") {
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+    traceTokenInsetPath(ctx, x, y, width, height, mask, Math.max(1, inset * 0.55));
+    ctx.strokeStyle = "rgb(255 255 255 / 0.18)";
+    ctx.lineWidth = Math.max(2, safeBorderWidth * 0.18);
+    ctx.stroke();
+    traceTokenInsetPath(ctx, x, y, width, height, mask, Math.max(1, inset * 1.15));
+    ctx.strokeStyle = "rgb(0 0 0 / 0.78)";
+    ctx.lineWidth = Math.max(4, safeBorderWidth * 0.5);
+    ctx.stroke();
+    traceTokenInsetPath(ctx, x, y, width, height, mask, Math.max(1, inset * 1.65));
+    ctx.strokeStyle = "rgb(0 0 0 / 0.34)";
+    ctx.lineWidth = Math.max(3, safeBorderWidth * 0.28);
+    ctx.stroke();
+  }
 
   if (borderStyle === "embossed") {
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = "rgb(255 255 255 / 0.35)";
-    ctx.lineWidth = Math.max(2, borderWidth * 0.45);
+    ctx.globalAlpha = 1;
+    traceTokenInsetPath(ctx, x, y, width, height, mask, Math.max(1, inset * 0.72));
+    ctx.strokeStyle = "rgb(255 255 255 / 0.54)";
+    ctx.lineWidth = Math.max(3, safeBorderWidth * 0.34);
+    ctx.stroke();
+    traceTokenInsetPath(ctx, x, y, width, height, mask, Math.max(1, inset * 1.18));
+    ctx.strokeStyle = "rgb(0 0 0 / 0.35)";
+    ctx.lineWidth = Math.max(2, safeBorderWidth * 0.22);
+    ctx.stroke();
+  }
+
+  if (borderStyle === "glow") {
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 0.36;
+    traceTokenInsetPath(ctx, x, y, width, height, mask, Math.max(1, inset * 1.25));
+    ctx.lineWidth = Math.max(3, safeBorderWidth * 0.45);
+    ctx.strokeStyle = glowColor;
     ctx.stroke();
   }
   ctx.restore();
+}
+
+function traceTokenInsetPath(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, mask: Token["mask"], inset: number) {
+  const safeInset = Math.max(0, Math.min(inset, Math.min(width, height) / 2));
+  ctx.beginPath();
+  if (mask === "circle") {
+    ctx.ellipse(
+      x + width / 2,
+      y + height / 2,
+      Math.max(0.5, width / 2 - safeInset),
+      Math.max(0.5, height / 2 - safeInset),
+      0,
+      0,
+      Math.PI * 2
+    );
+    return;
+  }
+  ctx.rect(x + safeInset, y + safeInset, Math.max(1, width - safeInset * 2), Math.max(1, height - safeInset * 2));
 }
 
 function drawTokenSelectionOutline(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, mask: Token["mask"]) {

@@ -2,7 +2,8 @@ import { type CSSProperties, type PointerEvent as ReactPointerEvent, useCallback
 import {
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
-  DEFAULT_VIDEO_PLAYBACK
+  DEFAULT_VIDEO_PLAYBACK,
+  projectSceneForPlayer
 } from "../../shared/localvtt";
 import type {
   Asset,
@@ -12,7 +13,8 @@ import type {
   DisplayCalibration,
   Point,
   Scene,
-  SquareCropRect
+  SquareCropRect,
+  TokenPresentationDefaults
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
@@ -49,6 +51,7 @@ import {
   type TokenAssetDeleteDialog,
   type TokenAssetNameDialog,
   type TokenCropDialogState,
+  type TokenDefaultsDialog,
   type SceneNameDialog,
   type TokenColorDialog,
   type TokenNameDialog
@@ -90,6 +93,7 @@ export function GmApp() {
   const [tokenDialog, setTokenDialog] = useState<TokenNameDialog | null>(null);
   const [tokenCropDialog, setTokenCropDialog] = useState<TokenCropDialogState | null>(null);
   const [tokenAssetDialog, setTokenAssetDialog] = useState<TokenAssetNameDialog | null>(null);
+  const [tokenDefaultsDialog, setTokenDefaultsDialog] = useState<TokenDefaultsDialog | null>(null);
   const [tokenColorDialog, setTokenColorDialog] = useState<TokenColorDialog | null>(null);
   const [folderColorDialog, setFolderColorDialog] = useState<FolderColorDialog | null>(null);
   const [sceneColorDialog, setSceneColorDialog] = useState<SceneColorDialog | null>(null);
@@ -186,6 +190,7 @@ export function GmApp() {
       !tokenDialog &&
       !tokenCropDialog &&
       !tokenAssetDialog &&
+      !tokenDefaultsDialog &&
       !folderColorDialog &&
       !tokenColorDialog &&
       !sceneColorDialog &&
@@ -212,6 +217,7 @@ export function GmApp() {
         setTokenDialog(null);
         void cancelTokenCrop();
         setTokenAssetDialog(null);
+        setTokenDefaultsDialog(null);
         setFolderColorDialog(null);
         setTokenColorDialog(null);
         setSceneColorDialog(null);
@@ -241,6 +247,7 @@ export function GmApp() {
     tokenDialog,
     tokenCropDialog,
     tokenAssetDialog,
+    tokenDefaultsDialog,
     tokenColorDialog,
     folderToDelete,
     mapAssetToDelete,
@@ -403,6 +410,37 @@ export function GmApp() {
     addImportedTokenToScene(asset);
   };
 
+  const openTokenDefaultsDialog = (asset: Asset) => {
+    setTokenDefaultsDialog({
+      assetId: asset.id,
+      assetName: asset.name || asset.originalFileName || "Token",
+      draft: { ...(asset.tokenDefaults ?? {}) }
+    });
+  };
+
+  const updateTokenDefaultsDraft = (draft: TokenPresentationDefaults) => {
+    setTokenDefaultsDialog((dialog) => (dialog ? { ...dialog, draft } : dialog));
+  };
+
+  const submitTokenDefaults = () => {
+    if (!campaign || !tokenDefaultsDialog) {
+      return;
+    }
+    updateCampaignDraft({
+      ...campaign,
+      assets: campaign.assets.map((candidate) =>
+        candidate.id === tokenDefaultsDialog.assetId
+          ? {
+              ...candidate,
+              tokenDefaults: tokenDefaultsDialog.draft
+            }
+          : candidate
+      ),
+      updatedAt: new Date().toISOString()
+    });
+    setTokenDefaultsDialog(null);
+  };
+
   const dropLibraryTokenOnScene = (asset: Asset, point: Point) => {
     addImportedTokenToScene(asset, campaign, point);
   };
@@ -432,7 +470,7 @@ export function GmApp() {
     };
     updateCampaignDraft(nextCampaign);
     if (activeScene) {
-      void window.localVtt.updatePlayerSceneIfOpen(nextCampaign, activeScene);
+      void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(nextCampaign, activeScene));
     }
   };
 
@@ -586,7 +624,7 @@ export function GmApp() {
       if (nextActiveScene) {
         setActiveScene(nextActiveScene);
         if (nextActiveScene.id === playerSceneId) {
-          void window.localVtt.updatePlayerSceneIfOpen(result.campaignSummary.campaign, nextActiveScene);
+          void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(result.campaignSummary.campaign, nextActiveScene));
         }
       }
       setSelectedTokenId((tokenId) => (nextActiveScene?.tokens.some((token) => token.id === tokenId) ? tokenId : null));
@@ -724,7 +762,7 @@ export function GmApp() {
         displayId: campaign.playerDisplay.selectedDisplayId,
         fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
       });
-      await window.localVtt.sendSceneToPlayer(campaign, activeScene);
+      await window.localVtt.sendSceneToPlayer(projectSceneForPlayer(campaign, activeScene));
       setPlayerSceneId(activeScene.id);
       if (!openResult.displayFound && campaign.playerDisplay.selectedDisplayLabel) {
         setError(`Saved Player View display not found: ${campaign.playerDisplay.selectedDisplayLabel}. Opened Player View normally.`);
@@ -946,6 +984,8 @@ export function GmApp() {
           onResetHeight={resetTokenLibraryHeight}
           onImportToken={() => void importToken("library")}
           onAddToken={addLibraryTokenToScene}
+          selectedTokenAssetId={activeScene?.tokens.find((token) => token.id === selectedTokenId)?.assetId}
+          onSetTokenDefaults={openTokenDefaultsDialog}
           onRenameToken={openRenameTokenAssetDialog}
           onDeleteToken={(asset) => void openDeleteTokenAssetDialog(asset)}
         />
@@ -998,6 +1038,7 @@ export function GmApp() {
         tokenDialog={tokenDialog}
         tokenCropDialog={tokenCropDialog}
         tokenAssetDialog={tokenAssetDialog}
+        tokenDefaultsDialog={tokenDefaultsDialog}
         folderColorDialog={folderColorDialog}
         sceneColorDialog={sceneColorDialog}
         tokenColorDialog={tokenColorDialog}
@@ -1032,6 +1073,7 @@ export function GmApp() {
         onCancelTokenDialog={() => setTokenDialog(null)}
         onCancelTokenCropDialog={() => void cancelTokenCrop()}
         onCancelTokenAssetDialog={() => setTokenAssetDialog(null)}
+        onCancelTokenDefaultsDialog={() => setTokenDefaultsDialog(null)}
         onCancelFolderColorDialog={() => setFolderColorDialog(null)}
         onCancelSceneColorDialog={() => setSceneColorDialog(null)}
         onCancelTokenColorDialog={() => setTokenColorDialog(null)}
@@ -1049,6 +1091,8 @@ export function GmApp() {
         onSubmitTokenName={submitTokenName}
         onSubmitTokenCrop={(crop) => void submitTokenCrop(crop)}
         onSubmitTokenAssetName={submitTokenAssetName}
+        onUpdateTokenDefaultsDraft={updateTokenDefaultsDraft}
+        onSubmitTokenDefaults={submitTokenDefaults}
         onUseDefaultTokenCrop={() => {
           if (!tokenCropDialog) {
             return;

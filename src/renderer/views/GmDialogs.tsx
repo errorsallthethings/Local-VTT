@@ -5,7 +5,8 @@ import type {
   CampaignSceneFolder,
   DisplayCalibration,
   Scene,
-  SquareCropRect
+  SquareCropRect,
+  TokenPresentationDefaults
 } from "../../shared/localvtt";
 import { ColorPickerField } from "../components/controls/ColorPickerField";
 import { ConfirmDialog } from "../components/modals/ConfirmDialog";
@@ -14,6 +15,7 @@ import { SettingsModal } from "../components/modals/SettingsModal";
 import { TokenCropDialog } from "../components/modals/TokenCropDialog";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { PlayerViewDisplayPanel } from "../components/settings/PlayerViewDisplayPanel";
+import { TokenDefaultsPanel } from "../components/tokens/TokenDefaultsPanel";
 
 export type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
 export type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };
@@ -24,6 +26,7 @@ export type TokenNameDialog = { tokenId: string };
 export type TokenColorDialog = { tokenId: string; tokenName: string; value: string; kind: "border" | "glow" };
 export type TokenCropDialogState = { asset: Asset; mode: "scene" | "library" };
 export type TokenAssetNameDialog = { assetId: string };
+export type TokenDefaultsDialog = { assetId: string; assetName: string; draft: TokenPresentationDefaults };
 export type TokenAssetDeleteDialog = { asset: Asset; usage: Array<{ sceneId: string; sceneName: string; count: number }> };
 
 export function GmDialogs({
@@ -33,6 +36,7 @@ export function GmDialogs({
   tokenDialog,
   tokenCropDialog,
   tokenAssetDialog,
+  tokenDefaultsDialog,
   folderColorDialog,
   sceneColorDialog,
   tokenColorDialog,
@@ -67,6 +71,7 @@ export function GmDialogs({
   onCancelTokenDialog,
   onCancelTokenCropDialog,
   onCancelTokenAssetDialog,
+  onCancelTokenDefaultsDialog,
   onCancelFolderColorDialog,
   onCancelSceneColorDialog,
   onCancelTokenColorDialog,
@@ -84,6 +89,8 @@ export function GmDialogs({
   onSubmitTokenName,
   onSubmitTokenCrop,
   onSubmitTokenAssetName,
+  onUpdateTokenDefaultsDraft,
+  onSubmitTokenDefaults,
   onUseDefaultTokenCrop,
   onSubmitFolderColor,
   onUpdateSceneColorDraft,
@@ -104,6 +111,7 @@ export function GmDialogs({
   tokenDialog: TokenNameDialog | null;
   tokenCropDialog: TokenCropDialogState | null;
   tokenAssetDialog: TokenAssetNameDialog | null;
+  tokenDefaultsDialog: TokenDefaultsDialog | null;
   folderColorDialog: FolderColorDialog | null;
   sceneColorDialog: SceneColorDialog | null;
   tokenColorDialog: TokenColorDialog | null;
@@ -138,6 +146,7 @@ export function GmDialogs({
   onCancelTokenDialog: () => void;
   onCancelTokenCropDialog: () => void;
   onCancelTokenAssetDialog: () => void;
+  onCancelTokenDefaultsDialog: () => void;
   onCancelFolderColorDialog: () => void;
   onCancelSceneColorDialog: () => void;
   onCancelTokenColorDialog: () => void;
@@ -155,6 +164,8 @@ export function GmDialogs({
   onSubmitTokenName: () => void;
   onSubmitTokenCrop: (crop: SquareCropRect) => void;
   onSubmitTokenAssetName: () => void;
+  onUpdateTokenDefaultsDraft: (draft: TokenPresentationDefaults) => void;
+  onSubmitTokenDefaults: () => void;
   onUseDefaultTokenCrop: () => void;
   onSubmitFolderColor: () => void;
   onUpdateSceneColorDraft: (value: string) => void;
@@ -240,6 +251,20 @@ export function GmDialogs({
           onCancel={onCancelTokenAssetDialog}
           onSubmit={onSubmitTokenAssetName}
         />
+      )}
+
+      {tokenDefaultsDialog && (
+        <div className="modal-backdrop" onMouseDown={onCancelTokenDefaultsDialog}>
+          <div className="modal settings-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <h2>Token Defaults</h2>
+            <p className="inline-help">Defaults for {tokenDefaultsDialog.assetName} apply to future tokens added from this library asset.</p>
+            <TokenDefaultsPanel draft={tokenDefaultsDialog.draft} onChange={onUpdateTokenDefaultsDraft} />
+            <div className="button-row modal-actions">
+              <button onClick={onCancelTokenDefaultsDialog}>Cancel</button>
+              <button onClick={onSubmitTokenDefaults}>Save Defaults</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {folderColorDialog && (

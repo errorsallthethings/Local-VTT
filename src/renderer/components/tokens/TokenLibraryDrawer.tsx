@@ -35,6 +35,8 @@ interface TokenLibraryDrawerProps {
   onResetHeight: () => void;
   onImportToken: () => void;
   onAddToken: (asset: Asset) => void;
+  selectedTokenAssetId?: string;
+  onSetTokenDefaults: (asset: Asset) => void;
   onRenameToken: (asset: Asset) => void;
   onDeleteToken: (asset: Asset) => void;
 }
@@ -48,6 +50,8 @@ export function TokenLibraryDrawer({
   onResetHeight,
   onImportToken,
   onAddToken,
+  selectedTokenAssetId,
+  onSetTokenDefaults,
   onRenameToken,
   onDeleteToken
 }: TokenLibraryDrawerProps) {
@@ -61,6 +65,7 @@ export function TokenLibraryDrawer({
       .filter((asset) => !normalizedQuery || `${asset.name} ${asset.originalFileName}`.toLowerCase().includes(normalizedQuery))
       .sort((a, b) => sortTokenAssets(a, b, sort));
   }, [assets, query, sort]);
+  const selectedTokenAsset = selectedTokenAssetId ? (assets.find((asset) => asset.id === selectedTokenAssetId) ?? null) : null;
   useDismissableMenu({
     enabled: Boolean(openTokenMenuId),
     menuRootClass: "token-library-menu-wrap",
@@ -131,16 +136,22 @@ export function TokenLibraryDrawer({
 
       {expanded && (
         <div className="token-library-content">
-          {filteredAssets.length > 0 ? (
-            <div className="token-library-grid">
-              {filteredAssets.map((asset) => (
+          {selectedTokenAsset && (
+            <section className="token-library-section">
+              <TokenLibrarySectionLabel label="Selected Token" />
+              <div className="token-library-selected-token">
                 <TokenLibraryItem
-                  key={asset.id}
-                  asset={asset}
+                  asset={selectedTokenAsset}
                   activeSceneName={activeSceneName}
-                  menuOpen={openTokenMenuId === asset.id}
-                  onToggleMenu={() => setOpenTokenMenuId((openId) => (openId === asset.id ? null : asset.id))}
+                  selected
+                  draggable={false}
+                  menuOpen={openTokenMenuId === `selected:${selectedTokenAsset.id}`}
+                  onToggleMenu={() => setOpenTokenMenuId((openId) => (openId === `selected:${selectedTokenAsset.id}` ? null : `selected:${selectedTokenAsset.id}`))}
                   onAddToken={onAddToken}
+                  onSetTokenDefaults={(defaultAsset) => {
+                    setOpenTokenMenuId(null);
+                    onSetTokenDefaults(defaultAsset);
+                  }}
                   onRenameToken={(renamedAsset) => {
                     setOpenTokenMenuId(null);
                     onRenameToken(renamedAsset);
@@ -150,17 +161,56 @@ export function TokenLibraryDrawer({
                     onDeleteToken(deletedAsset);
                   }}
                 />
-              ))}
-            </div>
-          ) : (
-            <div className="token-library-empty">
-              <PackageOpen size={18} aria-hidden="true" />
-              <span>{assets.length === 0 ? "Import a token to start building this campaign library." : "No tokens match your search."}</span>
-            </div>
+              </div>
+            </section>
           )}
+          <section className="token-library-section token-library-list-section">
+            <TokenLibrarySectionLabel label="Token List" />
+            {filteredAssets.length > 0 ? (
+              <div className="token-library-grid">
+                {filteredAssets.map((asset) => (
+                  <TokenLibraryItem
+                    key={asset.id}
+                    asset={asset}
+                    activeSceneName={activeSceneName}
+                    selected={selectedTokenAssetId === asset.id}
+                    menuOpen={openTokenMenuId === asset.id}
+                    onToggleMenu={() => setOpenTokenMenuId((openId) => (openId === asset.id ? null : asset.id))}
+                    onAddToken={onAddToken}
+                    onSetTokenDefaults={(defaultAsset) => {
+                      setOpenTokenMenuId(null);
+                      onSetTokenDefaults(defaultAsset);
+                    }}
+                    onRenameToken={(renamedAsset) => {
+                      setOpenTokenMenuId(null);
+                      onRenameToken(renamedAsset);
+                    }}
+                    onDeleteToken={(deletedAsset) => {
+                      setOpenTokenMenuId(null);
+                      onDeleteToken(deletedAsset);
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="token-library-empty">
+                <PackageOpen size={18} aria-hidden="true" />
+                <span>{assets.length === 0 ? "Import a token to start building this campaign library." : "No tokens match your search."}</span>
+              </div>
+            )}
+          </section>
         </div>
       )}
     </section>
+  );
+}
+
+function TokenLibrarySectionLabel({ label }: { label: string }) {
+  return (
+    <div className="token-library-section-label">
+      <span>{label}</span>
+      <i aria-hidden="true" />
+    </div>
   );
 }
 
@@ -188,17 +238,23 @@ function ViewButton({
 function TokenLibraryItem({
   asset,
   activeSceneName,
+  selected = false,
+  draggable = Boolean(activeSceneName),
   menuOpen,
   onToggleMenu,
   onAddToken,
+  onSetTokenDefaults,
   onRenameToken,
   onDeleteToken
 }: {
   asset: Asset;
   activeSceneName?: string;
+  selected?: boolean;
+  draggable?: boolean;
   menuOpen: boolean;
   onToggleMenu: () => void;
   onAddToken: (asset: Asset) => void;
+  onSetTokenDefaults: (asset: Asset) => void;
   onRenameToken: (asset: Asset) => void;
   onDeleteToken: (asset: Asset) => void;
 }) {
@@ -207,10 +263,13 @@ function TokenLibraryItem({
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   return (
     <article
-      className="token-library-item"
+      className={selected ? "token-library-item token-library-item-selected" : "token-library-item"}
       title={label}
-      draggable={Boolean(activeSceneName)}
+      draggable={draggable}
       onDragStart={(event) => {
+        if (!draggable) {
+          return;
+        }
         event.dataTransfer.setData(TOKEN_LIBRARY_ASSET_DRAG_TYPE, asset.id);
         event.dataTransfer.setData("text/plain", asset.id);
         event.dataTransfer.effectAllowed = "copy";
@@ -255,6 +314,7 @@ function TokenLibraryItem({
               <TokenLibraryMenu
                 anchor={menuButtonRef.current}
                 asset={asset}
+                onSetTokenDefaults={onSetTokenDefaults}
                 onRenameToken={onRenameToken}
                 onDeleteToken={onDeleteToken}
               />,
@@ -269,11 +329,13 @@ function TokenLibraryItem({
 function TokenLibraryMenu({
   anchor,
   asset,
+  onSetTokenDefaults,
   onRenameToken,
   onDeleteToken
 }: {
   anchor: HTMLElement | null;
   asset: Asset;
+  onSetTokenDefaults: (asset: Asset) => void;
   onRenameToken: (asset: Asset) => void;
   onDeleteToken: (asset: Asset) => void;
 }) {
@@ -313,7 +375,7 @@ function TokenLibraryMenu({
         <Pencil size={14} aria-hidden="true" />
         <span>Rename</span>
       </button>
-      <button disabled>
+      <button title="Set presentation defaults for future scene tokens" onClick={() => onSetTokenDefaults(asset)}>
         <Settings2 size={14} aria-hidden="true" />
         <span>Set Defaults</span>
       </button>

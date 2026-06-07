@@ -213,6 +213,34 @@
   min-height: 0;
 }
 
+.token-library-section {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.token-library-section-label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-soft);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.token-library-section-label i {
+  height: 1px;
+  background: var(--color-border-muted);
+}
+
+.token-library-selected-token {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px);
+}
+
 .token-library-view-list .token-library-grid {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   grid-auto-rows: 54px;
@@ -257,6 +285,14 @@
   border-color: var(--color-border);
   background: #1a2430;
   box-shadow: 0 0 0 1px rgb(122 162 247 / 0.08);
+}
+
+.token-library-item-selected {
+  border-color: var(--color-accent);
+  background: #1d2a3e;
+  box-shadow:
+    inset 3px 0 0 rgb(122 162 247 / 0.72),
+    0 0 0 1px rgb(122 162 247 / 0.22);
 }
 
 .token-library-view-list .token-library-item {

@@ -6,8 +6,20 @@ export type WallType = "wall" | "door" | "window" | "terrain";
 export type DrawingKind = "freehand" | "line" | "rectangle" | "circle" | "cone" | "text" | "ping" | "laser";
 export type TokenSizePreset = "tiny" | "medium" | "large" | "huge" | "gargantuan" | "custom";
 export type TokenMask = "none" | "circle" | "square";
-export type TokenBorderStyle = "none" | "solid" | "embossed" | "inner-shadow" | "glow";
+export type TokenBorderStyle = "none" | "solid" | "dashed" | "dotted" | "double-line" | "embossed" | "inner-shadow" | "glow";
 export type TokenBorderWidthPreset = "thin" | "medium" | "thick" | "custom";
+
+export interface TokenPresentationDefaults {
+  sizePreset?: TokenSizePreset;
+  customSizeCells?: { width: number; height: number };
+  mask?: TokenMask;
+  borderColor?: string;
+  borderStyle?: TokenBorderStyle;
+  borderWidth?: number;
+  borderWidthPreset?: TokenBorderWidthPreset;
+  glowColor?: string;
+  footprintVisible?: boolean;
+}
 
 export interface Asset {
   id: string;
@@ -18,6 +30,7 @@ export interface Asset {
   thumbnailRelativePath?: string;
   originalFileName: string;
   createdAt: string;
+  tokenDefaults?: TokenPresentationDefaults;
   absolutePath?: string;
   thumbnailAbsolutePath?: string;
 }
@@ -339,7 +352,7 @@ export const DEFAULT_VIDEO_PLAYBACK: VideoPlaybackSettings = {
 
 export const DEFAULT_TOKEN_BORDER_COLOR = "#7aa2f7";
 export const DEFAULT_TOKEN_BORDER_STYLE: TokenBorderStyle = "none";
-export const DEFAULT_TOKEN_BORDER_WIDTH = 5;
+export const DEFAULT_TOKEN_BORDER_WIDTH = 24;
 export const DEFAULT_TOKEN_BORDER_WIDTH_PRESET: TokenBorderWidthPreset = "medium";
 export const DEFAULT_TOKEN_GLOW_COLOR = "#7aa2f7";
 export const DEFAULT_TOKEN_FOOTPRINT_VISIBLE = false;
@@ -532,7 +545,7 @@ function normalizeTokens(tokens?: Token[]): Token[] {
     mask: token.mask ?? DEFAULT_TOKEN_MASK,
     borderColor: normalizeColor(token.borderColor, DEFAULT_TOKEN_BORDER_COLOR),
     borderStyle: normalizeTokenBorderStyle(token.borderStyle),
-    borderWidth: Number.isFinite(token.borderWidth) ? Math.min(16, Math.max(1, token.borderWidth ?? DEFAULT_TOKEN_BORDER_WIDTH)) : DEFAULT_TOKEN_BORDER_WIDTH,
+    borderWidth: Number.isFinite(token.borderWidth) ? Math.min(64, Math.max(1, token.borderWidth ?? DEFAULT_TOKEN_BORDER_WIDTH)) : DEFAULT_TOKEN_BORDER_WIDTH,
     borderWidthPreset: token.borderWidthPreset ?? DEFAULT_TOKEN_BORDER_WIDTH_PRESET,
     glowColor: normalizeColor(token.glowColor, normalizeColor(token.borderColor, DEFAULT_TOKEN_GLOW_COLOR)),
     footprintVisible: token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE,
@@ -544,7 +557,9 @@ function normalizeTokens(tokens?: Token[]): Token[] {
 }
 
 function normalizeTokenBorderStyle(style: unknown): TokenBorderStyle {
-  return style === "solid" || style === "embossed" || style === "inner-shadow" || style === "glow" ? style : DEFAULT_TOKEN_BORDER_STYLE;
+  return style === "solid" || style === "dashed" || style === "dotted" || style === "double-line" || style === "embossed" || style === "inner-shadow" || style === "glow"
+    ? style
+    : DEFAULT_TOKEN_BORDER_STYLE;
 }
 
 export function normalizeCampaign(campaign: Campaign): Campaign {
@@ -564,7 +579,38 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
     sceneLibrary: { collapsedFolderIds },
     sceneFolders,
     scenes: campaign.scenes ?? [],
-    assets: campaign.assets ?? []
+    assets: (campaign.assets ?? []).map(normalizeAsset)
+  };
+}
+
+function normalizeAsset(asset: Asset): Asset {
+  if (asset.kind !== "token" || !asset.tokenDefaults) {
+    return asset;
+  }
+  return {
+    ...asset,
+    tokenDefaults: normalizeTokenPresentationDefaults(asset.tokenDefaults)
+  };
+}
+
+function normalizeTokenPresentationDefaults(defaults: TokenPresentationDefaults): TokenPresentationDefaults {
+  const sizePreset = defaults.sizePreset ?? DEFAULT_TOKEN_SIZE_PRESET;
+  return {
+    sizePreset,
+    customSizeCells:
+      defaults.customSizeCells && Number.isFinite(defaults.customSizeCells.width) && Number.isFinite(defaults.customSizeCells.height)
+        ? {
+            width: Math.min(10, Math.max(0.25, defaults.customSizeCells.width)),
+            height: Math.min(10, Math.max(0.25, defaults.customSizeCells.height))
+          }
+        : undefined,
+    mask: defaults.mask === "none" || defaults.mask === "square" || defaults.mask === "circle" ? defaults.mask : DEFAULT_TOKEN_MASK,
+    borderColor: normalizeColor(defaults.borderColor, DEFAULT_TOKEN_BORDER_COLOR),
+    borderStyle: normalizeTokenBorderStyle(defaults.borderStyle),
+    borderWidth: Number.isFinite(defaults.borderWidth) ? Math.min(64, Math.max(1, defaults.borderWidth ?? DEFAULT_TOKEN_BORDER_WIDTH)) : DEFAULT_TOKEN_BORDER_WIDTH,
+    borderWidthPreset: defaults.borderWidthPreset ?? DEFAULT_TOKEN_BORDER_WIDTH_PRESET,
+    glowColor: normalizeColor(defaults.glowColor, DEFAULT_TOKEN_GLOW_COLOR),
+    footprintVisible: defaults.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE
   };
 }
 

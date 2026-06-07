@@ -3,7 +3,7 @@ import {
   getBorderWidthForPreset,
   getBorderWidthPreset,
   getTokenSizeForPreset
-} from "../../src/renderer/components/layers/TokenSettings";
+} from "../../src/renderer/lib/tokenDefaults";
 
 describe("token settings helpers", () => {
   it("maps square-grid token size presets to cell multipliers", () => {
@@ -21,14 +21,14 @@ describe("token settings helpers", () => {
   });
 
   it("maps border width presets to stable pixel values", () => {
-    expect(getBorderWidthPreset(3)).toBe("thin");
-    expect(getBorderWidthPreset(5)).toBe("medium");
-    expect(getBorderWidthPreset(8)).toBe("thick");
+    expect(getBorderWidthPreset(16)).toBe("thin");
+    expect(getBorderWidthPreset(24)).toBe("medium");
+    expect(getBorderWidthPreset(32)).toBe("thick");
     expect(getBorderWidthPreset(11)).toBe("custom");
 
-    expect(getBorderWidthForPreset("thin", 11)).toBe(3);
-    expect(getBorderWidthForPreset("medium", 11)).toBe(5);
-    expect(getBorderWidthForPreset("thick", 11)).toBe(8);
+    expect(getBorderWidthForPreset("thin", 11)).toBe(16);
+    expect(getBorderWidthForPreset("medium", 11)).toBe(24);
+    expect(getBorderWidthForPreset("thick", 11)).toBe(32);
     expect(getBorderWidthForPreset("custom", 11)).toBe(11);
   });
 });

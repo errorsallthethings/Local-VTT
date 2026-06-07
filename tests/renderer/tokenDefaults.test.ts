@@ -4,6 +4,7 @@ import {
   duplicateToken,
   getDefaultTokenPosition,
   getDefaultTokenSize,
+  getTokenPresentationDefaults,
   getTokenPositionAtPoint,
   stripFileExtension
 } from "../../src/renderer/lib/tokenDefaults";
@@ -71,6 +72,71 @@ describe("token defaults", () => {
       name: "Guard Scout.final",
       assetId: tokenAsset.id,
       order: 1
+    });
+  });
+
+  it("applies saved library token presentation defaults to new scene tokens", () => {
+    const scene = createDefaultScene("Defaulted Token");
+    scene.grid = { ...scene.grid, type: "square", sizePx: 80 };
+    const defaultedAsset: Asset = {
+      ...tokenAsset,
+      tokenDefaults: {
+        sizePreset: "large",
+        mask: "square",
+        borderColor: "#ff0000",
+        borderStyle: "glow",
+        borderWidth: 8,
+        borderWidthPreset: "thick",
+        glowColor: "#00ff00",
+        footprintVisible: true
+      }
+    };
+
+    const token = createImportedToken(scene, defaultedAsset, "token-defaulted");
+
+    expect(token).toMatchObject({
+      size: { width: 160, height: 160 },
+      sizePreset: "large",
+      mask: "square",
+      borderColor: "#ff0000",
+      borderStyle: "glow",
+      borderWidth: 8,
+      borderWidthPreset: "thick",
+      glowColor: "#00ff00",
+      footprintVisible: true
+    });
+  });
+
+  it("captures scene token presentation as reusable library defaults", () => {
+    const token: Token = {
+      id: "token-1",
+      name: "Guard",
+      assetId: tokenAsset.id,
+      position: { x: 0, y: 0 },
+      size: { width: 150, height: 100 },
+      sizePreset: "custom",
+      mask: "none",
+      borderColor: "#112233",
+      borderStyle: "inner-shadow",
+      borderWidth: 6,
+      borderWidthPreset: "custom",
+      glowColor: "#445566",
+      footprintVisible: true,
+      hidden: false,
+      visibleInGm: true,
+      visibleInPlayer: false
+    };
+
+    expect(getTokenPresentationDefaults(token, 100)).toEqual({
+      sizePreset: "custom",
+      customSizeCells: { width: 1.5, height: 1 },
+      mask: "none",
+      borderColor: "#112233",
+      borderStyle: "inner-shadow",
+      borderWidth: 6,
+      borderWidthPreset: "custom",
+      glowColor: "#445566",
+      footprintVisible: true
     });
   });
 
