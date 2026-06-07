@@ -52,11 +52,25 @@ Build renderer and Electron files:
 npm run build
 ```
 
+Run ESLint:
+
+```bash
+npm run lint
+```
+
 Run the Vitest suite:
 
 ```bash
 npm test
 ```
+
+Run the full local verification pass:
+
+```bash
+npm run check
+```
+
+`npm run check` runs TypeScript typechecking, ESLint, and the Vitest suite.
 
 ## Packaging Notes
 

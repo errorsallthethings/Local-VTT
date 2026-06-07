@@ -235,6 +235,8 @@ export function GmApp() {
 
   useEffect(() => {
     void refreshDisplays();
+    // Displays are refreshed once on mount; later updates happen when the GM opens display settings.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

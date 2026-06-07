@@ -119,14 +119,6 @@ function getPixelDistance(start: Point, end: Point): number {
   return Math.hypot(end.x - start.x, end.y - start.y);
 }
 
-function getSquareCellCenter(point: Point, grid: GridSettings): Point {
-  const size = grid.sizePx;
-  return {
-    x: Math.floor((point.x - grid.offsetX) / size) * size + grid.offsetX + size / 2,
-    y: Math.floor((point.y - grid.offsetY) / size) * size + grid.offsetY + size / 2
-  };
-}
-
 function getSquareGridHighlightCells(drag: RulerDrag, grid: GridSettings): Point[] {
   const size = grid.sizePx;
   const start = getSquareCellCoordinate(drag.start, grid);
