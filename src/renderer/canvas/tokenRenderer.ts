@@ -8,6 +8,7 @@ import {
   type Token
 } from "../../shared/localvtt";
 import { getRulerPathHighlightCells } from "./measurement";
+import { drawDashedMovementPath, drawPathMarker, hasMeaningfulPath, MOVEMENT_PATH_COLORS } from "./movementPath";
 import {
   getTokenGridFootprint,
   getTokenHexFootprintCenters,
@@ -109,48 +110,38 @@ function traceFogShapePath(ctx: CanvasRenderingContext2D, shape: Scene["fog"]["s
   }
 }
 
-export function drawTokenDragHighlights(ctx: CanvasRenderingContext2D, scene: Scene, preview: TokenDragPreview) {
+export function drawTokenDragHighlights(ctx: CanvasRenderingContext2D, scene: Scene, preview: TokenDragPreview, zoom = 1) {
   const token = scene.tokens.find((candidate) => candidate.id === preview.tokenId);
   if (!token) {
     return;
   }
   drawTokenMovementGridHighlights(ctx, scene, token, preview);
-  drawTokenMovementPath(ctx, token, preview);
+  drawTokenMovementPath(ctx, token, preview, zoom);
   if (scene.grid.type !== "gridless" && scene.grid.sizePx > 0) {
     drawTokenFootprintHighlight(ctx, scene, token, preview.startPosition, "#f6d365", 0.12);
     drawTokenFootprintHighlight(ctx, scene, token, preview.snappedPosition, "#7aa2f7", 0.16);
   }
 }
 
-function drawTokenMovementPath(ctx: CanvasRenderingContext2D, token: Token, preview: TokenDragPreview) {
+function drawTokenMovementPath(ctx: CanvasRenderingContext2D, token: Token, preview: TokenDragPreview, zoom: number) {
   const startCenter = getTokenCenter(token, preview.startPosition);
   const currentCenter = getTokenCenter(token, preview.currentPosition);
   const targetCenter = getTokenCenter(token, preview.snappedPosition);
   const pathPoints = [startCenter, ...preview.waypoints.map((waypoint) => getTokenCenter(token, waypoint)), targetCenter];
-  if (!hasMeaningfulTokenPath(pathPoints)) {
+  if (!hasMeaningfulPath(pathPoints)) {
     return;
   }
 
+  const scale = 1 / Math.max(0.1, zoom);
   ctx.save();
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.setLineDash([18, 11]);
-  ctx.lineWidth = 8;
-  ctx.strokeStyle = "rgb(4 8 14 / 0.82)";
-  traceTokenMovementPath(ctx, pathPoints);
-
-  ctx.lineWidth = 5;
-  ctx.strokeStyle = "rgb(255 255 255 / 0.95)";
-  traceTokenMovementPath(ctx, pathPoints);
-  ctx.setLineDash([]);
-
-  drawTokenPathMarker(ctx, startCenter, "#f6d365", "start");
+  drawDashedMovementPath(ctx, pathPoints, scale);
+  drawPathMarker(ctx, startCenter, MOVEMENT_PATH_COLORS.start, scale);
   for (const waypoint of pathPoints.slice(1, -1)) {
-    drawTokenPathMarker(ctx, waypoint, "#d7deea", "waypoint");
+    drawPathMarker(ctx, waypoint, MOVEMENT_PATH_COLORS.waypoint, scale * 0.82, "small");
   }
-  drawTokenPathMarker(ctx, targetCenter, "#7aa2f7", "target");
+  drawPathMarker(ctx, targetCenter, MOVEMENT_PATH_COLORS.target, scale);
   if (Math.hypot(currentCenter.x - targetCenter.x, currentCenter.y - targetCenter.y) > 3) {
-    drawTokenPathMarker(ctx, currentCenter, "#d7deea", "current");
+    drawPathMarker(ctx, currentCenter, MOVEMENT_PATH_COLORS.waypoint, scale * 0.82, "small");
   }
   ctx.restore();
 }
@@ -211,36 +202,6 @@ function getTokenCenter(token: Token, position: Point): Point {
     x: position.x + token.size.width / 2,
     y: position.y + token.size.height / 2
   };
-}
-
-function traceTokenMovementPath(ctx: CanvasRenderingContext2D, points: Point[]) {
-  ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  for (const point of points.slice(1)) {
-    ctx.lineTo(point.x, point.y);
-  }
-  ctx.stroke();
-}
-
-function hasMeaningfulTokenPath(points: Point[]) {
-  return points.some((point, index) => {
-    const previous = points[index - 1];
-    return previous ? Math.hypot(point.x - previous.x, point.y - previous.y) >= 2 : false;
-  });
-}
-
-function drawTokenPathMarker(ctx: CanvasRenderingContext2D, point: Point, color: string, kind: "start" | "target" | "current" | "waypoint") {
-  const radius = kind === "current" || kind === "waypoint" ? 4 : 6;
-  ctx.save();
-  ctx.setLineDash([]);
-  ctx.beginPath();
-  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
-  ctx.fillStyle = color;
-  ctx.strokeStyle = "rgb(4 8 14 / 0.82)";
-  ctx.lineWidth = 2;
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
 }
 
 function drawTokenFootprintHighlight(ctx: CanvasRenderingContext2D, scene: Scene, token: Token, position: Point, color: string, alpha: number) {

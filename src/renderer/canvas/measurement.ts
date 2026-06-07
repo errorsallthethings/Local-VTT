@@ -1,4 +1,5 @@
 import type { GridSettings, MeasurementSettings, Point } from "../../shared/localvtt";
+import { drawDashedMovementPath, drawPathMarker, getPathMidpoint, MOVEMENT_PATH_COLORS } from "./movementPath";
 import { getNearestHexCoordinate, hexAxialToPoint, roundAxial } from "./tokenGeometry";
 
 export interface RulerDrag {
@@ -57,30 +58,17 @@ export function drawRuler(
   zoom = 1
 ) {
   const scale = 1 / Math.max(0.1, zoom);
-  const midPoint = {
-    x: (getRulerPathPoints(drag)[0].x + drag.current.x) / 2,
-    y: (getRulerPathPoints(drag)[0].y + drag.current.y) / 2
-  };
+  const pathPoints = getRulerPathPoints(drag);
+  const midPoint = getPathMidpoint(pathPoints);
 
   ctx.save();
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
   drawRulerGridHighlights(ctx, drag, grid);
-  ctx.setLineDash([18 * scale, 11 * scale]);
-  ctx.lineWidth = 8 * scale;
-  ctx.strokeStyle = "rgb(4 8 14 / 0.82)";
-  traceRulerLine(ctx, drag);
-
-  ctx.lineWidth = 5 * scale;
-  ctx.strokeStyle = "rgb(255 255 255 / 0.95)";
-  traceRulerLine(ctx, drag);
-  ctx.setLineDash([]);
-
-  drawRulerEndpoint(ctx, drag.start, "#f6d365", scale);
+  drawDashedMovementPath(ctx, pathPoints, scale);
+  drawPathMarker(ctx, drag.start, MOVEMENT_PATH_COLORS.start, scale);
   for (const waypoint of drag.waypoints) {
-    drawRulerEndpoint(ctx, waypoint, "#d7deea", scale * 0.82);
+    drawPathMarker(ctx, waypoint, MOVEMENT_PATH_COLORS.waypoint, scale * 0.82, "small");
   }
-  drawRulerEndpoint(ctx, drag.current, "#7aa2f7", scale);
+  drawPathMarker(ctx, drag.current, MOVEMENT_PATH_COLORS.target, scale);
   drawRulerLabel(ctx, midPoint, label, zoom);
   ctx.restore();
 }
@@ -217,16 +205,6 @@ function getSingularUnit(unit: MeasurementSettings["unit"]) {
   return "mile";
 }
 
-function traceRulerLine(ctx: CanvasRenderingContext2D, drag: RulerDrag) {
-  const points = getRulerPathPoints(drag);
-  ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  for (const point of points.slice(1)) {
-    ctx.lineTo(point.x, point.y);
-  }
-  ctx.stroke();
-}
-
 function drawRulerGridHighlights(ctx: CanvasRenderingContext2D, drag: RulerDrag, grid: GridSettings) {
   const cells = getRulerPathHighlightCells(drag, grid);
   if (cells.length === 0) {
@@ -264,16 +242,6 @@ export function getRulerPathHighlightCells(drag: RulerDrag, grid: GridSettings):
     }
   }
   return [...cells.values()];
-}
-
-function drawRulerEndpoint(ctx: CanvasRenderingContext2D, point: Point, color: string, scale: number) {
-  ctx.beginPath();
-  ctx.arc(point.x, point.y, 6 * scale, 0, Math.PI * 2);
-  ctx.fillStyle = color;
-  ctx.strokeStyle = "rgb(4 8 14 / 0.82)";
-  ctx.lineWidth = 2 * scale;
-  ctx.fill();
-  ctx.stroke();
 }
 
 function drawRulerLabel(ctx: CanvasRenderingContext2D, point: Point, label: RulerLabel, zoom: number) {

@@ -28,6 +28,7 @@ import {
   type RulerDrag,
   type RulerLabel
 } from "../canvas/measurement";
+import { getPathDistance, getPointAlongPath, normalizeMovementPath } from "../canvas/movementPath";
 import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
 import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
@@ -490,7 +491,7 @@ export function SceneCanvas({
       }
 
       if (mode === "gm" && tokenDragPreview) {
-        drawTokenDragHighlights(ctx, scene, tokenDragPreview);
+        drawTokenDragHighlights(ctx, scene, tokenDragPreview, renderCamera.zoom);
       }
 
       if (canShowTokens) {
@@ -1151,7 +1152,7 @@ function drawBrushHoverPreview(ctx: CanvasRenderingContext2D, point: Point, radi
 }
 
 function getTokenMovementPath(startPosition: Point, waypoints: Point[], finalPosition: Point): Point[] | null {
-  const points = normalizeTokenMovementPath([startPosition, ...waypoints, finalPosition]);
+  const points = normalizeMovementPath([startPosition, ...waypoints, finalPosition]);
   return points.length > 1 ? points : null;
 }
 
@@ -1168,9 +1169,9 @@ function getTokenMovementTweens(previousTokens: Token[], nextTokens: Token[], sc
     }
     const points =
       scene.tokenMovementPath?.tokenId === nextToken.id
-        ? normalizeTokenMovementPath([previousToken.position, ...scene.tokenMovementPath.points.slice(1, -1), nextToken.position])
+        ? normalizeMovementPath([previousToken.position, ...scene.tokenMovementPath.points.slice(1, -1), nextToken.position])
         : [previousToken.position, nextToken.position];
-    const distance = getTokenMovementPathDistance(points);
+    const distance = getPathDistance(points);
     if (points.length < 2 || distance <= 2) {
       continue;
     }
@@ -1187,41 +1188,6 @@ function getTokenMovementTweens(previousTokens: Token[], nextTokens: Token[], sc
 function getTokenMovementDurationMs(distance: number, token: Token, scene: Scene) {
   const movementUnit = scene.grid.type === "gridless" || scene.grid.sizePx <= 0 ? Math.max(1, token.size.width) : scene.grid.sizePx;
   return Math.max(320, Math.round((distance / movementUnit) * 400));
-}
-
-function normalizeTokenMovementPath(points: Point[]) {
-  return points.reduce<Point[]>((path, point) => {
-    const previous = path[path.length - 1];
-    return previous && distanceBetween(previous, point) <= 2 ? path : [...path, point];
-  }, []);
-}
-
-function getTokenMovementPathDistance(points: Point[]) {
-  return points.reduce((total, point, index) => {
-    const previous = points[index - 1];
-    return previous ? total + distanceBetween(previous, point) : total;
-  }, 0);
-}
-
-function getPointAlongPath(points: Point[], distance: number): Point {
-  let remainingDistance = distance;
-  for (let index = 1; index < points.length; index += 1) {
-    const start = points[index - 1];
-    const end = points[index];
-    const segmentDistance = distanceBetween(start, end);
-    if (segmentDistance === 0) {
-      continue;
-    }
-    if (remainingDistance <= segmentDistance) {
-      const progress = remainingDistance / segmentDistance;
-      return {
-        x: start.x + (end.x - start.x) * progress,
-        y: start.y + (end.y - start.y) * progress
-      };
-    }
-    remainingDistance -= segmentDistance;
-  }
-  return points[points.length - 1];
 }
 
 function hasTokenSizeChanged(previousToken: Token, nextToken: Token) {
