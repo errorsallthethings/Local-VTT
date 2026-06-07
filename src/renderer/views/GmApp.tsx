@@ -16,6 +16,7 @@ import type {
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type CanvasTool, type FogOperation } from "../components/tools/ToolsMenu";
+import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { GmSettingsMenu } from "../components/workspace/GmSettingsMenu";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import type { FogTool } from "../canvas/fogRenderer";
@@ -108,6 +109,7 @@ export function GmApp() {
   const [selectedFogShapeId, setSelectedFogShapeId] = useState<string | null>(null);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
+  const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
 
   const mapAsset = useMemo(() => {
@@ -118,6 +120,7 @@ export function GmApp() {
   }, [activeScene?.mapAssetId, campaign]);
   const activeMapIsVideo = mapAsset?.mediaType === "video";
   const tokenAssets = useMemo(() => new Map((campaign?.assets ?? []).filter((asset) => asset.kind === "token").map((asset) => [asset.id, asset])), [campaign?.assets]);
+  const tokenLibraryAssets = useMemo(() => [...tokenAssets.values()], [tokenAssets]);
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const collapsedFolderIds = useMemo(() => new Set(campaign?.sceneLibrary.collapsedFolderIds ?? []), [campaign?.sceneLibrary.collapsedFolderIds]);
   const sceneThumbnailAssets = useMemo(() => {
@@ -373,6 +376,10 @@ export function GmApp() {
     );
     setSelectedTokenId(tokenId);
     setTokenCropDialog(null);
+  };
+
+  const addLibraryTokenToScene = (asset: Asset) => {
+    addImportedTokenToScene(asset);
   };
 
   const submitTokenCrop = (crop: SquareCropRect) =>
@@ -824,6 +831,14 @@ export function GmApp() {
             onUpdateVideoPlayback={updateVideoPlayback}
           />
         </div>
+
+        <TokenLibraryDrawer
+          assets={tokenLibraryAssets}
+          expanded={tokenLibraryExpanded}
+          activeSceneName={activeScene?.name}
+          onToggleExpanded={() => setTokenLibraryExpanded((expanded) => !expanded)}
+          onAddToken={addLibraryTokenToScene}
+        />
 
         <footer className="statusbar">
           <span>Mouse wheel zooms. Drag pans. Scene data uses world/map coordinates.</span>

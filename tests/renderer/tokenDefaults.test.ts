@@ -53,6 +53,20 @@ describe("token defaults", () => {
     });
   });
 
+  it("creates library tokens from existing campaign token assets", () => {
+    const scene = createDefaultScene("Library Token");
+    scene.tokens = [{ ...createImportedToken(scene, tokenAsset, "existing"), id: "existing" }];
+
+    const libraryToken = createImportedToken(scene, tokenAsset, "library-token");
+
+    expect(libraryToken).toMatchObject({
+      id: "library-token",
+      name: "Guard Scout.final",
+      assetId: tokenAsset.id,
+      order: 1
+    });
+  });
+
   it("duplicates tokens with a fresh id, copy name, and newest order", () => {
     const sourceToken: Token = {
       id: "token-1",
