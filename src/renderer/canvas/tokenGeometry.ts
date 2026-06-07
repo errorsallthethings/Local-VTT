@@ -49,9 +49,10 @@ export function isPointInsideFogShape(point: Point, shape: Scene["fog"]["shapes"
       return next ? distanceToSegment(point, candidate, next) <= radius : distanceBetween(point, candidate) <= radius;
     });
   }
-  if (shape.kind === "circle" && shape.points.length >= 2) {
+  if (shape.kind === "circle" && shape.points.length >= 1) {
     const [center, edge] = shape.points;
-    return distanceBetween(point, center) <= distanceBetween(center, edge);
+    const radius = shape.radius ?? (edge ? distanceBetween(center, edge) : 0);
+    return radius > 0 && distanceBetween(point, center) <= radius;
   }
   return false;
 }

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { CloudFog, Paintbrush, Ruler, Square, Trash2, Triangle, Undo2 } from "lucide-react";
+import { Circle, CloudFog, HelpCircle, Paintbrush, Pentagon, Ruler, Square, Trash2, Undo2 } from "lucide-react";
 import type { FogTool } from "../../canvas/fogRenderer";
 
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler";
-type FogToolShape = "brush" | "rectangle" | "polygon";
+type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
 
 interface ToolsMenuProps {
   activeCanvasTool: CanvasTool | null;
@@ -34,6 +34,7 @@ export function ToolsMenu({
   onRequestClearFog
 }: ToolsMenuProps) {
   const [fogMenuOpen, setFogMenuOpen] = useState(false);
+  const [helpTopic, setHelpTopic] = useState<"fog" | "ruler" | null>(null);
   const activeFogShape = getActiveFogShape(activeFogTool);
 
   useEffect(() => {
@@ -47,6 +48,12 @@ export function ToolsMenu({
       setFogMenuOpen(false);
     }
   }, [activeCanvasTool]);
+
+  useEffect(() => {
+    if ((helpTopic === "fog" && !fogMenuOpen) || (helpTopic === "ruler" && activeCanvasTool !== "ruler")) {
+      setHelpTopic(null);
+    }
+  }, [activeCanvasTool, fogMenuOpen, helpTopic]);
 
   const setFogToolShape = (shape: FogToolShape) => {
     const nextTool = createFogTool(fogOperation, shape);
@@ -76,6 +83,7 @@ export function ToolsMenu({
             }
             if (fogMenuOpen) {
               onFogToolChange(null);
+              setHelpTopic(null);
             }
           }}
         >
@@ -88,6 +96,7 @@ export function ToolsMenu({
           onClick={() => {
             setFogMenuOpen(false);
             onFogToolChange(null);
+            setHelpTopic(null);
             onCanvasToolChange(activeCanvasTool === "ruler" ? null : "ruler");
           }}
         >
@@ -114,12 +123,20 @@ export function ToolsMenu({
             <Square size={17} aria-hidden="true" />
           </button>
           <button
+            className={activeFogShape === "circle" ? "tool-circle-button tool-active" : "tool-circle-button"}
+            aria-label="Fog Circle"
+            title="Fog Circle"
+            onClick={() => setFogToolShape("circle")}
+          >
+            <Circle size={17} aria-hidden="true" />
+          </button>
+          <button
             className={activeFogShape === "polygon" ? "tool-circle-button tool-active" : "tool-circle-button"}
             aria-label="Fog Polygon"
             title="Fog Polygon"
             onClick={() => setFogToolShape("polygon")}
           >
-            <Triangle size={17} aria-hidden="true" />
+            <Pentagon size={17} aria-hidden="true" />
           </button>
           <button
             className="tool-circle-button"
@@ -138,6 +155,15 @@ export function ToolsMenu({
             onClick={onRequestClearFog}
           >
             <Trash2 size={17} aria-hidden="true" />
+          </button>
+          <button
+            className={helpTopic === "fog" ? "tool-circle-button tool-help-trigger tool-active" : "tool-circle-button tool-help-trigger"}
+            aria-label="Fog tools help"
+            title="Fog tools help"
+            aria-expanded={helpTopic === "fog"}
+            onClick={() => setHelpTopic((topic) => (topic === "fog" ? null : "fog"))}
+          >
+            <HelpCircle size={17} aria-hidden="true" />
           </button>
           <label className="fog-operation-switch tools-operation-switch" title="Reveal or hide fog">
             <span>Reveal</span>
@@ -165,6 +191,45 @@ export function ToolsMenu({
           )}
         </div>
       )}
+      {activeCanvasTool === "ruler" && (
+        <div className="tools-flyout tools-ruler-flyout" aria-label="Ruler Tool">
+          <button
+            className={helpTopic === "ruler" ? "tool-circle-button tool-help-trigger tool-active" : "tool-circle-button tool-help-trigger"}
+            aria-label="Ruler help"
+            title="Ruler help"
+            aria-expanded={helpTopic === "ruler"}
+            onClick={() => setHelpTopic((topic) => (topic === "ruler" ? null : "ruler"))}
+          >
+            <HelpCircle size={17} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+      {helpTopic && <ToolHelpCard topic={helpTopic} />}
+    </div>
+  );
+}
+
+function ToolHelpCard({ topic }: { topic: "fog" | "ruler" }) {
+  if (topic === "fog") {
+    return (
+      <div className="tools-help-card" role="dialog" aria-label="Fog tools help">
+        <strong>Fog Tools</strong>
+        <span>Brush: left-drag to paint reveal or hide shapes.</span>
+        <span>Rectangle: left-drag to draw; hold Shift for a square.</span>
+        <span>Circle: left-drag from the center to set the radius.</span>
+        <span>Polygon: click points, Enter or double-click to finish, right-click to remove the last point.</span>
+        <span>Ctrl/Cmd snaps to grid corners. Escape cancels active drawing.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="tools-help-card" role="dialog" aria-label="Ruler help">
+      <strong>Ruler</strong>
+      <span>Left-drag to measure distance.</span>
+      <span>Ctrl/Cmd snaps to square or hex centers.</span>
+      <span>Shift adds a waypoint to the current path.</span>
+      <span>Right-click removes the last waypoint. Escape clears the ruler.</span>
     </div>
   );
 }
@@ -182,6 +247,9 @@ function getActiveFogShape(tool: FogTool | null): FogToolShape | null {
   }
   if (tool.includes("polygon")) {
     return "polygon";
+  }
+  if (tool.includes("circle")) {
+    return "circle";
   }
   return "rectangle";
 }

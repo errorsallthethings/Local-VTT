@@ -83,7 +83,9 @@ it("fog tool helpers classify operation, shape, and polygon tools", () => {
   expect(getFogOperationForTool("hide-rectangle")).toBe("hide");
   expect(getFogDragKindForTool("reveal-brush")).toBe("brush");
   expect(getFogDragKindForTool("hide-rectangle")).toBe("rectangle");
+  expect(getFogDragKindForTool("reveal-circle")).toBe("circle");
   expect(isPolygonTool("reveal-polygon")).toBe(true);
+  expect(isPolygonTool("reveal-circle")).toBe(false);
   expect(isPolygonTool("hide-brush")).toBe(false);
   expect(isMeaningfulPolygon([{ x: 0, y: 0 }, { x: 1, y: 1 }])).toBe(false);
   expect(isMeaningfulPolygon([{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 0 }])).toBe(true);
@@ -117,6 +119,26 @@ it("isMeaningfulFogDrag rejects tiny rectangles and accepts real brush strokes",
       current: { x: 2, y: 0 },
       points: [{ x: 0, y: 0 }],
       operation: "hide"
+    })
+  ).toBe(true);
+  expect(
+    isMeaningfulFogDrag({
+      pointerId: 1,
+      kind: "circle",
+      start: { x: 0, y: 0 },
+      current: { x: 2, y: 0 },
+      points: [],
+      operation: "reveal"
+    })
+  ).toBe(false);
+  expect(
+    isMeaningfulFogDrag({
+      pointerId: 1,
+      kind: "circle",
+      start: { x: 0, y: 0 },
+      current: { x: 6, y: 0 },
+      points: [],
+      operation: "reveal"
     })
   ).toBe(true);
 });

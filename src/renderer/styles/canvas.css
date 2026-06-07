@@ -38,6 +38,7 @@
 }
 
 .scene-canvas.scene-canvas-tool-brush,
+.scene-canvas.scene-canvas-tool-circle,
 .scene-canvas.scene-canvas-tool-rectangle,
 .scene-canvas.scene-canvas-tool-polygon,
 .scene-canvas.scene-canvas-tool-ruler {
@@ -45,6 +46,7 @@
 }
 
 .scene-canvas.scene-canvas-tool-brush:active,
+.scene-canvas.scene-canvas-tool-circle:active,
 .scene-canvas.scene-canvas-tool-rectangle:active,
 .scene-canvas.scene-canvas-tool-polygon:active,
 .scene-canvas.scene-canvas-tool-ruler:active {

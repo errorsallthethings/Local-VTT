@@ -34,15 +34,23 @@ export function TokenList({
     if (!openTokenMenuId) {
       return;
     }
-    const closeTokenMenu = (event: globalThis.MouseEvent) => {
-      const target = event.target;
-      if (target instanceof HTMLElement && target.closest(".token-menu-wrap")) {
+    const closeTokenMenu = (event: PointerEvent) => {
+      if (event.composedPath().some((target) => target instanceof Element && target.classList.contains("token-menu-wrap"))) {
         return;
       }
       setOpenTokenMenuId(null);
     };
-    window.addEventListener("mousedown", closeTokenMenu);
-    return () => window.removeEventListener("mousedown", closeTokenMenu);
+    const closeTokenMenuWithEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenTokenMenuId(null);
+      }
+    };
+    window.addEventListener("pointerdown", closeTokenMenu, true);
+    window.addEventListener("keydown", closeTokenMenuWithEscape);
+    return () => {
+      window.removeEventListener("pointerdown", closeTokenMenu, true);
+      window.removeEventListener("keydown", closeTokenMenuWithEscape);
+    };
   }, [openTokenMenuId]);
 
   const moveToken = (sourceTokenId: string, targetTokenId: string, placement: DropPlacement) => {
@@ -101,6 +109,7 @@ export function TokenList({
                   isVisibleInGm || isVisibleInPlayer ? "" : "fog-shape-row-muted",
                   isSelected ? "fog-shape-row-selected" : "",
                   "token-shape-row",
+                  openTokenMenuId === token.id ? "token-shape-row-menu-open" : "",
                   draggedTokenId === token.id ? "fog-shape-row-dragging" : "",
                   dropPlacement ? `fog-shape-row-drop-${dropPlacement}` : ""
                 ]

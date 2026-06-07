@@ -1,4 +1,4 @@
-import { Crown, Eye, EyeOff, GripVertical, Paintbrush, Square, Trash2, Triangle, User } from "lucide-react";
+import { Circle, Crown, Eye, EyeOff, GripVertical, Paintbrush, Pentagon, Square, Trash2, User } from "lucide-react";
 import { formatDefaultFogShapeName, type FogSettings, type Scene } from "../../../shared/localvtt";
 import type { DropPlacement } from "../../lib/reorder";
 
@@ -194,7 +194,10 @@ function getFogShapeIcon(kind: "brush" | "rectangle" | "polygon" | "circle") {
     return <Paintbrush size={13} />;
   }
   if (kind === "polygon") {
-    return <Triangle size={13} />;
+    return <Pentagon size={13} />;
+  }
+  if (kind === "circle") {
+    return <Circle size={13} />;
   }
   return <Square size={13} />;
 }

@@ -98,6 +98,7 @@ export function SceneCanvas({
   const [tokenDragPreview, setTokenDragPreview] = useState<TokenDragPreview | null>(null);
   const [playerTokenTweenPositions, setPlayerTokenTweenPositions] = useState<TokenPositionOverrides | null>(null);
   const [polygonDraft, setPolygonDraft] = useState<FogPolygonDraft | null>(null);
+  const [brushHoverPoint, setBrushHoverPoint] = useState<Point | null>(null);
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; camera: Camera } | null>(null);
@@ -177,6 +178,7 @@ export function SceneCanvas({
   useEffect(() => {
     setPolygonDraft(null);
     polygonDraftRef.current = null;
+    setBrushHoverPoint(null);
   }, [fogTool, scene?.id]);
 
   useEffect(() => {
@@ -493,6 +495,9 @@ export function SceneCanvas({
       if (canShowFog) {
         drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, selectedFogShapeId);
       }
+      if (mode === "gm" && brushHoverPoint && fogTool?.includes("brush") && !fogPreview) {
+        drawBrushHoverPreview(ctx, brushHoverPoint, Math.max(4, scene.fog.brushSize / 2), renderCamera, getFogOperationForTool(fogTool));
+      }
       if (mode === "gm" && snapPoint && fogTool) {
         drawSnapMarker(ctx, snapPoint, renderCamera, getFogOperationForTool(fogTool));
       }
@@ -519,7 +524,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [camera, canShowFog, canShowGrid, canShowMap, canShowTokens, fogPreview, fogTool, isVideoMap, loadedMap, loadedTokenImages, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, snapPoint, tokenDragPreview]);
+  }, [brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, fogPreview, fogTool, isVideoMap, loadedMap, loadedTokenImages, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, snapPoint, tokenDragPreview]);
 
   const cancelTokenDrag = () => {
     tokenDragRef.current = null;
@@ -667,6 +672,11 @@ export function SceneCanvas({
       return;
     }
 
+    if (mode === "gm" && fogTool?.includes("brush") && scene) {
+      setBrushHoverPoint(getToolPoint(event));
+      return;
+    }
+
     updateSnapPoint(event);
 
     const drag = dragRef.current;
@@ -701,7 +711,7 @@ export function SceneCanvas({
                 operation: fogDrag.operation,
                 kind: fogDrag.kind,
                 points: fogDrag.kind === "brush" ? normalizeBrushPoints(fogDrag.points, fogDrag.current) : [fogDrag.start, fogDrag.current],
-                radius: fogDrag.radius,
+                radius: fogDrag.kind === "circle" ? distanceBetween(fogDrag.start, fogDrag.current) : fogDrag.radius,
                 visibleInGm: true,
                 visibleInPlayer: scene.fog.newShapesVisibleInPlayer,
                 visible: true
@@ -753,6 +763,7 @@ export function SceneCanvas({
 
   const onPointerLeave = () => {
     setSnapPoint(null);
+    setBrushHoverPoint(null);
   };
 
   const onDoubleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -950,7 +961,7 @@ function FogToolStatusStrip({
   brushSize: number;
 }) {
   const isReveal = fogTool.startsWith("reveal");
-  const toolKind = fogTool.includes("brush") ? "Brush" : fogTool.includes("polygon") ? "Polygon" : "Rectangle";
+  const toolKind = fogTool.includes("brush") ? "Brush" : fogTool.includes("polygon") ? "Polygon" : fogTool.includes("circle") ? "Circle" : "Rectangle";
   const action = isReveal ? "Reveal" : "Hide";
   const primaryHint = getFogToolHint(fogTool, polygonPointCount, brushSize);
 
@@ -973,6 +984,9 @@ function getFogToolHint(fogTool: FogTool, polygonPointCount: number, brushSize: 
   if (fogTool.includes("rectangle")) {
     return "Left-drag to draw. Hold Shift for square.";
   }
+  if (fogTool.includes("circle")) {
+    return "Left-drag from center to set radius.";
+  }
   const finishHint = polygonPointCount >= 3 ? " Enter or double-click finishes." : "";
   const undoHint = polygonPointCount > 0 ? " Right-click removes last point." : "";
   return `Click to place points.${finishHint}${undoHint} Escape cancels.`;
@@ -985,7 +999,7 @@ function TokenMoveStatusStrip({ scene, tokenDragPreview }: { scene: Scene | null
     <div className="canvas-tool-status" aria-live="polite">
       <strong>Token Move</strong>
       <span>Drag to position.</span>
-      <span>Shift adds a grid-centered waypoint.</span>
+      <span>Shift adds a waypoint.</span>
       <span>{waypointCount === 1 ? "1 waypoint" : `${waypointCount} waypoints`}</span>
       {tokenMoveLabel && <span>{tokenMoveLabel}</span>}
       <span>Release to move. Escape cancels.</span>
@@ -999,7 +1013,7 @@ function RulerStatusStrip({ rulerDrag, scene }: { rulerDrag: RulerDrag | null; s
     <div className="canvas-tool-status" aria-live="polite">
       <strong>Ruler</strong>
       <span>Left-drag to measure.</span>
-      <span>Ctrl/Cmd snaps to grid points.</span>
+      <span>Ctrl/Cmd snaps to square or hex centers.</span>
       <span>Shift adds a waypoint.</span>
       {rulerDrag && <span>{rulerDrag.waypoints.length === 1 ? "1 waypoint" : `${rulerDrag.waypoints.length} waypoints`}</span>}
       {label && <span>{label.secondary ? `${label.primary} (${label.secondary})` : label.primary}</span>}
@@ -1094,6 +1108,9 @@ function getCanvasToolClass(fogTool: FogTool | null, canvasTool: "ruler" | null)
   if (fogTool.includes("polygon")) {
     return "scene-canvas-tool-polygon";
   }
+  if (fogTool.includes("circle")) {
+    return "scene-canvas-tool-circle";
+  }
   return "scene-canvas-tool-rectangle";
 }
 
@@ -1124,6 +1141,20 @@ function drawSnapMarker(ctx: CanvasRenderingContext2D, point: Point, camera: Cam
   ctx.beginPath();
   ctx.arc(screenX, screenY, 7, 0, Math.PI * 2);
   ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawBrushHoverPreview(ctx: CanvasRenderingContext2D, point: Point, radius: number, camera: Camera, operation: "reveal" | "hide") {
+  ctx.save();
+  ctx.translate(camera.x, camera.y);
+  ctx.scale(camera.zoom, camera.zoom);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.strokeStyle = operation === "reveal" ? "#8ee6a8" : "#ff9b9b";
+  ctx.lineWidth = Math.max(1.5, 2 / camera.zoom);
+  ctx.setLineDash([8 / camera.zoom, 5 / camera.zoom]);
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }

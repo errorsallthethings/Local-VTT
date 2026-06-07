@@ -1,11 +1,19 @@
 import type { FogShape, Point, Scene } from "../../shared/localvtt";
 import type { Camera } from "./camera";
 
-export type FogTool = "reveal-rectangle" | "hide-rectangle" | "reveal-brush" | "hide-brush" | "reveal-polygon" | "hide-polygon";
+export type FogTool =
+  | "reveal-rectangle"
+  | "hide-rectangle"
+  | "reveal-brush"
+  | "hide-brush"
+  | "reveal-polygon"
+  | "hide-polygon"
+  | "reveal-circle"
+  | "hide-circle";
 
 export interface FogDrag {
   pointerId: number;
-  kind: "rectangle" | "brush";
+  kind: "rectangle" | "brush" | "circle";
   start: Point;
   current: Point;
   points: Point[];
@@ -104,6 +112,9 @@ export function isMeaningfulFogDrag(drag: FogDrag): boolean {
   if (drag.kind === "brush") {
     return drag.points.length > 1 || distanceBetween(drag.start, drag.current) > 1;
   }
+  if (drag.kind === "circle") {
+    return distanceBetween(drag.start, drag.current) >= 4;
+  }
   return Math.abs(drag.current.x - drag.start.x) >= 4 && Math.abs(drag.current.y - drag.start.y) >= 4;
 }
 
@@ -125,7 +136,13 @@ export function getFogOperationForTool(tool: FogTool): FogShape["operation"] {
 }
 
 export function getFogDragKindForTool(tool: FogTool): FogDrag["kind"] {
-  return tool.includes("brush") ? "brush" : "rectangle";
+  if (tool.includes("brush")) {
+    return "brush";
+  }
+  if (tool.includes("circle")) {
+    return "circle";
+  }
+  return "rectangle";
 }
 
 export function isMeaningfulPolygon(points: Point[]): boolean {
@@ -140,7 +157,7 @@ function getPreviewFogShapes(preview: FogDrag | null, polygonDraft: FogPolygonDr
       operation: preview.operation,
       kind: preview.kind,
       points: preview.kind === "brush" ? normalizeBrushPoints(preview.points, preview.current) : [preview.start, preview.current],
-      radius: preview.radius
+      radius: preview.kind === "circle" ? distanceBetween(preview.start, preview.current) : preview.radius
     });
   }
   if (polygonDraft && polygonDraft.current && polygonDraft.points.length >= 2) {
@@ -193,6 +210,11 @@ function drawFogPreviewOutline(ctx: CanvasRenderingContext2D, preview: FogDrag) 
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(preview.current.x, preview.current.y, Math.max(1, preview.radius ?? 24), 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (preview.kind === "circle") {
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(preview.start.x, preview.start.y, distanceBetween(preview.start, preview.current), 0, Math.PI * 2);
     ctx.stroke();
   } else {
     const rect = pointsToRect(preview.start, preview.current);

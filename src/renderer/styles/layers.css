@@ -10,7 +10,10 @@
   background: #151c25;
   box-shadow: inset 3px 0 0 rgb(122 162 247 / 0.72);
   padding: 8px;
-  overflow: hidden;
+}
+
+.layer-row:has(.token-shape-row-menu-open) {
+  z-index: 20;
 }
 
 .layer-row::before {
@@ -23,7 +26,9 @@
   background:
     linear-gradient(90deg, rgb(122 162 247 / 0.16), rgb(76 191 120 / 0.07) 48%, rgb(21 28 37 / 0)),
     #171f2a;
+  border-radius: 6px 6px 0 0;
   content: "";
+  pointer-events: none;
 }
 
 .expandable-layer-row {
@@ -229,6 +234,10 @@
 
 .fog-shape-row.token-shape-row {
   grid-template-columns: 14px 24px minmax(0, 1fr) 24px 24px 24px;
+}
+
+.token-shape-row-menu-open {
+  z-index: 25;
 }
 
 .token-shape-row .fog-shape-name {

@@ -49,6 +49,10 @@
   color: #ffd2d2;
 }
 
+.tool-help-trigger {
+  color: #aeb8c7;
+}
+
 .tools-flyout {
   position: relative;
   display: flex;
@@ -60,6 +64,36 @@
   background: rgb(17 24 32 / 0.92);
   box-shadow: 0 12px 34px rgb(0 0 0 / 0.38);
   padding: 4px 8px;
+}
+
+.tools-ruler-flyout {
+  min-width: 46px;
+  margin-top: 46px;
+  padding: 4px;
+}
+
+.tools-help-card {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 46px;
+  z-index: 2;
+  display: grid;
+  gap: 6px;
+  width: min(320px, calc(100vw - 72px));
+  border: 1px solid #303a49;
+  border-radius: 8px;
+  background: rgb(17 24 32 / 0.96);
+  box-shadow: 0 16px 38px rgb(0 0 0 / 0.4);
+  color: #aeb8c7;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.tools-help-card strong {
+  color: #f2f6fb;
+  font-size: 12px;
+  text-transform: uppercase;
 }
 
 .tools-operation-switch {
