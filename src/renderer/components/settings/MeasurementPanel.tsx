@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { CircleHelp } from "lucide-react";
 import type { GridSettings, MeasurementUnit } from "../../../shared/localvtt";
 
 interface MeasurementPanelProps {
@@ -6,6 +8,8 @@ interface MeasurementPanelProps {
 }
 
 export function MeasurementPanel({ measurement, onChange }: MeasurementPanelProps) {
+  const [distanceHelpOpen, setDistanceHelpOpen] = useState(false);
+
   return (
     <section className="panel">
       <h2>Measurement</h2>
@@ -29,8 +33,19 @@ export function MeasurementPanel({ measurement, onChange }: MeasurementPanelProp
           </select>
         </label>
       </div>
-      <label>
-        Distance mode
+      <label className="measurement-distance-field">
+        <span className="measurement-distance-label">
+          Distance mode
+          <button
+            type="button"
+            className="icon-button measurement-help-button"
+            aria-label="Distance mode help"
+            title="Distance mode help"
+            onClick={() => setDistanceHelpOpen((open) => !open)}
+          >
+            <CircleHelp size={15} aria-hidden="true" />
+          </button>
+        </span>
         <select value={measurement.distanceMode} onChange={(event) => onChange({ distanceMode: event.target.value as GridSettings["measurement"]["distanceMode"] })}>
           <option value="euclidean">Euclidean</option>
           <option value="manhattan">Manhattan</option>
@@ -38,6 +53,22 @@ export function MeasurementPanel({ measurement, onChange }: MeasurementPanelProp
           <option value="diagonal-5-10">5/10/5/10 diagonals</option>
         </select>
       </label>
+      {distanceHelpOpen && (
+        <div className="measurement-help-panel" role="note">
+          <p>
+            <strong>Euclidean</strong> measures straight-line distance.
+          </p>
+          <p>
+            <strong>Manhattan</strong> counts horizontal plus vertical movement.
+          </p>
+          <p>
+            <strong>Grid snapped</strong> counts the longest grid axis, useful for simple tactical movement.
+          </p>
+          <p>
+            <strong>5/10/5/10 diagonals</strong> alternates diagonal steps between one and two cells.
+          </p>
+        </div>
+      )}
     </section>
   );
 }

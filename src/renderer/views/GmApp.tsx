@@ -14,7 +14,7 @@ import type {
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ToolsMenu, type FogOperation } from "../components/tools/ToolsMenu";
+import { ToolsMenu, type CanvasTool, type FogOperation } from "../components/tools/ToolsMenu";
 import { GmSettingsMenu } from "../components/workspace/GmSettingsMenu";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import type { FogTool } from "../canvas/fogRenderer";
@@ -89,6 +89,7 @@ export function GmApp() {
   const [playerDisplayDialogOpen, setPlayerDisplayDialogOpen] = useState(false);
   const [playerViewDisplayDialogOpen, setPlayerViewDisplayDialogOpen] = useState(false);
   const [measurementDialogOpen, setMeasurementDialogOpen] = useState(false);
+  const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasTool | null>(null);
   const [activeFogTool, setActiveFogTool] = useState<FogTool | null>(null);
   const [fogOperation, setFogOperation] = useState<FogOperation>("reveal");
   const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
@@ -132,6 +133,11 @@ export function GmApp() {
 
   const updateCanvasScene = (nextScene: Scene, syncScene: Scene = nextScene) => {
     updateScene(nextScene, campaign, syncScene);
+  };
+
+  const clearActiveCanvasTools = () => {
+    setActiveCanvasTool(null);
+    setActiveFogTool(null);
   };
 
   const updateCampaignDraft = (nextCampaign: Campaign) => {
@@ -692,7 +698,7 @@ export function GmApp() {
         openSceneMenuId={openSceneMenuId}
         openFolderMenuId={openFolderMenuId}
         workspaceLayout={workspaceLayout}
-        onClearActiveFogTool={() => setActiveFogTool(null)}
+        onClearActiveFogTool={clearActiveCanvasTools}
         onToggleWorkspacePanel={toggleWorkspacePanel}
         onResetPanelWidth={resetPanelWidth}
         onStartPanelResize={startPanelResize}
@@ -739,10 +745,12 @@ export function GmApp() {
         <div className="canvas-stage">
           {activeScene && (
             <ToolsMenu
+              activeCanvasTool={activeCanvasTool}
               activeFogTool={activeFogTool}
               fogOperation={fogOperation}
               brushSize={activeScene.fog.brushSize}
               fogShapeCount={activeScene.fog.shapes.length}
+              onCanvasToolChange={setActiveCanvasTool}
               onFogToolChange={setActiveFogTool}
               onFogOperationChange={setFogOperation}
               onBrushSizeChange={(brushSize) => updateFog({ brushSize })}
@@ -754,6 +762,7 @@ export function GmApp() {
             campaign={campaign}
             scene={activeScene}
             mode="gm"
+            canvasTool={activeCanvasTool}
             fogTool={activeFogTool}
             selectedFogShapeId={selectedFogShapeId}
             selectedTokenId={selectedTokenId}
@@ -801,7 +810,7 @@ export function GmApp() {
         selectedFogShapeId={selectedFogShapeId}
         selectedTokenId={selectedTokenId}
         workspaceLayout={workspaceLayout}
-        onClearActiveFogTool={() => setActiveFogTool(null)}
+        onClearActiveFogTool={clearActiveCanvasTools}
         onToggleWorkspacePanel={toggleWorkspacePanel}
         onResetPanelWidth={resetPanelWidth}
         onStartPanelResize={startPanelResize}

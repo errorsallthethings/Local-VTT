@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
-import { CloudFog, Paintbrush, Square, Trash2, Triangle, Undo2 } from "lucide-react";
+import { CloudFog, Paintbrush, Ruler, Square, Trash2, Triangle, Undo2 } from "lucide-react";
 import type { FogTool } from "../../canvas/fogRenderer";
 
 export type FogOperation = "reveal" | "hide";
+export type CanvasTool = "ruler";
 type FogToolShape = "brush" | "rectangle" | "polygon";
 
 interface ToolsMenuProps {
+  activeCanvasTool: CanvasTool | null;
   activeFogTool: FogTool | null;
   fogOperation: FogOperation;
   brushSize: number;
   fogShapeCount: number;
+  onCanvasToolChange: (tool: CanvasTool | null) => void;
   onFogToolChange: (tool: FogTool | null) => void;
   onFogOperationChange: (operation: FogOperation) => void;
   onBrushSizeChange: (brushSize: number) => void;
@@ -18,10 +21,12 @@ interface ToolsMenuProps {
 }
 
 export function ToolsMenu({
+  activeCanvasTool,
   activeFogTool,
   fogOperation,
   brushSize,
   fogShapeCount,
+  onCanvasToolChange,
   onFogToolChange,
   onFogOperationChange,
   onBrushSizeChange,
@@ -37,8 +42,15 @@ export function ToolsMenu({
     }
   }, [activeFogTool]);
 
+  useEffect(() => {
+    if (activeCanvasTool) {
+      setFogMenuOpen(false);
+    }
+  }, [activeCanvasTool]);
+
   const setFogToolShape = (shape: FogToolShape) => {
     const nextTool = createFogTool(fogOperation, shape);
+    onCanvasToolChange(null);
     onFogToolChange(activeFogTool === nextTool ? null : nextTool);
   };
 
@@ -57,13 +69,29 @@ export function ToolsMenu({
           aria-label={fogMenuOpen ? "Close fog tools" : "Open fog tools"}
           title={fogMenuOpen ? "Close Fog of War Tools" : "Fog of War Tools"}
           onClick={() => {
-            setFogMenuOpen((open) => !open);
+            const nextOpen = !fogMenuOpen;
+            setFogMenuOpen(nextOpen);
+            if (nextOpen) {
+              onCanvasToolChange(null);
+            }
             if (fogMenuOpen) {
               onFogToolChange(null);
             }
           }}
         >
           <CloudFog size={18} aria-hidden="true" />
+        </button>
+        <button
+          className={activeCanvasTool === "ruler" ? "tool-circle-button tool-active" : "tool-circle-button"}
+          aria-label="Ruler"
+          title="Ruler"
+          onClick={() => {
+            setFogMenuOpen(false);
+            onFogToolChange(null);
+            onCanvasToolChange(activeCanvasTool === "ruler" ? null : "ruler");
+          }}
+        >
+          <Ruler size={18} aria-hidden="true" />
         </button>
       </div>
 

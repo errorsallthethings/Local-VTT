@@ -18,7 +18,8 @@ import {
 import { drawHexGrid, drawSquareGrid } from "../canvas/gridRenderer";
 import { getNearestGridPoint } from "../canvas/gridMath";
 import { drawMapSource } from "../canvas/mapRenderer";
-import { distanceBetween, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
+import { drawRuler, formatMeasurementDistance, getMeasurementDistance, getStraightLineMeasurementDistance, type RulerDrag, type RulerLabel } from "../canvas/measurement";
+import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
 import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
@@ -29,6 +30,7 @@ interface SceneCanvasProps {
   mode: "gm" | "player";
   className?: string;
   interactive?: boolean;
+  canvasTool?: "ruler" | null;
   fogTool?: FogTool | null;
   selectedFogShapeId?: string | null;
   selectedTokenId?: string | null;
@@ -68,6 +70,7 @@ export function SceneCanvas({
   mode,
   className,
   interactive = true,
+  canvasTool = null,
   fogTool = null,
   selectedFogShapeId = null,
   selectedTokenId = null,
@@ -82,12 +85,14 @@ export function SceneCanvas({
   const [failedTokenImageIds, setFailedTokenImageIds] = useState<Set<string>>(() => new Set());
   const [mapLoadStatus, setMapLoadStatus] = useState<MapLoadStatus>("idle");
   const [fogPreview, setFogPreview] = useState<FogDrag | null>(null);
+  const [rulerDrag, setRulerDrag] = useState<RulerDrag | null>(null);
   const [tokenDragPreview, setTokenDragPreview] = useState<TokenDragPreview | null>(null);
   const [playerTokenTweenPositions, setPlayerTokenTweenPositions] = useState<TokenPositionOverrides | null>(null);
   const [polygonDraft, setPolygonDraft] = useState<FogPolygonDraft | null>(null);
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; camera: Camera } | null>(null);
+  const rulerDragRef = useRef<(RulerDrag & { pointerId: number }) | null>(null);
   const tokenDragRef = useRef<TokenDragState | null>(null);
   const fogDragRef = useRef<FogDrag | null>(null);
   const polygonDraftRef = useRef<FogPolygonDraft | null>(null);
@@ -164,6 +169,11 @@ export function SceneCanvas({
     setPolygonDraft(null);
     polygonDraftRef.current = null;
   }, [fogTool, scene?.id]);
+
+  useEffect(() => {
+    setRulerDrag(null);
+    rulerDragRef.current = null;
+  }, [canvasTool, scene?.id]);
 
   useEffect(() => {
     const previousScene = previousSceneRef.current;
@@ -416,6 +426,10 @@ export function SceneCanvas({
         drawTokens(ctx, scene, loadedTokenImages, mode, selectedTokenId, tokenDragPreview, playerTokenTweenPositionsRef.current);
       }
 
+      if (mode === "gm" && rulerDrag) {
+        drawRuler(ctx, rulerDrag, getRulerLabel(rulerDrag, scene), scene.grid, renderCamera.zoom);
+      }
+
       ctx.restore();
 
       if (canShowFog) {
@@ -447,7 +461,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [camera, canShowFog, canShowGrid, canShowMap, canShowTokens, fogPreview, fogTool, isVideoMap, loadedMap, loadedTokenImages, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, scene, selectedFogShapeId, selectedTokenId, snapPoint, tokenDragPreview]);
+  }, [camera, canShowFog, canShowGrid, canShowMap, canShowTokens, fogPreview, fogTool, isVideoMap, loadedMap, loadedTokenImages, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, snapPoint, tokenDragPreview]);
 
   const onWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
     if (!interactive) {
@@ -475,6 +489,13 @@ export function SceneCanvas({
     }
     event.currentTarget.setPointerCapture(event.pointerId);
     if (event.button === 2 && polygonDraftRef.current) {
+      return;
+    }
+    if (mode === "gm" && canvasTool === "ruler" && scene && event.button === 0) {
+      const point = getRulerPoint(event);
+      const nextRulerDrag = { pointerId: event.pointerId, start: point, current: point };
+      rulerDragRef.current = nextRulerDrag;
+      setRulerDrag(nextRulerDrag);
       return;
     }
     if (mode === "gm" && fogTool && scene && onSceneChange && event.button === 0) {
@@ -529,6 +550,14 @@ export function SceneCanvas({
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const tokenDrag = tokenDragRef.current;
+    const rulerDragValue = rulerDragRef.current;
+    if (rulerDragValue?.pointerId === event.pointerId) {
+      const nextRulerDrag = { ...rulerDragValue, current: getRulerPoint(event) };
+      rulerDragRef.current = nextRulerDrag;
+      setRulerDrag(nextRulerDrag);
+      return;
+    }
+
     if (tokenDrag?.pointerId === event.pointerId && scene) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const token = scene.tokens.find((candidate) => candidate.id === tokenDrag.tokenId);
@@ -618,6 +647,12 @@ export function SceneCanvas({
       return;
     }
 
+    if (rulerDragRef.current?.pointerId === event.pointerId) {
+      rulerDragRef.current = null;
+      setRulerDrag(null);
+      return;
+    }
+
     if (dragRef.current?.pointerId === event.pointerId) {
       dragRef.current = null;
       setIsPanning(false);
@@ -687,9 +722,17 @@ export function SceneCanvas({
 
   const getToolPoint = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
     const worldPoint = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-    const snappedPoint = scene && isSnapModifier(event) ? getNearestGridPoint(worldPoint, scene.grid) : null;
+    const snappedPoint = scene && isSnapModifier(event) ? getFogSnapPoint(worldPoint, scene) : null;
     setSnapPoint(snappedPoint);
     return snappedPoint ?? worldPoint;
+  };
+
+  const getRulerPoint = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
+    const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+    if (!scene || !isSnapModifier(event)) {
+      return point;
+    }
+    return getRulerSnapPoint(point, scene) ?? point;
   };
 
   const updateSnapPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -697,7 +740,7 @@ export function SceneCanvas({
       setSnapPoint(null);
       return;
     }
-    setSnapPoint(getNearestGridPoint(eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)), scene.grid));
+    setSnapPoint(getFogSnapPoint(eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)), scene));
   };
 
   const commitPolygonDraft = () => {
@@ -787,7 +830,7 @@ export function SceneCanvas({
         ))}
       <canvas
         ref={canvasRef}
-        className={`scene-canvas ${isPanning ? "scene-canvas-panning" : getCanvasToolClass(fogTool)}`}
+        className={`scene-canvas ${isPanning ? "scene-canvas-panning" : getCanvasToolClass(fogTool, canvasTool)}`}
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -800,6 +843,7 @@ export function SceneCanvas({
       {mode === "gm" && fogTool && (
         <FogToolStatusStrip fogTool={fogTool} polygonPointCount={polygonDraft?.points.length ?? 0} brushSize={scene?.fog.brushSize ?? 0} />
       )}
+      {mode === "gm" && canvasTool === "ruler" && <RulerStatusStrip rulerDrag={rulerDrag} scene={scene} />}
       {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip waypointCount={tokenDragPreview.waypoints.length} />}
       {showMapOverlay && <MapLoadOverlay message={mapOverlayMessage} showSpinner={mapLoadStatus === "loading"} />}
       {mode === "gm" && showVideoDiagnostics && isVideoMap && videoDebug && <div className="video-debug">{videoDebug}</div>}
@@ -866,6 +910,29 @@ function TokenMoveStatusStrip({ waypointCount }: { waypointCount: number }) {
   );
 }
 
+function RulerStatusStrip({ rulerDrag, scene }: { rulerDrag: RulerDrag | null; scene: Scene | null }) {
+  const label = rulerDrag && scene ? getRulerLabel(rulerDrag, scene) : null;
+  return (
+    <div className="canvas-tool-status" aria-live="polite">
+      <strong>Ruler</strong>
+      <span>Left-drag to measure.</span>
+      <span>Ctrl/Cmd snaps to grid points.</span>
+      {label && <span>{label.secondary ? `${label.primary} (${label.secondary})` : label.primary}</span>}
+      <span>Release to clear.</span>
+    </div>
+  );
+}
+
+function getRulerLabel(rulerDrag: RulerDrag, scene: Scene): RulerLabel {
+  const primary = formatMeasurementDistance(getMeasurementDistance(rulerDrag.start, rulerDrag.current, scene.grid), scene.grid.measurement, scene.grid.type);
+  if (scene.grid.type === "gridless" || scene.grid.measurement.distanceMode === "euclidean") {
+    return { primary };
+  }
+
+  const straightLine = formatMeasurementDistance(getStraightLineMeasurementDistance(rulerDrag.start, rulerDrag.current, scene.grid), scene.grid.measurement, scene.grid.type);
+  return { primary, secondary: `Straight: ${straightLine}` };
+}
+
 function getPlayerDisplayScale(campaign: Campaign | null, scene: Scene | null, mode: "gm" | "player"): number {
   if (mode !== "player" || !campaign?.playerDisplay?.physicalScaleEnabled || !scene || scene.grid.sizePx <= 0) {
     return 1;
@@ -885,7 +952,30 @@ function eventToWorldPoint(event: React.PointerEvent<HTMLCanvasElement>, camera:
   };
 }
 
-function getCanvasToolClass(fogTool: FogTool | null): string {
+function getRulerSnapPoint(point: Point, scene: Scene): Point | null {
+  if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
+    return null;
+  }
+  if (scene.grid.type === "hex") {
+    return getNearestHexCenter(point, scene.grid);
+  }
+  return getNearestGridCellCenter(point, scene.grid);
+}
+
+function getFogSnapPoint(point: Point, scene: Scene): Point | null {
+  if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
+    return null;
+  }
+  if (scene.grid.type === "hex") {
+    return getNearestHexVertex(point, scene.grid);
+  }
+  return getNearestGridPoint(point, scene.grid);
+}
+
+function getCanvasToolClass(fogTool: FogTool | null, canvasTool: "ruler" | null): string {
+  if (canvasTool === "ruler") {
+    return "scene-canvas-tool-ruler";
+  }
   if (!fogTool) {
     return "";
   }
