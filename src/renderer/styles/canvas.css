@@ -144,26 +144,28 @@
   pointer-events: none;
 }
 
-.gm-view-settings {
+.video-map-controls {
   position: absolute;
-  top: 104px;
-  left: 12px;
+  right: 12px;
+  bottom: 12px;
   z-index: 5;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-overlay);
+  padding: 5px;
+  box-shadow: var(--shadow-panel);
 }
 
-.gm-settings-trigger {
+.video-map-controls .icon-button {
   color: var(--color-text-soft);
 }
 
-.gm-settings-menu {
-  position: absolute;
-  top: 0;
-  left: calc(100% + 8px);
-  display: grid;
-  min-width: 220px;
+.video-map-controls .icon-button:hover:not(:disabled),
+.video-map-control-active {
+  color: var(--color-text-strong);
 }
 
 .statusbar {

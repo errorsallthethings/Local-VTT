@@ -120,6 +120,19 @@
   font-weight: 700;
 }
 
+.scene-library-empty {
+  display: block;
+  min-width: 0;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text-faint);
+  padding: 11px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: normal;
+}
+
 .scene-folder-drop-target .scene-folder-empty {
   border-color: var(--color-accent);
   background: rgb(122 162 247 / 0.08);

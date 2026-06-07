@@ -69,6 +69,7 @@ export function SceneLibraryPanel({
 
   const getDropTargetId = (folderId?: string) => folderId ?? "root";
   const unfiledScenes = campaign?.scenes.filter((scene) => !scene.folderId) ?? [];
+  const emptySceneMessage = getSceneLibraryEmptyMessage(campaign);
 
   const renderSceneCard = (scene: CampaignSceneEntry) => {
     const isDirty = dirtySceneIds.has(scene.id);
@@ -194,6 +195,7 @@ export function SceneLibraryPanel({
         onDragLeave={(event) => onSceneDragLeave(event)}
         onDrop={(event) => onSceneDrop(event)}
       >
+        {emptySceneMessage && <div className="scene-library-empty">{emptySceneMessage}</div>}
         {campaign?.sceneFolders.map((folder, folderIndex) => {
           const folderScenes = campaign.scenes.filter((scene) => scene.folderId === folder.id);
           const folderHasDirtyScenes = folderScenes.some((scene) => dirtySceneIds.has(scene.id));
@@ -300,12 +302,22 @@ export function SceneLibraryPanel({
         >
           {campaign && campaign.sceneFolders.length > 0 && <div className="scene-folder-header unfiled-header">Unfiled Scenes</div>}
           <div className="scene-folder-scenes">
-            {unfiledScenes.length > 0 ? unfiledScenes.map(renderSceneCard) : campaign && <div className="scene-folder-empty">Drop scenes here</div>}
+            {unfiledScenes.length > 0 ? unfiledScenes.map(renderSceneCard) : campaign && campaign.scenes.length > 0 && <div className="scene-folder-empty">Drop scenes here</div>}
           </div>
         </div>
       </div>
     </section>
   );
+}
+
+function getSceneLibraryEmptyMessage(campaign: Campaign | null): string | null {
+  if (!campaign) {
+    return "Create or open a campaign before adding scenes.";
+  }
+  if (campaign.scenes.length === 0) {
+    return "No scenes yet. Use Add Scene to create the first scene in this campaign.";
+  }
+  return null;
 }
 
 function hexToRgba(hex: string, alpha: number): string {

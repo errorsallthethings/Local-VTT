@@ -107,15 +107,15 @@ npm run package:win
 
 - `.mp4` and `.webm` maps can be imported as video map assets.
 - Video maps render in the GM and Player canvas, muted and looped.
-- Video map playback can be paused/resumed, muted/unmuted, and inspected with optional diagnostics from the GM settings menu.
+- Video map playback can be paused/resumed, muted/unmuted, and inspected with optional diagnostics from contextual GM canvas controls.
 - Video map scenes use generated JPEG thumbnails when available, with a lightweight video fallback if thumbnail capture fails.
 - Animated `.gif` image maps are redrawn continuously when used as the active map.
 - Grid mode supports gridless, square, and hex options from the Grid Layer.
 - Static image maps can use known map grid dimensions, such as 44x25, to calculate a matching grid cell size.
 - Player View can be opened, fullscreened, exited from fullscreen, and closed from the Player View menu.
 - Player View can target a saved display and optionally open fullscreen there. If the saved display is missing, LocalVTT falls back to a normal draggable Player View window.
-- Player Display Scale is available from the GM settings menu.
-- Measurement settings are available from the GM settings menu.
+- Player View display selection and Player Display Scale are available from the Player View menu.
+- Measurement settings are available from the Grid Layer settings when square or hex grids are active.
 - Static image and video scene thumbnails are shown in the scene list when available.
 - GM View side panels can be resized, collapsed, and restored with persistent local workspace layout preferences.
 - Scene folders support collapse state persistence, drag/drop targets, folder colors, and color preset swatches.

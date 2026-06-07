@@ -43,7 +43,7 @@
   min-width: 132px;
 }
 
-:is(.scene-menu, .token-settings-menu, .gm-settings-menu) {
+:is(.scene-menu, .token-settings-menu) {
   gap: 4px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-control);
@@ -52,7 +52,7 @@
   padding: 6px;
 }
 
-:is(.scene-menu, .token-settings-menu, .gm-settings-menu) button,
+:is(.scene-menu, .token-settings-menu) button,
 .token-menu-action {
   display: inline-flex;
   align-items: center;
@@ -70,24 +70,24 @@
   white-space: nowrap;
 }
 
-:is(.scene-menu, .token-settings-menu, .gm-settings-menu) button:hover:not(:disabled),
+:is(.scene-menu, .token-settings-menu) button:hover:not(:disabled),
 .token-menu-action:hover:not(:disabled) {
   background: #253146;
   color: var(--color-text-strong);
 }
 
-:is(.scene-menu, .token-settings-menu, .gm-settings-menu) button:disabled,
+:is(.scene-menu, .token-settings-menu) button:disabled,
 .token-menu-action:disabled {
   opacity: 0.48;
   cursor: not-allowed;
 }
 
-:is(.scene-menu, .token-settings-menu, .gm-settings-menu) .danger-menu-item,
+:is(.scene-menu, .token-settings-menu) .danger-menu-item,
 .token-menu-delete {
   color: var(--color-danger);
 }
 
-:is(.scene-menu, .token-settings-menu, .gm-settings-menu) .danger-menu-item:hover:not(:disabled),
+:is(.scene-menu, .token-settings-menu) .danger-menu-item:hover:not(:disabled),
 .token-menu-delete:hover:not(:disabled) {
   background: var(--color-danger-menu-hover);
   color: var(--color-danger);

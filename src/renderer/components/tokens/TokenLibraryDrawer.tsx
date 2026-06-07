@@ -76,7 +76,9 @@ export function TokenLibraryDrawer({
           title="Drag to resize. Double-click to reset."
           onPointerDown={onStartResize}
           onDoubleClick={onResetHeight}
-        />
+        >
+          <GripHorizontal size={15} aria-hidden="true" />
+        </button>
       )}
       <div className="token-library-header">
         <button

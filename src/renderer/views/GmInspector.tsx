@@ -74,11 +74,10 @@ export function GmInspector({
       {workspaceLayout.rightCollapsed && <div className="panel-spine-label">Layers</div>}
       {!workspaceLayout.rightCollapsed && (
         <div className="panel-region-content">
-          {activeScene ? (
-            <>
-              <div className="section-heading">
-                <h2>Layers</h2>
-                <div className="section-actions">
+          <div className="section-heading">
+            <h2>Layers</h2>
+            {activeScene && (
+              <div className="section-actions">
                   <button
                     className="icon-button"
                     aria-label={activeScene.layerOrderLocked ? "Unlock layer order" : "Lock layer order"}
@@ -87,8 +86,11 @@ export function GmInspector({
                   >
                     {activeScene.layerOrderLocked ? <Lock size={15} aria-hidden="true" /> : <Unlock size={15} aria-hidden="true" />}
                   </button>
-                </div>
               </div>
+            )}
+          </div>
+          {activeScene ? (
+            <>
               <LayerPanel
                 scene={activeScene}
                 mapAsset={mapAsset}
@@ -115,8 +117,10 @@ export function GmInspector({
             </>
           ) : (
             <section className="panel">
-              <h2>Ready</h2>
-              <p>Create a campaign, add a scene, import a map, then send it to Player View.</p>
+              <div className="layer-empty-state">
+                <strong>No Scene Selected</strong>
+                <span>Layers will appear once a campaign is open and a scene is selected.</span>
+              </div>
             </section>
           )}
         </div>

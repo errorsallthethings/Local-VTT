@@ -18,7 +18,7 @@ import { SceneCanvas } from "../components/SceneCanvas";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type CanvasTool, type FogOperation } from "../components/tools/ToolsMenu";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
-import { GmSettingsMenu } from "../components/workspace/GmSettingsMenu";
+import { VideoMapControls } from "../components/workspace/VideoMapControls";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import type { FogTool } from "../canvas/fogRenderer";
 import { useCampaignActions } from "../hooks/useCampaignActions";
@@ -101,7 +101,6 @@ export function GmApp() {
   const [openSceneMenuId, setOpenSceneMenuId] = useState<string | null>(null);
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null);
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
-  const [gmSettingsOpen, setGmSettingsOpen] = useState(false);
   const [playerDisplayDialogOpen, setPlayerDisplayDialogOpen] = useState(false);
   const [playerViewDisplayDialogOpen, setPlayerViewDisplayDialogOpen] = useState(false);
   const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasTool | null>(null);
@@ -200,8 +199,7 @@ export function GmApp() {
       !confirmClearFogOpen &&
       !openSceneMenuId &&
       !openFolderMenuId &&
-      !playerMenuOpen &&
-      !gmSettingsOpen
+      !playerMenuOpen
     ) {
       return;
     }
@@ -228,7 +226,6 @@ export function GmApp() {
         setOpenSceneMenuId(null);
         setOpenFolderMenuId(null);
         setPlayerMenuOpen(false);
-        setGmSettingsOpen(false);
       }
     };
 
@@ -246,7 +243,6 @@ export function GmApp() {
     tokenAssetDialog,
     tokenColorDialog,
     folderToDelete,
-    gmSettingsOpen,
     mapAssetToDelete,
     tokenAssetToDelete,
     openFolderMenuId,
@@ -266,6 +262,13 @@ export function GmApp() {
       setOpenSceneMenuId(null);
       setOpenFolderMenuId(null);
     },
+    closeOnEscape: false
+  });
+
+  useDismissableMenu({
+    enabled: playerMenuOpen,
+    menuRootClass: "player-view-menu-wrap",
+    onDismiss: () => setPlayerMenuOpen(false),
     closeOnEscape: false
   });
 
@@ -882,11 +885,20 @@ export function GmApp() {
 
       <main className="workspace">
         <WorkspaceTopbar
+          campaign={campaign}
           activeScene={activeScene}
           mapAsset={mapAsset}
           playerMenuOpen={playerMenuOpen}
           onSendToPlayer={sendToPlayer}
           onTogglePlayerMenu={() => setPlayerMenuOpen((open) => !open)}
+          onOpenPlayerDisplayScale={() => {
+            setPlayerDisplayDialogOpen(true);
+            setPlayerMenuOpen(false);
+          }}
+          onOpenPlayerViewDisplay={() => {
+            setPlayerViewDisplayDialogOpen(true);
+            setPlayerMenuOpen(false);
+          }}
           onSetPlayerFullscreen={(fullscreen) => void setPlayerFullscreen(fullscreen)}
           onClosePlayerView={closePlayerView}
         />
@@ -922,23 +934,7 @@ export function GmApp() {
             onDropTokenAsset={dropLibraryTokenOnScene}
             onViewportCenterChange={setGmCanvasCenter}
           />
-          <GmSettingsMenu
-            open={gmSettingsOpen}
-            campaign={campaign}
-            activeScene={activeScene}
-            activeMapIsVideo={activeMapIsVideo}
-            videoPlayback={videoPlayback}
-            onToggleOpen={() => setGmSettingsOpen((open) => !open)}
-            onOpenPlayerDisplayScale={() => {
-              setPlayerDisplayDialogOpen(true);
-              setGmSettingsOpen(false);
-            }}
-            onOpenPlayerViewDisplay={() => {
-              setPlayerViewDisplayDialogOpen(true);
-              setGmSettingsOpen(false);
-            }}
-            onUpdateVideoPlayback={updateVideoPlayback}
-          />
+          {activeMapIsVideo && <VideoMapControls videoPlayback={videoPlayback} onUpdateVideoPlayback={updateVideoPlayback} />}
         </div>
 
         <TokenLibraryDrawer
