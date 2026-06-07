@@ -31,6 +31,7 @@ import {
   COLLAPSED_RAIL_WIDTH,
   COMPACT_RIGHT_PANEL_WIDTH,
   WORKSPACE_LAYOUT_STORAGE_KEY,
+  clamp,
   getWorkspacePanelWidth,
   loadWorkspaceLayout,
   resetPanelWidth as resetWorkspacePanelWidth,
@@ -45,6 +46,8 @@ import {
   type FolderColorDialog,
   type FolderNameDialog,
   type SceneColorDialog,
+  type TokenAssetDeleteDialog,
+  type TokenAssetNameDialog,
   type TokenCropDialogState,
   type SceneNameDialog,
   type TokenColorDialog,
@@ -52,6 +55,11 @@ import {
 } from "./GmDialogs";
 import { GmInspector } from "./GmInspector";
 import { GmSidebar } from "./GmSidebar";
+
+const TOKEN_LIBRARY_HEIGHT_STORAGE_KEY = "localvtt.tokenLibraryHeight";
+const DEFAULT_TOKEN_LIBRARY_HEIGHT = 238;
+const MIN_TOKEN_LIBRARY_HEIGHT = 170;
+const MAX_TOKEN_LIBRARY_HEIGHT = 460;
 
 export function GmApp() {
   const workspace = useCampaignWorkspace();
@@ -81,6 +89,7 @@ export function GmApp() {
   const [fogShapeDialog, setFogShapeDialog] = useState<FogShapeNameDialog | null>(null);
   const [tokenDialog, setTokenDialog] = useState<TokenNameDialog | null>(null);
   const [tokenCropDialog, setTokenCropDialog] = useState<TokenCropDialogState | null>(null);
+  const [tokenAssetDialog, setTokenAssetDialog] = useState<TokenAssetNameDialog | null>(null);
   const [tokenColorDialog, setTokenColorDialog] = useState<TokenColorDialog | null>(null);
   const [folderColorDialog, setFolderColorDialog] = useState<FolderColorDialog | null>(null);
   const [sceneColorDialog, setSceneColorDialog] = useState<SceneColorDialog | null>(null);
@@ -88,6 +97,7 @@ export function GmApp() {
   const [sceneToDelete, setSceneToDelete] = useState<CampaignSceneEntry | null>(null);
   const [folderToDelete, setFolderToDelete] = useState<CampaignSceneFolder | null>(null);
   const [mapAssetToDelete, setMapAssetToDelete] = useState<Asset | null>(null);
+  const [tokenAssetToDelete, setTokenAssetToDelete] = useState<TokenAssetDeleteDialog | null>(null);
   const [openSceneMenuId, setOpenSceneMenuId] = useState<string | null>(null);
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null);
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
@@ -111,6 +121,8 @@ export function GmApp() {
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
+  const [gmCanvasCenter, setGmCanvasCenter] = useState<Point | null>(null);
+  const [tokenLibraryHeight, setTokenLibraryHeight] = useState(() => loadTokenLibraryHeight());
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
 
   const mapAsset = useMemo(() => {
@@ -175,6 +187,7 @@ export function GmApp() {
       !fogShapeDialog &&
       !tokenDialog &&
       !tokenCropDialog &&
+      !tokenAssetDialog &&
       !folderColorDialog &&
       !tokenColorDialog &&
       !sceneColorDialog &&
@@ -185,6 +198,7 @@ export function GmApp() {
       !sceneToDelete &&
       !folderToDelete &&
       !mapAssetToDelete &&
+      !tokenAssetToDelete &&
       !confirmClearFogOpen &&
       !openSceneMenuId &&
       !openFolderMenuId &&
@@ -201,6 +215,7 @@ export function GmApp() {
         setFogShapeDialog(null);
         setTokenDialog(null);
         void cancelTokenCrop();
+        setTokenAssetDialog(null);
         setFolderColorDialog(null);
         setTokenColorDialog(null);
         setSceneColorDialog(null);
@@ -211,6 +226,7 @@ export function GmApp() {
         setSceneToDelete(null);
         setFolderToDelete(null);
         setMapAssetToDelete(null);
+        setTokenAssetToDelete(null);
         setConfirmClearFogOpen(false);
         setOpenSceneMenuId(null);
         setOpenFolderMenuId(null);
@@ -230,10 +246,12 @@ export function GmApp() {
     fogShapeDialog,
     tokenDialog,
     tokenCropDialog,
+    tokenAssetDialog,
     tokenColorDialog,
     folderToDelete,
     gmSettingsOpen,
     mapAssetToDelete,
+    tokenAssetToDelete,
     measurementDialogOpen,
     openFolderMenuId,
     openSceneMenuId,
@@ -301,6 +319,10 @@ export function GmApp() {
     window.localStorage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(workspaceLayout));
   }, [workspaceLayout]);
 
+  useEffect(() => {
+    window.localStorage.setItem(TOKEN_LIBRARY_HEIGHT_STORAGE_KEY, String(tokenLibraryHeight));
+  }, [tokenLibraryHeight]);
+
   const resetSceneLibraryUi = () => {
     setOpenSceneMenuId(null);
     setOpenFolderMenuId(null);
@@ -361,12 +383,12 @@ export function GmApp() {
       setTokenCropDialog({ asset: result.asset, mode });
     });
 
-  const addImportedTokenToScene = (asset: Asset, syncCampaign: Campaign | null = campaign, placementPoint?: Point) => {
+  const addImportedTokenToScene = (asset: Asset, syncCampaign: Campaign | null = campaign, placementPoint: Point | null = gmCanvasCenter) => {
     if (!activeScene) {
       return;
     }
     const tokenId = crypto.randomUUID();
-    const nextToken = createImportedToken(activeScene, asset, tokenId, placementPoint);
+    const nextToken = createImportedToken(activeScene, asset, tokenId, placementPoint ?? undefined);
     updateScene(
       {
         ...activeScene,
@@ -450,6 +472,21 @@ export function GmApp() {
     setTokenDialog({ tokenId });
   };
 
+  const openRenameTokenAssetDialog = (asset: Asset) => {
+    setNewTokenName(asset.name || asset.originalFileName || "Token");
+    setTokenAssetDialog({ assetId: asset.id });
+  };
+
+  const openDeleteTokenAssetDialog = (asset: Asset) =>
+    run(async () => {
+      if (!campaignPath || !campaign) {
+        return;
+      }
+      const savedUsage = await window.localVtt.getTokenAssetUsage(campaignPath, asset.id);
+      const usage = mergeTokenAssetUsage(savedUsage, campaign, sceneDrafts, activeScene, asset.id);
+      setTokenAssetToDelete({ asset, usage });
+    });
+
   const openFolderColorDialog = (folder: CampaignSceneFolder) => {
     setOpenFolderMenuId(null);
     setNewFolderColor(folder.color);
@@ -511,6 +548,52 @@ export function GmApp() {
     });
     setTokenDialog(null);
   };
+
+  const submitTokenAssetName = () => {
+    if (!campaign || !tokenAssetDialog) {
+      return;
+    }
+    const name = newTokenName.trim();
+    if (!name) {
+      return;
+    }
+    updateCampaignDraft({
+      ...campaign,
+      assets: campaign.assets.map((asset) => (asset.id === tokenAssetDialog.assetId ? { ...asset, name } : asset)),
+      updatedAt: new Date().toISOString()
+    });
+    setTokenAssetDialog(null);
+  };
+
+  const confirmDeleteTokenAsset = () =>
+    run(async () => {
+      if (!campaignPath || !tokenAssetToDelete) {
+        return;
+      }
+      const deletedAssetId = tokenAssetToDelete.asset.id;
+      const result = await window.localVtt.deleteTokenAsset(campaignPath, deletedAssetId);
+      applySummary(result.campaignSummary, campaignDirty);
+      const changedScenesById = new Map(result.scenes.map((scene) => [scene.id, scene]));
+      setSceneDrafts((drafts) => {
+        const nextDrafts = { ...drafts };
+        for (const [sceneId, draft] of Object.entries(nextDrafts)) {
+          nextDrafts[sceneId] = removeSceneTokensByAsset(draft, deletedAssetId);
+        }
+        return nextDrafts;
+      });
+      const nextActiveScene =
+        activeScene && (changedScenesById.has(activeScene.id) || activeScene.tokens.some((token) => token.assetId === deletedAssetId))
+          ? removeSceneTokensByAsset(changedScenesById.get(activeScene.id) ?? activeScene, deletedAssetId)
+          : activeScene;
+      if (nextActiveScene) {
+        setActiveScene(nextActiveScene);
+        if (nextActiveScene.id === playerSceneId) {
+          void window.localVtt.updatePlayerSceneIfOpen(result.campaignSummary.campaign, nextActiveScene);
+        }
+      }
+      setSelectedTokenId((tokenId) => (nextActiveScene?.tokens.some((token) => token.id === tokenId) ? tokenId : null));
+      setTokenAssetToDelete(null);
+    });
 
   const submitFolderColor = () => {
     if (!campaign || !folderColorDialog) {
@@ -708,9 +791,33 @@ export function GmApp() {
     setWorkspaceLayout((layout) => resetWorkspacePanelWidth(layout, side));
   };
 
+  const startTokenLibraryResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    const startY = event.clientY;
+    const startHeight = tokenLibraryHeight;
+
+    const resizeDrawer = (moveEvent: PointerEvent) => {
+      setTokenLibraryHeight(clamp(startHeight + startY - moveEvent.clientY, MIN_TOKEN_LIBRARY_HEIGHT, MAX_TOKEN_LIBRARY_HEIGHT));
+    };
+    const stopResize = () => {
+      document.body.classList.remove("resizing-token-library");
+      window.removeEventListener("pointermove", resizeDrawer);
+      window.removeEventListener("pointerup", stopResize);
+    };
+
+    document.body.classList.add("resizing-token-library");
+    window.addEventListener("pointermove", resizeDrawer);
+    window.addEventListener("pointerup", stopResize, { once: true });
+  };
+
+  const resetTokenLibraryHeight = () => {
+    setTokenLibraryHeight(DEFAULT_TOKEN_LIBRARY_HEIGHT);
+  };
+
   const appShellStyle = {
     "--left-sidebar-width": `${workspaceLayout.leftCollapsed ? COLLAPSED_RAIL_WIDTH : workspaceLayout.leftWidth}px`,
-    "--right-inspector-width": `${workspaceLayout.rightCollapsed ? COLLAPSED_RAIL_WIDTH : workspaceLayout.rightWidth}px`
+    "--right-inspector-width": `${workspaceLayout.rightCollapsed ? COLLAPSED_RAIL_WIDTH : workspaceLayout.rightWidth}px`,
+    "--token-library-expanded-height": `${tokenLibraryHeight}px`
   } as CSSProperties;
   const appShellClassName = [
     "app-shell",
@@ -818,6 +925,7 @@ export function GmApp() {
             onSceneChange={updateCanvasScene}
             onSelectToken={setSelectedTokenId}
             onDropTokenAsset={dropLibraryTokenOnScene}
+            onViewportCenterChange={setGmCanvasCenter}
           />
           <GmSettingsMenu
             open={gmSettingsOpen}
@@ -847,8 +955,12 @@ export function GmApp() {
           expanded={tokenLibraryExpanded}
           activeSceneName={activeScene?.name}
           onToggleExpanded={() => setTokenLibraryExpanded((expanded) => !expanded)}
+          onStartResize={startTokenLibraryResize}
+          onResetHeight={resetTokenLibraryHeight}
           onImportToken={() => void importToken("library")}
           onAddToken={addLibraryTokenToScene}
+          onRenameToken={openRenameTokenAssetDialog}
+          onDeleteToken={(asset) => void openDeleteTokenAssetDialog(asset)}
         />
 
         <footer className="statusbar">
@@ -898,6 +1010,7 @@ export function GmApp() {
         fogShapeDialog={fogShapeDialog}
         tokenDialog={tokenDialog}
         tokenCropDialog={tokenCropDialog}
+        tokenAssetDialog={tokenAssetDialog}
         folderColorDialog={folderColorDialog}
         sceneColorDialog={sceneColorDialog}
         tokenColorDialog={tokenColorDialog}
@@ -908,6 +1021,7 @@ export function GmApp() {
         sceneToDelete={sceneToDelete}
         folderToDelete={folderToDelete}
         mapAssetToDelete={mapAssetToDelete}
+        tokenAssetToDelete={tokenAssetToDelete}
         confirmClearFogOpen={confirmClearFogOpen}
         campaign={campaign}
         activeScene={activeScene}
@@ -931,6 +1045,7 @@ export function GmApp() {
         onCancelFogShapeDialog={() => setFogShapeDialog(null)}
         onCancelTokenDialog={() => setTokenDialog(null)}
         onCancelTokenCropDialog={() => void cancelTokenCrop()}
+        onCancelTokenAssetDialog={() => setTokenAssetDialog(null)}
         onCancelFolderColorDialog={() => setFolderColorDialog(null)}
         onCancelSceneColorDialog={() => setSceneColorDialog(null)}
         onCancelTokenColorDialog={() => setTokenColorDialog(null)}
@@ -941,12 +1056,14 @@ export function GmApp() {
         onCancelSceneDelete={() => setSceneToDelete(null)}
         onCancelFolderDelete={() => setFolderToDelete(null)}
         onCancelMapAssetDelete={() => setMapAssetToDelete(null)}
+        onCancelTokenAssetDelete={() => setTokenAssetToDelete(null)}
         onCancelClearFog={() => setConfirmClearFogOpen(false)}
         onSubmitSceneName={() => void submitSceneName()}
         onSubmitFolderName={submitFolderName}
         onSubmitFogShapeName={submitFogShapeName}
         onSubmitTokenName={submitTokenName}
         onSubmitTokenCrop={(crop) => void submitTokenCrop(crop)}
+        onSubmitTokenAssetName={submitTokenAssetName}
         onUseDefaultTokenCrop={() => {
           if (!tokenCropDialog) {
             return;
@@ -968,8 +1085,59 @@ export function GmApp() {
         onConfirmDeleteScene={(scene) => void deleteScene(scene)}
         onConfirmDeleteFolder={deleteFolder}
         onConfirmDeleteMapAsset={() => void confirmDeleteMapAsset()}
+        onConfirmDeleteTokenAsset={() => void confirmDeleteTokenAsset()}
         onConfirmClearFog={clearFogShapes}
       />
     </div>
   );
+}
+
+function loadTokenLibraryHeight(): number {
+  const storedHeight = Number(window.localStorage.getItem(TOKEN_LIBRARY_HEIGHT_STORAGE_KEY));
+  if (!Number.isFinite(storedHeight)) {
+    return DEFAULT_TOKEN_LIBRARY_HEIGHT;
+  }
+  return clamp(storedHeight, MIN_TOKEN_LIBRARY_HEIGHT, MAX_TOKEN_LIBRARY_HEIGHT);
+}
+
+function removeSceneTokensByAsset(scene: Scene, assetId: string): Scene {
+  if (!scene.tokens.some((token) => token.assetId === assetId)) {
+    return scene;
+  }
+  return {
+    ...scene,
+    tokens: scene.tokens.filter((token) => token.assetId !== assetId),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function mergeTokenAssetUsage(
+  savedUsage: Array<{ sceneId: string; sceneName: string; count: number }>,
+  campaign: Campaign,
+  sceneDrafts: Record<string, Scene>,
+  activeScene: Scene | null,
+  assetId: string
+): Array<{ sceneId: string; sceneName: string; count: number }> {
+  const sceneOrder = new Map(campaign.scenes.map((scene, index) => [scene.id, index]));
+  const sceneNames = new Map(campaign.scenes.map((scene) => [scene.id, scene.name]));
+  const usageByScene = new Map(savedUsage.map((usage) => [usage.sceneId, usage]));
+  const localScenes = new Map(Object.entries(sceneDrafts));
+  if (activeScene) {
+    localScenes.set(activeScene.id, activeScene);
+  }
+
+  for (const [sceneId, scene] of localScenes) {
+    const count = scene.tokens.filter((token) => token.assetId === assetId).length;
+    if (count > 0) {
+      usageByScene.set(sceneId, {
+        sceneId,
+        sceneName: sceneNames.get(sceneId) ?? scene.name,
+        count
+      });
+    } else {
+      usageByScene.delete(sceneId);
+    }
+  }
+
+  return [...usageByScene.values()].sort((a, b) => (sceneOrder.get(a.sceneId) ?? Number.MAX_SAFE_INTEGER) - (sceneOrder.get(b.sceneId) ?? Number.MAX_SAFE_INTEGER));
 }

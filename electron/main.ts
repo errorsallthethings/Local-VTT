@@ -261,6 +261,24 @@ async function findMissingAssets(campaignPath: string, assets: Asset[]): Promise
   return missing;
 }
 
+async function getTokenAssetUsage(campaignPath: string, campaign: Campaign, assetId: string): Promise<Array<{ sceneId: string; sceneName: string; count: number }>> {
+  const usage = [];
+  for (const entry of campaign.scenes) {
+    try {
+      const raw = await readFile(sceneFile(campaignPath, entry.id), "utf8");
+      const scene = JSON.parse(raw) as unknown;
+      assertValidScene(scene);
+      const count = scene.tokens.filter((token) => token.assetId === assetId).length;
+      if (count > 0) {
+        usage.push({ sceneId: entry.id, sceneName: entry.name, count });
+      }
+    } catch {
+      // Missing or invalid scenes are reported elsewhere by scene loading.
+    }
+  }
+  return usage;
+}
+
 async function chooseDirectory(title: string, createDirectory = false): Promise<string | null> {
   const options: Electron.OpenDialogOptions = {
     title,
@@ -686,6 +704,63 @@ ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, 
   };
   await writeCampaign(campaignPath, campaign);
   return loadCampaignFromPath(campaignPath);
+});
+
+ipcMain.handle("asset:getTokenUsage", async (_event, campaignPath: string, assetId: string) => {
+  assertKnownCampaignPath(campaignPath);
+  const summary = await loadCampaignFromPath(campaignPath);
+  return getTokenAssetUsage(campaignPath, summary.campaign, assetId);
+});
+
+ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId: string) => {
+  assertKnownCampaignPath(campaignPath);
+  const summary = await loadCampaignFromPath(campaignPath);
+  const asset = summary.campaign.assets.find((candidate) => candidate.id === assetId && candidate.kind === "token");
+  if (!asset) {
+    throw new Error("Token asset was not found in this campaign.");
+  }
+
+  const changedScenes: Scene[] = [];
+  for (const entry of summary.campaign.scenes) {
+    try {
+      const raw = await readFile(sceneFile(campaignPath, entry.id), "utf8");
+      const scene = JSON.parse(raw) as unknown;
+      assertValidScene(scene);
+      if (!scene.tokens.some((token) => token.assetId === assetId)) {
+        continue;
+      }
+      const updatedScene = normalizeScene({
+        ...scene,
+        tokens: scene.tokens.filter((token) => token.assetId !== assetId),
+        updatedAt: new Date().toISOString()
+      });
+      await writeFile(sceneFile(campaignPath, entry.id), `${JSON.stringify(updatedScene, null, 2)}\n`, "utf8");
+      changedScenes.push(updatedScene);
+    } catch {
+      // Missing or invalid scenes are reported elsewhere by scene loading.
+    }
+  }
+
+  const pathsToRemove = [asset.absolutePath ?? path.resolve(campaignPath, asset.relativePath), asset.thumbnailAbsolutePath ?? (asset.thumbnailRelativePath ? path.resolve(campaignPath, asset.thumbnailRelativePath) : undefined)].filter((candidate): candidate is string => Boolean(candidate));
+  for (const assetPath of pathsToRemove) {
+    assertInsideCampaign(campaignPath, assetPath);
+    try {
+      await unlink(assetPath);
+    } catch (caught) {
+      const error = caught as NodeJS.ErrnoException;
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+
+  const campaign: Campaign = {
+    ...summary.campaign,
+    assets: summary.campaign.assets.filter((candidate) => candidate.id !== assetId),
+    updatedAt: new Date().toISOString()
+  };
+  await writeCampaign(campaignPath, campaign);
+  return { campaignSummary: await loadCampaignFromPath(campaignPath), scenes: changedScenes };
 });
 
 ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: string, assetId: string) => {

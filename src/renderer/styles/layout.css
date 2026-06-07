@@ -125,6 +125,12 @@
   user-select: none;
 }
 
+.resizing-token-library,
+.resizing-token-library * {
+  cursor: row-resize !important;
+  user-select: none;
+}
+
 .brand {
   display: flex;
   align-items: center;

@@ -41,6 +41,20 @@
   justify-content: flex-end;
 }
 
+.confirm-detail-list {
+  display: grid;
+  gap: 4px;
+  max-height: 140px;
+  overflow: auto;
+  margin: 8px 0 0;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-input);
+  color: var(--color-text-muted);
+  padding: 8px 10px 8px 24px;
+  font-size: 12px;
+}
+
 .token-crop-modal {
   width: min(420px, 100%);
 }

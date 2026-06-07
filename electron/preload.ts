@@ -24,6 +24,10 @@ const api = {
     ipcRenderer.invoke("asset:updateTokenThumbnail", campaignPath, assetId, crop) as Promise<{ campaignSummary: CampaignSummary; asset: Asset }>,
   discardTokenImport: (campaignPath: string, assetId: string) =>
     ipcRenderer.invoke("asset:discardTokenImport", campaignPath, assetId) as Promise<CampaignSummary>,
+  getTokenAssetUsage: (campaignPath: string, assetId: string) =>
+    ipcRenderer.invoke("asset:getTokenUsage", campaignPath, assetId) as Promise<Array<{ sceneId: string; sceneName: string; count: number }>>,
+  deleteTokenAsset: (campaignPath: string, assetId: string) =>
+    ipcRenderer.invoke("asset:deleteToken", campaignPath, assetId) as Promise<{ campaignSummary: CampaignSummary; scenes: Scene[] }>,
   deleteMapAsset: (campaignPath: string, sceneId: string, assetId: string) =>
     ipcRenderer.invoke("asset:deleteMap", campaignPath, sceneId, assetId) as Promise<{ campaignSummary: CampaignSummary; scene: Scene }>,
   openPlayerView: (options?: { displayId?: number; fullscreen?: boolean }) =>

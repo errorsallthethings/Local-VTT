@@ -25,6 +25,8 @@ export type FogShapeNameDialog = { shapeId: string };
 export type TokenNameDialog = { tokenId: string };
 export type TokenColorDialog = { tokenId: string; tokenName: string; value: string; kind: "border" | "glow" };
 export type TokenCropDialogState = { asset: Asset; mode: "scene" | "library" };
+export type TokenAssetNameDialog = { assetId: string };
+export type TokenAssetDeleteDialog = { asset: Asset; usage: Array<{ sceneId: string; sceneName: string; count: number }> };
 
 export function GmDialogs({
   sceneDialog,
@@ -32,6 +34,7 @@ export function GmDialogs({
   fogShapeDialog,
   tokenDialog,
   tokenCropDialog,
+  tokenAssetDialog,
   folderColorDialog,
   sceneColorDialog,
   tokenColorDialog,
@@ -42,6 +45,7 @@ export function GmDialogs({
   sceneToDelete,
   folderToDelete,
   mapAssetToDelete,
+  tokenAssetToDelete,
   confirmClearFogOpen,
   campaign,
   activeScene,
@@ -65,6 +69,7 @@ export function GmDialogs({
   onCancelFogShapeDialog,
   onCancelTokenDialog,
   onCancelTokenCropDialog,
+  onCancelTokenAssetDialog,
   onCancelFolderColorDialog,
   onCancelSceneColorDialog,
   onCancelTokenColorDialog,
@@ -75,12 +80,14 @@ export function GmDialogs({
   onCancelSceneDelete,
   onCancelFolderDelete,
   onCancelMapAssetDelete,
+  onCancelTokenAssetDelete,
   onCancelClearFog,
   onSubmitSceneName,
   onSubmitFolderName,
   onSubmitFogShapeName,
   onSubmitTokenName,
   onSubmitTokenCrop,
+  onSubmitTokenAssetName,
   onUseDefaultTokenCrop,
   onSubmitFolderColor,
   onUpdateSceneColorDraft,
@@ -93,6 +100,7 @@ export function GmDialogs({
   onConfirmDeleteScene,
   onConfirmDeleteFolder,
   onConfirmDeleteMapAsset,
+  onConfirmDeleteTokenAsset,
   onConfirmClearFog
 }: {
   sceneDialog: SceneNameDialog | null;
@@ -100,6 +108,7 @@ export function GmDialogs({
   fogShapeDialog: FogShapeNameDialog | null;
   tokenDialog: TokenNameDialog | null;
   tokenCropDialog: TokenCropDialogState | null;
+  tokenAssetDialog: TokenAssetNameDialog | null;
   folderColorDialog: FolderColorDialog | null;
   sceneColorDialog: SceneColorDialog | null;
   tokenColorDialog: TokenColorDialog | null;
@@ -110,6 +119,7 @@ export function GmDialogs({
   sceneToDelete: CampaignSceneEntry | null;
   folderToDelete: CampaignSceneFolder | null;
   mapAssetToDelete: Asset | null;
+  tokenAssetToDelete: TokenAssetDeleteDialog | null;
   confirmClearFogOpen: boolean;
   campaign: Campaign | null;
   activeScene: Scene | null;
@@ -133,6 +143,7 @@ export function GmDialogs({
   onCancelFogShapeDialog: () => void;
   onCancelTokenDialog: () => void;
   onCancelTokenCropDialog: () => void;
+  onCancelTokenAssetDialog: () => void;
   onCancelFolderColorDialog: () => void;
   onCancelSceneColorDialog: () => void;
   onCancelTokenColorDialog: () => void;
@@ -143,12 +154,14 @@ export function GmDialogs({
   onCancelSceneDelete: () => void;
   onCancelFolderDelete: () => void;
   onCancelMapAssetDelete: () => void;
+  onCancelTokenAssetDelete: () => void;
   onCancelClearFog: () => void;
   onSubmitSceneName: () => void;
   onSubmitFolderName: () => void;
   onSubmitFogShapeName: () => void;
   onSubmitTokenName: () => void;
   onSubmitTokenCrop: (crop: SquareCropRect) => void;
+  onSubmitTokenAssetName: () => void;
   onUseDefaultTokenCrop: () => void;
   onSubmitFolderColor: () => void;
   onUpdateSceneColorDraft: (value: string) => void;
@@ -161,6 +174,7 @@ export function GmDialogs({
   onConfirmDeleteScene: (scene: CampaignSceneEntry) => void;
   onConfirmDeleteFolder: (folder: CampaignSceneFolder) => void;
   onConfirmDeleteMapAsset: () => void;
+  onConfirmDeleteTokenAsset: () => void;
   onConfirmClearFog: () => void;
 }) {
   return (
@@ -221,6 +235,18 @@ export function GmDialogs({
           onCancel={onCancelTokenCropDialog}
           onUseDefault={onUseDefaultTokenCrop}
           onSubmit={onSubmitTokenCrop}
+        />
+      )}
+
+      {tokenAssetDialog && (
+        <NameDialog
+          title="Rename Library Token"
+          label="Token name"
+          value={newTokenName}
+          submitLabel="Save"
+          onChange={onNewTokenNameChange}
+          onCancel={onCancelTokenAssetDialog}
+          onSubmit={onSubmitTokenAssetName}
         />
       )}
 
@@ -337,6 +363,25 @@ export function GmDialogs({
         </ConfirmDialog>
       )}
 
+      {tokenAssetToDelete && (
+        <ConfirmDialog title="Delete Library Token" confirmLabel="Delete" onCancel={onCancelTokenAssetDelete} onConfirm={onConfirmDeleteTokenAsset}>
+          Delete <strong>{tokenAssetToDelete.asset.name}</strong> from the token library?
+          {tokenAssetToDelete.usage.length > 0 && (
+            <>
+              {" "}
+              This will also remove {formatTokenAssetUsage(tokenAssetToDelete.usage)}.
+              <ul className="confirm-detail-list">
+                {tokenAssetToDelete.usage.map((scene) => (
+                  <li key={scene.sceneId}>
+                    {scene.sceneName} ({scene.count})
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </ConfirmDialog>
+      )}
+
       {confirmClearFogOpen && (
         <ConfirmDialog
           title="Clear Fog Shapes"
@@ -349,4 +394,10 @@ export function GmDialogs({
       )}
     </>
   );
+}
+
+function formatTokenAssetUsage(usage: Array<{ sceneId: string; sceneName: string; count: number }>): string {
+  const tokenCount = usage.reduce((total, scene) => total + scene.count, 0);
+  const sceneCount = usage.length;
+  return `${tokenCount} token instance${tokenCount === 1 ? "" : "s"} from ${sceneCount} scene${sceneCount === 1 ? "" : "s"}`;
 }

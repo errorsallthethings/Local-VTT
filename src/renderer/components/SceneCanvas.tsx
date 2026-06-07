@@ -57,6 +57,7 @@ interface SceneCanvasProps {
   onSceneChange?: (scene: Scene, syncScene?: Scene) => void;
   onSelectToken?: (tokenId: string | null) => void;
   onDropTokenAsset?: (asset: Asset, point: Point) => void;
+  onViewportCenterChange?: (point: Point) => void;
   onReady?: () => void;
 }
 
@@ -98,6 +99,7 @@ export function SceneCanvas({
   onSceneChange,
   onSelectToken,
   onDropTokenAsset,
+  onViewportCenterChange,
   onReady
 }: SceneCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -554,6 +556,25 @@ export function SceneCanvas({
       }
     };
   }, [brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, fogPreview, fogTool, isVideoMap, loadedMap, loadedTokenImages, mapAsset, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, snapPoint, tokenDragPreview]);
+
+  useEffect(() => {
+    if (mode !== "gm" || !scene || !onViewportCenterChange) {
+      return;
+    }
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    const reportCenter = () => {
+      onViewportCenterChange(getCanvasViewportCenter(canvas, getRenderCamera(camera, playerDisplayScale)));
+    };
+
+    reportCenter();
+    const observer = new ResizeObserver(reportCenter);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [camera, mode, onViewportCenterChange, playerDisplayScale, scene]);
 
   const cancelTokenDrag = () => {
     tokenDragRef.current = null;
@@ -1130,6 +1151,14 @@ function clientToWorldPoint(element: HTMLCanvasElement, clientX: number, clientY
   return {
     x: (clientX - rect.left - camera.x) / camera.zoom,
     y: (clientY - rect.top - camera.y) / camera.zoom
+  };
+}
+
+function getCanvasViewportCenter(element: HTMLCanvasElement, camera: Camera): Point {
+  const rect = element.getBoundingClientRect();
+  return {
+    x: (rect.width / 2 - camera.x) / camera.zoom,
+    y: (rect.height / 2 - camera.y) / camera.zoom
   };
 }
 
