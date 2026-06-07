@@ -149,6 +149,11 @@ export interface Token {
   };
 }
 
+export interface TokenMovementPath {
+  tokenId: string;
+  points: Point[];
+}
+
 export interface Wall {
   id: string;
   type: WallType;
@@ -217,6 +222,7 @@ export interface Scene {
   mapTransform: MapTransform;
   fog: FogSettings;
   tokens: Token[];
+  tokenMovementPath?: TokenMovementPath;
   walls: Wall[];
   lights: LightSource[];
   drawings: DrawingElement[];

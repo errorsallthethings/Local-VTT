@@ -126,8 +126,12 @@ export function GmApp() {
     );
   }, [activeScene, campaign?.assets, campaign?.scenes, sceneDrafts]);
 
-  const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign) => {
-    updateWorkspaceScene(nextScene, nextScene.id === playerSceneId ? syncCampaign : null);
+  const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
+    updateWorkspaceScene(nextScene, nextScene.id === playerSceneId ? syncCampaign : null, syncScene);
+  };
+
+  const updateCanvasScene = (nextScene: Scene, syncScene: Scene = nextScene) => {
+    updateScene(nextScene, campaign, syncScene);
   };
 
   const updateCampaignDraft = (nextCampaign: Campaign) => {
@@ -753,7 +757,7 @@ export function GmApp() {
             fogTool={activeFogTool}
             selectedFogShapeId={selectedFogShapeId}
             selectedTokenId={selectedTokenId}
-            onSceneChange={updateScene}
+            onSceneChange={updateCanvasScene}
             onSelectToken={setSelectedTokenId}
           />
           <GmSettingsMenu

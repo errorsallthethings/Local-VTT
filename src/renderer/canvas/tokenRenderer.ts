@@ -21,19 +21,28 @@ export type TokenDragPreview = {
   waypoints: Point[];
 };
 
+export type TokenPositionOverrides = Map<string, Point>;
+
 export function drawTokens(
   ctx: CanvasRenderingContext2D,
   scene: Scene,
   loadedImages: Map<string, HTMLImageElement>,
   mode: "gm" | "player",
   selectedTokenId: string | null,
-  tokenDragPreview: TokenDragPreview | null
+  tokenDragPreview: TokenDragPreview | null,
+  tokenPositionOverrides: TokenPositionOverrides | null = null
 ) {
   for (const token of getVisibleTokens(scene, mode)) {
     if (!token.assetId) {
       continue;
     }
-    const renderToken = mode === "gm" && tokenDragPreview?.tokenId === token.id ? { ...token, position: tokenDragPreview.currentPosition } : token;
+    const overridePosition = tokenPositionOverrides?.get(token.id);
+    const renderToken =
+      mode === "gm" && tokenDragPreview?.tokenId === token.id
+        ? { ...token, position: tokenDragPreview.currentPosition }
+        : overridePosition
+          ? { ...token, position: overridePosition }
+          : token;
     const shouldClipToFog = mode === "player" && scene.fog.mode !== "revealed";
     ctx.save();
     if (shouldClipToFog && !clipToPlayerRevealShapes(ctx, scene)) {

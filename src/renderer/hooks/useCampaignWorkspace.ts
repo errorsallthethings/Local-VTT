@@ -63,13 +63,13 @@ export function useCampaignWorkspace() {
     });
   };
 
-  const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign) => {
+  const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
     setActiveScene(nextScene);
     setSceneDrafts((drafts) => ({ ...drafts, [nextScene.id]: nextScene }));
     setDirtySceneIds((ids) => new Set(ids).add(nextScene.id));
     setSaveState("idle");
     if (syncCampaign) {
-      void window.localVtt.updatePlayerSceneIfOpen(syncCampaign, nextScene);
+      void window.localVtt.updatePlayerSceneIfOpen(syncCampaign, syncScene);
     }
   };
 

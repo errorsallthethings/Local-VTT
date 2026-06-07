@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
-import type { Campaign, Point, Scene } from "../../shared/localvtt";
+import type { Campaign, Point, Scene, Token } from "../../shared/localvtt";
 import { getRenderCamera, type Camera } from "../canvas/camera";
 import {
   drawFog,
@@ -19,7 +19,7 @@ import { drawHexGrid, drawSquareGrid } from "../canvas/gridRenderer";
 import { getNearestGridPoint } from "../canvas/gridMath";
 import { drawMapSource } from "../canvas/mapRenderer";
 import { distanceBetween, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
-import { drawTokenDragHighlights, drawTokens, type TokenDragPreview } from "../canvas/tokenRenderer";
+import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 
@@ -32,7 +32,7 @@ interface SceneCanvasProps {
   fogTool?: FogTool | null;
   selectedFogShapeId?: string | null;
   selectedTokenId?: string | null;
-  onSceneChange?: (scene: Scene) => void;
+  onSceneChange?: (scene: Scene, syncScene?: Scene) => void;
   onSelectToken?: (tokenId: string | null) => void;
   onReady?: () => void;
 }
@@ -47,13 +47,19 @@ interface LoadedMap {
 
 type MapLoadStatus = "idle" | "loading" | "ready" | "error";
 
+type TokenTween = {
+  id: string;
+  points: Point[];
+  distance: number;
+  durationMs: number;
+};
+
 type TokenDragState = {
   pointerId: number;
   tokenId: string;
   offset: Point;
   startPosition: Point;
   waypoints: Point[];
-  ctrlWaypointArmed: boolean;
 };
 
 export function SceneCanvas({
@@ -77,6 +83,7 @@ export function SceneCanvas({
   const [mapLoadStatus, setMapLoadStatus] = useState<MapLoadStatus>("idle");
   const [fogPreview, setFogPreview] = useState<FogDrag | null>(null);
   const [tokenDragPreview, setTokenDragPreview] = useState<TokenDragPreview | null>(null);
+  const [playerTokenTweenPositions, setPlayerTokenTweenPositions] = useState<TokenPositionOverrides | null>(null);
   const [polygonDraft, setPolygonDraft] = useState<FogPolygonDraft | null>(null);
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
   const [isPanning, setIsPanning] = useState(false);
@@ -84,6 +91,8 @@ export function SceneCanvas({
   const tokenDragRef = useRef<TokenDragState | null>(null);
   const fogDragRef = useRef<FogDrag | null>(null);
   const polygonDraftRef = useRef<FogPolygonDraft | null>(null);
+  const previousSceneRef = useRef<Scene | null>(null);
+  const playerTokenTweenPositionsRef = useRef<TokenPositionOverrides | null>(null);
 
   const mapAsset = useMemo(() => {
     if (!campaign || !scene?.mapAssetId) {
@@ -157,6 +166,62 @@ export function SceneCanvas({
   }, [fogTool, scene?.id]);
 
   useEffect(() => {
+    const previousScene = previousSceneRef.current;
+    previousSceneRef.current = scene;
+
+    if (mode !== "player" || !previousScene || !scene || previousScene.id !== scene.id) {
+      playerTokenTweenPositionsRef.current = null;
+      setPlayerTokenTweenPositions(null);
+      return;
+    }
+
+    const tweens = getTokenMovementTweens(previousScene.tokens, scene.tokens, scene);
+    if (tweens.length === 0) {
+      playerTokenTweenPositionsRef.current = null;
+      setPlayerTokenTweenPositions(null);
+      return;
+    }
+
+    let animationFrame = 0;
+    let cancelled = false;
+    const durationMs = Math.max(...tweens.map((tween) => tween.durationMs));
+    const startedAt = performance.now();
+
+    const animate = (timestamp: number) => {
+      if (cancelled) {
+        return;
+      }
+      const tweenPositions = new Map(
+        tweens.map((tween) => {
+          const progress = Math.min(1, (timestamp - startedAt) / tween.durationMs);
+          return [tween.id, getPointAlongPath(tween.points, tween.distance * progress)];
+        })
+      );
+      playerTokenTweenPositionsRef.current = tweenPositions;
+      setPlayerTokenTweenPositions(tweenPositions);
+
+      if (timestamp - startedAt < durationMs) {
+        animationFrame = window.requestAnimationFrame(animate);
+      } else {
+        playerTokenTweenPositionsRef.current = null;
+        setPlayerTokenTweenPositions(null);
+      }
+    };
+
+    const initialTweenPositions = new Map(tweens.map((tween) => [tween.id, tween.points[0]]));
+    playerTokenTweenPositionsRef.current = initialTweenPositions;
+    setPlayerTokenTweenPositions(initialTweenPositions);
+    animationFrame = window.requestAnimationFrame(animate);
+    return () => {
+      cancelled = true;
+      playerTokenTweenPositionsRef.current = null;
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [mode, scene]);
+
+  useEffect(() => {
     if (!polygonDraft) {
       return;
     }
@@ -176,6 +241,37 @@ export function SceneCanvas({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [polygonDraft, scene]);
+
+  useEffect(() => {
+    if (mode !== "gm" || !scene || !tokenDragPreview) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Control" || event.repeat) {
+        return;
+      }
+      const tokenDrag = tokenDragRef.current;
+      const token = scene.tokens.find((candidate) => candidate.id === tokenDragPreview.tokenId);
+      if (!tokenDrag || !token || tokenDrag.tokenId !== token.id) {
+        return;
+      }
+
+      event.preventDefault();
+      const waypoint = scene.grid.type === "gridless" ? tokenDragPreview.currentPosition : tokenDragPreview.snappedPosition;
+      const previousRoutePosition = tokenDrag.waypoints[tokenDrag.waypoints.length - 1] ?? tokenDrag.startPosition;
+      if (isDuplicateTokenWaypoint(previousRoutePosition, waypoint, token, scene)) {
+        return;
+      }
+
+      const waypoints = [...tokenDrag.waypoints, waypoint];
+      tokenDrag.waypoints = waypoints;
+      setTokenDragPreview((preview) => (preview?.tokenId === token.id ? { ...preview, waypoints } : preview));
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mode, scene, tokenDragPreview]);
 
   useEffect(() => {
     if (!assetUrl || !mapAsset?.id || mapAsset.mediaType === "video") {
@@ -317,7 +413,7 @@ export function SceneCanvas({
       }
 
       if (canShowTokens) {
-        drawTokens(ctx, scene, loadedTokenImages, mode, selectedTokenId, tokenDragPreview);
+        drawTokens(ctx, scene, loadedTokenImages, mode, selectedTokenId, tokenDragPreview, playerTokenTweenPositionsRef.current);
       }
 
       ctx.restore();
@@ -334,13 +430,13 @@ export function SceneCanvas({
     const drawCurrentFrame = () => {
       const rect = canvas.getBoundingClientRect();
       drawScene(context, rect.width, rect.height);
-      if (loadedMap?.animate) {
+      if (loadedMap?.animate || playerTokenTweenPositionsRef.current) {
         animationFrame = window.requestAnimationFrame(drawCurrentFrame);
       }
     };
 
     resize();
-    if (loadedMap?.animate) {
+    if (loadedMap?.animate || playerTokenTweenPositionsRef.current) {
       animationFrame = window.requestAnimationFrame(drawCurrentFrame);
     }
     const observer = new ResizeObserver(resize);
@@ -351,7 +447,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [camera, canShowFog, canShowGrid, canShowMap, canShowTokens, fogPreview, fogTool, isVideoMap, loadedMap, loadedTokenImages, mapLayer?.opacity, mode, playerDisplayScale, polygonDraft, scene, selectedFogShapeId, selectedTokenId, snapPoint, tokenDragPreview]);
+  }, [camera, canShowFog, canShowGrid, canShowMap, canShowTokens, fogPreview, fogTool, isVideoMap, loadedMap, loadedTokenImages, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, scene, selectedFogShapeId, selectedTokenId, snapPoint, tokenDragPreview]);
 
   const onWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
     if (!interactive) {
@@ -411,7 +507,6 @@ export function SceneCanvas({
           tokenId: token.id,
           startPosition: token.position,
           waypoints: [],
-          ctrlWaypointArmed: true,
           offset: {
             x: point.x - token.position.x,
             y: point.y - token.position.y
@@ -447,24 +542,12 @@ export function SceneCanvas({
         y: point.y - tokenDrag.offset.y
       };
       const snappedPosition = getSnappedTokenPosition(currentPosition, token, scene);
-      let waypoints = tokenDrag.waypoints;
-      if (!event.ctrlKey) {
-        tokenDrag.ctrlWaypointArmed = true;
-      } else if (tokenDrag.ctrlWaypointArmed) {
-        const waypoint = scene.grid.type === "gridless" ? currentPosition : snappedPosition;
-        const previousWaypoint = waypoints[waypoints.length - 1] ?? tokenDrag.startPosition;
-        if (distanceBetween(previousWaypoint, waypoint) > 2) {
-          waypoints = [...waypoints, waypoint];
-          tokenDrag.waypoints = waypoints;
-        }
-        tokenDrag.ctrlWaypointArmed = false;
-      }
       setTokenDragPreview({
         tokenId: token.id,
         startPosition: tokenDrag.startPosition,
         currentPosition,
         snappedPosition,
-        waypoints
+        waypoints: tokenDrag.waypoints
       });
       return;
     }
@@ -544,11 +627,24 @@ export function SceneCanvas({
       const token = scene?.tokens.find((candidate) => candidate.id === tokenDrag.tokenId);
       if (scene && token && onSceneChange) {
         const finalPosition = tokenDragPreview?.tokenId === token.id ? tokenDragPreview.snappedPosition : getSnappedTokenPosition(token.position, token, scene);
-        onSceneChange({
+        const nextScene = {
           ...scene,
           tokens: scene.tokens.map((candidate) => (candidate.id === token.id ? { ...candidate, position: finalPosition } : candidate)),
           updatedAt: new Date().toISOString()
-        });
+        };
+        const tokenMovementPath = getTokenMovementPath(tokenDrag.startPosition, tokenDrag.waypoints, finalPosition);
+        onSceneChange(
+          nextScene,
+          tokenMovementPath
+            ? {
+                ...nextScene,
+                tokenMovementPath: {
+                  tokenId: token.id,
+                  points: tokenMovementPath
+                }
+              }
+            : nextScene
+        );
       }
       tokenDragRef.current = null;
       setTokenDragPreview(null);
@@ -820,3 +916,85 @@ function drawSnapMarker(ctx: CanvasRenderingContext2D, point: Point, camera: Cam
   ctx.restore();
 }
 
+function getTokenMovementPath(startPosition: Point, waypoints: Point[], finalPosition: Point): Point[] | null {
+  const points = normalizeTokenMovementPath([startPosition, ...waypoints, finalPosition]);
+  return points.length > 1 ? points : null;
+}
+
+function getTokenMovementTweens(previousTokens: Token[], nextTokens: Token[], scene: Scene): TokenTween[] {
+  const previousById = new Map(previousTokens.map((token) => [token.id, token]));
+  const tweens: TokenTween[] = [];
+  for (const nextToken of nextTokens) {
+    const previousToken = previousById.get(nextToken.id);
+    if (!previousToken || previousToken.assetId !== nextToken.assetId || hasTokenSizeChanged(previousToken, nextToken)) {
+      continue;
+    }
+    if (distanceBetween(previousToken.position, nextToken.position) <= 2) {
+      continue;
+    }
+    const points =
+      scene.tokenMovementPath?.tokenId === nextToken.id
+        ? normalizeTokenMovementPath([previousToken.position, ...scene.tokenMovementPath.points.slice(1, -1), nextToken.position])
+        : [previousToken.position, nextToken.position];
+    const distance = getTokenMovementPathDistance(points);
+    if (points.length < 2 || distance <= 2) {
+      continue;
+    }
+    tweens.push({
+      id: nextToken.id,
+      points,
+      distance,
+      durationMs: getTokenMovementDurationMs(distance, nextToken, scene)
+    });
+  }
+  return tweens;
+}
+
+function getTokenMovementDurationMs(distance: number, token: Token, scene: Scene) {
+  const movementUnit = scene.grid.type === "gridless" || scene.grid.sizePx <= 0 ? Math.max(1, token.size.width) : scene.grid.sizePx;
+  return Math.max(320, Math.round((distance / movementUnit) * 400));
+}
+
+function normalizeTokenMovementPath(points: Point[]) {
+  return points.reduce<Point[]>((path, point) => {
+    const previous = path[path.length - 1];
+    return previous && distanceBetween(previous, point) <= 2 ? path : [...path, point];
+  }, []);
+}
+
+function getTokenMovementPathDistance(points: Point[]) {
+  return points.reduce((total, point, index) => {
+    const previous = points[index - 1];
+    return previous ? total + distanceBetween(previous, point) : total;
+  }, 0);
+}
+
+function getPointAlongPath(points: Point[], distance: number): Point {
+  let remainingDistance = distance;
+  for (let index = 1; index < points.length; index += 1) {
+    const start = points[index - 1];
+    const end = points[index];
+    const segmentDistance = distanceBetween(start, end);
+    if (segmentDistance === 0) {
+      continue;
+    }
+    if (remainingDistance <= segmentDistance) {
+      const progress = remainingDistance / segmentDistance;
+      return {
+        x: start.x + (end.x - start.x) * progress,
+        y: start.y + (end.y - start.y) * progress
+      };
+    }
+    remainingDistance -= segmentDistance;
+  }
+  return points[points.length - 1];
+}
+
+function hasTokenSizeChanged(previousToken: Token, nextToken: Token) {
+  return previousToken.size.width !== nextToken.size.width || previousToken.size.height !== nextToken.size.height;
+}
+
+function isDuplicateTokenWaypoint(existingPosition: Point, waypoint: Point, token: Token, scene: Scene) {
+  const duplicateDistance = scene.grid.type === "gridless" ? Math.max(2, token.size.width) : 2;
+  return distanceBetween(existingPosition, waypoint) <= duplicateDistance;
+}
