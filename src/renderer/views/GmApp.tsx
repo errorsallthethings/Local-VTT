@@ -20,6 +20,7 @@ import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import type { FogTool } from "../canvas/fogRenderer";
 import { useCampaignActions } from "../hooks/useCampaignActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
+import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { moveSceneFolder } from "../lib/campaignActions";
 import { createImportedToken } from "../lib/tokenDefaults";
@@ -222,21 +223,15 @@ export function GmApp() {
     sceneToDelete
   ]);
 
-  useEffect(() => {
-    if (!openSceneMenuId && !openFolderMenuId) {
-      return;
-    }
-    const closeSceneMenus = (event: MouseEvent) => {
-      const target = event.target;
-      if (target instanceof HTMLElement && target.closest(".scene-menu-wrap")) {
-        return;
-      }
+  useDismissableMenu({
+    enabled: Boolean(openSceneMenuId || openFolderMenuId),
+    menuRootClass: "scene-menu-wrap",
+    onDismiss: () => {
       setOpenSceneMenuId(null);
       setOpenFolderMenuId(null);
-    };
-    window.addEventListener("mousedown", closeSceneMenus);
-    return () => window.removeEventListener("mousedown", closeSceneMenus);
-  }, [openFolderMenuId, openSceneMenuId]);
+    },
+    closeOnEscape: false
+  });
 
   useEffect(() => {
     void refreshDisplays();

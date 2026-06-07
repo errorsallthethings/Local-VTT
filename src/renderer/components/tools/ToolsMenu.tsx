@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Circle, CloudFog, HelpCircle, Paintbrush, Pentagon, Ruler, Square, Trash2, Undo2 } from "lucide-react";
 import type { FogTool } from "../../canvas/fogRenderer";
+import { getFogHelpLines, getRulerHelpLines } from "../../lib/toolCopy";
 
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler";
@@ -214,11 +215,9 @@ function ToolHelpCard({ topic }: { topic: "fog" | "ruler" }) {
     return (
       <div className="tools-help-card" role="dialog" aria-label="Fog tools help">
         <strong>Fog Tools</strong>
-        <span>Brush: left-drag to paint reveal or hide shapes.</span>
-        <span>Rectangle: left-drag to draw; hold Shift for a square.</span>
-        <span>Circle: left-drag from the center to set the radius.</span>
-        <span>Polygon: click points, Enter or double-click to finish, right-click to remove the last point.</span>
-        <span>Ctrl/Cmd snaps to grid corners. Escape cancels active drawing.</span>
+        {getFogHelpLines().map((line) => (
+          <span key={line}>{line}</span>
+        ))}
       </div>
     );
   }
@@ -226,10 +225,9 @@ function ToolHelpCard({ topic }: { topic: "fog" | "ruler" }) {
   return (
     <div className="tools-help-card" role="dialog" aria-label="Ruler help">
       <strong>Ruler</strong>
-      <span>Left-drag to measure distance.</span>
-      <span>Ctrl/Cmd snaps to square or hex centers.</span>
-      <span>Shift adds a waypoint to the current path.</span>
-      <span>Right-click removes the last waypoint. Escape clears the ruler.</span>
+      {getRulerHelpLines().map((line) => (
+        <span key={line}>{line}</span>
+      ))}
     </div>
   );
 }

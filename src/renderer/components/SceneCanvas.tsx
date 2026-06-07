@@ -32,6 +32,15 @@ import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNear
 import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
+import {
+  FOG_GRID_SNAP_HINT,
+  RULER_CLEAR_HINT,
+  RULER_GRID_SNAP_HINT,
+  SHIFT_WAYPOINT_HINT,
+  TOKEN_MOVE_COMPLETE_HINT,
+  getFogToolHint,
+  getFogToolLabel
+} from "../lib/toolCopy";
 
 interface SceneCanvasProps {
   campaign: Campaign | null;
@@ -960,36 +969,16 @@ function FogToolStatusStrip({
   polygonPointCount: number;
   brushSize: number;
 }) {
-  const isReveal = fogTool.startsWith("reveal");
-  const toolKind = fogTool.includes("brush") ? "Brush" : fogTool.includes("polygon") ? "Polygon" : fogTool.includes("circle") ? "Circle" : "Rectangle";
-  const action = isReveal ? "Reveal" : "Hide";
   const primaryHint = getFogToolHint(fogTool, polygonPointCount, brushSize);
 
   return (
     <div className="fog-tool-status" aria-live="polite">
-      <strong>
-        {action} {toolKind}
-      </strong>
+      <strong>{getFogToolLabel(fogTool)}</strong>
       <span>{primaryHint}</span>
-      <span>Ctrl/Cmd snaps to grid corners.</span>
+      <span>{FOG_GRID_SNAP_HINT}</span>
       <span>Middle-click drag pans.</span>
     </div>
   );
-}
-
-function getFogToolHint(fogTool: FogTool, polygonPointCount: number, brushSize: number): string {
-  if (fogTool.includes("brush")) {
-    return `Left-drag to paint. Brush ${brushSize}px.`;
-  }
-  if (fogTool.includes("rectangle")) {
-    return "Left-drag to draw. Hold Shift for square.";
-  }
-  if (fogTool.includes("circle")) {
-    return "Left-drag from center to set radius.";
-  }
-  const finishHint = polygonPointCount >= 3 ? " Enter or double-click finishes." : "";
-  const undoHint = polygonPointCount > 0 ? " Right-click removes last point." : "";
-  return `Click to place points.${finishHint}${undoHint} Escape cancels.`;
 }
 
 function TokenMoveStatusStrip({ scene, tokenDragPreview }: { scene: Scene | null; tokenDragPreview: TokenDragPreview }) {
@@ -999,10 +988,10 @@ function TokenMoveStatusStrip({ scene, tokenDragPreview }: { scene: Scene | null
     <div className="canvas-tool-status" aria-live="polite">
       <strong>Token Move</strong>
       <span>Drag to position.</span>
-      <span>Shift adds a waypoint.</span>
+      <span>{SHIFT_WAYPOINT_HINT}</span>
       <span>{waypointCount === 1 ? "1 waypoint" : `${waypointCount} waypoints`}</span>
       {tokenMoveLabel && <span>{tokenMoveLabel}</span>}
-      <span>Release to move. Escape cancels.</span>
+      <span>{TOKEN_MOVE_COMPLETE_HINT}</span>
     </div>
   );
 }
@@ -1013,11 +1002,11 @@ function RulerStatusStrip({ rulerDrag, scene }: { rulerDrag: RulerDrag | null; s
     <div className="canvas-tool-status" aria-live="polite">
       <strong>Ruler</strong>
       <span>Left-drag to measure.</span>
-      <span>Ctrl/Cmd snaps to square or hex centers.</span>
-      <span>Shift adds a waypoint.</span>
+      <span>{RULER_GRID_SNAP_HINT}</span>
+      <span>{SHIFT_WAYPOINT_HINT}</span>
       {rulerDrag && <span>{rulerDrag.waypoints.length === 1 ? "1 waypoint" : `${rulerDrag.waypoints.length} waypoints`}</span>}
       {label && <span>{label.secondary ? `${label.primary} (${label.secondary})` : label.primary}</span>}
-      <span>Right-click removes last waypoint. Escape clears.</span>
+      <span>{RULER_CLEAR_HINT}</span>
     </div>
   );
 }

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Copy, Crown, Eye, EyeOff, GripVertical, MoreVertical, Trash2, User, UsersRound } from "lucide-react";
 import type { Asset, Scene, Token } from "../../../shared/localvtt";
+import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { duplicateToken } from "../../lib/tokenDefaults";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
 import { TokenSettings } from "./TokenSettings";
@@ -30,28 +31,11 @@ export function TokenList({
   const [tokenDropTarget, setTokenDropTarget] = useState<TokenDropTarget>(null);
   const [openTokenMenuId, setOpenTokenMenuId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!openTokenMenuId) {
-      return;
-    }
-    const closeTokenMenu = (event: PointerEvent) => {
-      if (event.composedPath().some((target) => target instanceof Element && target.classList.contains("token-menu-wrap"))) {
-        return;
-      }
-      setOpenTokenMenuId(null);
-    };
-    const closeTokenMenuWithEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpenTokenMenuId(null);
-      }
-    };
-    window.addEventListener("pointerdown", closeTokenMenu, true);
-    window.addEventListener("keydown", closeTokenMenuWithEscape);
-    return () => {
-      window.removeEventListener("pointerdown", closeTokenMenu, true);
-      window.removeEventListener("keydown", closeTokenMenuWithEscape);
-    };
-  }, [openTokenMenuId]);
+  useDismissableMenu({
+    enabled: Boolean(openTokenMenuId),
+    menuRootClass: "token-menu-wrap",
+    onDismiss: () => setOpenTokenMenuId(null)
+  });
 
   const moveToken = (sourceTokenId: string, targetTokenId: string, placement: DropPlacement) => {
     if (sourceTokenId === targetTokenId) {
