@@ -105,6 +105,30 @@
   min-width: 0;
 }
 
+.layer-empty-state {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px dashed #344053;
+  border-radius: 6px;
+  background: rgb(17 24 32 / 0.55);
+  padding: 9px 10px;
+  color: #9aa6b7;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.layer-empty-state strong {
+  color: #d7e0ec;
+  font-size: 12px;
+}
+
+.layer-empty-state span {
+  color: #9aa6b7;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .fog-shape-list-header {
   display: flex;
   align-items: center;
@@ -435,12 +459,37 @@
   white-space: nowrap;
 }
 
+.layer-row .layer-empty-state span,
+.layer-row .layer-empty-state strong {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 .layer-row .layer-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: #eef3f9;
   cursor: default;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
+}
+
+.layer-count-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px !important;
+  height: 18px;
+  border: 1px solid rgb(122 162 247 / 0.36);
+  border-radius: 999px;
+  background: rgb(122 162 247 / 0.14);
+  color: #c6d6ff;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .expandable-layer-row .layer-name {

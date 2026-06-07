@@ -181,7 +181,10 @@ export function FogShapeList({
           })}
         </>
       ) : (
-        <div className="inline-help">Draw fog reveal or hide shapes from the floating Tools Menu.</div>
+        <div className="layer-empty-state">
+          <strong>No Fog Shapes</strong>
+          <span>Draw fog reveal or hide shapes from the floating Tools Menu.</span>
+        </div>
       )}
     </div>
   );

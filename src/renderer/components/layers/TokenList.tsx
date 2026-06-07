@@ -231,7 +231,10 @@ export function TokenList({
           })}
         </>
       ) : (
-        <div className="inline-help">Import token images from Tokens.</div>
+        <div className="layer-empty-state">
+          <strong>No tokens</strong>
+          <span>Import token images to create token sub-layers.</span>
+        </div>
       )}
     </div>
   );

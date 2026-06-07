@@ -222,12 +222,14 @@ export function LayerPanel({
             layer.id === "grid" ||
             layer.id === "fog";
           const hasLayerContents =
-            (layer.id === "map" && !mapAsset) ||
-            (layer.id === "fog" && scene.fog.shapes.length > 0) ||
+            layer.id === "map" ||
+            layer.id === "grid" ||
+            layer.id === "fog" ||
             layer.id === "token";
           const isExpanded = hasLayerContents && expandedLayerIds.has(layer.id);
           const areSettingsExpanded = settingsLayerIds.has(layer.id);
           const isPlaceholderLayer = !hasLayerSettings && !hasLayerContents;
+          const layerCount = getLayerItemCount(layer.id, scene);
           return (
             <div
               className={[
@@ -245,6 +247,7 @@ export function LayerPanel({
               </span>
               <span className="layer-name" title={layer.name}>
                 {layer.name}
+                {layerCount !== null && <span className="layer-count-badge" aria-label={`${layerCount} ${layerCount === 1 ? "item" : "items"}`}>{layerCount}</span>}
               </span>
               <button
                 className={layer.visibleInGm ? "icon-button layer-visibility-button layer-visibility-active" : "icon-button layer-visibility-button"}
@@ -383,6 +386,14 @@ export function LayerPanel({
                   onOpenTokenColor={onOpenTokenColor}
                 />
               )}
+              {layer.id === "grid" && isExpanded && (
+                <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
+                  <div className="layer-empty-state">
+                    <strong>Grid Settings</strong>
+                    <span>Use the gear button to configure grid mode, cell size, visibility, colors, and measurement.</span>
+                  </div>
+                </div>
+              )}
               {layer.id === "grid" && areSettingsExpanded && (
                 <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
                   <label className="stacked-control">
@@ -480,10 +491,22 @@ export function LayerPanel({
               )}
               {layer.id === "map" && !mapAsset && (isExpanded || areSettingsExpanded) && (
                 <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
+                  <div className="layer-empty-state">
+                    <strong>Map Settings</strong>
+                    <span>Import a map asset here, then use the gear button for map fit and transform settings.</span>
+                  </div>
                   <button className="import-map-next-step" onClick={onImportMap}>
                     <Import size={16} aria-hidden="true" />
                     Import Map
                   </button>
+                </div>
+              )}
+              {layer.id === "map" && mapAsset && isExpanded && (
+                <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
+                  <div className="layer-empty-state">
+                    <strong>Map Settings</strong>
+                    <span>Use the gear button to adjust map fit, transform, and asset actions.</span>
+                  </div>
                 </div>
               )}
               {layer.id === "map" && areSettingsExpanded && (
@@ -588,6 +611,16 @@ function getLayerIcon(layer: Layer) {
     default:
       return <Sparkles size={16} />;
   }
+}
+
+function getLayerItemCount(layerId: Layer["id"], scene: Scene): number | null {
+  if (layerId === "fog") {
+    return scene.fog.shapes.length;
+  }
+  if (layerId === "token") {
+    return scene.tokens.length;
+  }
+  return null;
 }
 
 function getFitModeHelp(fitMode: MapTransform["fitMode"]): string {
