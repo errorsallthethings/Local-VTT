@@ -258,7 +258,7 @@ export function SceneCanvas({
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Control" || event.repeat) {
+      if (event.key !== "Shift" || event.repeat) {
         return;
       }
       const tokenDrag = tokenDragRef.current;
@@ -268,7 +268,7 @@ export function SceneCanvas({
       }
 
       event.preventDefault();
-      const waypoint = scene.grid.type === "gridless" ? tokenDragPreview.currentPosition : tokenDragPreview.snappedPosition;
+      const waypoint = getTokenWaypointPosition(tokenDragPreview.currentPosition, token, scene);
       const previousRoutePosition = tokenDrag.waypoints[tokenDrag.waypoints.length - 1] ?? tokenDrag.startPosition;
       if (isDuplicateTokenWaypoint(previousRoutePosition, waypoint, token, scene)) {
         return;
@@ -282,6 +282,37 @@ export function SceneCanvas({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [mode, scene, tokenDragPreview]);
+
+  useEffect(() => {
+    if (mode !== "gm" || !scene || !rulerDrag) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Shift" || event.repeat) {
+        return;
+      }
+      const activeRulerDrag = rulerDragRef.current;
+      if (!activeRulerDrag) {
+        return;
+      }
+
+      event.preventDefault();
+      const waypoint = event.ctrlKey || event.metaKey ? (getRulerSnapPoint(activeRulerDrag.current, scene) ?? activeRulerDrag.current) : activeRulerDrag.current;
+      const previousRoutePosition = activeRulerDrag.waypoints[activeRulerDrag.waypoints.length - 1] ?? activeRulerDrag.start;
+      if (isDuplicateRulerWaypoint(previousRoutePosition, waypoint, scene)) {
+        return;
+      }
+
+      const waypoints = [...activeRulerDrag.waypoints, waypoint];
+      const nextRulerDrag = { ...activeRulerDrag, current: waypoint, waypoints };
+      rulerDragRef.current = nextRulerDrag;
+      setRulerDrag(nextRulerDrag);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mode, rulerDrag, scene]);
 
   useEffect(() => {
     if (!assetUrl || !mapAsset?.id || mapAsset.mediaType === "video") {
@@ -493,7 +524,7 @@ export function SceneCanvas({
     }
     if (mode === "gm" && canvasTool === "ruler" && scene && event.button === 0) {
       const point = getRulerPoint(event);
-      const nextRulerDrag = { pointerId: event.pointerId, start: point, current: point };
+      const nextRulerDrag = { pointerId: event.pointerId, start: point, current: point, waypoints: [] };
       rulerDragRef.current = nextRulerDrag;
       setRulerDrag(nextRulerDrag);
       return;
@@ -903,7 +934,7 @@ function TokenMoveStatusStrip({ waypointCount }: { waypointCount: number }) {
     <div className="canvas-tool-status" aria-live="polite">
       <strong>Token Move</strong>
       <span>Drag to position.</span>
-      <span>Press Ctrl to add a waypoint.</span>
+      <span>Shift adds a grid-centered waypoint.</span>
       <span>{waypointCount === 1 ? "1 waypoint" : `${waypointCount} waypoints`}</span>
       <span>Release to move on Player View.</span>
     </div>
@@ -917,6 +948,8 @@ function RulerStatusStrip({ rulerDrag, scene }: { rulerDrag: RulerDrag | null; s
       <strong>Ruler</strong>
       <span>Left-drag to measure.</span>
       <span>Ctrl/Cmd snaps to grid points.</span>
+      <span>Shift adds a waypoint.</span>
+      {rulerDrag && <span>{rulerDrag.waypoints.length === 1 ? "1 waypoint" : `${rulerDrag.waypoints.length} waypoints`}</span>}
       {label && <span>{label.secondary ? `${label.primary} (${label.secondary})` : label.primary}</span>}
       <span>Release to clear.</span>
     </div>
@@ -924,13 +957,26 @@ function RulerStatusStrip({ rulerDrag, scene }: { rulerDrag: RulerDrag | null; s
 }
 
 function getRulerLabel(rulerDrag: RulerDrag, scene: Scene): RulerLabel {
-  const primary = formatMeasurementDistance(getMeasurementDistance(rulerDrag.start, rulerDrag.current, scene.grid), scene.grid.measurement, scene.grid.type);
+  const pathPoints = getRulerPathPoints(rulerDrag);
+  const primaryDistance = sumRulerPathDistance(pathPoints, scene, getMeasurementDistance);
+  const primary = formatMeasurementDistance(primaryDistance, scene.grid.measurement, scene.grid.type);
   if (scene.grid.type === "gridless" || scene.grid.measurement.distanceMode === "euclidean") {
     return { primary };
   }
 
-  const straightLine = formatMeasurementDistance(getStraightLineMeasurementDistance(rulerDrag.start, rulerDrag.current, scene.grid), scene.grid.measurement, scene.grid.type);
+  const straightLine = formatMeasurementDistance(sumRulerPathDistance(pathPoints, scene, getStraightLineMeasurementDistance), scene.grid.measurement, scene.grid.type);
   return { primary, secondary: `Straight: ${straightLine}` };
+}
+
+function getRulerPathPoints(rulerDrag: RulerDrag): Point[] {
+  return [rulerDrag.start, ...rulerDrag.waypoints, rulerDrag.current];
+}
+
+function sumRulerPathDistance(points: Point[], scene: Scene, getDistance: (start: Point, end: Point, grid: Scene["grid"]) => number) {
+  return points.reduce((total, point, index) => {
+    const previous = points[index - 1];
+    return previous ? total + getDistance(previous, point, scene.grid) : total;
+  }, 0);
 }
 
 function getPlayerDisplayScale(campaign: Campaign | null, scene: Scene | null, mode: "gm" | "player"): number {
@@ -1099,5 +1145,26 @@ function hasTokenSizeChanged(previousToken: Token, nextToken: Token) {
 
 function isDuplicateTokenWaypoint(existingPosition: Point, waypoint: Point, token: Token, scene: Scene) {
   const duplicateDistance = scene.grid.type === "gridless" ? Math.max(2, token.size.width) : 2;
+  return distanceBetween(existingPosition, waypoint) <= duplicateDistance;
+}
+
+function getTokenWaypointPosition(position: Point, token: Token, scene: Scene): Point {
+  if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
+    return position;
+  }
+
+  const tokenCenter = {
+    x: position.x + token.size.width / 2,
+    y: position.y + token.size.height / 2
+  };
+  const waypointCenter = scene.grid.type === "hex" ? getNearestHexCenter(tokenCenter, scene.grid) : getNearestGridCellCenter(tokenCenter, scene.grid);
+  return {
+    x: waypointCenter.x - token.size.width / 2,
+    y: waypointCenter.y - token.size.height / 2
+  };
+}
+
+function isDuplicateRulerWaypoint(existingPosition: Point, waypoint: Point, scene: Scene) {
+  const duplicateDistance = scene.grid.type === "gridless" ? 12 : 2;
   return distanceBetween(existingPosition, waypoint) <= duplicateDistance;
 }

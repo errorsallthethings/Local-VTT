@@ -27,7 +27,7 @@ describe("scene editing helpers", () => {
     const moved = moveSceneLayer(scene, "token", "up");
     const visualOrder = [...moved.layers].sort((a, b) => b.order - a.order).map((layer) => layer.id);
 
-    expect(visualOrder.slice(0, 6)).toEqual(["gm", "fog", "grid", "token", "weather", "foreground"]);
+    expect(visualOrder.slice(0, 6)).toEqual(["gm", "fog", "weather", "token", "foreground", "object"]);
     expect([...moved.layers].sort((a, b) => b.order - a.order).map((layer) => layer.order)).toEqual([90, 80, 70, 60, 50, 40, 30, 20, 10]);
   });
 

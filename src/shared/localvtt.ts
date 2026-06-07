@@ -355,15 +355,15 @@ export const DEFAULT_FOG: FogSettings = {
 };
 
 export const DEFAULT_LAYERS: Layer[] = [
-  { id: "gm", name: "GM Layer", kind: "gm", order: 90, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
-  { id: "fog", name: "Fog of War Layer", kind: "fog", order: 80, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
-  { id: "grid", name: "Grid Layer", kind: "grid", order: 70, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
-  { id: "weather", name: "Weather/Effects Layer", kind: "weather", order: 60, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
-  { id: "token", name: "Token Layer", kind: "token", order: 50, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
-  { id: "foreground", name: "Foreground Layer", kind: "foreground", order: 40, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
-  { id: "object", name: "Object Layer", kind: "object", order: 30, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
-  { id: "lighting", name: "Lighting/Wall Layer", kind: "lighting", order: 20, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
-  { id: "map", name: "Map Layer", kind: "map", order: 10, visibleInGm: true, visibleInPlayer: true, locked: true, opacity: 1 }
+  { id: "gm", name: "GM", kind: "gm", order: 90, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
+  { id: "fog", name: "Fog of War", kind: "fog", order: 80, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
+  { id: "weather", name: "Weather", kind: "weather", order: 70, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
+  { id: "foreground", name: "Foreground", kind: "foreground", order: 60, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
+  { id: "token", name: "Tokens", kind: "token", order: 50, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
+  { id: "object", name: "Objects", kind: "object", order: 40, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
+  { id: "lighting", name: "Dynamic Lighting", kind: "lighting", order: 30, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
+  { id: "grid", name: "Grid", kind: "grid", order: 20, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
+  { id: "map", name: "Map", kind: "map", order: 10, visibleInGm: true, visibleInPlayer: true, locked: true, opacity: 1 }
 ];
 
 export function createDefaultCampaign(name: string): Campaign {
@@ -444,7 +444,9 @@ export function normalizeScene(scene: Scene): Scene {
   const layerById = new Map((scene.layers ?? []).map((layer) => [layer.id, layer]));
   const normalizedLayers = DEFAULT_LAYERS.map((defaultLayer) => ({
     ...defaultLayer,
-    ...(layerById.get(defaultLayer.id) ?? {})
+    ...(layerById.get(defaultLayer.id) ?? {}),
+    name: defaultLayer.name,
+    order: defaultLayer.order
   }));
   const customLayers = (scene.layers ?? []).filter((layer) => !DEFAULT_LAYERS.some((defaultLayer) => defaultLayer.id === layer.id));
 

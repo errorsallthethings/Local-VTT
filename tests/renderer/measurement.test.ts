@@ -53,7 +53,7 @@ describe("measurement helpers", () => {
     scene.grid.type = "square";
     scene.grid.sizePx = 100;
 
-    expect(getRulerGridHighlightCells({ start: { x: 10, y: 10 }, current: { x: 240, y: 10 } }, scene.grid)).toEqual([
+    expect(getRulerGridHighlightCells({ start: { x: 10, y: 10 }, current: { x: 240, y: 10 }, waypoints: [] }, scene.grid)).toEqual([
       { x: 50, y: 50 },
       { x: 150, y: 50 },
       { x: 250, y: 50 }
@@ -65,7 +65,7 @@ describe("measurement helpers", () => {
     scene.grid.type = "square";
     scene.grid.sizePx = 100;
 
-    expect(getRulerGridHighlightCells({ start: { x: 10, y: 10 }, current: { x: 290, y: 290 } }, scene.grid)).toEqual([
+    expect(getRulerGridHighlightCells({ start: { x: 10, y: 10 }, current: { x: 290, y: 290 }, waypoints: [] }, scene.grid)).toEqual([
       { x: 50, y: 50 },
       { x: 150, y: 150 },
       { x: 250, y: 250 }
@@ -80,7 +80,7 @@ describe("measurement helpers", () => {
     scene.grid.offsetY = 0;
     const hexWidth = Math.sqrt(3) * 50;
 
-    expect(getRulerGridHighlightCells({ start: { x: 0, y: 0 }, current: { x: hexWidth * 2, y: 0 } }, scene.grid)).toEqual([
+    expect(getRulerGridHighlightCells({ start: { x: 0, y: 0 }, current: { x: hexWidth * 2, y: 0 }, waypoints: [] }, scene.grid)).toEqual([
       { x: 0, y: 0 },
       { x: hexWidth, y: 0 },
       { x: hexWidth * 2, y: 0 }

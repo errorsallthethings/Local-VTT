@@ -1,10 +1,15 @@
 .layer-row {
+  position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
   gap: 6px;
   align-items: center;
-  border: 1px solid #293241;
+  border: 1px solid #3c4658;
   border-radius: 6px;
+  background:
+    linear-gradient(90deg, rgb(122 162 247 / 0.16), rgb(76 191 120 / 0.07) 48%, rgb(21 28 37 / 0.92)),
+    #151c25;
+  box-shadow: inset 3px 0 0 rgb(122 162 247 / 0.72);
   padding: 8px;
 }
 
@@ -14,13 +19,21 @@
 }
 
 .expandable-layer-row:hover {
-  border-color: #3d4a61;
-  background: #1a222d;
+  border-color: #53637a;
+  background:
+    linear-gradient(90deg, rgb(122 162 247 / 0.22), rgb(76 191 120 / 0.1) 48%, rgb(26 34 45 / 0.96)),
+    #1a222d;
 }
 
 .placeholder-layer-row .layer-kind-icon,
 .placeholder-layer-row .layer-name {
   color: #687386;
+}
+
+.placeholder-layer-row {
+  border-color: #293241;
+  background: #111820;
+  box-shadow: inset 3px 0 0 rgb(104 115 134 / 0.34);
 }
 
 .placeholder-layer-row .layer-name {
@@ -423,8 +436,11 @@
 }
 
 .layer-row .layer-name {
-  color: #dfe6ef;
+  color: #eef3f9;
   cursor: default;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
 .expandable-layer-row .layer-name {

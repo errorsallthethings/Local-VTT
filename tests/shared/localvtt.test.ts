@@ -64,6 +64,40 @@ it("normalizeScene fills default settings for older scene files", () => {
   expect(normalized.fog.newShapesVisibleInPlayer).toBe(true);
 });
 
+it("normalizeScene applies canonical core layer names and order", () => {
+  const scene = createDefaultScene("Layers");
+  scene.layers = scene.layers.map((layer) => ({
+    ...layer,
+    name: `${layer.name} Legacy`,
+    order: layer.id === "grid" ? 70 : layer.order
+  }));
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.layers.map((layer) => layer.name)).toEqual([
+    "GM",
+    "Fog of War",
+    "Weather",
+    "Foreground",
+    "Tokens",
+    "Objects",
+    "Dynamic Lighting",
+    "Grid",
+    "Map"
+  ]);
+  expect([...normalized.layers].sort((a, b) => b.order - a.order).map((layer) => layer.id)).toEqual([
+    "gm",
+    "fog",
+    "weather",
+    "foreground",
+    "token",
+    "object",
+    "lighting",
+    "grid",
+    "map"
+  ]);
+});
+
 it("normalizeScene fills token presentation defaults for older scene files", () => {
   const scene = createDefaultScene("Token Scene");
   scene.tokens = [
@@ -204,7 +238,7 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   expect(projection.playerDisplay.pixelsPerInch).toBe(120);
   expect(
     projection.scene.layers.map((layer) => layer.id),
-  ).toEqual(["fog", "grid", "weather", "foreground", "object", "lighting", "map"]);
+  ).toEqual(["fog", "weather", "foreground", "object", "lighting", "grid", "map"]);
   expect(
     projection.scene.tokens.map((token) => token.id),
   ).toEqual(["token-1"]);
