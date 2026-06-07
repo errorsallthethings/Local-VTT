@@ -38,36 +38,59 @@
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  z-index: 8;
+  z-index: 40;
   display: grid;
-  gap: 4px;
   min-width: 132px;
-  border: 1px solid #303a49;
-  border-radius: var(--radius-panel);
-  background: var(--color-bg-panel);
-  box-shadow: 0 12px 34px rgb(0 0 0 / 0.38);
-  padding: 5px;
 }
 
-.scene-menu button {
+:is(.scene-menu, .token-settings-menu, .gm-settings-menu) {
+  gap: 4px;
+  border: 1px solid #3d4a61;
+  border-radius: 6px;
+  background: #151c25;
+  box-shadow: 0 18px 42px rgb(0 0 0 / 0.42);
+  padding: 6px;
+}
+
+:is(.scene-menu, .token-settings-menu, .gm-settings-menu) button,
+.token-menu-action {
+  display: inline-flex;
+  align-items: center;
   justify-content: flex-start;
+  gap: 8px;
   width: 100%;
+  min-width: 0;
+  height: auto;
   border: 0;
   background: transparent;
   padding: 7px 8px;
+  color: #d7deea;
+  font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
 }
 
-.scene-menu button:hover {
-  background: #253040;
+:is(.scene-menu, .token-settings-menu, .gm-settings-menu) button:hover:not(:disabled),
+.token-menu-action:hover:not(:disabled) {
+  background: #253146;
+  color: #f3f7ff;
 }
 
-.scene-menu .danger-menu-item {
+:is(.scene-menu, .token-settings-menu, .gm-settings-menu) button:disabled,
+.token-menu-action:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+:is(.scene-menu, .token-settings-menu, .gm-settings-menu) .danger-menu-item,
+.token-menu-delete {
   color: #ffd2d2;
 }
 
-.scene-menu .danger-menu-item:hover {
+:is(.scene-menu, .token-settings-menu, .gm-settings-menu) .danger-menu-item:hover:not(:disabled),
+.token-menu-delete:hover:not(:disabled) {
   background: #3b2023;
+  color: #ffd2d2;
 }
 
 .toolbar-menu {
