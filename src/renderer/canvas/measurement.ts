@@ -110,8 +110,14 @@ function getPixelDistance(start: Point, end: Point): number {
 
 function getSquareGridHighlightCells(drag: RulerDrag, grid: GridSettings): Point[] {
   const size = grid.sizePx;
+  if (!isFinitePoint(drag.start) || !isFinitePoint(drag.current) || !Number.isFinite(size) || size <= 0) {
+    return [];
+  }
   const start = getSquareCellCoordinate(drag.start, grid);
   const end = getSquareCellCoordinate(drag.current, grid);
+  if (!Number.isFinite(start.column) || !Number.isFinite(start.row) || !Number.isFinite(end.column) || !Number.isFinite(end.row)) {
+    return [];
+  }
   const cells: Point[] = [];
   const visited = new Set<string>();
   const addCell = (column: number, row: number) => {
@@ -141,7 +147,9 @@ function getSquareGridHighlightCells(drag: RulerDrag, grid: GridSettings): Point
   let tMaxY = stepRow === 0 ? Number.POSITIVE_INFINITY : getNextGridLineT(drag.start.y, grid.offsetY, size, stepRow, dy);
 
   addCell(column, row);
-  while (column !== endColumn || row !== endRow) {
+  const maxSteps = getGridTraversalLimit(start, end);
+  let steps = 0;
+  while ((column !== endColumn || row !== endRow) && steps < maxSteps) {
     if (Math.abs(tMaxX - tMaxY) < 1e-9) {
       column += stepColumn;
       row += stepRow;
@@ -155,15 +163,22 @@ function getSquareGridHighlightCells(drag: RulerDrag, grid: GridSettings): Point
       tMaxY += tDeltaY;
     }
     addCell(column, row);
+    steps += 1;
   }
 
   return cells;
 }
 
 function getHexGridHighlightCells(drag: RulerDrag, grid: GridSettings): Point[] {
+  if (!isFinitePoint(drag.start) || !isFinitePoint(drag.current)) {
+    return [];
+  }
   const start = getNearestHexCoordinate(drag.start, grid);
   const end = getNearestHexCoordinate(drag.current, grid);
   const distance = getHexCoordinateDistance(start, end);
+  if (!Number.isFinite(distance) || distance > MAX_GRID_HIGHLIGHT_CELLS) {
+    return [];
+  }
   const cells = new Map<string, Point>();
   for (let step = 0; step <= distance; step += 1) {
     const progress = distance === 0 ? 0 : step / distance;
@@ -178,6 +193,16 @@ function getSquareCellCoordinate(point: Point, grid: GridSettings) {
     column: Math.floor((point.x - grid.offsetX) / grid.sizePx),
     row: Math.floor((point.y - grid.offsetY) / grid.sizePx)
   };
+}
+
+const MAX_GRID_HIGHLIGHT_CELLS = 5000;
+
+function getGridTraversalLimit(start: { column: number; row: number }, end: { column: number; row: number }): number {
+  return Math.min(MAX_GRID_HIGHLIGHT_CELLS - 1, Math.abs(end.column - start.column) + Math.abs(end.row - start.row));
+}
+
+function isFinitePoint(point: Point) {
+  return Number.isFinite(point.x) && Number.isFinite(point.y);
 }
 
 function getNextGridLineT(start: number, offset: number, size: number, step: number, delta: number) {

@@ -5,6 +5,7 @@ import {
   getMeasurementDistance,
   getMeasurementPathDistance,
   getRulerGridHighlightCells,
+  getRulerPathHighlightCells,
   getStraightLineMeasurementDistance
 } from "../../src/renderer/canvas/measurement";
 
@@ -95,6 +96,38 @@ describe("measurement helpers", () => {
       { x: hexWidth, y: 0 },
       { x: hexWidth * 2, y: 0 }
     ]);
+  });
+
+  it("finds cells across waypoint path segments", () => {
+    const scene = createDefaultScene("Measure");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 100;
+
+    expect(
+      getRulerPathHighlightCells(
+        {
+          start: { x: 10, y: 10 },
+          waypoints: [{ x: 240, y: 10 }],
+          current: { x: 240, y: 240 }
+        },
+        scene.grid
+      )
+    ).toEqual([
+      { x: 50, y: 50 },
+      { x: 150, y: 50 },
+      { x: 250, y: 50 },
+      { x: 250, y: 150 },
+      { x: 250, y: 250 }
+    ]);
+  });
+
+  it("ignores invalid or unreasonable grid highlight paths", () => {
+    const scene = createDefaultScene("Measure");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 100;
+
+    expect(getRulerGridHighlightCells({ start: { x: Number.NaN, y: 10 }, current: { x: 240, y: 10 }, waypoints: [] }, scene.grid)).toEqual([]);
+    expect(getRulerGridHighlightCells({ start: { x: 0, y: 0 }, current: { x: 1_000_000, y: 1_000_000 }, waypoints: [] }, scene.grid)).toHaveLength(5000);
   });
 
   it("formats grid and gridless distances", () => {
