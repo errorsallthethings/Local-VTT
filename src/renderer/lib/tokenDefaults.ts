@@ -8,18 +8,22 @@ import {
   DEFAULT_TOKEN_MASK,
   DEFAULT_TOKEN_SIZE_PRESET,
   type Asset,
+  type Point,
   type Scene,
   type Token
 } from "../../shared/localvtt";
+import { getSnappedTokenPosition } from "../canvas/tokenGeometry";
 
-export function createImportedToken(scene: Scene, asset: Asset, tokenId: string): Token {
+export function createImportedToken(scene: Scene, asset: Asset, tokenId: string, placementPoint?: Point): Token {
   const tokenLayer = scene.layers.find((layer) => layer.id === "token");
+  const size = getDefaultTokenSize(scene);
+  const position = placementPoint ? getTokenPositionAtPoint(scene, size, placementPoint) : getDefaultTokenPosition(scene);
   return {
     id: tokenId,
     name: stripFileExtension(asset.name),
     assetId: asset.id,
-    position: getDefaultTokenPosition(scene),
-    size: getDefaultTokenSize(scene),
+    position,
+    size,
     sizePreset: DEFAULT_TOKEN_SIZE_PRESET,
     mask: DEFAULT_TOKEN_MASK,
     borderColor: DEFAULT_TOKEN_BORDER_COLOR,
@@ -33,6 +37,14 @@ export function createImportedToken(scene: Scene, asset: Asset, tokenId: string)
     visibleInGm: tokenLayer?.visibleInGm ?? true,
     visibleInPlayer: tokenLayer?.visibleInPlayer ?? false
   };
+}
+
+export function getTokenPositionAtPoint(scene: Scene, size: Token["size"], point: Point): Point {
+  const centeredPosition = {
+    x: point.x - size.width / 2,
+    y: point.y - size.height / 2
+  };
+  return getSnappedTokenPosition(centeredPosition, getDefaultTokenPrototype(size), scene);
 }
 
 export function duplicateToken(tokens: readonly Token[], sourceTokenId: string, duplicateTokenId: string): Token[] {
@@ -90,4 +102,16 @@ function getDuplicateTokenName(name: string, tokens: readonly Token[]): string {
     suffix += 1;
   }
   return `${firstCopyName} ${suffix}`;
+}
+
+function getDefaultTokenPrototype(size: Token["size"]): Token {
+  return {
+    id: "token-placement-preview",
+    name: "Token",
+    position: { x: 0, y: 0 },
+    size,
+    sizePreset: DEFAULT_TOKEN_SIZE_PRESET,
+    hidden: false,
+    visibleInPlayer: false
+  };
 }

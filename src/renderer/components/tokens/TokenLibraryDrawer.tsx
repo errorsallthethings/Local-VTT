@@ -1,6 +1,7 @@
 import { PackageOpen, PanelBottomClose, PanelBottomOpen, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Asset } from "../../../shared/localvtt";
+import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/dragTypes";
 
 interface TokenLibraryDrawerProps {
   assets: Asset[];
@@ -68,7 +69,16 @@ function TokenLibraryItem({ asset, activeSceneName, onAddToken }: { asset: Asset
   const previewPath = asset.thumbnailAbsolutePath ?? asset.absolutePath;
   const label = asset.name || asset.originalFileName || "Token";
   return (
-    <article className="token-library-item" title={label}>
+    <article
+      className="token-library-item"
+      title={label}
+      draggable={Boolean(activeSceneName)}
+      onDragStart={(event) => {
+        event.dataTransfer.setData(TOKEN_LIBRARY_ASSET_DRAG_TYPE, asset.id);
+        event.dataTransfer.setData("text/plain", asset.id);
+        event.dataTransfer.effectAllowed = "copy";
+      }}
+    >
       <div className="token-library-thumb">
         {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" loading="lazy" draggable={false} /> : <PackageOpen size={18} aria-hidden="true" />}
       </div>
@@ -76,7 +86,13 @@ function TokenLibraryItem({ asset, activeSceneName, onAddToken }: { asset: Asset
         <strong>{label}</strong>
         <span>{asset.originalFileName}</span>
       </div>
-      <button className="icon-button token-library-add" aria-label={`Add ${label} to ${activeSceneName ?? "scene"}`} title="Add to scene" onClick={() => onAddToken(asset)}>
+      <button
+        className="icon-button token-library-add"
+        aria-label={`Add ${label} to ${activeSceneName ?? "scene"}`}
+        title="Add to scene"
+        disabled={!activeSceneName}
+        onClick={() => onAddToken(asset)}
+      >
         <Plus size={15} aria-hidden="true" />
       </button>
     </article>

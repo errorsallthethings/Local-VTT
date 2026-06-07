@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createImportedToken, duplicateToken, getDefaultTokenPosition, getDefaultTokenSize, stripFileExtension } from "../../src/renderer/lib/tokenDefaults";
+import {
+  createImportedToken,
+  duplicateToken,
+  getDefaultTokenPosition,
+  getDefaultTokenSize,
+  getTokenPositionAtPoint,
+  stripFileExtension
+} from "../../src/renderer/lib/tokenDefaults";
 import { createDefaultScene, type Asset, type Token } from "../../src/shared/localvtt";
 
 const tokenAsset: Asset = {
@@ -65,6 +72,22 @@ describe("token defaults", () => {
       assetId: tokenAsset.id,
       order: 1
     });
+  });
+
+  it("centers dropped library tokens on the drop point before square grid snapping", () => {
+    const scene = createDefaultScene("Dropped Token");
+    scene.grid = { ...scene.grid, type: "square", sizePx: 50, offsetX: 10, offsetY: 10 };
+
+    const libraryToken = createImportedToken(scene, tokenAsset, "library-token", { x: 137, y: 84 });
+
+    expect(libraryToken.position).toEqual({ x: 110, y: 60 });
+  });
+
+  it("centers dropped library tokens on gridless scenes without snapping", () => {
+    const scene = createDefaultScene("Gridless Dropped Token");
+    scene.grid = { ...scene.grid, type: "gridless", sizePx: 80 };
+
+    expect(getTokenPositionAtPoint(scene, { width: 80, height: 80 }, { x: 200, y: 120 })).toEqual({ x: 160, y: 80 });
   });
 
   it("duplicates tokens with a fresh id, copy name, and newest order", () => {

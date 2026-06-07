@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
-import type { Campaign, Point, Scene, Token } from "../../shared/localvtt";
+import type { Asset, Campaign, Point, Scene, Token } from "../../shared/localvtt";
 import { getRenderCamera, type Camera } from "../canvas/camera";
 import {
   drawFog,
@@ -33,6 +33,7 @@ import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNear
 import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
+import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
 import {
   FOG_GRID_SNAP_HINT,
   RULER_CLEAR_HINT,
@@ -55,6 +56,7 @@ interface SceneCanvasProps {
   selectedTokenId?: string | null;
   onSceneChange?: (scene: Scene, syncScene?: Scene) => void;
   onSelectToken?: (tokenId: string | null) => void;
+  onDropTokenAsset?: (asset: Asset, point: Point) => void;
   onReady?: () => void;
 }
 
@@ -95,6 +97,7 @@ export function SceneCanvas({
   selectedTokenId = null,
   onSceneChange,
   onSelectToken,
+  onDropTokenAsset,
   onReady
 }: SceneCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -843,6 +846,31 @@ export function SceneCanvas({
     setPolygonDraft(nextDraft);
   };
 
+  const canAcceptTokenAssetDrop = (event: React.DragEvent<HTMLCanvasElement>): boolean => {
+    return Boolean(mode === "gm" && scene && campaign && onDropTokenAsset && event.dataTransfer.types.includes(TOKEN_LIBRARY_ASSET_DRAG_TYPE));
+  };
+
+  const onDragOver = (event: React.DragEvent<HTMLCanvasElement>) => {
+    if (!canAcceptTokenAssetDrop(event)) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  };
+
+  const onDrop = (event: React.DragEvent<HTMLCanvasElement>) => {
+    if (!canAcceptTokenAssetDrop(event)) {
+      return;
+    }
+    event.preventDefault();
+    const assetId = event.dataTransfer.getData(TOKEN_LIBRARY_ASSET_DRAG_TYPE);
+    const asset = campaign?.assets.find((candidate) => candidate.id === assetId && candidate.kind === "token");
+    if (!asset) {
+      return;
+    }
+    onDropTokenAsset?.(asset, clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale)));
+  };
+
   const updatePolygonDraft = (tool: FogTool, point: Point) => {
     const currentDraft = polygonDraftRef.current;
     const operation = getFogOperationForTool(tool);
@@ -973,6 +1001,8 @@ export function SceneCanvas({
         onPointerLeave={onPointerLeave}
         onDoubleClick={onDoubleClick}
         onContextMenu={onContextMenu}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
       />
       {mode === "gm" && fogTool && (
         <FogToolStatusStrip fogTool={fogTool} polygonPointCount={polygonDraft?.points.length ?? 0} brushSize={scene?.fog.brushSize ?? 0} />
@@ -1092,10 +1122,14 @@ function getPlayerDisplayScale(campaign: Campaign | null, scene: Scene | null, m
 }
 
 function eventToWorldPoint(event: React.PointerEvent<HTMLCanvasElement>, camera: Camera): Point {
-  const rect = event.currentTarget.getBoundingClientRect();
+  return clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, camera);
+}
+
+function clientToWorldPoint(element: HTMLCanvasElement, clientX: number, clientY: number, camera: Camera): Point {
+  const rect = element.getBoundingClientRect();
   return {
-    x: (event.clientX - rect.left - camera.x) / camera.zoom,
-    y: (event.clientY - rect.top - camera.y) / camera.zoom
+    x: (clientX - rect.left - camera.x) / camera.zoom,
+    y: (clientY - rect.top - camera.y) / camera.zoom
   };
 }
 

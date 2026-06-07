@@ -10,6 +10,7 @@ import type {
   CampaignSceneEntry,
   CampaignSceneFolder,
   DisplayCalibration,
+  Point,
   Scene,
   SquareCropRect
 } from "../../shared/localvtt";
@@ -360,12 +361,12 @@ export function GmApp() {
       setTokenCropDialog({ asset: result.asset });
     });
 
-  const addImportedTokenToScene = (asset: Asset, syncCampaign: Campaign | null = campaign) => {
+  const addImportedTokenToScene = (asset: Asset, syncCampaign: Campaign | null = campaign, placementPoint?: Point) => {
     if (!activeScene) {
       return;
     }
     const tokenId = crypto.randomUUID();
-    const nextToken = createImportedToken(activeScene, asset, tokenId);
+    const nextToken = createImportedToken(activeScene, asset, tokenId, placementPoint);
     updateScene(
       {
         ...activeScene,
@@ -380,6 +381,10 @@ export function GmApp() {
 
   const addLibraryTokenToScene = (asset: Asset) => {
     addImportedTokenToScene(asset);
+  };
+
+  const dropLibraryTokenOnScene = (asset: Asset, point: Point) => {
+    addImportedTokenToScene(asset, campaign, point);
   };
 
   const submitTokenCrop = (crop: SquareCropRect) =>
@@ -808,6 +813,7 @@ export function GmApp() {
             selectedTokenId={selectedTokenId}
             onSceneChange={updateCanvasScene}
             onSelectToken={setSelectedTokenId}
+            onDropTokenAsset={dropLibraryTokenOnScene}
           />
           <GmSettingsMenu
             open={gmSettingsOpen}

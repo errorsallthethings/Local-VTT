@@ -110,6 +110,14 @@
   padding: 8px;
 }
 
+.token-library-item[draggable="true"] {
+  cursor: grab;
+}
+
+.token-library-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
 .token-library-thumb {
   display: grid;
   place-items: center;
