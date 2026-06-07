@@ -7,7 +7,7 @@ import {
   type Scene,
   type Token
 } from "../../shared/localvtt";
-import { getRulerGridHighlightCells } from "./measurement";
+import { getRulerPathHighlightCells } from "./measurement";
 import {
   getTokenGridFootprint,
   getTokenHexFootprintCenters,
@@ -160,19 +160,16 @@ function drawTokenMovementGridHighlights(ctx: CanvasRenderingContext2D, scene: S
     return;
   }
 
-  const pathPoints = [
-    getTokenCenter(token, preview.startPosition),
-    ...preview.waypoints.map((waypoint) => getTokenCenter(token, waypoint)),
-    getTokenCenter(token, preview.snappedPosition)
-  ];
-  const cells = new Map<string, Point>();
-  for (let index = 1; index < pathPoints.length; index += 1) {
-    for (const cell of getRulerGridHighlightCells({ start: pathPoints[index - 1], current: pathPoints[index], waypoints: [] }, scene.grid)) {
-      cells.set(`${Math.round(cell.x * 100) / 100},${Math.round(cell.y * 100) / 100}`, cell);
-    }
-  }
+  const cells = getRulerPathHighlightCells(
+    {
+      start: getTokenCenter(token, preview.startPosition),
+      waypoints: preview.waypoints.map((waypoint) => getTokenCenter(token, waypoint)),
+      current: getTokenCenter(token, preview.snappedPosition)
+    },
+    scene.grid
+  );
 
-  if (cells.size === 0) {
+  if (cells.length === 0) {
     return;
   }
 
@@ -180,7 +177,7 @@ function drawTokenMovementGridHighlights(ctx: CanvasRenderingContext2D, scene: S
   ctx.fillStyle = "rgb(246 211 101 / 0.14)";
   ctx.strokeStyle = "rgb(255 255 255 / 0.36)";
   ctx.lineWidth = Math.max(1, scene.grid.lineThickness);
-  for (const cell of cells.values()) {
+  for (const cell of cells) {
     if (scene.grid.type === "hex") {
       traceTokenPathHexCell(ctx, cell, Math.max(8, scene.grid.sizePx / 2));
       ctx.fill();

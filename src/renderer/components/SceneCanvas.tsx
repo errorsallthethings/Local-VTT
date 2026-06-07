@@ -18,7 +18,16 @@ import {
 import { drawHexGrid, drawSquareGrid } from "../canvas/gridRenderer";
 import { getNearestGridPoint } from "../canvas/gridMath";
 import { drawMapSource } from "../canvas/mapRenderer";
-import { drawRuler, formatMeasurementDistance, getMeasurementDistance, getStraightLineMeasurementDistance, type RulerDrag, type RulerLabel } from "../canvas/measurement";
+import {
+  drawRuler,
+  formatMeasurementDistance,
+  getMeasurementDistance,
+  getMeasurementPathDistance,
+  getRulerPathPoints,
+  getStraightLineMeasurementDistance,
+  type RulerDrag,
+  type RulerLabel
+} from "../canvas/measurement";
 import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
 import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
@@ -961,13 +970,13 @@ function RulerStatusStrip({ rulerDrag, scene }: { rulerDrag: RulerDrag | null; s
 
 function getRulerLabel(rulerDrag: RulerDrag, scene: Scene): RulerLabel {
   const pathPoints = getRulerPathPoints(rulerDrag);
-  const primaryDistance = sumRulerPathDistance(pathPoints, scene, getMeasurementDistance);
+  const primaryDistance = getMeasurementPathDistance(pathPoints, scene.grid, getMeasurementDistance);
   const primary = formatMeasurementDistance(primaryDistance, scene.grid.measurement, scene.grid.type);
   if (scene.grid.type === "gridless" || scene.grid.measurement.distanceMode === "euclidean") {
     return { primary };
   }
 
-  const straightLine = formatMeasurementDistance(sumRulerPathDistance(pathPoints, scene, getStraightLineMeasurementDistance), scene.grid.measurement, scene.grid.type);
+  const straightLine = formatMeasurementDistance(getMeasurementPathDistance(pathPoints, scene.grid, getStraightLineMeasurementDistance), scene.grid.measurement, scene.grid.type);
   return { primary, secondary: `Straight: ${straightLine}` };
 }
 
@@ -982,12 +991,8 @@ function getTokenMoveLabel(scene: Scene, preview: TokenDragPreview): string | nu
     ...preview.waypoints.map((waypoint) => getTokenCenterPoint(token, waypoint)),
     getTokenCenterPoint(token, preview.snappedPosition)
   ];
-  const distance = sumRulerPathDistance(pathPoints, scene, getMeasurementDistance);
+  const distance = getMeasurementPathDistance(pathPoints, scene.grid, getMeasurementDistance);
   return formatMeasurementDistance(distance, scene.grid.measurement, scene.grid.type);
-}
-
-function getRulerPathPoints(rulerDrag: RulerDrag): Point[] {
-  return [rulerDrag.start, ...rulerDrag.waypoints, rulerDrag.current];
 }
 
 function getTokenCenterPoint(token: Token, position: Point): Point {
@@ -995,13 +1000,6 @@ function getTokenCenterPoint(token: Token, position: Point): Point {
     x: position.x + token.size.width / 2,
     y: position.y + token.size.height / 2
   };
-}
-
-function sumRulerPathDistance(points: Point[], scene: Scene, getDistance: (start: Point, end: Point, grid: Scene["grid"]) => number) {
-  return points.reduce((total, point, index) => {
-    const previous = points[index - 1];
-    return previous ? total + getDistance(previous, point, scene.grid) : total;
-  }, 0);
 }
 
 function getPlayerDisplayScale(campaign: Campaign | null, scene: Scene | null, mode: "gm" | "player"): number {

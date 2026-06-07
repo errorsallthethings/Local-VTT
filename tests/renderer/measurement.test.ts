@@ -3,6 +3,7 @@ import { createDefaultScene } from "../../src/shared/localvtt";
 import {
   formatMeasurementDistance,
   getMeasurementDistance,
+  getMeasurementPathDistance,
   getRulerGridHighlightCells,
   getStraightLineMeasurementDistance
 } from "../../src/renderer/canvas/measurement";
@@ -46,6 +47,15 @@ describe("measurement helpers", () => {
 
     expect(getMeasurementDistance({ x: 0, y: 0 }, { x: 300, y: 400 }, scene.grid)).toBe(35);
     expect(getStraightLineMeasurementDistance({ x: 0, y: 0 }, { x: 300, y: 400 }, scene.grid)).toBe(25);
+  });
+
+  it("sums measurement distance across path segments", () => {
+    const scene = createDefaultScene("Measure");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 100;
+    scene.grid.measurement = { unit: "feet", unitsPerGridCell: 5, distanceMode: "euclidean" };
+
+    expect(getMeasurementPathDistance([{ x: 0, y: 0 }, { x: 300, y: 400 }, { x: 600, y: 400 }], scene.grid)).toBe(40);
   });
 
   it("finds square cells crossed by a ruler line", () => {

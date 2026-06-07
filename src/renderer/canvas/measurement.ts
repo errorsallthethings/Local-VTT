@@ -32,6 +32,13 @@ export function getStraightLineMeasurementDistance(start: Point, end: Point, gri
   return (getPixelDistance(start, end) / grid.sizePx) * grid.measurement.unitsPerGridCell;
 }
 
+export function getMeasurementPathDistance(points: Point[], grid: GridSettings, getDistance = getMeasurementDistance): number {
+  return points.reduce((total, point, index) => {
+    const previous = points[index - 1];
+    return previous ? total + getDistance(previous, point, grid) : total;
+  }, 0);
+}
+
 export function formatMeasurementDistance(distance: number, measurement: MeasurementSettings, gridType: GridSettings["type"]): string {
   if (gridType === "gridless") {
     return `${Math.round(distance)} px`;
@@ -252,11 +259,11 @@ function drawRulerGridHighlights(ctx: CanvasRenderingContext2D, drag: RulerDrag,
   ctx.restore();
 }
 
-function getRulerPathPoints(drag: RulerDrag): Point[] {
+export function getRulerPathPoints(drag: RulerDrag): Point[] {
   return [drag.start, ...drag.waypoints, drag.current];
 }
 
-function getRulerPathHighlightCells(drag: RulerDrag, grid: GridSettings): Point[] {
+export function getRulerPathHighlightCells(drag: RulerDrag, grid: GridSettings): Point[] {
   const points = getRulerPathPoints(drag);
   const cells = new Map<string, Point>();
   for (let index = 1; index < points.length; index += 1) {
