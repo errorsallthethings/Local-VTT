@@ -31,6 +31,7 @@ let forceCloseGmWindow = false;
 const openedCampaignPaths = new Set<string>();
 const knownAssetPaths = new Set<string>();
 
+// localvtt://asset URLs let renderer code display campaign files without exposing arbitrary filesystem access.
 protocol.registerSchemesAsPrivileged([
   {
     scheme: "localvtt",
@@ -75,6 +76,7 @@ function sendToPlayerWhenReady(payload: unknown): void {
   }
 
   if (playerWindow.webContents.isLoading()) {
+    // Scene sends can happen immediately after opening Player View; queue once instead of dropping the first scene.
     playerWindow.webContents.once("did-finish-load", () => {
       playerWindow?.webContents.send("player:state", payload);
     });
@@ -104,6 +106,7 @@ function sceneFile(campaignPath: string, sceneId: string): string {
 }
 
 function resolveAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
+  // Saved JSON stays portable with relative paths; absolute paths are runtime-only conveniences for renderers.
   const normalizedCampaign = normalizeCampaign(campaign);
   const resolvedCampaign = {
     ...normalizedCampaign,

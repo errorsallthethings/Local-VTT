@@ -9,6 +9,7 @@ export function getVisibleTokens(scene: Scene, mode: "gm" | "player"): Token[] {
 }
 
 export function isTokenRevealedByFog(token: Token, scene: Scene): boolean {
+  // Player View reveals a token if any sampled point intersects a reveal shape, not only its center.
   const samplePoints = getTokenRevealSamplePoints(token);
   return scene.fog.shapes.some((shape) => {
     const isVisible = shape.visibleInPlayer ?? shape.visible ?? true;
@@ -22,6 +23,7 @@ export function getTokenRevealSamplePoints(token: Token): Point[] {
   const centerX = x + width / 2;
   const centerY = y + height / 2;
   return [
+    // Center, corners, and edge midpoints approximate "any visible part" without expensive shape clipping tests.
     { x: centerX, y: centerY },
     { x, y },
     { x: x + width, y },
@@ -111,12 +113,14 @@ export function getSnappedTokenPosition(position: Point, token: Token, scene: Sc
       x: position.x + token.size.width / 2,
       y: position.y + token.size.height / 2
     };
+    // Large hex tokens occupy the three hexes around a shared vertex; other hex sizes anchor to a hex center.
     const snappedCenter = token.sizePreset === "large" ? getNearestHexVertex(center, scene.grid) : getNearestHexCenter(center, scene.grid);
     return {
       x: snappedCenter.x - token.size.width / 2,
       y: snappedCenter.y - token.size.height / 2
     };
   }
+  // Tiny/Small square-grid tokens sit in the center of a cell; larger tokens align to grid corners.
   const isHalfCell = token.size.width <= scene.grid.sizePx * 0.75 && token.size.height <= scene.grid.sizePx * 0.75;
   if (isHalfCell) {
     const center = {
@@ -160,6 +164,7 @@ export function getNearestHexCenter(point: Point, grid: Scene["grid"]): Point {
   const approximateRow = Math.round((point.y - grid.offsetY) / rowStep);
   let nearest = { x: grid.offsetX, y: grid.offsetY };
   let nearestDistance = Number.POSITIVE_INFINITY;
+  // Search nearby rows/columns instead of deriving an exact inverse; this is simpler and stable for UI snapping.
   for (let row = approximateRow - 2; row <= approximateRow + 2; row += 1) {
     const rowOffset = row % 2 === 0 ? 0 : hexWidth / 2;
     const approximateColumn = Math.round((point.x - grid.offsetX - rowOffset) / hexWidth);
@@ -190,6 +195,7 @@ export function getTokenHexFootprintCenters(scene: Scene, token: Token): Point[]
   if (scene.grid.type !== "hex") {
     return [];
   }
+  // Footprints describe occupied hexes separately from token art, which remains square/circular for readability.
   const anchor =
     token.sizePreset === "large"
       ? getNearestHexVertex(

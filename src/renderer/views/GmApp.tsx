@@ -150,6 +150,7 @@ export function GmApp() {
   }, [activeScene, campaign?.assets, campaign?.scenes, sceneDrafts]);
 
   const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
+    // Only sync the active edit to Player View when that same scene is already being shown to players.
     updateWorkspaceScene(nextScene, nextScene.id === playerSceneId ? syncCampaign : null, syncScene);
   };
 

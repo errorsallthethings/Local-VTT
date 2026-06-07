@@ -89,6 +89,7 @@ export function getRulerGridHighlightCells(drag: RulerDrag, grid: GridSettings):
 }
 
 function getDistanceCells(dxCells: number, dyCells: number, measurement: MeasurementSettings): number {
+  // Distance modes are tabletop rules, not geometry modes; the same path can report multiple rule interpretations.
   if (measurement.distanceMode === "manhattan") {
     return dxCells + dyCells;
   }
@@ -125,6 +126,7 @@ function getSquareGridHighlightCells(drag: RulerDrag, grid: GridSettings): Point
     });
   };
 
+  // Walk the grid with a supercover-style traversal so highlighted cells match the measured path.
   let column = start.column;
   let row = start.row;
   const endColumn = end.column;

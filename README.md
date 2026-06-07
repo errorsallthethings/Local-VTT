@@ -1,21 +1,21 @@
 # Local VTT
-LocalVTT is a lightweight, local-first Electron desktop app for in-person tabletop RPG sessions. It is designed for a Game Master with a private control display and a second player-facing display, such as a TV used as a physical battle map.
+Local VTT is a lightweight, local-first Electron desktop app for in-person tabletop RPG sessions. It is designed for a Game Master with a private control display and a second player-facing display, such as a TV used as a physical battle map.
 
 No login, accounts, cloud sync, or internet connection are required during use. Campaigns are stored as portable local folders.
 
-## Phase 1 Architecture
+## Architecture
 
 - `electron/main.ts`: application lifecycle, secure window creation, campaign folder IO, asset import/copy, and Player View window control.
 - `electron/preload.ts`: typed `contextBridge` API. The renderer never receives unrestricted filesystem access.
 - `src/shared`: TypeScript models, default scene data, validation, and player-safe scene projection.
 - `src/renderer`: React GM View, React Player View, and a Canvas 2D scene renderer.
 
-Rendering currently uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog of war, and lightweight GM tokens. The scene model and renderer boundary are intentionally isolated so later phases can replace or augment the canvas layer with PixiJS/WebGL for very large maps, advanced vision, lighting, and overlays.
+Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog of war, ruler measurement, and lightweight GM tokens. The scene model and renderer boundary are intentionally isolated so future versions can replace or augment the canvas layer with PixiJS/WebGL for very large maps, advanced vision, lighting, and overlays.
 
 ## Campaign Folder Format
 
 ```text
-LocalVTT Campaign/
+Local VTT Campaign/
   campaign.json
   assets/
     maps/
@@ -30,7 +30,7 @@ LocalVTT Campaign/
 
 Assets are stored with relative paths in JSON so campaign folders can be backed up or moved between computers.
 
-Imported static image and video maps generate small JPEG thumbnails in `assets/thumbnails/` for the scene list. Video thumbnails are captured from the first frame during import when Electron can decode the source video. Imported token assets also generate square, center-cropped JPEG thumbnails for token sub-layer previews. Thumbnails are metadata on assets and avoid loading full-resolution battle maps, token art, or live video elements just to render sidebars.
+Imported static image and video maps generate small JPEG thumbnails in `assets/thumbnails/` for the scene list. Video thumbnails are captured from the first frame during import when Electron can decode the source video. Imported token assets also generate square, center-cropped JPEG thumbnails for token sub-layer previews and the Token Library. Thumbnails are metadata on assets and avoid loading full-resolution battle maps, token art, or live video elements just to render sidebars.
 
 ## Development
 
@@ -88,7 +88,53 @@ Windows:
 npm run package:win
 ```
 
-## Phase 1 Implemented
+## MVP Scope
+
+The current MVP is focused on a local-first battle map companion for in-person play:
+
+- Create/open/save portable local campaign folders.
+- Manage scenes and scene folders.
+- Import static image, video, and token assets into the campaign folder.
+- Display a private GM View and a separate Player View.
+- Send selected scenes to Player View with map, grid, fog, and visible tokens.
+- Support lightweight GM token markers, token reuse through the Token Library, manual fog of war, and GM-only ruler measurement.
+- Keep campaign data local with no accounts, login, cloud sync, or internet dependency during play.
+
+This version is intentionally not a full campaign-management VTT. Tokens are lightweight map markers, not character sheets or combat entities.
+
+## Current Smoke Test Checklist
+
+Before packaging or sharing a build, run through these workflows:
+
+- Create and open a campaign.
+- Create, rename, delete, and save scenes.
+- Rename, color, delete, collapse, and reorder scene folders.
+- Import static image maps, video maps, and token assets.
+- Send scenes to Player View and confirm Player View fullscreen behavior remains stable.
+- Resize/collapse GM side panels and the Token Library drawer.
+- Change layer visibility and settings.
+- Draw, rename, reorder, toggle, and delete fog shapes.
+- Configure square, hex, and gridless scenes, including grid fit-to-map for static maps.
+- Add, duplicate, move, rename, resize, restyle, and delete tokens.
+- Confirm token presentation and movement sync to Player View.
+- Use the Token Library to import, rename, search, sort, set defaults, add, drag/drop, and delete tokens with usage warnings.
+- Use the ruler on square, hex, and gridless scenes.
+- Run `npm run check` and `npm run build`.
+
+## Deferred / Future Enhancements
+
+These ideas are intentionally outside the current MVP unless they become release blockers:
+
+- Token Library export/import packs.
+- Initiative, health bars, conditions, permissions, and advanced token sheets.
+- Full dynamic lighting, walls, doors, windows, and vision-aware fog.
+- Drawing layers, pings, laser pointer, spell templates, overlays, and animated effects.
+- Advanced token library tags, grouping, bulk editing, and external asset management.
+- Localization/string resource files after UI wording stabilizes.
+- Light/custom themes after the dark-theme CSS token structure is stable.
+- Installer signing, notarization, auto-update, icons, and release-channel polish.
+
+## Foundational Features
 
 - Electron + React + TypeScript scaffold.
 - Secure preload IPC surface.
@@ -99,27 +145,27 @@ npm run package:win
 - GM View canvas with pan/zoom.
 - Player View as a second `BrowserWindow`.
 - Send active scene to Player View.
-- Square grid controls with independent GM/Player visibility.
+- Grid controls with independent GM/Player visibility.
 - Basic default layer model.
 - Missing asset warnings.
 
-## Phase 2A Implemented / In Progress
+## Implemented Feature Summary
 
-- `.mp4` and `.webm` maps can be imported as video map assets.
+- Static image maps, animated GIF maps, `.mp4` maps, and `.webm` maps can be imported as map assets.
 - Video maps render in the GM and Player canvas, muted and looped.
 - Video map playback can be paused/resumed, muted/unmuted, and inspected with optional diagnostics from contextual GM canvas controls.
 - Video map scenes use generated JPEG thumbnails when available, with a lightweight video fallback if thumbnail capture fails.
 - Animated `.gif` image maps are redrawn continuously when used as the active map.
 - Grid mode supports gridless, square, and hex options from the Grid Layer.
-- Static image maps can use known map grid dimensions, such as 44x25, to calculate a matching grid cell size.
+- Static image maps can use known map grid dimensions, such as 44 by 25, to calculate a matching grid cell size.
 - Player View can be opened, fullscreened, exited from fullscreen, and closed from the Player View menu.
-- Player View can target a saved display and optionally open fullscreen there. If the saved display is missing, LocalVTT falls back to a normal draggable Player View window.
+- Player View can target a saved display and optionally open fullscreen there. If the saved display is missing, Local VTT falls back to a normal draggable Player View window.
 - Player View display selection and Player Display Scale are available from the Player View menu.
 - Measurement settings are available from the Grid Layer settings when square or hex grids are active.
 - Static image and video scene thumbnails are shown in the scene list when available.
 - GM View side panels can be resized, collapsed, and restored with persistent local workspace layout preferences.
 - Scene folders support collapse state persistence, drag/drop targets, folder colors, and color preset swatches.
-- CSS design tokens are defined in `src/renderer/styles/base.css` to support repeated UI values and future theme work.
+- CSS custom properties are defined in `src/renderer/styles/base.css` to support repeated UI values and future theme work.
 - Token image assets can be imported into `assets/tokens` with generated square thumbnails for the Token Layer.
 - The Token Library drawer can import reusable token assets, filter/sort them, change thumbnail display size, drag them onto the GM canvas, or add them to the active scene from the library.
 - Token Library assets can be renamed, deleted with scene-usage warnings, and assigned presentation defaults directly from the library menu.
@@ -138,7 +184,7 @@ Map fit mode is configured from the Map Layer controls.
 - `Fit cover`: scales the map so it fills the current view; edges may be cropped.
 - `Actual size`: draws the map at its native pixel size and centers it.
 
-For maps built for a known grid size, enter the map grid width and height in the Grid Layer controls, for example `44` by `25`, then choose `Fit grid to map dimensions`. LocalVTT reads the static image dimensions and calculates a grid cell size from the image's native pixel size. This workflow currently supports static image maps.
+For maps built for a known grid size, enter the map grid width and height in the Grid Layer controls, for example `44` by `25`, then choose `Fit grid to map dimensions`. Local VTT reads the static image dimensions and calculates a grid cell size from the image's native pixel size. This workflow supports static image maps.
 
 ## Player Display Scale
 
@@ -154,7 +200,7 @@ Player Display Scale is campaign-level because the external display normally sta
 
 ## Fog of War Tools
 
-Manual fog of war is currently implemented with a floating GM canvas Tools Menu.
+Manual fog of war is controlled from the floating GM canvas Tools Menu.
 
 - Fog mode can start fully revealed, fully hidden, or partially revealed.
 - GM and Player fog opacity can be configured independently.
@@ -185,13 +231,13 @@ The GM-only ruler tool lives in the floating Tools Menu.
 
 Tokens are intentionally lightweight for this version of Local VTT. They are meant to help the GM track physical or virtual markers on the map without turning the app into a full campaign-management VTT.
 
-- Import token image assets from the Token Layer.
-- Imported token thumbnails are center-cropped to square previews.
-- Token sub-layers provide quick selection, rename, drag/drop reordering, GM/Player visibility toggles, and an options menu.
+- Import token image assets from the Token Layer or directly into the Token Library.
+- Imported token thumbnails are center-cropped to square previews. The token import flow also supports manual crop framing before a token is added.
+- Token sub-layers provide quick selection, rename, duplicate, drag/drop reordering, GM/Player visibility toggles, and an options menu.
 - Per-token settings include:
   - Size preset: Tiny/Small, Medium, Large, Huge, Gargantuan, and Custom for non-hex grids.
   - Mask: circle, square, or none.
-  - Border style: none, solid, embossed, inner shadow, or glow.
+  - Border style: none, solid, dashed, dotted, double line, embossed, inner shadow, or glow.
   - Border width presets with a custom pixel value.
   - Border color and glow color.
   - Optional footprint highlight shown in GM and Player views when enabled.
@@ -228,15 +274,8 @@ Tokens are intentionally lightweight for this version of Local VTT. They are mea
 
 ## Roadmap
 
-- Near-term: continue token, fog, and layer-panel interaction polish based on tabletop use.
-- Near-term: continue static/video/token thumbnail polish, including cross-platform fallback checks.
-- Phase 2: display calibration refinement, hex/gridless polish, improved grid alignment, and continued GM workspace polish.
-- Phase 3: manual fog of war polish, player-preview mode, fog persistence refinements, and later vision-aware fog structures.
-- Phase 4: token polish beyond lightweight markers, such as optional aura, light, or vision data model.
-- Phase 5: wall, door, and window drawing and editing.
-- Phase 6: light sources, ambient light/darkness, bright/dim radius, optional wall-blocked lighting.
-- Phase 7: drawings, pings, laser pointer, ruler expansion, and spell templates.
-- Phase 8: imported animated overlays/effects, opacity/scale/rotation, optional polygon masking.
-- Future polish: typed localization/string resources once UI wording stabilizes.
+- Pre-MVP stabilization: release-blocker review, packaging checks, documentation cleanup, and targeted bug fixes from smoke testing.
+- MVP polish: continue token, fog, layer-panel, ruler, and Player View interaction polish based on tabletop use.
+- Post-MVP: revisit the deferred feature list once the lightweight local battle-map workflow is stable.
 
 Deferred features are represented in the TypeScript scene model so saved data can evolve without a redesign.

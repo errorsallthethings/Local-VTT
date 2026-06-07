@@ -122,6 +122,7 @@ export function SceneCanvas({
   const fogDragRef = useRef<FogDrag | null>(null);
   const polygonDraftRef = useRef<FogPolygonDraft | null>(null);
   const previousSceneRef = useRef<Scene | null>(null);
+  // Player View tween state is mirrored in a ref so requestAnimationFrame can draw without stale React closures.
   const playerTokenTweenPositionsRef = useRef<TokenPositionOverrides | null>(null);
 
   const mapAsset = useMemo(() => {
@@ -136,6 +137,7 @@ export function SceneCanvas({
   }, [mapAsset?.absolutePath]);
 
   const tokenAssetIds = useMemo(() => {
+    // Keep image loading keyed by asset identity, not token presentation/position changes.
     return [...new Set(scene?.tokens.map((token) => token.assetId).filter(Boolean) ?? [])].join("|");
   }, [scene?.tokens]);
 
@@ -182,6 +184,7 @@ export function SceneCanvas({
 
   useEffect(() => {
     if (scene && mapReady && tokensReady) {
+      // Player scene transitions wait for map/token assets so the splash does not reveal half-loaded content.
       onReady?.();
     }
   }, [mapReady, onReady, scene, tokensReady]);
@@ -223,6 +226,7 @@ export function SceneCanvas({
       return;
     }
 
+    // Only Player View animates committed token moves; GM View uses the live drag preview instead.
     const tweens = getTokenMovementTweens(previousScene.tokens, scene.tokens, scene);
     if (tweens.length === 0) {
       playerTokenTweenPositionsRef.current = null;
@@ -465,6 +469,7 @@ export function SceneCanvas({
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       const scale = window.devicePixelRatio || 1;
+      // Canvas pixels are scaled for crisp rendering while drawScene still receives CSS-pixel dimensions.
       canvas.width = Math.max(1, Math.floor(rect.width * scale));
       canvas.height = Math.max(1, Math.floor(rect.height * scale));
       context.setTransform(scale, 0, 0, scale, 0, 0);
@@ -480,6 +485,7 @@ export function SceneCanvas({
 
       ctx.save();
       const renderCamera = getRenderCamera(camera, playerDisplayScale);
+      // Player Display Scale modifies Player View zoom only; GM camera controls stay scene-local.
       ctx.translate(renderCamera.x, renderCamera.y);
       ctx.scale(renderCamera.zoom, renderCamera.zoom);
 
@@ -524,6 +530,7 @@ export function SceneCanvas({
       ctx.restore();
 
       if (canShowFog) {
+        // Fog is drawn after world content so hidden/partial modes mask maps, tokens, grid, and ruler consistently.
         drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, selectedFogShapeId);
       }
       if (mode === "gm" && brushHoverPoint && fogTool?.includes("brush") && !fogPreview) {
@@ -1278,6 +1285,7 @@ function getTokenMovementTweens(previousTokens: Token[], nextTokens: Token[], sc
     if (distanceBetween(previousToken.position, nextToken.position) <= 2) {
       continue;
     }
+    // Preserve the GM-authored route when a token move included Shift waypoints; otherwise animate direct movement.
     const points =
       scene.tokenMovementPath?.tokenId === nextToken.id
         ? normalizeMovementPath([previousToken.position, ...scene.tokenMovementPath.points.slice(1, -1), nextToken.position])

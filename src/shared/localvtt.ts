@@ -30,7 +30,9 @@ export interface Asset {
   thumbnailRelativePath?: string;
   originalFileName: string;
   createdAt: string;
+  /** Defaults only affect future tokens added from this library asset; placed scene tokens keep their own presentation. */
   tokenDefaults?: TokenPresentationDefaults;
+  /** Runtime-only absolute paths are resolved by Electron after a campaign folder is opened. */
   absolutePath?: string;
   thumbnailAbsolutePath?: string;
 }
@@ -374,6 +376,7 @@ export const DEFAULT_FOG: FogSettings = {
 };
 
 export const DEFAULT_LAYERS: Layer[] = [
+  // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
   { id: "gm", name: "GM", kind: "gm", order: 90, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
   { id: "fog", name: "Fog of War", kind: "fog", order: 80, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
   { id: "weather", name: "Weather", kind: "weather", order: 70, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
@@ -461,6 +464,7 @@ export function isPlayerSceneProjection(value: unknown): value is PlayerScenePro
 
 export function normalizeScene(scene: Scene): Scene {
   const layerById = new Map((scene.layers ?? []).map((layer) => [layer.id, layer]));
+  // Default layer names/order are application-owned so old scene files pick up current layer labels safely.
   const normalizedLayers = DEFAULT_LAYERS.map((defaultLayer) => ({
     ...defaultLayer,
     ...(layerById.get(defaultLayer.id) ?? {}),
@@ -520,6 +524,7 @@ function normalizeFog(fog?: Partial<FogSettings>): FogSettings {
 }
 
 function getUniqueFogShapeId(id: unknown, index: number, usedIds: Set<string>): string {
+  // Older/manual scene files may contain missing or duplicated fog ids; UI reorder/delete needs stable unique ids.
   const rawId = typeof id === "string" ? id.trim() : "";
   const baseId = rawId || `fog-shape-${index + 1}`;
   let candidateId = baseId;
@@ -549,6 +554,7 @@ function normalizeTokens(tokens?: Token[]): Token[] {
     borderWidthPreset: token.borderWidthPreset ?? DEFAULT_TOKEN_BORDER_WIDTH_PRESET,
     glowColor: normalizeColor(token.glowColor, normalizeColor(token.borderColor, DEFAULT_TOKEN_GLOW_COLOR)),
     footprintVisible: token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE,
+    // Legacy token arrays had no explicit order; keep their visible order stable by assigning descending defaults.
     order: token.order ?? (tokens?.length ?? 0) - index,
     hidden: token.hidden ?? false,
     visibleInGm: token.visibleInGm ?? !(token.hidden ?? false),
@@ -568,6 +574,7 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
     color: normalizeColor(folder.color)
   }));
   const folderIds = new Set(sceneFolders.map((folder) => folder.id));
+  // Drop collapsed folder ids that no longer exist so deleted folders do not linger in UI state.
   const collapsedFolderIds = (campaign.sceneLibrary?.collapsedFolderIds ?? []).filter((folderId) => folderIds.has(folderId));
 
   return {
@@ -646,6 +653,7 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene): PlayerS
         ...normalizedScene.fog,
         shapes: normalizedScene.fog.shapes.filter((shape) => shape.visibleInPlayer ?? shape.visible ?? true)
       },
+      // Projection is the Player View trust boundary: strip GM-only layers/content before sending across IPC.
       layers: normalizedScene.layers.filter((layer) => layer.visibleInPlayer),
       tokens: normalizedScene.tokens.filter((token) => token.visibleInPlayer),
       walls: [],

@@ -66,6 +66,7 @@ export function drawTokens(
 }
 
 function clipToPlayerRevealShapes(ctx: CanvasRenderingContext2D, scene: Scene): boolean {
+  // Player tokens are clipped to reveal shapes so partial fog can show only the visible part of token art.
   const revealShapes = scene.fog.shapes.filter((shape) => {
     const isVisible = shape.visibleInPlayer ?? shape.visible ?? true;
     return isVisible && shape.operation === "reveal";
@@ -370,6 +371,7 @@ function drawTokenBorder(
     return;
   }
 
+  // Borders are clipped to the token mask so thicker styles grow inward instead of changing grid footprint size.
   const safeBorderWidth = Math.max(1, Math.min(Math.min(width, height), borderWidth));
   const inset = safeBorderWidth / 2;
   ctx.save();

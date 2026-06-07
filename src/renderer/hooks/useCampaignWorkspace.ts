@@ -70,6 +70,7 @@ export function useCampaignWorkspace() {
     setDirtySceneIds((ids) => new Set(ids).add(nextScene.id));
     setSaveState("idle");
     if (syncCampaign) {
+      // Build the Player View projection in the renderer so dev hot reload and shared model changes stay in sync.
       void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(syncCampaign, syncScene));
     }
   };
@@ -78,6 +79,7 @@ export function useCampaignWorkspace() {
     setCampaign(nextCampaign);
     setCampaignDirty(true);
     if (syncScene) {
+      // Campaign-level settings, such as Player Display Scale, still need a scene projection to update Player View.
       void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(nextCampaign, syncScene));
     }
   };
