@@ -109,8 +109,9 @@ npm run package:win
 - Token image assets can be imported into `assets/tokens` with generated square thumbnails for the Token Layer.
 - Token sub-layers support rename, reordering, GM/Player visibility, deletion, and per-token presentation settings.
 - Token presentation settings include size presets, mask shape, border style, border width, border/glow colors, and optional footprint highlights.
-- Token movement is freeform while dragging and snaps on release for square and hex grids.
+- Token movement supports waypoint previews, crossed-cell highlights, measured route distance, and Player View tweening along the route.
 - Player-visible tokens render in Player View and respect manual fog visibility rules.
+- GM-only ruler measurement supports square, hex, and gridless scenes, waypoint paths, crossed-cell highlights, and distance-mode readouts.
 
 ## Map Fit Modes
 
@@ -151,6 +152,19 @@ Manual fog of war is currently implemented with a floating GM canvas Tools Menu.
 - Fog shapes appear as sub-layers under the Fog of War Layer, with tool icons, rename, reordering, GM/Player visibility, delete controls, and temporary canvas highlighting when selected.
 - In partially or fully hidden fog modes, Player View tokens are shown only when a player-visible reveal shape overlaps the token.
 
+## Ruler and Measurement
+
+The GM-only ruler tool lives in the floating Tools Menu.
+
+- Left-drag to measure a path.
+- Holding Ctrl/Cmd snaps ruler points to square grid centers or hex centers. Gridless measurement stays freeform.
+- Press Shift while dragging to add a ruler waypoint. Ctrl/Cmd + Shift adds a snapped waypoint.
+- Right-click removes the last active ruler waypoint.
+- Escape clears the active ruler measurement.
+- The ruler highlights crossed squares/hexes and displays total path distance using the scene Measurement settings.
+- When the selected distance mode is not Euclidean, the ruler also shows a straight-line comparison.
+- The Measurement settings panel includes a help button explaining Euclidean, Manhattan, Grid snapped, and 5/10/5/10 diagonal modes.
+
 ## Tokens
 
 Tokens are intentionally lightweight for this version of Local VTT. They are meant to help the GM track physical or virtual markers on the map without turning the app into a full campaign-management VTT.
@@ -167,6 +181,10 @@ Tokens are intentionally lightweight for this version of Local VTT. They are mea
   - Optional footprint highlight shown in GM and Player views when enabled.
 - Square/gridless scenes keep token art square and snap to grid on release when a grid is active.
 - Hex scenes keep token art square while using hex-aware snapping and footprint clusters. Large, Huge, and Gargantuan footprints approximate 3, 7, and 19 occupied hexes respectively.
+- While dragging a token, press Shift to add a waypoint. Square and hex waypoints snap to grid/hex centers; gridless waypoints remain freeform.
+- Token movement paths highlight crossed squares/hexes and show total movement distance using the scene Measurement settings.
+- Escape cancels the active token drag without moving the token.
+- Player View animates visible token movement along the GM's waypoint route.
 
 ## UI Notes
 
@@ -179,7 +197,7 @@ Tokens are intentionally lightweight for this version of Local VTT. They are mea
 - Layer settings are collapsible. Map, Grid, Fog of War, and Token layer controls expand only when needed.
 - Token and fog sub-layers can be managed from the Layers panel. Token presentation settings live on each token sub-layer.
 - Fog and Grid color controls use compact color rows that open a modal picker with native color selection and reusable swatches.
-- The floating Tools Menu is intended to become the home for future GM tools such as drawings, ruler, pings, walls, and lighting.
+- The floating Tools Menu contains Fog of War tools and the GM-only ruler. It is intended to become the home for future GM tools such as drawings, pings, walls, and lighting.
 
 ## Styling Notes
 
@@ -197,7 +215,7 @@ Tokens are intentionally lightweight for this version of Local VTT. They are mea
 - Phase 4: token polish beyond lightweight markers, such as optional aura, light, or vision data model.
 - Phase 5: wall, door, and window drawing and editing.
 - Phase 6: light sources, ambient light/darkness, bright/dim radius, optional wall-blocked lighting.
-- Phase 7: drawings, pings, laser pointer, ruler, and spell templates.
+- Phase 7: drawings, pings, laser pointer, ruler expansion, and spell templates.
 - Phase 8: imported animated overlays/effects, opacity/scale/rotation, optional polygon masking.
 - Future polish: typed localization/string resources once UI wording stabilizes.
 

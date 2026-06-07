@@ -262,6 +262,24 @@ export function SceneCanvas({
   }, [polygonDraft, scene]);
 
   useEffect(() => {
+    if (mode !== "gm" || (!tokenDragPreview && !rulerDrag)) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      cancelTokenDrag();
+      cancelRulerDrag();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mode, rulerDrag, tokenDragPreview]);
+
+  useEffect(() => {
     if (mode !== "gm" || !scene || !tokenDragPreview) {
       return;
     }
@@ -503,6 +521,16 @@ export function SceneCanvas({
     };
   }, [camera, canShowFog, canShowGrid, canShowMap, canShowTokens, fogPreview, fogTool, isVideoMap, loadedMap, loadedTokenImages, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, snapPoint, tokenDragPreview]);
 
+  const cancelTokenDrag = () => {
+    tokenDragRef.current = null;
+    setTokenDragPreview(null);
+  };
+
+  const cancelRulerDrag = () => {
+    rulerDragRef.current = null;
+    setRulerDrag(null);
+  };
+
   const onWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
     if (!interactive) {
       return;
@@ -602,8 +630,7 @@ export function SceneCanvas({
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const token = scene.tokens.find((candidate) => candidate.id === tokenDrag.tokenId);
       if (!token) {
-        tokenDragRef.current = null;
-        setTokenDragPreview(null);
+        cancelTokenDrag();
         return;
       }
       const currentPosition = {
@@ -688,8 +715,7 @@ export function SceneCanvas({
     }
 
     if (rulerDragRef.current?.pointerId === event.pointerId) {
-      rulerDragRef.current = null;
-      setRulerDrag(null);
+      cancelRulerDrag();
       return;
     }
 
@@ -721,8 +747,7 @@ export function SceneCanvas({
             : nextScene
         );
       }
-      tokenDragRef.current = null;
-      setTokenDragPreview(null);
+      cancelTokenDrag();
     }
   };
 
@@ -738,6 +763,21 @@ export function SceneCanvas({
   };
 
   const onContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const activeRulerDrag = rulerDragRef.current;
+    if (activeRulerDrag) {
+      event.preventDefault();
+      if (activeRulerDrag.waypoints.length === 0) {
+        return;
+      }
+      const nextRulerDrag = {
+        ...activeRulerDrag,
+        waypoints: activeRulerDrag.waypoints.slice(0, -1)
+      };
+      rulerDragRef.current = nextRulerDrag;
+      setRulerDrag(nextRulerDrag);
+      return;
+    }
+
     const draft = polygonDraftRef.current;
     if (!draft) {
       return;
@@ -948,7 +988,7 @@ function TokenMoveStatusStrip({ scene, tokenDragPreview }: { scene: Scene | null
       <span>Shift adds a grid-centered waypoint.</span>
       <span>{waypointCount === 1 ? "1 waypoint" : `${waypointCount} waypoints`}</span>
       {tokenMoveLabel && <span>{tokenMoveLabel}</span>}
-      <span>Release to move on Player View.</span>
+      <span>Release to move. Escape cancels.</span>
     </div>
   );
 }
@@ -963,7 +1003,7 @@ function RulerStatusStrip({ rulerDrag, scene }: { rulerDrag: RulerDrag | null; s
       <span>Shift adds a waypoint.</span>
       {rulerDrag && <span>{rulerDrag.waypoints.length === 1 ? "1 waypoint" : `${rulerDrag.waypoints.length} waypoints`}</span>}
       {label && <span>{label.secondary ? `${label.primary} (${label.secondary})` : label.primary}</span>}
-      <span>Release to clear.</span>
+      <span>Right-click removes last waypoint. Escape clears.</span>
     </div>
   );
 }
