@@ -1,4 +1,4 @@
-import { MonitorUp, Pause, Play, Ruler, Settings, Volume2, VolumeX } from "lucide-react";
+import { MonitorUp, Pause, Play, Settings, Volume2, VolumeX } from "lucide-react";
 import type { Campaign, Scene, VideoPlaybackSettings } from "../../../shared/localvtt";
 
 interface GmSettingsMenuProps {
@@ -10,7 +10,6 @@ interface GmSettingsMenuProps {
   onToggleOpen: () => void;
   onOpenPlayerDisplayScale: () => void;
   onOpenPlayerViewDisplay: () => void;
-  onOpenMeasurement: () => void;
   onUpdateVideoPlayback: (patch: Partial<VideoPlaybackSettings>) => void;
 }
 
@@ -23,12 +22,11 @@ export function GmSettingsMenu({
   onToggleOpen,
   onOpenPlayerDisplayScale,
   onOpenPlayerViewDisplay,
-  onOpenMeasurement,
   onUpdateVideoPlayback
 }: GmSettingsMenuProps) {
   return (
     <div className="gm-view-settings">
-      <button className="icon-button" aria-label="GM view settings" title="GM view settings" onClick={onToggleOpen}>
+      <button className={open ? "tool-circle-button tool-active gm-settings-trigger" : "tool-circle-button gm-settings-trigger"} aria-label="GM view settings" title="GM view settings" onClick={onToggleOpen}>
         <Settings size={16} aria-hidden="true" />
       </button>
       {open && (
@@ -40,10 +38,6 @@ export function GmSettingsMenu({
           <button disabled={!campaign} onClick={onOpenPlayerViewDisplay}>
             <MonitorUp size={14} aria-hidden="true" />
             Player View Display
-          </button>
-          <button disabled={!activeScene} onClick={onOpenMeasurement}>
-            <Ruler size={14} aria-hidden="true" />
-            Measurement
           </button>
           <button disabled={!activeMapIsVideo} onClick={() => onUpdateVideoPlayback({ diagnosticsVisible: !videoPlayback.diagnosticsVisible })}>
             <Settings size={14} aria-hidden="true" />

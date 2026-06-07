@@ -112,13 +112,6 @@ export function GmInspector({
                 onOpenGridColor={onOpenGridColor}
                 onOpenTokenColor={onOpenTokenColor}
               />
-
-              <div className="section-heading">
-                <h2>Phase Placeholders</h2>
-              </div>
-              <section className="panel">
-                <p>Fog, tokens, walls, lights, drawings, measurements, and animated overlays are typed in the scene model and ready for later renderer tools.</p>
-              </section>
             </>
           ) : (
             <section className="panel">

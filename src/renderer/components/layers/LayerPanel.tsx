@@ -24,6 +24,7 @@ import { getSnappedTokenPosition } from "../../canvas/tokenGeometry";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
 import { ColorSettingRow } from "../controls/ColorPickerField";
 import { DebouncedNumberInput } from "../controls/DebouncedNumberInput";
+import { MeasurementPanel } from "../settings/MeasurementPanel";
 import { FogShapeList, type FogShapeDropTarget } from "./FogShapeList";
 import { TokenList } from "./TokenList";
 
@@ -144,15 +145,21 @@ export function LayerPanel({
   };
 
   const toggleLayerExpanded = (layerId: string) => {
-    setExpandedLayerIds((ids) => {
-      const nextIds = new Set(ids);
-      if (nextIds.has(layerId)) {
+    const shouldCollapseLayer = expandedLayerIds.has(layerId) || settingsLayerIds.has(layerId);
+    if (shouldCollapseLayer) {
+      setExpandedLayerIds((ids) => {
+        const nextIds = new Set(ids);
         nextIds.delete(layerId);
-      } else {
-        nextIds.add(layerId);
-      }
-      return nextIds;
-    });
+        return nextIds;
+      });
+      setSettingsLayerIds((ids) => {
+        const nextIds = new Set(ids);
+        nextIds.delete(layerId);
+        return nextIds;
+      });
+      return;
+    }
+    setExpandedLayerIds((ids) => new Set([...ids, layerId]));
   };
 
   const toggleLayerSettings = (layerId: string) => {
@@ -384,7 +391,7 @@ export function LayerPanel({
                   onOpenTokenColor={onOpenTokenColor}
                 />
               )}
-              {layer.id === "grid" && isExpanded && (
+              {layer.id === "grid" && isExpanded && !areSettingsExpanded && (
                 <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
                   <div className="layer-empty-state">
                     <strong>Grid Settings</strong>
@@ -402,9 +409,9 @@ export function LayerPanel({
                       <option value="hex">Hex</option>
                     </select>
                   </label>
-                  <div className="control-divider" />
                   {visualGridEnabled && (
                     <>
+                      <div className="control-divider" />
                       <div className="settings-grid">
                         <label className="setting-row">
                           <span>Cell size</span>
@@ -483,6 +490,12 @@ export function LayerPanel({
                         </button>
                         {!canFitGridToMap && <div className="inline-help">Grid fitting currently supports static image maps.</div>}
                       </div>
+                      <div className="control-divider" />
+                      <MeasurementPanel
+                        embedded
+                        measurement={scene.grid.measurement}
+                        onChange={(measurementPatch) => onUpdateGrid({ measurement: { ...scene.grid.measurement, ...measurementPatch } })}
+                      />
                     </>
                   )}
                 </div>

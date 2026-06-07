@@ -4,7 +4,6 @@ import type {
   CampaignSceneEntry,
   CampaignSceneFolder,
   DisplayCalibration,
-  GridSettings,
   Scene,
   SquareCropRect
 } from "../../shared/localvtt";
@@ -13,7 +12,6 @@ import { ConfirmDialog } from "../components/modals/ConfirmDialog";
 import { NameDialog } from "../components/modals/NameDialog";
 import { SettingsModal } from "../components/modals/SettingsModal";
 import { TokenCropDialog } from "../components/modals/TokenCropDialog";
-import { MeasurementPanel } from "../components/settings/MeasurementPanel";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { PlayerViewDisplayPanel } from "../components/settings/PlayerViewDisplayPanel";
 
@@ -41,7 +39,6 @@ export function GmDialogs({
   campaignNameDialogOpen,
   playerDisplayDialogOpen,
   playerViewDisplayDialogOpen,
-  measurementDialogOpen,
   sceneToDelete,
   folderToDelete,
   mapAssetToDelete,
@@ -76,7 +73,6 @@ export function GmDialogs({
   onCancelCampaignNameDialog,
   onCancelPlayerDisplayDialog,
   onCancelPlayerViewDisplayDialog,
-  onCancelMeasurementDialog,
   onCancelSceneDelete,
   onCancelFolderDelete,
   onCancelMapAssetDelete,
@@ -96,7 +92,6 @@ export function GmDialogs({
   onSubmitCampaignName,
   onUpdatePlayerDisplay,
   onRefreshDisplays,
-  onUpdateMeasurement,
   onConfirmDeleteScene,
   onConfirmDeleteFolder,
   onConfirmDeleteMapAsset,
@@ -115,7 +110,6 @@ export function GmDialogs({
   campaignNameDialogOpen: boolean;
   playerDisplayDialogOpen: boolean;
   playerViewDisplayDialogOpen: boolean;
-  measurementDialogOpen: boolean;
   sceneToDelete: CampaignSceneEntry | null;
   folderToDelete: CampaignSceneFolder | null;
   mapAssetToDelete: Asset | null;
@@ -150,7 +144,6 @@ export function GmDialogs({
   onCancelCampaignNameDialog: () => void;
   onCancelPlayerDisplayDialog: () => void;
   onCancelPlayerViewDisplayDialog: () => void;
-  onCancelMeasurementDialog: () => void;
   onCancelSceneDelete: () => void;
   onCancelFolderDelete: () => void;
   onCancelMapAssetDelete: () => void;
@@ -170,7 +163,6 @@ export function GmDialogs({
   onSubmitCampaignName: () => void;
   onUpdatePlayerDisplay: (nextDisplay: DisplayCalibration) => void;
   onRefreshDisplays: () => Promise<boolean | undefined>;
-  onUpdateMeasurement: (patch: Partial<GridSettings["measurement"]>) => void;
   onConfirmDeleteScene: (scene: CampaignSceneEntry) => void;
   onConfirmDeleteFolder: (folder: CampaignSceneFolder) => void;
   onConfirmDeleteMapAsset: () => void;
@@ -321,12 +313,6 @@ export function GmDialogs({
             onApply={onUpdatePlayerDisplay}
             onRefreshDisplays={onRefreshDisplays}
           />
-        </SettingsModal>
-      )}
-
-      {measurementDialogOpen && activeScene && (
-        <SettingsModal onClose={onCancelMeasurementDialog}>
-          <MeasurementPanel measurement={activeScene.grid.measurement} onChange={onUpdateMeasurement} />
         </SettingsModal>
       )}
 

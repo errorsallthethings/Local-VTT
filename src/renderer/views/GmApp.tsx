@@ -104,7 +104,6 @@ export function GmApp() {
   const [gmSettingsOpen, setGmSettingsOpen] = useState(false);
   const [playerDisplayDialogOpen, setPlayerDisplayDialogOpen] = useState(false);
   const [playerViewDisplayDialogOpen, setPlayerViewDisplayDialogOpen] = useState(false);
-  const [measurementDialogOpen, setMeasurementDialogOpen] = useState(false);
   const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasTool | null>(null);
   const [activeFogTool, setActiveFogTool] = useState<FogTool | null>(null);
   const [fogOperation, setFogOperation] = useState<FogOperation>("reveal");
@@ -194,7 +193,6 @@ export function GmApp() {
       !campaignNameDialogOpen &&
       !playerDisplayDialogOpen &&
       !playerViewDisplayDialogOpen &&
-      !measurementDialogOpen &&
       !sceneToDelete &&
       !folderToDelete &&
       !mapAssetToDelete &&
@@ -222,7 +220,6 @@ export function GmApp() {
         setCampaignNameDialogOpen(false);
         setPlayerDisplayDialogOpen(false);
         setPlayerViewDisplayDialogOpen(false);
-        setMeasurementDialogOpen(false);
         setSceneToDelete(null);
         setFolderToDelete(null);
         setMapAssetToDelete(null);
@@ -252,7 +249,6 @@ export function GmApp() {
     gmSettingsOpen,
     mapAssetToDelete,
     tokenAssetToDelete,
-    measurementDialogOpen,
     openFolderMenuId,
     openSceneMenuId,
     playerDisplayDialogOpen,
@@ -357,7 +353,6 @@ export function GmApp() {
     updateFog,
     undoFogShape,
     clearFogShapes,
-    updateMeasurement,
     updateMapTransform,
     setLayerOrderLocked,
     moveLayer,
@@ -942,10 +937,6 @@ export function GmApp() {
               setPlayerViewDisplayDialogOpen(true);
               setGmSettingsOpen(false);
             }}
-            onOpenMeasurement={() => {
-              setMeasurementDialogOpen(true);
-              setGmSettingsOpen(false);
-            }}
             onUpdateVideoPlayback={updateVideoPlayback}
           />
         </div>
@@ -1017,7 +1008,6 @@ export function GmApp() {
         campaignNameDialogOpen={campaignNameDialogOpen}
         playerDisplayDialogOpen={playerDisplayDialogOpen}
         playerViewDisplayDialogOpen={playerViewDisplayDialogOpen}
-        measurementDialogOpen={measurementDialogOpen}
         sceneToDelete={sceneToDelete}
         folderToDelete={folderToDelete}
         mapAssetToDelete={mapAssetToDelete}
@@ -1052,7 +1042,6 @@ export function GmApp() {
         onCancelCampaignNameDialog={() => setCampaignNameDialogOpen(false)}
         onCancelPlayerDisplayDialog={() => setPlayerDisplayDialogOpen(false)}
         onCancelPlayerViewDisplayDialog={() => setPlayerViewDisplayDialogOpen(false)}
-        onCancelMeasurementDialog={() => setMeasurementDialogOpen(false)}
         onCancelSceneDelete={() => setSceneToDelete(null)}
         onCancelFolderDelete={() => setFolderToDelete(null)}
         onCancelMapAssetDelete={() => setMapAssetToDelete(null)}
@@ -1081,7 +1070,6 @@ export function GmApp() {
         onSubmitCampaignName={submitCampaignName}
         onUpdatePlayerDisplay={updatePlayerDisplay}
         onRefreshDisplays={refreshDisplays}
-        onUpdateMeasurement={updateMeasurement}
         onConfirmDeleteScene={(scene) => void deleteScene(scene)}
         onConfirmDeleteFolder={deleteFolder}
         onConfirmDeleteMapAsset={() => void confirmDeleteMapAsset()}

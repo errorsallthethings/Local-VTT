@@ -146,24 +146,22 @@
 
 .gm-view-settings {
   position: absolute;
-  right: 12px;
-  bottom: 12px;
-  z-index: 4;
-  display: grid;
-  justify-items: end;
+  top: 104px;
+  left: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: flex-start;
   gap: 8px;
 }
 
-.gm-view-settings > .icon-button {
-  border-color: #425066;
-  background: rgb(23 30 39 / 0.92);
-  box-shadow: var(--shadow-control);
+.gm-settings-trigger {
+  color: var(--color-text-soft);
 }
 
 .gm-settings-menu {
   position: absolute;
-  right: 0;
-  bottom: calc(100% + 8px);
+  top: 0;
+  left: calc(100% + 8px);
   display: grid;
   min-width: 220px;
 }

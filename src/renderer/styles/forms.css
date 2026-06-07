@@ -61,10 +61,29 @@
   gap: 7px;
 }
 
+.measurement-panel-embedded {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.measurement-panel-embedded h2 {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.measurement-distance-control,
 .measurement-distance-label {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.measurement-distance-control select {
+  min-width: 0;
 }
 
 .measurement-help-button {

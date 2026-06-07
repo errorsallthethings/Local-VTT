@@ -5,17 +5,20 @@ import type { GridSettings, MeasurementUnit } from "../../../shared/localvtt";
 interface MeasurementPanelProps {
   measurement: GridSettings["measurement"];
   onChange: (patch: Partial<GridSettings["measurement"]>) => void;
+  embedded?: boolean;
 }
 
-export function MeasurementPanel({ measurement, onChange }: MeasurementPanelProps) {
+export function MeasurementPanel({ measurement, onChange, embedded = false }: MeasurementPanelProps) {
   const [distanceHelpOpen, setDistanceHelpOpen] = useState(false);
+  const groupClassName = embedded ? "settings-grid" : "panel-subgrid";
+  const rowClassName = embedded ? "setting-row" : undefined;
 
   return (
-    <section className="panel">
+    <section className={embedded ? "measurement-panel measurement-panel-embedded" : "panel measurement-panel"}>
       <h2>Measurement</h2>
-      <div className="panel-subgrid">
-        <label>
-          Units per cell
+      <div className={groupClassName}>
+        <label className={rowClassName}>
+          <span>Units per cell</span>
           <input
             type="number"
             min={0.1}
@@ -24,8 +27,8 @@ export function MeasurementPanel({ measurement, onChange }: MeasurementPanelProp
             onChange={(event) => onChange({ unitsPerGridCell: Number(event.target.value) })}
           />
         </label>
-        <label>
-          Unit
+        <label className={rowClassName}>
+          <span>Unit</span>
           <select value={measurement.unit} onChange={(event) => onChange({ unit: event.target.value as MeasurementUnit })}>
             <option value="feet">Feet</option>
             <option value="meters">Meters</option>
@@ -33,9 +36,15 @@ export function MeasurementPanel({ measurement, onChange }: MeasurementPanelProp
           </select>
         </label>
       </div>
-      <label className="measurement-distance-field">
-        <span className="measurement-distance-label">
-          Distance mode
+      <label className={embedded ? "setting-row measurement-distance-field" : "measurement-distance-field"}>
+        <span>Distance mode</span>
+        <span className="measurement-distance-control">
+          <select value={measurement.distanceMode} onChange={(event) => onChange({ distanceMode: event.target.value as GridSettings["measurement"]["distanceMode"] })}>
+            <option value="euclidean">Euclidean</option>
+            <option value="manhattan">Manhattan</option>
+            <option value="grid">Grid snapped</option>
+            <option value="diagonal-5-10">5/10/5/10 diagonals</option>
+          </select>
           <button
             type="button"
             className="icon-button measurement-help-button"
@@ -46,12 +55,6 @@ export function MeasurementPanel({ measurement, onChange }: MeasurementPanelProp
             <CircleHelp size={15} aria-hidden="true" />
           </button>
         </span>
-        <select value={measurement.distanceMode} onChange={(event) => onChange({ distanceMode: event.target.value as GridSettings["measurement"]["distanceMode"] })}>
-          <option value="euclidean">Euclidean</option>
-          <option value="manhattan">Manhattan</option>
-          <option value="grid">Grid snapped</option>
-          <option value="diagonal-5-10">5/10/5/10 diagonals</option>
-        </select>
       </label>
       {distanceHelpOpen && (
         <div className="measurement-help-panel" role="note">
