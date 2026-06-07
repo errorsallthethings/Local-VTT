@@ -6,12 +6,14 @@ import { clampTokenCropOffset, getTokenCropLayout, getTokenCropSourceRect } from
 const PREVIEW_SIZE = 280;
 interface TokenCropDialogProps {
   asset: Asset;
+  title?: string;
+  submitLabel?: string;
   onCancel: () => void;
   onUseDefault: () => void;
   onSubmit: (crop: SquareCropRect) => void;
 }
 
-export function TokenCropDialog({ asset, onCancel, onUseDefault, onSubmit }: TokenCropDialogProps) {
+export function TokenCropDialog({ asset, title = "Frame Token", submitLabel = "Add Token", onCancel, onUseDefault, onSubmit }: TokenCropDialogProps) {
   const imageUrl = asset.absolutePath ? window.localVtt.toAssetUrl(asset.absolutePath) : "";
   const imageRef = useRef<HTMLImageElement | null>(null);
   const dragRef = useRef<{ pointerId: number; startClient: Point; startOffset: Point } | null>(null);
@@ -66,7 +68,7 @@ export function TokenCropDialog({ asset, onCancel, onUseDefault, onSubmit }: Tok
   return (
     <div className="modal-backdrop" onMouseDown={onCancel}>
       <div className="modal token-crop-modal" onMouseDown={(event) => event.stopPropagation()}>
-        <h2>Frame Token</h2>
+        <h2>{title}</h2>
         <div
           className="token-crop-preview"
           style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
@@ -146,7 +148,7 @@ export function TokenCropDialog({ asset, onCancel, onUseDefault, onSubmit }: Tok
           <button onClick={onCancel}>Cancel</button>
           <button onClick={onUseDefault}>Use Auto Crop</button>
           <button disabled={!naturalSize} onClick={submitCrop}>
-            Add Token
+            {submitLabel}
           </button>
         </div>
       </div>

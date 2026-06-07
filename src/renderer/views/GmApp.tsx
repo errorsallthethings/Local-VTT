@@ -348,9 +348,9 @@ export function GmApp() {
     onClearFogConfirmed: () => setConfirmClearFogOpen(false)
   });
 
-  const importToken = () =>
+  const importToken = (mode: TokenCropDialogState["mode"] = "scene") =>
     run(async () => {
-      if (!campaignPath || !activeScene) {
+      if (!campaignPath || (mode === "scene" && !activeScene)) {
         return;
       }
       const result = await window.localVtt.importToken(campaignPath);
@@ -358,7 +358,7 @@ export function GmApp() {
         return;
       }
       applySummary(result.campaignSummary, campaignDirty);
-      setTokenCropDialog({ asset: result.asset });
+      setTokenCropDialog({ asset: result.asset, mode });
     });
 
   const addImportedTokenToScene = (asset: Asset, syncCampaign: Campaign | null = campaign, placementPoint?: Point) => {
@@ -394,7 +394,11 @@ export function GmApp() {
       }
       const result = await window.localVtt.updateTokenThumbnail(campaignPath, tokenCropDialog.asset.id, crop);
       applySummary(result.campaignSummary, campaignDirty);
-      addImportedTokenToScene(result.asset, result.campaignSummary.campaign);
+      if (tokenCropDialog.mode === "scene") {
+        addImportedTokenToScene(result.asset, result.campaignSummary.campaign);
+      } else {
+        setTokenCropDialog(null);
+      }
     });
 
   const updatePlayerDisplay = (nextDisplay: DisplayCalibration) => {
@@ -843,6 +847,7 @@ export function GmApp() {
           expanded={tokenLibraryExpanded}
           activeSceneName={activeScene?.name}
           onToggleExpanded={() => setTokenLibraryExpanded((expanded) => !expanded)}
+          onImportToken={() => void importToken("library")}
           onAddToken={addLibraryTokenToScene}
         />
 
@@ -876,7 +881,7 @@ export function GmApp() {
         onFitGridToMapDimensions={fitGridToMapDimensions}
         onMoveLayer={moveLayer}
         onImportMap={importMap}
-        onImportToken={() => void importToken()}
+        onImportToken={() => void importToken("scene")}
         onDeleteMap={setMapAssetToDelete}
         onSelectFogShape={setSelectedFogShapeId}
         onSelectToken={setSelectedTokenId}
@@ -942,7 +947,16 @@ export function GmApp() {
         onSubmitFogShapeName={submitFogShapeName}
         onSubmitTokenName={submitTokenName}
         onSubmitTokenCrop={(crop) => void submitTokenCrop(crop)}
-        onUseDefaultTokenCrop={() => tokenCropDialog && addImportedTokenToScene(tokenCropDialog.asset)}
+        onUseDefaultTokenCrop={() => {
+          if (!tokenCropDialog) {
+            return;
+          }
+          if (tokenCropDialog.mode === "scene") {
+            addImportedTokenToScene(tokenCropDialog.asset);
+          } else {
+            setTokenCropDialog(null);
+          }
+        }}
         onSubmitFolderColor={submitFolderColor}
         onUpdateSceneColorDraft={updateSceneColorDraft}
         onSubmitSceneColor={submitSceneColor}

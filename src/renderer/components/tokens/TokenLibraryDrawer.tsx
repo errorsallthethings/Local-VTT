@@ -1,4 +1,4 @@
-import { PackageOpen, PanelBottomClose, PanelBottomOpen, Plus, Search } from "lucide-react";
+import { PackageOpen, PanelBottomClose, PanelBottomOpen, Plus, Search, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Asset } from "../../../shared/localvtt";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/dragTypes";
@@ -8,10 +8,11 @@ interface TokenLibraryDrawerProps {
   expanded: boolean;
   activeSceneName?: string;
   onToggleExpanded: () => void;
+  onImportToken: () => void;
   onAddToken: (asset: Asset) => void;
 }
 
-export function TokenLibraryDrawer({ assets, expanded, activeSceneName, onToggleExpanded, onAddToken }: TokenLibraryDrawerProps) {
+export function TokenLibraryDrawer({ assets, expanded, activeSceneName, onToggleExpanded, onImportToken, onAddToken }: TokenLibraryDrawerProps) {
   const [query, setQuery] = useState("");
   const filteredAssets = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -38,10 +39,16 @@ export function TokenLibraryDrawer({ assets, expanded, activeSceneName, onToggle
           <span>{assets.length === 1 ? "1 token" : `${assets.length} tokens`}</span>
         </div>
         {expanded && (
-          <label className="token-library-search">
-            <Search size={14} aria-hidden="true" />
-            <input value={query} placeholder="Search tokens" onChange={(event) => setQuery(event.target.value)} />
-          </label>
+          <div className="token-library-tools">
+            <button className="token-library-import" onClick={onImportToken}>
+              <Upload size={14} aria-hidden="true" />
+              <span>Import Token</span>
+            </button>
+            <label className="token-library-search">
+              <Search size={14} aria-hidden="true" />
+              <input value={query} placeholder="Search tokens" onChange={(event) => setQuery(event.target.value)} />
+            </label>
+          </div>
         )}
       </div>
 

@@ -24,7 +24,7 @@ export type SceneColorDialog = { kind: "fog" | "grid"; title: string; value: str
 export type FogShapeNameDialog = { shapeId: string };
 export type TokenNameDialog = { tokenId: string };
 export type TokenColorDialog = { tokenId: string; tokenName: string; value: string; kind: "border" | "glow" };
-export type TokenCropDialogState = { asset: Asset };
+export type TokenCropDialogState = { asset: Asset; mode: "scene" | "library" };
 
 export function GmDialogs({
   sceneDialog,
@@ -216,6 +216,8 @@ export function GmDialogs({
       {tokenCropDialog && (
         <TokenCropDialog
           asset={tokenCropDialog.asset}
+          title={tokenCropDialog.mode === "library" ? "Add Token to Library" : "Frame Token"}
+          submitLabel={tokenCropDialog.mode === "library" ? "Add to Library" : "Add Token"}
           onCancel={onCancelTokenCropDialog}
           onUseDefault={onUseDefaultTokenCrop}
           onSubmit={onSubmitTokenCrop}
