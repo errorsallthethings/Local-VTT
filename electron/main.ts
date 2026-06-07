@@ -890,6 +890,7 @@ ipcMain.handle("player:setFullscreen", async (_event, fullscreen: boolean) => {
 });
 
 ipcMain.handle("player:close", async () => {
+  lastPlayerProjection = null;
   if (!playerWindow || playerWindow.isDestroyed()) {
     playerWindow = null;
     return false;

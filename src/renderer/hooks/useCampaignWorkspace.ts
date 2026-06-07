@@ -44,6 +44,7 @@ export function useCampaignWorkspace() {
   };
 
   const clearWorkspaceState = () => {
+    void window.localVtt.closePlayerView();
     setActiveScene(null);
     setSceneDrafts({});
     setDirtySceneIds(new Set());

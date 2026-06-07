@@ -35,4 +35,66 @@ it("preserves summary scene metadata while applying draft sidebar fields", () =>
     { id: "scene-2", name: "Scene Two", file: "scenes/scene-2.scene.json", mapAssetId: "draft-map-2", folderId: "folder" }
   ]);
 });
+
+it("preserves unsaved library token asset edits while keeping summary asset membership", () => {
+  const summary = createDefaultCampaign("Summary");
+  summary.assets = [
+    {
+      id: "token-1",
+      name: "Original",
+      kind: "token",
+      mediaType: "image",
+      relativePath: "assets/tokens/token-1.png",
+      thumbnailRelativePath: "assets/thumbnails/token-1.jpg",
+      originalFileName: "token-1.png",
+      createdAt: "2026-06-05T00:00:00.000Z"
+    },
+    {
+      id: "token-2",
+      name: "New Import",
+      kind: "token",
+      mediaType: "image",
+      relativePath: "assets/tokens/token-2.png",
+      originalFileName: "token-2.png",
+      createdAt: "2026-06-05T01:00:00.000Z"
+    }
+  ];
+  const draft = createDefaultCampaign("Draft");
+  draft.assets = [
+    {
+      ...summary.assets[0],
+      name: "Renamed Library Token",
+      tokenDefaults: {
+        borderStyle: "dashed",
+        borderColor: "#ff3366",
+        borderWidth: 24
+      }
+    },
+    {
+      id: "deleted-token",
+      name: "Deleted Token",
+      kind: "token",
+      mediaType: "image",
+      relativePath: "assets/tokens/deleted-token.png",
+      originalFileName: "deleted-token.png",
+      createdAt: "2026-06-04T00:00:00.000Z"
+    }
+  ];
+
+  const merged = mergeCampaignDraft(summary, draft);
+
+  expect(merged.assets.map((asset) => asset.id)).toEqual(["token-1", "token-2"]);
+  expect(merged.assets[0]).toMatchObject({
+    id: "token-1",
+    name: "Renamed Library Token",
+    tokenDefaults: {
+      borderStyle: "dashed",
+      borderColor: "#ff3366",
+      borderWidth: 24
+    },
+    relativePath: "assets/tokens/token-1.png",
+    thumbnailRelativePath: "assets/thumbnails/token-1.jpg"
+  });
+  expect(merged.assets[1].name).toBe("New Import");
+});
 });

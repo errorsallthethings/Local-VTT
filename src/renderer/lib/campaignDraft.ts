@@ -1,7 +1,8 @@
-import type { Campaign } from "../../shared/localvtt";
+import type { Asset, Campaign } from "../../shared/localvtt";
 
 export function mergeCampaignDraft(summaryCampaign: Campaign, draftCampaign: Campaign): Campaign {
   const draftScenesById = new Map(draftCampaign.scenes.map((scene) => [scene.id, scene]));
+  const draftAssetsById = new Map(draftCampaign.assets.map((asset) => [asset.id, asset]));
   return {
     ...summaryCampaign,
     name: draftCampaign.name,
@@ -18,7 +19,19 @@ export function mergeCampaignDraft(summaryCampaign: Campaign, draftCampaign: Cam
           }
         : scene;
     }),
+    assets: summaryCampaign.assets.map((asset) => mergeAssetDraft(asset, draftAssetsById.get(asset.id))),
     playerDisplay: draftCampaign.playerDisplay,
     updatedAt: draftCampaign.updatedAt
+  };
+}
+
+function mergeAssetDraft(summaryAsset: Asset, draftAsset?: Asset): Asset {
+  if (!draftAsset) {
+    return summaryAsset;
+  }
+  return {
+    ...summaryAsset,
+    name: draftAsset.name,
+    tokenDefaults: draftAsset.tokenDefaults
   };
 }
