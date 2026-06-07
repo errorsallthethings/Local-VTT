@@ -121,6 +121,7 @@ npm run package:win
 - Scene folders support collapse state persistence, drag/drop targets, folder colors, and color preset swatches.
 - CSS design tokens are defined in `src/renderer/styles/base.css` to support repeated UI values and future theme work.
 - Token image assets can be imported into `assets/tokens` with generated square thumbnails for the Token Layer.
+- The Token Library drawer can import reusable token assets, filter/sort them, change thumbnail display size, drag them onto the GM canvas, or add them to the active scene from the library.
 - Token sub-layers support rename, reordering, GM/Player visibility, deletion, and per-token presentation settings.
 - Token presentation settings include size presets, mask shape, border style, border width, border/glow colors, and optional footprint highlights.
 - Token movement supports waypoint previews, crossed-cell highlights, measured route distance, and Player View tweening along the route.
@@ -158,9 +159,9 @@ Manual fog of war is currently implemented with a floating GM canvas Tools Menu.
 - GM and Player fog opacity can be configured independently.
 - New fog shapes can default to revealed or hidden in Player View.
 - Reveal/hide operations are controlled by a toggle in the Fog of War Tools flyout.
-- Brush, rectangle, and polygon fog tools are available.
+- Brush, rectangle, circle, and polygon fog tools are available.
 - Rectangle tools support Shift-drag to constrain to a square.
-- Holding Ctrl/Cmd shows the nearest grid-corner snap point for rectangle and polygon placement.
+- Holding Ctrl/Cmd shows the nearest square grid-corner or hex-corner snap point for rectangle, circle, and polygon placement.
 - Polygon drawing supports Enter or double-click to finish, Escape to cancel, and right-click to remove the last active point.
 - Undo Last Fog Shape and Delete All Fog Shapes are available from the Tools Menu. Delete All prompts for confirmation.
 - Fog shapes appear as sub-layers under the Fog of War Layer, with tool icons, rename, reordering, GM/Player visibility, delete controls, and temporary canvas highlighting when selected.
@@ -208,8 +209,10 @@ Tokens are intentionally lightweight for this version of Local VTT. They are mea
 - Scene folders visually wrap their scenes, can be collapsed, and can use custom folder colors.
 - Folder actions support rename, color, delete, and saving all dirty scenes in that folder.
 - Deleting a folder does not delete its scenes; scenes in that folder move back to Unfiled Scenes.
+- Empty Campaign, Scenes, and Layers panels show contextual helper text so the GM knows the next setup step.
 - Layer settings are collapsible. Map, Grid, Fog of War, and Token layer controls expand only when needed.
 - Token and fog sub-layers can be managed from the Layers panel. Token presentation settings live on each token sub-layer.
+- The Token Library drawer can be collapsed, resized, searched, sorted, and switched between list/small/medium/large thumbnail views.
 - Fog and Grid color controls use compact color rows that open a modal picker with native color selection and reusable swatches.
 - The floating Tools Menu contains Fog of War tools and the GM-only ruler. It is intended to become the home for future GM tools such as drawings, pings, walls, and lighting.
 

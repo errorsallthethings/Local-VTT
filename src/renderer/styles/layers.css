@@ -47,21 +47,6 @@
     #1a222d;
 }
 
-.placeholder-layer-row .layer-kind-icon,
-.placeholder-layer-row .layer-name {
-  color: #687386;
-}
-
-.placeholder-layer-row {
-  border-color: var(--color-border-muted);
-  background: #111820;
-  box-shadow: inset 3px 0 0 rgb(104 115 134 / 0.34);
-}
-
-.placeholder-layer-row .layer-name {
-  font-weight: 500;
-}
-
 .layer-kind-icon {
   display: grid;
   place-items: center;
