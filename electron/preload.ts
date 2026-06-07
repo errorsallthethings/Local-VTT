@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { Asset, Campaign, CampaignSummary, Scene } from "../src/shared/localvtt.js";
+import type { Asset, Campaign, CampaignSummary, Scene, SquareCropRect } from "../src/shared/localvtt.js";
 
 const api = {
   createCampaign: () => ipcRenderer.invoke("campaign:create") as Promise<CampaignSummary | null>,
@@ -20,6 +20,10 @@ const api = {
     ipcRenderer.invoke("asset:importMap", campaignPath) as Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>,
   importToken: (campaignPath: string) =>
     ipcRenderer.invoke("asset:importToken", campaignPath) as Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>,
+  updateTokenThumbnail: (campaignPath: string, assetId: string, crop: SquareCropRect) =>
+    ipcRenderer.invoke("asset:updateTokenThumbnail", campaignPath, assetId, crop) as Promise<{ campaignSummary: CampaignSummary; asset: Asset }>,
+  discardTokenImport: (campaignPath: string, assetId: string) =>
+    ipcRenderer.invoke("asset:discardTokenImport", campaignPath, assetId) as Promise<CampaignSummary>,
   deleteMapAsset: (campaignPath: string, sceneId: string, assetId: string) =>
     ipcRenderer.invoke("asset:deleteMap", campaignPath, sceneId, assetId) as Promise<{ campaignSummary: CampaignSummary; scene: Scene }>,
   openPlayerView: (options?: { displayId?: number; fullscreen?: boolean }) =>

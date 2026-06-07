@@ -418,7 +418,8 @@ export function SceneCanvas({
     setLoadedTokenImages(new Map());
     setFailedTokenImageIds(new Set());
     for (const asset of tokenAssets) {
-      if (!asset.absolutePath) {
+      const tokenImagePath = asset.thumbnailAbsolutePath ?? asset.absolutePath;
+      if (!tokenImagePath) {
         continue;
       }
       const image = new Image();
@@ -437,7 +438,7 @@ export function SceneCanvas({
         nextFailedIds.add(asset.id);
         setFailedTokenImageIds(new Set(nextFailedIds));
       };
-      image.src = window.localVtt.toAssetUrl(asset.absolutePath);
+      image.src = window.localVtt.toAssetUrl(tokenImagePath);
     }
 
     return () => {

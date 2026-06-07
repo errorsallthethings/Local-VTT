@@ -9,6 +9,7 @@ import {
   CampaignSummary,
   DEFAULT_LAYERS,
   Scene,
+  SquareCropRect,
   assertValidCampaign,
   assertValidScene,
   createDefaultCampaign,
@@ -333,6 +334,10 @@ async function createTokenThumbnail(campaignPath: string, sourcePath: string, as
   if (!thumbnail) {
     return undefined;
   }
+  return writeTokenThumbnail(campaignPath, assetId, thumbnail);
+}
+
+async function writeTokenThumbnail(campaignPath: string, assetId: string, thumbnail: Buffer): Promise<string> {
   const relativePath = path.join("assets", "thumbnails", `${assetId}.jpg`).replaceAll(path.sep, "/");
   const destination = path.resolve(campaignPath, relativePath);
   assertInsideCampaign(campaignPath, destination);
@@ -623,6 +628,64 @@ ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
   };
   await writeCampaign(campaignPath, campaign);
   return { campaignSummary: await loadCampaignFromPath(campaignPath), asset: imported };
+});
+
+ipcMain.handle("asset:updateTokenThumbnail", async (_event, campaignPath: string, assetId: string, crop: SquareCropRect) => {
+  assertKnownCampaignPath(campaignPath);
+  const summary = await loadCampaignFromPath(campaignPath);
+  const asset = summary.campaign.assets.find((candidate) => candidate.id === assetId && candidate.kind === "token");
+  if (!asset?.absolutePath) {
+    throw new Error("Token asset was not found in this campaign.");
+  }
+
+  assertInsideCampaign(campaignPath, asset.absolutePath);
+  const thumbnail = await createSquareImageThumbnail(asset.absolutePath, crop);
+  if (!thumbnail) {
+    throw new Error("Unable to generate token thumbnail.");
+  }
+  const thumbnailRelativePath = await writeTokenThumbnail(campaignPath, assetId, thumbnail);
+  const campaign: Campaign = {
+    ...summary.campaign,
+    assets: summary.campaign.assets.map((candidate) => (candidate.id === assetId ? { ...candidate, thumbnailRelativePath } : candidate)),
+    updatedAt: new Date().toISOString()
+  };
+  await writeCampaign(campaignPath, campaign);
+  const campaignSummary = await loadCampaignFromPath(campaignPath);
+  const updatedAsset = campaignSummary.campaign.assets.find((candidate) => candidate.id === assetId);
+  if (!updatedAsset) {
+    throw new Error("Token asset was not available after updating thumbnail.");
+  }
+  return { campaignSummary, asset: updatedAsset };
+});
+
+ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, assetId: string) => {
+  assertKnownCampaignPath(campaignPath);
+  const summary = await loadCampaignFromPath(campaignPath);
+  const asset = summary.campaign.assets.find((candidate) => candidate.id === assetId && candidate.kind === "token");
+  if (!asset) {
+    return summary;
+  }
+
+  const pathsToRemove = [asset.absolutePath, asset.thumbnailAbsolutePath].filter((candidate): candidate is string => Boolean(candidate));
+  for (const assetPath of pathsToRemove) {
+    assertInsideCampaign(campaignPath, assetPath);
+    try {
+      await unlink(assetPath);
+    } catch (caught) {
+      const error = caught as NodeJS.ErrnoException;
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+
+  const campaign: Campaign = {
+    ...summary.campaign,
+    assets: summary.campaign.assets.filter((candidate) => candidate.id !== assetId),
+    updatedAt: new Date().toISOString()
+  };
+  await writeCampaign(campaignPath, campaign);
+  return loadCampaignFromPath(campaignPath);
 });
 
 ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: string, assetId: string) => {

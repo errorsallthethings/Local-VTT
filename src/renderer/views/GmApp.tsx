@@ -1,4 +1,4 @@
-import { type CSSProperties, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useState } from "react";
+import { type CSSProperties, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
@@ -10,7 +10,8 @@ import type {
   CampaignSceneEntry,
   CampaignSceneFolder,
   DisplayCalibration,
-  Scene
+  Scene,
+  SquareCropRect
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
@@ -42,6 +43,7 @@ import {
   type FolderColorDialog,
   type FolderNameDialog,
   type SceneColorDialog,
+  type TokenCropDialogState,
   type SceneNameDialog,
   type TokenColorDialog,
   type TokenNameDialog
@@ -76,6 +78,7 @@ export function GmApp() {
   const [folderDialog, setFolderDialog] = useState<FolderNameDialog | null>(null);
   const [fogShapeDialog, setFogShapeDialog] = useState<FogShapeNameDialog | null>(null);
   const [tokenDialog, setTokenDialog] = useState<TokenNameDialog | null>(null);
+  const [tokenCropDialog, setTokenCropDialog] = useState<TokenCropDialogState | null>(null);
   const [tokenColorDialog, setTokenColorDialog] = useState<TokenColorDialog | null>(null);
   const [folderColorDialog, setFolderColorDialog] = useState<FolderColorDialog | null>(null);
   const [sceneColorDialog, setSceneColorDialog] = useState<SceneColorDialog | null>(null);
@@ -150,12 +153,24 @@ export function GmApp() {
       setDisplays(await window.localVtt.getDisplays());
     });
 
+  const cancelTokenCrop = useCallback(() =>
+    run(async () => {
+      if (!campaignPath || !tokenCropDialog) {
+        setTokenCropDialog(null);
+        return;
+      }
+      const summary = await window.localVtt.discardTokenImport(campaignPath, tokenCropDialog.asset.id);
+      applySummary(summary, campaignDirty);
+      setTokenCropDialog(null);
+    }), [applySummary, campaignDirty, campaignPath, run, tokenCropDialog]);
+
   useEffect(() => {
     if (
       !sceneDialog &&
       !folderDialog &&
       !fogShapeDialog &&
       !tokenDialog &&
+      !tokenCropDialog &&
       !folderColorDialog &&
       !tokenColorDialog &&
       !sceneColorDialog &&
@@ -181,6 +196,7 @@ export function GmApp() {
         setFolderDialog(null);
         setFogShapeDialog(null);
         setTokenDialog(null);
+        void cancelTokenCrop();
         setFolderColorDialog(null);
         setTokenColorDialog(null);
         setSceneColorDialog(null);
@@ -203,11 +219,13 @@ export function GmApp() {
     return () => window.removeEventListener("keydown", closeModal);
   }, [
     campaignNameDialogOpen,
+    cancelTokenCrop,
     confirmClearFogOpen,
     folderColorDialog,
     folderDialog,
     fogShapeDialog,
     tokenDialog,
+    tokenCropDialog,
     tokenColorDialog,
     folderToDelete,
     gmSettingsOpen,
@@ -336,17 +354,35 @@ export function GmApp() {
         return;
       }
       applySummary(result.campaignSummary, campaignDirty);
-      const tokenId = crypto.randomUUID();
-      const nextToken = createImportedToken(activeScene, result.asset, tokenId);
-      updateScene(
-        {
-          ...activeScene,
-          tokens: [...activeScene.tokens, nextToken],
-          updatedAt: new Date().toISOString()
-        },
-        result.campaignSummary.campaign
-      );
-      setSelectedTokenId(tokenId);
+      setTokenCropDialog({ asset: result.asset });
+    });
+
+  const addImportedTokenToScene = (asset: Asset, syncCampaign: Campaign | null = campaign) => {
+    if (!activeScene) {
+      return;
+    }
+    const tokenId = crypto.randomUUID();
+    const nextToken = createImportedToken(activeScene, asset, tokenId);
+    updateScene(
+      {
+        ...activeScene,
+        tokens: [...activeScene.tokens, nextToken],
+        updatedAt: new Date().toISOString()
+      },
+      syncCampaign
+    );
+    setSelectedTokenId(tokenId);
+    setTokenCropDialog(null);
+  };
+
+  const submitTokenCrop = (crop: SquareCropRect) =>
+    run(async () => {
+      if (!campaignPath || !tokenCropDialog) {
+        return;
+      }
+      const result = await window.localVtt.updateTokenThumbnail(campaignPath, tokenCropDialog.asset.id, crop);
+      applySummary(result.campaignSummary, campaignDirty);
+      addImportedTokenToScene(result.asset, result.campaignSummary.campaign);
     });
 
   const updatePlayerDisplay = (nextDisplay: DisplayCalibration) => {
@@ -835,6 +871,7 @@ export function GmApp() {
         folderDialog={folderDialog}
         fogShapeDialog={fogShapeDialog}
         tokenDialog={tokenDialog}
+        tokenCropDialog={tokenCropDialog}
         folderColorDialog={folderColorDialog}
         sceneColorDialog={sceneColorDialog}
         tokenColorDialog={tokenColorDialog}
@@ -867,6 +904,7 @@ export function GmApp() {
         onCancelFolderDialog={() => setFolderDialog(null)}
         onCancelFogShapeDialog={() => setFogShapeDialog(null)}
         onCancelTokenDialog={() => setTokenDialog(null)}
+        onCancelTokenCropDialog={() => void cancelTokenCrop()}
         onCancelFolderColorDialog={() => setFolderColorDialog(null)}
         onCancelSceneColorDialog={() => setSceneColorDialog(null)}
         onCancelTokenColorDialog={() => setTokenColorDialog(null)}
@@ -882,6 +920,8 @@ export function GmApp() {
         onSubmitFolderName={submitFolderName}
         onSubmitFogShapeName={submitFogShapeName}
         onSubmitTokenName={submitTokenName}
+        onSubmitTokenCrop={(crop) => void submitTokenCrop(crop)}
+        onUseDefaultTokenCrop={() => tokenCropDialog && addImportedTokenToScene(tokenCropDialog.asset)}
         onSubmitFolderColor={submitFolderColor}
         onUpdateSceneColorDraft={updateSceneColorDraft}
         onSubmitSceneColor={submitSceneColor}

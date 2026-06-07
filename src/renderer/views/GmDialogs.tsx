@@ -5,12 +5,14 @@ import type {
   CampaignSceneFolder,
   DisplayCalibration,
   GridSettings,
-  Scene
+  Scene,
+  SquareCropRect
 } from "../../shared/localvtt";
 import { ColorPickerField } from "../components/controls/ColorPickerField";
 import { ConfirmDialog } from "../components/modals/ConfirmDialog";
 import { NameDialog } from "../components/modals/NameDialog";
 import { SettingsModal } from "../components/modals/SettingsModal";
+import { TokenCropDialog } from "../components/modals/TokenCropDialog";
 import { MeasurementPanel } from "../components/settings/MeasurementPanel";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { PlayerViewDisplayPanel } from "../components/settings/PlayerViewDisplayPanel";
@@ -22,12 +24,14 @@ export type SceneColorDialog = { kind: "fog" | "grid"; title: string; value: str
 export type FogShapeNameDialog = { shapeId: string };
 export type TokenNameDialog = { tokenId: string };
 export type TokenColorDialog = { tokenId: string; tokenName: string; value: string; kind: "border" | "glow" };
+export type TokenCropDialogState = { asset: Asset };
 
 export function GmDialogs({
   sceneDialog,
   folderDialog,
   fogShapeDialog,
   tokenDialog,
+  tokenCropDialog,
   folderColorDialog,
   sceneColorDialog,
   tokenColorDialog,
@@ -60,6 +64,7 @@ export function GmDialogs({
   onCancelFolderDialog,
   onCancelFogShapeDialog,
   onCancelTokenDialog,
+  onCancelTokenCropDialog,
   onCancelFolderColorDialog,
   onCancelSceneColorDialog,
   onCancelTokenColorDialog,
@@ -75,6 +80,8 @@ export function GmDialogs({
   onSubmitFolderName,
   onSubmitFogShapeName,
   onSubmitTokenName,
+  onSubmitTokenCrop,
+  onUseDefaultTokenCrop,
   onSubmitFolderColor,
   onUpdateSceneColorDraft,
   onSubmitSceneColor,
@@ -92,6 +99,7 @@ export function GmDialogs({
   folderDialog: FolderNameDialog | null;
   fogShapeDialog: FogShapeNameDialog | null;
   tokenDialog: TokenNameDialog | null;
+  tokenCropDialog: TokenCropDialogState | null;
   folderColorDialog: FolderColorDialog | null;
   sceneColorDialog: SceneColorDialog | null;
   tokenColorDialog: TokenColorDialog | null;
@@ -124,6 +132,7 @@ export function GmDialogs({
   onCancelFolderDialog: () => void;
   onCancelFogShapeDialog: () => void;
   onCancelTokenDialog: () => void;
+  onCancelTokenCropDialog: () => void;
   onCancelFolderColorDialog: () => void;
   onCancelSceneColorDialog: () => void;
   onCancelTokenColorDialog: () => void;
@@ -139,6 +148,8 @@ export function GmDialogs({
   onSubmitFolderName: () => void;
   onSubmitFogShapeName: () => void;
   onSubmitTokenName: () => void;
+  onSubmitTokenCrop: (crop: SquareCropRect) => void;
+  onUseDefaultTokenCrop: () => void;
   onSubmitFolderColor: () => void;
   onUpdateSceneColorDraft: (value: string) => void;
   onSubmitSceneColor: () => void;
@@ -199,6 +210,15 @@ export function GmDialogs({
           onChange={onNewTokenNameChange}
           onCancel={onCancelTokenDialog}
           onSubmit={onSubmitTokenName}
+        />
+      )}
+
+      {tokenCropDialog && (
+        <TokenCropDialog
+          asset={tokenCropDialog.asset}
+          onCancel={onCancelTokenCropDialog}
+          onUseDefault={onUseDefaultTokenCrop}
+          onSubmit={onSubmitTokenCrop}
         />
       )}
 

@@ -1,5 +1,6 @@
 import { BrowserWindow, nativeImage } from "electron";
 import { pathToFileURL } from "node:url";
+import type { SquareCropRect } from "../src/shared/localvtt.js";
 
 export function createImageMapThumbnail(sourcePath: string): Buffer | undefined {
   const image = nativeImage.createFromPath(sourcePath);
@@ -19,7 +20,7 @@ export function createImageMapThumbnail(sourcePath: string): Buffer | undefined 
   return thumbnail.toJPEG(78);
 }
 
-export async function createSquareImageThumbnail(sourcePath: string): Promise<Buffer | undefined> {
+export async function createSquareImageThumbnail(sourcePath: string, crop?: SquareCropRect): Promise<Buffer | undefined> {
   const win = new BrowserWindow({
     show: false,
     width: 512,
@@ -38,6 +39,7 @@ export async function createSquareImageThumbnail(sourcePath: string): Promise<Bu
     const dataUrl = await win.webContents.executeJavaScript(
       `
         new Promise((resolve) => {
+          const requestedCrop = ${JSON.stringify(crop ?? null)};
           const image = new Image();
           image.onload = () => {
             const sourceWidth = image.naturalWidth || image.width;
@@ -46,10 +48,15 @@ export async function createSquareImageThumbnail(sourcePath: string): Promise<Bu
               resolve(null);
               return;
             }
-            const cropSize = Math.min(sourceWidth, sourceHeight);
-            const sourceX = Math.max(0, Math.floor((sourceWidth - cropSize) / 2));
-            const sourceY = Math.max(0, Math.floor((sourceHeight - cropSize) / 2));
-            const outputSize = Math.min(512, cropSize);
+            const defaultCropSize = Math.min(sourceWidth, sourceHeight);
+            const cropSize = Math.max(1, Math.min(
+              sourceWidth,
+              sourceHeight,
+              Number.isFinite(requestedCrop?.size) ? requestedCrop.size : defaultCropSize
+            ));
+            const sourceX = Math.max(0, Math.min(sourceWidth - cropSize, Number.isFinite(requestedCrop?.x) ? requestedCrop.x : (sourceWidth - cropSize) / 2));
+            const sourceY = Math.max(0, Math.min(sourceHeight - cropSize, Number.isFinite(requestedCrop?.y) ? requestedCrop.y : (sourceHeight - cropSize) / 2));
+            const outputSize = 512;
             const canvas = document.createElement("canvas");
             canvas.width = outputSize;
             canvas.height = outputSize;

@@ -117,6 +117,12 @@ export interface Point {
   y: number;
 }
 
+export interface SquareCropRect {
+  x: number;
+  y: number;
+  size: number;
+}
+
 export interface Token {
   id: string;
   name: string;
