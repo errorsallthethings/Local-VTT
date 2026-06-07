@@ -92,7 +92,8 @@
   }
 }
 
-.fog-tool-status {
+.fog-tool-status,
+.canvas-tool-status {
   position: absolute;
   left: 10px;
   bottom: 12px;
@@ -112,7 +113,8 @@
   pointer-events: none;
 }
 
-.fog-tool-status strong {
+.fog-tool-status strong,
+.canvas-tool-status strong {
   color: #f2f6fb;
 }
 

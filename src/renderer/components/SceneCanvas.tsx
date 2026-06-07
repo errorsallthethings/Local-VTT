@@ -800,6 +800,7 @@ export function SceneCanvas({
       {mode === "gm" && fogTool && (
         <FogToolStatusStrip fogTool={fogTool} polygonPointCount={polygonDraft?.points.length ?? 0} brushSize={scene?.fog.brushSize ?? 0} />
       )}
+      {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip waypointCount={tokenDragPreview.waypoints.length} />}
       {showMapOverlay && <MapLoadOverlay message={mapOverlayMessage} showSpinner={mapLoadStatus === "loading"} />}
       {mode === "gm" && showVideoDiagnostics && isVideoMap && videoDebug && <div className="video-debug">{videoDebug}</div>}
     </div>
@@ -851,6 +852,18 @@ function getFogToolHint(fogTool: FogTool, polygonPointCount: number, brushSize: 
   const finishHint = polygonPointCount >= 3 ? " Enter or double-click finishes." : "";
   const undoHint = polygonPointCount > 0 ? " Right-click removes last point." : "";
   return `Click to place points.${finishHint}${undoHint} Escape cancels.`;
+}
+
+function TokenMoveStatusStrip({ waypointCount }: { waypointCount: number }) {
+  return (
+    <div className="canvas-tool-status" aria-live="polite">
+      <strong>Token Move</strong>
+      <span>Drag to position.</span>
+      <span>Press Ctrl to add a waypoint.</span>
+      <span>{waypointCount === 1 ? "1 waypoint" : `${waypointCount} waypoints`}</span>
+      <span>Release to move on Player View.</span>
+    </div>
+  );
 }
 
 function getPlayerDisplayScale(campaign: Campaign | null, scene: Scene | null, mode: "gm" | "player"): number {
