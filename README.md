@@ -122,7 +122,7 @@ npm run package:win
 - CSS design tokens are defined in `src/renderer/styles/base.css` to support repeated UI values and future theme work.
 - Token image assets can be imported into `assets/tokens` with generated square thumbnails for the Token Layer.
 - The Token Library drawer can import reusable token assets, filter/sort them, change thumbnail display size, drag them onto the GM canvas, or add them to the active scene from the library.
-- Token Library assets can save presentation defaults directly from the library menu, then apply those defaults to future tokens added from that library asset.
+- Token Library assets can be renamed, deleted with scene-usage warnings, and assigned presentation defaults directly from the library menu.
 - Token sub-layers support rename, reordering, GM/Player visibility, deletion, and per-token presentation settings.
 - Token presentation settings include size presets, mask shape, border style, border width, border/glow colors, and optional footprint highlights.
 - Token movement supports waypoint previews, crossed-cell highlights, measured route distance, and Player View tweening along the route.
@@ -214,7 +214,8 @@ Tokens are intentionally lightweight for this version of Local VTT. They are mea
 - Layer settings are collapsible. Map, Grid, Fog of War, and Token layer controls expand only when needed.
 - Token and fog sub-layers can be managed from the Layers panel. Token presentation settings live on each token sub-layer.
 - The Token Library drawer can be collapsed, resized, searched, sorted, and switched between list/small/medium/large thumbnail views.
-- Use a library token's Set Defaults action to reuse size, mask, border, glow, and footprint presentation on future adds.
+- Use a library token's Rename, Set Defaults, and Delete actions to manage reusable token assets without changing custom names already assigned to placed scene tokens.
+- Set Defaults reuses size, mask, border, glow, and footprint presentation on future adds.
 - Fog and Grid color controls use compact color rows that open a modal picker with native color selection and reusable swatches.
 - The floating Tools Menu contains Fog of War tools and the GM-only ruler. It is intended to become the home for future GM tools such as drawings, pings, walls, and lighting.
 

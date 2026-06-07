@@ -376,11 +376,11 @@ export function GmDialogs({
 
       {tokenAssetToDelete && (
         <ConfirmDialog title="Delete Library Token" confirmLabel="Delete" onCancel={onCancelTokenAssetDelete} onConfirm={onConfirmDeleteTokenAsset}>
-          Delete <strong>{tokenAssetToDelete.asset.name}</strong> from the token library?
+          Delete <strong>{tokenAssetToDelete.asset.name}</strong> from the token library? This cannot be undone.
           {tokenAssetToDelete.usage.length > 0 && (
             <>
               {" "}
-              This will also remove {formatTokenAssetUsage(tokenAssetToDelete.usage)}.
+              This will also remove {formatTokenAssetUsage(tokenAssetToDelete.usage)}:
               <ul className="confirm-detail-list">
                 {tokenAssetToDelete.usage.map((scene) => (
                   <li key={scene.sceneId}>
