@@ -875,7 +875,7 @@ export function SceneCanvas({
         <FogToolStatusStrip fogTool={fogTool} polygonPointCount={polygonDraft?.points.length ?? 0} brushSize={scene?.fog.brushSize ?? 0} />
       )}
       {mode === "gm" && canvasTool === "ruler" && <RulerStatusStrip rulerDrag={rulerDrag} scene={scene} />}
-      {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip waypointCount={tokenDragPreview.waypoints.length} />}
+      {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
       {showMapOverlay && <MapLoadOverlay message={mapOverlayMessage} showSpinner={mapLoadStatus === "loading"} />}
       {mode === "gm" && showVideoDiagnostics && isVideoMap && videoDebug && <div className="video-debug">{videoDebug}</div>}
     </div>
@@ -929,13 +929,16 @@ function getFogToolHint(fogTool: FogTool, polygonPointCount: number, brushSize: 
   return `Click to place points.${finishHint}${undoHint} Escape cancels.`;
 }
 
-function TokenMoveStatusStrip({ waypointCount }: { waypointCount: number }) {
+function TokenMoveStatusStrip({ scene, tokenDragPreview }: { scene: Scene | null; tokenDragPreview: TokenDragPreview }) {
+  const waypointCount = tokenDragPreview.waypoints.length;
+  const tokenMoveLabel = scene ? getTokenMoveLabel(scene, tokenDragPreview) : null;
   return (
     <div className="canvas-tool-status" aria-live="polite">
       <strong>Token Move</strong>
       <span>Drag to position.</span>
       <span>Shift adds a grid-centered waypoint.</span>
       <span>{waypointCount === 1 ? "1 waypoint" : `${waypointCount} waypoints`}</span>
+      {tokenMoveLabel && <span>{tokenMoveLabel}</span>}
       <span>Release to move on Player View.</span>
     </div>
   );
@@ -968,8 +971,30 @@ function getRulerLabel(rulerDrag: RulerDrag, scene: Scene): RulerLabel {
   return { primary, secondary: `Straight: ${straightLine}` };
 }
 
+function getTokenMoveLabel(scene: Scene, preview: TokenDragPreview): string | null {
+  const token = scene.tokens.find((candidate) => candidate.id === preview.tokenId);
+  if (!token) {
+    return null;
+  }
+
+  const pathPoints = [
+    getTokenCenterPoint(token, preview.startPosition),
+    ...preview.waypoints.map((waypoint) => getTokenCenterPoint(token, waypoint)),
+    getTokenCenterPoint(token, preview.snappedPosition)
+  ];
+  const distance = sumRulerPathDistance(pathPoints, scene, getMeasurementDistance);
+  return formatMeasurementDistance(distance, scene.grid.measurement, scene.grid.type);
+}
+
 function getRulerPathPoints(rulerDrag: RulerDrag): Point[] {
   return [rulerDrag.start, ...rulerDrag.waypoints, rulerDrag.current];
+}
+
+function getTokenCenterPoint(token: Token, position: Point): Point {
+  return {
+    x: position.x + token.size.width / 2,
+    y: position.y + token.size.height / 2
+  };
 }
 
 function sumRulerPathDistance(points: Point[], scene: Scene, getDistance: (start: Point, end: Point, grid: Scene["grid"]) => number) {

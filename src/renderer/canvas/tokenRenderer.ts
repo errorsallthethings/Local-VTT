@@ -7,6 +7,7 @@ import {
   type Scene,
   type Token
 } from "../../shared/localvtt";
+import { getRulerGridHighlightCells } from "./measurement";
 import {
   getTokenGridFootprint,
   getTokenHexFootprintCenters,
@@ -113,6 +114,7 @@ export function drawTokenDragHighlights(ctx: CanvasRenderingContext2D, scene: Sc
   if (!token) {
     return;
   }
+  drawTokenMovementGridHighlights(ctx, scene, token, preview);
   drawTokenMovementPath(ctx, token, preview);
   if (scene.grid.type !== "gridless" && scene.grid.sizePx > 0) {
     drawTokenFootprintHighlight(ctx, scene, token, preview.startPosition, "#f6d365", 0.12);
@@ -151,6 +153,60 @@ function drawTokenMovementPath(ctx: CanvasRenderingContext2D, token: Token, prev
     drawTokenPathMarker(ctx, currentCenter, "#d7deea", "current");
   }
   ctx.restore();
+}
+
+function drawTokenMovementGridHighlights(ctx: CanvasRenderingContext2D, scene: Scene, token: Token, preview: TokenDragPreview) {
+  if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
+    return;
+  }
+
+  const pathPoints = [
+    getTokenCenter(token, preview.startPosition),
+    ...preview.waypoints.map((waypoint) => getTokenCenter(token, waypoint)),
+    getTokenCenter(token, preview.snappedPosition)
+  ];
+  const cells = new Map<string, Point>();
+  for (let index = 1; index < pathPoints.length; index += 1) {
+    for (const cell of getRulerGridHighlightCells({ start: pathPoints[index - 1], current: pathPoints[index], waypoints: [] }, scene.grid)) {
+      cells.set(`${Math.round(cell.x * 100) / 100},${Math.round(cell.y * 100) / 100}`, cell);
+    }
+  }
+
+  if (cells.size === 0) {
+    return;
+  }
+
+  ctx.save();
+  ctx.fillStyle = "rgb(246 211 101 / 0.14)";
+  ctx.strokeStyle = "rgb(255 255 255 / 0.36)";
+  ctx.lineWidth = Math.max(1, scene.grid.lineThickness);
+  for (const cell of cells.values()) {
+    if (scene.grid.type === "hex") {
+      traceTokenPathHexCell(ctx, cell, Math.max(8, scene.grid.sizePx / 2));
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      const size = scene.grid.sizePx;
+      ctx.fillRect(cell.x - size / 2, cell.y - size / 2, size, size);
+      ctx.strokeRect(cell.x - size / 2, cell.y - size / 2, size, size);
+    }
+  }
+  ctx.restore();
+}
+
+function traceTokenPathHexCell(ctx: CanvasRenderingContext2D, center: Point, radius: number) {
+  ctx.beginPath();
+  for (let side = 0; side < 6; side += 1) {
+    const angle = (Math.PI / 180) * (60 * side - 30);
+    const x = center.x + radius * Math.cos(angle);
+    const y = center.y + radius * Math.sin(angle);
+    if (side === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  }
+  ctx.closePath();
 }
 
 function getTokenCenter(token: Token, position: Point): Point {
