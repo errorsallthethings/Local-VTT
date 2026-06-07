@@ -58,6 +58,11 @@
   cursor: grabbing;
 }
 
+.scene-canvas.scene-canvas-token-dragging,
+.scene-canvas.scene-canvas-token-dragging:active {
+  cursor: move;
+}
+
 .map-load-overlay {
   position: absolute;
   top: 50%;

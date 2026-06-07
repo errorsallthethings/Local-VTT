@@ -188,13 +188,25 @@ export function SceneCanvas({
   useEffect(() => {
     setPolygonDraft(null);
     polygonDraftRef.current = null;
+    fogDragRef.current = null;
+    setFogPreview(null);
     setBrushHoverPoint(null);
+    setSnapPoint(null);
   }, [fogTool, scene?.id]);
 
   useEffect(() => {
     setRulerDrag(null);
     rulerDragRef.current = null;
   }, [canvasTool, scene?.id]);
+
+  useEffect(() => {
+    tokenDragRef.current = null;
+    setTokenDragPreview(null);
+    dragRef.current = null;
+    setIsPanning(false);
+    setSnapPoint(null);
+    setBrushHoverPoint(null);
+  }, [mode, scene?.id]);
 
   useEffect(() => {
     const previousScene = previousSceneRef.current;
@@ -276,7 +288,7 @@ export function SceneCanvas({
   }, [polygonDraft, scene]);
 
   useEffect(() => {
-    if (mode !== "gm" || (!tokenDragPreview && !rulerDrag)) {
+    if (mode !== "gm" || (!tokenDragPreview && !rulerDrag && !fogPreview)) {
       return;
     }
 
@@ -287,11 +299,12 @@ export function SceneCanvas({
       event.preventDefault();
       cancelTokenDrag();
       cancelRulerDrag();
+      cancelFogDrag();
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [mode, rulerDrag, tokenDragPreview]);
+  }, [fogPreview, mode, rulerDrag, tokenDragPreview]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !tokenDragPreview) {
@@ -548,6 +561,11 @@ export function SceneCanvas({
     setRulerDrag(null);
   };
 
+  const cancelFogDrag = () => {
+    fogDragRef.current = null;
+    setFogPreview(null);
+  };
+
   const onWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
     if (!interactive) {
       return;
@@ -787,6 +805,18 @@ export function SceneCanvas({
 
   const onContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const activeRulerDrag = rulerDragRef.current;
+    const tokenDrag = tokenDragRef.current;
+    if (tokenDrag) {
+      event.preventDefault();
+      if (tokenDrag.waypoints.length === 0) {
+        return;
+      }
+      const waypoints = tokenDrag.waypoints.slice(0, -1);
+      tokenDrag.waypoints = waypoints;
+      setTokenDragPreview((preview) => (preview?.tokenId === tokenDrag.tokenId ? { ...preview, waypoints } : preview));
+      return;
+    }
+
     if (activeRulerDrag) {
       event.preventDefault();
       if (activeRulerDrag.waypoints.length === 0) {
@@ -933,7 +963,7 @@ export function SceneCanvas({
         ))}
       <canvas
         ref={canvasRef}
-        className={`scene-canvas ${isPanning ? "scene-canvas-panning" : getCanvasToolClass(fogTool, canvasTool)}`}
+        className={`scene-canvas ${getCanvasInteractionClass({ canvasTool, fogTool, isPanning, tokenDragPreview })}`}
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -979,6 +1009,7 @@ function FogToolStatusStrip({
       <strong>{getFogToolLabel(fogTool)}</strong>
       <span>{primaryHint}</span>
       <span>{FOG_GRID_SNAP_HINT}</span>
+      <span>Escape cancels active drawing.</span>
       <span>Middle-click drag pans.</span>
     </div>
   );
@@ -1087,7 +1118,23 @@ function getFogSnapPoint(point: Point, scene: Scene): Point | null {
   return getNearestGridPoint(point, scene.grid);
 }
 
-function getCanvasToolClass(fogTool: FogTool | null, canvasTool: "ruler" | null): string {
+function getCanvasInteractionClass({
+  canvasTool,
+  fogTool,
+  isPanning,
+  tokenDragPreview
+}: {
+  canvasTool: "ruler" | null;
+  fogTool: FogTool | null;
+  isPanning: boolean;
+  tokenDragPreview: TokenDragPreview | null;
+}): string {
+  if (isPanning) {
+    return "scene-canvas-panning";
+  }
+  if (tokenDragPreview) {
+    return "scene-canvas-token-dragging";
+  }
   if (canvasTool === "ruler") {
     return "scene-canvas-tool-ruler";
   }
