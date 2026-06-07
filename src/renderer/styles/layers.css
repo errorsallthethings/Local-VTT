@@ -6,8 +6,8 @@
   gap: 6px;
   align-items: center;
   border: 1px solid #3c4658;
-  border-radius: 6px;
-  background: #151c25;
+  border-radius: var(--radius-control);
+  background: var(--color-bg-panel-deep);
   box-shadow: inset 3px 0 0 rgb(122 162 247 / 0.72);
   padding: 8px;
 }
@@ -26,7 +26,7 @@
   background:
     linear-gradient(90deg, rgb(122 162 247 / 0.16), rgb(76 191 120 / 0.07) 48%, rgb(21 28 37 / 0)),
     #171f2a;
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--radius-control) var(--radius-control) 0 0;
   content: "";
   pointer-events: none;
 }
@@ -38,7 +38,7 @@
 
 .expandable-layer-row:hover {
   border-color: #53637a;
-  background: #151c25;
+  background: var(--color-bg-panel-deep);
 }
 
 .expandable-layer-row:hover::before {
@@ -53,7 +53,7 @@
 }
 
 .placeholder-layer-row {
-  border-color: #293241;
+  border-color: var(--color-border-muted);
   background: #111820;
   box-shadow: inset 3px 0 0 rgb(104 115 134 / 0.34);
 }
@@ -71,7 +71,7 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: #a9c1f7;
+  color: var(--color-accent-soft);
 }
 
 .layer-visibility-button,
@@ -82,7 +82,7 @@
   height: 26px;
   border-color: transparent;
   background: transparent;
-  color: #aeb8c7;
+  color: var(--color-text-soft);
 }
 
 .layer-visibility-button:hover:not(:disabled),
@@ -95,11 +95,11 @@
 }
 
 .layer-visibility-active {
-  color: #a9c1f7;
+  color: var(--color-accent-soft);
 }
 
 .layer-visibility-active:hover:not(:disabled) {
-  color: #c6d6ff;
+  color: var(--color-accent-strong);
 }
 
 .layer-visibility-button:not(.layer-visibility-active)::after {
@@ -108,7 +108,7 @@
   left: 12px;
   width: 2px;
   height: 20px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #c87878;
   content: "";
   opacity: 0.86;
@@ -136,21 +136,21 @@
   gap: 3px;
   min-width: 0;
   border: 1px dashed #344053;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: rgb(17 24 32 / 0.55);
   padding: 9px 10px;
-  color: #9aa6b7;
+  color: var(--color-text-muted);
   font-size: 12px;
   line-height: 1.35;
 }
 
 .layer-empty-state strong {
-  color: #d7e0ec;
+  color: var(--color-text);
   font-size: 12px;
 }
 
 .layer-empty-state span {
-  color: #9aa6b7;
+  color: var(--color-text-muted);
   overflow-wrap: anywhere;
   white-space: normal;
 }
@@ -160,14 +160,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: #aeb8c7;
+  color: var(--color-text-soft);
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .fog-shape-list-header small {
-  color: #748094;
+  color: var(--color-text-faint);
   font-size: 11px;
 }
 
@@ -208,7 +208,7 @@
   overflow: hidden;
   border: 1px solid #303a49;
   border-radius: 4px;
-  background: #202733;
+  background: var(--color-bg-control);
   color: #8f9bad;
 }
 
@@ -225,9 +225,9 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  border: 1px solid #293241;
-  border-radius: 6px;
-  background: #151c25;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-panel-deep);
   padding: 5px;
   cursor: pointer;
 }
@@ -251,7 +251,7 @@
 }
 
 .fog-shape-drag-handle {
-  color: #748094;
+  color: var(--color-text-faint);
   cursor: grab;
   opacity: 0.72;
 }
@@ -263,7 +263,7 @@
 }
 
 .fog-shape-row:hover {
-  border-color: #3d4a61;
+  border-color: var(--color-border-strong);
   background: #1a222d;
 }
 
@@ -287,8 +287,8 @@
   right: 5px;
   left: 5px;
   height: 2px;
-  border-radius: 999px;
-  background: #7aa2f7;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
   box-shadow: 0 0 8px rgb(122 162 247 / 0.55);
   content: "";
 }
@@ -317,7 +317,7 @@
   height: 24px;
   border-color: transparent;
   background: transparent;
-  color: #748094;
+  color: var(--color-text-faint);
 }
 
 .fog-shape-action-button:hover:not(:disabled) {
@@ -327,23 +327,23 @@
 }
 
 .fog-shape-action-button.fog-shape-action-active {
-  color: #a9c1f7;
+  color: var(--color-accent-soft);
 }
 
 .fog-shape-action-button.fog-shape-action-active:hover:not(:disabled) {
-  color: #c6d6ff;
+  color: var(--color-accent-strong);
 }
 
 .fog-shape-action-button.danger {
   border-color: transparent;
   background: transparent;
-  color: #b87878;
+  color: var(--color-danger-muted);
 }
 
 .fog-shape-action-button.danger:hover:not(:disabled) {
   border-color: transparent;
   background: transparent;
-  color: #ffd2d2;
+  color: var(--color-danger);
 }
 
 .token-menu-wrap {
@@ -374,7 +374,7 @@
   grid-column: 1 / -1;
   display: grid;
   gap: 8px;
-  border-top: 1px solid #293241;
+  border-top: 1px solid var(--color-border-muted);
   padding-top: 8px;
   min-width: 0;
 }
@@ -412,10 +412,10 @@
 .import-map-next-step {
   grid-column: 1 / -1;
   justify-self: stretch;
-  border-color: #7aa2f7;
+  border-color: var(--color-accent);
   background:
     linear-gradient(135deg, rgb(122 162 247 / 0.28), rgb(76 191 120 / 0.16)),
-    #202733;
+    var(--color-bg-control);
   color: #f2f6fb;
   font-weight: 800;
   box-shadow:
@@ -443,7 +443,7 @@
 
 .control-divider {
   height: 1px;
-  background: #293241;
+  background: var(--color-border-muted);
 }
 
 .layer-row span {
@@ -464,7 +464,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #eef3f9;
+  color: var(--color-text-strong);
   cursor: default;
   font-size: 12px;
   font-weight: 800;
@@ -477,9 +477,9 @@
   min-width: 20px !important;
   height: 18px;
   border: 1px solid rgb(122 162 247 / 0.36);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(122 162 247 / 0.14);
-  color: #c6d6ff;
+  color: var(--color-accent-strong);
   padding: 0 6px;
   font-size: 11px;
   font-weight: 800;

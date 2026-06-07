@@ -13,8 +13,8 @@
   gap: 7px;
   min-width: 0;
   border: 1px solid rgb(41 50 65 / 0.9);
-  border-left: 3px solid var(--scene-folder-color, #7aa2f7);
-  border-radius: 7px;
+  border-left: 3px solid var(--scene-folder-color, var(--color-accent));
+  border-radius: var(--radius-control);
   background:
     linear-gradient(90deg, var(--scene-folder-color-bg, rgb(122 162 247 / 0.13)), rgb(21 28 37 / 0) 64%),
     #121821;
@@ -32,7 +32,7 @@
   gap: 6px;
   min-height: 32px;
   border: 1px solid rgb(41 50 65 / 0.72);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: rgb(21 28 37 / 0.82);
   padding: 4px 6px;
   transition:
@@ -42,13 +42,13 @@
 }
 
 .scene-folder-drop-target > .scene-folder-header {
-  border-color: #7aa2f7;
+  border-color: var(--color-accent);
   background: #1d2a3e;
   box-shadow: 0 0 0 1px rgb(122 162 247 / 0.28);
 }
 
 .scene-folder-drop-target {
-  border-color: #7aa2f7;
+  border-color: var(--color-accent);
   background:
     linear-gradient(90deg, var(--scene-folder-color-bg, rgb(122 162 247 / 0.18)), rgb(122 162 247 / 0.06) 70%),
     #172031;
@@ -62,7 +62,7 @@
   place-items: center;
   min-height: 34px;
   border: 1px dashed rgb(122 162 247 / 0.7);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: rgb(122 162 247 / 0.08);
   color: #dce7f7;
   content: "Drop scene into folder";
@@ -113,21 +113,21 @@
   display: grid;
   place-items: center;
   min-height: 54px;
-  border: 1px dashed #394150;
-  border-radius: 6px;
-  color: #748094;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text-faint);
   font-size: 12px;
   font-weight: 700;
 }
 
 .scene-folder-drop-target .scene-folder-empty {
-  border-color: #7aa2f7;
+  border-color: var(--color-accent);
   background: rgb(122 162 247 / 0.08);
   color: #dce7f7;
 }
 
 .scene-folder-unfiled {
-  border-top: 1px solid #293241;
+  border-top: 1px solid var(--color-border-muted);
   border-right: 0;
   border-bottom: 0;
   border-left: 0;
@@ -140,15 +140,15 @@
 }
 
 .scene-folder-unfiled .scene-folder-header {
-  background: #151c25;
+  background: var(--color-bg-panel-deep);
 }
 
 .scene-folder-unfiled.scene-folder-drop-target {
-  border-top-color: #7aa2f7;
+  border-top-color: var(--color-accent);
 }
 
 .scene-folder-unfiled.scene-folder-drop-target .scene-folder-scenes {
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   box-shadow: inset 0 0 0 1px rgb(122 162 247 / 0.35);
 }
 
@@ -160,21 +160,21 @@
   height: 84px;
   min-height: 84px;
   max-height: 84px;
-  border: 1px solid #293241;
-  border-radius: 6px;
-  background: #202733;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-control);
   padding: 6px;
   position: relative;
   cursor: pointer;
 }
 
 .scene-row.selected {
-  border-color: #7aa2f7;
+  border-color: var(--color-accent);
   background: #23324a;
 }
 
 .scene-row:hover {
-  border-color: #3d4a61;
+  border-color: var(--color-border-strong);
   background: #263140;
 }
 
@@ -184,7 +184,7 @@
 }
 
 .scene-row:focus-visible {
-  outline: 2px solid #7aa2f7;
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
@@ -197,7 +197,7 @@
 }
 
 .scene-drag-handle {
-  color: #748094;
+  color: var(--color-text-faint);
   cursor: grab;
   opacity: 0.72;
 }
@@ -219,7 +219,7 @@
 }
 
 .scene-player-indicator {
-  color: #4cbf78;
+  color: var(--color-success-strong);
   filter: drop-shadow(0 0 4px rgb(76 191 120 / 0.25));
 }
 
@@ -239,8 +239,8 @@
   height: 42px;
   overflow: hidden;
   border: 1px solid #303a49;
-  border-radius: 5px;
-  background: #111720;
+  border-radius: var(--radius-compact);
+  background: var(--color-bg-input);
   position: relative;
 }
 
@@ -291,9 +291,9 @@
 
 .scene-thumbnail-video svg,
 .scene-thumbnail-empty svg {
-  color: #7aa2f7;
+  color: var(--color-accent);
 }
 
 .scene-thumbnail-empty {
-  color: #748094;
+  color: var(--color-text-faint);
 }

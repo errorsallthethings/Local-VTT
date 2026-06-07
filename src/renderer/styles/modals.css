@@ -12,9 +12,9 @@
   display: grid;
   gap: 14px;
   width: min(420px, 100%);
-  border: 1px solid #303a49;
-  border-radius: 8px;
-  background: #171e27;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-panel);
+  background: var(--color-bg-panel);
   box-shadow: 0 18px 70px rgb(0 0 0 / 0.42);
   padding: 16px;
 }

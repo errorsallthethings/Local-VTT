@@ -12,7 +12,7 @@
 }
 
 .toolbar-label {
-  color: #9aa6b7;
+  color: var(--color-text-muted);
   font-size: 13px;
   font-weight: 800;
   line-height: 1;
@@ -24,8 +24,8 @@
   flex-wrap: wrap;
   gap: 6px;
   border: 1px solid #252e3a;
-  border-radius: 8px;
-  background: #141a22;
+  border-radius: var(--radius-panel);
+  background: var(--color-bg-panel-muted);
   padding: 5px;
 }
 
@@ -36,23 +36,23 @@
 }
 
 .dirty-save {
-  border-color: #a9782b;
-  background: #3a2816;
-  color: #ffd89a;
+  border-color: var(--color-warning-border-strong);
+  background: var(--color-warning-bg-strong);
+  color: var(--color-warning-soft);
 }
 
 .dirty-save:hover:not(:disabled) {
-  background: #4a321b;
+  background: var(--color-warning-bg-strong-hover);
 }
 
 .tool-active {
-  border-color: #4cbf78;
-  background: #173525;
-  color: #a7f3c5;
+  border-color: var(--color-success-strong);
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .tool-active:hover:not(:disabled) {
-  background: #1d4630;
+  background: var(--color-success-bg-hover);
 }
 
 .fog-operation-switch {
@@ -61,7 +61,7 @@
   align-items: center !important;
   justify-content: start;
   gap: 8px;
-  color: #aeb8c7;
+  color: var(--color-text-soft);
   font-size: 12px;
 }
 
@@ -70,9 +70,9 @@
   width: 44px;
   height: 24px;
   appearance: none;
-  border: 1px solid #394150;
-  border-radius: 999px;
-  background: #173525;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-success-bg);
   cursor: pointer;
   transition: background 120ms ease;
 }
@@ -84,7 +84,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #a7f3c5;
+  background: var(--color-success);
   content: "";
   transition:
     background 120ms ease,
@@ -92,11 +92,11 @@
 }
 
 .fog-operation-switch input:checked {
-  background: #351d1f;
+  background: var(--color-danger-bg);
 }
 
 .fog-operation-switch input:checked::before {
-  background: #ffd2d2;
+  background: var(--color-danger);
   transform: translateX(20px);
 }
 

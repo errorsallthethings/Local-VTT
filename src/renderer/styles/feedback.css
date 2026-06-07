@@ -1,9 +1,9 @@
 .warning,
 .error-banner {
-  border: 1px solid #8a6d2c;
-  border-radius: 6px;
-  background: #2a2113;
-  color: #ffd98a;
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-control);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
   padding: 10px;
   font-size: 13px;
 }

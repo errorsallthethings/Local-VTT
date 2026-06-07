@@ -15,19 +15,19 @@
 .compact-button.danger,
 .icon-button.danger,
 .danger-button {
-  border-color: #6f3434;
-  background: #351d1f;
-  color: #ffd2d2;
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
 .scene-save-dirty {
-  border-color: #2f8f5b;
-  background: #173525;
-  color: #a7f3c5;
+  border-color: var(--color-success-border);
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .scene-save-dirty:hover:not(:disabled) {
-  background: #1d4630;
+  background: var(--color-success-bg-hover);
 }
 
 .scene-menu-wrap {
@@ -45,10 +45,10 @@
 
 :is(.scene-menu, .token-settings-menu, .gm-settings-menu) {
   gap: 4px;
-  border: 1px solid #3d4a61;
-  border-radius: 6px;
-  background: #151c25;
-  box-shadow: 0 18px 42px rgb(0 0 0 / 0.42);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-panel-deep);
+  box-shadow: var(--shadow-menu);
   padding: 6px;
 }
 
@@ -64,7 +64,7 @@
   border: 0;
   background: transparent;
   padding: 7px 8px;
-  color: #d7deea;
+  color: var(--color-text);
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
@@ -73,7 +73,7 @@
 :is(.scene-menu, .token-settings-menu, .gm-settings-menu) button:hover:not(:disabled),
 .token-menu-action:hover:not(:disabled) {
   background: #253146;
-  color: #f3f7ff;
+  color: var(--color-text-strong);
 }
 
 :is(.scene-menu, .token-settings-menu, .gm-settings-menu) button:disabled,
@@ -84,13 +84,13 @@
 
 :is(.scene-menu, .token-settings-menu, .gm-settings-menu) .danger-menu-item,
 .token-menu-delete {
-  color: #ffd2d2;
+  color: var(--color-danger);
 }
 
 :is(.scene-menu, .token-settings-menu, .gm-settings-menu) .danger-menu-item:hover:not(:disabled),
 .token-menu-delete:hover:not(:disabled) {
-  background: #3b2023;
-  color: #ffd2d2;
+  background: var(--color-danger-menu-hover);
+  color: var(--color-danger);
 }
 
 .toolbar-menu {
@@ -101,5 +101,5 @@
 .compact-button.danger:hover:not(:disabled),
 .icon-button.danger:hover:not(:disabled),
 .danger-button:hover:not(:disabled) {
-  background: #482426;
+  background: var(--color-danger-bg-hover);
 }
