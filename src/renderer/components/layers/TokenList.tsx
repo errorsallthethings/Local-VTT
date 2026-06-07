@@ -57,7 +57,6 @@ export function TokenList({
     <div className="layer-detail-controls fog-shape-list token-list" onClick={(event) => event.stopPropagation()}>
       <div className="fog-shape-list-header">
         <span>Tokens</span>
-        <small>{scene.tokens.length}</small>
       </div>
       {scene.tokens.length > 0 ? (
         <>

@@ -221,24 +221,14 @@ export function LayerPanel({
             (layer.id === "map" && Boolean(mapAsset)) ||
             layer.id === "grid" ||
             layer.id === "fog";
-          const hasLayerContents =
-            layer.id === "map" ||
-            layer.id === "grid" ||
-            layer.id === "fog" ||
-            layer.id === "token";
+          const hasLayerContents = true;
           const isExpanded = hasLayerContents && expandedLayerIds.has(layer.id);
           const areSettingsExpanded = settingsLayerIds.has(layer.id);
-          const isPlaceholderLayer = !hasLayerSettings && !hasLayerContents;
+          const reservedLayerGuidance = getReservedLayerGuidance(layer);
           const layerCount = getLayerItemCount(layer.id, scene);
           return (
             <div
-              className={[
-                "layer-row",
-                hasLayerContents ? "expandable-layer-row" : "",
-                isPlaceholderLayer ? "placeholder-layer-row" : ""
-              ]
-                .filter(Boolean)
-                .join(" ")}
+              className={["layer-row", hasLayerContents ? "expandable-layer-row" : ""].filter(Boolean).join(" ")}
               key={layer.id}
               onClick={(event) => onLayerRowClick(event, layer.id, hasLayerContents)}
             >
@@ -296,6 +286,14 @@ export function LayerPanel({
                   >
                     <ArrowDown size={14} aria-hidden="true" />
                   </button>
+                </div>
+              )}
+              {reservedLayerGuidance && isExpanded && (
+                <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
+                  <div className="layer-empty-state">
+                    <strong>{layer.name}</strong>
+                    <span>{reservedLayerGuidance}</span>
+                  </div>
                 </div>
               )}
               {layer.id === "fog" && areSettingsExpanded && (
@@ -621,6 +619,23 @@ function getLayerItemCount(layerId: Layer["id"], scene: Scene): number | null {
     return scene.tokens.length;
   }
   return null;
+}
+
+function getReservedLayerGuidance(layer: Layer): string | null {
+  switch (layer.id) {
+    case "gm":
+      return "Reserved for future GM-only notes, markers, and private scene tools.";
+    case "weather":
+      return "Reserved for future weather and environmental effects.";
+    case "foreground":
+      return "Reserved for future foreground overlays that sit above tokens.";
+    case "object":
+      return "Reserved for future placed scene objects and props.";
+    case "lighting":
+      return "Reserved for future walls, lights, and line-of-sight tools.";
+    default:
+      return null;
+  }
 }
 
 function getFitModeHelp(fitMode: MapTransform["fitMode"]): string {

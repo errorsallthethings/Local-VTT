@@ -13,7 +13,8 @@
 
 .toolbar-label {
   color: #9aa6b7;
-  font-size: 11px;
+  font-size: 13px;
+  font-weight: 800;
   line-height: 1;
   text-transform: uppercase;
 }

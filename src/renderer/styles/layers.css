@@ -1,16 +1,29 @@
 .layer-row {
   position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
   gap: 6px;
   align-items: center;
   border: 1px solid #3c4658;
   border-radius: 6px;
-  background:
-    linear-gradient(90deg, rgb(122 162 247 / 0.16), rgb(76 191 120 / 0.07) 48%, rgb(21 28 37 / 0.92)),
-    #151c25;
+  background: #151c25;
   box-shadow: inset 3px 0 0 rgb(122 162 247 / 0.72);
   padding: 8px;
+  overflow: hidden;
+}
+
+.layer-row::before {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 42px;
+  background:
+    linear-gradient(90deg, rgb(122 162 247 / 0.16), rgb(76 191 120 / 0.07) 48%, rgb(21 28 37 / 0)),
+    #171f2a;
+  content: "";
 }
 
 .expandable-layer-row {
@@ -20,8 +33,12 @@
 
 .expandable-layer-row:hover {
   border-color: #53637a;
+  background: #151c25;
+}
+
+.expandable-layer-row:hover::before {
   background:
-    linear-gradient(90deg, rgb(122 162 247 / 0.22), rgb(76 191 120 / 0.1) 48%, rgb(26 34 45 / 0.96)),
+    linear-gradient(90deg, rgb(122 162 247 / 0.22), rgb(76 191 120 / 0.1) 48%, rgb(26 34 45 / 0)),
     #1a222d;
 }
 
@@ -97,6 +114,10 @@
 .layer-order-controls {
   display: flex;
   gap: 4px;
+}
+
+.layer-row > :not(.layer-detail-controls) {
+  z-index: 1;
 }
 
 .fog-shape-list {

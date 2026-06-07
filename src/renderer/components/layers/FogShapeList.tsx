@@ -31,7 +31,6 @@ export function FogShapeList({
     <div className="layer-detail-controls fog-shape-list" onClick={(event) => event.stopPropagation()}>
       <div className="fog-shape-list-header">
         <span>Fog shapes</span>
-        <small>{scene.fog.shapes.length}</small>
       </div>
       {scene.fog.shapes.length > 0 ? (
         <>
