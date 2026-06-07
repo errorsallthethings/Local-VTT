@@ -36,5 +36,14 @@ export default tseslint.config(
       ],
       "react-refresh/only-export-components": "off"
     }
+  },
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: {
+        ...globals.node
+      }
+    }
   }
 );

@@ -74,7 +74,15 @@ npm run check
 
 ## Packaging Notes
 
-Packaging is configured with `electron-builder`, but signing, notarization, icons, auto-update, and installer polish are deferred.
+Packaging is configured with `electron-builder`. The Windows build uses the Local VTT icon in `build/icon.ico`, creates Desktop and Start Menu shortcuts, and uses an assisted per-user installer so the install location can be reviewed during setup.
+
+The editable icon source is `build/icon.svg`. To regenerate the Windows icon file after changing the source artwork, run:
+
+```bash
+npm run generate:icon
+```
+
+Code signing, macOS notarization, auto-update, and release-channel infrastructure are deferred.
 
 macOS:
 
@@ -87,6 +95,17 @@ Windows:
 ```bash
 npm run package:win
 ```
+
+Successful Windows packaging creates:
+
+```text
+release/
+  Local VTT Setup 0.1.0.exe
+  win-unpacked/
+    Local VTT.exe
+```
+
+Use `release/win-unpacked/Local VTT.exe` for quick local smoke testing before sharing the installer.
 
 ## MVP Scope
 
@@ -121,6 +140,16 @@ Before packaging or sharing a build, run through these workflows:
 - Use the ruler on square, hex, and gridless scenes.
 - Run `npm run check` and `npm run build`.
 
+For packaged Windows builds, also run:
+
+- `npm run package:win`.
+- Open `release/win-unpacked/Local VTT.exe`.
+- Confirm the app gets past the startup splash.
+- Load a campaign and send static and video map scenes to Player View.
+- Move tokens with Shift waypoints on square, hex, and gridless scenes.
+- Confirm Player View token tweening/path behavior still works.
+- Confirm Player View fullscreen behavior remains stable during scene changes.
+
 ## Deferred / Future Enhancements
 
 These ideas are intentionally outside the current MVP unless they become release blockers:
@@ -132,7 +161,7 @@ These ideas are intentionally outside the current MVP unless they become release
 - Advanced token library tags, grouping, bulk editing, and external asset management.
 - Localization/string resource files after UI wording stabilizes.
 - Light/custom themes after the dark-theme CSS token structure is stable.
-- Installer signing, notarization, auto-update, icons, and release-channel polish.
+- Installer signing, macOS notarization, auto-update, and release-channel polish.
 
 ## Foundational Features
 

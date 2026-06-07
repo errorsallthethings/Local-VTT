@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Local-first tabletop battle map display tool for in-person RPG sessions.",
+  "author": "Local VTT contributors",
   "main": "dist-electron/electron/main.js",
   "type": "module",
   "scripts": {
@@ -14,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "preview": "vite preview --host 127.0.0.1",
+    "generate:icon": "node scripts/generate-icon.mjs",
     "package:mac": "npm run build && electron-builder --mac",
     "package:win": "npm run build && electron-builder --win"
   },
@@ -57,7 +59,16 @@
     },
     "win": {
       "target": "nsis",
+      "icon": "build/icon.ico",
       "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Local VTT"
     }
   }
 }

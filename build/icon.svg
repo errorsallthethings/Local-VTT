@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Local VTT icon">
+  <rect width="256" height="256" rx="48" fill="#0f1318"/>
+  <rect x="24" y="24" width="208" height="208" rx="30" fill="#17202b" stroke="#7aa2f7" stroke-width="10"/>
+  <path d="M64 72h128M64 112h128M64 152h128M64 192h128M72 64v128M112 64v128M152 64v128M192 64v128" stroke="#334155" stroke-width="6"/>
+  <path d="M78 178V78h22v80h45v20H78Zm58-100h25l22 70 22-70h24l-34 100h-24L136 78Z" fill="#eef3f9"/>
+  <circle cx="186" cy="174" r="18" fill="#f6d365"/>
+</svg>
