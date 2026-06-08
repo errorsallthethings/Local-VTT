@@ -31,9 +31,18 @@ jobs:
         run: npm run check
 
       - name: Build Windows package
-        run: npm run package:win
+        run: npm run package:win -- --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: Local VTT Windows
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml
 
   macos:
     name: macOS Release
@@ -56,6 +65,16 @@ jobs:
         run: npm run check
 
       - name: Build macOS package
-        run: npm run package:mac
+        run: npm run package:mac -- --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: Local VTT macOS
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.blockmap
+            release/latest-mac.yml
