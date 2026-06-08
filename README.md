@@ -241,6 +241,15 @@ For packaged Windows builds, also run:
 - Confirm Player View fullscreen behavior remains stable during scene changes.
 - Confirm Open Backups Folder opens Explorer.
 
+## Known Limitations
+
+- The Windows installer is not code signed, so Windows may show a publisher warning.
+- Local VTT does not currently include initiative tracking, health bars, permissions, character sheets, or combat automation.
+- Dynamic lighting, walls, doors, windows, and vision-aware fog are not implemented yet.
+- Token Library export/import packs are deferred.
+- Backups cover campaign and scene JSON metadata only; map, video, token, and thumbnail assets are not duplicated.
+- macOS notarization, auto-update, and release-channel infrastructure are not configured yet.
+
 ## Deferred / Future Enhancements
 
 These ideas are intentionally outside the current MVP unless they become release blockers:
