@@ -1,13 +1,17 @@
-import { Edit3, FolderOpen, Plus, Save } from "lucide-react";
+import { Clock3, Edit3, FolderOpen, Plus, Save, X } from "lucide-react";
 import type { Campaign } from "../../../shared/localvtt";
+import type { RecentCampaign } from "../../lib/recentCampaigns";
 
 interface CampaignPanelProps {
   campaign: Campaign | null;
   campaignPath: string | null;
   missingAssets: string[];
   hasUnsavedChanges: boolean;
+  recentCampaigns: RecentCampaign[];
   onCreateCampaign: () => void;
   onOpenCampaign: () => void;
+  onOpenRecentCampaign: (campaignPath: string) => void;
+  onRemoveRecentCampaign: (campaignPath: string) => void;
   onSaveCampaign: () => void;
   onRenameCampaign: () => void;
 }
@@ -17,8 +21,11 @@ export function CampaignPanel({
   campaignPath,
   missingAssets,
   hasUnsavedChanges,
+  recentCampaigns,
   onCreateCampaign,
   onOpenCampaign,
+  onOpenRecentCampaign,
+  onRemoveRecentCampaign,
   onSaveCampaign,
   onRenameCampaign
 }: CampaignPanelProps) {
@@ -55,6 +62,32 @@ export function CampaignPanel({
           <p className="path-text" title={campaignPath}>
             {campaignPath}
           </p>
+        </div>
+      )}
+      {!campaign && recentCampaigns.length > 0 && (
+        <div className="recent-campaigns">
+          <div className="recent-campaigns-heading">
+            <Clock3 size={14} aria-hidden="true" />
+            <span>Recent Campaigns</span>
+          </div>
+          <div className="recent-campaign-list">
+            {recentCampaigns.map((recent) => (
+              <div key={recent.path} className="recent-campaign-row">
+                <button className="recent-campaign-open" title={recent.path} onClick={() => onOpenRecentCampaign(recent.path)}>
+                  <span>{recent.name}</span>
+                  <small>{recent.path}</small>
+                </button>
+                <button
+                  className="icon-button recent-campaign-remove"
+                  aria-label={`Remove ${recent.name} from recent campaigns`}
+                  title="Remove from Recents"
+                  onClick={() => onRemoveRecentCampaign(recent.path)}
+                >
+                  <X size={14} aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {missingAssets.length > 0 && (

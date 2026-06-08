@@ -467,6 +467,13 @@ ipcMain.handle("campaign:open", async () => {
   return summary;
 });
 
+ipcMain.handle("campaign:openRecent", async (_event, campaignPath: string) => {
+  await stat(campaignFile(campaignPath));
+  const summary = await loadCampaignFromPath(campaignPath);
+  registerCampaignPath(campaignPath);
+  return summary;
+});
+
 ipcMain.handle("campaign:save", async (_event, campaignPath: string, campaign: Campaign) => {
   assertKnownCampaignPath(campaignPath);
   await writeCampaign(campaignPath, campaign);

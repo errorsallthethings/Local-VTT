@@ -16,6 +16,7 @@ import {
 import type {
   Asset,
   Campaign,
+  CampaignSummary,
   CampaignSceneEntry,
   CampaignSceneFolder,
   DisplayCalibration,
@@ -36,6 +37,13 @@ import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { moveSceneFolder } from "../lib/campaignActions";
+import {
+  RECENT_CAMPAIGNS_STORAGE_KEY,
+  addRecentCampaign,
+  parseRecentCampaigns,
+  removeRecentCampaign,
+  type RecentCampaign
+} from "../lib/recentCampaigns";
 import { createImportedToken } from "../lib/tokenDefaults";
 import {
   COLLAPSED_RAIL_WIDTH,
@@ -134,6 +142,9 @@ export function GmApp() {
   const [gmCanvasCenter, setGmCanvasCenter] = useState<Point | null>(null);
   const [tokenLibraryHeight, setTokenLibraryHeight] = useState(() => loadTokenLibraryHeight());
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
+  const [recentCampaigns, setRecentCampaigns] = useState<RecentCampaign[]>(() =>
+    parseRecentCampaigns(window.localStorage.getItem(RECENT_CAMPAIGNS_STORAGE_KEY))
+  );
   const [busyState, setBusyState] = useState<CampaignBusyState | null>(null);
 
   const mapAsset = useMemo(() => {
@@ -339,6 +350,18 @@ export function GmApp() {
     window.localStorage.setItem(TOKEN_LIBRARY_HEIGHT_STORAGE_KEY, String(tokenLibraryHeight));
   }, [tokenLibraryHeight]);
 
+  useEffect(() => {
+    window.localStorage.setItem(RECENT_CAMPAIGNS_STORAGE_KEY, JSON.stringify(recentCampaigns));
+  }, [recentCampaigns]);
+
+  const rememberCampaign = useCallback((summary: CampaignSummary) => {
+    setRecentCampaigns((recents) => addRecentCampaign(recents, summary.campaign, summary.campaignPath));
+  }, []);
+
+  const removeRecentCampaignPath = useCallback((campaignPathToRemove: string) => {
+    setRecentCampaigns((recents) => removeRecentCampaign(recents, campaignPathToRemove));
+  }, []);
+
   const resetSceneLibraryUi = () => {
     setOpenSceneMenuId(null);
     setOpenFolderMenuId(null);
@@ -347,6 +370,7 @@ export function GmApp() {
   const {
     createCampaign,
     openCampaign,
+    openRecentCampaign,
     loadScene,
     moveScene,
     saveSceneById,
@@ -365,6 +389,7 @@ export function GmApp() {
     onResetSceneLibraryUi: resetSceneLibraryUi,
     onCloseSceneMenu: () => setOpenSceneMenuId(null),
     onCloseFolderMenu: () => setOpenFolderMenuId(null),
+    onCampaignOpened: rememberCampaign,
     onMapAssetDeleteHandled: () => setMapAssetToDelete(null),
     onSceneDeleteHandled: () => setSceneToDelete(null),
     onFolderDeleteHandled: () => setFolderToDelete(null)
@@ -392,6 +417,13 @@ export function GmApp() {
     updateScene,
     onClearFogConfirmed: () => setConfirmClearFogOpen(false)
   });
+
+  const reopenRecentCampaign = async (recentCampaignPath: string) => {
+    const ok = await openRecentCampaign(recentCampaignPath);
+    if (!ok) {
+      removeRecentCampaignPath(recentCampaignPath);
+    }
+  };
 
   const importToken = (mode: TokenCropDialogState["mode"] = "scene") =>
     run(async () => {
@@ -925,6 +957,9 @@ export function GmApp() {
         onStartPanelResize={startPanelResize}
         onCreateCampaign={createCampaign}
         onOpenCampaign={openCampaign}
+        recentCampaigns={recentCampaigns}
+        onOpenRecentCampaign={(recentCampaignPath) => void reopenRecentCampaign(recentCampaignPath)}
+        onRemoveRecentCampaign={removeRecentCampaignPath}
         onSaveCampaign={() => void saveCampaign()}
         onRenameCampaign={openCampaignRenameDialog}
         onOpenSceneDialog={openSceneDialog}

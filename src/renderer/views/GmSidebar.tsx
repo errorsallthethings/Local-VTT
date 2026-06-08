@@ -3,6 +3,7 @@ import { FilePlus, FolderPlus, GripVertical, PanelLeftClose, PanelLeftOpen } fro
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../shared/localvtt";
 import { CampaignPanel } from "../components/campaign/CampaignPanel";
 import { SceneLibraryPanel } from "../components/scenes/SceneLibraryPanel";
+import type { RecentCampaign } from "../lib/recentCampaigns";
 import type { WorkspaceLayout } from "../lib/workspaceLayout";
 
 export function GmSidebar({
@@ -18,12 +19,15 @@ export function GmSidebar({
   openSceneMenuId,
   openFolderMenuId,
   workspaceLayout,
+  recentCampaigns,
   onClearActiveFogTool,
   onToggleWorkspacePanel,
   onResetPanelWidth,
   onStartPanelResize,
   onCreateCampaign,
   onOpenCampaign,
+  onOpenRecentCampaign,
+  onRemoveRecentCampaign,
   onSaveCampaign,
   onRenameCampaign,
   onOpenSceneDialog,
@@ -56,12 +60,15 @@ export function GmSidebar({
   openSceneMenuId: string | null;
   openFolderMenuId: string | null;
   workspaceLayout: WorkspaceLayout;
+  recentCampaigns: RecentCampaign[];
   onClearActiveFogTool: () => void;
   onToggleWorkspacePanel: (side: "left") => void;
   onResetPanelWidth: (side: "left") => void;
   onStartPanelResize: (side: "left", event: ReactPointerEvent<HTMLButtonElement>) => void;
   onCreateCampaign: () => void;
   onOpenCampaign: () => void;
+  onOpenRecentCampaign: (campaignPath: string) => void;
+  onRemoveRecentCampaign: (campaignPath: string) => void;
   onSaveCampaign: () => void;
   onRenameCampaign: () => void;
   onOpenSceneDialog: () => void;
@@ -103,8 +110,11 @@ export function GmSidebar({
             campaignPath={campaignPath}
             missingAssets={missingAssets}
             hasUnsavedChanges={hasUnsavedChanges}
+            recentCampaigns={recentCampaigns}
             onCreateCampaign={onCreateCampaign}
             onOpenCampaign={onOpenCampaign}
+            onOpenRecentCampaign={onOpenRecentCampaign}
+            onRemoveRecentCampaign={onRemoveRecentCampaign}
             onSaveCampaign={onSaveCampaign}
             onRenameCampaign={onRenameCampaign}
           />

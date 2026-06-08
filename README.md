@@ -126,6 +126,7 @@ This version is intentionally not a full campaign-management VTT. Tokens are lig
 Before packaging or sharing a build, run through these workflows:
 
 - Create and open a campaign.
+- Reopen a campaign from Recent Campaigns and remove an entry from Recents.
 - Create, rename, delete, and save scenes.
 - Rename, color, delete, collapse, and reorder scene folders.
 - Import static image maps, video maps, and token assets.

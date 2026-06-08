@@ -4,6 +4,7 @@ import type { Asset, Campaign, CampaignSummary, PlayerSceneProjection, Scene, Sq
 const api = {
   createCampaign: () => ipcRenderer.invoke("campaign:create") as Promise<CampaignSummary | null>,
   openCampaign: () => ipcRenderer.invoke("campaign:open") as Promise<CampaignSummary | null>,
+  openRecentCampaign: (campaignPath: string) => ipcRenderer.invoke("campaign:openRecent", campaignPath) as Promise<CampaignSummary>,
   saveCampaign: (campaignPath: string, campaign: Campaign) =>
     ipcRenderer.invoke("campaign:save", campaignPath, campaign) as Promise<CampaignSummary>,
   createScene: (campaignPath: string, sceneName: string) =>

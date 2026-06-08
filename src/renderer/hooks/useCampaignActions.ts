@@ -22,6 +22,7 @@ interface UseCampaignActionsOptions {
   onResetSceneLibraryUi: () => void;
   onCloseSceneMenu: () => void;
   onCloseFolderMenu: () => void;
+  onCampaignOpened: (summary: CampaignSummary) => void;
   onMapAssetDeleteHandled: () => void;
   onSceneDeleteHandled: () => void;
   onFolderDeleteHandled: () => void;
@@ -41,6 +42,7 @@ export function useCampaignActions({
   onResetSceneLibraryUi,
   onCloseSceneMenu,
   onCloseFolderMenu,
+  onCampaignOpened,
   onMapAssetDeleteHandled,
   onSceneDeleteHandled,
   onFolderDeleteHandled
@@ -76,6 +78,7 @@ export function useCampaignActions({
         applySummary(summary);
         clearWorkspaceState();
         onResetSceneLibraryUi();
+        onCampaignOpened(summary);
       }
     });
 
@@ -86,7 +89,17 @@ export function useCampaignActions({
         applySummary(summary);
         clearWorkspaceState();
         onResetSceneLibraryUi();
+        onCampaignOpened(summary);
       }
+    });
+
+  const openRecentCampaign = (campaignPath: string) =>
+    run(async () => {
+      const summary = await window.localVtt.openRecentCampaign(campaignPath);
+      applySummary(summary);
+      clearWorkspaceState();
+      onResetSceneLibraryUi();
+      onCampaignOpened(summary);
     });
 
   const loadScene = (sceneId: string) =>
@@ -338,6 +351,7 @@ export function useCampaignActions({
   return {
     createCampaign,
     openCampaign,
+    openRecentCampaign,
     loadScene,
     moveScene,
     saveSceneById,
