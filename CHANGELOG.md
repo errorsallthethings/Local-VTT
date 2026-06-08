@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.4
+
+### Fixed
+
+- Fix GitHub release publish repo context
+
+
 ## 0.1.3
 
 ### Fixed
