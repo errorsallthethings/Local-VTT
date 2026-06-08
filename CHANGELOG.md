@@ -1,11 +1,16 @@
 # Changelog
 
+## 0.1.5
+
+### Fixed
+
+- Fix immutable GitHub release publishing
+
 ## 0.1.4
 
 ### Fixed
 
 - Fix GitHub release publish repo context
-
 
 ## 0.1.3
 
