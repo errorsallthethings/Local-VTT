@@ -96,5 +96,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG_NAME: ${{ github.ref_name }}
         run: |
-          gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1 || gh release create "$TAG_NAME" --repo "$GH_REPO" --title "$TAG_NAME" --notes "Local VTT $TAG_NAME"
-          find release-artifacts -type f -print0 | xargs -0 gh release upload "$TAG_NAME" --repo "$GH_REPO" --clobber
+          if gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "Release $TAG_NAME already exists. Create a new version/tag instead of replacing immutable release assets."
+            exit 1
+          fi
+          mapfile -d '' release_files < <(find release-artifacts -type f -print0)
+          gh release create "$TAG_NAME" "${release_files[@]}" --repo "$GH_REPO" --title "$TAG_NAME" --notes "Local VTT $TAG_NAME" --verify-tag

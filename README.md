@@ -254,6 +254,8 @@ The release workflow listens for tags that match `v*.*.*`. Pushing the tag is wh
 
 7. If the workflow succeeds, check GitHub Releases for the published release assets. The workflow also uploads Windows and macOS build artifacts to the workflow run page.
 
+GitHub Releases may be immutable after publishing. If a release workflow fails after creating a release, prepare a new version and tag instead of trying to replace assets on the existing release.
+
 Manual `workflow_dispatch` runs are useful for testing the release workflow, but they do not publish a GitHub Release unless the run is for a tag. Download test builds from the workflow run's Artifacts section.
 
 ## Smoke Test Checklist
