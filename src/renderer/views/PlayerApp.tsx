@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Map as MapIcon } from "lucide-react";
 import { isPlayerIdleState, isPlayerSceneProjection, type PlayerIdleState, type PlayerSceneProjection } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 
@@ -160,8 +161,13 @@ export function PlayerApp() {
 function PlayerEmpty({ state }: { state: PlayerIdleState }) {
   return (
     <div className="player-empty">
-      <strong>{state.title}</strong>
-      <span>{state.message}</span>
+      <div className="player-empty-mark">
+        <span aria-hidden="true">
+          <MapIcon size={24} strokeWidth={2.2} />
+        </span>
+        <strong>{state.title}</strong>
+        <small>{state.message}</small>
+      </div>
     </div>
   );
 }

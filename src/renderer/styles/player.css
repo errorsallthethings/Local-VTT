@@ -113,25 +113,47 @@
 
 .player-empty {
   display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 8px;
+  place-items: center;
   width: 100%;
   height: 100%;
-  background: #080b10;
+  background:
+    radial-gradient(circle at 50% 42%, rgb(122 162 247 / 0.14), transparent 30%),
+    #080b10;
   color: #9aa6b8;
   text-align: center;
   padding: 32px;
 }
 
-.player-empty strong {
-  color: #eef3f8;
-  font-size: 24px;
+.player-empty-mark {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  transform: translateY(-8px);
 }
 
-.player-empty span {
+.player-empty-mark span {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 2px solid rgb(122 162 247 / 0.34);
+  border-radius: var(--radius-pill);
+  background: rgb(122 162 247 / 0.08);
+  color: var(--color-accent);
+  box-shadow: 0 0 28px rgb(122 162 247 / 0.14);
+}
+
+.player-empty-mark strong {
+  color: #eef3f8;
+  font-size: 24px;
+  letter-spacing: 0;
+}
+
+.player-empty-mark small {
   max-width: 520px;
   color: #7f8b9e;
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.35;
 }
