@@ -304,6 +304,12 @@ export interface PlayerSceneProjection {
   assets: Asset[];
 }
 
+export interface PlayerIdleState {
+  type: "idle";
+  title: string;
+  message: string;
+}
+
 export const DEFAULT_MEASUREMENT: MeasurementSettings = {
   unit: "feet",
   unitsPerGridCell: 5,
@@ -501,6 +507,15 @@ export function isPlayerSceneProjection(value: unknown): value is PlayerScenePro
     isRecord(value.playerDisplay) &&
     Array.isArray(value.assets) &&
     isValidSceneShape(value.scene)
+  );
+}
+
+export function isPlayerIdleState(value: unknown): value is PlayerIdleState {
+  return (
+    isRecord(value) &&
+    value.type === "idle" &&
+    typeof value.title === "string" &&
+    typeof value.message === "string"
   );
 }
 

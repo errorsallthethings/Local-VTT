@@ -133,6 +133,7 @@ This version is intentionally not a full campaign-management VTT. Tokens are lig
 
 Before packaging or sharing a build, run through these workflows:
 
+- Start from a clean app state and confirm no-campaign/no-scene controls guide the GM without dead-end actions.
 - Create and open a campaign.
 - Reopen a campaign from Recent Campaigns and remove an entry from Recents.
 - Create, rename, delete, and save scenes.

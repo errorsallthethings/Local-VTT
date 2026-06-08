@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { isPlayerSceneProjection, type PlayerSceneProjection } from "../../shared/localvtt";
+import { isPlayerIdleState, isPlayerSceneProjection, type PlayerIdleState, type PlayerSceneProjection } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 
 const PLAYER_SCENE_SPLASH_FADE_MS = 320;
@@ -14,22 +14,36 @@ export function PlayerApp() {
   const [splashMinimumMet, setSplashMinimumMet] = useState(false);
   const [revealScene, setRevealScene] = useState(false);
   const [currentSceneReady, setCurrentSceneReady] = useState(true);
+  const [idleState, setIdleState] = useState<PlayerIdleState>({
+    type: "idle",
+    title: "Waiting for GM View",
+    message: "The next scene will appear here."
+  });
 
   useEffect(() => {
     const removeListener = window.localVtt.onPlayerState((state) => {
       if (isPlayerSceneProjection(state)) {
         applyProjection(state);
+      } else if (isPlayerIdleState(state)) {
+        applyIdleState(state);
       }
     });
     void window.localVtt.getLastPlayerState().then((state) => {
       if (isPlayerSceneProjection(state)) {
         applyProjection(state);
+      } else if (isPlayerIdleState(state)) {
+        applyIdleState(state);
       }
     });
     return removeListener;
   }, []);
 
   const applyProjection = (nextProjection: PlayerSceneProjection) => {
+    setIdleState({
+      type: "idle",
+      title: "Waiting for GM View",
+      message: "The next scene will appear here."
+    });
     setProjection((currentProjection) => {
       if (!currentProjection || currentProjection.scene.id === nextProjection.scene.id) {
         if (!currentProjection) {
@@ -52,6 +66,17 @@ export function PlayerApp() {
       setCurrentSceneReady(false);
       return currentProjection;
     });
+  };
+
+  const applyIdleState = (nextIdleState: PlayerIdleState) => {
+    setIdleState(nextIdleState);
+    setProjection(null);
+    setPendingProjection(null);
+    setTransitioning(false);
+    setSplashCovered(false);
+    setSplashMinimumMet(false);
+    setRevealScene(false);
+    setCurrentSceneReady(true);
   };
 
   useEffect(() => {
@@ -121,13 +146,22 @@ export function PlayerApp() {
               }}
             />
           ) : (
-            <div className="player-empty">Waiting for GM View</div>
+            <PlayerEmpty state={idleState} />
           )}
           {transitioning && <PlayerSceneSplash leaving={revealScene} />}
         </div>
       ) : (
-        <div className="player-empty">Waiting for GM View</div>
+        <PlayerEmpty state={idleState} />
       )}
+    </div>
+  );
+}
+
+function PlayerEmpty({ state }: { state: PlayerIdleState }) {
+  return (
+    <div className="player-empty">
+      <strong>{state.title}</strong>
+      <span>{state.message}</span>
     </div>
   );
 }

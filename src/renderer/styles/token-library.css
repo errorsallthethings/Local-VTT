@@ -124,6 +124,11 @@
   color: var(--color-text-strong);
 }
 
+.token-library-import:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
 .token-library-sort {
   display: inline-grid;
   grid-template-columns: auto minmax(88px, 1fr);

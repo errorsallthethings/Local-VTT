@@ -301,6 +301,12 @@ export function GmApp() {
   });
 
   useEffect(() => {
+    if (!activeScene) {
+      setPlayerMenuOpen(false);
+    }
+  }, [activeScene]);
+
+  useEffect(() => {
     void refreshDisplays();
     // Displays are refreshed once on mount; later updates happen when the GM opens display settings.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -339,6 +345,7 @@ export function GmApp() {
     if (!playerSceneId || campaign?.scenes.some((scene) => scene.id === playerSceneId)) {
       return;
     }
+    void window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.");
     setPlayerSceneId(null);
   }, [campaign?.scenes, playerSceneId]);
 
@@ -840,14 +847,18 @@ export function GmApp() {
       setPlayerMenuOpen(false);
     });
 
+  const showPlayerIdle = async () => {
+    await window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.");
+    setPlayerSceneId(null);
+    setPlayerMenuOpen(false);
+  };
+
   const confirmDeleteScene = (scene: CampaignSceneEntry) =>
     run(async () => {
       const deletedPlayerScene = scene.id === playerSceneId;
       const ok = await deleteScene(scene);
       if (ok && deletedPlayerScene) {
-        await window.localVtt.closePlayerView();
-        setPlayerSceneId(null);
-        setPlayerMenuOpen(false);
+        await showPlayerIdle();
       }
     });
 
@@ -1003,7 +1014,11 @@ export function GmApp() {
           mapAsset={mapAsset}
           playerMenuOpen={playerMenuOpen}
           onSendToPlayer={sendToPlayer}
-          onTogglePlayerMenu={() => setPlayerMenuOpen((open) => !open)}
+          onTogglePlayerMenu={() => {
+            if (activeScene) {
+              setPlayerMenuOpen((open) => !open);
+            }
+          }}
           onOpenPlayerDisplayScale={() => {
             setPlayerDisplayDialogOpen(true);
             setPlayerMenuOpen(false);
@@ -1053,6 +1068,7 @@ export function GmApp() {
         <TokenLibraryDrawer
           assets={tokenLibraryAssets}
           expanded={tokenLibraryExpanded}
+          campaignOpen={Boolean(campaignPath)}
           activeSceneName={activeScene?.name}
           onToggleExpanded={() => setTokenLibraryExpanded((expanded) => !expanded)}
           onStartResize={startTokenLibraryResize}

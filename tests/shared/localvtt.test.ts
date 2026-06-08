@@ -13,6 +13,7 @@ import {
   DEFAULT_MEASUREMENT,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
+  isPlayerIdleState,
   isPlayerSceneProjection,
   normalizeCampaign,
   normalizeScene,
@@ -423,6 +424,8 @@ it("runtime validators reject invalid files and accept valid projected state", (
   const scene = createDefaultScene("Scene");
   expect(isPlayerSceneProjection(projectSceneForPlayer(campaign, scene))).toBe(true);
   expect(isPlayerSceneProjection({ campaignName: "Bad", playerDisplay: {}, assets: [], scene: {} })).toBe(false);
+  expect(isPlayerIdleState({ type: "idle", title: "Waiting", message: "Preparing scene." })).toBe(true);
+  expect(isPlayerIdleState({ type: "idle", title: "Waiting" })).toBe(false);
 });
 
 it("default creators return isolated nested collections", () => {

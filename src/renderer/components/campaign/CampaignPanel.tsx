@@ -57,15 +57,11 @@ export function CampaignPanel({
         >
           <Save size={16} aria-hidden="true" />
         </button>
-        <button
-          className="icon-button"
-          disabled={!campaignPath}
-          aria-label="Open Backups Folder"
-          title="Open Backups Folder"
-          onClick={onOpenBackupsFolder}
-        >
-          <ArchiveRestore size={16} aria-hidden="true" />
-        </button>
+        {campaignPath && (
+          <button className="icon-button" aria-label="Open Backups Folder" title="Open Backups Folder" onClick={onOpenBackupsFolder}>
+            <ArchiveRestore size={16} aria-hidden="true" />
+          </button>
+        )}
       </div>
       {campaignPath && (
         <div className="file-path-block">

@@ -29,6 +29,7 @@ type TokenLibraryView = "list" | "small" | "medium" | "large";
 interface TokenLibraryDrawerProps {
   assets: Asset[];
   expanded: boolean;
+  campaignOpen: boolean;
   activeSceneName?: string;
   onToggleExpanded: () => void;
   onStartResize: (event: ReactPointerEvent<HTMLButtonElement>) => void;
@@ -44,6 +45,7 @@ interface TokenLibraryDrawerProps {
 export function TokenLibraryDrawer({
   assets,
   expanded,
+  campaignOpen,
   activeSceneName,
   onToggleExpanded,
   onStartResize,
@@ -100,7 +102,12 @@ export function TokenLibraryDrawer({
         </div>
         {expanded && (
           <div className="token-library-tools">
-            <button className="token-library-import" onClick={onImportToken}>
+            <button
+              className="token-library-import"
+              disabled={!campaignOpen}
+              title={campaignOpen ? "Import Token" : "Create or open a campaign before importing tokens"}
+              onClick={onImportToken}
+            >
               <Upload size={14} aria-hidden="true" />
               <span>Import Token</span>
             </button>
@@ -195,7 +202,13 @@ export function TokenLibraryDrawer({
             ) : (
               <div className="token-library-empty">
                 <PackageOpen size={18} aria-hidden="true" />
-                <span>{assets.length === 0 ? "Import a token to start building this campaign library." : "No tokens match your search."}</span>
+                <span>
+                  {!campaignOpen
+                    ? "Create or open a campaign before importing tokens."
+                    : assets.length === 0
+                      ? "Import a token to start building this campaign library."
+                      : "No tokens match your search."}
+                </span>
               </div>
             )}
           </section>

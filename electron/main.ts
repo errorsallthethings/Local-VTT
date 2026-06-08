@@ -15,6 +15,7 @@ import {
   createDefaultCampaign,
   createDefaultScene,
   duplicateScene,
+  isPlayerIdleState,
   normalizeCampaign,
   normalizeScene,
   type PlayerSceneProjection
@@ -982,6 +983,19 @@ ipcMain.handle("player:updateSceneIfOpen", async (_event, projection: PlayerScen
     return false;
   }
   lastPlayerProjection = projection;
+  sendToPlayerWhenReady(lastPlayerProjection);
+  return true;
+});
+
+ipcMain.handle("player:showIdle", async (_event, state: unknown) => {
+  if (!isPlayerIdleState(state)) {
+    throw new Error("Invalid Player View idle state.");
+  }
+  lastPlayerProjection = state;
+  if (!playerWindow || playerWindow.isDestroyed()) {
+    playerWindow = null;
+    return false;
+  }
   sendToPlayerWhenReady(lastPlayerProjection);
   return true;
 });

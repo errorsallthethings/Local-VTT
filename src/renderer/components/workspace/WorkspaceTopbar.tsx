@@ -50,7 +50,13 @@ export function WorkspaceTopbar({
               Send
             </button>
             <div className="scene-menu-wrap player-view-menu-wrap">
-              <button className="icon-button player-view-menu-button" aria-label="Player View actions" title="Player View actions" onClick={onTogglePlayerMenu}>
+              <button
+                className="icon-button player-view-menu-button"
+                disabled={!activeScene}
+                aria-label="Player View actions"
+                title={activeScene ? "Player View actions" : "Select a scene to use Player View actions"}
+                onClick={onTogglePlayerMenu}
+              >
                 <EllipsisVertical size={16} aria-hidden="true" />
               </button>
               {playerMenuOpen && (

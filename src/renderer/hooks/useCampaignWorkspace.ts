@@ -44,7 +44,7 @@ export function useCampaignWorkspace() {
   };
 
   const clearWorkspaceState = () => {
-    void window.localVtt.closePlayerView();
+    void window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.");
     setActiveScene(null);
     setSceneDrafts({});
     setDirtySceneIds(new Set());

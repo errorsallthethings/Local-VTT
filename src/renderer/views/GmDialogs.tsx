@@ -358,7 +358,7 @@ export function GmDialogs({
           <p>
             Delete <strong>{sceneToDelete.name}</strong>? This removes the scene JSON file from the campaign folder.
           </p>
-          {sceneDeleteDetail?.isPlayerScene && <p>This scene is currently shown in Player View. Player View will be closed when the scene is deleted.</p>}
+          {sceneDeleteDetail?.isPlayerScene && <p>This scene is currently shown in Player View. Player View will switch to a waiting screen when the scene is deleted.</p>}
           {sceneDeleteDetail?.isDirty && <p>This scene has unsaved changes. Deleting it will discard those changes.</p>}
         </ConfirmDialog>
       )}

@@ -40,6 +40,8 @@ const api = {
     ipcRenderer.invoke("player:sendScene", projection) as Promise<boolean>,
   updatePlayerSceneIfOpen: (projection: PlayerSceneProjection) =>
     ipcRenderer.invoke("player:updateSceneIfOpen", projection) as Promise<boolean>,
+  showPlayerIdle: (title: string, message: string) =>
+    ipcRenderer.invoke("player:showIdle", { type: "idle", title, message }) as Promise<boolean>,
   setPlayerFullscreen: (fullscreen: boolean) =>
     ipcRenderer.invoke("player:setFullscreen", fullscreen) as Promise<boolean>,
   closePlayerView: () => ipcRenderer.invoke("player:close") as Promise<boolean>,
