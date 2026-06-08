@@ -50,6 +50,8 @@ export function GmDialogs({
   confirmClearFogOpen,
   campaign,
   activeScene,
+  playerSceneId,
+  dirtySceneIds,
   displays,
   newSceneName,
   newFolderName,
@@ -125,6 +127,8 @@ export function GmDialogs({
   confirmClearFogOpen: boolean;
   campaign: Campaign | null;
   activeScene: Scene | null;
+  playerSceneId: string | null;
+  dirtySceneIds: Set<string>;
   displays: DisplayInfo[];
   newSceneName: string;
   newFolderName: string;
@@ -180,6 +184,9 @@ export function GmDialogs({
   onConfirmDeleteTokenAsset: () => void;
   onConfirmClearFog: () => void;
 }) {
+  const sceneDeleteDetail = sceneToDelete ? getSceneDeleteDetail(sceneToDelete, dirtySceneIds, playerSceneId) : null;
+  const folderDeleteDetail = folderToDelete && campaign ? getFolderDeleteDetail(folderToDelete, campaign, dirtySceneIds, playerSceneId) : null;
+
   return (
     <>
       {sceneDialog && (
@@ -348,7 +355,11 @@ export function GmDialogs({
           onCancel={onCancelSceneDelete}
           onConfirm={() => onConfirmDeleteScene(sceneToDelete)}
         >
-          Delete <strong>{sceneToDelete.name}</strong>? This removes the scene JSON file from the campaign folder.
+          <p>
+            Delete <strong>{sceneToDelete.name}</strong>? This removes the scene JSON file from the campaign folder.
+          </p>
+          {sceneDeleteDetail?.isPlayerScene && <p>This scene is currently shown in Player View. Player View will be closed when the scene is deleted.</p>}
+          {sceneDeleteDetail?.isDirty && <p>This scene has unsaved changes. Deleting it will discard those changes.</p>}
         </ConfirmDialog>
       )}
 
@@ -359,7 +370,16 @@ export function GmDialogs({
           onCancel={onCancelFolderDelete}
           onConfirm={() => onConfirmDeleteFolder(folderToDelete)}
         >
-          Delete <strong>{folderToDelete.name}</strong>? Scenes in this folder will move to Unfiled Scenes.
+          <p>
+            Delete <strong>{folderToDelete.name}</strong>? The folder will be removed, but its scenes will not be deleted.
+          </p>
+          <p>{formatFolderDeleteSceneCount(folderDeleteDetail?.sceneCount ?? 0)} will move to Unfiled Scenes.</p>
+          {folderDeleteDetail && folderDeleteDetail.dirtySceneCount > 0 && (
+            <p>
+              {folderDeleteDetail.dirtySceneCount} unsaved scene{folderDeleteDetail.dirtySceneCount === 1 ? "" : "s"} in this folder will keep their unsaved changes.
+            </p>
+          )}
+          {folderDeleteDetail?.containsPlayerScene && <p>This folder contains the scene currently shown in Player View. Player View will stay open.</p>}
         </ConfirmDialog>
       )}
 
@@ -405,6 +425,32 @@ export function GmDialogs({
       )}
     </>
   );
+}
+
+function getSceneDeleteDetail(scene: CampaignSceneEntry, dirtySceneIds: Set<string>, playerSceneId: string | null) {
+  return {
+    isDirty: dirtySceneIds.has(scene.id),
+    isPlayerScene: playerSceneId === scene.id
+  };
+}
+
+function getFolderDeleteDetail(folder: CampaignSceneFolder, campaign: Campaign, dirtySceneIds: Set<string>, playerSceneId: string | null) {
+  const folderScenes = campaign.scenes.filter((scene) => scene.folderId === folder.id);
+  return {
+    sceneCount: folderScenes.length,
+    dirtySceneCount: folderScenes.filter((scene) => dirtySceneIds.has(scene.id)).length,
+    containsPlayerScene: Boolean(playerSceneId && folderScenes.some((scene) => scene.id === playerSceneId))
+  };
+}
+
+function formatFolderDeleteSceneCount(sceneCount: number): string {
+  if (sceneCount === 0) {
+    return "No scenes";
+  }
+  if (sceneCount === 1) {
+    return "1 scene";
+  }
+  return `${sceneCount} scenes`;
 }
 
 function formatTokenAssetUsage(usage: Array<{ sceneId: string; sceneName: string; count: number }>): string {

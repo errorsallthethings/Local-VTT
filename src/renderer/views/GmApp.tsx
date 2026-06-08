@@ -787,6 +787,17 @@ export function GmApp() {
       setPlayerMenuOpen(false);
     });
 
+  const confirmDeleteScene = (scene: CampaignSceneEntry) =>
+    run(async () => {
+      const deletedPlayerScene = scene.id === playerSceneId;
+      const ok = await deleteScene(scene);
+      if (ok && deletedPlayerScene) {
+        await window.localVtt.closePlayerView();
+        setPlayerSceneId(null);
+        setPlayerMenuOpen(false);
+      }
+    });
+
   const toggleFolderCollapsed = (folderId: string) => {
     if (!campaign) {
       return;
@@ -1059,6 +1070,8 @@ export function GmApp() {
         confirmClearFogOpen={confirmClearFogOpen}
         campaign={campaign}
         activeScene={activeScene}
+        playerSceneId={playerSceneId}
+        dirtySceneIds={dirtySceneIds}
         displays={displays}
         newSceneName={newSceneName}
         newFolderName={newFolderName}
@@ -1117,7 +1130,7 @@ export function GmApp() {
         onSubmitCampaignName={submitCampaignName}
         onUpdatePlayerDisplay={updatePlayerDisplay}
         onRefreshDisplays={refreshDisplays}
-        onConfirmDeleteScene={(scene) => void deleteScene(scene)}
+        onConfirmDeleteScene={(scene) => void confirmDeleteScene(scene)}
         onConfirmDeleteFolder={deleteFolder}
         onConfirmDeleteMapAsset={() => void confirmDeleteMapAsset()}
         onConfirmDeleteTokenAsset={() => void confirmDeleteTokenAsset()}

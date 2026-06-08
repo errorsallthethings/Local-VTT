@@ -37,6 +37,18 @@
   letter-spacing: 0;
 }
 
+.modal-copy {
+  display: grid;
+  gap: 8px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.modal-copy p {
+  margin: 0;
+}
+
 .modal-actions {
   justify-content: flex-end;
 }

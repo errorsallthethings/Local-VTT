@@ -20,7 +20,7 @@ export function ConfirmDialog({ title, children, confirmLabel, onCancel, onConfi
         }}
       >
         <h2>{title}</h2>
-        <p>{children}</p>
+        <div className="modal-copy">{children}</div>
         <div className="button-row modal-actions">
           <button type="button" onClick={onCancel}>
             Cancel
