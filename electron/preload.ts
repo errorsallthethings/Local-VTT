@@ -7,6 +7,7 @@ const api = {
   openRecentCampaign: (campaignPath: string) => ipcRenderer.invoke("campaign:openRecent", campaignPath) as Promise<CampaignSummary>,
   saveCampaign: (campaignPath: string, campaign: Campaign) =>
     ipcRenderer.invoke("campaign:save", campaignPath, campaign) as Promise<CampaignSummary>,
+  openBackupsFolder: (campaignPath: string) => ipcRenderer.invoke("campaign:openBackupsFolder", campaignPath) as Promise<boolean>,
   createScene: (campaignPath: string, sceneName: string) =>
     ipcRenderer.invoke("scene:create", campaignPath, sceneName) as Promise<{ campaignSummary: CampaignSummary; scene: Scene }>,
   duplicateScene: (campaignPath: string, sourceScene: Scene, sceneName: string, afterSceneId: string, folderId?: string) =>

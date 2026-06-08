@@ -1,4 +1,4 @@
-import { Clock3, Edit3, FolderOpen, Plus, Save, X } from "lucide-react";
+import { ArchiveRestore, Clock3, Edit3, FolderOpen, Plus, Save, X } from "lucide-react";
 import type { Campaign } from "../../../shared/localvtt";
 import type { RecentCampaign } from "../../lib/recentCampaigns";
 
@@ -14,6 +14,7 @@ interface CampaignPanelProps {
   onRemoveRecentCampaign: (campaignPath: string) => void;
   onSaveCampaign: () => void;
   onRenameCampaign: () => void;
+  onOpenBackupsFolder: () => void;
 }
 
 export function CampaignPanel({
@@ -27,7 +28,8 @@ export function CampaignPanel({
   onOpenRecentCampaign,
   onRemoveRecentCampaign,
   onSaveCampaign,
-  onRenameCampaign
+  onRenameCampaign,
+  onOpenBackupsFolder
 }: CampaignPanelProps) {
   return (
     <section className="panel">
@@ -54,6 +56,15 @@ export function CampaignPanel({
           onClick={onSaveCampaign}
         >
           <Save size={16} aria-hidden="true" />
+        </button>
+        <button
+          className="icon-button"
+          disabled={!campaignPath}
+          aria-label="Open Backups Folder"
+          title="Open Backups Folder"
+          onClick={onOpenBackupsFolder}
+        >
+          <ArchiveRestore size={16} aria-hidden="true" />
         </button>
       </div>
       {campaignPath && (

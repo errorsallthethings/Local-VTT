@@ -30,6 +30,7 @@ export function GmSidebar({
   onRemoveRecentCampaign,
   onSaveCampaign,
   onRenameCampaign,
+  onOpenBackupsFolder,
   onOpenSceneDialog,
   onOpenFolderDialog,
   onLoadScene,
@@ -71,6 +72,7 @@ export function GmSidebar({
   onRemoveRecentCampaign: (campaignPath: string) => void;
   onSaveCampaign: () => void;
   onRenameCampaign: () => void;
+  onOpenBackupsFolder: () => void;
   onOpenSceneDialog: () => void;
   onOpenFolderDialog: () => void;
   onLoadScene: (sceneId: string) => void;
@@ -117,6 +119,7 @@ export function GmSidebar({
             onRemoveRecentCampaign={onRemoveRecentCampaign}
             onSaveCampaign={onSaveCampaign}
             onRenameCampaign={onRenameCampaign}
+            onOpenBackupsFolder={onOpenBackupsFolder}
           />
 
           <div className="section-heading">

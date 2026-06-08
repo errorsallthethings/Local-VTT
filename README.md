@@ -38,6 +38,8 @@ Imported static image and video maps generate small JPEG thumbnails in `assets/t
 
 Local VTT creates metadata-only JSON backups before overwriting `campaign.json` or existing scene JSON files. Backups are stored under `backups/campaign/` and `backups/scenes/<scene-id>/`, with the latest 10 campaign backups and latest 10 backups per scene retained. These backups intentionally do not copy assets, maps, videos, token images, or thumbnails so campaign folders do not balloon in size.
 
+Use the Campaign panel's Open Backups Folder button to inspect backup files in Explorer. Manual recovery should be done while Local VTT is closed: copy a campaign backup over `campaign.json`, or copy a scene backup over the matching file in `scenes/`.
+
 ## Development
 
 Install dependencies:

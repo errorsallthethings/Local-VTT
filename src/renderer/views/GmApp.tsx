@@ -425,6 +425,14 @@ export function GmApp() {
     }
   };
 
+  const openBackupsFolder = () =>
+    run(async () => {
+      if (!campaignPath) {
+        return;
+      }
+      await window.localVtt.openBackupsFolder(campaignPath);
+    });
+
   const importToken = (mode: TokenCropDialogState["mode"] = "scene") =>
     run(async () => {
       if (!campaignPath || (mode === "scene" && !activeScene)) {
@@ -962,6 +970,7 @@ export function GmApp() {
         onRemoveRecentCampaign={removeRecentCampaignPath}
         onSaveCampaign={() => void saveCampaign()}
         onRenameCampaign={openCampaignRenameDialog}
+        onOpenBackupsFolder={() => void openBackupsFolder()}
         onOpenSceneDialog={openSceneDialog}
         onOpenFolderDialog={openFolderDialog}
         onLoadScene={(sceneId) => void loadScene(sceneId)}

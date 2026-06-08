@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } from "electron";
 import { copyFile, mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -536,6 +536,18 @@ ipcMain.handle("campaign:save", async (_event, campaignPath: string, campaign: C
   assertKnownCampaignPath(campaignPath);
   await writeCampaign(campaignPath, campaign);
   return loadCampaignFromPath(campaignPath);
+});
+
+ipcMain.handle("campaign:openBackupsFolder", async (_event, campaignPath: string) => {
+  assertKnownCampaignPath(campaignPath);
+  const backupsPath = path.join(campaignPath, "backups");
+  assertInsideCampaign(campaignPath, backupsPath);
+  await mkdir(backupsPath, { recursive: true });
+  const errorMessage = await shell.openPath(backupsPath);
+  if (errorMessage) {
+    throw new Error(`Could not open backups folder. ${errorMessage}`);
+  }
+  return true;
 });
 
 ipcMain.handle("scene:create", async (_event, campaignPath: string, sceneName: string) => {
