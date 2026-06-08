@@ -5,6 +5,7 @@ import {
   getDirtySceneIdsInFolder,
   getSceneDraftToSave,
   insertSceneEntryAfterSource,
+  moveSceneEntry,
   moveSceneFolder,
   moveSceneEntryToFolder,
   removeDirtySceneId,
@@ -47,6 +48,53 @@ describe("campaign action helpers", () => {
       mapAssetId: "map-old",
       folderId: "folder-a"
     });
+  });
+
+  it("reorders scenes within the same folder", () => {
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.scenes = [
+      { id: "scene-1", name: "One", file: "one.json", folderId: "folder-a" },
+      { id: "scene-2", name: "Two", file: "two.json", folderId: "folder-a" },
+      { id: "scene-3", name: "Three", file: "three.json", folderId: "folder-a" }
+    ];
+
+    const next = moveSceneEntry(campaign, "scene-3", { folderId: "folder-a", beforeSceneId: "scene-1" }, "now");
+
+    expect(next.scenes.map((scene) => scene.id)).toEqual(["scene-3", "scene-1", "scene-2"]);
+    expect(next.scenes.every((scene) => scene.folderId === "folder-a")).toBe(true);
+    expect(next.updatedAt).toBe("now");
+  });
+
+  it("moves scenes across folders at a specific insertion point", () => {
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.scenes = [
+      { id: "scene-1", name: "One", file: "one.json", folderId: "folder-a" },
+      { id: "scene-2", name: "Two", file: "two.json", folderId: "folder-b" },
+      { id: "scene-3", name: "Three", file: "three.json", folderId: "folder-b" }
+    ];
+
+    const next = moveSceneEntry(campaign, "scene-1", { folderId: "folder-b", afterSceneId: "scene-2" }, "now");
+
+    expect(next.scenes).toEqual([
+      { id: "scene-2", name: "Two", file: "two.json", folderId: "folder-b" },
+      { id: "scene-1", name: "One", file: "one.json", folderId: "folder-b" },
+      { id: "scene-3", name: "Three", file: "three.json", folderId: "folder-b" }
+    ]);
+  });
+
+  it("moves scenes to the end of a folder when no scene insertion target is provided", () => {
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.scenes = [
+      { id: "scene-1", name: "One", file: "one.json" },
+      { id: "scene-2", name: "Two", file: "two.json", folderId: "folder-a" }
+    ];
+
+    const next = moveSceneEntry(campaign, "scene-1", { folderId: "folder-a" }, "now");
+
+    expect(next.scenes).toEqual([
+      { id: "scene-2", name: "Two", file: "two.json", folderId: "folder-a" },
+      { id: "scene-1", name: "One", file: "one.json", folderId: "folder-a" }
+    ]);
   });
 
   it("generates unique duplicate scene names", () => {

@@ -31,7 +31,7 @@ export function GmSidebar({
   onLoadScene,
   onSaveScene,
   onSaveFolderScenes,
-  onMoveSceneToFolder,
+  onMoveScene,
   onToggleFolderCollapsed,
   onToggleSceneMenu,
   onToggleFolderMenu,
@@ -68,7 +68,7 @@ export function GmSidebar({
   onLoadScene: (sceneId: string) => void;
   onSaveScene: (sceneId: string) => void;
   onSaveFolderScenes: (folderId: string) => void;
-  onMoveSceneToFolder: (sceneId: string, folderId?: string) => void;
+  onMoveScene: (sceneId: string, target: { folderId?: string; beforeSceneId?: string; afterSceneId?: string }) => void;
   onToggleFolderCollapsed: (folderId: string) => void;
   onToggleSceneMenu: (sceneId: string) => void;
   onToggleFolderMenu: (folderId: string) => void;
@@ -130,7 +130,7 @@ export function GmSidebar({
             onLoadScene={onLoadScene}
             onSaveScene={onSaveScene}
             onSaveFolderScenes={onSaveFolderScenes}
-            onMoveSceneToFolder={onMoveSceneToFolder}
+            onMoveScene={onMoveScene}
             onToggleFolderCollapsed={onToggleFolderCollapsed}
             onToggleSceneMenu={onToggleSceneMenu}
             onToggleFolderMenu={onToggleFolderMenu}

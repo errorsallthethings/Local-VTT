@@ -31,7 +31,7 @@ interface SceneLibraryPanelProps {
   onLoadScene: (sceneId: string) => void;
   onSaveScene: (sceneId: string) => void;
   onSaveFolderScenes: (folderId: string) => void;
-  onMoveSceneToFolder: (sceneId: string, folderId?: string) => void;
+  onMoveScene: (sceneId: string, target: { folderId?: string; beforeSceneId?: string; afterSceneId?: string }) => void;
   onToggleFolderCollapsed: (folderId: string) => void;
   onToggleSceneMenu: (sceneId: string) => void;
   onToggleFolderMenu: (folderId: string) => void;
@@ -43,6 +43,10 @@ interface SceneLibraryPanelProps {
   onMoveFolder: (folderId: string, direction: "up" | "down") => void;
   onDeleteFolder: (folder: CampaignSceneFolder) => void;
 }
+
+type SceneDropTarget =
+  | { kind: "folder"; folderId?: string }
+  | { kind: "scene"; sceneId: string; folderId?: string; position: "before" | "after" };
 
 export function SceneLibraryPanel({
   campaign,
@@ -56,7 +60,7 @@ export function SceneLibraryPanel({
   onLoadScene,
   onSaveScene,
   onSaveFolderScenes,
-  onMoveSceneToFolder,
+  onMoveScene,
   onToggleFolderCollapsed,
   onToggleSceneMenu,
   onToggleFolderMenu,
@@ -68,9 +72,17 @@ export function SceneLibraryPanel({
   onMoveFolder,
   onDeleteFolder
 }: SceneLibraryPanelProps) {
-  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<SceneDropTarget | null>(null);
 
   const getDropTargetId = (folderId?: string) => folderId ?? "root";
+  const getDropTargetKey = (target: SceneDropTarget | null) => {
+    if (!target) {
+      return null;
+    }
+    return target.kind === "folder"
+      ? `folder:${getDropTargetId(target.folderId)}`
+      : `scene:${target.sceneId}:${target.position}`;
+  };
   const unfiledScenes = campaign?.scenes.filter((scene) => !scene.folderId) ?? [];
   const emptySceneMessage = getSceneLibraryEmptyMessage(campaign);
 
@@ -78,6 +90,17 @@ export function SceneLibraryPanel({
     const isDirty = dirtySceneIds.has(scene.id);
     const isPlayerScene = playerSceneId === scene.id;
     const thumbnailAsset = sceneThumbnailAssets.get(scene.id);
+    const sceneDropTargetKey = getDropTargetKey(dropTarget);
+    const isDropBefore = sceneDropTargetKey === `scene:${scene.id}:before`;
+    const isDropAfter = sceneDropTargetKey === `scene:${scene.id}:after`;
+    const sceneRowClassName = [
+      activeScene?.id === scene.id ? "selected" : "",
+      "scene-row",
+      isDropBefore ? "scene-row-drop-before" : "",
+      isDropAfter ? "scene-row-drop-after" : ""
+    ]
+      .filter(Boolean)
+      .join(" ");
     const loadScene = () => onLoadScene(scene.id);
     const onSceneKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
       if (event.key === "Enter" || event.key === " ") {
@@ -90,7 +113,7 @@ export function SceneLibraryPanel({
     return (
       <div
         key={scene.id}
-        className={activeScene?.id === scene.id ? "selected scene-row" : "scene-row"}
+        className={sceneRowClassName}
         draggable
         role="button"
         tabIndex={0}
@@ -102,7 +125,9 @@ export function SceneLibraryPanel({
           event.dataTransfer.setData("application/x-localvtt-scene-id", scene.id);
           event.dataTransfer.effectAllowed = "move";
         }}
-        onDragEnd={() => setDropTargetId(null)}
+        onDragOver={(event) => onSceneCardDragOver(event, scene)}
+        onDrop={(event) => onSceneDrop(event, scene.folderId)}
+        onDragEnd={() => setDropTarget(null)}
       >
         <div className="scene-title-row">
           <GripVertical className="scene-drag-handle" size={15} aria-hidden="true" />
@@ -167,11 +192,21 @@ export function SceneLibraryPanel({
   const onSceneDrop = (event: DragEvent<HTMLElement>, folderId?: string) => {
     event.preventDefault();
     event.stopPropagation();
-    setDropTargetId(null);
     const sceneId = event.dataTransfer.getData("application/x-localvtt-scene-id");
-    if (sceneId) {
-      onMoveSceneToFolder(sceneId, folderId);
+    const target = dropTarget;
+    setDropTarget(null);
+    if (!sceneId) {
+      return;
     }
+    if (target?.kind === "scene") {
+      onMoveScene(sceneId, {
+        folderId: target.folderId,
+        beforeSceneId: target.position === "before" ? target.sceneId : undefined,
+        afterSceneId: target.position === "after" ? target.sceneId : undefined
+      });
+      return;
+    }
+    onMoveScene(sceneId, { folderId: target?.kind === "folder" ? target.folderId : folderId });
   };
 
   const onSceneDragOver = (event: DragEvent<HTMLElement>, folderId?: string) => {
@@ -181,7 +216,19 @@ export function SceneLibraryPanel({
     event.preventDefault();
     event.stopPropagation();
     event.dataTransfer.dropEffect = "move";
-    setDropTargetId(getDropTargetId(folderId));
+    setDropTarget({ kind: "folder", folderId });
+  };
+
+  const onSceneCardDragOver = (event: DragEvent<HTMLElement>, scene: CampaignSceneEntry) => {
+    if (!event.dataTransfer.types.includes("application/x-localvtt-scene-id")) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "move";
+    const rect = event.currentTarget.getBoundingClientRect();
+    const position = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+    setDropTarget({ kind: "scene", sceneId: scene.id, folderId: scene.folderId, position });
   };
 
   const onSceneDragLeave = (event: DragEvent<HTMLElement>, folderId?: string) => {
@@ -189,15 +236,17 @@ export function SceneLibraryPanel({
     if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
       return;
     }
-    if (dropTargetId === getDropTargetId(folderId)) {
-      setDropTargetId(null);
+    if (getDropTargetKey(dropTarget) === `folder:${getDropTargetId(folderId)}`) {
+      setDropTarget(null);
     }
   };
+
+  const folderDropTargetKey = getDropTargetKey(dropTarget);
 
   return (
     <section className="panel grow scene-panel">
       <div
-        className={dropTargetId ? "scene-list scene-list-drag-active" : "scene-list"}
+        className={dropTarget ? "scene-list scene-list-drag-active" : "scene-list"}
         onDragOver={(event) => onSceneDragOver(event)}
         onDragLeave={(event) => onSceneDragLeave(event)}
         onDrop={(event) => onSceneDrop(event)}
@@ -216,7 +265,7 @@ export function SceneLibraryPanel({
           const folderClassName = [
             "scene-folder",
             isCollapsed ? "scene-folder-collapsed" : "",
-            dropTargetId === folder.id ? "scene-folder-drop-target" : ""
+            folderDropTargetKey === `folder:${folder.id}` ? "scene-folder-drop-target" : ""
           ]
             .filter(Boolean)
             .join(" ");
@@ -302,7 +351,7 @@ export function SceneLibraryPanel({
           );
         })}
         <div
-          className={dropTargetId === "root" ? "scene-folder scene-folder-unfiled scene-folder-drop-target" : "scene-folder scene-folder-unfiled"}
+          className={folderDropTargetKey === "folder:root" ? "scene-folder scene-folder-unfiled scene-folder-drop-target" : "scene-folder scene-folder-unfiled"}
           onDragOver={(event) => onSceneDragOver(event)}
           onDragLeave={(event) => onSceneDragLeave(event)}
           onDrop={(event) => onSceneDrop(event)}

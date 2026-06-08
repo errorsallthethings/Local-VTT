@@ -21,6 +21,36 @@ export function moveSceneEntryToFolder(campaign: Campaign, sceneId: string, fold
   };
 }
 
+export function moveSceneEntry(
+  campaign: Campaign,
+  sceneId: string,
+  target: { folderId?: string; beforeSceneId?: string; afterSceneId?: string },
+  updatedAt: string
+): Campaign {
+  const sceneToMove = campaign.scenes.find((scene) => scene.id === sceneId);
+  if (!sceneToMove || target.beforeSceneId === sceneId || target.afterSceneId === sceneId) {
+    return campaign;
+  }
+
+  const remainingScenes = campaign.scenes.filter((scene) => scene.id !== sceneId);
+  const movedScene = { ...sceneToMove, folderId: target.folderId };
+  const targetSceneId = target.beforeSceneId ?? target.afterSceneId;
+  const targetIndex = targetSceneId ? remainingScenes.findIndex((scene) => scene.id === targetSceneId) : -1;
+  const insertIndex = targetIndex < 0 ? remainingScenes.length : target.beforeSceneId ? targetIndex : targetIndex + 1;
+  const scenes = [...remainingScenes];
+  scenes.splice(insertIndex, 0, movedScene);
+
+  if (campaign.scenes.every((scene, index) => scene === scenes[index] || (scene.id === scenes[index]?.id && scene.folderId === scenes[index]?.folderId))) {
+    return campaign;
+  }
+
+  return {
+    ...campaign,
+    scenes,
+    updatedAt
+  };
+}
+
 export function getDuplicateSceneName(sourceName: string, campaign: Campaign): string {
   const existingNames = new Set(campaign.scenes.map((scene) => scene.name.trim().toLowerCase()));
   const baseName = `${sourceName.trim() || "Untitled Scene"} Copy`;

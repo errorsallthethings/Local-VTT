@@ -339,7 +339,7 @@ export function GmApp() {
     createCampaign,
     openCampaign,
     loadScene,
-    moveSceneToFolder,
+    moveScene,
     saveSceneById,
     saveCampaign,
     importMap,
@@ -905,7 +905,7 @@ export function GmApp() {
         onLoadScene={(sceneId) => void loadScene(sceneId)}
         onSaveScene={(sceneId) => void saveSceneById(sceneId)}
         onSaveFolderScenes={(folderId) => void saveFolderScenes(folderId)}
-        onMoveSceneToFolder={moveSceneToFolder}
+        onMoveScene={moveScene}
         onToggleFolderCollapsed={toggleFolderCollapsed}
         onToggleSceneMenu={(sceneId) => {
           setOpenFolderMenuId(null);

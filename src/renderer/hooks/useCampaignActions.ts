@@ -4,7 +4,7 @@ import {
   getDuplicateSceneName,
   getDirtySceneIdsInFolder,
   getSceneDraftToSave,
-  moveSceneEntryToFolder,
+  moveSceneEntry,
   removeDirtySceneId,
   removeFolderFromCampaign,
   removeSceneDraft
@@ -88,11 +88,11 @@ export function useCampaignActions({
       setActiveScene(draft ?? (await window.localVtt.loadScene(campaignPath, sceneId)));
     });
 
-  const moveSceneToFolder = (sceneId: string, folderId?: string) => {
+  const moveScene = (sceneId: string, target: { folderId?: string; beforeSceneId?: string; afterSceneId?: string }) => {
     if (!campaign) {
       return;
     }
-    updateCampaignDraft(moveSceneEntryToFolder(campaign, sceneId, folderId, new Date().toISOString()));
+    updateCampaignDraft(moveSceneEntry(campaign, sceneId, target, new Date().toISOString()));
   };
 
   const saveSceneById = async (sceneId: string) => {
@@ -254,7 +254,7 @@ export function useCampaignActions({
     createCampaign,
     openCampaign,
     loadScene,
-    moveSceneToFolder,
+    moveScene,
     saveSceneById,
     saveCampaign,
     importMap,
