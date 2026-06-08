@@ -3,6 +3,7 @@ import {
   ArrowDown,
   ArrowUp,
   CircleCheck,
+  Copy,
   Edit3,
   EllipsisVertical,
   Folder,
@@ -35,6 +36,7 @@ interface SceneLibraryPanelProps {
   onToggleSceneMenu: (sceneId: string) => void;
   onToggleFolderMenu: (folderId: string) => void;
   onRenameScene: (scene: CampaignSceneEntry) => void;
+  onDuplicateScene: (scene: CampaignSceneEntry) => void;
   onDeleteScene: (scene: CampaignSceneEntry) => void;
   onRenameFolder: (folder: CampaignSceneFolder) => void;
   onChangeFolderColor: (folder: CampaignSceneFolder) => void;
@@ -59,6 +61,7 @@ export function SceneLibraryPanel({
   onToggleSceneMenu,
   onToggleFolderMenu,
   onRenameScene,
+  onDuplicateScene,
   onDeleteScene,
   onRenameFolder,
   onChangeFolderColor,
@@ -144,6 +147,10 @@ export function SceneLibraryPanel({
                 <button onClick={() => onRenameScene(scene)}>
                   <Edit3 size={14} aria-hidden="true" />
                   Rename
+                </button>
+                <button onClick={() => onDuplicateScene(scene)}>
+                  <Copy size={14} aria-hidden="true" />
+                  Duplicate
                 </button>
                 <button className="danger-menu-item" onClick={() => onDeleteScene(scene)}>
                   <Trash2 size={14} aria-hidden="true" />

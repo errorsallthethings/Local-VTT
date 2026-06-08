@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   applyMapAssetToCampaign,
+  getDuplicateSceneName,
   getDirtySceneIdsInFolder,
   getSceneDraftToSave,
+  insertSceneEntryAfterSource,
   moveSceneFolder,
   moveSceneEntryToFolder,
   removeDirtySceneId,
@@ -45,6 +47,37 @@ describe("campaign action helpers", () => {
       mapAssetId: "map-old",
       folderId: "folder-a"
     });
+  });
+
+  it("generates unique duplicate scene names", () => {
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.scenes = [
+      { id: "scene-1", name: "Vault", file: "vault.json" },
+      { id: "scene-2", name: "Vault Copy", file: "vault-copy.json" },
+      { id: "scene-3", name: "Vault Copy 2", file: "vault-copy-2.json" }
+    ];
+
+    expect(getDuplicateSceneName("Vault", campaign)).toBe("Vault Copy 3");
+  });
+
+  it("inserts duplicated scene entries next to the source scene", () => {
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.scenes = [
+      { id: "scene-1", name: "One", file: "one.json" },
+      { id: "scene-2", name: "Two", file: "two.json", folderId: "folder-a" }
+    ];
+    const duplicate = createDefaultScene("Two Copy");
+    duplicate.id = "scene-copy";
+    duplicate.mapAssetId = "map-1";
+
+    const next = insertSceneEntryAfterSource(campaign, "scene-2", duplicate, "folder-a", "now");
+
+    expect(next.scenes).toEqual([
+      { id: "scene-1", name: "One", file: "one.json" },
+      { id: "scene-2", name: "Two", file: "two.json", folderId: "folder-a" },
+      { id: "scene-copy", name: "Two Copy", file: "scenes/scene-copy.scene.json", folderId: "folder-a", mapAssetId: "map-1" }
+    ]);
+    expect(next.updatedAt).toBe("now");
   });
 
   it("removes a folder and unfiles scenes assigned to it", () => {

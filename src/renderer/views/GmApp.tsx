@@ -345,6 +345,7 @@ export function GmApp() {
     importMap,
     confirmDeleteMapAsset,
     saveFolderScenes,
+    duplicateScene,
     deleteScene,
     deleteFolder
   } = useCampaignActions({
@@ -915,6 +916,7 @@ export function GmApp() {
           setOpenFolderMenuId(openFolderMenuId === folderId ? null : folderId);
         }}
         onRenameScene={openRenameDialog}
+        onDuplicateScene={(scene) => void duplicateScene(scene)}
         onDeleteScene={setSceneToDelete}
         onRenameFolder={openRenameFolderDialog}
         onChangeFolderColor={openFolderColorDialog}

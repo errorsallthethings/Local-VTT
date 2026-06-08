@@ -4,6 +4,7 @@ import {
   assertValidScene,
   createDefaultCampaign,
   createDefaultScene,
+  duplicateScene,
   DEFAULT_CALIBRATION,
   DEFAULT_FOG,
   DEFAULT_GRID,
@@ -96,6 +97,72 @@ it("normalizeScene applies canonical core layer names and order", () => {
     "grid",
     "map"
   ]);
+});
+
+it("duplicateScene copies scene settings while assigning new runtime ids", () => {
+  const scene = createDefaultScene("Original");
+  scene.id = "scene-original";
+  scene.mapAssetId = "map-asset";
+  scene.fog.shapes = [
+    {
+      id: "fog-original",
+      name: "Reveal",
+      operation: "reveal",
+      kind: "rectangle",
+      points: [
+        { x: 0, y: 0 },
+        { x: 100, y: 100 }
+      ],
+      visibleInGm: true,
+      visibleInPlayer: true
+    }
+  ];
+  scene.tokens = [
+    {
+      id: "token-original",
+      name: "Goblin",
+      assetId: "token-asset",
+      position: { x: 50, y: 50 },
+      size: { width: 100, height: 100 },
+      hidden: false,
+      visibleInPlayer: true
+    }
+  ];
+  scene.lights = [
+    {
+      id: "light-original",
+      position: { x: 50, y: 50 },
+      color: "#ffffff",
+      intensity: 1,
+      brightRadius: 20,
+      dimRadius: 40,
+      opacity: 1,
+      enabled: true,
+      flicker: false,
+      attachedTokenId: "token-original"
+    }
+  ];
+  scene.tokenMovementPath = { tokenId: "token-original", points: [{ x: 0, y: 0 }, { x: 100, y: 100 }] };
+  let nextId = 0;
+
+  const duplicate = duplicateScene(scene, "Original Copy", {
+    sceneId: "scene-copy",
+    now: "2026-06-08T00:00:00.000Z",
+    createId: () => `new-id-${(nextId += 1)}`
+  });
+
+  expect(duplicate.id).toBe("scene-copy");
+  expect(duplicate.name).toBe("Original Copy");
+  expect(duplicate.createdAt).toBe("2026-06-08T00:00:00.000Z");
+  expect(duplicate.updatedAt).toBe("2026-06-08T00:00:00.000Z");
+  expect(duplicate.mapAssetId).toBe("map-asset");
+  expect(duplicate.fog.shapes[0]).toMatchObject({ id: "new-id-2", name: "Reveal" });
+  expect(duplicate.tokens[0]).toMatchObject({ id: "new-id-1", name: "Goblin", assetId: "token-asset" });
+  expect(duplicate.lights[0].id).toBe("new-id-3");
+  expect(duplicate.lights[0].attachedTokenId).toBe("new-id-1");
+  expect(duplicate.tokenMovementPath).toBeUndefined();
+  expect(scene.id).toBe("scene-original");
+  expect(scene.tokens[0].id).toBe("token-original");
 });
 
 it("normalizeScene fills token presentation defaults for older scene files", () => {

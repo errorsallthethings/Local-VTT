@@ -434,6 +434,48 @@ export function createDefaultScene(name: string): Scene {
   };
 }
 
+export function duplicateScene(
+  source: Scene,
+  name: string,
+  options: {
+    sceneId?: string;
+    now?: string;
+    createId?: () => string;
+  } = {}
+): Scene {
+  const createId = options.createId ?? (() => crypto.randomUUID());
+  const now = options.now ?? new Date().toISOString();
+  const duplicated = normalizeScene(structuredClone(source));
+  const tokenIds = new Map<string, string>();
+  const tokens = duplicated.tokens.map((token) => {
+    const id = createId();
+    tokenIds.set(token.id, id);
+    return { ...token, id };
+  });
+
+  return {
+    ...duplicated,
+    id: options.sceneId ?? createId(),
+    name,
+    createdAt: now,
+    updatedAt: now,
+    tokenMovementPath: undefined,
+    fog: {
+      ...duplicated.fog,
+      shapes: duplicated.fog.shapes.map((shape) => ({ ...shape, id: createId() }))
+    },
+    tokens,
+    walls: duplicated.walls.map((wall) => ({ ...wall, id: createId() })),
+    lights: duplicated.lights.map((light) => ({
+      ...light,
+      id: createId(),
+      attachedTokenId: light.attachedTokenId ? (tokenIds.get(light.attachedTokenId) ?? light.attachedTokenId) : undefined
+    })),
+    drawings: duplicated.drawings.map((drawing) => ({ ...drawing, id: createId() })),
+    overlays: duplicated.overlays.map((overlay) => ({ ...overlay, id: createId() }))
+  };
+}
+
 export function assertValidCampaign(value: unknown): asserts value is Campaign {
   if (!isRecord(value) || !isNonEmptyString(value.id) || !isNonEmptyString(value.name) || !Array.isArray(value.scenes)) {
     throw new Error("Invalid campaign.json file.");

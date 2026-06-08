@@ -21,6 +21,46 @@ export function moveSceneEntryToFolder(campaign: Campaign, sceneId: string, fold
   };
 }
 
+export function getDuplicateSceneName(sourceName: string, campaign: Campaign): string {
+  const existingNames = new Set(campaign.scenes.map((scene) => scene.name.trim().toLowerCase()));
+  const baseName = `${sourceName.trim() || "Untitled Scene"} Copy`;
+  if (!existingNames.has(baseName.toLowerCase())) {
+    return baseName;
+  }
+
+  let copyNumber = 2;
+  let candidate = `${baseName} ${copyNumber}`;
+  while (existingNames.has(candidate.toLowerCase())) {
+    copyNumber += 1;
+    candidate = `${baseName} ${copyNumber}`;
+  }
+  return candidate;
+}
+
+export function insertSceneEntryAfterSource(
+  campaign: Campaign,
+  sourceSceneId: string,
+  scene: Scene,
+  folderId: string | undefined,
+  updatedAt: string
+): Campaign {
+  const sourceIndex = campaign.scenes.findIndex((entry) => entry.id === sourceSceneId);
+  const duplicateEntry = {
+    id: scene.id,
+    name: scene.name,
+    file: `scenes/${scene.id}.scene.json`,
+    mapAssetId: scene.mapAssetId,
+    folderId
+  };
+  const scenes = [...campaign.scenes];
+  scenes.splice(sourceIndex >= 0 ? sourceIndex + 1 : scenes.length, 0, duplicateEntry);
+  return {
+    ...campaign,
+    scenes,
+    updatedAt
+  };
+}
+
 export function removeFolderFromCampaign(campaign: Campaign, folderId: string, updatedAt: string): Campaign {
   return {
     ...campaign,

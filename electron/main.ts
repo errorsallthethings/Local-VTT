@@ -14,6 +14,7 @@ import {
   assertValidScene,
   createDefaultCampaign,
   createDefaultScene,
+  duplicateScene,
   normalizeCampaign,
   normalizeScene,
   type PlayerSceneProjection
@@ -481,6 +482,32 @@ ipcMain.handle("scene:create", async (_event, campaignPath: string, sceneName: s
   const campaign: Campaign = {
     ...summary.campaign,
     scenes: [...summary.campaign.scenes, { id: scene.id, name: scene.name, file: `scenes/${scene.id}.scene.json` }],
+    updatedAt: new Date().toISOString()
+  };
+  await writeCampaign(campaignPath, campaign);
+  return { campaignSummary: await loadCampaignFromPath(campaignPath), scene };
+});
+
+ipcMain.handle("scene:duplicate", async (_event, campaignPath: string, sourceScene: Scene, sceneName: string, afterSceneId: string, folderId?: string) => {
+  assertKnownCampaignPath(campaignPath);
+  assertValidScene(sourceScene);
+  const summary = await loadCampaignFromPath(campaignPath);
+  const scene = duplicateScene(sourceScene, sceneName || `${sourceScene.name} Copy`);
+  await writeFile(sceneFile(campaignPath, scene.id), `${JSON.stringify(scene, null, 2)}\n`, "utf8");
+
+  const duplicateEntry = {
+    id: scene.id,
+    name: scene.name,
+    file: `scenes/${scene.id}.scene.json`,
+    mapAssetId: scene.mapAssetId,
+    folderId
+  };
+  const sourceIndex = summary.campaign.scenes.findIndex((entry) => entry.id === afterSceneId);
+  const scenes = [...summary.campaign.scenes];
+  scenes.splice(sourceIndex >= 0 ? sourceIndex + 1 : scenes.length, 0, duplicateEntry);
+  const campaign: Campaign = {
+    ...summary.campaign,
+    scenes,
     updatedAt: new Date().toISOString()
   };
   await writeCampaign(campaignPath, campaign);

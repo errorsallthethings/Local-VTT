@@ -36,6 +36,7 @@ export function GmSidebar({
   onToggleSceneMenu,
   onToggleFolderMenu,
   onRenameScene,
+  onDuplicateScene,
   onDeleteScene,
   onRenameFolder,
   onChangeFolderColor,
@@ -72,6 +73,7 @@ export function GmSidebar({
   onToggleSceneMenu: (sceneId: string) => void;
   onToggleFolderMenu: (folderId: string) => void;
   onRenameScene: (scene: CampaignSceneEntry) => void;
+  onDuplicateScene: (scene: CampaignSceneEntry) => void;
   onDeleteScene: (scene: CampaignSceneEntry) => void;
   onRenameFolder: (folder: CampaignSceneFolder) => void;
   onChangeFolderColor: (folder: CampaignSceneFolder) => void;
@@ -133,6 +135,7 @@ export function GmSidebar({
             onToggleSceneMenu={onToggleSceneMenu}
             onToggleFolderMenu={onToggleFolderMenu}
             onRenameScene={onRenameScene}
+            onDuplicateScene={onDuplicateScene}
             onDeleteScene={onDeleteScene}
             onRenameFolder={onRenameFolder}
             onChangeFolderColor={onChangeFolderColor}

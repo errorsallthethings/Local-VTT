@@ -8,6 +8,8 @@ const api = {
     ipcRenderer.invoke("campaign:save", campaignPath, campaign) as Promise<CampaignSummary>,
   createScene: (campaignPath: string, sceneName: string) =>
     ipcRenderer.invoke("scene:create", campaignPath, sceneName) as Promise<{ campaignSummary: CampaignSummary; scene: Scene }>,
+  duplicateScene: (campaignPath: string, sourceScene: Scene, sceneName: string, afterSceneId: string, folderId?: string) =>
+    ipcRenderer.invoke("scene:duplicate", campaignPath, sourceScene, sceneName, afterSceneId, folderId) as Promise<{ campaignSummary: CampaignSummary; scene: Scene }>,
   loadScene: (campaignPath: string, sceneId: string) =>
     ipcRenderer.invoke("scene:load", campaignPath, sceneId) as Promise<Scene>,
   saveScene: (campaignPath: string, scene: Scene) =>

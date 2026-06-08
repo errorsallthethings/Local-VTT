@@ -1,6 +1,7 @@
 import type { Asset, CampaignSummary, Scene } from "../../shared/localvtt";
 import {
   applyMapAssetToCampaign,
+  getDuplicateSceneName,
   getDirtySceneIdsInFolder,
   getSceneDraftToSave,
   moveSceneEntryToFolder,
@@ -205,6 +206,24 @@ export function useCampaignActions({
     }
   };
 
+  const duplicateScene = (scene: Scene | { id: string } | null) =>
+    run(async () => {
+      if (!campaignPath || !campaign || !scene) {
+        return;
+      }
+      const sourceEntry = campaign.scenes.find((entry) => entry.id === scene.id);
+      if (!sourceEntry) {
+        return;
+      }
+      onCloseSceneMenu();
+      const sourceScene = getSceneDraftToSave(sourceEntry.id, sceneDrafts, activeScene) ?? (await window.localVtt.loadScene(campaignPath, sourceEntry.id));
+      const duplicateName = getDuplicateSceneName(sourceEntry.name, campaign);
+      const result = await window.localVtt.duplicateScene(campaignPath, sourceScene, duplicateName, sourceEntry.id, sourceEntry.folderId);
+      applySummary(result.campaignSummary, campaignDirty);
+      setActiveScene(result.scene);
+      setSceneClean(result.scene);
+    });
+
   const deleteScene = (scene: Scene | { id: string } | null) =>
     run(async () => {
       if (!campaignPath || !scene) {
@@ -241,6 +260,7 @@ export function useCampaignActions({
     importMap,
     confirmDeleteMapAsset,
     saveFolderScenes,
+    duplicateScene,
     deleteScene,
     deleteFolder
   };
