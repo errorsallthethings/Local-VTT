@@ -206,6 +206,56 @@ Use `release/win-unpacked/Local VTT.exe` for quick local smoke testing before sh
 
 Code signing, macOS notarization, auto-update, and release-channel infrastructure are deferred.
 
+## Creating A Release
+
+GitHub Actions builds release packages from `.github/workflows/release.yml`.
+
+Use this process when preparing a new release:
+
+1. Confirm the working tree is clean:
+
+```bash
+git status
+```
+
+2. Update release metadata if needed:
+
+- `package.json` version, for example `0.1.1`.
+- `CHANGELOG.md` release notes.
+- README known limitations or smoke checklist updates.
+
+3. Run local verification:
+
+```bash
+npm run check
+npm run build
+```
+
+4. Commit the release metadata changes:
+
+```bash
+git add package.json package-lock.json CHANGELOG.md README.md
+git commit -m "Prepare release 0.1.1"
+git push
+```
+
+Only include `package-lock.json` if the version or dependencies changed there.
+
+5. Create a tag on the exact commit you want to release:
+
+```bash
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+The release workflow listens for tags that match `v*.*.*`. Pushing the tag is what starts the release build. Creating a tag locally is not enough.
+
+6. In GitHub, open Actions -> Build Release and confirm the run is for the tag, such as `refs/tags/v0.1.1`, not a manual run on `main`.
+
+7. If the workflow succeeds, check GitHub Releases for the published release assets. The workflow also uploads Windows and macOS build artifacts to the workflow run page.
+
+Manual `workflow_dispatch` runs are useful for testing the release workflow, but they do not publish a GitHub Release unless the run is for a tag. Download test builds from the workflow run's Artifacts section.
+
 ## Smoke Test Checklist
 
 Before packaging or sharing a build, run through these workflows:

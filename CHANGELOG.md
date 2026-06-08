@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.3
+
+### Fixed
+
+- Updated GitHub release workflow to publish artifacts from a single release job and avoid duplicate asset upload failures.
+
+## 0.1.2
+
+### Notes
+
+- Continuing to work on getting Windows and MacOS builds/release working with GitHub Actions
+
+## 0.1.1
+
+### Notes
+
+- Attempting to get Windows and MacOS builds/release working with GitHub Actions
+
 ## 0.1.0
 
 Initial Local VTT MVP release candidate.
