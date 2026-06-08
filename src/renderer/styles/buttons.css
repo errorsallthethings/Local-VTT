@@ -20,16 +20,6 @@
   color: var(--color-danger);
 }
 
-.scene-save-dirty {
-  border-color: var(--color-success-border);
-  background: var(--color-success-bg);
-  color: var(--color-success);
-}
-
-.scene-save-dirty:hover:not(:disabled) {
-  background: var(--color-success-bg-hover);
-}
-
 .scene-menu-wrap {
   position: relative;
 }

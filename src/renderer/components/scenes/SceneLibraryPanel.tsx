@@ -149,7 +149,7 @@ export function SceneLibraryPanel({
         <div className="scene-row-body">
           <SceneThumbnail asset={thumbnailAsset ?? null} />
           <button
-            className={isDirty ? "icon-button scene-save-dirty" : "icon-button"}
+            className={isDirty ? "icon-button dirty-save" : "icon-button"}
             disabled={!isDirty}
             aria-label={`Save ${scene.name}`}
             title={isDirty ? "Save scene" : "No unsaved changes"}
@@ -256,7 +256,8 @@ export function SceneLibraryPanel({
         {emptySceneMessage && <div className="scene-library-empty">{emptySceneMessage}</div>}
         {campaign?.sceneFolders.map((folder, folderIndex) => {
           const folderScenes = campaign.scenes.filter((scene) => scene.folderId === folder.id);
-          const folderHasDirtyScenes = folderScenes.some((scene) => dirtySceneIds.has(scene.id));
+          const folderDirtyCount = getDirtySceneCount(folderScenes, dirtySceneIds);
+          const folderHasDirtyScenes = folderDirtyCount > 0;
           const isCollapsed = collapsedFolderIds.has(folder.id);
           const canMoveUp = folderIndex > 0;
           const canMoveDown = folderIndex < campaign.sceneFolders.length - 1;
@@ -301,10 +302,14 @@ export function SceneLibraryPanel({
                   </span>
                 </span>
                 <button
-                  className={folderHasDirtyScenes ? "icon-button scene-save-dirty" : "icon-button"}
+                  className={folderHasDirtyScenes ? "icon-button dirty-save" : "icon-button"}
                   disabled={!folderHasDirtyScenes}
-                  aria-label={`Save scenes in ${folder.name}`}
-                  title={folderHasDirtyScenes ? "Save scenes in folder" : "No unsaved scenes in folder"}
+                  aria-label={
+                    folderHasDirtyScenes
+                      ? `Save ${folderDirtyCount} unsaved scene${folderDirtyCount === 1 ? "" : "s"} in ${folder.name}`
+                      : `Save scenes in ${folder.name}`
+                  }
+                  title={folderHasDirtyScenes ? `Save ${folderDirtyCount} unsaved scene${folderDirtyCount === 1 ? "" : "s"} in folder` : "No unsaved scenes in folder"}
                   onClick={() => onSaveFolderScenes(folder.id)}
                 >
                   <Save size={15} aria-hidden="true" />
@@ -362,7 +367,11 @@ export function SceneLibraryPanel({
           onDragLeave={(event) => onSceneDragLeave(event)}
           onDrop={(event) => onSceneDrop(event)}
         >
-          {campaign && campaign.sceneFolders.length > 0 && <div className="scene-folder-header unfiled-header">Unfiled Scenes</div>}
+          {campaign && campaign.sceneFolders.length > 0 && (
+            <div className="scene-folder-header unfiled-header">
+              <span>Unfiled Scenes</span>
+            </div>
+          )}
           <div className="scene-folder-scenes">
             {unfiledScenes.length > 0 ? unfiledScenes.map(renderSceneCard) : campaign && campaign.scenes.length > 0 && <div className="scene-folder-empty">Drop scenes here</div>}
           </div>
@@ -370,6 +379,10 @@ export function SceneLibraryPanel({
       </div>
     </section>
   );
+}
+
+function getDirtySceneCount(scenes: CampaignSceneEntry[], dirtySceneIds: Set<string>): number {
+  return scenes.filter((scene) => dirtySceneIds.has(scene.id)).length;
 }
 
 function getSceneLibraryEmptyMessage(campaign: Campaign | null): string | null {
