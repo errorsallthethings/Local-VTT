@@ -1011,10 +1011,7 @@ export function GmApp() {
         <footer className="statusbar">
           <span>Mouse wheel zooms. Drag pans. Scene data uses world/map coordinates.</span>
           <span>
-            Save status:{" "}
-            {hasUnsavedChanges
-              ? `${dirtyCount} unsaved scene${dirtyCount === 1 ? "" : "s"}${campaignDirty ? `${dirtyCount > 0 ? ", " : ""}campaign changes` : ""}`
-              : saveState}
+            Save status: {formatSaveStatus({ dirtySceneCount: dirtyCount, campaignDirty, saveState })}
           </span>
         </footer>
       </main>
@@ -1159,6 +1156,32 @@ function CampaignBusyOverlay({ busyState }: { busyState: CampaignBusyState }) {
       </div>
     </div>
   );
+}
+
+function formatSaveStatus({
+  dirtySceneCount,
+  campaignDirty,
+  saveState
+}: {
+  dirtySceneCount: number;
+  campaignDirty: boolean;
+  saveState: string;
+}): string {
+  const parts = [];
+  if (dirtySceneCount > 0) {
+    parts.push(`Unsaved scenes: ${dirtySceneCount}`);
+  }
+  if (campaignDirty) {
+    parts.push("Unsaved campaign changes");
+  }
+  return parts.length > 0 ? parts.join(" | ") : formatCleanSaveState(saveState);
+}
+
+function formatCleanSaveState(saveState: string): string {
+  if (saveState === "idle") {
+    return "Saved";
+  }
+  return saveState[0].toUpperCase() + saveState.slice(1);
 }
 
 function loadTokenLibraryHeight(): number {
