@@ -26,11 +26,17 @@ Local VTT Campaign/
     handouts/
   scenes/
     scene-id.scene.json
+  backups/
+    campaign/
+    scenes/
+      scene-id/
 ```
 
 Assets are stored with relative paths in JSON so campaign folders can be backed up or moved between computers.
 
 Imported static image and video maps generate small JPEG thumbnails in `assets/thumbnails/` for the scene list. Video thumbnails are captured from the first frame during import when Electron can decode the source video. Imported token assets also generate square, center-cropped JPEG thumbnails for token sub-layer previews and the Token Library. Thumbnails are metadata on assets and avoid loading full-resolution battle maps, token art, or live video elements just to render sidebars.
+
+Local VTT creates metadata-only JSON backups before overwriting `campaign.json` or existing scene JSON files. Backups are stored under `backups/campaign/` and `backups/scenes/<scene-id>/`, with the latest 10 campaign backups and latest 10 backups per scene retained. These backups intentionally do not copy assets, maps, videos, token images, or thumbnails so campaign folders do not balloon in size.
 
 ## Development
 

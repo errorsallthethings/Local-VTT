@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen } from "electron";
-import { copyFile, mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -23,6 +23,7 @@ import { createImageMapThumbnail, createSquareImageThumbnail, createVideoMapThum
 
 const isDev = !app.isPackaged;
 const devServerUrl = "http://127.0.0.1:5173";
+const MAX_METADATA_BACKUPS = 10;
 
 let gmWindow: BrowserWindow | null = null;
 let playerWindow: BrowserWindow | null = null;
@@ -106,6 +107,14 @@ function sceneFile(campaignPath: string, sceneId: string): string {
   return path.join(campaignPath, "scenes", `${sceneId}.scene.json`);
 }
 
+function campaignBackupFolder(campaignPath: string): string {
+  return path.join(campaignPath, "backups", "campaign");
+}
+
+function sceneBackupFolder(campaignPath: string, sceneId: string): string {
+  return path.join(campaignPath, "backups", "scenes", sceneId);
+}
+
 function resolveAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
   // Saved JSON stays portable with relative paths; absolute paths are runtime-only conveniences for renderers.
   const normalizedCampaign = normalizeCampaign(campaign);
@@ -168,8 +177,14 @@ function isKnownAssetPath(candidatePath: string): boolean {
 
 async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSummary> {
   const raw = await readFile(campaignFile(campaignPath), "utf8");
-  const parsed = JSON.parse(raw) as unknown;
-  assertValidCampaign(parsed);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+    assertValidCampaign(parsed);
+  } catch (caught) {
+    const message = caught instanceof Error ? caught.message : "Unknown metadata error.";
+    throw new Error(`Campaign metadata could not be read. Metadata backups may exist in ${path.join(campaignPath, "backups")}. ${message}`, { cause: caught });
+  }
 
   await ensureCampaignFolders(campaignPath);
   const campaignWithSceneMapIds = await hydrateSceneMapAssetIds(campaignPath, parsed);
@@ -243,12 +258,55 @@ async function ensureMapThumbnails(campaignPath: string, campaign: Campaign): Pr
 
 async function writeCampaign(campaignPath: string, campaign: Campaign): Promise<void> {
   await ensureCampaignFolders(campaignPath);
+  await backupExistingMetadataFile(campaignPath, campaignFile(campaignPath), campaignBackupFolder(campaignPath), "campaign.json");
   const normalizedCampaign = normalizeCampaign(campaign);
   const portable: Campaign = {
     ...normalizedCampaign,
     assets: normalizedCampaign.assets.map(({ absolutePath: _absolutePath, thumbnailAbsolutePath: _thumbnailAbsolutePath, ...asset }) => asset)
   };
   await writeFile(campaignFile(campaignPath), `${JSON.stringify(portable, null, 2)}\n`, "utf8");
+}
+
+async function writeScene(campaignPath: string, scene: Scene): Promise<void> {
+  await ensureCampaignFolders(campaignPath);
+  await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, scene.id), sceneBackupFolder(campaignPath, scene.id), `${scene.id}.scene.json`);
+  await writeFile(sceneFile(campaignPath, scene.id), `${JSON.stringify(scene, null, 2)}\n`, "utf8");
+}
+
+async function backupSceneBeforeDelete(campaignPath: string, sceneId: string): Promise<void> {
+  await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, sceneId), sceneBackupFolder(campaignPath, sceneId), `${sceneId}.scene.json`);
+}
+
+async function backupExistingMetadataFile(campaignPath: string, sourcePath: string, backupFolder: string, backupName: string): Promise<void> {
+  assertInsideCampaign(campaignPath, sourcePath);
+  assertInsideCampaign(campaignPath, backupFolder);
+  try {
+    await stat(sourcePath);
+  } catch (caught) {
+    const error = caught as NodeJS.ErrnoException;
+    if (error.code === "ENOENT") {
+      return;
+    }
+    throw error;
+  }
+
+  await mkdir(backupFolder, { recursive: true });
+  const backupPath = path.join(backupFolder, `${createBackupTimestamp()}.${backupName}`);
+  assertInsideCampaign(campaignPath, backupPath);
+  await copyFile(sourcePath, backupPath);
+  await pruneMetadataBackups(backupFolder);
+}
+
+async function pruneMetadataBackups(backupFolder: string): Promise<void> {
+  const entries = await readdir(backupFolder);
+  const backupFiles = entries.filter((entry) => entry.endsWith(".json")).sort().reverse();
+  for (const entry of backupFiles.slice(MAX_METADATA_BACKUPS)) {
+    await unlink(path.join(backupFolder, entry));
+  }
+}
+
+function createBackupTimestamp(): string {
+  return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
 async function findMissingAssets(campaignPath: string, assets: Asset[]): Promise<string[]> {
@@ -484,7 +542,7 @@ ipcMain.handle("scene:create", async (_event, campaignPath: string, sceneName: s
   assertKnownCampaignPath(campaignPath);
   const summary = await loadCampaignFromPath(campaignPath);
   const scene = createDefaultScene(sceneName || "Untitled Scene");
-  await writeFile(sceneFile(campaignPath, scene.id), `${JSON.stringify(scene, null, 2)}\n`, "utf8");
+  await writeScene(campaignPath, scene);
 
   const campaign: Campaign = {
     ...summary.campaign,
@@ -500,7 +558,7 @@ ipcMain.handle("scene:duplicate", async (_event, campaignPath: string, sourceSce
   assertValidScene(sourceScene);
   const summary = await loadCampaignFromPath(campaignPath);
   const scene = duplicateScene(sourceScene, sceneName || `${sourceScene.name} Copy`);
-  await writeFile(sceneFile(campaignPath, scene.id), `${JSON.stringify(scene, null, 2)}\n`, "utf8");
+  await writeScene(campaignPath, scene);
 
   const duplicateEntry = {
     id: scene.id,
@@ -537,7 +595,7 @@ ipcMain.handle("scene:save", async (_event, campaignPath: string, scene: Scene) 
   assertKnownCampaignPath(campaignPath);
   assertInsideCampaign(campaignPath, sceneFile(campaignPath, scene.id));
   const updated = normalizeScene({ ...scene, updatedAt: new Date().toISOString() });
-  await writeFile(sceneFile(campaignPath, scene.id), `${JSON.stringify(updated, null, 2)}\n`, "utf8");
+  await writeScene(campaignPath, updated);
 
   const summary = await loadCampaignFromPath(campaignPath);
   const campaign: Campaign = {
@@ -566,7 +624,7 @@ ipcMain.handle("scene:rename", async (_event, campaignPath: string, sceneId: str
   }
 
   const updatedScene = normalizeScene({ ...scene, name, updatedAt: new Date().toISOString() });
-  await writeFile(filePath, `${JSON.stringify(updatedScene, null, 2)}\n`, "utf8");
+  await writeScene(campaignPath, updatedScene);
 
   const summary = await loadCampaignFromPath(campaignPath);
   const campaign: Campaign = {
@@ -582,6 +640,7 @@ ipcMain.handle("scene:delete", async (_event, campaignPath: string, sceneId: str
   assertKnownCampaignPath(campaignPath);
   const filePath = sceneFile(campaignPath, sceneId);
   assertInsideCampaign(campaignPath, filePath);
+  await backupSceneBeforeDelete(campaignPath, sceneId);
   try {
     await unlink(filePath);
   } catch (caught) {
@@ -771,7 +830,7 @@ ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId
         tokens: scene.tokens.filter((token) => token.assetId !== assetId),
         updatedAt: new Date().toISOString()
       });
-      await writeFile(sceneFile(campaignPath, entry.id), `${JSON.stringify(updatedScene, null, 2)}\n`, "utf8");
+      await writeScene(campaignPath, updatedScene);
       changedScenes.push(updatedScene);
     } catch {
       // Missing or invalid scenes are reported elsewhere by scene loading.
@@ -858,7 +917,7 @@ ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: 
   const updatedScene = normalizeScene(
     currentScene.mapAssetId === assetId ? { ...currentScene, mapAssetId: undefined, updatedAt: new Date().toISOString() } : currentScene
   );
-  await writeFile(sceneFile(campaignPath, sceneId), `${JSON.stringify(updatedScene, null, 2)}\n`, "utf8");
+  await writeScene(campaignPath, updatedScene);
 
   const campaign: Campaign = {
     ...summary.campaign,
