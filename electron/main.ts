@@ -420,8 +420,8 @@ function createGmWindow(): BrowserWindow {
     const choice = dialog.showMessageBoxSync(win, {
       type: "warning",
       title: "Unsaved Local VTT changes",
-      message: "You have unsaved scene or campaign changes.",
-      detail: "Close without saving? Unsaved changes will not be saved.",
+      message: "You have unsaved Local VTT changes.",
+      detail: "Choose Save to write unsaved scene and campaign changes before closing.",
       buttons: ["Cancel", "Save", "Close Without Saving"],
       defaultId: 0,
       cancelId: 0,

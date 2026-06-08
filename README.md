@@ -138,6 +138,7 @@ Before packaging or sharing a build, run through these workflows:
 - Confirm token presentation and movement sync to Player View.
 - Use the Token Library to import, rename, search, sort, set defaults, add, drag/drop, and delete tokens with usage warnings.
 - Use the ruler on square, hex, and gridless scenes.
+- Close with unsaved scene changes, campaign-only changes, and both; confirm Save preserves changes and Close Without Saving discards them.
 - Run `npm run check` and `npm run build`.
 
 For packaged Windows builds, also run:

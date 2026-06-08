@@ -1,4 +1,12 @@
-import { type CSSProperties, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 import {
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
@@ -361,6 +369,11 @@ export function GmApp() {
     onSceneDeleteHandled: () => setSceneToDelete(null),
     onFolderDeleteHandled: () => setFolderToDelete(null)
   });
+  const saveBeforeCloseRef = useRef(saveCampaign);
+
+  useEffect(() => {
+    saveBeforeCloseRef.current = saveCampaign;
+  }, [saveCampaign]);
 
   const {
     updateVideoPlayback,
@@ -882,14 +895,14 @@ export function GmApp() {
 
   useEffect(() => {
     const removeListener = window.localVtt.onSaveBeforeClose(() => {
-      void saveCampaign().then((ok) => {
+      void saveBeforeCloseRef.current().then((ok) => {
         if (ok) {
           window.localVtt.closeAfterSave();
         }
       });
     });
     return removeListener;
-  });
+  }, []);
 
   return (
     <div className={appShellClassName} style={appShellStyle}>
