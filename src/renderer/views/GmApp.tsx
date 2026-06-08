@@ -830,7 +830,7 @@ export function GmApp() {
       await window.localVtt.sendSceneToPlayer(projectSceneForPlayer(campaign, activeScene));
       setPlayerSceneId(activeScene.id);
       if (!openResult.displayFound && campaign.playerDisplay.selectedDisplayLabel) {
-        setError(`Saved Player View display not found: ${campaign.playerDisplay.selectedDisplayLabel}. Opened Player View normally.`);
+        setError(`The saved Player View display (${campaign.playerDisplay.selectedDisplayLabel}) is not connected. Player View opened normally so you can move it manually.`);
       }
     });
 

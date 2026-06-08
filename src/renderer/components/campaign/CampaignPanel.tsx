@@ -99,7 +99,7 @@ export function CampaignPanel({
       )}
       {missingAssets.length > 0 && (
         <div className="warning">
-          Missing assets:
+          Some campaign assets could not be found. They may have been moved, renamed, or deleted:
           {missingAssets.map((asset) => (
             <div key={asset}>{asset}</div>
           ))}

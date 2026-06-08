@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { projectSceneForPlayer } from "../../shared/localvtt";
 import type { Campaign, CampaignSummary, Scene } from "../../shared/localvtt";
 import { mergeCampaignDraft } from "../lib/campaignDraft";
+import { formatUserFacingError } from "../lib/errorMessages";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -30,7 +31,8 @@ export function useCampaignWorkspace() {
       await action();
       return true;
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Something went wrong.");
+      console.error(caught);
+      setError(formatUserFacingError(caught));
       return false;
     }
   };

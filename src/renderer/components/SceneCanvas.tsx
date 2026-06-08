@@ -966,7 +966,7 @@ export function SceneCanvas({
   };
 
   const showMapOverlay = Boolean(canShowMap && mapAsset && (mapLoadStatus === "loading" || mapLoadStatus === "error"));
-  const mapOverlayMessage = mapLoadStatus === "error" ? "Map preview unavailable" : mapAsset?.mediaType === "video" ? "Loading video map..." : "Loading map...";
+  const mapOverlayMessage = mapLoadStatus === "error" ? "Map asset unavailable" : mapAsset?.mediaType === "video" ? "Loading video map..." : "Loading map...";
 
   return (
     <div className={className ?? "scene-canvas-frame"}>
