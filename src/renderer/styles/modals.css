@@ -41,6 +41,42 @@
   justify-content: flex-end;
 }
 
+.busy-backdrop {
+  z-index: 40;
+}
+
+.busy-modal {
+  width: min(360px, 100%);
+}
+
+.busy-modal p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.busy-progress {
+  overflow: hidden;
+  height: 8px;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-input);
+}
+
+.busy-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-success-strong));
+  transition: width 120ms ease;
+}
+
+.busy-progress-label {
+  color: var(--color-text-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .confirm-detail-list {
   display: grid;
   gap: 4px;

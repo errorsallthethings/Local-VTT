@@ -1,9 +1,11 @@
 import type { Asset, CampaignSummary, Scene } from "../../shared/localvtt";
 import {
   applyMapAssetToCampaign,
+  getDuplicateFolderName,
   getDuplicateSceneName,
   getDirtySceneIdsInFolder,
   getSceneDraftToSave,
+  insertSceneFolderAfterSource,
   moveSceneEntry,
   removeDirtySceneId,
   removeFolderFromCampaign,
@@ -16,6 +18,7 @@ type CampaignWorkspace = ReturnType<typeof useCampaignWorkspace>;
 interface UseCampaignActionsOptions {
   workspace: CampaignWorkspace;
   mapAssetToDelete: Asset | null;
+  onBusyChange: (busyState: CampaignBusyState | null) => void;
   onResetSceneLibraryUi: () => void;
   onCloseSceneMenu: () => void;
   onCloseFolderMenu: () => void;
@@ -24,9 +27,17 @@ interface UseCampaignActionsOptions {
   onFolderDeleteHandled: () => void;
 }
 
+export interface CampaignBusyState {
+  title: string;
+  message: string;
+  current: number;
+  total: number;
+}
+
 export function useCampaignActions({
   workspace,
   mapAssetToDelete,
+  onBusyChange,
   onResetSceneLibraryUi,
   onCloseSceneMenu,
   onCloseFolderMenu,
@@ -224,6 +235,80 @@ export function useCampaignActions({
       setSceneClean(result.scene);
     });
 
+  const duplicateFolder = (folder: { id: string; name: string; color: string } | null) =>
+    run(async () => {
+      if (!campaignPath || !campaign || !folder) {
+        return;
+      }
+      try {
+        onCloseFolderMenu();
+        const sourceScenes = campaign.scenes.filter((scene) => scene.folderId === folder.id);
+        const now = new Date().toISOString();
+        const duplicateFolderId = crypto.randomUUID();
+        const duplicateFolderName = getDuplicateFolderName(folder.name, campaign);
+        const campaignWithFolder = insertSceneFolderAfterSource(
+          campaign,
+          folder.id,
+          {
+            id: duplicateFolderId,
+            name: duplicateFolderName,
+            color: folder.color,
+            createdAt: now
+          },
+          now
+        );
+
+        onBusyChange({
+          title: "Duplicating Folder",
+          message: sourceScenes.length > 0 ? `Preparing ${duplicateFolderName}...` : `Creating ${duplicateFolderName}...`,
+          current: 0,
+          total: sourceScenes.length
+        });
+
+        let latestSummary = await window.localVtt.saveCampaign(campaignPath, campaignWithFolder);
+        let workingCampaign = latestSummary.campaign;
+        let insertAfterSceneId = sourceScenes[sourceScenes.length - 1]?.id;
+        let firstDuplicateScene: Scene | null = null;
+
+        for (const [index, sourceEntry] of sourceScenes.entries()) {
+          onBusyChange({
+            title: "Duplicating Folder",
+            message: `Duplicating ${sourceEntry.name}...`,
+            current: index,
+            total: sourceScenes.length
+          });
+          const sourceScene = getSceneDraftToSave(sourceEntry.id, sceneDrafts, activeScene) ?? (await window.localVtt.loadScene(campaignPath, sourceEntry.id));
+          const duplicateName = getDuplicateSceneName(sourceEntry.name, workingCampaign);
+          const result = await window.localVtt.duplicateScene(
+            campaignPath,
+            sourceScene,
+            duplicateName,
+            insertAfterSceneId ?? sourceEntry.id,
+            duplicateFolderId
+          );
+          latestSummary = result.campaignSummary;
+          workingCampaign = result.campaignSummary.campaign;
+          insertAfterSceneId = result.scene.id;
+          firstDuplicateScene ??= result.scene;
+          onBusyChange({
+            title: "Duplicating Folder",
+            message: `Duplicated ${index + 1} of ${sourceScenes.length} scenes.`,
+            current: index + 1,
+            total: sourceScenes.length
+          });
+        }
+
+        applySummary(latestSummary);
+        setCampaignDirty(false);
+        if (firstDuplicateScene) {
+          setActiveScene(firstDuplicateScene);
+          setSceneClean(firstDuplicateScene);
+        }
+      } finally {
+        onBusyChange(null);
+      }
+    });
+
   const deleteScene = (scene: Scene | { id: string } | null) =>
     run(async () => {
       if (!campaignPath || !scene) {
@@ -261,6 +346,7 @@ export function useCampaignActions({
     confirmDeleteMapAsset,
     saveFolderScenes,
     duplicateScene,
+    duplicateFolder,
     deleteScene,
     deleteFolder
   };

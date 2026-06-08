@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   applyMapAssetToCampaign,
+  getDuplicateFolderName,
   getDuplicateSceneName,
   getDirtySceneIdsInFolder,
   getSceneDraftToSave,
+  insertSceneFolderAfterSource,
   insertSceneEntryAfterSource,
   moveSceneEntry,
   moveSceneFolder,
@@ -106,6 +108,35 @@ describe("campaign action helpers", () => {
     ];
 
     expect(getDuplicateSceneName("Vault", campaign)).toBe("Vault Copy 3");
+  });
+
+  it("generates unique duplicate folder names", () => {
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.sceneFolders = [
+      { id: "folder-a", name: "Dungeon", color: "#7aa2f7", createdAt: "before" },
+      { id: "folder-b", name: "Dungeon Copy", color: "#7aa2f7", createdAt: "before" },
+      { id: "folder-c", name: "Dungeon Copy 2", color: "#7aa2f7", createdAt: "before" }
+    ];
+
+    expect(getDuplicateFolderName("Dungeon", campaign)).toBe("Dungeon Copy 3");
+  });
+
+  it("inserts duplicated folders directly after the source folder", () => {
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.sceneFolders = [
+      { id: "folder-a", name: "A", color: "#7aa2f7", createdAt: "before" },
+      { id: "folder-b", name: "B", color: "#4cbf78", createdAt: "before" }
+    ];
+
+    const next = insertSceneFolderAfterSource(
+      campaign,
+      "folder-a",
+      { id: "folder-copy", name: "A Copy", color: "#7aa2f7", createdAt: "now" },
+      "now"
+    );
+
+    expect(next.sceneFolders.map((folder) => folder.id)).toEqual(["folder-a", "folder-copy", "folder-b"]);
+    expect(next.updatedAt).toBe("now");
   });
 
   it("inserts duplicated scene entries next to the source scene", () => {

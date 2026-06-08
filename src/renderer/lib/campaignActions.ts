@@ -67,6 +67,38 @@ export function getDuplicateSceneName(sourceName: string, campaign: Campaign): s
   return candidate;
 }
 
+export function getDuplicateFolderName(sourceName: string, campaign: Campaign): string {
+  const existingNames = new Set(campaign.sceneFolders.map((folder) => folder.name.trim().toLowerCase()));
+  const baseName = `${sourceName.trim() || "Folder"} Copy`;
+  if (!existingNames.has(baseName.toLowerCase())) {
+    return baseName;
+  }
+
+  let copyNumber = 2;
+  let candidate = `${baseName} ${copyNumber}`;
+  while (existingNames.has(candidate.toLowerCase())) {
+    copyNumber += 1;
+    candidate = `${baseName} ${copyNumber}`;
+  }
+  return candidate;
+}
+
+export function insertSceneFolderAfterSource(
+  campaign: Campaign,
+  sourceFolderId: string,
+  folder: Campaign["sceneFolders"][number],
+  updatedAt: string
+): Campaign {
+  const sourceIndex = campaign.sceneFolders.findIndex((candidate) => candidate.id === sourceFolderId);
+  const sceneFolders = [...campaign.sceneFolders];
+  sceneFolders.splice(sourceIndex >= 0 ? sourceIndex + 1 : sceneFolders.length, 0, folder);
+  return {
+    ...campaign,
+    sceneFolders,
+    updatedAt
+  };
+}
+
 export function insertSceneEntryAfterSource(
   campaign: Campaign,
   sourceSceneId: string,

@@ -23,7 +23,7 @@ import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import type { FogTool } from "../canvas/fogRenderer";
-import { useCampaignActions } from "../hooks/useCampaignActions";
+import { useCampaignActions, type CampaignBusyState } from "../hooks/useCampaignActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
@@ -126,6 +126,7 @@ export function GmApp() {
   const [gmCanvasCenter, setGmCanvasCenter] = useState<Point | null>(null);
   const [tokenLibraryHeight, setTokenLibraryHeight] = useState(() => loadTokenLibraryHeight());
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
+  const [busyState, setBusyState] = useState<CampaignBusyState | null>(null);
 
   const mapAsset = useMemo(() => {
     if (!campaign || !activeScene?.mapAssetId) {
@@ -345,12 +346,14 @@ export function GmApp() {
     importMap,
     confirmDeleteMapAsset,
     saveFolderScenes,
+    duplicateFolder,
     duplicateScene,
     deleteScene,
     deleteFolder
   } = useCampaignActions({
     workspace,
     mapAssetToDelete,
+    onBusyChange: setBusyState,
     onResetSceneLibraryUi: resetSceneLibraryUi,
     onCloseSceneMenu: () => setOpenSceneMenuId(null),
     onCloseFolderMenu: () => setOpenFolderMenuId(null),
@@ -920,6 +923,7 @@ export function GmApp() {
         onDeleteScene={setSceneToDelete}
         onRenameFolder={openRenameFolderDialog}
         onChangeFolderColor={openFolderColorDialog}
+        onDuplicateFolder={(folder) => void duplicateFolder(folder)}
         onMoveFolder={moveFolder}
         onDeleteFolder={setFolderToDelete}
       />
@@ -1119,6 +1123,27 @@ export function GmApp() {
         onConfirmDeleteTokenAsset={() => void confirmDeleteTokenAsset()}
         onConfirmClearFog={clearFogShapes}
       />
+      {busyState && <CampaignBusyOverlay busyState={busyState} />}
+    </div>
+  );
+}
+
+function CampaignBusyOverlay({ busyState }: { busyState: CampaignBusyState }) {
+  const progress = busyState.total > 0 ? Math.min(100, Math.max(0, (busyState.current / busyState.total) * 100)) : 100;
+  return (
+    <div className="modal-backdrop busy-backdrop" role="status" aria-live="polite" aria-busy="true">
+      <div className="modal busy-modal">
+        <h2>{busyState.title}</h2>
+        <p>{busyState.message}</p>
+        <div className="busy-progress" aria-label={`${busyState.current} of ${busyState.total}`}>
+          <span style={{ width: `${progress}%` }} />
+        </div>
+        {busyState.total > 0 && (
+          <span className="busy-progress-label">
+            {busyState.current} of {busyState.total} scenes
+          </span>
+        )}
+      </div>
     </div>
   );
 }

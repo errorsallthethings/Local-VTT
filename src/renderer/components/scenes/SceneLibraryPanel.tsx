@@ -40,6 +40,7 @@ interface SceneLibraryPanelProps {
   onDeleteScene: (scene: CampaignSceneEntry) => void;
   onRenameFolder: (folder: CampaignSceneFolder) => void;
   onChangeFolderColor: (folder: CampaignSceneFolder) => void;
+  onDuplicateFolder: (folder: CampaignSceneFolder) => void;
   onMoveFolder: (folderId: string, direction: "up" | "down") => void;
   onDeleteFolder: (folder: CampaignSceneFolder) => void;
 }
@@ -69,6 +70,7 @@ export function SceneLibraryPanel({
   onDeleteScene,
   onRenameFolder,
   onChangeFolderColor,
+  onDuplicateFolder,
   onMoveFolder,
   onDeleteFolder
 }: SceneLibraryPanelProps) {
@@ -325,6 +327,10 @@ export function SceneLibraryPanel({
                       <button onClick={() => onChangeFolderColor(folder)}>
                         <Palette size={14} aria-hidden="true" />
                         Color
+                      </button>
+                      <button onClick={() => onDuplicateFolder(folder)}>
+                        <Copy size={14} aria-hidden="true" />
+                        Duplicate
                       </button>
                       <button disabled={!canMoveUp} onClick={() => onMoveFolder(folder.id, "up")}>
                         <ArrowUp size={14} aria-hidden="true" />
