@@ -18,6 +18,7 @@ This version is intentionally not a full campaign-management VTT. Tokens are lig
 - Draw manual fog of war with brush, rectangle, circle, and polygon tools.
 - Add lightweight tokens, style them, reorder them, duplicate them, and animate visible Player View movement along waypoint paths.
 - Measure distance with a GM-only ruler, including waypoints, snapped grid points, crossed-cell highlights, and distance-mode readouts.
+- Use live Table Tools for click pings and a fading laser pointer trail.
 - Store metadata-only backups for campaign and scene JSON before overwrites.
 
 ## Campaign Folder Format
@@ -79,12 +80,15 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Grid modes support gridless, square, and hex scenes.
 - Measurement settings are available from the Grid Layer when square or hex grids are active.
 - Player Display Scale stores campaign-level calibration for the external player-facing display.
-- The GM-only ruler supports square, hex, and gridless scenes.
+- Table Tools include the GM-only ruler, ping, and laser pointer.
+- The ruler supports square, hex, and gridless scenes.
 - Ctrl/Cmd snaps ruler points to square grid centers or hex centers. Gridless measurement stays freeform.
 - Shift adds ruler waypoints while dragging. Right-click removes the last active ruler waypoint.
 - Escape clears the active ruler measurement.
 - The ruler highlights crossed squares/hexes and displays total path distance using the scene's Measurement settings.
 - When the selected distance mode is not Euclidean, the ruler also shows a straight-line comparison.
+- Ping sends a live attention marker to GM View and Player View when the GM clicks the map.
+- Laser Pointer shows a live fading trail in GM View and Player View while the GM drags on the map.
 
 ### Fog Of War
 
@@ -119,7 +123,7 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Layer settings are collapsible. Map, Grid, Fog of War, and Tokens expose controls only when relevant.
 - Empty Campaign, Scenes, Layers, and Token Library areas show contextual helper text.
 - Fog and Grid color controls open a modal picker with native color selection and reusable swatches.
-- The floating Tools Menu currently contains Fog of War tools and the GM-only ruler.
+- The floating Tools Menu currently contains Fog of War tools and Table Tools.
 
 ## Architecture
 
@@ -277,7 +281,7 @@ Before packaging or sharing a build, run through these workflows:
 - Add, duplicate, move, rename, resize, restyle, and delete tokens.
 - Confirm token presentation and movement sync to Player View.
 - Use the Token Library to import, rename, search, sort, set defaults, add, drag/drop, and delete tokens with usage warnings.
-- Use the ruler on square, hex, and gridless scenes.
+- Use Table Tools: ruler on square, hex, and gridless scenes; ping by clicking; laser pointer by dragging.
 - Close with unsaved scene changes, campaign-only changes, and both; confirm Save preserves changes and Close Without Saving discards them.
 - Confirm common failure messages are actionable, including missing recent campaigns, missing assets, and disconnected Player View displays.
 - Run `npm run check` and `npm run build`.

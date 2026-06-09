@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
-import type { Asset, Campaign, Point, Scene, Token } from "../../shared/localvtt";
+import type { Asset, Campaign, LiveTableEvent, LiveTablePoint, Point, Scene, Token } from "../../shared/localvtt";
 import { getRenderCamera, type Camera } from "../canvas/camera";
 import {
   drawFog,
@@ -50,13 +50,15 @@ interface SceneCanvasProps {
   mode: "gm" | "player";
   className?: string;
   interactive?: boolean;
-  canvasTool?: "ruler" | null;
+  canvasTool?: "ruler" | "ping" | "laser" | null;
   fogTool?: FogTool | null;
+  liveTableEvents?: LiveTableEvent[];
   selectedFogShapeId?: string | null;
   selectedTokenId?: string | null;
   onSceneChange?: (scene: Scene, syncScene?: Scene) => void;
   onSelectToken?: (tokenId: string | null) => void;
   onDropTokenAsset?: (asset: Asset, point: Point) => void;
+  onLiveTableEvent?: (event: LiveTableEvent) => void;
   onViewportCenterChange?: (point: Point) => void;
   onReady?: () => void;
 }
@@ -86,6 +88,16 @@ type TokenDragState = {
   waypoints: Point[];
 };
 
+type LaserDragState = {
+  pointerId: number;
+  eventId: string;
+  points: LiveTablePoint[];
+};
+
+const PING_DURATION_MS = 1600;
+const LASER_POINT_LIFETIME_MS = 1100;
+const LASER_MIN_POINT_DISTANCE = 8;
+
 export function SceneCanvas({
   campaign,
   scene,
@@ -94,11 +106,13 @@ export function SceneCanvas({
   interactive = true,
   canvasTool = null,
   fogTool = null,
+  liveTableEvents = [],
   selectedFogShapeId = null,
   selectedTokenId = null,
   onSceneChange,
   onSelectToken,
   onDropTokenAsset,
+  onLiveTableEvent,
   onViewportCenterChange,
   onReady
 }: SceneCanvasProps) {
@@ -119,6 +133,7 @@ export function SceneCanvas({
   const dragRef = useRef<{ pointerId: number; x: number; y: number; camera: Camera } | null>(null);
   const rulerDragRef = useRef<(RulerDrag & { pointerId: number }) | null>(null);
   const tokenDragRef = useRef<TokenDragState | null>(null);
+  const laserDragRef = useRef<LaserDragState | null>(null);
   const fogDragRef = useRef<FogDrag | null>(null);
   const polygonDraftRef = useRef<FogPolygonDraft | null>(null);
   const previousSceneRef = useRef<Scene | null>(null);
@@ -205,6 +220,7 @@ export function SceneCanvas({
   useEffect(() => {
     setRulerDrag(null);
     rulerDragRef.current = null;
+    laserDragRef.current = null;
   }, [canvasTool, scene?.id]);
 
   useEffect(() => {
@@ -539,19 +555,22 @@ export function SceneCanvas({
       if (mode === "gm" && snapPoint && fogTool) {
         drawSnapMarker(ctx, snapPoint, renderCamera, getFogOperationForTool(fogTool));
       }
+      if (liveTableEvents.length > 0) {
+        drawLiveTableEvents(ctx, liveTableEvents, renderCamera);
+      }
     };
 
     let animationFrame = 0;
     const drawCurrentFrame = () => {
       const rect = canvas.getBoundingClientRect();
       drawScene(context, rect.width, rect.height);
-      if (loadedMap?.animate || playerTokenTweenPositionsRef.current) {
+      if (loadedMap?.animate || playerTokenTweenPositionsRef.current || hasActiveLiveTableEvents(liveTableEvents)) {
         animationFrame = window.requestAnimationFrame(drawCurrentFrame);
       }
     };
 
     resize();
-    if (loadedMap?.animate || playerTokenTweenPositionsRef.current) {
+    if (loadedMap?.animate || playerTokenTweenPositionsRef.current || hasActiveLiveTableEvents(liveTableEvents)) {
       animationFrame = window.requestAnimationFrame(drawCurrentFrame);
     }
     const observer = new ResizeObserver(resize);
@@ -562,7 +581,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, fogPreview, fogTool, isVideoMap, loadedMap, loadedTokenImages, mapAsset, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, snapPoint, tokenDragPreview]);
+  }, [brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, snapPoint, tokenDragPreview]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -622,15 +641,31 @@ export function SceneCanvas({
     if (!interactive) {
       return;
     }
-    event.currentTarget.setPointerCapture(event.pointerId);
     if (event.button === 2 && polygonDraftRef.current) {
       return;
     }
+    if (mode === "gm" && canvasTool === "ping" && scene && event.button === 0) {
+      return;
+    }
+    event.currentTarget.setPointerCapture(event.pointerId);
     if (mode === "gm" && canvasTool === "ruler" && scene && event.button === 0) {
       const point = getRulerPoint(event);
       const nextRulerDrag = { pointerId: event.pointerId, start: point, current: point, waypoints: [] };
       rulerDragRef.current = nextRulerDrag;
       setRulerDrag(nextRulerDrag);
+      return;
+    }
+    if (mode === "gm" && canvasTool === "laser" && scene && event.button === 0) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const now = Date.now();
+      const laserEvent = {
+        id: crypto.randomUUID(),
+        type: "laser",
+        createdAt: now,
+        points: [{ point, createdAt: now }]
+      } satisfies LiveTableEvent;
+      laserDragRef.current = { pointerId: event.pointerId, eventId: laserEvent.id, points: laserEvent.points };
+      onLiveTableEvent?.(laserEvent);
       return;
     }
     if (mode === "gm" && fogTool && scene && onSceneChange && event.button === 0) {
@@ -685,7 +720,24 @@ export function SceneCanvas({
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const tokenDrag = tokenDragRef.current;
+    const laserDrag = laserDragRef.current;
     const rulerDragValue = rulerDragRef.current;
+    if (laserDrag?.pointerId === event.pointerId) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const previousPoint = laserDrag.points[laserDrag.points.length - 1]?.point;
+      if (!previousPoint || distanceBetween(previousPoint, point) >= LASER_MIN_POINT_DISTANCE) {
+        const now = Date.now();
+        const nextPoints = [...laserDrag.points, { point, createdAt: now }].filter((entry) => now - entry.createdAt <= LASER_POINT_LIFETIME_MS);
+        laserDragRef.current = { ...laserDrag, points: nextPoints };
+        onLiveTableEvent?.({
+          id: laserDrag.eventId,
+          type: "laser",
+          createdAt: laserDrag.points[0]?.createdAt ?? Date.now(),
+          points: nextPoints
+        });
+      }
+      return;
+    }
     if (rulerDragValue?.pointerId === event.pointerId) {
       const nextRulerDrag = { ...rulerDragValue, current: getRulerPoint(event) };
       rulerDragRef.current = nextRulerDrag;
@@ -791,6 +843,11 @@ export function SceneCanvas({
       return;
     }
 
+    if (laserDragRef.current?.pointerId === event.pointerId) {
+      laserDragRef.current = null;
+      return;
+    }
+
     if (dragRef.current?.pointerId === event.pointerId) {
       dragRef.current = null;
       setIsPanning(false);
@@ -828,7 +885,27 @@ export function SceneCanvas({
     setBrushHoverPoint(null);
   };
 
+  const emitPing = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    onLiveTableEvent?.({
+      id: crypto.randomUUID(),
+      type: "ping",
+      point: clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale)),
+      createdAt: Date.now()
+    });
+  };
+
+  const onClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (mode === "gm" && canvasTool === "ping" && scene) {
+      event.preventDefault();
+      emitPing(event);
+    }
+  };
+
   const onDoubleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (mode === "gm" && canvasTool === "ping" && scene) {
+      event.preventDefault();
+      return;
+    }
     if (polygonDraftRef.current) {
       event.preventDefault();
       commitPolygonDraft();
@@ -1027,6 +1104,7 @@ export function SceneCanvas({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onPointerLeave={onPointerLeave}
+        onClick={onClick}
         onDoubleClick={onDoubleClick}
         onContextMenu={onContextMenu}
         onDragOver={onDragOver}
@@ -1036,6 +1114,7 @@ export function SceneCanvas({
         <FogToolStatusStrip fogTool={fogTool} polygonPointCount={polygonDraft?.points.length ?? 0} brushSize={scene?.fog.brushSize ?? 0} />
       )}
       {mode === "gm" && canvasTool === "ruler" && <RulerStatusStrip rulerDrag={rulerDrag} scene={scene} />}
+      {mode === "gm" && (canvasTool === "ping" || canvasTool === "laser") && <TableToolStatusStrip canvasTool={canvasTool} />}
       {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
       {showMapOverlay && <MapLoadOverlay message={mapOverlayMessage} showSpinner={mapLoadStatus === "loading"} />}
       {mode === "gm" && showVideoDiagnostics && isVideoMap && videoDebug && <div className="video-debug">{videoDebug}</div>}
@@ -1100,6 +1179,15 @@ function RulerStatusStrip({ rulerDrag, scene }: { rulerDrag: RulerDrag | null; s
       {rulerDrag && <span>{rulerDrag.waypoints.length === 1 ? "1 waypoint" : `${rulerDrag.waypoints.length} waypoints`}</span>}
       {label && <span>{label.secondary ? `${label.primary} (${label.secondary})` : label.primary}</span>}
       <span>{RULER_CLEAR_HINT}</span>
+    </div>
+  );
+}
+
+function TableToolStatusStrip({ canvasTool }: { canvasTool: "ping" | "laser" }) {
+  return (
+    <div className="fog-tool-status" aria-live="polite">
+      <strong>{canvasTool === "ping" ? "Ping" : "Laser Pointer"}</strong>
+      <span>{canvasTool === "ping" ? "Click the map to send a ping." : "Drag on the map to show a fading pointer trail."}</span>
     </div>
   );
 }
@@ -1195,7 +1283,7 @@ function getCanvasInteractionClass({
   isPanning,
   tokenDragPreview
 }: {
-  canvasTool: "ruler" | null;
+  canvasTool: "ruler" | "ping" | "laser" | null;
   fogTool: FogTool | null;
   isPanning: boolean;
   tokenDragPreview: TokenDragPreview | null;
@@ -1208,6 +1296,12 @@ function getCanvasInteractionClass({
   }
   if (canvasTool === "ruler") {
     return "scene-canvas-tool-ruler";
+  }
+  if (canvasTool === "ping") {
+    return "scene-canvas-tool-ping";
+  }
+  if (canvasTool === "laser") {
+    return "scene-canvas-tool-laser";
   }
   if (!fogTool) {
     return "";
@@ -1265,6 +1359,108 @@ function drawBrushHoverPreview(ctx: CanvasRenderingContext2D, point: Point, radi
   ctx.setLineDash([8 / camera.zoom, 5 / camera.zoom]);
   ctx.beginPath();
   ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function hasActiveLiveTableEvents(events: LiveTableEvent[]): boolean {
+  const now = Date.now();
+  return events.some((event) => (event.type === "ping" ? now - event.createdAt <= PING_DURATION_MS : event.points.some((point) => now - point.createdAt <= LASER_POINT_LIFETIME_MS)));
+}
+
+function drawLiveTableEvents(ctx: CanvasRenderingContext2D, events: LiveTableEvent[], camera: Camera) {
+  const now = Date.now();
+  ctx.save();
+  ctx.translate(camera.x, camera.y);
+  ctx.scale(camera.zoom, camera.zoom);
+  for (const event of events) {
+    if (event.type === "ping") {
+      drawPing(ctx, event.point, Math.max(1, camera.zoom), Math.max(0, Math.min(1, (now - event.createdAt) / PING_DURATION_MS)));
+    } else {
+      drawLaserTrail(ctx, event.points, now, Math.max(1, camera.zoom));
+    }
+  }
+  ctx.restore();
+}
+
+function drawPing(ctx: CanvasRenderingContext2D, point: Point, zoom: number, progress: number) {
+  if (progress >= 1) {
+    return;
+  }
+  const baseRadius = 26 / zoom;
+  const alpha = 1 - progress;
+
+  ctx.save();
+  ctx.shadowColor = `rgba(246, 211, 101, ${0.8 * alpha})`;
+  ctx.shadowBlur = 18 / zoom;
+  ctx.lineWidth = 8 / zoom;
+  for (const offset of [0, 0.22, 0.44]) {
+    const ringProgress = Math.max(0, Math.min(1, progress - offset));
+    const ringAlpha = Math.max(0, 1 - ringProgress) * alpha;
+    const rippleRadius = (64 + ringProgress * 136) / zoom;
+    ctx.strokeStyle = `rgba(246, 211, 101, ${0.95 * ringAlpha})`;
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, rippleRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = `rgba(246, 211, 101, ${0.45 * alpha})`;
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, baseRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = `rgba(246, 211, 101, ${alpha})`;
+  ctx.lineWidth = 5 / zoom;
+  ctx.stroke();
+
+  ctx.shadowBlur = 10 / zoom;
+  ctx.strokeStyle = `rgba(255, 255, 255, ${0.88 * alpha})`;
+  ctx.lineWidth = 5 / zoom;
+  ctx.beginPath();
+  ctx.moveTo(point.x - 42 / zoom, point.y);
+  ctx.lineTo(point.x + 42 / zoom, point.y);
+  ctx.moveTo(point.x, point.y - 42 / zoom);
+  ctx.lineTo(point.x, point.y + 42 / zoom);
+  ctx.stroke();
+
+  ctx.lineWidth = 3 / zoom;
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, 11 / zoom, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawLaserTrail(ctx: CanvasRenderingContext2D, points: LiveTablePoint[], now: number, zoom: number) {
+  const visiblePoints = points.filter((point) => now - point.createdAt <= LASER_POINT_LIFETIME_MS);
+  if (visiblePoints.length === 0) {
+    return;
+  }
+
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  for (let index = 1; index < visiblePoints.length; index += 1) {
+    const previous = visiblePoints[index - 1];
+    const current = visiblePoints[index];
+    const age = now - current.createdAt;
+    const alpha = Math.max(0, 1 - age / LASER_POINT_LIFETIME_MS);
+    ctx.strokeStyle = `rgba(255, 82, 94, ${0.88 * alpha})`;
+    ctx.lineWidth = Math.max(8 / zoom, (20 * alpha) / zoom);
+    ctx.beginPath();
+    ctx.moveTo(previous.point.x, previous.point.y);
+    ctx.lineTo(current.point.x, current.point.y);
+    ctx.stroke();
+  }
+
+  const newest = visiblePoints[visiblePoints.length - 1];
+  const newestAlpha = Math.max(0, 1 - (now - newest.createdAt) / LASER_POINT_LIFETIME_MS);
+  ctx.shadowColor = `rgba(255, 82, 94, ${0.9 * newestAlpha})`;
+  ctx.shadowBlur = 12 / zoom;
+  ctx.fillStyle = `rgba(255, 236, 238, ${0.95 * newestAlpha})`;
+  ctx.strokeStyle = `rgba(255, 82, 94, ${0.9 * newestAlpha})`;
+  ctx.lineWidth = 4 / zoom;
+  ctx.beginPath();
+  ctx.arc(newest.point.x, newest.point.y, 12 / zoom, 0, Math.PI * 2);
+  ctx.fill();
   ctx.stroke();
   ctx.restore();
 }

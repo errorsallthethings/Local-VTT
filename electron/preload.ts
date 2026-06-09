@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { Asset, Campaign, CampaignSummary, PlayerSceneProjection, Scene, SquareCropRect } from "../src/shared/localvtt.js";
+import type { Asset, Campaign, CampaignSummary, LiveTableEvent, PlayerSceneProjection, Scene, SquareCropRect } from "../src/shared/localvtt.js";
 
 const api = {
   createCampaign: () => ipcRenderer.invoke("campaign:create") as Promise<CampaignSummary | null>,
@@ -42,6 +42,8 @@ const api = {
     ipcRenderer.invoke("player:updateSceneIfOpen", projection) as Promise<boolean>,
   showPlayerIdle: (title: string, message: string) =>
     ipcRenderer.invoke("player:showIdle", { type: "idle", title, message }) as Promise<boolean>,
+  sendLiveTableEvent: (event: LiveTableEvent) =>
+    ipcRenderer.invoke("player:liveTableEvent", event) as Promise<boolean>,
   setPlayerFullscreen: (fullscreen: boolean) =>
     ipcRenderer.invoke("player:setFullscreen", fullscreen) as Promise<boolean>,
   closePlayerView: () => ipcRenderer.invoke("player:close") as Promise<boolean>,
@@ -75,6 +77,13 @@ const api = {
     ipcRenderer.on("player:state", listener);
     return () => {
       ipcRenderer.removeListener("player:state", listener);
+    };
+  },
+  onLiveTableEvent: (callback: (event: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, tableEvent: unknown) => callback(tableEvent);
+    ipcRenderer.on("player:liveTableEvent", listener);
+    return () => {
+      ipcRenderer.removeListener("player:liveTableEvent", listener);
     };
   },
   toAssetUrl: (absolutePath: string) => `localvtt://asset/${encodeURIComponent(absolutePath)}`

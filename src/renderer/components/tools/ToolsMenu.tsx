@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { Circle, CloudFog, HelpCircle, Paintbrush, Pentagon, Ruler, Square, Trash2, Undo2 } from "lucide-react";
+import { Circle, CloudFog, HelpCircle, LineSquiggle, Paintbrush, Pentagon, Ruler, Square, Table2, Target, Trash2, Undo2 } from "lucide-react";
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getFogHelpLines, getRulerHelpLines } from "../../lib/toolCopy";
 
 export type FogOperation = "reveal" | "hide";
-export type CanvasTool = "ruler";
+export type CanvasTool = "ruler" | "ping" | "laser";
 type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
 
 interface ToolsMenuProps {
@@ -35,6 +35,7 @@ export function ToolsMenu({
   onRequestClearFog
 }: ToolsMenuProps) {
   const [fogMenuOpen, setFogMenuOpen] = useState(false);
+  const [tableMenuOpen, setTableMenuOpen] = useState(false);
   const [helpTopic, setHelpTopic] = useState<"fog" | "ruler" | null>(null);
   const activeFogShape = getActiveFogShape(activeFogTool);
 
@@ -47,14 +48,15 @@ export function ToolsMenu({
   useEffect(() => {
     if (activeCanvasTool) {
       setFogMenuOpen(false);
+      setTableMenuOpen(true);
     }
   }, [activeCanvasTool]);
 
   useEffect(() => {
-    if ((helpTopic === "fog" && !fogMenuOpen) || (helpTopic === "ruler" && activeCanvasTool !== "ruler")) {
+    if ((helpTopic === "fog" && !fogMenuOpen) || (helpTopic === "ruler" && (!tableMenuOpen || activeCanvasTool !== "ruler"))) {
       setHelpTopic(null);
     }
-  }, [activeCanvasTool, fogMenuOpen, helpTopic]);
+  }, [activeCanvasTool, fogMenuOpen, helpTopic, tableMenuOpen]);
 
   const setFogToolShape = (shape: FogToolShape) => {
     const nextTool = createFogTool(fogOperation, shape);
@@ -81,6 +83,7 @@ export function ToolsMenu({
             setFogMenuOpen(nextOpen);
             if (nextOpen) {
               onCanvasToolChange(null);
+              setTableMenuOpen(false);
             }
             if (fogMenuOpen) {
               onFogToolChange(null);
@@ -91,17 +94,22 @@ export function ToolsMenu({
           <CloudFog size={18} aria-hidden="true" />
         </button>
         <button
-          className={activeCanvasTool === "ruler" ? "tool-circle-button tool-active" : "tool-circle-button"}
-          aria-label="Ruler"
-          title="Ruler"
+          className={tableMenuOpen ? "tool-circle-button tool-active" : "tool-circle-button"}
+          aria-label={tableMenuOpen ? "Close table tools" : "Open table tools"}
+          title={tableMenuOpen ? "Close Table Tools" : "Table Tools"}
           onClick={() => {
-            setFogMenuOpen(false);
-            onFogToolChange(null);
-            setHelpTopic(null);
-            onCanvasToolChange(activeCanvasTool === "ruler" ? null : "ruler");
+            const nextOpen = !tableMenuOpen;
+            setTableMenuOpen(nextOpen);
+            if (nextOpen) {
+              setFogMenuOpen(false);
+              onFogToolChange(null);
+            } else {
+              onCanvasToolChange(null);
+              setHelpTopic(null);
+            }
           }}
         >
-          <Ruler size={18} aria-hidden="true" />
+          <Table2 size={18} aria-hidden="true" />
         </button>
       </div>
 
@@ -192,13 +200,50 @@ export function ToolsMenu({
           )}
         </div>
       )}
-      {activeCanvasTool === "ruler" && (
-        <div className="tools-flyout tools-ruler-flyout" aria-label="Ruler Tool">
+      {tableMenuOpen && (
+        <div className="tools-flyout tools-ruler-flyout" aria-label="Table Tools">
+          <button
+            className={activeCanvasTool === "ruler" ? "tool-circle-button tool-active" : "tool-circle-button"}
+            aria-label="Ruler"
+            title="Ruler"
+            onClick={() => {
+              onFogToolChange(null);
+              setHelpTopic(null);
+              onCanvasToolChange(activeCanvasTool === "ruler" ? null : "ruler");
+            }}
+          >
+            <Ruler size={17} aria-hidden="true" />
+          </button>
+          <button
+            className={activeCanvasTool === "ping" ? "tool-circle-button tool-active" : "tool-circle-button"}
+            aria-label="Ping"
+            title="Ping"
+            onClick={() => {
+              onFogToolChange(null);
+              setHelpTopic(null);
+              onCanvasToolChange(activeCanvasTool === "ping" ? null : "ping");
+            }}
+          >
+            <Target size={17} aria-hidden="true" />
+          </button>
+          <button
+            className={activeCanvasTool === "laser" ? "tool-circle-button tool-active" : "tool-circle-button"}
+            aria-label="Laser Pointer"
+            title="Laser Pointer"
+            onClick={() => {
+              onFogToolChange(null);
+              setHelpTopic(null);
+              onCanvasToolChange(activeCanvasTool === "laser" ? null : "laser");
+            }}
+          >
+            <LineSquiggle size={17} aria-hidden="true" />
+          </button>
           <button
             className={helpTopic === "ruler" ? "tool-circle-button tool-help-trigger tool-active" : "tool-circle-button tool-help-trigger"}
             aria-label="Ruler help"
             title="Ruler help"
             aria-expanded={helpTopic === "ruler"}
+            disabled={activeCanvasTool !== "ruler"}
             onClick={() => setHelpTopic((topic) => (topic === "ruler" ? null : "ruler"))}
           >
             <HelpCircle size={17} aria-hidden="true" />

@@ -310,6 +310,25 @@ export interface PlayerIdleState {
   message: string;
 }
 
+export interface LiveTablePoint {
+  point: Point;
+  createdAt: number;
+}
+
+export type LiveTableEvent =
+  | {
+      id: string;
+      type: "ping";
+      point: Point;
+      createdAt: number;
+    }
+  | {
+      id: string;
+      type: "laser";
+      points: LiveTablePoint[];
+      createdAt: number;
+    };
+
 export const DEFAULT_MEASUREMENT: MeasurementSettings = {
   unit: "feet",
   unitsPerGridCell: 5,
@@ -517,6 +536,23 @@ export function isPlayerIdleState(value: unknown): value is PlayerIdleState {
     typeof value.title === "string" &&
     typeof value.message === "string"
   );
+}
+
+export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
+  if (!isRecord(value) || !isNonEmptyString(value.id) || typeof value.createdAt !== "number") {
+    return false;
+  }
+  if (value.type === "ping") {
+    return isPoint(value.point);
+  }
+  if (value.type === "laser") {
+    return Array.isArray(value.points) && value.points.every((entry) => isRecord(entry) && isPoint(entry.point) && typeof entry.createdAt === "number");
+  }
+  return false;
+}
+
+function isPoint(value: unknown): value is Point {
+  return isRecord(value) && typeof value.x === "number" && typeof value.y === "number";
 }
 
 export function normalizeScene(scene: Scene): Scene {

@@ -20,6 +20,7 @@ import type {
   CampaignSceneEntry,
   CampaignSceneFolder,
   DisplayCalibration,
+  LiveTableEvent,
   Point,
   Scene,
   SquareCropRect,
@@ -138,6 +139,7 @@ export function GmApp() {
   const [selectedFogShapeId, setSelectedFogShapeId] = useState<string | null>(null);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
+  const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
   const [gmCanvasCenter, setGmCanvasCenter] = useState<Point | null>(null);
   const [tokenLibraryHeight, setTokenLibraryHeight] = useState(() => loadTokenLibraryHeight());
@@ -185,6 +187,11 @@ export function GmApp() {
 
   const updateCampaignDraft = (nextCampaign: Campaign) => {
     updateWorkspaceCampaignDraft(nextCampaign, activeScene?.id === playerSceneId ? activeScene : null);
+  };
+
+  const emitLiveTableEvent = (event: LiveTableEvent) => {
+    setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
+    void window.localVtt.sendLiveTableEvent(event);
   };
 
   const refreshDisplays = () =>
@@ -305,6 +312,20 @@ export function GmApp() {
       setPlayerMenuOpen(false);
     }
   }, [activeScene]);
+
+  useEffect(() => {
+    setLiveTableEvents([]);
+  }, [activeScene?.id]);
+
+  useEffect(() => {
+    if (liveTableEvents.length === 0) {
+      return;
+    }
+    const cleanupTimer = window.setTimeout(() => {
+      setLiveTableEvents((events) => filterActiveLiveTableEvents(events));
+    }, 250);
+    return () => window.clearTimeout(cleanupTimer);
+  }, [liveTableEvents]);
 
   useEffect(() => {
     void refreshDisplays();
@@ -1055,11 +1076,13 @@ export function GmApp() {
             mode="gm"
             canvasTool={activeCanvasTool}
             fogTool={activeFogTool}
+            liveTableEvents={liveTableEvents}
             selectedFogShapeId={selectedFogShapeId}
             selectedTokenId={selectedTokenId}
             onSceneChange={updateCanvasScene}
             onSelectToken={setSelectedTokenId}
             onDropTokenAsset={dropLibraryTokenOnScene}
+            onLiveTableEvent={emitLiveTableEvent}
             onViewportCenterChange={setGmCanvasCenter}
           />
           {activeMapIsVideo && <VideoMapControls videoPlayback={videoPlayback} onUpdateVideoPlayback={updateVideoPlayback} />}
@@ -1229,6 +1252,27 @@ function CampaignBusyOverlay({ busyState }: { busyState: CampaignBusyState }) {
       </div>
     </div>
   );
+}
+
+const LIVE_TABLE_PING_DURATION_MS = 1600;
+const LIVE_TABLE_LASER_POINT_LIFETIME_MS = 1100;
+
+function mergeLiveTableEvent(events: LiveTableEvent[], event: LiveTableEvent): LiveTableEvent[] {
+  const filteredEvents = filterActiveLiveTableEvents(events);
+  return [event, ...filteredEvents.filter((candidate) => candidate.id !== event.id)];
+}
+
+function filterActiveLiveTableEvents(events: LiveTableEvent[]): LiveTableEvent[] {
+  const now = Date.now();
+  return events
+    .map((event) => {
+      if (event.type === "ping") {
+        return now - event.createdAt <= LIVE_TABLE_PING_DURATION_MS ? event : null;
+      }
+      const points = event.points.filter((point) => now - point.createdAt <= LIVE_TABLE_LASER_POINT_LIFETIME_MS);
+      return points.length > 0 ? { ...event, points } : null;
+    })
+    .filter((event): event is LiveTableEvent => Boolean(event));
 }
 
 function formatSaveStatus({

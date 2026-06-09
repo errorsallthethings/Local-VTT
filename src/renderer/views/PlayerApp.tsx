@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Map as MapIcon } from "lucide-react";
-import { isPlayerIdleState, isPlayerSceneProjection, type PlayerIdleState, type PlayerSceneProjection } from "../../shared/localvtt";
+import { isLiveTableEvent, isPlayerIdleState, isPlayerSceneProjection, type LiveTableEvent, type PlayerIdleState, type PlayerSceneProjection } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 
 const PLAYER_SCENE_SPLASH_FADE_MS = 320;
 const PLAYER_SCENE_SPLASH_MIN_MS = 2000;
 const PLAYER_SCENE_READY_FALLBACK_MS = 3000;
+const LIVE_TABLE_PING_DURATION_MS = 1600;
+const LIVE_TABLE_LASER_POINT_LIFETIME_MS = 1100;
 
 export function PlayerApp() {
   const [projection, setProjection] = useState<PlayerSceneProjection | null>(null);
@@ -15,6 +17,7 @@ export function PlayerApp() {
   const [splashMinimumMet, setSplashMinimumMet] = useState(false);
   const [revealScene, setRevealScene] = useState(false);
   const [currentSceneReady, setCurrentSceneReady] = useState(true);
+  const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
   const [idleState, setIdleState] = useState<PlayerIdleState>({
     type: "idle",
     title: "Waiting for GM View",
@@ -39,7 +42,27 @@ export function PlayerApp() {
     return removeListener;
   }, []);
 
+  useEffect(() => {
+    const removeListener = window.localVtt.onLiveTableEvent((event) => {
+      if (isLiveTableEvent(event)) {
+        setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
+      }
+    });
+    return removeListener;
+  }, []);
+
+  useEffect(() => {
+    if (liveTableEvents.length === 0) {
+      return;
+    }
+    const cleanupTimer = window.setTimeout(() => {
+      setLiveTableEvents((events) => filterActiveLiveTableEvents(events));
+    }, 250);
+    return () => window.clearTimeout(cleanupTimer);
+  }, [liveTableEvents]);
+
   const applyProjection = (nextProjection: PlayerSceneProjection) => {
+    setLiveTableEvents([]);
     setIdleState({
       type: "idle",
       title: "Waiting for GM View",
@@ -72,6 +95,7 @@ export function PlayerApp() {
   const applyIdleState = (nextIdleState: PlayerIdleState) => {
     setIdleState(nextIdleState);
     setProjection(null);
+    setLiveTableEvents([]);
     setPendingProjection(null);
     setTransitioning(false);
     setSplashCovered(false);
@@ -145,6 +169,7 @@ export function PlayerApp() {
                   setCurrentSceneReady(true);
                 }
               }}
+              liveTableEvents={liveTableEvents}
             />
           ) : (
             <PlayerEmpty state={idleState} />
@@ -184,7 +209,17 @@ function PlayerSceneSplash({ leaving }: { leaving: boolean }) {
   );
 }
 
-function PlayerScene({ projection, className, onReady }: { projection: PlayerSceneProjection; className: string; onReady?: () => void }) {
+function PlayerScene({
+  projection,
+  className,
+  liveTableEvents,
+  onReady
+}: {
+  projection: PlayerSceneProjection;
+  className: string;
+  liveTableEvents: LiveTableEvent[];
+  onReady?: () => void;
+}) {
   const campaign = useMemo(
     () => ({ ...emptyCampaign(projection.campaignName), assets: projection.assets, playerDisplay: projection.playerDisplay }),
     [projection]
@@ -197,10 +232,29 @@ function PlayerScene({ projection, className, onReady }: { projection: PlayerSce
         scene={projection.scene}
         mode="player"
         interactive={false}
+        liveTableEvents={liveTableEvents}
         onReady={onReady}
       />
     </div>
   );
+}
+
+function mergeLiveTableEvent(events: LiveTableEvent[], event: LiveTableEvent): LiveTableEvent[] {
+  const filteredEvents = filterActiveLiveTableEvents(events);
+  return [event, ...filteredEvents.filter((candidate) => candidate.id !== event.id)];
+}
+
+function filterActiveLiveTableEvents(events: LiveTableEvent[]): LiveTableEvent[] {
+  const now = Date.now();
+  return events
+    .map((event) => {
+      if (event.type === "ping") {
+        return now - event.createdAt <= LIVE_TABLE_PING_DURATION_MS ? event : null;
+      }
+      const points = event.points.filter((point) => now - point.createdAt <= LIVE_TABLE_LASER_POINT_LIFETIME_MS);
+      return points.length > 0 ? { ...event, points } : null;
+    })
+    .filter((event): event is LiveTableEvent => Boolean(event));
 }
 
 function emptyCampaign(name: string) {

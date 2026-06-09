@@ -13,6 +13,7 @@ import {
   DEFAULT_MEASUREMENT,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
+  isLiveTableEvent,
   isPlayerIdleState,
   isPlayerSceneProjection,
   normalizeCampaign,
@@ -426,6 +427,9 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isPlayerSceneProjection({ campaignName: "Bad", playerDisplay: {}, assets: [], scene: {} })).toBe(false);
   expect(isPlayerIdleState({ type: "idle", title: "Waiting", message: "Preparing scene." })).toBe(true);
   expect(isPlayerIdleState({ type: "idle", title: "Waiting" })).toBe(false);
+  expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "laser", type: "laser", points: [{ point: { x: 1, y: 2 }, createdAt: 1 }], createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "broken", type: "laser", points: [{ point: { x: 1 }, createdAt: 1 }], createdAt: 1 })).toBe(false);
 });
 
 it("default creators return isolated nested collections", () => {

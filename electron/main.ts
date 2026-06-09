@@ -15,6 +15,7 @@ import {
   createDefaultCampaign,
   createDefaultScene,
   duplicateScene,
+  isLiveTableEvent,
   isPlayerIdleState,
   normalizeCampaign,
   normalizeScene,
@@ -997,6 +998,17 @@ ipcMain.handle("player:showIdle", async (_event, state: unknown) => {
     return false;
   }
   sendToPlayerWhenReady(lastPlayerProjection);
+  return true;
+});
+
+ipcMain.handle("player:liveTableEvent", async (_event, event: unknown) => {
+  if (!isLiveTableEvent(event)) {
+    throw new Error("Invalid live table event.");
+  }
+  if (!playerWindow || playerWindow.isDestroyed()) {
+    return false;
+  }
+  playerWindow.webContents.send("player:liveTableEvent", event);
   return true;
 });
 
