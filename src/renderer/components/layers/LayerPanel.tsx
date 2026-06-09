@@ -1,25 +1,36 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent, type PointerEvent } from "react";
 import {
   ArrowDown,
   ArrowUp,
   Box,
+  Circle,
+  CloudDrizzle,
   CloudFog,
+  CloudLightning,
+  CloudRain,
   CloudSun,
   Crown,
+  Droplets,
+  Eye,
+  EyeOff,
   Grid3X3,
   Import,
   Image,
   Layers,
   Lightbulb,
+  Pentagon,
+  RotateCcw,
   Settings,
   Shield,
   Sparkles,
+  Square,
+  SquareDashed,
   Trash2,
   User,
   UsersRound
 } from "lucide-react";
-import type { Asset, FogSettings, GridSettings, GridType, Layer, MapTransform, Scene, WeatherEffectType, WeatherSettings } from "../../../shared/localvtt";
-import { formatDefaultFogShapeName, type Token } from "../../../shared/localvtt";
+import type { Asset, FogSettings, GridSettings, GridType, Layer, MapTransform, RainWeatherEffectType, Scene, WeatherSettings, WeatherTuningSettings } from "../../../shared/localvtt";
+import { DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultFogShapeName, type Token } from "../../../shared/localvtt";
 import { getSnappedTokenPosition } from "../../canvas/tokenGeometry";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
 import { ColorSettingRow } from "../controls/ColorPickerField";
@@ -28,11 +39,25 @@ import { MeasurementPanel } from "../settings/MeasurementPanel";
 import { FogShapeList, type FogShapeDropTarget } from "./FogShapeList";
 import { TokenList } from "./TokenList";
 
+const RAIN_EFFECT_OPTIONS: Array<{
+  effect: RainWeatherEffectType;
+  label: string;
+  icon: typeof CloudRain;
+}> = [
+  { effect: "light-rain", label: "Light Rain", icon: CloudDrizzle },
+  { effect: "rain", label: "Rain", icon: Droplets },
+  { effect: "heavy-rain", label: "Heavy Rain", icon: CloudRain },
+  { effect: "rain-storm", label: "Rain Storm", icon: CloudLightning }
+];
+
+type WeatherTuningKey = keyof WeatherTuningSettings;
+
 export function LayerPanel({
   scene,
   mapAsset,
   tokenAssets,
   selectedFogShapeId,
+  selectedWeatherMaskId,
   selectedTokenId,
   onChange,
   onUpdateGrid,
@@ -44,6 +69,7 @@ export function LayerPanel({
   onImportToken,
   onDeleteMap,
   onSelectFogShape,
+  onSelectWeatherMask,
   onSelectToken,
   onRenameFogShape,
   onRenameToken,
@@ -55,6 +81,7 @@ export function LayerPanel({
   mapAsset: Asset | null;
   tokenAssets: Map<string, Asset>;
   selectedFogShapeId: string | null;
+  selectedWeatherMaskId: string | null;
   selectedTokenId: string | null;
   onChange: (scene: Scene) => void;
   onUpdateGrid: (patch: Partial<GridSettings>) => void;
@@ -66,6 +93,7 @@ export function LayerPanel({
   onImportToken: () => void;
   onDeleteMap: (asset: Asset) => void;
   onSelectFogShape: (shapeId: string | null) => void;
+  onSelectWeatherMask: (maskId: string | null) => void;
   onSelectToken: (tokenId: string | null) => void;
   onRenameFogShape: (shapeId: string, fallbackName: string) => void;
   onRenameToken: (tokenId: string, fallbackName: string) => void;
@@ -81,6 +109,7 @@ export function LayerPanel({
   const [settingsLayerIds, setSettingsLayerIds] = useState<Set<string>>(() => new Set());
   const [draggedFogShapeId, setDraggedFogShapeId] = useState<string | null>(null);
   const [fogShapeDropTarget, setFogShapeDropTarget] = useState<FogShapeDropTarget>(null);
+  const [weatherCategory, setWeatherCategory] = useState<"none" | "rain">(() => (scene.weather.effect === "none" ? "none" : "rain"));
 
   useEffect(() => {
     if (scene.mapAssetId) {
@@ -117,6 +146,12 @@ export function LayerPanel({
       return new Set([...ids, "token"]);
     });
   }, [scene.tokens.length]);
+
+  useEffect(() => {
+    setWeatherCategory(scene.weather.effect === "none" ? "none" : "rain");
+    // Weather category has an intermediate "Rain, no pattern yet" UI state, so only resync when switching scenes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene.id]);
 
   const updateLayer = (layerId: string, patch: Partial<Layer>) => {
     const nextGrid =
@@ -232,6 +267,64 @@ export function LayerPanel({
         enabled: patch.effect === "none" ? false : nextWeather.enabled
       },
       updatedAt: new Date().toISOString()
+    });
+  };
+
+  const selectWeatherEffect = (effect: RainWeatherEffectType) => {
+    const effectSettings = getWeatherEffectSettingsWithCurrent(scene.weather);
+    const nextTuning = effectSettings[effect] ?? DEFAULT_WEATHER_EFFECT_SETTINGS[effect];
+    effectSettings[effect] = nextTuning;
+    updateWeather({
+      effect,
+      enabled: true,
+      ...nextTuning,
+      effectSettings
+    });
+  };
+
+  const clearWeatherEffect = () => {
+    updateWeather({
+      effect: "none",
+      enabled: false,
+      effectSettings: getWeatherEffectSettingsWithCurrent(scene.weather)
+    });
+  };
+
+  const updateWeatherTuning = (patch: Partial<WeatherTuningSettings>) => {
+    const currentEffect = scene.weather.effect;
+    if (currentEffect === "none") {
+      return;
+    }
+    const nextTuning = {
+      ...getWeatherTuning(scene.weather),
+      ...patch
+    };
+    updateWeather({
+      ...patch,
+      effectSettings: {
+        ...scene.weather.effectSettings,
+        [currentEffect]: nextTuning
+      }
+    });
+  };
+
+  const resetWeatherTuning = (key: WeatherTuningKey) => {
+    const currentEffect = scene.weather.effect;
+    if (currentEffect === "none") {
+      return;
+    }
+    updateWeatherTuning({ [key]: DEFAULT_WEATHER_EFFECT_SETTINGS[currentEffect][key] });
+  };
+
+  const resetWeatherDrift = () => {
+    const currentEffect = scene.weather.effect;
+    if (currentEffect === "none") {
+      return;
+    }
+    const defaults = DEFAULT_WEATHER_EFFECT_SETTINGS[currentEffect];
+    updateWeatherTuning({
+      directionDegrees: defaults.directionDegrees,
+      driftStrength: defaults.driftStrength
     });
   };
 
@@ -387,14 +480,6 @@ export function LayerPanel({
                   onUpdateFog={onUpdateFog}
                 />
               )}
-              {layer.id === "weather" && isExpanded && !areSettingsExpanded && (
-                <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
-                  <div className="layer-empty-state">
-                    <strong>Weather Effects</strong>
-                    <span>Use the gear button to choose a scene weather preset and tune its motion.</span>
-                  </div>
-                </div>
-              )}
               {layer.id === "weather" && areSettingsExpanded && (
                 <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
                   <label className="setting-row">
@@ -402,59 +487,169 @@ export function LayerPanel({
                     <input type="checkbox" checked={scene.weather.enabled} onChange={(event) => updateWeather({ enabled: event.target.checked })} />
                   </label>
                   <label className="stacked-control">
-                    Effect
+                    Category
                     <select
-                      value={scene.weather.effect}
+                      value={weatherCategory}
                       onChange={(event) => {
-                        const effect = event.target.value as WeatherEffectType;
-                        updateWeather({ effect, enabled: effect !== "none" });
+                        const category = event.target.value;
+                        setWeatherCategory(category === "rain" ? "rain" : "none");
+                        clearWeatherEffect();
                       }}
                     >
                       <option value="none">None</option>
-                      <option value="partly-cloudy">Partly cloudy</option>
-                      <option value="light-rain">Light rain</option>
                       <option value="rain">Rain</option>
-                      <option value="heavy-rain">Heavy rain</option>
-                      <option value="lightning">Lightning</option>
-                      <option value="rain-storm">Rain storm</option>
-                      <option value="snow">Snow</option>
-                      <option value="blizzard">Blizzard</option>
-                      <option value="dust-storm">Dust storm</option>
-                      <option value="heavy-wind">Heavy wind</option>
-                      <option value="light-fog">Light fog</option>
-                      <option value="fog">Fog</option>
-                      <option value="heavy-fog">Heavy fog</option>
-                      <option value="ashfall">Ashfall</option>
-                      <option value="embers">Embers</option>
                     </select>
                   </label>
-                  <div className="settings-grid">
-                    <label className="setting-row">
-                      <span>Intensity</span>
-                      <input type="range" min={0.1} max={1} step={0.05} value={scene.weather.intensity} onChange={(event) => updateWeather({ intensity: Number(event.target.value) })} />
-                    </label>
-                    <label className="setting-row">
-                      <span>Opacity</span>
-                      <input type="range" min={0.05} max={1} step={0.05} value={scene.weather.opacity} onChange={(event) => updateWeather({ opacity: Number(event.target.value) })} />
-                    </label>
-                    <label className="setting-row">
-                      <span>Speed</span>
-                      <input type="range" min={0.1} max={2} step={0.05} value={scene.weather.speed} onChange={(event) => updateWeather({ speed: Number(event.target.value) })} />
-                    </label>
-                    <label className="setting-row">
-                      <span>Direction</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={360}
-                        step={5}
-                        value={scene.weather.directionDegrees}
-                        onChange={(event) => updateWeather({ directionDegrees: Number(event.target.value) })}
-                      />
-                    </label>
-                  </div>
-                  <div className="inline-help">Weather renders as a lightweight canvas effect on both GM View and Player View when the layer is visible.</div>
+                  {weatherCategory === "rain" && (
+                    <div className="weather-preset-group" role="group" aria-label="Rain type">
+                      {RAIN_EFFECT_OPTIONS.map((option) => {
+                        const Icon = option.icon;
+                        const isActive = scene.weather.effect === option.effect;
+                        return (
+                          <button
+                            key={option.effect}
+                            type="button"
+                            className={isActive ? "weather-preset-button weather-preset-active" : "weather-preset-button"}
+                            aria-pressed={isActive}
+                            title={option.label}
+                            onClick={() => selectWeatherEffect(option.effect)}
+                          >
+                            <Icon size={16} aria-hidden="true" />
+                            <span>{option.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {scene.weather.effect !== "none" && (
+                    <div className="settings-grid">
+                      <div className="setting-row">
+                        <span>Intensity</span>
+                        <div className="weather-setting-control">
+                          <input type="range" min={0.1} max={1} step={0.05} value={scene.weather.intensity} onChange={(event) => updateWeatherTuning({ intensity: Number(event.target.value) })} />
+                          <button className="icon-button weather-reset-button" type="button" title="Reset intensity" aria-label="Reset weather intensity" onClick={() => resetWeatherTuning("intensity")}>
+                            <RotateCcw size={13} aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="setting-row">
+                        <span>Opacity</span>
+                        <div className="weather-setting-control">
+                          <input type="range" min={0.05} max={1} step={0.05} value={scene.weather.opacity} onChange={(event) => updateWeatherTuning({ opacity: Number(event.target.value) })} />
+                          <button className="icon-button weather-reset-button" type="button" title="Reset opacity" aria-label="Reset weather opacity" onClick={() => resetWeatherTuning("opacity")}>
+                            <RotateCcw size={13} aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="setting-row">
+                        <span>Speed</span>
+                        <div className="weather-setting-control">
+                          <input type="range" min={0.1} max={2} step={0.05} value={scene.weather.speed} onChange={(event) => updateWeatherTuning({ speed: Number(event.target.value) })} />
+                          <button className="icon-button weather-reset-button" type="button" title="Reset speed" aria-label="Reset weather speed" onClick={() => resetWeatherTuning("speed")}>
+                            <RotateCcw size={13} aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {scene.weather.effect !== "none" && (
+                    <details className="weather-advanced-panel">
+                      <summary>Advanced</summary>
+                      <div className="settings-grid">
+                        <div className="setting-row weather-drift-row">
+                          <span>Drift</span>
+                          <WeatherDirectionDial weather={scene.weather} onChange={updateWeatherTuning} onReset={resetWeatherDrift} />
+                        </div>
+                        <WeatherRangeRow
+                          label="Edge Bias"
+                          value={scene.weather.edgeBias}
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          format={formatPercent}
+                          onChange={(value) => updateWeatherTuning({ edgeBias: value })}
+                          onReset={() => resetWeatherTuning("edgeBias")}
+                        />
+                        <WeatherRangeRow
+                          label="Quiet Area"
+                          value={scene.weather.quietAreaSize}
+                          min={0.35}
+                          max={0.9}
+                          step={0.05}
+                          format={formatPercent}
+                          onChange={(value) => updateWeatherTuning({ quietAreaSize: value })}
+                          onReset={() => resetWeatherTuning("quietAreaSize")}
+                        />
+                        <WeatherRangeRow
+                          label="Stray Drops"
+                          value={scene.weather.centerStrayDrops}
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          format={formatPercent}
+                          onChange={(value) => updateWeatherTuning({ centerStrayDrops: value })}
+                          onReset={() => resetWeatherTuning("centerStrayDrops")}
+                        />
+                        <WeatherRangeRow
+                          label="Streak Length"
+                          value={scene.weather.streakLength}
+                          min={0.4}
+                          max={2}
+                          step={0.05}
+                          format={formatMultiplier}
+                          onChange={(value) => updateWeatherTuning({ streakLength: value })}
+                          onReset={() => resetWeatherTuning("streakLength")}
+                        />
+                        {scene.weather.effect === "rain-storm" && (
+                          <>
+                            <WeatherRangeRow
+                              label="Lightning"
+                              value={scene.weather.lightningFrequency}
+                              min={0}
+                              max={1}
+                              step={0.05}
+                              format={formatPercent}
+                              onChange={(value) => updateWeatherTuning({ lightningFrequency: value })}
+                              onReset={() => resetWeatherTuning("lightningFrequency")}
+                            />
+                            <WeatherRangeRow
+                              label="Flash"
+                              value={scene.weather.flashStrength}
+                              min={0}
+                              max={1}
+                              step={0.05}
+                              format={formatPercent}
+                              onChange={(value) => updateWeatherTuning({ flashStrength: value })}
+                              onReset={() => resetWeatherTuning("flashStrength")}
+                            />
+                          </>
+                        )}
+                        <div className="setting-row">
+                          <span>Quality</span>
+                          <div className="weather-setting-control">
+                            <select value={scene.weather.quality} onChange={(event) => updateWeatherTuning({ quality: event.target.value as WeatherTuningSettings["quality"] })}>
+                              <option value="low">Low</option>
+                              <option value="balanced">Balanced</option>
+                              <option value="high">High</option>
+                            </select>
+                            <button className="icon-button weather-reset-button" type="button" title="Reset quality" aria-label="Reset weather quality" onClick={() => resetWeatherTuning("quality")}>
+                              <RotateCcw size={13} aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+                  )}
+                  <div className="inline-help">Weather renders on both GM View and Player View when the layer is visible. Keep drift centered for straight rainfall.</div>
                 </div>
+              )}
+              {layer.id === "weather" && isExpanded && !areSettingsExpanded && (
+                <WeatherMaskList
+                  scene={scene}
+                  selectedWeatherMaskId={selectedWeatherMaskId}
+                  onSelectWeatherMask={onSelectWeatherMask}
+                  onUpdateWeather={updateWeather}
+                />
               )}
               {layer.id === "token" && isExpanded && (
                 <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
@@ -684,6 +879,225 @@ export function LayerPanel({
   );
 }
 
+function getWeatherTuning(weather: WeatherSettings): WeatherTuningSettings {
+  return {
+    intensity: weather.intensity,
+    opacity: weather.opacity,
+    speed: weather.speed,
+    directionDegrees: weather.directionDegrees,
+    driftStrength: weather.driftStrength,
+    edgeBias: weather.edgeBias,
+    quietAreaSize: weather.quietAreaSize,
+    centerStrayDrops: weather.centerStrayDrops,
+    streakLength: weather.streakLength,
+    lightningFrequency: weather.lightningFrequency,
+    flashStrength: weather.flashStrength,
+    quality: weather.quality
+  };
+}
+
+function WeatherRangeRow({
+  label,
+  value,
+  min,
+  max,
+  step,
+  format,
+  onChange,
+  onReset
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  format: (value: number) => string;
+  onChange: (value: number) => void;
+  onReset: () => void;
+}) {
+  return (
+    <div className="setting-row">
+      <span>{label}</span>
+      <div className="weather-setting-control weather-setting-control-with-value">
+        <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
+        <output>{format(value)}</output>
+        <button className="icon-button weather-reset-button" type="button" title={`Reset ${label.toLowerCase()}`} aria-label={`Reset weather ${label.toLowerCase()}`} onClick={onReset}>
+          <RotateCcw size={13} aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function formatPercent(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function formatMultiplier(value: number): string {
+  return `${value.toFixed(2)}x`;
+}
+
+function WeatherMaskList({
+  scene,
+  selectedWeatherMaskId,
+  onSelectWeatherMask,
+  onUpdateWeather
+}: {
+  scene: Scene;
+  selectedWeatherMaskId: string | null;
+  onSelectWeatherMask: (maskId: string | null) => void;
+  onUpdateWeather: (patch: Partial<WeatherSettings>) => void;
+}) {
+  return (
+    <div className="layer-detail-controls weather-mask-list" onClick={(event) => event.stopPropagation()}>
+      <div className="fog-shape-list-header">
+        <span>Weather Masks</span>
+      </div>
+      {scene.weather.masks.length > 0 ? (
+        scene.weather.masks.map((mask) => {
+          const label = mask.name?.trim() || "Weather Mask";
+          const isVisible = mask.visible ?? true;
+          const isSelected = selectedWeatherMaskId === mask.id;
+          return (
+            <div
+              className={["fog-shape-row", "weather-mask-row", isVisible ? "" : "fog-shape-row-muted", isSelected ? "fog-shape-row-selected" : ""]
+                .filter(Boolean)
+                .join(" ")}
+              key={mask.id}
+            >
+              <span className="fog-shape-kind-icon" title={`${mask.kind} mask`} aria-hidden="true">
+                {mask.kind === "circle" ? <Circle size={13} /> : mask.kind === "polygon" ? <Pentagon size={13} /> : <Square size={13} />}
+              </span>
+              <span className="fog-shape-name" title={label}>
+                {label}
+              </span>
+              <button
+                className={isVisible ? "icon-button fog-shape-action-button fog-shape-action-active" : "icon-button fog-shape-action-button"}
+                aria-label={isVisible ? `Disable ${label}` : `Enable ${label}`}
+                title={isVisible ? "Disable mask" : "Enable mask"}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelectWeatherMask(mask.id);
+                  onUpdateWeather({
+                    masks: scene.weather.masks.map((candidate) => (candidate.id === mask.id ? { ...candidate, visible: !isVisible } : candidate))
+                  });
+                }}
+              >
+                {isVisible ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
+              </button>
+              <button
+                className={isSelected ? "icon-button fog-shape-action-button fog-shape-action-active" : "icon-button fog-shape-action-button"}
+                aria-label={isSelected ? `Hide ${label} highlight` : `Highlight ${label}`}
+                title={isSelected ? "Hide mask highlight" : "Highlight mask"}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelectWeatherMask(isSelected ? null : mask.id);
+                }}
+              >
+                <SquareDashed size={14} aria-hidden="true" />
+              </button>
+              <button
+                className="icon-button fog-shape-action-button danger"
+                aria-label={`Delete ${label}`}
+                title="Delete weather mask"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onUpdateWeather({ masks: scene.weather.masks.filter((candidate) => candidate.id !== mask.id) });
+                  if (selectedWeatherMaskId === mask.id) {
+                    onSelectWeatherMask(null);
+                  }
+                }}
+              >
+                <Trash2 size={14} aria-hidden="true" />
+              </button>
+            </div>
+          );
+        })
+      ) : (
+        <div className="layer-empty-state">
+          <strong>No Weather Masks</strong>
+          <span>
+            {scene.weather.enabled && scene.weather.effect !== "none"
+              ? "Draw masks from Weather Tools to keep weather out of interiors."
+              : "Choose a weather pattern in settings to enable Weather Tools, then draw masks from the canvas."}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getWeatherEffectSettingsWithCurrent(weather: WeatherSettings): WeatherSettings["effectSettings"] {
+  const effectSettings = { ...weather.effectSettings };
+  if (weather.effect !== "none") {
+    effectSettings[weather.effect] = getWeatherTuning(weather);
+  }
+  return effectSettings;
+}
+
+function WeatherDirectionDial({
+  weather,
+  onChange,
+  onReset
+}: {
+  weather: WeatherSettings;
+  onChange: (patch: Partial<WeatherTuningSettings>) => void;
+  onReset: () => void;
+}) {
+  const directionDegrees = Number.isFinite(weather.directionDegrees) ? weather.directionDegrees : 0;
+  const strength = Number.isFinite(weather.driftStrength) ? Math.max(0, Math.min(1, weather.driftStrength)) : 0;
+  const radians = (directionDegrees * Math.PI) / 180;
+  const knobX = 50 + Math.cos(radians) * strength * 34;
+  const knobY = 50 + Math.sin(radians) * strength * 34;
+  const label = strength <= 0.02 ? "No drift" : `${Math.round(directionDegrees)} deg, ${Math.round(strength * 100)}%`;
+
+  const updateFromPointer = (event: PointerEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const x = event.clientX - centerX;
+    const y = event.clientY - centerY;
+    const distance = Math.hypot(x, y);
+    const radius = rect.width / 2;
+    const nextStrength = distance < radius * 0.16 ? 0 : Math.min(1, distance / (radius * 0.78));
+    const nextDegrees = nextStrength === 0 ? directionDegrees : (Math.atan2(y, x) * 180) / Math.PI;
+    onChange({
+      driftStrength: nextStrength,
+      directionDegrees: nextStrength === 0 ? directionDegrees : Math.round((nextDegrees + 360) % 360)
+    });
+  };
+
+  return (
+    <div className="weather-drift-control">
+      <button
+        type="button"
+        className="weather-direction-dial"
+        aria-label={`Weather drift: ${label}`}
+        title="Drag the point to set weather drift. Click the center for no drift."
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          updateFromPointer(event);
+        }}
+        onPointerMove={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            updateFromPointer(event);
+          }
+        }}
+      >
+        <span className="weather-direction-ring" aria-hidden="true" />
+        <span className="weather-direction-center" aria-hidden="true" />
+        <span className="weather-direction-knob" style={{ left: `${knobX}%`, top: `${knobY}%` }} aria-hidden="true" />
+      </button>
+      <div className="weather-drift-meta">
+        <span className="weather-drift-label">{label}</span>
+        <button className="icon-button weather-reset-button" type="button" title="Reset drift" aria-label="Reset weather drift" onClick={onReset}>
+          <RotateCcw size={13} aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function getLayerIcon(layer: Layer) {
   switch (layer.kind) {
     case "map":
@@ -715,6 +1129,9 @@ function getLayerItemCount(layerId: Layer["id"], scene: Scene): number | null {
   }
   if (layerId === "token") {
     return scene.tokens.length;
+  }
+  if (layerId === "weather") {
+    return scene.weather.masks.length;
   }
   return null;
 }

@@ -45,6 +45,16 @@ export function getRulerHelpLines(): string[] {
   ];
 }
 
+export function getWeatherHelpLines(): string[] {
+  return [
+    "Weather masks exclude weather from interiors or covered spaces.",
+    "Rectangle: left-drag to draw; hold Shift for a square.",
+    "Circle: left-drag from the center to set the radius.",
+    "Polygon: click points, Enter or double-click to finish, right-click to remove the last point.",
+    "Masks apply to every weather pattern on the scene."
+  ];
+}
+
 function getFogToolShapeLabel(fogTool: FogTool): string {
   if (fogTool.includes("brush")) {
     return "Brush";

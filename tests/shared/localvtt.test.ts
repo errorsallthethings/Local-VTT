@@ -77,7 +77,15 @@ it("normalizeScene clamps weather settings", () => {
     intensity: 9,
     opacity: -2,
     speed: 99,
-    directionDegrees: 720
+    directionDegrees: 720,
+    driftStrength: 5,
+    edgeBias: 4,
+    quietAreaSize: 0.1,
+    centerStrayDrops: -1,
+    streakLength: 9,
+    lightningFrequency: 3,
+    flashStrength: -2,
+    quality: "ultra"
   };
 
   const normalized = normalizeScene(scene);
@@ -88,7 +96,17 @@ it("normalizeScene clamps weather settings", () => {
     intensity: 1,
     opacity: 0,
     speed: 3,
-    directionDegrees: 360
+    directionDegrees: 360,
+    driftStrength: 1,
+    edgeBias: 1,
+    quietAreaSize: 0.35,
+    centerStrayDrops: 0,
+    streakLength: 2,
+    lightningFrequency: 1,
+    flashStrength: 0,
+    quality: "balanced",
+    effectSettings: {},
+    masks: []
   });
 });
 

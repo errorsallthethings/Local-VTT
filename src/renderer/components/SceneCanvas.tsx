@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
-import type { Asset, Campaign, LiveTableEvent, LiveTablePoint, Point, Scene, Token } from "../../shared/localvtt";
+import type { Asset, Campaign, LiveTableEvent, LiveTablePoint, Point, Scene, Token, WeatherMask } from "../../shared/localvtt";
 import { getRenderCamera, type Camera } from "../canvas/camera";
 import {
   drawFog,
@@ -35,6 +35,7 @@ import { getVideoTransform } from "../canvas/videoMap";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
+import type { WeatherMaskTool } from "./tools/ToolsMenu";
 import {
   FOG_GRID_SNAP_HINT,
   RULER_CLEAR_HINT,
@@ -53,8 +54,10 @@ interface SceneCanvasProps {
   interactive?: boolean;
   canvasTool?: "ruler" | "ping" | "laser" | null;
   fogTool?: FogTool | null;
+  weatherMaskTool?: WeatherMaskTool | null;
   liveTableEvents?: LiveTableEvent[];
   selectedFogShapeId?: string | null;
+  selectedWeatherMaskId?: string | null;
   selectedTokenId?: string | null;
   onSceneChange?: (scene: Scene, syncScene?: Scene) => void;
   onSelectToken?: (tokenId: string | null) => void;
@@ -95,6 +98,18 @@ type LaserDragState = {
   points: LiveTablePoint[];
 };
 
+type WeatherMaskDrag = {
+  pointerId: number;
+  kind: WeatherMaskTool;
+  start: Point;
+  current: Point;
+};
+
+type WeatherPolygonDraft = {
+  points: Point[];
+  current?: Point;
+};
+
 const PING_DURATION_MS = 1600;
 const LASER_POINT_LIFETIME_MS = 1100;
 const LASER_MIN_POINT_DISTANCE = 8;
@@ -107,8 +122,10 @@ export function SceneCanvas({
   interactive = true,
   canvasTool = null,
   fogTool = null,
+  weatherMaskTool = null,
   liveTableEvents = [],
   selectedFogShapeId = null,
+  selectedWeatherMaskId = null,
   selectedTokenId = null,
   onSceneChange,
   onSelectToken,
@@ -124,10 +141,12 @@ export function SceneCanvas({
   const [failedTokenImageIds, setFailedTokenImageIds] = useState<Set<string>>(() => new Set());
   const [mapLoadStatus, setMapLoadStatus] = useState<MapLoadStatus>("idle");
   const [fogPreview, setFogPreview] = useState<FogDrag | null>(null);
+  const [weatherMaskPreview, setWeatherMaskPreview] = useState<WeatherMaskDrag | null>(null);
   const [rulerDrag, setRulerDrag] = useState<RulerDrag | null>(null);
   const [tokenDragPreview, setTokenDragPreview] = useState<TokenDragPreview | null>(null);
   const [playerTokenTweenPositions, setPlayerTokenTweenPositions] = useState<TokenPositionOverrides | null>(null);
   const [polygonDraft, setPolygonDraft] = useState<FogPolygonDraft | null>(null);
+  const [weatherPolygonDraft, setWeatherPolygonDraft] = useState<WeatherPolygonDraft | null>(null);
   const [brushHoverPoint, setBrushHoverPoint] = useState<Point | null>(null);
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
   const [isPanning, setIsPanning] = useState(false);
@@ -136,7 +155,9 @@ export function SceneCanvas({
   const tokenDragRef = useRef<TokenDragState | null>(null);
   const laserDragRef = useRef<LaserDragState | null>(null);
   const fogDragRef = useRef<FogDrag | null>(null);
+  const weatherMaskDragRef = useRef<WeatherMaskDrag | null>(null);
   const polygonDraftRef = useRef<FogPolygonDraft | null>(null);
+  const weatherPolygonDraftRef = useRef<WeatherPolygonDraft | null>(null);
   const previousSceneRef = useRef<Scene | null>(null);
   // Player View tween state is mirrored in a ref so requestAnimationFrame can draw without stale React closures.
   const playerTokenTweenPositionsRef = useRef<TokenPositionOverrides | null>(null);
@@ -212,10 +233,16 @@ export function SceneCanvas({
   }, [polygonDraft]);
 
   useEffect(() => {
+    weatherPolygonDraftRef.current = weatherPolygonDraft;
+  }, [weatherPolygonDraft]);
+
+  useEffect(() => {
     setPolygonDraft(null);
     polygonDraftRef.current = null;
+    weatherPolygonDraftRef.current = null;
     fogDragRef.current = null;
     setFogPreview(null);
+    setWeatherPolygonDraft(null);
     setBrushHoverPoint(null);
     setSnapPoint(null);
   }, [fogTool, scene?.id]);
@@ -230,10 +257,19 @@ export function SceneCanvas({
     tokenDragRef.current = null;
     setTokenDragPreview(null);
     dragRef.current = null;
+    weatherMaskDragRef.current = null;
+    setWeatherMaskPreview(null);
     setIsPanning(false);
     setSnapPoint(null);
     setBrushHoverPoint(null);
   }, [mode, scene?.id]);
+
+  useEffect(() => {
+    weatherMaskDragRef.current = null;
+    setWeatherMaskPreview(null);
+    weatherPolygonDraftRef.current = null;
+    setWeatherPolygonDraft(null);
+  }, [weatherMaskTool, scene?.id]);
 
   useEffect(() => {
     const previousScene = previousSceneRef.current;
@@ -314,6 +350,29 @@ export function SceneCanvas({
     // Polygon draft state is mirrored in polygonDraftRef so the handler can commit the latest draft without re-subscribing to commitPolygonDraft.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [polygonDraft, scene]);
+
+  useEffect(() => {
+    if (!weatherPolygonDraft) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setWeatherPolygonDraft(null);
+        weatherPolygonDraftRef.current = null;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitWeatherPolygonDraft();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // Weather polygon draft state is mirrored in weatherPolygonDraftRef so the handler can commit without re-subscribing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weatherPolygonDraft, scene]);
 
   useEffect(() => {
     if (mode !== "gm" || (!tokenDragPreview && !rulerDrag && !fogPreview)) {
@@ -546,15 +605,28 @@ export function SceneCanvas({
         drawRuler(ctx, rulerDrag, getRulerLabel(rulerDrag, scene), scene.grid, renderCamera.zoom);
       }
 
-      if (canShowWeather) {
-        drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1);
-      }
-
       ctx.restore();
 
       if (canShowFog) {
         // Fog is drawn after world content so hidden/partial modes mask maps, tokens, grid, and ruler consistently.
         drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, selectedFogShapeId);
+      }
+      if (canShowWeather) {
+        const activeVideo = isVideoMap ? (videoRefs.current[activeVideoIndex] ?? null) : null;
+        const weatherMapSource = loadedMap?.ready ? loadedMap.source : activeVideo && activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA ? activeVideo : null;
+        drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1, weatherMapSource);
+      }
+      if (mode === "gm" && weatherMaskPreview) {
+        drawWeatherMaskPreview(ctx, weatherMaskPreview, renderCamera);
+      }
+      if (mode === "gm" && weatherPolygonDraft) {
+        drawWeatherPolygonDraft(ctx, weatherPolygonDraft, renderCamera);
+      }
+      if (mode === "gm" && selectedWeatherMaskId) {
+        const selectedWeatherMask = scene.weather.masks.find((mask) => mask.id === selectedWeatherMaskId && (mask.visible ?? true));
+        if (selectedWeatherMask) {
+          drawWeatherMaskSelection(ctx, selectedWeatherMask, renderCamera);
+        }
       }
       if (mode === "gm" && brushHoverPoint && fogTool?.includes("brush") && !fogPreview) {
         drawBrushHoverPreview(ctx, brushHoverPoint, Math.max(4, scene.fog.brushSize / 2), renderCamera, getFogOperationForTool(fogTool));
@@ -588,7 +660,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, snapPoint, tokenDragPreview, weatherLayer?.opacity]);
+  }, [activeVideoIndex, brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -694,6 +766,22 @@ export function SceneCanvas({
       setFogPreview(fogDrag);
       return;
     }
+    if (mode === "gm" && weatherMaskTool && scene && onSceneChange && event.button === 0) {
+      const point = getToolPoint(event);
+      if (weatherMaskTool === "polygon") {
+        updateWeatherPolygonDraft(point);
+        return;
+      }
+      const maskDrag = {
+        pointerId: event.pointerId,
+        kind: weatherMaskTool,
+        start: point,
+        current: point
+      } satisfies WeatherMaskDrag;
+      weatherMaskDragRef.current = maskDrag;
+      setWeatherMaskPreview(maskDrag);
+      return;
+    }
     if (mode === "gm" && scene && onSceneChange && event.button === 0 && canShowTokens) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const token = getTokenAtPoint(scene.tokens, point);
@@ -788,8 +876,23 @@ export function SceneCanvas({
       return;
     }
 
+    const weatherMaskDrag = weatherMaskDragRef.current;
+    if (weatherMaskDrag?.pointerId === event.pointerId) {
+      const point = getToolPoint(event);
+      const current = weatherMaskDrag.kind === "rectangle" && event.shiftKey ? constrainSquarePoint(weatherMaskDrag.start, point) : point;
+      const nextDrag = { ...weatherMaskDrag, current };
+      weatherMaskDragRef.current = nextDrag;
+      setWeatherMaskPreview(nextDrag);
+      return;
+    }
+
     if (polygonDraftRef.current) {
       setPolygonDraft({ ...polygonDraftRef.current, current: getToolPoint(event) });
+      return;
+    }
+
+    if (weatherPolygonDraftRef.current) {
+      setWeatherPolygonDraft({ ...weatherPolygonDraftRef.current, current: getToolPoint(event) });
       return;
     }
 
@@ -812,6 +915,33 @@ export function SceneCanvas({
   };
 
   const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const weatherMaskDrag = weatherMaskDragRef.current;
+    if (weatherMaskDrag?.pointerId === event.pointerId) {
+      weatherMaskDragRef.current = null;
+      setWeatherMaskPreview(null);
+      if (scene && onSceneChange && isMeaningfulWeatherMaskDrag(weatherMaskDrag)) {
+        onSceneChange({
+          ...scene,
+          weather: {
+            ...scene.weather,
+            masks: [
+              ...scene.weather.masks,
+              {
+                id: crypto.randomUUID(),
+                name: `Weather Mask ${scene.weather.masks.length + 1}`,
+                kind: weatherMaskDrag.kind,
+                points: [weatherMaskDrag.start, weatherMaskDrag.current],
+                radius: weatherMaskDrag.kind === "circle" ? distanceBetween(weatherMaskDrag.start, weatherMaskDrag.current) : undefined,
+                visible: true
+              }
+            ]
+          },
+          updatedAt: new Date().toISOString()
+        });
+      }
+      return;
+    }
+
     const fogDrag = fogDragRef.current;
     if (fogDrag?.pointerId === event.pointerId) {
       fogDragRef.current = null;
@@ -917,6 +1047,10 @@ export function SceneCanvas({
       event.preventDefault();
       commitPolygonDraft();
     }
+    if (weatherPolygonDraftRef.current) {
+      event.preventDefault();
+      commitWeatherPolygonDraft();
+    }
   };
 
   const onContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -948,14 +1082,24 @@ export function SceneCanvas({
     }
 
     const draft = polygonDraftRef.current;
-    if (!draft) {
+    const weatherDraft = weatherPolygonDraftRef.current;
+    if (!draft && !weatherDraft) {
       return;
     }
     event.preventDefault();
-    const nextPoints = draft.points.slice(0, -1);
-    const nextDraft = nextPoints.length > 0 ? { ...draft, points: nextPoints, current: nextPoints[nextPoints.length - 1] } : null;
-    polygonDraftRef.current = nextDraft;
-    setPolygonDraft(nextDraft);
+    if (draft) {
+      const nextPoints = draft.points.slice(0, -1);
+      const nextDraft = nextPoints.length > 0 ? { ...draft, points: nextPoints, current: nextPoints[nextPoints.length - 1] } : null;
+      polygonDraftRef.current = nextDraft;
+      setPolygonDraft(nextDraft);
+      return;
+    }
+    if (weatherDraft) {
+      const nextPoints = weatherDraft.points.slice(0, -1);
+      const nextDraft = nextPoints.length > 0 ? { ...weatherDraft, points: nextPoints, current: nextPoints[nextPoints.length - 1] } : null;
+      weatherPolygonDraftRef.current = nextDraft;
+      setWeatherPolygonDraft(nextDraft);
+    }
   };
 
   const canAcceptTokenAssetDrop = (event: React.DragEvent<HTMLCanvasElement>): boolean => {
@@ -992,6 +1136,13 @@ export function SceneCanvas({
         : { operation, points: [point], current: point };
     setPolygonDraft(nextDraft);
     polygonDraftRef.current = nextDraft;
+  };
+
+  const updateWeatherPolygonDraft = (point: Point) => {
+    const currentDraft = weatherPolygonDraftRef.current;
+    const nextDraft = currentDraft ? { ...currentDraft, points: [...currentDraft.points, point], current: point } : { points: [point], current: point };
+    setWeatherPolygonDraft(nextDraft);
+    weatherPolygonDraftRef.current = nextDraft;
   };
 
   const getToolPoint = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
@@ -1041,6 +1192,32 @@ export function SceneCanvas({
             points: draft.points,
             visibleInGm: true,
             visibleInPlayer: scene.fog.newShapesVisibleInPlayer,
+            visible: true
+          }
+        ]
+      },
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const commitWeatherPolygonDraft = () => {
+    const draft = weatherPolygonDraftRef.current;
+    if (!scene || !onSceneChange || !draft || !isMeaningfulPolygon(draft.points)) {
+      return;
+    }
+    weatherPolygonDraftRef.current = null;
+    setWeatherPolygonDraft(null);
+    onSceneChange({
+      ...scene,
+      weather: {
+        ...scene.weather,
+        masks: [
+          ...scene.weather.masks,
+          {
+            id: crypto.randomUUID(),
+            name: `Weather Mask ${scene.weather.masks.length + 1}`,
+            kind: "polygon",
+            points: draft.points,
             visible: true
           }
         ]
@@ -1104,7 +1281,7 @@ export function SceneCanvas({
         ))}
       <canvas
         ref={canvasRef}
-        className={`scene-canvas ${getCanvasInteractionClass({ canvasTool, fogTool, isPanning, tokenDragPreview })}`}
+        className={`scene-canvas ${getCanvasInteractionClass({ canvasTool, fogTool, weatherMaskTool, isPanning, tokenDragPreview })}`}
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -1122,6 +1299,7 @@ export function SceneCanvas({
       )}
       {mode === "gm" && canvasTool === "ruler" && <RulerStatusStrip rulerDrag={rulerDrag} scene={scene} />}
       {mode === "gm" && (canvasTool === "ping" || canvasTool === "laser") && <TableToolStatusStrip canvasTool={canvasTool} />}
+      {mode === "gm" && weatherMaskTool && <WeatherMaskStatusStrip weatherMaskTool={weatherMaskTool} pointCount={weatherPolygonDraft?.points.length ?? 0} />}
       {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
       {showMapOverlay && <MapLoadOverlay message={mapOverlayMessage} showSpinner={mapLoadStatus === "loading"} />}
       {mode === "gm" && showVideoDiagnostics && isVideoMap && videoDebug && <div className="video-debug">{videoDebug}</div>}
@@ -1195,6 +1373,23 @@ function TableToolStatusStrip({ canvasTool }: { canvasTool: "ping" | "laser" }) 
     <div className="fog-tool-status" aria-live="polite">
       <strong>{canvasTool === "ping" ? "Ping" : "Laser Pointer"}</strong>
       <span>{canvasTool === "ping" ? "Click the map to send a ping." : "Drag on the map to show a fading pointer trail."}</span>
+    </div>
+  );
+}
+
+function WeatherMaskStatusStrip({ weatherMaskTool, pointCount }: { weatherMaskTool: WeatherMaskTool; pointCount: number }) {
+  const label = weatherMaskTool === "polygon" ? "Weather Mask Polygon" : weatherMaskTool === "circle" ? "Weather Mask Circle" : "Weather Mask Rectangle";
+  const hint =
+    weatherMaskTool === "polygon"
+      ? `Click to place points.${pointCount >= 3 ? " Enter or double-click finishes." : ""}${pointCount > 0 ? " Right-click removes last point." : ""} Escape cancels.`
+      : weatherMaskTool === "circle"
+        ? "Left-drag from center to set the excluded weather radius."
+        : "Left-drag to draw an excluded weather area. Hold Shift for square.";
+  return (
+    <div className="fog-tool-status" aria-live="polite">
+      <strong>{label}</strong>
+      <span>{hint}</span>
+      <span>{FOG_GRID_SNAP_HINT}</span>
     </div>
   );
 }
@@ -1287,11 +1482,13 @@ function getFogSnapPoint(point: Point, scene: Scene): Point | null {
 function getCanvasInteractionClass({
   canvasTool,
   fogTool,
+  weatherMaskTool,
   isPanning,
   tokenDragPreview
 }: {
   canvasTool: "ruler" | "ping" | "laser" | null;
   fogTool: FogTool | null;
+  weatherMaskTool: WeatherMaskTool | null;
   isPanning: boolean;
   tokenDragPreview: TokenDragPreview | null;
 }): string {
@@ -1309,6 +1506,15 @@ function getCanvasInteractionClass({
   }
   if (canvasTool === "laser") {
     return "scene-canvas-tool-laser";
+  }
+  if (weatherMaskTool === "circle") {
+    return "scene-canvas-tool-circle";
+  }
+  if (weatherMaskTool === "rectangle") {
+    return "scene-canvas-tool-rectangle";
+  }
+  if (weatherMaskTool === "polygon") {
+    return "scene-canvas-tool-polygon";
   }
   if (!fogTool) {
     return "";
@@ -1368,6 +1574,103 @@ function drawBrushHoverPreview(ctx: CanvasRenderingContext2D, point: Point, radi
   ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
+}
+
+function drawWeatherMaskPreview(ctx: CanvasRenderingContext2D, preview: WeatherMaskDrag, camera: Camera) {
+  ctx.save();
+  ctx.translate(camera.x, camera.y);
+  ctx.scale(camera.zoom, camera.zoom);
+  ctx.strokeStyle = "#8bc6ff";
+  ctx.fillStyle = "rgb(139 198 255 / 0.12)";
+  ctx.lineWidth = Math.max(1.5, 2 / camera.zoom);
+  ctx.setLineDash([8 / camera.zoom, 5 / camera.zoom]);
+  if (preview.kind === "circle") {
+    ctx.beginPath();
+    ctx.arc(preview.start.x, preview.start.y, distanceBetween(preview.start, preview.current), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    const x = Math.min(preview.start.x, preview.current.x);
+    const y = Math.min(preview.start.y, preview.current.y);
+    const width = Math.abs(preview.current.x - preview.start.x);
+    const height = Math.abs(preview.current.y - preview.start.y);
+    ctx.fillRect(x, y, width, height);
+    ctx.strokeRect(x, y, width, height);
+  }
+  ctx.restore();
+}
+
+function drawWeatherPolygonDraft(ctx: CanvasRenderingContext2D, draft: WeatherPolygonDraft, camera: Camera) {
+  if (draft.points.length === 0) {
+    return;
+  }
+
+  ctx.save();
+  ctx.translate(camera.x, camera.y);
+  ctx.scale(camera.zoom, camera.zoom);
+  ctx.strokeStyle = "#8bc6ff";
+  ctx.fillStyle = "#8bc6ff";
+  ctx.lineWidth = Math.max(1.5, 2 / camera.zoom);
+  ctx.setLineDash([8 / camera.zoom, 5 / camera.zoom]);
+  ctx.beginPath();
+  ctx.moveTo(draft.points[0].x, draft.points[0].y);
+  for (const point of draft.points.slice(1)) {
+    ctx.lineTo(point.x, point.y);
+  }
+  if (draft.current) {
+    ctx.lineTo(draft.current.x, draft.current.y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  for (const point of draft.points) {
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 8 / camera.zoom, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, 2 / camera.zoom);
+    ctx.strokeStyle = "#0b1118";
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawWeatherMaskSelection(ctx: CanvasRenderingContext2D, mask: WeatherMask, camera: Camera) {
+  ctx.save();
+  ctx.translate(camera.x, camera.y);
+  ctx.scale(camera.zoom, camera.zoom);
+  ctx.strokeStyle = "#8bc6ff";
+  ctx.fillStyle = "rgb(139 198 255 / 0.16)";
+  ctx.lineWidth = Math.max(1.75, 2.5 / camera.zoom);
+  ctx.setLineDash([9 / camera.zoom, 5 / camera.zoom]);
+  if (mask.kind === "circle" && mask.points[0] && mask.radius) {
+    ctx.beginPath();
+    ctx.arc(mask.points[0].x, mask.points[0].y, mask.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  } else if (mask.kind === "rectangle" && mask.points.length >= 2) {
+    const x = Math.min(mask.points[0].x, mask.points[1].x);
+    const y = Math.min(mask.points[0].y, mask.points[1].y);
+    const width = Math.abs(mask.points[1].x - mask.points[0].x);
+    const height = Math.abs(mask.points[1].y - mask.points[0].y);
+    ctx.fillRect(x, y, width, height);
+    ctx.strokeRect(x, y, width, height);
+  } else if (mask.kind === "polygon" && mask.points.length >= 3) {
+    ctx.beginPath();
+    ctx.moveTo(mask.points[0].x, mask.points[0].y);
+    for (const point of mask.points.slice(1)) {
+      ctx.lineTo(point.x, point.y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function isMeaningfulWeatherMaskDrag(drag: WeatherMaskDrag): boolean {
+  if (drag.kind === "circle") {
+    return distanceBetween(drag.start, drag.current) >= 4;
+  }
+  return Math.abs(drag.current.x - drag.start.x) >= 4 && Math.abs(drag.current.y - drag.start.y) >= 4;
 }
 
 function hasActiveLiveTableEvents(events: LiveTableEvent[]): boolean {
