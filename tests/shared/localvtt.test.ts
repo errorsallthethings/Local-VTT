@@ -13,6 +13,7 @@ import {
   DEFAULT_MEASUREMENT,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
+  DEFAULT_WEATHER,
   isLiveTableEvent,
   isPlayerIdleState,
   isPlayerSceneProjection,
@@ -61,10 +62,34 @@ it("normalizeScene fills default settings for older scene files", () => {
   expect(normalized.videoPlayback).toEqual(DEFAULT_VIDEO_PLAYBACK);
   expect(normalized.layerOrderLocked).toBe(true);
   expect(normalized.layers.length).toBe(DEFAULT_LAYERS.length);
+  expect(normalized.weather).toEqual(DEFAULT_WEATHER);
   expect(normalized.fog.opacity).toBe(0.8);
   expect(normalized.fog.gmOpacity).toBe(0.5);
   expect(normalized.fog.playerOpacity).toBe(0.8);
   expect(normalized.fog.newShapesVisibleInPlayer).toBe(true);
+});
+
+it("normalizeScene clamps weather settings", () => {
+  const scene = createDefaultScene("Weather");
+  scene.weather = {
+    enabled: true,
+    effect: "rain-storm",
+    intensity: 9,
+    opacity: -2,
+    speed: 99,
+    directionDegrees: 720
+  };
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.weather).toEqual({
+    enabled: true,
+    effect: "rain-storm",
+    intensity: 1,
+    opacity: 0,
+    speed: 3,
+    directionDegrees: 360
+  });
 });
 
 it("normalizeScene applies canonical core layer names and order", () => {

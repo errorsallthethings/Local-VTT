@@ -32,6 +32,7 @@ import { getPathDistance, getPointAlongPath, normalizeMovementPath } from "../ca
 import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
 import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
+import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
 import {
@@ -171,10 +172,12 @@ export function SceneCanvas({
   const mapLayer = scene?.layers.find((layer) => layer.id === "map");
   const gridLayer = scene?.layers.find((layer) => layer.id === "grid");
   const fogLayer = scene?.layers.find((layer) => layer.id === "fog");
+  const weatherLayer = scene?.layers.find((layer) => layer.id === "weather");
   const tokenLayer = scene?.layers.find((layer) => layer.id === "token");
   const canShowMap = mode === "gm" ? mapLayer?.visibleInGm : mapLayer?.visibleInPlayer;
   const canShowGrid = mode === "gm" ? gridLayer?.visibleInGm : gridLayer?.visibleInPlayer;
   const canShowFog = mode === "gm" ? fogLayer?.visibleInGm : fogLayer?.visibleInPlayer;
+  const canShowWeather = mode === "gm" ? weatherLayer?.visibleInGm : weatherLayer?.visibleInPlayer;
   const canShowTokens = mode === "gm" ? tokenLayer?.visibleInGm : tokenLayer?.visibleInPlayer;
   const isVideoMap = Boolean(canShowMap && mapAsset?.mediaType === "video" && assetUrl);
   const playerDisplayScale = getPlayerDisplayScale(campaign, scene, mode);
@@ -543,6 +546,10 @@ export function SceneCanvas({
         drawRuler(ctx, rulerDrag, getRulerLabel(rulerDrag, scene), scene.grid, renderCamera.zoom);
       }
 
+      if (canShowWeather) {
+        drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1);
+      }
+
       ctx.restore();
 
       if (canShowFog) {
@@ -564,13 +571,13 @@ export function SceneCanvas({
     const drawCurrentFrame = () => {
       const rect = canvas.getBoundingClientRect();
       drawScene(context, rect.width, rect.height);
-      if (loadedMap?.animate || playerTokenTweenPositionsRef.current || hasActiveLiveTableEvents(liveTableEvents)) {
+      if (loadedMap?.animate || playerTokenTweenPositionsRef.current || hasActiveLiveTableEvents(liveTableEvents) || shouldAnimateWeather(scene, Boolean(canShowWeather))) {
         animationFrame = window.requestAnimationFrame(drawCurrentFrame);
       }
     };
 
     resize();
-    if (loadedMap?.animate || playerTokenTweenPositionsRef.current || hasActiveLiveTableEvents(liveTableEvents)) {
+    if (loadedMap?.animate || playerTokenTweenPositionsRef.current || hasActiveLiveTableEvents(liveTableEvents) || shouldAnimateWeather(scene, Boolean(canShowWeather))) {
       animationFrame = window.requestAnimationFrame(drawCurrentFrame);
     }
     const observer = new ResizeObserver(resize);
@@ -581,7 +588,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, snapPoint, tokenDragPreview]);
+  }, [brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, snapPoint, tokenDragPreview, weatherLayer?.opacity]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {

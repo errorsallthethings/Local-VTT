@@ -18,7 +18,7 @@ import {
   User,
   UsersRound
 } from "lucide-react";
-import type { Asset, FogSettings, GridSettings, GridType, Layer, MapTransform, Scene } from "../../../shared/localvtt";
+import type { Asset, FogSettings, GridSettings, GridType, Layer, MapTransform, Scene, WeatherEffectType, WeatherSettings } from "../../../shared/localvtt";
 import { formatDefaultFogShapeName, type Token } from "../../../shared/localvtt";
 import { getSnappedTokenPosition } from "../../canvas/tokenGeometry";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
@@ -220,6 +220,21 @@ export function LayerPanel({
     });
   };
 
+  const updateWeather = (patch: Partial<WeatherSettings>) => {
+    const nextWeather = {
+      ...scene.weather,
+      ...patch
+    };
+    onChange({
+      ...scene,
+      weather: {
+        ...nextWeather,
+        enabled: patch.effect === "none" ? false : nextWeather.enabled
+      },
+      updatedAt: new Date().toISOString()
+    });
+  };
+
   return (
     <section className="panel">
       <div className="layer-list">
@@ -227,7 +242,8 @@ export function LayerPanel({
           const hasLayerSettings =
             (layer.id === "map" && Boolean(mapAsset)) ||
             layer.id === "grid" ||
-            layer.id === "fog";
+            layer.id === "fog" ||
+            layer.id === "weather";
           const hasLayerContents = true;
           const isExpanded = hasLayerContents && expandedLayerIds.has(layer.id);
           const areSettingsExpanded = settingsLayerIds.has(layer.id);
@@ -370,6 +386,75 @@ export function LayerPanel({
                   onRenameFogShape={onRenameFogShape}
                   onUpdateFog={onUpdateFog}
                 />
+              )}
+              {layer.id === "weather" && isExpanded && !areSettingsExpanded && (
+                <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
+                  <div className="layer-empty-state">
+                    <strong>Weather Effects</strong>
+                    <span>Use the gear button to choose a scene weather preset and tune its motion.</span>
+                  </div>
+                </div>
+              )}
+              {layer.id === "weather" && areSettingsExpanded && (
+                <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
+                  <label className="setting-row">
+                    <span>Enabled</span>
+                    <input type="checkbox" checked={scene.weather.enabled} onChange={(event) => updateWeather({ enabled: event.target.checked })} />
+                  </label>
+                  <label className="stacked-control">
+                    Effect
+                    <select
+                      value={scene.weather.effect}
+                      onChange={(event) => {
+                        const effect = event.target.value as WeatherEffectType;
+                        updateWeather({ effect, enabled: effect !== "none" });
+                      }}
+                    >
+                      <option value="none">None</option>
+                      <option value="partly-cloudy">Partly cloudy</option>
+                      <option value="light-rain">Light rain</option>
+                      <option value="rain">Rain</option>
+                      <option value="heavy-rain">Heavy rain</option>
+                      <option value="lightning">Lightning</option>
+                      <option value="rain-storm">Rain storm</option>
+                      <option value="snow">Snow</option>
+                      <option value="blizzard">Blizzard</option>
+                      <option value="dust-storm">Dust storm</option>
+                      <option value="heavy-wind">Heavy wind</option>
+                      <option value="light-fog">Light fog</option>
+                      <option value="fog">Fog</option>
+                      <option value="heavy-fog">Heavy fog</option>
+                      <option value="ashfall">Ashfall</option>
+                      <option value="embers">Embers</option>
+                    </select>
+                  </label>
+                  <div className="settings-grid">
+                    <label className="setting-row">
+                      <span>Intensity</span>
+                      <input type="range" min={0.1} max={1} step={0.05} value={scene.weather.intensity} onChange={(event) => updateWeather({ intensity: Number(event.target.value) })} />
+                    </label>
+                    <label className="setting-row">
+                      <span>Opacity</span>
+                      <input type="range" min={0.05} max={1} step={0.05} value={scene.weather.opacity} onChange={(event) => updateWeather({ opacity: Number(event.target.value) })} />
+                    </label>
+                    <label className="setting-row">
+                      <span>Speed</span>
+                      <input type="range" min={0.1} max={2} step={0.05} value={scene.weather.speed} onChange={(event) => updateWeather({ speed: Number(event.target.value) })} />
+                    </label>
+                    <label className="setting-row">
+                      <span>Direction</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={360}
+                        step={5}
+                        value={scene.weather.directionDegrees}
+                        onChange={(event) => updateWeather({ directionDegrees: Number(event.target.value) })}
+                      />
+                    </label>
+                  </div>
+                  <div className="inline-help">Weather renders as a lightweight canvas effect on both GM View and Player View when the layer is visible.</div>
+                </div>
               )}
               {layer.id === "token" && isExpanded && (
                 <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
@@ -638,8 +723,6 @@ function getReservedLayerGuidance(layer: Layer): string | null {
   switch (layer.id) {
     case "gm":
       return "Reserved for future GM-only notes, markers, and private scene tools.";
-    case "weather":
-      return "Reserved for future weather and environmental effects.";
     case "foreground":
       return "Reserved for future foreground overlays that sit above tokens.";
     case "object":

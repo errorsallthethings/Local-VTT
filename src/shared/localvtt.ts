@@ -115,6 +115,33 @@ export interface FogSettings {
   shapes: FogShape[];
 }
 
+export type WeatherEffectType =
+  | "none"
+  | "partly-cloudy"
+  | "light-rain"
+  | "rain"
+  | "heavy-rain"
+  | "lightning"
+  | "rain-storm"
+  | "snow"
+  | "blizzard"
+  | "dust-storm"
+  | "heavy-wind"
+  | "light-fog"
+  | "fog"
+  | "heavy-fog"
+  | "ashfall"
+  | "embers";
+
+export interface WeatherSettings {
+  enabled: boolean;
+  effect: WeatherEffectType;
+  intensity: number;
+  opacity: number;
+  speed: number;
+  directionDegrees: number;
+}
+
 export interface FogShape {
   id: string;
   name?: string;
@@ -242,6 +269,7 @@ export interface Scene {
   layerOrderLocked: boolean;
   mapTransform: MapTransform;
   fog: FogSettings;
+  weather: WeatherSettings;
   tokens: Token[];
   tokenMovementPath?: TokenMovementPath;
   walls: Wall[];
@@ -400,6 +428,34 @@ export const DEFAULT_FOG: FogSettings = {
   shapes: []
 };
 
+export const DEFAULT_WEATHER: WeatherSettings = {
+  enabled: false,
+  effect: "none",
+  intensity: 0.65,
+  opacity: 0.65,
+  speed: 0.6,
+  directionDegrees: 105
+};
+
+const WEATHER_EFFECTS = new Set<WeatherEffectType>([
+  "none",
+  "partly-cloudy",
+  "light-rain",
+  "rain",
+  "heavy-rain",
+  "lightning",
+  "rain-storm",
+  "snow",
+  "blizzard",
+  "dust-storm",
+  "heavy-wind",
+  "light-fog",
+  "fog",
+  "heavy-fog",
+  "ashfall",
+  "embers"
+]);
+
 export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
   { id: "gm", name: "GM", kind: "gm", order: 90, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
@@ -445,6 +501,7 @@ export function createDefaultScene(name: string): Scene {
     layerOrderLocked: true,
     mapTransform: { ...DEFAULT_MAP_TRANSFORM },
     fog: { ...DEFAULT_FOG, shapes: [] },
+    weather: { ...DEFAULT_WEATHER },
     tokens: [],
     walls: [],
     lights: [],
@@ -574,6 +631,7 @@ export function normalizeScene(scene: Scene): Scene {
     layerOrderLocked: scene.layerOrderLocked ?? true,
     mapTransform: { ...DEFAULT_MAP_TRANSFORM, ...(scene.mapTransform ?? {}) },
     fog: normalizeFog(scene.fog),
+    weather: normalizeWeather(scene.weather),
     tokens: normalizeTokens(scene.tokens),
     videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(scene.videoPlayback ?? {}) }
   };
@@ -581,6 +639,20 @@ export function normalizeScene(scene: Scene): Scene {
 
 function isValidSceneShape(value: unknown): value is Scene {
   return isRecord(value) && isNonEmptyString(value.id) && isNonEmptyString(value.name) && Array.isArray(value.layers);
+}
+
+function normalizeWeather(weather?: Partial<WeatherSettings>): WeatherSettings {
+  const effect = weather?.effect && WEATHER_EFFECTS.has(weather.effect) ? weather.effect : DEFAULT_WEATHER.effect;
+  return {
+    ...DEFAULT_WEATHER,
+    ...(weather ?? {}),
+    enabled: weather?.enabled ?? DEFAULT_WEATHER.enabled,
+    effect,
+    intensity: clampNumber(weather?.intensity, 0, 1, DEFAULT_WEATHER.intensity),
+    opacity: clampNumber(weather?.opacity, 0, 1, DEFAULT_WEATHER.opacity),
+    speed: clampNumber(weather?.speed, 0.05, 3, DEFAULT_WEATHER.speed),
+    directionDegrees: clampNumber(weather?.directionDegrees, 0, 360, DEFAULT_WEATHER.directionDegrees)
+  };
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -716,6 +788,10 @@ function normalizeTokenPresentationDefaults(defaults: TokenPresentationDefaults)
 
 function normalizeColor(color: unknown, fallback = DEFAULT_SCENE_FOLDER_COLOR): string {
   return typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback;
+}
+
+function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 }
 
 export function projectSceneForPlayer(campaign: Campaign, scene: Scene): PlayerSceneProjection {
