@@ -112,6 +112,9 @@ function ActiveWeatherIcons({ scene }: { scene: Scene }) {
   if (scene.weather.effects.sand.enabled) {
     activeEffects.push({ key: "sand", label: getWeatherPatternLabel(scene.weather.effects.sand.pattern), icon: <CloudSun size={14} aria-hidden="true" /> });
   }
+  if (scene.weather.effects.cloud.enabled) {
+    activeEffects.push({ key: "cloud", label: getWeatherPatternLabel(scene.weather.effects.cloud.pattern), icon: <CloudFog size={14} aria-hidden="true" /> });
+  }
 
   if (activeEffects.length === 0) {
     return null;
@@ -156,6 +159,12 @@ function getWeatherPatternLabel(pattern: string): string {
       return "Sand";
     case "sandstorm":
       return "Sandstorm";
+    case "light-clouds":
+      return "Light Overcast";
+    case "cloud-shadows":
+      return "Overcast";
+    case "overcast":
+      return "Heavy Overcast";
     default:
       return "Weather";
   }

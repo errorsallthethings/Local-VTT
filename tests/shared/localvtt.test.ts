@@ -112,7 +112,7 @@ it("normalizeScene clamps weather settings", () => {
         enabled: true,
         pattern: "rain-storm",
         settings: {
-          intensity: 1,
+          intensity: 1.5,
           opacity: 0,
           color: "#d8dee9",
           speed: 3,
@@ -129,7 +129,8 @@ it("normalizeScene clamps weather settings", () => {
       },
       fog: DEFAULT_WEATHER.effects.fog,
       snow: DEFAULT_WEATHER.effects.snow,
-      sand: DEFAULT_WEATHER.effects.sand
+      sand: DEFAULT_WEATHER.effects.sand,
+      cloud: DEFAULT_WEATHER.effects.cloud
     },
     masks: []
   });
