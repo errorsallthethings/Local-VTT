@@ -1154,10 +1154,10 @@ const WEATHER_ADVANCED_LABELS: Record<
     streakLength: "Streak Length"
   },
   fog: {
-    edgeBias: "Edge Density",
-    quietAreaSize: "Center Clearing",
-    centerStrayDrops: "Soft Pockets",
-    streakLength: "Fog Scale"
+    edgeBias: "Edge Spawn",
+    quietAreaSize: "Interior Area",
+    centerStrayDrops: "Interior Wisps",
+    streakLength: "Bank Scale"
   },
   snow: {
     edgeBias: "Edge Frost",

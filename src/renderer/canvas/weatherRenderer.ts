@@ -29,6 +29,27 @@ type RainStreak = {
   drift: number;
 };
 
+type FogBank = {
+  seed: number;
+  groupSeed: number;
+  textureIndex: number;
+  baseX: number;
+  baseY: number;
+  localX: number;
+  localY: number;
+  radiusX: number;
+  radiusY: number;
+  alpha: number;
+  speed: number;
+  groupSpeed: number;
+  rotation: number;
+  phase: number;
+  groupPhase: number;
+  flowDistance: number;
+  drift: number;
+  localDrift: number;
+};
+
 type SnowParticle = {
   seed: number;
   baseX: number;
@@ -116,22 +137,22 @@ const RAIN_PRESETS: Record<RainWeatherEffectType, RainPreset> = {
 
 const FOG_PRESETS: Record<FogWeatherEffectType, FogPreset> = {
   "light-fog": {
-    bankCount: 14,
-    opacity: 0.9,
-    scale: 1.06,
-    baseHaze: 0.18
+    bankCount: 75,
+    opacity: 0.42,
+    scale: 1.34,
+    baseHaze: 0.12
   },
   fog: {
-    bankCount: 18,
-    opacity: 0.92,
-    scale: 1.14,
-    baseHaze: 0.22
+    bankCount: 125,
+    opacity: 0.52,
+    scale: 1.5,
+    baseHaze: 0.18
   },
   "heavy-fog": {
-    bankCount: 26,
-    opacity: 1.08,
-    scale: 1.34,
-    baseHaze: 0.34
+    bankCount: 170,
+    opacity: 0.66,
+    scale: 1.72,
+    baseHaze: 0.28
   }
 };
 
@@ -306,6 +327,210 @@ class RainRenderer {
     this.rain.geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     this.rain.geometry.attributes.position.needsUpdate = true;
     this.rain.geometry.attributes.color.needsUpdate = true;
+  }
+}
+
+class FogRenderer {
+  private renderer: THREE.WebGLRenderer | null = null;
+  private scene = new THREE.Scene();
+  private camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+  private haze: THREE.Mesh | null = null;
+  private fog: THREE.InstancedMesh | null = null;
+  private densityTexture: THREE.CanvasTexture | null = null;
+  private banks: FogBank[] = [];
+  private signature = "";
+  private matrix = new THREE.Matrix4();
+  private position = new THREE.Vector3();
+  private quaternion = new THREE.Quaternion();
+  private scale = new THREE.Vector3();
+
+  draw(ctx: CanvasRenderingContext2D, area: WeatherArea, weather: WeatherSettings, camera: Camera, now: number, opacity: number) {
+    if (!isFogEffect(weather.effect)) {
+      return;
+    }
+    const bounds = area.clip;
+    const preset = FOG_PRESETS[weather.effect];
+    const width = ctx.canvas.clientWidth || bounds.width;
+    const height = ctx.canvas.clientHeight || bounds.height;
+    const renderer = this.getRenderer(width, height);
+    const signature = [
+      weather.effect,
+      Math.round(bounds.left),
+      Math.round(bounds.top),
+      Math.round(bounds.width),
+      Math.round(bounds.height),
+      weather.intensity.toFixed(2),
+      weather.edgeBias.toFixed(2),
+      weather.quietAreaSize.toFixed(2),
+      weather.centerStrayDrops.toFixed(2),
+      weather.streakLength.toFixed(2),
+      weather.directionDegrees.toFixed(0),
+      weather.driftStrength.toFixed(2),
+      weather.quality
+    ].join(":");
+
+    if (signature !== this.signature) {
+      this.signature = signature;
+      this.rebuild(bounds, weather, preset);
+    }
+
+    this.update(bounds, weather, preset, now, opacity);
+    renderer.setSize(width, height, false);
+    renderer.setClearColor(0x000000, 0);
+    renderer.clear();
+    renderer.render(this.scene, this.camera);
+
+    ctx.save();
+    ctx.clip(getWeatherClipPath(area.clip, weather.masks, camera), "evenodd");
+    ctx.drawImage(renderer.domElement, 0, 0, width, height);
+    ctx.restore();
+  }
+
+  private getRenderer(width: number, height: number) {
+    if (!this.renderer) {
+      this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+      this.renderer.setPixelRatio(1);
+      this.camera.position.set(0, 0, 1800);
+      this.camera.lookAt(0, 0, 0);
+    }
+    this.camera.left = 0;
+    this.camera.right = width;
+    this.camera.top = 0;
+    this.camera.bottom = height;
+    this.camera.near = 0.1;
+    this.camera.far = 4000;
+    this.camera.updateProjectionMatrix();
+    return this.renderer;
+  }
+
+  private rebuild(bounds: WeatherBounds, weather: WeatherSettings, preset: FogPreset) {
+    this.scene.clear();
+    this.haze = createFogHazeMesh(bounds);
+    this.haze.renderOrder = 0;
+    this.scene.add(this.haze);
+
+    const count = Math.round(preset.bankCount * getQualityMultiplier(weather) * (0.75 + weather.intensity * 0.8));
+    this.banks = createFogBanks(bounds, weather, preset, count);
+    const geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+    const alphaAttribute = new THREE.InstancedBufferAttribute(new Float32Array(count), 1);
+    const seedAttribute = new THREE.InstancedBufferAttribute(new Float32Array(count), 1);
+    const textureAttribute = new THREE.InstancedBufferAttribute(new Float32Array(count), 1);
+    geometry.setAttribute("fogAlpha", alphaAttribute);
+    geometry.setAttribute("fogSeed", seedAttribute);
+    geometry.setAttribute("fogTextureIndex", textureAttribute);
+
+    const material = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      blending: THREE.NormalBlending,
+      side: THREE.DoubleSide,
+      uniforms: {
+        globalOpacity: { value: 0 },
+        cloudMap: { value: this.getDensityTexture() },
+        time: { value: 0 }
+      },
+      vertexShader: `
+        attribute float fogAlpha;
+        attribute float fogSeed;
+        attribute float fogTextureIndex;
+        varying vec2 vUv;
+        varying float vAlpha;
+        varying float vSeed;
+        varying float vTextureIndex;
+
+        void main() {
+          vUv = uv;
+          vAlpha = fogAlpha;
+          vSeed = fogSeed;
+          vTextureIndex = fogTextureIndex;
+          gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float globalOpacity;
+        uniform sampler2D cloudMap;
+        uniform float time;
+        varying vec2 vUv;
+        varying float vAlpha;
+        varying float vSeed;
+        varying float vTextureIndex;
+
+        void main() {
+          float tile = floor(vTextureIndex + 0.5);
+          float tileX = mod(tile, 3.0);
+          float tileY = floor(tile / 3.0);
+          vec2 atlasUv = (vUv + vec2(tileX, tileY)) / 3.0;
+          float textureAlpha = texture2D(cloudMap, atlasUv).r;
+          float mistAlpha = pow(textureAlpha, 1.82) * 0.42;
+          float alpha = clamp(mistAlpha * vAlpha * globalOpacity * 0.26, 0.0, 0.14);
+          vec3 fogColor = mix(vec3(0.68, 0.71, 0.72), vec3(0.86, 0.88, 0.88), textureAlpha);
+          gl_FragColor = vec4(fogColor, alpha);
+        }
+      `
+    });
+
+    this.fog = new THREE.InstancedMesh(geometry, material, count);
+    this.fog.frustumCulled = false;
+    this.fog.renderOrder = 1;
+    this.scene.add(this.fog);
+  }
+
+  private update(bounds: WeatherBounds, weather: WeatherSettings, preset: FogPreset, now: number, layerOpacity: number) {
+    updateFogHazeMesh(this.haze, weather, preset, now, layerOpacity);
+    if (!this.fog) {
+      return;
+    }
+    const material = this.fog.material;
+    if (material instanceof THREE.ShaderMaterial) {
+      material.uniforms.globalOpacity.value = weather.opacity * preset.opacity * layerOpacity;
+      material.uniforms.time.value = now * 0.001 * Math.max(0.12, weather.speed);
+    }
+
+    const elapsed = now * 0.001 * weather.speed;
+    const driftRadians = (weather.directionDegrees * Math.PI) / 180;
+    const driftStrength = Math.max(0.08, weather.driftStrength);
+    const directionX = Math.cos(driftRadians);
+    const directionY = Math.sin(driftRadians);
+    const crossX = -directionY;
+    const crossY = directionX;
+    const alphaAttribute = this.fog.geometry.getAttribute("fogAlpha") as THREE.InstancedBufferAttribute;
+    const seedAttribute = this.fog.geometry.getAttribute("fogSeed") as THREE.InstancedBufferAttribute;
+    const textureAttribute = this.fog.geometry.getAttribute("fogTextureIndex") as THREE.InstancedBufferAttribute;
+
+    this.banks.forEach((bank, index) => {
+      const progress = (bank.groupPhase + elapsed * bank.groupSpeed * (0.026 + driftStrength * 0.03)) % 1;
+      const fade = smoothstep(0, 0.12, progress) * (1 - smoothstep(0.86, 1, progress));
+      const groupWave = Math.sin(elapsed * (0.24 + hash(bank.groupSeed + 13) * 0.18) + bank.groupPhase * Math.PI * 2);
+      const localWave = Math.sin(elapsed * (0.42 + hash(bank.seed + 17) * 0.34) + bank.phase * Math.PI * 2);
+      const localPush = Math.cos(elapsed * (0.28 + hash(bank.seed + 23) * 0.24) + bank.phase * Math.PI * 2);
+      const flowX = directionX * bank.flowDistance * progress + crossX * bank.drift * groupWave * 0.22;
+      const flowY = directionY * bank.flowDistance * progress + crossY * bank.drift * groupWave * 0.22;
+      const localX = bank.localX + crossX * bank.localDrift * localWave * 1.25 + directionX * bank.localDrift * localPush * 0.34;
+      const localY = bank.localY + crossY * bank.localDrift * localWave * 1.25 + directionY * bank.localDrift * localPush * 0.34;
+      const rotation = bank.rotation + groupWave * 0.045 + localWave * 0.075;
+      const scalePulse = 1 + Math.sin(elapsed * (0.24 + bank.speed * 0.1) + bank.phase * Math.PI * 2) * 0.055;
+      this.position.set(bank.baseX + flowX + localX, bank.baseY + flowY + localY, 820 + index * 0.5);
+      this.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), rotation);
+      this.scale.set(bank.radiusX * scalePulse * 1.18, bank.radiusY * scalePulse * 1.18, 1);
+      this.matrix.compose(this.position, this.quaternion, this.scale);
+      this.fog?.setMatrixAt(index, this.matrix);
+      alphaAttribute.setX(index, bank.alpha * fade);
+      seedAttribute.setX(index, bank.seed);
+      textureAttribute.setX(index, bank.textureIndex);
+    });
+
+    this.fog.instanceMatrix.needsUpdate = true;
+    alphaAttribute.needsUpdate = true;
+    seedAttribute.needsUpdate = true;
+    textureAttribute.needsUpdate = true;
+  }
+
+  private getDensityTexture() {
+    if (!this.densityTexture) {
+      this.densityTexture = createFogDensityTexture();
+    }
+    return this.densityTexture;
   }
 }
 
@@ -517,7 +742,9 @@ function addWeatherMaskPath(path: Path2D, mask: WeatherMask, camera: Camera) {
   }
   if (mask.kind === "circle" && mask.points[0] && mask.radius) {
     const center = worldToScreen(mask.points[0], camera);
-    path.arc(center.x, center.y, mask.radius * camera.zoom, 0, Math.PI * 2);
+    const radius = mask.radius * camera.zoom;
+    path.moveTo(center.x + radius, center.y);
+    path.arc(center.x, center.y, radius, 0, Math.PI * 2);
     return;
   }
   if (mask.kind === "polygon" && mask.points.length >= 3) {
@@ -539,6 +766,7 @@ function worldToScreen(point: { x: number; y: number }, camera: Camera) {
 }
 
 const rainRenderer = new RainRenderer();
+const fogRenderer = new FogRenderer();
 const snowRenderer = new SnowRenderer();
 
 export function shouldAnimateWeather(scene: Scene, visible: boolean): boolean {
@@ -565,7 +793,7 @@ export function drawWeather(
     rainRenderer.draw(ctx, area, getWeatherForRain(scene.weather), camera, now, opacity);
   }
   if (weather.effects.fog.enabled) {
-    drawFogWeather(ctx, area, getWeatherForFog(scene.weather), camera, now, opacity);
+    fogRenderer.draw(ctx, area, getWeatherForFog(scene.weather), camera, now, opacity);
   }
   if (weather.effects.snow.enabled) {
     drawSnowWeather(ctx, area, getWeatherForSnow(scene.weather), camera, now, opacity);
@@ -732,43 +960,262 @@ function getQuietAreaPoint(bounds: WeatherBounds, index: number, quietAreaSize: 
   }
 }
 
-function drawFogWeather(ctx: CanvasRenderingContext2D, area: WeatherArea, weather: WeatherSettings, camera: Camera, now: number, layerOpacity: number) {
-  if (!isFogEffect(weather.effect)) {
-    return;
-  }
-  const bounds = area.clip;
-  const preset = FOG_PRESETS[weather.effect];
-  const opacity = weather.opacity * layerOpacity * preset.opacity;
-  const count = Math.round(preset.bankCount * getQualityMultiplier(weather) * (0.65 + weather.intensity));
-  const driftRadians = (weather.directionDegrees * Math.PI) / 180;
-  const driftDistance = Math.min(bounds.width, bounds.height) * weather.driftStrength * 0.16;
-  const driftX = Math.cos(driftRadians) * driftDistance;
-  const driftY = Math.sin(driftRadians) * driftDistance;
-  const elapsed = now * 0.001 * weather.speed;
-
-  ctx.save();
-  ctx.clip(getWeatherClipPath(area.clip, weather.masks, camera), "evenodd");
-  ctx.globalCompositeOperation = "screen";
-  ctx.fillStyle = `rgba(184, 196, 206, ${preset.baseHaze * opacity * weather.intensity})`;
-  ctx.fillRect(bounds.left, bounds.top, bounds.width, bounds.height);
-
-  for (let index = 0; index < count; index += 1) {
-    const point = getFogBankPoint(bounds, weather, index);
-    const phase = elapsed * (0.16 + hash(index + 211) * 0.34) + hash(index + 219) * Math.PI * 2;
-    const radiusX = bounds.width * (0.18 + hash(index + 221) * 0.22) * preset.scale * weather.streakLength;
-    const radiusY = bounds.height * (0.08 + hash(index + 223) * 0.12) * preset.scale * weather.streakLength;
-    const flow = getFogFlowOffset(bounds, weather, elapsed, index);
-    const wobbleX = Math.cos(phase) * bounds.width * 0.025 + driftX * Math.sin(phase * 0.7);
-    const wobbleY = Math.sin(phase * 0.82) * bounds.height * 0.018 + driftY * Math.cos(phase * 0.6);
-    const alpha = opacity * (0.07 + hash(index + 227) * 0.11) * (0.65 + weather.intensity * 0.55);
-    drawLoopedFogBank(ctx, bounds, point.x + wobbleX, point.y + wobbleY, flow, radiusX, radiusY, alpha);
-  }
-
-  ctx.restore();
-}
-
 function drawSnowWeather(ctx: CanvasRenderingContext2D, area: WeatherArea, weather: WeatherSettings, camera: Camera, now: number, layerOpacity: number) {
   snowRenderer.draw(ctx, area, weather, camera, now, layerOpacity);
+}
+
+function createFogDensityTexture(): THREE.CanvasTexture {
+  const size = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    const fallbackTexture = new THREE.CanvasTexture(canvas);
+    fallbackTexture.needsUpdate = true;
+    return fallbackTexture;
+  }
+
+  const image = context.createImageData(size, size);
+  const atlasColumns = 3;
+  const tileSize = size / atlasColumns;
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const tileX = Math.min(atlasColumns - 1, Math.floor(x / tileSize));
+      const tileY = Math.min(atlasColumns - 1, Math.floor(y / tileSize));
+      const variant = tileY * atlasColumns + tileX;
+      const localX = x - tileX * tileSize;
+      const localY = y - tileY * tileSize;
+      const u = localX / (tileSize - 1);
+      const v = localY / (tileSize - 1);
+      const variantSeed = variant * 1000;
+      const blobCount = 22 + Math.floor(hash(variantSeed + 1291) * 18);
+      const warpX = (valueNoise(u * 4.2 + 12.7, v * 4.2 + 3.9, 131 + variantSeed) - 0.5) * 0.14;
+      const warpY = (valueNoise(u * 4.2 + 2.4, v * 4.2 + 16.8, 167 + variantSeed) - 0.5) * 0.14;
+      const warpedU = u + warpX;
+      const warpedV = v + warpY;
+      const centeredX = warpedU - 0.52;
+      const centeredY = warpedV - 0.48;
+      const radial = Math.max(0, 1 - Math.hypot(centeredX * 0.9, centeredY * 1.08) * 2.7);
+      let blobDensity = 0;
+      for (let blobIndex = 0; blobIndex < blobCount; blobIndex += 1) {
+        const blobSeed = variantSeed + blobIndex;
+        const blobX = 0.28 + hash(blobSeed + 1301) * 0.44;
+        const blobY = 0.27 + hash(blobSeed + 1401) * 0.46;
+        const radiusX = 0.04 + hash(blobSeed + 1501) * 0.105;
+        const radiusY = 0.035 + hash(blobSeed + 1601) * 0.095;
+        const weight = 0.45 + hash(blobSeed + 1701) * 0.8;
+        const dx = (warpedU - blobX) / radiusX;
+        const dy = (warpedV - blobY) / radiusY;
+        blobDensity += Math.exp(-(dx * dx + dy * dy) * 1.55) * weight;
+      }
+      blobDensity = Math.min(1, blobDensity * 0.58);
+      const broadNoise =
+        valueNoise(warpedU * 2.4 + 7.2, warpedV * 2.4 + 1.7, 11 + variantSeed) * 0.48 +
+        valueNoise(warpedU * 5.2 + 2.1, warpedV * 5.2 + 8.8, 29 + variantSeed) * 0.34 +
+        valueNoise(warpedU * 11.0 + 6.7, warpedV * 11.0 + 4.4, 47 + variantSeed) * 0.18;
+      const erosion =
+        valueNoise(warpedU * 13.5 + 3.2, warpedV * 13.5 + 9.1, 73 + variantSeed) * 0.5 +
+        valueNoise(warpedU * 28.0 + 5.8, warpedV * 28.0 + 2.6, 101 + variantSeed) * 0.32;
+      const strand = Math.max(0, valueNoise(warpedU * 7.2 + 18.4, warpedV * 2.1 + 5.9, 197 + variantSeed) - 0.42) * 0.34;
+      const wisps = Math.max(0, broadNoise + strand - erosion * 0.48);
+      const edgeFade =
+        smoothstep(0, 0.3, u) *
+        smoothstep(0, 0.3, v) *
+        (1 - smoothstep(0.7, 1, u)) *
+        (1 - smoothstep(0.7, 1, v));
+      const density = Math.max(0, Math.min(1, smoothstep(0.02, 1, radial * 0.32 + blobDensity * 0.48 + wisps * 0.18 - erosion * 0.12) * edgeFade));
+      const alpha = Math.round(Math.pow(density, 1.75) * 190);
+      const offset = (y * size + x) * 4;
+      image.data[offset] = alpha;
+      image.data[offset + 1] = alpha;
+      image.data[offset + 2] = alpha;
+      image.data[offset + 3] = alpha;
+    }
+  }
+  context.putImageData(image, 0, 0);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function createFogHazeMesh(bounds: WeatherBounds): THREE.Mesh {
+  const geometry = new THREE.PlaneGeometry(bounds.width, bounds.height);
+  geometry.translate(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2, 760);
+  const material = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    blending: THREE.NormalBlending,
+    side: THREE.DoubleSide,
+    uniforms: {
+      hazeOpacity: { value: 0 },
+      time: { value: 0 },
+      aspect: { value: bounds.width / Math.max(1, bounds.height) }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float hazeOpacity;
+      uniform float time;
+      uniform float aspect;
+      varying vec2 vUv;
+
+      float hash(vec2 point) {
+        return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float noise(vec2 point) {
+        vec2 cell = floor(point);
+        vec2 local = fract(point);
+        vec2 curve = local * local * (3.0 - 2.0 * local);
+        float a = hash(cell);
+        float b = hash(cell + vec2(1.0, 0.0));
+        float c = hash(cell + vec2(0.0, 1.0));
+        float d = hash(cell + vec2(1.0, 1.0));
+        return mix(mix(a, b, curve.x), mix(c, d, curve.x), curve.y);
+      }
+
+      float fbm(vec2 point) {
+        float value = 0.0;
+        float amplitude = 0.5;
+        for (int octave = 0; octave < 4; octave++) {
+          value += noise(point) * amplitude;
+          point = point * 2.1 + vec2(19.2, 5.7);
+          amplitude *= 0.5;
+        }
+        return value;
+      }
+
+      void main() {
+        vec2 centeredUv = vec2((vUv.x - 0.5) * aspect + 0.5, vUv.y);
+        float edgeDistance = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
+        float edgeLift = 1.0 - smoothstep(0.0, 0.42, edgeDistance);
+        float cloud = fbm(centeredUv * 5.2 + vec2(time * 0.012, -time * 0.008));
+        float veil = smoothstep(0.2, 0.86, cloud) * 0.55 + edgeLift * 0.45;
+        vec3 color = mix(vec3(0.58, 0.66, 0.7), vec3(0.82, 0.88, 0.9), clamp(cloud + 0.2, 0.0, 1.0));
+        gl_FragColor = vec4(color, hazeOpacity * veil);
+      }
+    `
+  });
+  const haze = new THREE.Mesh(geometry, material);
+  haze.frustumCulled = false;
+  return haze;
+}
+
+function updateFogHazeMesh(mesh: THREE.Mesh | null, weather: WeatherSettings, preset: FogPreset, now: number, layerOpacity: number) {
+  if (!mesh || !(mesh.material instanceof THREE.ShaderMaterial)) {
+    return;
+  }
+  mesh.material.uniforms.hazeOpacity.value = preset.baseHaze * weather.opacity * weather.intensity * layerOpacity;
+  mesh.material.uniforms.time.value = now * 0.001 * Math.max(0.12, weather.speed);
+}
+
+function createFogBanks(bounds: WeatherBounds, weather: WeatherSettings, preset: FogPreset, targetCount: number): FogBank[] {
+  const banks: FogBank[] = [];
+  const baseSize = Math.min(bounds.width, bounds.height);
+  const extraFogCluster = weather.effect === "light-fog" || weather.effect === "fog" ? 1 : 0;
+  const groupCount = Math.max(1, Math.ceil(targetCount / 14) + extraFogCluster);
+  const driftRadians = (weather.directionDegrees * Math.PI) / 180;
+  const directionX = Math.cos(driftRadians);
+  const directionY = Math.sin(driftRadians);
+  const crossX = -directionY;
+  const crossY = directionX;
+
+  for (let groupIndex = 0; groupIndex < groupCount && banks.length < targetCount; groupIndex += 1) {
+    const point = getFogBankPoint(bounds, weather, groupIndex * 97);
+    const groupSeed = groupIndex + hash(groupIndex + 1201) * 1000;
+    const remainingGroups = groupCount - groupIndex;
+    const remainingBanks = targetCount - banks.length;
+    const averageRemaining = Math.ceil(remainingBanks / remainingGroups);
+    const childCount = Math.min(remainingBanks, Math.max(1, averageRemaining));
+    const clusterLength = baseSize * preset.scale * weather.streakLength * (0.42 + weather.driftStrength * 0.18 + hash(groupIndex + 1223) * 0.28);
+    const clusterWidth = baseSize * preset.scale * weather.streakLength * (0.028 + (1 - weather.driftStrength) * 0.022 + hash(groupIndex + 1227) * 0.035);
+    const groupPhase = hash(groupIndex + 1229);
+    const groupSpeed = 0.5 + hash(groupIndex + 1231) * 0.58;
+    const flowDistance = Math.hypot(bounds.width, bounds.height) * 1.55;
+    const groupDrift = baseSize * (0.024 + hash(groupIndex + 1237) * 0.045);
+
+    for (let childIndex = 0; childIndex < childCount && banks.length < targetCount; childIndex += 1) {
+      const index = banks.length;
+      const childSeed = groupIndex * 997 + childIndex * 37 + index;
+      const alongJitter = hash(childSeed + 1) - 0.5;
+      const orderedAlong = childCount <= 1 ? 0 : childIndex / (childCount - 1) - 0.5;
+      const along = (orderedAlong * 0.72 + alongJitter * 0.28) * clusterLength;
+      const cross = (hash(childSeed + 2) - 0.5) * clusterWidth;
+      const localX = directionX * along + crossX * cross;
+      const localY = directionY * along + crossY * cross;
+      banks.push(createFogBank(bounds, weather, preset, index, {
+        groupSeed,
+        point,
+        localX,
+        localY,
+        groupPhase,
+        groupSpeed,
+        flowDistance,
+        groupDrift
+      }));
+    }
+  }
+
+  return banks;
+}
+
+function createFogBank(
+  bounds: WeatherBounds,
+  weather: WeatherSettings,
+  preset: FogPreset,
+  index: number,
+  group: {
+    groupSeed: number;
+    point: { x: number; y: number };
+    localX: number;
+    localY: number;
+    groupPhase: number;
+    groupSpeed: number;
+    flowDistance: number;
+    groupDrift: number;
+  }
+): FogBank {
+  const scale = preset.scale * weather.streakLength;
+  const baseSize = Math.min(bounds.width, bounds.height);
+  const localDistance = Math.hypot(group.localX, group.localY);
+  const maxClusterDistance = baseSize * preset.scale * weather.streakLength * 0.46;
+  const clusterFade = Math.max(0, 1 - localDistance / Math.max(1, maxClusterDistance));
+  const distanceScale = 0.12 + Math.pow(clusterFade, 2.45) * 0.88;
+  const sizeJitter = (0.64 + hash(index + 229) * 0.46 + clusterFade * 0.34) * distanceScale;
+  const aspect = 0.82 + hash(index + 235) * 0.36;
+  return {
+    seed: index + hash(index + 207) * 1000,
+    groupSeed: group.groupSeed,
+    textureIndex: Math.floor(hash(index + 209) * 9),
+    baseX: group.point.x,
+    baseY: group.point.y,
+    localX: group.localX,
+    localY: group.localY,
+    radiusX: baseSize * (0.1 + hash(index + 221) * 0.08) * scale * sizeJitter * aspect,
+    radiusY: baseSize * (0.09 + hash(index + 223) * 0.075) * scale * sizeJitter,
+    alpha: (0.46 + hash(index + 227) * 0.48 + clusterFade * 0.52) * (0.78 + weather.intensity * 0.78),
+    speed: 0.32 + hash(index + 211) * 0.5,
+    groupSpeed: group.groupSpeed,
+    rotation: hash(index + 217) * Math.PI * 2,
+    phase: hash(index + 219),
+    groupPhase: group.groupPhase,
+    flowDistance: group.flowDistance,
+    drift: group.groupDrift,
+    localDrift: baseSize * (0.012 + hash(index + 231) * 0.026)
+  };
 }
 
 function createFrostEdgeMesh(bounds: WeatherBounds): THREE.Group {
@@ -962,79 +1409,31 @@ function createSnowParticle(bounds: WeatherBounds, weather: WeatherSettings, pre
   };
 }
 
-function getFogFlowOffset(
-  bounds: WeatherBounds,
-  weather: WeatherSettings,
-  elapsed: number,
-  index: number
-): { x: number; y: number; progress: number; flowDistance: number; directionX: number; directionY: number } {
-  const driftRadians = (weather.directionDegrees * Math.PI) / 180;
-  const driftStrength = Math.max(0.12, weather.driftStrength);
-  const flowDistance = Math.hypot(bounds.width, bounds.height) * (0.18 + driftStrength * 0.34);
-  const speed = 0.018 + weather.speed * (0.055 + hash(index + 261) * 0.045);
-  const progress = (hash(index + 263) + elapsed * speed) % 1;
-  const centeredProgress = progress - 0.5;
-  const directionX = Math.cos(driftRadians);
-  const directionY = Math.sin(driftRadians);
+function getFogBankPoint(bounds: WeatherBounds, weather: WeatherSettings, index: number): { x: number; y: number } {
+  const directionRadians = (weather.directionDegrees * Math.PI) / 180;
+  const directionX = Math.cos(directionRadians);
+  const directionY = Math.sin(directionRadians);
   const crossX = -directionY;
   const crossY = directionX;
-  const crossWave = Math.sin(elapsed * (0.22 + hash(index + 267) * 0.28) + hash(index + 269) * Math.PI * 2);
-  const crossDistance = Math.min(bounds.width, bounds.height) * 0.045 * crossWave;
-  return {
-    x: directionX * flowDistance * centeredProgress + crossX * crossDistance,
-    y: directionY * flowDistance * centeredProgress + crossY * crossDistance,
-    progress,
-    flowDistance,
-    directionX,
-    directionY
-  };
-}
-
-function drawLoopedFogBank(
-  ctx: CanvasRenderingContext2D,
-  bounds: WeatherBounds,
-  baseX: number,
-  baseY: number,
-  flow: { x: number; y: number; progress: number; flowDistance: number; directionX: number; directionY: number },
-  radiusX: number,
-  radiusY: number,
-  alpha: number
-) {
-  const fadeOut = 1 - smoothstep(0.76, 1, flow.progress);
-  const fadeIn = smoothstep(0, 0.24, flow.progress);
-  const travelX = flow.directionX * flow.flowDistance;
-  const travelY = flow.directionY * flow.flowDistance;
-  drawFogBank(ctx, baseX + flow.x, baseY + flow.y, radiusX, radiusY, alpha * fadeOut);
-  drawFogBank(ctx, baseX + flow.x - travelX, baseY + flow.y - travelY, radiusX, radiusY, alpha * fadeIn);
-}
-
-function getFogBankPoint(bounds: WeatherBounds, weather: WeatherSettings, index: number): { x: number; y: number } {
-  const edgeChance = weather.edgeBias * 0.72;
-  if (hash(index + 231) < edgeChance) {
-    return getEdgePoint(bounds, Math.min(bounds.width, bounds.height) * 0.16, 2 + weather.edgeBias * 5, index + 239);
+  const centerX = bounds.left + bounds.width / 2;
+  const centerY = bounds.top + bounds.height / 2;
+  const diagonal = Math.hypot(bounds.width, bounds.height);
+  const interiorChance = (1 - weather.edgeBias) * 0.32 + weather.centerStrayDrops * 0.18;
+  if (hash(index + 229) < interiorChance) {
+    const quiet = getQuietAreaBounds(bounds, Math.max(0.35, weather.quietAreaSize * 0.82));
+    return {
+      x: quiet.left + hash(index + 241) * quiet.width,
+      y: quiet.top + hash(index + 251) * quiet.height
+    };
   }
-  const quiet = getQuietAreaBounds(bounds, weather.quietAreaSize);
-  const useQuietArea = hash(index + 233) < weather.centerStrayDrops;
-  const activeBounds = useQuietArea ? quiet : bounds;
+  const edgeTightness = 1 - weather.edgeBias;
+  const crossSpan = diagonal * (0.4 + edgeTightness * 0.3 + hash(index + 231) * 0.26);
+  const crossOffset = (hash(index + 241) - 0.5) * crossSpan;
+  const startOffset = diagonal * (0.5 + weather.edgeBias * 0.18 + hash(index + 251) * 0.12);
   return {
-    x: activeBounds.left + hash(index + 241) * activeBounds.width,
-    y: activeBounds.top + hash(index + 251) * activeBounds.height
+    x: centerX - directionX * startOffset + crossX * crossOffset,
+    y: centerY - directionY * startOffset + crossY * crossOffset
   };
-}
-
-function drawFogBank(ctx: CanvasRenderingContext2D, x: number, y: number, radiusX: number, radiusY: number, alpha: number) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(radiusX, radiusY);
-  const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
-  gradient.addColorStop(0, `rgba(220, 228, 234, ${alpha})`);
-  gradient.addColorStop(0.46, `rgba(205, 215, 223, ${alpha * 0.55})`);
-  gradient.addColorStop(1, "rgba(205, 215, 223, 0)");
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.arc(0, 0, 1, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
 }
 
 function getRainPreset(effect: RainWeatherEffectType): RainPreset {
@@ -1081,6 +1480,24 @@ function getQualityMultiplier(weather: WeatherSettings): number {
     default:
       return 1;
   }
+}
+
+function valueNoise(x: number, y: number, seed: number): number {
+  const cellX = Math.floor(x);
+  const cellY = Math.floor(y);
+  const localX = x - cellX;
+  const localY = y - cellY;
+  const curveX = localX * localX * (3 - 2 * localX);
+  const curveY = localY * localY * (3 - 2 * localY);
+  const a = hash(seed + cellX * 37.17 + cellY * 17.31);
+  const b = hash(seed + (cellX + 1) * 37.17 + cellY * 17.31);
+  const c = hash(seed + cellX * 37.17 + (cellY + 1) * 17.31);
+  const d = hash(seed + (cellX + 1) * 37.17 + (cellY + 1) * 17.31);
+  return lerp(lerp(a, b, curveX), lerp(c, d, curveX), curveY);
+}
+
+function lerp(start: number, end: number, amount: number): number {
+  return start + (end - start) * amount;
 }
 
 function isFogEffect(effect: WeatherEffectType): effect is FogWeatherEffectType {
