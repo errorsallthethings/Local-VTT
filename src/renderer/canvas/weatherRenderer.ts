@@ -366,6 +366,7 @@ class FogRenderer {
       weather.streakLength.toFixed(2),
       weather.directionDegrees.toFixed(0),
       weather.driftStrength.toFixed(2),
+      weather.color,
       weather.quality
     ].join(":");
 
@@ -428,6 +429,7 @@ class FogRenderer {
       uniforms: {
         globalOpacity: { value: 0 },
         cloudMap: { value: this.getDensityTexture() },
+        fogTint: { value: new THREE.Color(weather.color) },
         time: { value: 0 }
       },
       vertexShader: `
@@ -450,6 +452,7 @@ class FogRenderer {
       fragmentShader: `
         uniform float globalOpacity;
         uniform sampler2D cloudMap;
+        uniform vec3 fogTint;
         uniform float time;
         varying vec2 vUv;
         varying float vAlpha;
@@ -464,7 +467,8 @@ class FogRenderer {
           float textureAlpha = texture2D(cloudMap, atlasUv).r;
           float mistAlpha = pow(textureAlpha, 1.82) * 0.42;
           float alpha = clamp(mistAlpha * vAlpha * globalOpacity * 0.26, 0.0, 0.14);
-          vec3 fogColor = mix(vec3(0.68, 0.71, 0.72), vec3(0.86, 0.88, 0.88), textureAlpha);
+          vec3 neutralFog = mix(vec3(0.68, 0.71, 0.72), vec3(0.86, 0.88, 0.88), textureAlpha);
+          vec3 fogColor = mix(neutralFog, fogTint, 0.55);
           gl_FragColor = vec4(fogColor, alpha);
         }
       `
@@ -484,12 +488,14 @@ class FogRenderer {
     const material = this.fog.material;
     if (material instanceof THREE.ShaderMaterial) {
       material.uniforms.globalOpacity.value = weather.opacity * preset.opacity * layerOpacity;
+      material.uniforms.fogTint.value.set(weather.color);
       material.uniforms.time.value = now * 0.001 * Math.max(0.12, weather.speed);
     }
 
     const elapsed = now * 0.001 * weather.speed;
     const driftRadians = (weather.directionDegrees * Math.PI) / 180;
-    const driftStrength = Math.max(0.08, weather.driftStrength);
+    const noDrift = weather.driftStrength <= 0.02;
+    const driftStrength = noDrift ? 0 : Math.max(0.08, weather.driftStrength);
     const directionX = Math.cos(driftRadians);
     const directionY = Math.sin(driftRadians);
     const crossX = -directionY;
@@ -499,13 +505,15 @@ class FogRenderer {
     const textureAttribute = this.fog.geometry.getAttribute("fogTextureIndex") as THREE.InstancedBufferAttribute;
 
     this.banks.forEach((bank, index) => {
-      const progress = (bank.groupPhase + elapsed * bank.groupSpeed * (0.026 + driftStrength * 0.03)) % 1;
-      const fade = smoothstep(0, 0.12, progress) * (1 - smoothstep(0.86, 1, progress));
+      const progress = (bank.groupPhase + elapsed * bank.groupSpeed * (noDrift ? 0.035 : 0.026 + driftStrength * 0.03)) % 1;
+      const fade = noDrift
+        ? 0.18 + Math.pow(Math.sin(progress * Math.PI), 2) * 0.82
+        : smoothstep(0, 0.12, progress) * (1 - smoothstep(0.86, 1, progress));
       const groupWave = Math.sin(elapsed * (0.24 + hash(bank.groupSeed + 13) * 0.18) + bank.groupPhase * Math.PI * 2);
       const localWave = Math.sin(elapsed * (0.42 + hash(bank.seed + 17) * 0.34) + bank.phase * Math.PI * 2);
       const localPush = Math.cos(elapsed * (0.28 + hash(bank.seed + 23) * 0.24) + bank.phase * Math.PI * 2);
-      const flowX = directionX * bank.flowDistance * progress + crossX * bank.drift * groupWave * 0.22;
-      const flowY = directionY * bank.flowDistance * progress + crossY * bank.drift * groupWave * 0.22;
+      const flowX = noDrift ? 0 : directionX * bank.flowDistance * progress + crossX * bank.drift * groupWave * 0.22;
+      const flowY = noDrift ? 0 : directionY * bank.flowDistance * progress + crossY * bank.drift * groupWave * 0.22;
       const localX = bank.localX + crossX * bank.localDrift * localWave * 1.25 + directionX * bank.localDrift * localPush * 0.34;
       const localY = bank.localY + crossY * bank.localDrift * localWave * 1.25 + directionY * bank.localDrift * localPush * 0.34;
       const rotation = bank.rotation + groupWave * 0.045 + localWave * 0.075;
@@ -1055,6 +1063,7 @@ function createFogHazeMesh(bounds: WeatherBounds): THREE.Mesh {
     side: THREE.DoubleSide,
     uniforms: {
       hazeOpacity: { value: 0 },
+      fogTint: { value: new THREE.Color("#d8dee9") },
       time: { value: 0 },
       aspect: { value: bounds.width / Math.max(1, bounds.height) }
     },
@@ -1068,6 +1077,7 @@ function createFogHazeMesh(bounds: WeatherBounds): THREE.Mesh {
     `,
     fragmentShader: `
       uniform float hazeOpacity;
+      uniform vec3 fogTint;
       uniform float time;
       uniform float aspect;
       varying vec2 vUv;
@@ -1104,7 +1114,8 @@ function createFogHazeMesh(bounds: WeatherBounds): THREE.Mesh {
         float edgeLift = 1.0 - smoothstep(0.0, 0.42, edgeDistance);
         float cloud = fbm(centeredUv * 5.2 + vec2(time * 0.012, -time * 0.008));
         float veil = smoothstep(0.2, 0.86, cloud) * 0.55 + edgeLift * 0.45;
-        vec3 color = mix(vec3(0.58, 0.66, 0.7), vec3(0.82, 0.88, 0.9), clamp(cloud + 0.2, 0.0, 1.0));
+        vec3 neutralHaze = mix(vec3(0.58, 0.66, 0.7), vec3(0.82, 0.88, 0.9), clamp(cloud + 0.2, 0.0, 1.0));
+        vec3 color = mix(neutralHaze, fogTint, 0.5);
         gl_FragColor = vec4(color, hazeOpacity * veil);
       }
     `
@@ -1119,6 +1130,7 @@ function updateFogHazeMesh(mesh: THREE.Mesh | null, weather: WeatherSettings, pr
     return;
   }
   mesh.material.uniforms.hazeOpacity.value = preset.baseHaze * weather.opacity * weather.intensity * layerOpacity;
+  mesh.material.uniforms.fogTint.value.set(weather.color);
   mesh.material.uniforms.time.value = now * 0.001 * Math.max(0.12, weather.speed);
 }
 
@@ -1127,7 +1139,8 @@ function createFogBanks(bounds: WeatherBounds, weather: WeatherSettings, preset:
   const baseSize = Math.min(bounds.width, bounds.height);
   const extraFogCluster = weather.effect === "light-fog" || weather.effect === "fog" ? 1 : 0;
   const groupCount = Math.max(1, Math.ceil(targetCount / 14) + extraFogCluster);
-  const driftRadians = (weather.directionDegrees * Math.PI) / 180;
+  const noDrift = weather.driftStrength <= 0.02;
+  const driftRadians = noDrift ? 0 : (weather.directionDegrees * Math.PI) / 180;
   const directionX = Math.cos(driftRadians);
   const directionY = Math.sin(driftRadians);
   const crossX = -directionY;
@@ -1140,8 +1153,8 @@ function createFogBanks(bounds: WeatherBounds, weather: WeatherSettings, preset:
     const remainingBanks = targetCount - banks.length;
     const averageRemaining = Math.ceil(remainingBanks / remainingGroups);
     const childCount = Math.min(remainingBanks, Math.max(1, averageRemaining));
-    const clusterLength = baseSize * preset.scale * weather.streakLength * (0.42 + weather.driftStrength * 0.18 + hash(groupIndex + 1223) * 0.28);
-    const clusterWidth = baseSize * preset.scale * weather.streakLength * (0.028 + (1 - weather.driftStrength) * 0.022 + hash(groupIndex + 1227) * 0.035);
+    const clusterLength = baseSize * preset.scale * weather.streakLength * (noDrift ? 0.18 + hash(groupIndex + 1223) * 0.16 : 0.42 + weather.driftStrength * 0.18 + hash(groupIndex + 1223) * 0.28);
+    const clusterWidth = baseSize * preset.scale * weather.streakLength * (noDrift ? 0.08 + hash(groupIndex + 1227) * 0.06 : 0.028 + (1 - weather.driftStrength) * 0.022 + hash(groupIndex + 1227) * 0.035);
     const groupPhase = hash(groupIndex + 1229);
     const groupSpeed = 0.5 + hash(groupIndex + 1231) * 0.58;
     const flowDistance = Math.hypot(bounds.width, bounds.height) * 1.55;
@@ -1410,6 +1423,15 @@ function createSnowParticle(bounds: WeatherBounds, weather: WeatherSettings, pre
 }
 
 function getFogBankPoint(bounds: WeatherBounds, weather: WeatherSettings, index: number): { x: number; y: number } {
+  if (weather.driftStrength <= 0.02) {
+    const quiet = getQuietAreaBounds(bounds, Math.max(0.35, weather.quietAreaSize * 0.92));
+    const useInterior = hash(index + 229) < 0.72 + weather.centerStrayDrops * 0.24;
+    const activeBounds = useInterior ? quiet : bounds;
+    return {
+      x: activeBounds.left + hash(index + 241) * activeBounds.width,
+      y: activeBounds.top + hash(index + 251) * activeBounds.height
+    };
+  }
   const directionRadians = (weather.directionDegrees * Math.PI) / 180;
   const directionX = Math.cos(directionRadians);
   const directionY = Math.sin(directionRadians);

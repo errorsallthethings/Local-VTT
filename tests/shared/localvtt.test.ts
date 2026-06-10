@@ -95,6 +95,7 @@ it("normalizeScene clamps weather settings", () => {
     effect: "rain-storm",
     intensity: 1,
     opacity: 0,
+    color: "#d8dee9",
     speed: 3,
     directionDegrees: 360,
     driftStrength: 1,
@@ -113,6 +114,7 @@ it("normalizeScene clamps weather settings", () => {
         settings: {
           intensity: 1,
           opacity: 0,
+          color: "#d8dee9",
           speed: 3,
           directionDegrees: 360,
           driftStrength: 1,

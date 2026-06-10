@@ -612,6 +612,17 @@ export function LayerPanel({
                           </button>
                         </div>
                       </div>
+                      {expandedWeatherCategory === "fog" && (
+                        <div className="setting-row">
+                          <span>Tint</span>
+                          <div className="weather-setting-control">
+                            <input type="color" value={expandedWeatherSettings.color} onChange={(event) => updateWeatherTuning(expandedWeatherCategory, { color: event.target.value })} />
+                            <button className="icon-button weather-reset-button" type="button" title="Reset tint" aria-label="Reset fog tint" onClick={() => resetWeatherTuning(expandedWeatherCategory, "color")}>
+                              <RotateCcw size={13} aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       <div className="setting-row">
                         <span>Speed</span>
                         <div className="weather-setting-control">

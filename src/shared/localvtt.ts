@@ -125,6 +125,7 @@ export type WeatherQualityLevel = "low" | "balanced" | "high";
 export interface WeatherTuningSettings {
   intensity: number;
   opacity: number;
+  color: string;
   speed: number;
   directionDegrees: number;
   driftStrength: number;
@@ -457,6 +458,7 @@ export const DEFAULT_FOG: FogSettings = {
 export const DEFAULT_WEATHER_TUNING: WeatherTuningSettings = {
   intensity: 0.65,
   opacity: 0.65,
+  color: "#d8dee9",
   speed: 0.6,
   directionDegrees: 0,
   driftStrength: 0,
@@ -473,6 +475,7 @@ export const DEFAULT_WEATHER_EFFECT_SETTINGS: Record<WeatherPatternEffectType, W
   "light-rain": {
     intensity: 0.45,
     opacity: 0.48,
+    color: "#d8dee9",
     speed: 0.55,
     directionDegrees: 0,
     driftStrength: 0,
@@ -487,6 +490,7 @@ export const DEFAULT_WEATHER_EFFECT_SETTINGS: Record<WeatherPatternEffectType, W
   rain: {
     intensity: 0.58,
     opacity: 0.58,
+    color: "#d8dee9",
     speed: 0.6,
     directionDegrees: 0,
     driftStrength: 0,
@@ -505,6 +509,7 @@ export const DEFAULT_WEATHER_EFFECT_SETTINGS: Record<WeatherPatternEffectType, W
   "rain-storm": {
     intensity: 0.74,
     opacity: 0.68,
+    color: "#d8dee9",
     speed: 0.72,
     directionDegrees: 0,
     driftStrength: 0,
@@ -519,6 +524,7 @@ export const DEFAULT_WEATHER_EFFECT_SETTINGS: Record<WeatherPatternEffectType, W
   "light-fog": {
     intensity: 0.9,
     opacity: 0.82,
+    color: "#d8dee9",
     speed: 0.76,
     directionDegrees: 0,
     driftStrength: 0.28,
@@ -533,6 +539,7 @@ export const DEFAULT_WEATHER_EFFECT_SETTINGS: Record<WeatherPatternEffectType, W
   fog: {
     intensity: 0.98,
     opacity: 0.9,
+    color: "#d8dee9",
     speed: 0.84,
     directionDegrees: 0,
     driftStrength: 0.34,
@@ -547,6 +554,7 @@ export const DEFAULT_WEATHER_EFFECT_SETTINGS: Record<WeatherPatternEffectType, W
   "heavy-fog": {
     intensity: 1,
     opacity: 1,
+    color: "#d8dee9",
     speed: 0.92,
     directionDegrees: 0,
     driftStrength: 0.42,
@@ -561,6 +569,7 @@ export const DEFAULT_WEATHER_EFFECT_SETTINGS: Record<WeatherPatternEffectType, W
   "light-snow": {
     intensity: 0.95,
     opacity: 0.82,
+    color: "#d8dee9",
     speed: 0.48,
     directionDegrees: 0,
     driftStrength: 0,
@@ -575,6 +584,7 @@ export const DEFAULT_WEATHER_EFFECT_SETTINGS: Record<WeatherPatternEffectType, W
   snow: {
     intensity: 1,
     opacity: 0.9,
+    color: "#d8dee9",
     speed: 0.58,
     directionDegrees: 0,
     driftStrength: 0,
@@ -589,6 +599,7 @@ export const DEFAULT_WEATHER_EFFECT_SETTINGS: Record<WeatherPatternEffectType, W
   blizzard: {
     intensity: 1.08,
     opacity: 1,
+    color: "#d8dee9",
     speed: 0.72,
     directionDegrees: 0,
     driftStrength: 0,
@@ -954,6 +965,7 @@ function normalizeWeatherTuning(setting: Record<string, unknown>, defaults: Weat
   return {
     intensity: clampNumber(setting.intensity, 0, 1, defaults.intensity),
     opacity: clampNumber(setting.opacity, 0, 1, defaults.opacity),
+    color: normalizeColor(setting.color, defaults.color),
     speed: clampNumber(setting.speed, 0.05, 3, defaults.speed),
     directionDegrees: clampNumber(setting.directionDegrees, 0, 360, defaults.directionDegrees),
     driftStrength: clampNumber(setting.driftStrength, 0, 1, defaults.driftStrength),
