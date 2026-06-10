@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { Camera } from "./camera";
 import { getSourceHeight, getSourceWidth, resolveMapTransform } from "./mapRenderer";
-import type { FogWeatherEffectType, RainWeatherEffectType, Scene, SnowWeatherEffectType, WeatherEffectType, WeatherMask, WeatherSettings } from "../../shared/localvtt";
+import type { FogWeatherEffectType, RainWeatherEffectType, SandWeatherEffectType, Scene, SnowWeatherEffectType, WeatherEffectType, WeatherMask, WeatherSettings } from "../../shared/localvtt";
 
 type WeatherBounds = {
   left: number;
@@ -63,6 +63,17 @@ type SnowParticle = {
   drift: number;
 };
 
+type SandParticle = {
+  seed: number;
+  baseX: number;
+  baseY: number;
+  centerFade: number;
+  speed: number;
+  size: number;
+  phase: number;
+  depth: number;
+};
+
 type RainPreset = {
   density: number;
   opacity: number;
@@ -90,7 +101,22 @@ type SnowPreset = {
   frost: number;
 };
 
+type SandPreset = {
+  density: number;
+  opacity: number;
+  speed: number;
+  size: number;
+  veil: number;
+  turbulence: number;
+  swirl: number;
+  windBase: number;
+  gustFrequency: number;
+  gustAmplitude: number;
+  tintStrength: number;
+};
+
 const FOG_EFFECTS = new Set<WeatherEffectType>(["light-fog", "fog", "heavy-fog"]);
+const SAND_EFFECTS = new Set<WeatherEffectType>(["light-sand", "sand", "sandstorm"]);
 
 const RAIN_PRESETS: Record<RainWeatherEffectType, RainPreset> = {
   "light-rain": {
@@ -180,6 +206,48 @@ const SNOW_PRESETS: Record<SnowWeatherEffectType, SnowPreset> = {
     size: 0.98,
     streak: 0.98,
     frost: 1
+  }
+};
+
+const SAND_PRESETS: Record<SandWeatherEffectType, SandPreset> = {
+  "light-sand": {
+    density: 1.55,
+    opacity: 0.72,
+    speed: 0.92,
+    size: 0.92,
+    veil: 0.52,
+    turbulence: 0.44,
+    swirl: 0.12,
+    windBase: 0.72,
+    gustFrequency: 0.38,
+    gustAmplitude: 0.46,
+    tintStrength: 0.24
+  },
+  sand: {
+    density: 2.65,
+    opacity: 1.02,
+    speed: 1.1,
+    size: 1.08,
+    veil: 0.58,
+    turbulence: 0.74,
+    swirl: 0.26,
+    windBase: 1.05,
+    gustFrequency: 0.72,
+    gustAmplitude: 0.88,
+    tintStrength: 0.3
+  },
+  sandstorm: {
+    density: 4.35,
+    opacity: 1.32,
+    speed: 1.42,
+    size: 1.28,
+    veil: 0.92,
+    turbulence: 1.2,
+    swirl: 0.58,
+    windBase: 1.55,
+    gustFrequency: 1.05,
+    gustAmplitude: 1.42,
+    tintStrength: 0.46
   }
 };
 
@@ -729,6 +797,192 @@ class SnowRenderer {
   }
 }
 
+class SandRenderer {
+  private renderer: THREE.WebGLRenderer | null = null;
+  private scene = new THREE.Scene();
+  private camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+  private veil: THREE.Mesh | null = null;
+  private sand: THREE.Points | null = null;
+  private particles: SandParticle[] = [];
+  private signature = "";
+
+  draw(ctx: CanvasRenderingContext2D, area: WeatherArea, weather: WeatherSettings, camera: Camera, now: number, opacity: number) {
+    if (!isSandEffect(weather.effect)) {
+      return;
+    }
+    const bounds = area.clip;
+    const preset = SAND_PRESETS[weather.effect];
+    const width = ctx.canvas.clientWidth || bounds.width;
+    const height = ctx.canvas.clientHeight || bounds.height;
+    const renderer = this.getRenderer(width, height);
+    const signature = [
+      weather.effect,
+      Math.round(bounds.left),
+      Math.round(bounds.top),
+      Math.round(bounds.width),
+      Math.round(bounds.height),
+      weather.intensity.toFixed(2),
+      weather.edgeBias.toFixed(2),
+      weather.quietAreaSize.toFixed(2),
+      weather.centerStrayDrops.toFixed(2),
+      weather.streakLength.toFixed(2),
+      weather.directionDegrees.toFixed(0),
+      weather.driftStrength.toFixed(2),
+      weather.color,
+      weather.quality
+    ].join(":");
+    if (signature !== this.signature) {
+      this.signature = signature;
+      this.rebuild(bounds, weather, preset);
+    }
+
+    this.update(bounds, weather, preset, now, opacity);
+    renderer.setSize(width, height, false);
+    renderer.setClearColor(0x000000, 0);
+    renderer.clear();
+    renderer.render(this.scene, this.camera);
+
+    ctx.save();
+    ctx.clip(getWeatherClipPath(bounds, weather.masks, camera), "evenodd");
+    ctx.drawImage(renderer.domElement, 0, 0, width, height);
+    ctx.restore();
+  }
+
+  private getRenderer(width: number, height: number) {
+    if (!this.renderer) {
+      this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+      this.renderer.setPixelRatio(1);
+      this.camera.position.set(0, 0, 1800);
+      this.camera.lookAt(0, 0, 0);
+    }
+    this.camera.left = 0;
+    this.camera.right = width;
+    this.camera.top = 0;
+    this.camera.bottom = height;
+    this.camera.near = 0.1;
+    this.camera.far = 4000;
+    this.camera.updateProjectionMatrix();
+    return this.renderer;
+  }
+
+  private rebuild(bounds: WeatherBounds, weather: WeatherSettings, preset: SandPreset) {
+    this.scene.clear();
+    this.veil = createSandVeilMesh(bounds);
+    this.veil.renderOrder = 0;
+    this.scene.add(this.veil);
+
+    const count = Math.round(620 * preset.density * getQualityMultiplier(weather) * Math.max(0.1, weather.intensity));
+    this.particles = Array.from({ length: count }, (_, index) => createSandParticle(bounds, weather, index));
+    const material = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      vertexColors: true,
+      blending: THREE.NormalBlending,
+      uniforms: {
+        globalOpacity: { value: 0 }
+      },
+      vertexShader: `
+        attribute float particleSize;
+        attribute float particleAlpha;
+        varying vec3 vColor;
+        varying float vAlpha;
+
+        void main() {
+          vColor = color;
+          vAlpha = particleAlpha;
+          gl_PointSize = particleSize;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float globalOpacity;
+        varying vec3 vColor;
+        varying float vAlpha;
+
+        void main() {
+          vec2 center = gl_PointCoord - vec2(0.5);
+          center.x *= 1.75;
+          float distanceFromCenter = length(center);
+          float softGrain = 1.0 - smoothstep(0.18, 0.5, distanceFromCenter);
+          if (softGrain <= 0.0) {
+            discard;
+          }
+          gl_FragColor = vec4(vColor, softGrain * vAlpha * globalOpacity);
+        }
+      `
+    });
+    this.sand = new THREE.Points(new THREE.BufferGeometry(), material);
+    this.sand.renderOrder = 1;
+    this.scene.add(this.sand);
+  }
+
+  private update(bounds: WeatherBounds, weather: WeatherSettings, preset: SandPreset, now: number, layerOpacity: number) {
+    updateSandVeilMesh(this.veil, weather, preset, now, layerOpacity);
+    if (!this.sand) {
+      return;
+    }
+    const material = this.sand.material;
+    if (material instanceof THREE.ShaderMaterial) {
+      material.uniforms.globalOpacity.value = preset.opacity * weather.opacity * layerOpacity;
+    }
+    const color = new THREE.Color(weather.color);
+    const elapsed = now * 0.001 * weather.speed * preset.speed;
+    const driftRadians = (weather.directionDegrees * Math.PI) / 180;
+    const directionX = Math.cos(driftRadians);
+    const directionY = Math.sin(driftRadians);
+    const crossX = -directionY;
+    const crossY = directionX;
+    const driftStrength = Math.max(0.08, weather.driftStrength);
+    const windForce = preset.windBase * (0.55 + driftStrength * 0.75);
+    const travelDistance = Math.hypot(bounds.width, bounds.height) * (0.62 + windForce * 0.38);
+    const centerX = bounds.left + bounds.width / 2;
+    const centerY = bounds.top + bounds.height / 2;
+    const baseSize = Math.min(bounds.width, bounds.height);
+    const positions: number[] = [];
+    const colors: number[] = [];
+    const sizes: number[] = [];
+    const alphas: number[] = [];
+
+    for (const particle of this.particles) {
+      const seedPhase = particle.seed * 0.001;
+      const dustTime = elapsed * particle.speed * windForce + seedPhase * 20;
+      const progress = (particle.phase + dustTime * (0.06 + driftStrength * 0.1 + preset.turbulence * 0.035)) % 1;
+      const cycleFade = smoothstep(0, 0.12, progress) * (1 - smoothstep(0.82, 1, progress));
+      const swirlPhase = seedPhase * Math.PI * 2;
+      const swirlX = Math.sin(dustTime * (1.6 + preset.gustFrequency * 0.6) + swirlPhase) * preset.swirl;
+      const swirlY = Math.cos(dustTime * (1.15 + preset.gustFrequency * 0.42) + swirlPhase) * preset.swirl;
+      const gust = Math.sin(dustTime * (0.5 + preset.gustFrequency * 0.34) + particle.seed + progress * 5.5) * preset.gustAmplitude;
+      const rawX = particle.baseX + directionX * travelDistance * progress;
+      const rawY = particle.baseY + directionY * travelDistance * progress;
+      const toCenterX = rawX - centerX;
+      const toCenterY = rawY - centerY;
+      const radialDistance = Math.max(1, Math.hypot(toCenterX, toCenterY));
+      const tangentX = -toCenterY / radialDistance;
+      const tangentY = toCenterX / radialDistance;
+      const turbulenceDistance = baseSize * (0.014 + preset.turbulence * 0.024) * (0.55 + particle.depth * 0.9);
+      const swirlDistance = baseSize * (0.03 + preset.swirl * 0.075);
+      const x = rawX + crossX * turbulenceDistance * swirlX + tangentX * swirlDistance * swirlY + directionX * baseSize * 0.025 * gust;
+      const y = rawY + crossY * turbulenceDistance * swirlX + tangentY * swirlDistance * swirlY + directionY * baseSize * 0.025 * gust;
+      const alpha = particle.centerFade * cycleFade * (0.24 + particle.depth * 0.54) * (0.78 + preset.turbulence * 0.24);
+      const size = Math.max(1.8, 2.8 * preset.size * weather.streakLength * particle.size * (0.9 + particle.depth * 1.55));
+      positions.push(x, y, 860 + particle.depth * 160);
+      colors.push(color.r, color.g, color.b);
+      sizes.push(size);
+      alphas.push(alpha);
+    }
+
+    this.sand.geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    this.sand.geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    this.sand.geometry.setAttribute("particleSize", new THREE.Float32BufferAttribute(sizes, 1));
+    this.sand.geometry.setAttribute("particleAlpha", new THREE.Float32BufferAttribute(alphas, 1));
+    this.sand.geometry.attributes.position.needsUpdate = true;
+    this.sand.geometry.attributes.color.needsUpdate = true;
+    this.sand.geometry.attributes.particleSize.needsUpdate = true;
+    this.sand.geometry.attributes.particleAlpha.needsUpdate = true;
+  }
+}
+
 function getWeatherClipPath(bounds: WeatherBounds, masks: WeatherMask[], camera: Camera): Path2D {
   const path = new Path2D();
   path.rect(bounds.left, bounds.top, bounds.width, bounds.height);
@@ -776,9 +1030,10 @@ function worldToScreen(point: { x: number; y: number }, camera: Camera) {
 const rainRenderer = new RainRenderer();
 const fogRenderer = new FogRenderer();
 const snowRenderer = new SnowRenderer();
+const sandRenderer = new SandRenderer();
 
 export function shouldAnimateWeather(scene: Scene, visible: boolean): boolean {
-  return visible && scene.weather.enabled && (scene.weather.effects.rain.enabled || scene.weather.effects.fog.enabled || scene.weather.effects.snow.enabled);
+  return visible && scene.weather.enabled && (scene.weather.effects.rain.enabled || scene.weather.effects.fog.enabled || scene.weather.effects.snow.enabled || scene.weather.effects.sand.enabled);
 }
 
 export function drawWeather(
@@ -806,6 +1061,9 @@ export function drawWeather(
   if (weather.effects.snow.enabled) {
     drawSnowWeather(ctx, area, getWeatherForSnow(scene.weather), camera, now, opacity);
   }
+  if (weather.effects.sand.enabled) {
+    sandRenderer.draw(ctx, area, getWeatherForSand(scene.weather), camera, now, opacity);
+  }
 }
 
 function getWeatherForRain(weather: WeatherSettings): WeatherSettings {
@@ -829,6 +1087,14 @@ function getWeatherForSnow(weather: WeatherSettings): WeatherSettings {
     ...weather,
     ...weather.effects.snow.settings,
     effect: weather.effects.snow.pattern
+  };
+}
+
+function getWeatherForSand(weather: WeatherSettings): WeatherSettings {
+  return {
+    ...weather,
+    ...weather.effects.sand.settings,
+    effect: weather.effects.sand.pattern
   };
 }
 
@@ -970,6 +1236,105 @@ function getQuietAreaPoint(bounds: WeatherBounds, index: number, quietAreaSize: 
 
 function drawSnowWeather(ctx: CanvasRenderingContext2D, area: WeatherArea, weather: WeatherSettings, camera: Camera, now: number, layerOpacity: number) {
   snowRenderer.draw(ctx, area, weather, camera, now, layerOpacity);
+}
+
+function createSandVeilMesh(bounds: WeatherBounds): THREE.Mesh {
+  const geometry = new THREE.PlaneGeometry(bounds.width, bounds.height);
+  geometry.translate(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2, 780);
+  const material = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    blending: THREE.NormalBlending,
+    side: THREE.DoubleSide,
+    uniforms: {
+      veilOpacity: { value: 0 },
+      sandColor: { value: new THREE.Color("#d39b54") },
+      time: { value: 0 },
+      direction: { value: new THREE.Vector2(1, 0) },
+      aspect: { value: bounds.width / Math.max(1, bounds.height) },
+      tintStrength: { value: 0 }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float veilOpacity;
+      uniform vec3 sandColor;
+      uniform float time;
+      uniform vec2 direction;
+      uniform float aspect;
+      uniform float tintStrength;
+      varying vec2 vUv;
+
+      float hash(vec2 point) {
+        return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float noise(vec2 point) {
+        vec2 cell = floor(point);
+        vec2 local = fract(point);
+        vec2 curve = local * local * (3.0 - 2.0 * local);
+        float a = hash(cell);
+        float b = hash(cell + vec2(1.0, 0.0));
+        float c = hash(cell + vec2(0.0, 1.0));
+        float d = hash(cell + vec2(1.0, 1.0));
+        return mix(mix(a, b, curve.x), mix(c, d, curve.x), curve.y);
+      }
+
+      float fbm(vec2 point) {
+        float value = 0.0;
+        float amplitude = 0.5;
+        for (int octave = 0; octave < 4; octave++) {
+          value += noise(point) * amplitude;
+          point = point * 2.07 + vec2(13.4, 9.2);
+          amplitude *= 0.5;
+        }
+        return value;
+      }
+
+      void main() {
+        vec2 centered = vec2((vUv.x - 0.5) * aspect, vUv.y - 0.5);
+        vec2 dir = normalize(direction);
+        vec2 crossDir = vec2(-dir.y, dir.x);
+        vec2 flow = vec2(dot(centered, dir), dot(centered, crossDir));
+        float broadDust = fbm(flow * vec2(5.4, 1.75) + vec2(time * 0.1, time * 0.022));
+        float fineDust = fbm(flow * vec2(19.0, 4.8) + vec2(time * 0.24, -time * 0.052));
+        float crossGusts = fbm(vec2(flow.y * 7.0 + time * 0.08, flow.x * 1.4 - time * 0.035));
+        float gustBands = smoothstep(0.28, 0.82, broadDust + fineDust * 0.32 + crossGusts * 0.22);
+        float edgeDistance = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
+        float edgeLift = 1.0 - smoothstep(0.0, 0.4, edgeDistance);
+        float hostileHaze = smoothstep(0.48, 0.92, gustBands + crossGusts * 0.18);
+        float alpha = veilOpacity * (0.18 + gustBands * 0.64 + edgeLift * 0.34 + hostileHaze * tintStrength * 0.24);
+        vec3 hotSand = sandColor * vec3(1.34, 0.92, 0.62);
+        vec3 orangeDust = vec3(1.0, 0.48, 0.16);
+        vec3 dustColor = mix(sandColor * 0.68, hotSand * 1.18, fineDust * 0.72 + gustBands * 0.28);
+        dustColor = mix(dustColor, orangeDust, hostileHaze * tintStrength);
+        gl_FragColor = vec4(dustColor, alpha);
+      }
+    `
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+function updateSandVeilMesh(mesh: THREE.Mesh | null, weather: WeatherSettings, preset: SandPreset, now: number, layerOpacity: number) {
+  if (!mesh || !(mesh.material instanceof THREE.ShaderMaterial)) {
+    return;
+  }
+  const directionRadians = (weather.directionDegrees * Math.PI) / 180;
+  const driftStrength = Math.max(0, Math.min(1, weather.driftStrength));
+  mesh.material.uniforms.veilOpacity.value = Math.min(1.35, preset.veil * weather.opacity * weather.intensity * layerOpacity);
+  mesh.material.uniforms.sandColor.value.set(weather.color);
+  mesh.material.uniforms.time.value = now * 0.001 * Math.max(0.12, weather.speed) * preset.speed * (0.55 + driftStrength * 0.45);
+  mesh.material.uniforms.direction.value.set(Math.cos(directionRadians), Math.sin(directionRadians));
+  mesh.material.uniforms.tintStrength.value = preset.tintStrength;
 }
 
 function createFogDensityTexture(): THREE.CanvasTexture {
@@ -1422,6 +1787,31 @@ function createSnowParticle(bounds: WeatherBounds, weather: WeatherSettings, pre
   };
 }
 
+function createSandParticle(bounds: WeatherBounds, weather: WeatherSettings, index: number): SandParticle {
+  const quietGrainChance = 0.015 + weather.centerStrayDrops * 0.16;
+  const quietGrain = hash(index + 901) > 1 - quietGrainChance;
+  const spawnPadding = Math.min(bounds.width, bounds.height) * (0.28 + weather.driftStrength * 0.24);
+  const spawnBounds = {
+    left: bounds.left - spawnPadding,
+    top: bounds.top - spawnPadding,
+    width: bounds.width + spawnPadding * 2,
+    height: bounds.height + spawnPadding * 2
+  };
+  const point = quietGrain
+    ? getQuietAreaPoint(bounds, index + 905, weather.quietAreaSize)
+    : getEdgePoint(spawnBounds, spawnPadding, 2 + weather.edgeBias * 4, index + 910);
+  return {
+    seed: index + hash(index + 917) * 1000,
+    baseX: point.x,
+    baseY: point.y,
+    centerFade: quietGrain ? getEdgeFade(bounds, point, weather.quietAreaSize) * 0.36 : 0.52 + getEdgeFade(bounds, point, weather.quietAreaSize) * 0.48,
+    speed: 0.36 + hash(index + 920) * 0.58,
+    size: 0.55 + hash(index + 930) * 0.9,
+    phase: hash(index + 940),
+    depth: hash(index + 950)
+  };
+}
+
 function getFogBankPoint(bounds: WeatherBounds, weather: WeatherSettings, index: number): { x: number; y: number } {
   if (weather.driftStrength <= 0.02) {
     const quiet = getQuietAreaBounds(bounds, Math.max(0.35, weather.quietAreaSize * 0.92));
@@ -1528,6 +1918,10 @@ function isFogEffect(effect: WeatherEffectType): effect is FogWeatherEffectType 
 
 function isSnowEffect(effect: WeatherEffectType): effect is SnowWeatherEffectType {
   return effect === "light-snow" || effect === "snow" || effect === "blizzard";
+}
+
+function isSandEffect(effect: WeatherEffectType): effect is SandWeatherEffectType {
+  return SAND_EFFECTS.has(effect);
 }
 
 function getCycleOffset(seed: number, cycle: number, radius: number): { x: number; y: number } {
