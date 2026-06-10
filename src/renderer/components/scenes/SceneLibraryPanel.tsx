@@ -1,8 +1,10 @@
-import { useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent } from "react";
+import { useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactElement } from "react";
 import {
   ArrowDown,
   ArrowUp,
   CircleCheck,
+  CloudFog,
+  CloudRain,
   Copy,
   Edit3,
   EllipsisVertical,
@@ -14,6 +16,7 @@ import {
   Map,
   Palette,
   Save,
+  Snowflake,
   Trash2,
   Video
 } from "lucide-react";
@@ -147,7 +150,7 @@ export function SceneLibraryPanel({
           )}
         </div>
         <div className="scene-row-body">
-          <SceneThumbnail asset={thumbnailAsset ?? null} />
+          <SceneThumbnail asset={thumbnailAsset ?? null} scene={scene} />
           <button
             className={isDirty ? "icon-button dirty-save" : "icon-button"}
             disabled={!isDirty}
@@ -407,10 +410,11 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgb(${red} ${green} ${blue} / ${alpha})`;
 }
 
-function SceneThumbnail({ asset }: { asset: Asset | null }) {
+function SceneThumbnail({ asset, scene }: { asset: Asset | null; scene: CampaignSceneEntry }) {
   if (!asset) {
     return (
       <div className="scene-thumbnail scene-thumbnail-empty" aria-label="No map">
+        <SceneWeatherBadges scene={scene} />
         <Map size={16} aria-hidden="true" />
         <span>No map</span>
       </div>
@@ -422,6 +426,7 @@ function SceneThumbnail({ asset }: { asset: Asset | null }) {
       <div className="scene-thumbnail">
         <img src={window.localVtt.toAssetUrl(asset.thumbnailAbsolutePath)} alt="" draggable={false} />
         <ThumbnailBadge mediaType={asset.mediaType} />
+        <SceneWeatherBadges scene={scene} />
       </div>
     );
   }
@@ -430,6 +435,7 @@ function SceneThumbnail({ asset }: { asset: Asset | null }) {
     return (
       <div className="scene-thumbnail scene-thumbnail-video" aria-label="Video map">
         <ThumbnailBadge mediaType="video" />
+        <SceneWeatherBadges scene={scene} />
       </div>
     );
   }
@@ -437,12 +443,66 @@ function SceneThumbnail({ asset }: { asset: Asset | null }) {
   if (!asset.thumbnailAbsolutePath) {
     return (
       <div className="scene-thumbnail scene-thumbnail-empty" aria-label="No preview available">
+        <SceneWeatherBadges scene={scene} />
         <ImageOff size={16} aria-hidden="true" />
         <span>No preview</span>
       </div>
     );
   }
 
+  return null;
+}
+
+function SceneWeatherBadges({ scene }: { scene: CampaignSceneEntry }) {
+  if (!scene.weather?.enabled) {
+    return null;
+  }
+  const activeWeather: { key: string; label: string; icon: ReactElement }[] = [
+    scene.weather.effects?.rain?.enabled ? { key: "rain", label: getWeatherPatternLabel(scene.weather.effects.rain.pattern), icon: <CloudRain size={12} aria-hidden="true" /> } : null,
+    scene.weather.effects?.fog?.enabled ? { key: "fog", label: getWeatherPatternLabel(scene.weather.effects.fog.pattern), icon: <CloudFog size={12} aria-hidden="true" /> } : null,
+    scene.weather.effects?.snow?.enabled ? { key: "snow", label: getWeatherPatternLabel(scene.weather.effects.snow.pattern), icon: <Snowflake size={12} aria-hidden="true" /> } : null
+  ].filter((item): item is { key: string; label: string; icon: ReactElement } => item !== null);
+
+  if (activeWeather.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="scene-weather-badges" aria-label="Active weather effects">
+      {activeWeather.map((weather) => (
+        <span key={weather.key} title={weather.label} aria-label={weather.label}>
+          {weather.icon}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function getWeatherPatternLabel(pattern: string): string {
+  switch (pattern) {
+    case "light-rain":
+      return "Light Rain";
+    case "rain":
+      return "Rain";
+    case "heavy-rain":
+      return "Heavy Rain";
+    case "rain-storm":
+      return "Rain Storm";
+    case "light-fog":
+      return "Light Fog";
+    case "fog":
+      return "Fog";
+    case "heavy-fog":
+      return "Heavy Fog";
+    case "light-snow":
+      return "Light Snow";
+    case "snow":
+      return "Snow";
+    case "blizzard":
+      return "Blizzard";
+    default:
+      return "Weather";
+  }
 }
 
 function ThumbnailBadge({ mediaType }: { mediaType: Asset["mediaType"] }) {

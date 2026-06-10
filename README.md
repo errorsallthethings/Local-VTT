@@ -19,7 +19,7 @@ This version is intentionally not a full campaign-management VTT. Tokens are lig
 - Add lightweight tokens, style them, reorder them, duplicate them, and animate visible Player View movement along waypoint paths.
 - Measure distance with a GM-only ruler, including waypoints, snapped grid points, crossed-cell highlights, and distance-mode readouts.
 - Use live Table Tools for click pings and a fading laser pointer trail.
-- Add configurable rain weather effects from the Weather layer.
+- Add configurable rain and fog weather effects from the Weather layer.
 - Store metadata-only backups for campaign and scene JSON before overwrites.
 
 ## Campaign Folder Format
@@ -95,8 +95,8 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 
 - Weather is configured per scene from the Weather layer.
 - Weather effects render as lightweight map-bound canvas overlays and respect GM View and Player View layer visibility.
-- Rain effects currently include Light Rain, Rain, Heavy Rain, and Rain Storm.
-- Weather controls include effect, enabled state, intensity, opacity, speed, and direction/drift.
+- Weather effects currently include rain patterns and fog patterns.
+- Weather controls include effect, enabled state, intensity, opacity, speed, drift, masks, and advanced pattern tuning.
 
 ### Fog Of War
 

@@ -69,6 +69,23 @@ export function useCampaignWorkspace() {
 
   const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
     setActiveScene(nextScene);
+    setCampaign((currentCampaign) =>
+      currentCampaign
+        ? {
+            ...currentCampaign,
+            scenes: currentCampaign.scenes.map((entry) =>
+              entry.id === nextScene.id
+                ? {
+                    ...entry,
+                    name: nextScene.name,
+                    mapAssetId: nextScene.mapAssetId,
+                    weather: nextScene.weather
+                  }
+                : entry
+            )
+          }
+        : currentCampaign
+    );
     setSceneDrafts((drafts) => ({ ...drafts, [nextScene.id]: nextScene }));
     setDirtySceneIds((ids) => new Set(ids).add(nextScene.id));
     setSaveState("idle");

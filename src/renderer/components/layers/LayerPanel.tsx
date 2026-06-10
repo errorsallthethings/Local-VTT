@@ -3,11 +3,13 @@ import {
   ArrowDown,
   ArrowUp,
   Box,
+  Cloud,
   Circle,
   CloudDrizzle,
   CloudFog,
   CloudLightning,
   CloudRain,
+  CloudSnow,
   CloudSun,
   Crown,
   Droplets,
@@ -22,14 +24,30 @@ import {
   RotateCcw,
   Settings,
   Shield,
+  Snowflake,
   Sparkles,
   Square,
   SquareDashed,
+  ThermometerSnowflake,
   Trash2,
   User,
   UsersRound
 } from "lucide-react";
-import type { Asset, FogSettings, GridSettings, GridType, Layer, MapTransform, RainWeatherEffectType, Scene, WeatherSettings, WeatherTuningSettings } from "../../../shared/localvtt";
+import type {
+  Asset,
+  FogSettings,
+  FogWeatherEffectType,
+  GridSettings,
+  GridType,
+  Layer,
+  MapTransform,
+  RainWeatherEffectType,
+  Scene,
+  SnowWeatherEffectType,
+  WeatherPatternEffectType,
+  WeatherSettings,
+  WeatherTuningSettings
+} from "../../../shared/localvtt";
 import { DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultFogShapeName, type Token } from "../../../shared/localvtt";
 import { getSnappedTokenPosition } from "../../canvas/tokenGeometry";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
@@ -50,7 +68,29 @@ const RAIN_EFFECT_OPTIONS: Array<{
   { effect: "rain-storm", label: "Rain Storm", icon: CloudLightning }
 ];
 
+const FOG_EFFECT_OPTIONS: Array<{
+  effect: FogWeatherEffectType;
+  label: string;
+  icon: typeof CloudRain;
+}> = [
+  { effect: "light-fog", label: "Light Fog", icon: Cloud },
+  { effect: "fog", label: "Fog", icon: CloudFog },
+  { effect: "heavy-fog", label: "Heavy Fog", icon: CloudFog }
+];
+
+const SNOW_EFFECT_OPTIONS: Array<{
+  effect: SnowWeatherEffectType;
+  label: string;
+  icon: typeof CloudRain;
+}> = [
+  { effect: "light-snow", label: "Light Snow", icon: ThermometerSnowflake },
+  { effect: "snow", label: "Snow", icon: Snowflake },
+  { effect: "blizzard", label: "Blizzard", icon: CloudSnow }
+];
+
+type WeatherCategory = "none" | "rain" | "fog" | "snow";
 type WeatherTuningKey = keyof WeatherTuningSettings;
+type ActiveWeatherCategory = Exclude<WeatherCategory, "none">;
 
 export function LayerPanel({
   scene,
@@ -109,7 +149,7 @@ export function LayerPanel({
   const [settingsLayerIds, setSettingsLayerIds] = useState<Set<string>>(() => new Set());
   const [draggedFogShapeId, setDraggedFogShapeId] = useState<string | null>(null);
   const [fogShapeDropTarget, setFogShapeDropTarget] = useState<FogShapeDropTarget>(null);
-  const [weatherCategory, setWeatherCategory] = useState<"none" | "rain">(() => (scene.weather.effect === "none" ? "none" : "rain"));
+  const [expandedWeatherCategory, setExpandedWeatherCategory] = useState<ActiveWeatherCategory | null>(null);
 
   useEffect(() => {
     if (scene.mapAssetId) {
@@ -146,12 +186,6 @@ export function LayerPanel({
       return new Set([...ids, "token"]);
     });
   }, [scene.tokens.length]);
-
-  useEffect(() => {
-    setWeatherCategory(scene.weather.effect === "none" ? "none" : "rain");
-    // Weather category has an intermediate "Rain, no pattern yet" UI state, so only resync when switching scenes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene.id]);
 
   const updateLayer = (layerId: string, patch: Partial<Layer>) => {
     const nextGrid =
@@ -260,73 +294,101 @@ export function LayerPanel({
       ...scene.weather,
       ...patch
     };
+    const hasEnabledEffect = hasEnabledWeatherEffect(nextWeather.effects);
     onChange({
       ...scene,
       weather: {
         ...nextWeather,
-        enabled: patch.effect === "none" ? false : nextWeather.enabled
+        enabled: hasEnabledEffect,
+        effect: getLegacyWeatherEffect(nextWeather)
       },
       updatedAt: new Date().toISOString()
     });
   };
 
-  const selectWeatherEffect = (effect: RainWeatherEffectType) => {
+  const toggleWeatherCategory = (category: ActiveWeatherCategory, enabled: boolean) => {
+    const slot = enabled ? scene.weather.effects[category] : getDefaultWeatherSlot(category);
+    const effects = {
+      ...scene.weather.effects,
+      [category]: {
+        ...slot,
+        enabled
+      }
+    };
+    updateWeather({
+      effects,
+      enabled: hasEnabledWeatherEffect(effects),
+      effectSettings: enabled
+        ? getWeatherEffectSettingsWithCurrent({ ...scene.weather, effects })
+        : getWeatherEffectSettingsWithCategoryReset(scene.weather, effects, category)
+    });
+    if (!enabled && expandedWeatherCategory === category) {
+      setExpandedWeatherCategory(null);
+    }
+  };
+
+  const selectWeatherEffect = (category: ActiveWeatherCategory, effect: WeatherPatternEffectType) => {
+    const currentSlot = scene.weather.effects[category];
+    if (currentSlot.enabled && currentSlot.pattern === effect) {
+      toggleWeatherCategory(category, false);
+      return;
+    }
     const effectSettings = getWeatherEffectSettingsWithCurrent(scene.weather);
     const nextTuning = effectSettings[effect] ?? DEFAULT_WEATHER_EFFECT_SETTINGS[effect];
     effectSettings[effect] = nextTuning;
     updateWeather({
-      effect,
       enabled: true,
-      ...nextTuning,
+      effects: {
+        ...scene.weather.effects,
+        [category]: {
+          enabled: true,
+          pattern: effect,
+          settings: nextTuning
+        }
+      },
       effectSettings
     });
   };
 
-  const clearWeatherEffect = () => {
-    updateWeather({
-      effect: "none",
-      enabled: false,
-      effectSettings: getWeatherEffectSettingsWithCurrent(scene.weather)
-    });
-  };
-
-  const updateWeatherTuning = (patch: Partial<WeatherTuningSettings>) => {
-    const currentEffect = scene.weather.effect;
-    if (currentEffect === "none") {
-      return;
-    }
+  const updateWeatherTuning = (category: ActiveWeatherCategory, patch: Partial<WeatherTuningSettings>) => {
+    const slot = scene.weather.effects[category];
     const nextTuning = {
-      ...getWeatherTuning(scene.weather),
+      ...slot.settings,
       ...patch
     };
     updateWeather({
-      ...patch,
+      effects: {
+        ...scene.weather.effects,
+        [category]: {
+          ...slot,
+          settings: nextTuning
+        }
+      },
       effectSettings: {
         ...scene.weather.effectSettings,
-        [currentEffect]: nextTuning
+        [slot.pattern]: nextTuning
       }
     });
   };
 
-  const resetWeatherTuning = (key: WeatherTuningKey) => {
-    const currentEffect = scene.weather.effect;
-    if (currentEffect === "none") {
-      return;
-    }
-    updateWeatherTuning({ [key]: DEFAULT_WEATHER_EFFECT_SETTINGS[currentEffect][key] });
+  const resetWeatherTuning = (category: ActiveWeatherCategory, key: WeatherTuningKey) => {
+    const pattern = scene.weather.effects[category].pattern;
+    updateWeatherTuning(category, { [key]: DEFAULT_WEATHER_EFFECT_SETTINGS[pattern][key] });
   };
 
-  const resetWeatherDrift = () => {
-    const currentEffect = scene.weather.effect;
-    if (currentEffect === "none") {
-      return;
-    }
-    const defaults = DEFAULT_WEATHER_EFFECT_SETTINGS[currentEffect];
-    updateWeatherTuning({
+  const resetWeatherDrift = (category: ActiveWeatherCategory) => {
+    const pattern = scene.weather.effects[category].pattern;
+    const defaults = DEFAULT_WEATHER_EFFECT_SETTINGS[pattern];
+    updateWeatherTuning(category, {
       directionDegrees: defaults.directionDegrees,
       driftStrength: defaults.driftStrength
     });
   };
+
+  const expandedWeatherSlot = expandedWeatherCategory ? scene.weather.effects[expandedWeatherCategory] : null;
+  const expandedWeatherSettings = expandedWeatherSlot?.enabled ? expandedWeatherSlot.settings : null;
+  const expandedWeatherOptions = expandedWeatherCategory ? getWeatherEffectOptions(expandedWeatherCategory) : [];
+  const expandedWeatherAdvancedLabels = expandedWeatherCategory ? getWeatherAdvancedLabels(expandedWeatherCategory) : WEATHER_ADVANCED_LABELS.rain;
 
   return (
     <section className="panel">
@@ -482,29 +544,38 @@ export function LayerPanel({
               )}
               {layer.id === "weather" && areSettingsExpanded && (
                 <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
-                  <label className="setting-row">
-                    <span>Enabled</span>
-                    <input type="checkbox" checked={scene.weather.enabled} onChange={(event) => updateWeather({ enabled: event.target.checked })} />
-                  </label>
-                  <label className="stacked-control">
-                    Category
-                    <select
-                      value={weatherCategory}
-                      onChange={(event) => {
-                        const category = event.target.value;
-                        setWeatherCategory(category === "rain" ? "rain" : "none");
-                        clearWeatherEffect();
-                      }}
-                    >
-                      <option value="none">None</option>
-                      <option value="rain">Rain</option>
-                    </select>
-                  </label>
-                  {weatherCategory === "rain" && (
-                    <div className="weather-preset-group" role="group" aria-label="Rain type">
-                      {RAIN_EFFECT_OPTIONS.map((option) => {
+                  <div className="weather-category-list">
+                    <WeatherCategoryRow
+                      label="Rain"
+                      enabled={scene.weather.effects.rain.enabled}
+                      expanded={expandedWeatherCategory === "rain"}
+                      onEnabledChange={(enabled) => toggleWeatherCategory("rain", enabled)}
+                      onExpand={() => setExpandedWeatherCategory((category) => (category === "rain" ? null : "rain"))}
+                    />
+                    <WeatherCategoryRow
+                      label="Fog"
+                      enabled={scene.weather.effects.fog.enabled}
+                      expanded={expandedWeatherCategory === "fog"}
+                      onEnabledChange={(enabled) => toggleWeatherCategory("fog", enabled)}
+                      onExpand={() => setExpandedWeatherCategory((category) => (category === "fog" ? null : "fog"))}
+                    />
+                    <WeatherCategoryRow
+                      label="Snow"
+                      enabled={scene.weather.effects.snow.enabled}
+                      expanded={expandedWeatherCategory === "snow"}
+                      onEnabledChange={(enabled) => toggleWeatherCategory("snow", enabled)}
+                      onExpand={() => setExpandedWeatherCategory((category) => (category === "snow" ? null : "snow"))}
+                    />
+                  </div>
+                  {expandedWeatherCategory && expandedWeatherSlot && (
+                  <div className="weather-category-settings">
+                    <div className="weather-settings-heading">
+                      <span>{getWeatherCategoryLabel(expandedWeatherCategory)} Settings</span>
+                    </div>
+                    <div className="weather-preset-group" role="group" aria-label={`${expandedWeatherCategory} type`}>
+                      {expandedWeatherOptions.map((option) => {
                         const Icon = option.icon;
-                        const isActive = scene.weather.effect === option.effect;
+                        const isActive = expandedWeatherSlot.enabled && expandedWeatherSlot.pattern === option.effect;
                         return (
                           <button
                             key={option.effect}
@@ -512,7 +583,7 @@ export function LayerPanel({
                             className={isActive ? "weather-preset-button weather-preset-active" : "weather-preset-button"}
                             aria-pressed={isActive}
                             title={option.label}
-                            onClick={() => selectWeatherEffect(option.effect)}
+                            onClick={() => selectWeatherEffect(expandedWeatherCategory, option.effect)}
                           >
                             <Icon size={16} aria-hidden="true" />
                             <span>{option.label}</span>
@@ -520,14 +591,14 @@ export function LayerPanel({
                         );
                       })}
                     </div>
-                  )}
-                  {scene.weather.effect !== "none" && (
+                    {expandedWeatherSettings ? (
+                      <>
                     <div className="settings-grid">
                       <div className="setting-row">
                         <span>Intensity</span>
                         <div className="weather-setting-control">
-                          <input type="range" min={0.1} max={1} step={0.05} value={scene.weather.intensity} onChange={(event) => updateWeatherTuning({ intensity: Number(event.target.value) })} />
-                          <button className="icon-button weather-reset-button" type="button" title="Reset intensity" aria-label="Reset weather intensity" onClick={() => resetWeatherTuning("intensity")}>
+                          <input type="range" min={0.1} max={1} step={0.05} value={expandedWeatherSettings.intensity} onChange={(event) => updateWeatherTuning(expandedWeatherCategory, { intensity: Number(event.target.value) })} />
+                          <button className="icon-button weather-reset-button" type="button" title="Reset intensity" aria-label="Reset weather intensity" onClick={() => resetWeatherTuning(expandedWeatherCategory, "intensity")}>
                             <RotateCcw size={13} aria-hidden="true" />
                           </button>
                         </div>
@@ -535,8 +606,8 @@ export function LayerPanel({
                       <div className="setting-row">
                         <span>Opacity</span>
                         <div className="weather-setting-control">
-                          <input type="range" min={0.05} max={1} step={0.05} value={scene.weather.opacity} onChange={(event) => updateWeatherTuning({ opacity: Number(event.target.value) })} />
-                          <button className="icon-button weather-reset-button" type="button" title="Reset opacity" aria-label="Reset weather opacity" onClick={() => resetWeatherTuning("opacity")}>
+                          <input type="range" min={0.05} max={1} step={0.05} value={expandedWeatherSettings.opacity} onChange={(event) => updateWeatherTuning(expandedWeatherCategory, { opacity: Number(event.target.value) })} />
+                          <button className="icon-button weather-reset-button" type="button" title="Reset opacity" aria-label="Reset weather opacity" onClick={() => resetWeatherTuning(expandedWeatherCategory, "opacity")}>
                             <RotateCcw size={13} aria-hidden="true" />
                           </button>
                         </div>
@@ -544,103 +615,52 @@ export function LayerPanel({
                       <div className="setting-row">
                         <span>Speed</span>
                         <div className="weather-setting-control">
-                          <input type="range" min={0.1} max={2} step={0.05} value={scene.weather.speed} onChange={(event) => updateWeatherTuning({ speed: Number(event.target.value) })} />
-                          <button className="icon-button weather-reset-button" type="button" title="Reset speed" aria-label="Reset weather speed" onClick={() => resetWeatherTuning("speed")}>
+                          <input type="range" min={0.1} max={2} step={0.05} value={expandedWeatherSettings.speed} onChange={(event) => updateWeatherTuning(expandedWeatherCategory, { speed: Number(event.target.value) })} />
+                          <button className="icon-button weather-reset-button" type="button" title="Reset speed" aria-label="Reset weather speed" onClick={() => resetWeatherTuning(expandedWeatherCategory, "speed")}>
                             <RotateCcw size={13} aria-hidden="true" />
                           </button>
                         </div>
                       </div>
                     </div>
-                  )}
-                  {scene.weather.effect !== "none" && (
                     <details className="weather-advanced-panel">
                       <summary>Advanced</summary>
                       <div className="settings-grid">
                         <div className="setting-row weather-drift-row">
                           <span>Drift</span>
-                          <WeatherDirectionDial weather={scene.weather} onChange={updateWeatherTuning} onReset={resetWeatherDrift} />
+                          <WeatherDirectionDial weather={expandedWeatherSettings} onChange={(patch) => updateWeatherTuning(expandedWeatherCategory, patch)} onReset={() => resetWeatherDrift(expandedWeatherCategory)} />
                         </div>
-                        <WeatherRangeRow
-                          label="Edge Bias"
-                          value={scene.weather.edgeBias}
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          format={formatPercent}
-                          onChange={(value) => updateWeatherTuning({ edgeBias: value })}
-                          onReset={() => resetWeatherTuning("edgeBias")}
-                        />
-                        <WeatherRangeRow
-                          label="Quiet Area"
-                          value={scene.weather.quietAreaSize}
-                          min={0.35}
-                          max={0.9}
-                          step={0.05}
-                          format={formatPercent}
-                          onChange={(value) => updateWeatherTuning({ quietAreaSize: value })}
-                          onReset={() => resetWeatherTuning("quietAreaSize")}
-                        />
-                        <WeatherRangeRow
-                          label="Stray Drops"
-                          value={scene.weather.centerStrayDrops}
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          format={formatPercent}
-                          onChange={(value) => updateWeatherTuning({ centerStrayDrops: value })}
-                          onReset={() => resetWeatherTuning("centerStrayDrops")}
-                        />
-                        <WeatherRangeRow
-                          label="Streak Length"
-                          value={scene.weather.streakLength}
-                          min={0.4}
-                          max={2}
-                          step={0.05}
-                          format={formatMultiplier}
-                          onChange={(value) => updateWeatherTuning({ streakLength: value })}
-                          onReset={() => resetWeatherTuning("streakLength")}
-                        />
-                        {scene.weather.effect === "rain-storm" && (
+                        <WeatherRangeRow label={expandedWeatherAdvancedLabels.edgeBias} value={expandedWeatherSettings.edgeBias} min={0} max={1} step={0.05} format={formatPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { edgeBias: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "edgeBias")} />
+                        <WeatherRangeRow label={expandedWeatherAdvancedLabels.quietAreaSize} value={expandedWeatherSettings.quietAreaSize} min={0.35} max={0.9} step={0.05} format={formatPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { quietAreaSize: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "quietAreaSize")} />
+                        <WeatherRangeRow label={expandedWeatherAdvancedLabels.centerStrayDrops} value={expandedWeatherSettings.centerStrayDrops} min={0} max={1} step={0.05} format={formatPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { centerStrayDrops: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "centerStrayDrops")} />
+                        <WeatherRangeRow label={expandedWeatherAdvancedLabels.streakLength} value={expandedWeatherSettings.streakLength} min={0.4} max={2} step={0.05} format={formatMultiplier} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { streakLength: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "streakLength")} />
+                        {expandedWeatherSlot.pattern === "rain-storm" && (
                           <>
-                            <WeatherRangeRow
-                              label="Lightning"
-                              value={scene.weather.lightningFrequency}
-                              min={0}
-                              max={1}
-                              step={0.05}
-                              format={formatPercent}
-                              onChange={(value) => updateWeatherTuning({ lightningFrequency: value })}
-                              onReset={() => resetWeatherTuning("lightningFrequency")}
-                            />
-                            <WeatherRangeRow
-                              label="Flash"
-                              value={scene.weather.flashStrength}
-                              min={0}
-                              max={1}
-                              step={0.05}
-                              format={formatPercent}
-                              onChange={(value) => updateWeatherTuning({ flashStrength: value })}
-                              onReset={() => resetWeatherTuning("flashStrength")}
-                            />
+                            <WeatherRangeRow label="Lightning" value={expandedWeatherSettings.lightningFrequency} min={0} max={1} step={0.05} format={formatPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { lightningFrequency: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "lightningFrequency")} />
+                            <WeatherRangeRow label="Flash" value={expandedWeatherSettings.flashStrength} min={0} max={1} step={0.05} format={formatPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { flashStrength: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "flashStrength")} />
                           </>
                         )}
                         <div className="setting-row">
                           <span>Quality</span>
                           <div className="weather-setting-control">
-                            <select value={scene.weather.quality} onChange={(event) => updateWeatherTuning({ quality: event.target.value as WeatherTuningSettings["quality"] })}>
+                            <select value={expandedWeatherSettings.quality} onChange={(event) => updateWeatherTuning(expandedWeatherCategory, { quality: event.target.value as WeatherTuningSettings["quality"] })}>
                               <option value="low">Low</option>
                               <option value="balanced">Balanced</option>
                               <option value="high">High</option>
                             </select>
-                            <button className="icon-button weather-reset-button" type="button" title="Reset quality" aria-label="Reset weather quality" onClick={() => resetWeatherTuning("quality")}>
+                            <button className="icon-button weather-reset-button" type="button" title="Reset quality" aria-label="Reset weather quality" onClick={() => resetWeatherTuning(expandedWeatherCategory, "quality")}>
                               <RotateCcw size={13} aria-hidden="true" />
                             </button>
                           </div>
                         </div>
                       </div>
                     </details>
+                      </>
+                    ) : (
+                      <div className="inline-help">Choose a weather pattern to enable this category and show its controls.</div>
+                    )}
+                  </div>
                   )}
-                  <div className="inline-help">Weather renders on both GM View and Player View when the layer is visible. Keep drift centered for straight rainfall.</div>
+                  <div className="inline-help">Weather renders on both GM View and Player View when the layer is visible. Keep drift centered for no directional movement.</div>
                 </div>
               )}
               {layer.id === "weather" && isExpanded && !areSettingsExpanded && (
@@ -879,20 +899,70 @@ export function LayerPanel({
   );
 }
 
-function getWeatherTuning(weather: WeatherSettings): WeatherTuningSettings {
+function WeatherCategoryRow({
+  label,
+  enabled,
+  expanded,
+  onEnabledChange,
+  onExpand
+}: {
+  label: string;
+  enabled: boolean;
+  expanded: boolean;
+  onEnabledChange: (enabled: boolean) => void;
+  onExpand: () => void;
+}) {
+  return (
+    <div className={expanded ? "weather-category-row weather-category-row-active" : "weather-category-row"}>
+      <span>{label}</span>
+      <label className="fog-operation-switch weather-category-switch" title={`${enabled ? "Disable" : "Enable"} ${label}`}>
+        <span>Off</span>
+        <input type="checkbox" checked={enabled} onChange={(event) => onEnabledChange(event.target.checked)} />
+        <span>On</span>
+      </label>
+      <button className={expanded ? "icon-button layer-settings-button layer-settings-active" : "icon-button layer-settings-button"} type="button" title={`${label} settings`} aria-label={`${label} settings`} onClick={onExpand}>
+        <Settings size={15} aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+function getLegacyWeatherEffect(weather: WeatherSettings): WeatherSettings["effect"] {
+  if (weather.effects.rain.enabled) {
+    return weather.effects.rain.pattern;
+  }
+  if (weather.effects.fog.enabled) {
+    return weather.effects.fog.pattern;
+  }
+  if (weather.effects.snow.enabled) {
+    return weather.effects.snow.pattern;
+  }
+  return "none";
+}
+
+function getDefaultWeatherSlot(category: "rain"): WeatherSettings["effects"]["rain"];
+function getDefaultWeatherSlot(category: "fog"): WeatherSettings["effects"]["fog"];
+function getDefaultWeatherSlot(category: "snow"): WeatherSettings["effects"]["snow"];
+function getDefaultWeatherSlot(category: ActiveWeatherCategory): WeatherSettings["effects"][ActiveWeatherCategory];
+function getDefaultWeatherSlot(category: ActiveWeatherCategory): WeatherSettings["effects"][ActiveWeatherCategory] {
+  if (category === "rain") {
+    return {
+      enabled: false,
+      pattern: "rain",
+      settings: { ...DEFAULT_WEATHER_EFFECT_SETTINGS.rain }
+    };
+  }
+  if (category === "snow") {
+    return {
+      enabled: false,
+      pattern: "snow",
+      settings: { ...DEFAULT_WEATHER_EFFECT_SETTINGS.snow }
+    };
+  }
   return {
-    intensity: weather.intensity,
-    opacity: weather.opacity,
-    speed: weather.speed,
-    directionDegrees: weather.directionDegrees,
-    driftStrength: weather.driftStrength,
-    edgeBias: weather.edgeBias,
-    quietAreaSize: weather.quietAreaSize,
-    centerStrayDrops: weather.centerStrayDrops,
-    streakLength: weather.streakLength,
-    lightningFrequency: weather.lightningFrequency,
-    flashStrength: weather.flashStrength,
-    quality: weather.quality
+    enabled: false,
+    pattern: "fog",
+    settings: { ...DEFAULT_WEATHER_EFFECT_SETTINGS.fog }
   };
 }
 
@@ -1017,7 +1087,7 @@ function WeatherMaskList({
         <div className="layer-empty-state">
           <strong>No Weather Masks</strong>
           <span>
-            {scene.weather.enabled && scene.weather.effect !== "none"
+            {scene.weather.enabled && hasEnabledWeatherEffect(scene.weather.effects)
               ? "Draw masks from Weather Tools to keep weather out of interiors."
               : "Choose a weather pattern in settings to enable Weather Tools, then draw masks from the canvas."}
           </span>
@@ -1028,11 +1098,77 @@ function WeatherMaskList({
 }
 
 function getWeatherEffectSettingsWithCurrent(weather: WeatherSettings): WeatherSettings["effectSettings"] {
-  const effectSettings = { ...weather.effectSettings };
-  if (weather.effect !== "none") {
-    effectSettings[weather.effect] = getWeatherTuning(weather);
+  return {
+    ...weather.effectSettings,
+    [weather.effects.rain.pattern]: weather.effects.rain.settings,
+    [weather.effects.fog.pattern]: weather.effects.fog.settings,
+    [weather.effects.snow.pattern]: weather.effects.snow.settings
+  };
+}
+
+function getWeatherEffectSettingsWithCategoryReset(
+  weather: WeatherSettings,
+  effects: WeatherSettings["effects"],
+  category: ActiveWeatherCategory
+): WeatherSettings["effectSettings"] {
+  const effectSettings = getWeatherEffectSettingsWithCurrent({ ...weather, effects });
+  const options = getWeatherEffectOptions(category);
+  for (const option of options) {
+    effectSettings[option.effect] = DEFAULT_WEATHER_EFFECT_SETTINGS[option.effect];
   }
   return effectSettings;
+}
+
+function hasEnabledWeatherEffect(effects: WeatherSettings["effects"]): boolean {
+  return effects.rain.enabled || effects.fog.enabled || effects.snow.enabled;
+}
+
+function getWeatherEffectOptions(category: ActiveWeatherCategory) {
+  if (category === "rain") {
+    return RAIN_EFFECT_OPTIONS;
+  }
+  if (category === "snow") {
+    return SNOW_EFFECT_OPTIONS;
+  }
+  return FOG_EFFECT_OPTIONS;
+}
+
+function getWeatherCategoryLabel(category: ActiveWeatherCategory): string {
+  if (category === "rain") {
+    return "Rain";
+  }
+  if (category === "snow") {
+    return "Snow";
+  }
+  return "Fog";
+}
+
+const WEATHER_ADVANCED_LABELS: Record<
+  ActiveWeatherCategory,
+  Pick<Record<WeatherTuningKey, string>, "edgeBias" | "quietAreaSize" | "centerStrayDrops" | "streakLength">
+> = {
+  rain: {
+    edgeBias: "Edge Bias",
+    quietAreaSize: "Quiet Area",
+    centerStrayDrops: "Stray Drops",
+    streakLength: "Streak Length"
+  },
+  fog: {
+    edgeBias: "Edge Density",
+    quietAreaSize: "Center Clearing",
+    centerStrayDrops: "Soft Pockets",
+    streakLength: "Fog Scale"
+  },
+  snow: {
+    edgeBias: "Edge Frost",
+    quietAreaSize: "Clear Center",
+    centerStrayDrops: "Center Flurries",
+    streakLength: "Flake Size"
+  }
+};
+
+function getWeatherAdvancedLabels(category: ActiveWeatherCategory) {
+  return WEATHER_ADVANCED_LABELS[category];
 }
 
 function WeatherDirectionDial({
@@ -1040,7 +1176,7 @@ function WeatherDirectionDial({
   onChange,
   onReset
 }: {
-  weather: WeatherSettings;
+  weather: WeatherTuningSettings;
   onChange: (patch: Partial<WeatherTuningSettings>) => void;
   onReset: () => void;
 }) {

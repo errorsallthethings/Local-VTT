@@ -110,9 +110,29 @@ type WeatherPolygonDraft = {
   current?: Point;
 };
 
+type TokenImageSource = {
+  id: string;
+  path: string;
+};
+
 const PING_DURATION_MS = 1600;
 const LASER_POINT_LIFETIME_MS = 1100;
 const LASER_MIN_POINT_DISTANCE = 8;
+
+function parseTokenImageSourceKey(key: string): TokenImageSource[] {
+  try {
+    const parsed = JSON.parse(key);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.filter(
+      (source): source is TokenImageSource =>
+        typeof source?.id === "string" && source.id.length > 0 && typeof source?.path === "string" && source.path.length > 0
+    );
+  } catch {
+    return [];
+  }
+}
 
 export function SceneCanvas({
   campaign,
@@ -172,6 +192,7 @@ export function SceneCanvas({
   const assetUrl = useMemo(() => {
     return mapAsset?.absolutePath ? window.localVtt.toAssetUrl(mapAsset.absolutePath) : null;
   }, [mapAsset?.absolutePath]);
+  const campaignAssets = campaign?.assets;
 
   const tokenAssetIds = useMemo(() => {
     // Keep image loading keyed by asset identity, not token presentation/position changes.
@@ -179,16 +200,26 @@ export function SceneCanvas({
   }, [scene?.tokens]);
 
   const tokenAssets = useMemo(() => {
-    if (!campaign) {
+    if (!campaignAssets) {
       return [];
     }
-    const assetsById = new Map(campaign.assets.map((asset) => [asset.id, asset]));
+    const assetsById = new Map(campaignAssets.map((asset) => [asset.id, asset]));
     return tokenAssetIds
       .split("|")
       .filter(Boolean)
       .map((assetId) => assetsById.get(assetId) ?? null)
       .filter((asset): asset is NonNullable<typeof asset> => Boolean(asset?.absolutePath));
-  }, [campaign, tokenAssetIds]);
+  }, [campaignAssets, tokenAssetIds]);
+
+  const tokenImageSourceKey = useMemo(() => {
+    const sources = tokenAssets
+      .map((asset) => ({
+        id: asset.id,
+        path: asset.thumbnailAbsolutePath ?? asset.absolutePath
+      }))
+      .filter((source): source is TokenImageSource => Boolean(source.path));
+    return JSON.stringify(sources);
+  }, [tokenAssets]);
 
   const mapLayer = scene?.layers.find((layer) => layer.id === "map");
   const gridLayer = scene?.layers.find((layer) => layer.id === "grid");
@@ -213,7 +244,7 @@ export function SceneCanvas({
       paused: videoPaused
     });
 
-  const requiredTokenAssetIds = useMemo(() => tokenAssets.map((asset) => asset.id), [tokenAssets]);
+  const requiredTokenAssetIds = useMemo(() => parseTokenImageSourceKey(tokenImageSourceKey).map((source) => source.id), [tokenImageSourceKey]);
   const tokensReady = !canShowTokens || requiredTokenAssetIds.every((assetId) => loadedTokenImages.has(assetId) || failedTokenImageIds.has(assetId));
   const mapReady =
     !canShowMap ||
@@ -493,7 +524,8 @@ export function SceneCanvas({
   }, [isVideoMap, mapAsset?.id, assetUrl]);
 
   useEffect(() => {
-    if (tokenAssets.length === 0) {
+    const tokenImageSources = parseTokenImageSourceKey(tokenImageSourceKey);
+    if (tokenImageSources.length === 0) {
       setLoadedTokenImages(new Map());
       setFailedTokenImageIds(new Set());
       return;
@@ -504,34 +536,30 @@ export function SceneCanvas({
     const nextFailedIds = new Set<string>();
     setLoadedTokenImages(new Map());
     setFailedTokenImageIds(new Set());
-    for (const asset of tokenAssets) {
-      const tokenImagePath = asset.thumbnailAbsolutePath ?? asset.absolutePath;
-      if (!tokenImagePath) {
-        continue;
-      }
+    for (const source of tokenImageSources) {
       const image = new Image();
       image.decoding = "async";
       image.onload = () => {
         if (cancelled) {
           return;
         }
-        nextImages.set(asset.id, image);
+        nextImages.set(source.id, image);
         setLoadedTokenImages(new Map(nextImages));
       };
       image.onerror = () => {
         if (cancelled) {
           return;
         }
-        nextFailedIds.add(asset.id);
+        nextFailedIds.add(source.id);
         setFailedTokenImageIds(new Set(nextFailedIds));
       };
-      image.src = window.localVtt.toAssetUrl(tokenImagePath);
+      image.src = window.localVtt.toAssetUrl(source.path);
     }
 
     return () => {
       cancelled = true;
     };
-  }, [tokenAssets]);
+  }, [tokenImageSourceKey]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -614,7 +642,10 @@ export function SceneCanvas({
       if (canShowWeather) {
         const activeVideo = isVideoMap ? (videoRefs.current[activeVideoIndex] ?? null) : null;
         const weatherMapSource = loadedMap?.ready ? loadedMap.source : activeVideo && activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA ? activeVideo : null;
-        drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1, weatherMapSource);
+        const weatherMapReady = !canShowMap || !mapAsset || Boolean(weatherMapSource);
+        if (weatherMapReady) {
+          drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1, weatherMapSource);
+        }
       }
       if (mode === "gm" && weatherMaskPreview) {
         drawWeatherMaskPreview(ctx, weatherMaskPreview, renderCamera);

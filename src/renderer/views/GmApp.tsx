@@ -11,6 +11,7 @@ import {
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
+  isPlayerSceneProjection,
   projectSceneForPlayer
 } from "../../shared/localvtt";
 import type {
@@ -150,6 +151,7 @@ export function GmApp() {
     parseRecentCampaigns(window.localStorage.getItem(RECENT_CAMPAIGNS_STORAGE_KEY))
   );
   const [busyState, setBusyState] = useState<CampaignBusyState | null>(null);
+  const skipNextPlayerSceneAutoSyncRef = useRef(false);
 
   const mapAsset = useMemo(() => {
     if (!campaign || !activeScene?.mapAssetId) {
@@ -175,6 +177,7 @@ export function GmApp() {
 
   const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
     // Only sync the active edit to Player View when that same scene is already being shown to players.
+    skipNextPlayerSceneAutoSyncRef.current = syncScene !== nextScene;
     updateWorkspaceScene(nextScene, nextScene.id === playerSceneId ? syncCampaign : null, syncScene);
   };
 
@@ -379,6 +382,32 @@ export function GmApp() {
     void window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.");
     setPlayerSceneId(null);
   }, [campaign?.scenes, playerSceneId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void window.localVtt.getLastPlayerState().then((state) => {
+      if (cancelled || !isPlayerSceneProjection(state)) {
+        return;
+      }
+      if (campaign?.scenes.some((scene) => scene.id === state.scene.id)) {
+        setPlayerSceneId(state.scene.id);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [campaign?.scenes]);
+
+  useEffect(() => {
+    if (!campaign || !activeScene || activeScene.id !== playerSceneId) {
+      return;
+    }
+    if (skipNextPlayerSceneAutoSyncRef.current) {
+      skipNextPlayerSceneAutoSyncRef.current = false;
+      return;
+    }
+    void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(campaign, activeScene));
+  }, [activeScene, campaign, playerSceneId]);
 
   useEffect(() => {
     window.localStorage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(workspaceLayout));
@@ -1088,7 +1117,10 @@ export function GmApp() {
               brushSize={activeScene.fog.brushSize}
               fogShapeCount={activeScene.fog.shapes.length}
               weatherMaskCount={activeScene.weather.masks.length}
-              weatherToolsEnabled={activeScene.weather.enabled && activeScene.weather.effect !== "none"}
+              weatherToolsEnabled={
+                activeScene.weather.enabled &&
+                (activeScene.weather.effects.rain.enabled || activeScene.weather.effects.fog.enabled || activeScene.weather.effects.snow.enabled)
+              }
               onCanvasToolChange={setActiveCanvasTool}
               onFogToolChange={setActiveFogTool}
               onWeatherMaskToolChange={setActiveWeatherMaskTool}

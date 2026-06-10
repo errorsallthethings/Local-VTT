@@ -154,7 +154,7 @@ describe("campaign action helpers", () => {
     expect(next.scenes).toEqual([
       { id: "scene-1", name: "One", file: "one.json" },
       { id: "scene-2", name: "Two", file: "two.json", folderId: "folder-a" },
-      { id: "scene-copy", name: "Two Copy", file: "scenes/scene-copy.scene.json", folderId: "folder-a", mapAssetId: "map-1" }
+      { id: "scene-copy", name: "Two Copy", file: "scenes/scene-copy.scene.json", folderId: "folder-a", mapAssetId: "map-1", weather: duplicate.weather }
     ]);
     expect(next.updatedAt).toBe("now");
   });

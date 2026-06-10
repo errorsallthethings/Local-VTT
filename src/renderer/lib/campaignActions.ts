@@ -112,6 +112,7 @@ export function insertSceneEntryAfterSource(
     name: scene.name,
     file: `scenes/${scene.id}.scene.json`,
     mapAssetId: scene.mapAssetId,
+    weather: scene.weather,
     folderId
   };
   const scenes = [...campaign.scenes];
