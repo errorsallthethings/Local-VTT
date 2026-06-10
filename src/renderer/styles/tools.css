@@ -66,9 +66,15 @@
   padding: 4px 8px;
 }
 
-.tools-ruler-flyout {
+.tools-weather-flyout {
   min-width: 46px;
   margin-top: 46px;
+  padding: 4px;
+}
+
+.tools-ruler-flyout {
+  min-width: 46px;
+  margin-top: 92px;
   padding: 4px;
 }
 

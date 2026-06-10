@@ -189,9 +189,9 @@ async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSumma
   }
 
   await ensureCampaignFolders(campaignPath);
-  const campaignWithSceneMapIds = await hydrateSceneMapAssetIds(campaignPath, parsed);
-  const campaignWithThumbnails = await ensureMapThumbnails(campaignPath, campaignWithSceneMapIds);
-  if (campaignWithThumbnails !== campaignWithSceneMapIds) {
+  const campaignWithSceneSummaries = await hydrateSceneSummaries(campaignPath, parsed);
+  const campaignWithThumbnails = await ensureMapThumbnails(campaignPath, campaignWithSceneSummaries);
+  if (campaignWithThumbnails !== campaignWithSceneSummaries) {
     await writeCampaign(campaignPath, campaignWithThumbnails);
   }
   return {
@@ -201,11 +201,11 @@ async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSumma
   };
 }
 
-async function hydrateSceneMapAssetIds(campaignPath: string, campaign: Campaign): Promise<Campaign> {
+async function hydrateSceneSummaries(campaignPath: string, campaign: Campaign): Promise<Campaign> {
   const normalizedCampaign = normalizeCampaign(campaign);
   const scenes = await Promise.all(
     normalizedCampaign.scenes.map(async (entry) => {
-      if (entry.mapAssetId) {
+      if (entry.mapAssetId && entry.weather) {
         return entry;
       }
       try {
@@ -214,7 +214,12 @@ async function hydrateSceneMapAssetIds(campaignPath: string, campaign: Campaign)
         const raw = await readFile(filePath, "utf8");
         const scene = JSON.parse(raw) as unknown;
         assertValidScene(scene);
-        return scene.mapAssetId ? { ...entry, mapAssetId: scene.mapAssetId } : entry;
+        const normalizedScene = normalizeScene(scene);
+        return {
+          ...entry,
+          mapAssetId: entry.mapAssetId ?? normalizedScene.mapAssetId,
+          weather: entry.weather ?? normalizedScene.weather
+        };
       } catch {
         return entry;
       }
@@ -560,7 +565,7 @@ ipcMain.handle("scene:create", async (_event, campaignPath: string, sceneName: s
 
   const campaign: Campaign = {
     ...summary.campaign,
-    scenes: [...summary.campaign.scenes, { id: scene.id, name: scene.name, file: `scenes/${scene.id}.scene.json` }],
+    scenes: [...summary.campaign.scenes, { id: scene.id, name: scene.name, file: `scenes/${scene.id}.scene.json`, weather: scene.weather }],
     updatedAt: new Date().toISOString()
   };
   await writeCampaign(campaignPath, campaign);
@@ -579,6 +584,7 @@ ipcMain.handle("scene:duplicate", async (_event, campaignPath: string, sourceSce
     name: scene.name,
     file: `scenes/${scene.id}.scene.json`,
     mapAssetId: scene.mapAssetId,
+    weather: scene.weather,
     folderId
   };
   const sourceIndex = summary.campaign.scenes.findIndex((entry) => entry.id === afterSceneId);
@@ -614,7 +620,9 @@ ipcMain.handle("scene:save", async (_event, campaignPath: string, scene: Scene) 
   const summary = await loadCampaignFromPath(campaignPath);
   const campaign: Campaign = {
     ...summary.campaign,
-    scenes: summary.campaign.scenes.map((entry) => (entry.id === scene.id ? { ...entry, name: scene.name, mapAssetId: updated.mapAssetId } : entry)),
+    scenes: summary.campaign.scenes.map((entry) =>
+      entry.id === scene.id ? { ...entry, name: scene.name, mapAssetId: updated.mapAssetId, weather: updated.weather } : entry
+    ),
     updatedAt: new Date().toISOString()
   };
   await writeCampaign(campaignPath, campaign);

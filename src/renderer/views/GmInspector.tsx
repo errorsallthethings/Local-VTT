@@ -9,6 +9,7 @@ export function GmInspector({
   mapAsset,
   tokenAssets,
   selectedFogShapeId,
+  selectedWeatherMaskId,
   selectedTokenId,
   workspaceLayout,
   onClearActiveFogTool,
@@ -26,6 +27,7 @@ export function GmInspector({
   onImportToken,
   onDeleteMap,
   onSelectFogShape,
+  onSelectWeatherMask,
   onSelectToken,
   onRenameFogShape,
   onRenameToken,
@@ -37,6 +39,7 @@ export function GmInspector({
   mapAsset: Asset | null;
   tokenAssets: Map<string, Asset>;
   selectedFogShapeId: string | null;
+  selectedWeatherMaskId: string | null;
   selectedTokenId: string | null;
   workspaceLayout: WorkspaceLayout;
   onClearActiveFogTool: () => void;
@@ -54,6 +57,7 @@ export function GmInspector({
   onImportToken: () => void;
   onDeleteMap: (asset: Asset) => void;
   onSelectFogShape: (shapeId: string | null) => void;
+  onSelectWeatherMask: (maskId: string | null) => void;
   onSelectToken: (tokenId: string | null) => void;
   onRenameFogShape: (shapeId: string, fallbackName: string) => void;
   onRenameToken: (tokenId: string, fallbackName: string) => void;
@@ -96,6 +100,7 @@ export function GmInspector({
                 mapAsset={mapAsset}
                 tokenAssets={tokenAssets}
                 selectedFogShapeId={selectedFogShapeId}
+                selectedWeatherMaskId={selectedWeatherMaskId}
                 selectedTokenId={selectedTokenId}
                 onChange={onChangeScene}
                 onUpdateGrid={onUpdateGrid}
@@ -107,6 +112,7 @@ export function GmInspector({
                 onImportToken={onImportToken}
                 onDeleteMap={onDeleteMap}
                 onSelectFogShape={onSelectFogShape}
+                onSelectWeatherMask={onSelectWeatherMask}
                 onSelectToken={onSelectToken}
                 onRenameFogShape={onRenameFogShape}
                 onRenameToken={onRenameToken}

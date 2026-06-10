@@ -115,6 +115,58 @@ export interface FogSettings {
   shapes: FogShape[];
 }
 
+export type RainWeatherEffectType = "light-rain" | "rain" | "heavy-rain" | "rain-storm";
+export type FogWeatherEffectType = "light-fog" | "fog" | "heavy-fog";
+export type SnowWeatherEffectType = "light-snow" | "snow" | "blizzard";
+export type WeatherPatternEffectType = RainWeatherEffectType | FogWeatherEffectType | SnowWeatherEffectType;
+export type WeatherEffectType = "none" | WeatherPatternEffectType;
+export type WeatherQualityLevel = "low" | "balanced" | "high";
+
+export interface WeatherTuningSettings {
+  intensity: number;
+  opacity: number;
+  speed: number;
+  directionDegrees: number;
+  driftStrength: number;
+  edgeBias: number;
+  quietAreaSize: number;
+  centerStrayDrops: number;
+  streakLength: number;
+  lightningFrequency: number;
+  flashStrength: number;
+  quality: WeatherQualityLevel;
+}
+
+export interface WeatherEffectSlot<TPattern extends WeatherPatternEffectType = WeatherPatternEffectType> {
+  enabled: boolean;
+  pattern: TPattern;
+  settings: WeatherTuningSettings;
+}
+
+export interface WeatherEffectSlots {
+  rain: WeatherEffectSlot<RainWeatherEffectType>;
+  fog: WeatherEffectSlot<FogWeatherEffectType>;
+  snow: WeatherEffectSlot<SnowWeatherEffectType>;
+}
+
+export interface WeatherSettings extends WeatherTuningSettings {
+  enabled: boolean;
+  /** Legacy single-pattern field kept for old saves and transitional UI compatibility. */
+  effect: WeatherEffectType;
+  effectSettings: Partial<Record<WeatherPatternEffectType, WeatherTuningSettings>>;
+  effects: WeatherEffectSlots;
+  masks: WeatherMask[];
+}
+
+export interface WeatherMask {
+  id: string;
+  name?: string;
+  kind: "rectangle" | "polygon" | "circle";
+  points: Point[];
+  radius?: number;
+  visible?: boolean;
+}
+
 export interface FogShape {
   id: string;
   name?: string;
@@ -242,6 +294,7 @@ export interface Scene {
   layerOrderLocked: boolean;
   mapTransform: MapTransform;
   fog: FogSettings;
+  weather: WeatherSettings;
   tokens: Token[];
   tokenMovementPath?: TokenMovementPath;
   walls: Wall[];
@@ -262,6 +315,7 @@ export interface CampaignSceneEntry {
   file: string;
   mapAssetId?: string;
   folderId?: string;
+  weather?: WeatherSettings;
 }
 
 export interface CampaignSceneFolder {
@@ -400,6 +454,193 @@ export const DEFAULT_FOG: FogSettings = {
   shapes: []
 };
 
+export const DEFAULT_WEATHER_TUNING: WeatherTuningSettings = {
+  intensity: 0.65,
+  opacity: 0.65,
+  speed: 0.6,
+  directionDegrees: 105,
+  driftStrength: 0,
+  edgeBias: 0.72,
+  quietAreaSize: 0.72,
+  centerStrayDrops: 0.35,
+  streakLength: 1,
+  lightningFrequency: 0.42,
+  flashStrength: 0.22,
+  quality: "balanced"
+};
+
+export const DEFAULT_WEATHER_EFFECT_SETTINGS: Record<WeatherPatternEffectType, WeatherTuningSettings> = {
+  "light-rain": {
+    intensity: 0.45,
+    opacity: 0.48,
+    speed: 0.55,
+    directionDegrees: 105,
+    driftStrength: 0,
+    edgeBias: 0.78,
+    quietAreaSize: 0.6,
+    centerStrayDrops: 0.18,
+    streakLength: 0.72,
+    lightningFrequency: 0,
+    flashStrength: 0,
+    quality: "balanced"
+  },
+  rain: {
+    intensity: 0.58,
+    opacity: 0.58,
+    speed: 0.6,
+    directionDegrees: 105,
+    driftStrength: 0,
+    edgeBias: 0.72,
+    quietAreaSize: 0.6,
+    centerStrayDrops: 0.28,
+    streakLength: 0.86,
+    lightningFrequency: 0,
+    flashStrength: 0,
+    quality: "balanced"
+  },
+  "heavy-rain": {
+    ...DEFAULT_WEATHER_TUNING,
+    quietAreaSize: 0.6
+  },
+  "rain-storm": {
+    intensity: 0.74,
+    opacity: 0.68,
+    speed: 0.72,
+    directionDegrees: 105,
+    driftStrength: 0,
+    edgeBias: 0.68,
+    quietAreaSize: 0.6,
+    centerStrayDrops: 0.4,
+    streakLength: 1.08,
+    lightningFrequency: 0.42,
+    flashStrength: 0.22,
+    quality: "balanced"
+  },
+  "light-fog": {
+    intensity: 0.62,
+    opacity: 0.58,
+    speed: 0.52,
+    directionDegrees: 105,
+    driftStrength: 0.18,
+    edgeBias: 0.26,
+    quietAreaSize: 0.88,
+    centerStrayDrops: 0.3,
+    streakLength: 1.18,
+    lightningFrequency: 0,
+    flashStrength: 0,
+    quality: "balanced"
+  },
+  fog: {
+    intensity: 0.72,
+    opacity: 0.62,
+    speed: 0.44,
+    directionDegrees: 105,
+    driftStrength: 0.22,
+    edgeBias: 0.16,
+    quietAreaSize: 0.82,
+    centerStrayDrops: 0.44,
+    streakLength: 0.96,
+    lightningFrequency: 0,
+    flashStrength: 0,
+    quality: "balanced"
+  },
+  "heavy-fog": {
+    intensity: 0.9,
+    opacity: 0.78,
+    speed: 0.36,
+    directionDegrees: 105,
+    driftStrength: 0.26,
+    edgeBias: 0.08,
+    quietAreaSize: 0.76,
+    centerStrayDrops: 0.58,
+    streakLength: 0.78,
+    lightningFrequency: 0,
+    flashStrength: 0,
+    quality: "balanced"
+  },
+  "light-snow": {
+    intensity: 0.95,
+    opacity: 0.82,
+    speed: 0.48,
+    directionDegrees: 105,
+    driftStrength: 0,
+    edgeBias: 0.12,
+    quietAreaSize: 0.45,
+    centerStrayDrops: 0.82,
+    streakLength: 1.18,
+    lightningFrequency: 0,
+    flashStrength: 0,
+    quality: "balanced"
+  },
+  snow: {
+    intensity: 1,
+    opacity: 0.9,
+    speed: 0.58,
+    directionDegrees: 105,
+    driftStrength: 0,
+    edgeBias: 0.1,
+    quietAreaSize: 0.45,
+    centerStrayDrops: 0.86,
+    streakLength: 1.24,
+    lightningFrequency: 0,
+    flashStrength: 0,
+    quality: "balanced"
+  },
+  blizzard: {
+    intensity: 1.08,
+    opacity: 1,
+    speed: 0.72,
+    directionDegrees: 105,
+    driftStrength: 0,
+    edgeBias: 0.08,
+    quietAreaSize: 0.45,
+    centerStrayDrops: 0.9,
+    streakLength: 1.34,
+    lightningFrequency: 0,
+    flashStrength: 0,
+    quality: "balanced"
+  }
+};
+
+export const DEFAULT_WEATHER: WeatherSettings = {
+  enabled: false,
+  effect: "none",
+  ...DEFAULT_WEATHER_TUNING,
+  effectSettings: {},
+  effects: {
+    rain: {
+      enabled: false,
+      pattern: "rain",
+      settings: { ...DEFAULT_WEATHER_EFFECT_SETTINGS.rain }
+    },
+    fog: {
+      enabled: false,
+      pattern: "fog",
+      settings: { ...DEFAULT_WEATHER_EFFECT_SETTINGS.fog }
+    },
+    snow: {
+      enabled: false,
+      pattern: "snow",
+      settings: { ...DEFAULT_WEATHER_EFFECT_SETTINGS.snow }
+    }
+  },
+  masks: []
+};
+
+const WEATHER_EFFECTS = new Set<WeatherEffectType>([
+  "none",
+  "light-rain",
+  "rain",
+  "rain-storm",
+  "heavy-rain",
+  "light-fog",
+  "fog",
+  "heavy-fog",
+  "light-snow",
+  "snow",
+  "blizzard"
+]);
+
 export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
   { id: "gm", name: "GM", kind: "gm", order: 90, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
@@ -445,6 +686,7 @@ export function createDefaultScene(name: string): Scene {
     layerOrderLocked: true,
     mapTransform: { ...DEFAULT_MAP_TRANSFORM },
     fog: { ...DEFAULT_FOG, shapes: [] },
+    weather: { ...DEFAULT_WEATHER },
     tokens: [],
     walls: [],
     lights: [],
@@ -574,6 +816,7 @@ export function normalizeScene(scene: Scene): Scene {
     layerOrderLocked: scene.layerOrderLocked ?? true,
     mapTransform: { ...DEFAULT_MAP_TRANSFORM, ...(scene.mapTransform ?? {}) },
     fog: normalizeFog(scene.fog),
+    weather: normalizeWeather(scene.weather),
     tokens: normalizeTokens(scene.tokens),
     videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(scene.videoPlayback ?? {}) }
   };
@@ -581,6 +824,165 @@ export function normalizeScene(scene: Scene): Scene {
 
 function isValidSceneShape(value: unknown): value is Scene {
   return isRecord(value) && isNonEmptyString(value.id) && isNonEmptyString(value.name) && Array.isArray(value.layers);
+}
+
+function normalizeWeather(weather?: Partial<WeatherSettings>): WeatherSettings {
+  const effect = weather?.effect && WEATHER_EFFECTS.has(weather.effect) ? weather.effect : DEFAULT_WEATHER.effect;
+  const effectSettings = normalizeWeatherEffectSettings(weather?.effectSettings);
+  const activeDefaults = effect !== "none" ? DEFAULT_WEATHER_EFFECT_SETTINGS[effect] : DEFAULT_WEATHER_TUNING;
+  const effects = normalizeWeatherEffects(weather, effect, effectSettings);
+  const enabled = weather?.enabled ?? hasEnabledWeatherEffect(effects);
+  return {
+    ...DEFAULT_WEATHER,
+    ...(weather ?? {}),
+    enabled,
+    effect,
+    intensity: clampNumber(weather?.intensity, 0, 1, activeDefaults.intensity),
+    opacity: clampNumber(weather?.opacity, 0, 1, activeDefaults.opacity),
+    speed: clampNumber(weather?.speed, 0.05, 3, activeDefaults.speed),
+    directionDegrees: clampNumber(weather?.directionDegrees, 0, 360, activeDefaults.directionDegrees),
+    driftStrength: clampNumber(weather?.driftStrength, 0, 1, activeDefaults.driftStrength),
+    edgeBias: clampNumber(weather?.edgeBias, 0, 1, activeDefaults.edgeBias),
+    quietAreaSize: clampNumber(weather?.quietAreaSize, 0.35, 0.9, activeDefaults.quietAreaSize),
+    centerStrayDrops: clampNumber(weather?.centerStrayDrops, 0, 1, activeDefaults.centerStrayDrops),
+    streakLength: clampNumber(weather?.streakLength, 0.4, 2, activeDefaults.streakLength),
+    lightningFrequency: clampNumber(weather?.lightningFrequency, 0, 1, activeDefaults.lightningFrequency),
+    flashStrength: clampNumber(weather?.flashStrength, 0, 1, activeDefaults.flashStrength),
+    quality: normalizeWeatherQuality(weather?.quality, activeDefaults.quality),
+    effectSettings,
+    effects,
+    masks: normalizeWeatherMasks(weather?.masks)
+  };
+}
+
+function normalizeWeatherEffects(
+  weather: Partial<WeatherSettings> | undefined,
+  legacyEffect: WeatherEffectType,
+  effectSettings: WeatherSettings["effectSettings"]
+): WeatherEffectSlots {
+  const rain = normalizeWeatherEffectSlot(weather?.effects?.rain, "rain", "rain", effectSettings);
+  const fog = normalizeWeatherEffectSlot(weather?.effects?.fog, "fog", "fog", effectSettings);
+  const snow = normalizeWeatherEffectSlot(weather?.effects?.snow, "snow", "snow", effectSettings);
+
+  if (legacyEffect !== "none" && !weather?.effects) {
+    if (isRainWeatherEffect(legacyEffect)) {
+      rain.enabled = weather?.enabled ?? true;
+      rain.pattern = legacyEffect;
+      rain.settings = normalizeWeatherTuning({ ...rain.settings, ...(weather ?? {}) }, DEFAULT_WEATHER_EFFECT_SETTINGS[legacyEffect]);
+    } else if (isFogWeatherEffect(legacyEffect)) {
+      fog.enabled = weather?.enabled ?? true;
+      fog.pattern = legacyEffect;
+      fog.settings = normalizeWeatherTuning({ ...fog.settings, ...(weather ?? {}) }, DEFAULT_WEATHER_EFFECT_SETTINGS[legacyEffect]);
+    } else if (isSnowWeatherEffect(legacyEffect)) {
+      snow.enabled = weather?.enabled ?? true;
+      snow.pattern = legacyEffect;
+      snow.settings = normalizeWeatherTuning({ ...snow.settings, ...(weather ?? {}) }, DEFAULT_WEATHER_EFFECT_SETTINGS[legacyEffect]);
+    }
+  }
+
+  return { rain, fog, snow };
+}
+
+function normalizeWeatherEffectSlot<TPattern extends WeatherPatternEffectType>(
+  slot: WeatherEffectSlot<TPattern> | undefined,
+  fallbackPattern: TPattern,
+  kind: "rain" | "fog" | "snow",
+  effectSettings: WeatherSettings["effectSettings"]
+): WeatherEffectSlot<TPattern> {
+  const candidatePattern = slot?.pattern;
+  const pattern =
+    kind === "rain" && candidatePattern && isRainWeatherEffect(candidatePattern)
+      ? candidatePattern
+      : kind === "fog" && candidatePattern && isFogWeatherEffect(candidatePattern)
+        ? candidatePattern
+        : kind === "snow" && candidatePattern && isSnowWeatherEffect(candidatePattern)
+          ? candidatePattern
+          : fallbackPattern;
+  const defaults = DEFAULT_WEATHER_EFFECT_SETTINGS[pattern];
+  return {
+    enabled: slot?.enabled ?? false,
+    pattern,
+    settings: normalizeWeatherTuning({ ...(effectSettings[pattern] ?? {}), ...(slot?.settings ?? {}) }, defaults)
+  };
+}
+
+function normalizeWeatherMasks(masks?: WeatherMask[]): WeatherMask[] {
+  const usedIds = new Set<string>();
+  return (masks ?? [])
+    .filter((mask) => mask.kind === "rectangle" || mask.kind === "polygon" || mask.kind === "circle")
+    .map((mask, index) => {
+      const rawId = typeof mask.id === "string" ? mask.id.trim() : "";
+      const baseId = rawId || `weather-mask-${index + 1}`;
+      let id = baseId;
+      let suffix = 2;
+      while (usedIds.has(id)) {
+        id = `${baseId}-${suffix}`;
+        suffix += 1;
+      }
+      usedIds.add(id);
+      return {
+        ...mask,
+        id,
+        name: typeof mask.name === "string" && mask.name.trim() ? mask.name : `Weather Mask ${index + 1}`,
+        visible: mask.visible ?? true
+      };
+    });
+}
+
+function normalizeWeatherEffectSettings(settings?: WeatherSettings["effectSettings"]): WeatherSettings["effectSettings"] {
+  const normalized: WeatherSettings["effectSettings"] = {};
+  if (!isRecord(settings)) {
+    return normalized;
+  }
+  for (const effect of WEATHER_EFFECTS) {
+    if (effect === "none") {
+      continue;
+    }
+    const setting = settings[effect];
+    if (!isRecord(setting)) {
+      continue;
+    }
+    const defaults = DEFAULT_WEATHER_EFFECT_SETTINGS[effect];
+    normalized[effect] = normalizeWeatherTuning(setting, defaults);
+  }
+  return normalized;
+}
+
+function normalizeWeatherTuning(setting: Record<string, unknown>, defaults: WeatherTuningSettings): WeatherTuningSettings {
+  return {
+    intensity: clampNumber(setting.intensity, 0, 1, defaults.intensity),
+    opacity: clampNumber(setting.opacity, 0, 1, defaults.opacity),
+    speed: clampNumber(setting.speed, 0.05, 3, defaults.speed),
+    directionDegrees: clampNumber(setting.directionDegrees, 0, 360, defaults.directionDegrees),
+    driftStrength: clampNumber(setting.driftStrength, 0, 1, defaults.driftStrength),
+    edgeBias: clampNumber(setting.edgeBias, 0, 1, defaults.edgeBias),
+    quietAreaSize: clampNumber(setting.quietAreaSize, 0.35, 0.9, defaults.quietAreaSize),
+    centerStrayDrops: clampNumber(setting.centerStrayDrops, 0, 1, defaults.centerStrayDrops),
+    streakLength: clampNumber(setting.streakLength, 0.4, 2, defaults.streakLength),
+    lightningFrequency: clampNumber(setting.lightningFrequency, 0, 1, defaults.lightningFrequency),
+    flashStrength: clampNumber(setting.flashStrength, 0, 1, defaults.flashStrength),
+    quality: normalizeWeatherQuality(setting.quality, defaults.quality)
+  };
+}
+
+function normalizeWeatherQuality(value: unknown, fallback: WeatherQualityLevel): WeatherQualityLevel {
+  return value === "low" || value === "balanced" || value === "high" ? value : fallback;
+}
+
+function isRainWeatherEffect(effect: WeatherEffectType): effect is RainWeatherEffectType {
+  return effect === "light-rain" || effect === "rain" || effect === "heavy-rain" || effect === "rain-storm";
+}
+
+function isFogWeatherEffect(effect: WeatherEffectType): effect is FogWeatherEffectType {
+  return effect === "light-fog" || effect === "fog" || effect === "heavy-fog";
+}
+
+function isSnowWeatherEffect(effect: WeatherEffectType): effect is SnowWeatherEffectType {
+  return effect === "light-snow" || effect === "snow" || effect === "blizzard";
+}
+
+function hasEnabledWeatherEffect(effects: WeatherEffectSlots): boolean {
+  return effects.rain.enabled || effects.fog.enabled || effects.snow.enabled;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -678,7 +1080,10 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
     playerDisplay: { ...DEFAULT_CALIBRATION, ...(campaign.playerDisplay ?? campaign.defaultCalibration ?? {}) },
     sceneLibrary: { collapsedFolderIds },
     sceneFolders,
-    scenes: campaign.scenes ?? [],
+    scenes: (campaign.scenes ?? []).map((scene) => ({
+      ...scene,
+      weather: scene.weather ? normalizeWeather(scene.weather) : undefined
+    })),
     assets: (campaign.assets ?? []).map(normalizeAsset)
   };
 }
@@ -716,6 +1121,10 @@ function normalizeTokenPresentationDefaults(defaults: TokenPresentationDefaults)
 
 function normalizeColor(color: unknown, fallback = DEFAULT_SCENE_FOLDER_COLOR): string {
   return typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback;
+}
+
+function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 }
 
 export function projectSceneForPlayer(campaign: Campaign, scene: Scene): PlayerSceneProjection {

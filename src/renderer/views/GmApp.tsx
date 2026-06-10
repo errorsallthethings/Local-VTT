@@ -11,6 +11,7 @@ import {
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
+  isPlayerSceneProjection,
   projectSceneForPlayer
 } from "../../shared/localvtt";
 import type {
@@ -28,7 +29,7 @@ import type {
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ToolsMenu, type CanvasTool, type FogOperation } from "../components/tools/ToolsMenu";
+import { ToolsMenu, type CanvasTool, type FogOperation, type WeatherMaskTool } from "../components/tools/ToolsMenu";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
@@ -126,6 +127,7 @@ export function GmApp() {
   const [playerViewDisplayDialogOpen, setPlayerViewDisplayDialogOpen] = useState(false);
   const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasTool | null>(null);
   const [activeFogTool, setActiveFogTool] = useState<FogTool | null>(null);
+  const [activeWeatherMaskTool, setActiveWeatherMaskTool] = useState<WeatherMaskTool | null>(null);
   const [fogOperation, setFogOperation] = useState<FogOperation>("reveal");
   const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
@@ -137,6 +139,7 @@ export function GmApp() {
   const [newCampaignName, setNewCampaignName] = useState("");
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [selectedFogShapeId, setSelectedFogShapeId] = useState<string | null>(null);
+  const [selectedWeatherMaskId, setSelectedWeatherMaskId] = useState<string | null>(null);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
   const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
@@ -148,6 +151,7 @@ export function GmApp() {
     parseRecentCampaigns(window.localStorage.getItem(RECENT_CAMPAIGNS_STORAGE_KEY))
   );
   const [busyState, setBusyState] = useState<CampaignBusyState | null>(null);
+  const skipNextPlayerSceneAutoSyncRef = useRef(false);
 
   const mapAsset = useMemo(() => {
     if (!campaign || !activeScene?.mapAssetId) {
@@ -173,6 +177,7 @@ export function GmApp() {
 
   const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
     // Only sync the active edit to Player View when that same scene is already being shown to players.
+    skipNextPlayerSceneAutoSyncRef.current = syncScene !== nextScene;
     updateWorkspaceScene(nextScene, nextScene.id === playerSceneId ? syncCampaign : null, syncScene);
   };
 
@@ -183,6 +188,7 @@ export function GmApp() {
   const clearActiveCanvasTools = () => {
     setActiveCanvasTool(null);
     setActiveFogTool(null);
+    setActiveWeatherMaskTool(null);
   };
 
   const updateCampaignDraft = (nextCampaign: Campaign) => {
@@ -341,6 +347,13 @@ export function GmApp() {
   }, [activeScene?.fog.shapes, selectedFogShapeId]);
 
   useEffect(() => {
+    if (!selectedWeatherMaskId || activeScene?.weather.masks.some((mask) => mask.id === selectedWeatherMaskId)) {
+      return;
+    }
+    setSelectedWeatherMaskId(null);
+  }, [activeScene?.weather.masks, selectedWeatherMaskId]);
+
+  useEffect(() => {
     if (!selectedFogShapeId) {
       return;
     }
@@ -369,6 +382,32 @@ export function GmApp() {
     void window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.");
     setPlayerSceneId(null);
   }, [campaign?.scenes, playerSceneId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void window.localVtt.getLastPlayerState().then((state) => {
+      if (cancelled || !isPlayerSceneProjection(state)) {
+        return;
+      }
+      if (campaign?.scenes.some((scene) => scene.id === state.scene.id)) {
+        setPlayerSceneId(state.scene.id);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [campaign?.scenes]);
+
+  useEffect(() => {
+    if (!campaign || !activeScene || activeScene.id !== playerSceneId) {
+      return;
+    }
+    if (skipNextPlayerSceneAutoSyncRef.current) {
+      skipNextPlayerSceneAutoSyncRef.current = false;
+      return;
+    }
+    void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(campaign, activeScene));
+  }, [activeScene, campaign, playerSceneId]);
 
   useEffect(() => {
     window.localStorage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(workspaceLayout));
@@ -445,6 +484,20 @@ export function GmApp() {
     updateScene,
     onClearFogConfirmed: () => setConfirmClearFogOpen(false)
   });
+
+  const undoWeatherMask = () => {
+    if (!activeScene || activeScene.weather.masks.length === 0) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      weather: {
+        ...activeScene.weather,
+        masks: activeScene.weather.masks.slice(0, -1)
+      },
+      updatedAt: new Date().toISOString()
+    });
+  };
 
   const reopenRecentCampaign = async (recentCampaignPath: string) => {
     const ok = await openRecentCampaign(recentCampaignPath);
@@ -1059,14 +1112,22 @@ export function GmApp() {
             <ToolsMenu
               activeCanvasTool={activeCanvasTool}
               activeFogTool={activeFogTool}
+              activeWeatherMaskTool={activeWeatherMaskTool}
               fogOperation={fogOperation}
               brushSize={activeScene.fog.brushSize}
               fogShapeCount={activeScene.fog.shapes.length}
+              weatherMaskCount={activeScene.weather.masks.length}
+              weatherToolsEnabled={
+                activeScene.weather.enabled &&
+                (activeScene.weather.effects.rain.enabled || activeScene.weather.effects.fog.enabled || activeScene.weather.effects.snow.enabled)
+              }
               onCanvasToolChange={setActiveCanvasTool}
               onFogToolChange={setActiveFogTool}
+              onWeatherMaskToolChange={setActiveWeatherMaskTool}
               onFogOperationChange={setFogOperation}
               onBrushSizeChange={(brushSize) => updateFog({ brushSize })}
               onUndoFogShape={undoFogShape}
+              onUndoWeatherMask={undoWeatherMask}
               onRequestClearFog={() => setConfirmClearFogOpen(true)}
             />
           )}
@@ -1076,8 +1137,10 @@ export function GmApp() {
             mode="gm"
             canvasTool={activeCanvasTool}
             fogTool={activeFogTool}
+            weatherMaskTool={activeWeatherMaskTool}
             liveTableEvents={liveTableEvents}
             selectedFogShapeId={selectedFogShapeId}
+            selectedWeatherMaskId={selectedWeatherMaskId}
             selectedTokenId={selectedTokenId}
             onSceneChange={updateCanvasScene}
             onSelectToken={setSelectedTokenId}
@@ -1117,6 +1180,7 @@ export function GmApp() {
         mapAsset={mapAsset}
         tokenAssets={tokenAssets}
         selectedFogShapeId={selectedFogShapeId}
+        selectedWeatherMaskId={selectedWeatherMaskId}
         selectedTokenId={selectedTokenId}
         workspaceLayout={workspaceLayout}
         onClearActiveFogTool={clearActiveCanvasTools}
@@ -1134,6 +1198,7 @@ export function GmApp() {
         onImportToken={() => void importToken("scene")}
         onDeleteMap={setMapAssetToDelete}
         onSelectFogShape={setSelectedFogShapeId}
+        onSelectWeatherMask={setSelectedWeatherMaskId}
         onSelectToken={setSelectedTokenId}
         onRenameFogShape={openRenameFogShapeDialog}
         onRenameToken={openRenameTokenDialog}

@@ -324,6 +324,30 @@
   position: static;
 }
 
+.scene-weather-badges {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  pointer-events: none;
+}
+
+.scene-weather-badges span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgb(143 155 173 / 0.45);
+  border-radius: var(--radius-pill);
+  background: rgb(12 18 26 / 0.72);
+  color: #dfe6ef;
+  box-shadow: 0 2px 7px rgb(0 0 0 / 0.28);
+}
+
 .scene-thumbnail-video svg,
 .scene-thumbnail-empty svg {
   color: var(--color-accent);

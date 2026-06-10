@@ -13,6 +13,7 @@ import {
   DEFAULT_MEASUREMENT,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
+  DEFAULT_WEATHER,
   isLiveTableEvent,
   isPlayerIdleState,
   isPlayerSceneProjection,
@@ -61,10 +62,74 @@ it("normalizeScene fills default settings for older scene files", () => {
   expect(normalized.videoPlayback).toEqual(DEFAULT_VIDEO_PLAYBACK);
   expect(normalized.layerOrderLocked).toBe(true);
   expect(normalized.layers.length).toBe(DEFAULT_LAYERS.length);
+  expect(normalized.weather).toEqual(DEFAULT_WEATHER);
   expect(normalized.fog.opacity).toBe(0.8);
   expect(normalized.fog.gmOpacity).toBe(0.5);
   expect(normalized.fog.playerOpacity).toBe(0.8);
   expect(normalized.fog.newShapesVisibleInPlayer).toBe(true);
+});
+
+it("normalizeScene clamps weather settings", () => {
+  const scene = createDefaultScene("Weather");
+  scene.weather = {
+    enabled: true,
+    effect: "rain-storm",
+    intensity: 9,
+    opacity: -2,
+    speed: 99,
+    directionDegrees: 720,
+    driftStrength: 5,
+    edgeBias: 4,
+    quietAreaSize: 0.1,
+    centerStrayDrops: -1,
+    streakLength: 9,
+    lightningFrequency: 3,
+    flashStrength: -2,
+    quality: "ultra"
+  };
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.weather).toEqual({
+    enabled: true,
+    effect: "rain-storm",
+    intensity: 1,
+    opacity: 0,
+    speed: 3,
+    directionDegrees: 360,
+    driftStrength: 1,
+    edgeBias: 1,
+    quietAreaSize: 0.35,
+    centerStrayDrops: 0,
+    streakLength: 2,
+    lightningFrequency: 1,
+    flashStrength: 0,
+    quality: "balanced",
+    effectSettings: {},
+    effects: {
+      rain: {
+        enabled: true,
+        pattern: "rain-storm",
+        settings: {
+          intensity: 1,
+          opacity: 0,
+          speed: 3,
+          directionDegrees: 360,
+          driftStrength: 1,
+          edgeBias: 1,
+          quietAreaSize: 0.35,
+          centerStrayDrops: 0,
+          streakLength: 2,
+          lightningFrequency: 1,
+          flashStrength: 0,
+          quality: "balanced"
+        }
+      },
+      fog: DEFAULT_WEATHER.effects.fog,
+      snow: DEFAULT_WEATHER.effects.snow
+    },
+    masks: []
+  });
 });
 
 it("normalizeScene applies canonical core layer names and order", () => {
@@ -413,6 +478,64 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   expect(
     projection.assets.map((projectionAsset) => projectionAsset.id).sort(),
   ).toEqual(["map", "overlay", "visible-token"]);
+});
+
+it("projectSceneForPlayer preserves per-category weather tuning", () => {
+  const campaign = createDefaultCampaign("Weather Campaign");
+  const scene = createDefaultScene("Storm");
+  scene.weather.enabled = true;
+  scene.weather.effect = "rain";
+  scene.weather.intensity = 0.65;
+  scene.weather.opacity = 0.65;
+  scene.weather.effects.rain = {
+    enabled: true,
+    pattern: "rain",
+    settings: {
+      ...scene.weather.effects.rain.settings,
+      intensity: 0.25,
+      opacity: 0.35,
+      speed: 1.4,
+      edgeBias: 0.2,
+      quietAreaSize: 0.85
+    }
+  };
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.scene.weather.effects.rain.settings).toMatchObject({
+    intensity: 0.25,
+    opacity: 0.35,
+    speed: 1.4,
+    edgeBias: 0.2,
+    quietAreaSize: 0.85
+  });
+});
+
+it("projectSceneForPlayer preserves snow weather tuning", () => {
+  const campaign = createDefaultCampaign("Weather Campaign");
+  const scene = createDefaultScene("Snow Field");
+  scene.weather.enabled = true;
+  scene.weather.effect = "snow";
+  scene.weather.effects.snow = {
+    enabled: true,
+    pattern: "blizzard",
+    settings: {
+      ...scene.weather.effects.snow.settings,
+      intensity: 0.9,
+      opacity: 0.7,
+      speed: 1.25,
+      driftStrength: 0.5
+    }
+  };
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.scene.weather.effects.snow.settings).toMatchObject({
+    intensity: 0.9,
+    opacity: 0.7,
+    speed: 1.25,
+    driftStrength: 0.5
+  });
 });
 
 it("runtime validators reject invalid files and accept valid projected state", () => {
