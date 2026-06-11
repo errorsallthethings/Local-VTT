@@ -92,12 +92,23 @@ export function GmSidebar({
   onDeleteFolder: (folder: CampaignSceneFolder) => void;
 }) {
   return (
-    <aside className="sidebar" onPointerDown={onClearActiveFogTool}>
+    <aside
+      className={`sidebar ${workspaceLayout.leftCollapsed ? "panel-collapsed-click-target" : ""}`}
+      onClick={() => {
+        if (workspaceLayout.leftCollapsed) {
+          onToggleWorkspacePanel("left");
+        }
+      }}
+      onPointerDown={onClearActiveFogTool}
+    >
       <button
         className="icon-button panel-collapse-button sidebar-collapse-button"
         aria-label={workspaceLayout.leftCollapsed ? "Expand left sidebar" : "Collapse left sidebar"}
         title={workspaceLayout.leftCollapsed ? "Expand left sidebar" : "Collapse left sidebar"}
-        onClick={() => onToggleWorkspacePanel("left")}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggleWorkspacePanel("left");
+        }}
       >
         {workspaceLayout.leftCollapsed ? <PanelLeftOpen size={16} aria-hidden="true" /> : <PanelLeftClose size={16} aria-hidden="true" />}
       </button>

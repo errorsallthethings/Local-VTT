@@ -66,12 +66,23 @@ export function GmInspector({
   onOpenTokenColor: (tokenId: string, value: string, kind: "border" | "glow") => void;
 }) {
   return (
-    <aside className="inspector" onPointerDown={onClearActiveFogTool}>
+    <aside
+      className={`inspector ${workspaceLayout.rightCollapsed ? "panel-collapsed-click-target" : ""}`}
+      onClick={() => {
+        if (workspaceLayout.rightCollapsed) {
+          onToggleWorkspacePanel("right");
+        }
+      }}
+      onPointerDown={onClearActiveFogTool}
+    >
       <button
         className="icon-button panel-collapse-button inspector-collapse-button"
         aria-label={workspaceLayout.rightCollapsed ? "Expand right inspector" : "Collapse right inspector"}
         title={workspaceLayout.rightCollapsed ? "Expand right inspector" : "Collapse right inspector"}
-        onClick={() => onToggleWorkspacePanel("right")}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggleWorkspacePanel("right");
+        }}
       >
         {workspaceLayout.rightCollapsed ? <PanelRightOpen size={16} aria-hidden="true" /> : <PanelRightClose size={16} aria-hidden="true" />}
       </button>

@@ -15,6 +15,18 @@
   max-height: var(--token-library-expanded-height, 238px);
 }
 
+.token-library-collapsed-click-target {
+  cursor: pointer;
+}
+
+.token-library-collapsed-click-target:hover {
+  background: rgb(122 162 247 / 0.05);
+}
+
+.token-library-collapsed-click-target:hover .token-library-toggle {
+  color: var(--color-text-strong);
+}
+
 .token-library-resize-handle {
   position: absolute;
   top: -6px;

@@ -78,7 +78,16 @@ export function TokenLibraryDrawer({
   });
 
   return (
-    <section className={`token-library-drawer token-library-view-${view} ${expanded ? "token-library-expanded" : ""}`}>
+    <section
+      className={`token-library-drawer token-library-view-${view} ${
+        expanded ? "token-library-expanded" : "token-library-collapsed-click-target"
+      }`}
+      onClick={() => {
+        if (!expanded) {
+          onToggleExpanded();
+        }
+      }}
+    >
       {expanded && (
         <button
           className="token-library-resize-handle"
@@ -95,7 +104,10 @@ export function TokenLibraryDrawer({
           className="icon-button token-library-toggle"
           aria-label={expanded ? "Collapse token library" : "Expand token library"}
           title={expanded ? "Collapse token library" : "Expand token library"}
-          onClick={onToggleExpanded}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleExpanded();
+          }}
         >
           {expanded ? <PanelBottomClose size={16} aria-hidden="true" /> : <PanelBottomOpen size={16} aria-hidden="true" />}
         </button>
