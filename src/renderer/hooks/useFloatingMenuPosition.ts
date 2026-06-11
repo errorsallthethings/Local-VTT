@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import { calculateFloatingMenuPosition } from "../lib/menuPosition";
 
 interface FloatingMenuPositionOptions {
   open: boolean;
@@ -30,12 +31,17 @@ export function useFloatingMenuPosition({
       const menuRect = menuRef.current?.getBoundingClientRect();
       const menuWidth = menuRect?.width ?? fallbackWidth;
       const menuHeight = menuRect?.height ?? fallbackHeight;
-      const top =
-        anchorRect.bottom + gap + menuHeight <= window.innerHeight - viewportPadding
-          ? anchorRect.bottom + gap
-          : Math.max(viewportPadding, anchorRect.top - menuHeight - gap);
-      const left = Math.min(window.innerWidth - menuWidth - viewportPadding, Math.max(viewportPadding, anchorRect.right - menuWidth));
-      setPosition({ top, left });
+      setPosition(
+        calculateFloatingMenuPosition({
+          anchorRect,
+          menuWidth,
+          menuHeight,
+          viewportWidth: window.innerWidth,
+          viewportHeight: window.innerHeight,
+          gap,
+          viewportPadding
+        })
+      );
     };
 
     updatePosition();
