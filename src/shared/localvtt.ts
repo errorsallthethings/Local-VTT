@@ -285,6 +285,34 @@ export interface VideoPlaybackSettings {
   muted: boolean;
 }
 
+export interface TurnOrderEntry {
+  id: string;
+  name: string;
+  initiative: number;
+  visibleInPlayer: boolean;
+  tokenId?: string;
+  assetId?: string;
+}
+
+export interface PlayerSeatIndicator {
+  id: string;
+  name: string;
+  edge: "top" | "right" | "bottom" | "left";
+  position: number;
+  color: string;
+  assetId?: string;
+  visibleInPlayer: boolean;
+}
+
+export interface TurnOrderSettings {
+  active: boolean;
+  currentEntryId?: string;
+  playerViewVisible: boolean;
+  playerViewEdge: "top" | "right" | "bottom" | "left";
+  entries: TurnOrderEntry[];
+  seats: PlayerSeatIndicator[];
+}
+
 export interface Scene {
   id: string;
   name: string;
@@ -304,6 +332,7 @@ export interface Scene {
   lights: LightSource[];
   drawings: DrawingElement[];
   overlays: SceneOverlay[];
+  turnOrder: TurnOrderSettings;
   videoPlayback: VideoPlaybackSettings;
   notes: string;
   playerView: {
@@ -433,6 +462,14 @@ export const DEFAULT_VIDEO_PLAYBACK: VideoPlaybackSettings = {
   diagnosticsVisible: false,
   paused: false,
   muted: true
+};
+
+export const DEFAULT_TURN_ORDER: TurnOrderSettings = {
+  active: false,
+  playerViewVisible: false,
+  playerViewEdge: "top",
+  entries: [],
+  seats: []
 };
 
 export const DEFAULT_PLAYER_VIEW: Scene["playerView"] = {
@@ -790,6 +827,7 @@ export function createDefaultScene(name: string): Scene {
     lights: [],
     drawings: [],
     overlays: [],
+    turnOrder: { ...DEFAULT_TURN_ORDER, entries: [], seats: [] },
     videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK },
     notes: "",
     playerView: { ...DEFAULT_PLAYER_VIEW }
@@ -919,6 +957,7 @@ export function normalizeScene(scene: Scene): Scene {
     lights: scene.lights ?? [],
     drawings: scene.drawings ?? [],
     overlays: scene.overlays ?? [],
+    turnOrder: normalizeTurnOrder(scene.turnOrder),
     videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(scene.videoPlayback ?? {}) },
     notes: scene.notes ?? "",
     playerView: { ...DEFAULT_PLAYER_VIEW, ...(scene.playerView ?? {}) }
@@ -1180,6 +1219,57 @@ function normalizeTokens(tokens?: Token[]): Token[] {
     visibleInGm: token.visibleInGm ?? !(token.hidden ?? false),
     visibleInPlayer: token.hidden ? false : (token.visibleInPlayer ?? false)
   }));
+}
+
+function normalizeTurnOrder(turnOrder?: Partial<TurnOrderSettings>): TurnOrderSettings {
+  const entryIds = new Set<string>();
+  const entries = (turnOrder?.entries ?? []).map((entry, index) => {
+    const id = getUniqueTurnOrderId(entry.id, index, entryIds);
+    return {
+      ...entry,
+      id,
+      name: typeof entry.name === "string" && entry.name.trim() ? entry.name : `Entry ${index + 1}`,
+      initiative: clampNumber(entry.initiative, -99, 99, 0),
+      visibleInPlayer: entry.visibleInPlayer ?? true
+    };
+  });
+  const entryIdSet = new Set(entries.map((entry) => entry.id));
+  const seats = (turnOrder?.seats ?? []).map((seat, index) => ({
+    ...seat,
+    id: typeof seat.id === "string" && seat.id.trim() ? seat.id : `seat-${index + 1}`,
+    name: typeof seat.name === "string" && seat.name.trim() ? seat.name : `Seat ${index + 1}`,
+    edge: seat.edge === "top" || seat.edge === "right" || seat.edge === "bottom" || seat.edge === "left" ? seat.edge : "bottom",
+    position: clampNumber(seat.position, 0, 1, 0.5),
+    color: normalizeColor(seat.color, DEFAULT_TOKEN_BORDER_COLOR),
+    visibleInPlayer: seat.visibleInPlayer ?? true
+  }));
+  const currentEntryId = turnOrder?.currentEntryId && entryIdSet.has(turnOrder.currentEntryId) ? turnOrder.currentEntryId : entries[0]?.id;
+  return {
+    ...DEFAULT_TURN_ORDER,
+    ...(turnOrder ?? {}),
+    active: turnOrder?.active ?? false,
+    currentEntryId,
+    playerViewVisible: turnOrder?.playerViewVisible ?? false,
+    playerViewEdge:
+      turnOrder?.playerViewEdge === "top" || turnOrder?.playerViewEdge === "right" || turnOrder?.playerViewEdge === "bottom" || turnOrder?.playerViewEdge === "left"
+        ? turnOrder.playerViewEdge
+        : DEFAULT_TURN_ORDER.playerViewEdge,
+    entries,
+    seats
+  };
+}
+
+function getUniqueTurnOrderId(id: unknown, index: number, usedIds: Set<string>): string {
+  const rawId = typeof id === "string" ? id.trim() : "";
+  const baseId = rawId || `turn-entry-${index + 1}`;
+  let candidateId = baseId;
+  let suffix = 2;
+  while (usedIds.has(candidateId)) {
+    candidateId = `${baseId}-${suffix}`;
+    suffix += 1;
+  }
+  usedIds.add(candidateId);
+  return candidateId;
 }
 
 function normalizeTokenBorderStyle(style: unknown): TokenBorderStyle {

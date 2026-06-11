@@ -32,6 +32,7 @@ import { SceneCanvas } from "../components/SceneCanvas";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type CanvasTool, type FogOperation, type WeatherMaskTool } from "../components/tools/ToolsMenu";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
+import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import type { FogTool } from "../canvas/fogRenderer";
@@ -1194,6 +1195,7 @@ export function GmApp() {
           onSetTokenDefaults={openTokenDefaultsDialog}
           onRenameToken={openRenameTokenAssetDialog}
           onDeleteToken={(asset) => void openDeleteTokenAssetDialog(asset)}
+          sidePanel={<TurnOrderPanel scene={activeScene} tokenAssets={tokenAssets} onChangeScene={updateScene} />}
         />
 
         <footer className="statusbar">

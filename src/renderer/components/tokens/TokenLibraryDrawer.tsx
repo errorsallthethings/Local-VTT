@@ -41,6 +41,7 @@ interface TokenLibraryDrawerProps {
   onSetTokenDefaults: (asset: Asset) => void;
   onRenameToken: (asset: Asset) => void;
   onDeleteToken: (asset: Asset) => void;
+  sidePanel?: ReactNode;
 }
 
 export function TokenLibraryDrawer({
@@ -56,7 +57,8 @@ export function TokenLibraryDrawer({
   selectedTokenAssetId,
   onSetTokenDefaults,
   onRenameToken,
-  onDeleteToken
+  onDeleteToken,
+  sidePanel
 }: TokenLibraryDrawerProps) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<TokenLibrarySort>("name-asc");
@@ -143,47 +145,19 @@ export function TokenLibraryDrawer({
       </div>
 
       {expanded && (
-        <div className="token-library-content">
-          {selectedTokenAsset && (
-            <section className="token-library-section">
-              <TokenLibrarySectionLabel label="Selected Token" />
-              <div className="token-library-selected-token">
-                <TokenLibraryItem
-                  asset={selectedTokenAsset}
-                  activeSceneName={activeSceneName}
-                  selected
-                  draggable={false}
-                  menuOpen={openTokenMenuId === `selected:${selectedTokenAsset.id}`}
-                  onToggleMenu={() => setOpenTokenMenuId((openId) => (openId === `selected:${selectedTokenAsset.id}` ? null : `selected:${selectedTokenAsset.id}`))}
-                  onAddToken={onAddToken}
-                  onSetTokenDefaults={(defaultAsset) => {
-                    setOpenTokenMenuId(null);
-                    onSetTokenDefaults(defaultAsset);
-                  }}
-                  onRenameToken={(renamedAsset) => {
-                    setOpenTokenMenuId(null);
-                    onRenameToken(renamedAsset);
-                  }}
-                  onDeleteToken={(deletedAsset) => {
-                    setOpenTokenMenuId(null);
-                    onDeleteToken(deletedAsset);
-                  }}
-                />
-              </div>
-            </section>
-          )}
-          <section className="token-library-section token-library-list-section">
-            <TokenLibrarySectionLabel label="Token List" />
-            {filteredAssets.length > 0 ? (
-              <div className="token-library-grid">
-                {filteredAssets.map((asset) => (
+        <div className={sidePanel ? "token-library-content token-library-content-split" : "token-library-content"}>
+          <div className="token-library-main-panel">
+            {selectedTokenAsset && (
+              <section className="token-library-section">
+                <TokenLibrarySectionLabel label="Selected Token" />
+                <div className="token-library-selected-token">
                   <TokenLibraryItem
-                    key={asset.id}
-                    asset={asset}
+                    asset={selectedTokenAsset}
                     activeSceneName={activeSceneName}
-                    selected={selectedTokenAssetId === asset.id}
-                    menuOpen={openTokenMenuId === asset.id}
-                    onToggleMenu={() => setOpenTokenMenuId((openId) => (openId === asset.id ? null : asset.id))}
+                    selected
+                    draggable={false}
+                    menuOpen={openTokenMenuId === `selected:${selectedTokenAsset.id}`}
+                    onToggleMenu={() => setOpenTokenMenuId((openId) => (openId === `selected:${selectedTokenAsset.id}` ? null : `selected:${selectedTokenAsset.id}`))}
                     onAddToken={onAddToken}
                     onSetTokenDefaults={(defaultAsset) => {
                       setOpenTokenMenuId(null);
@@ -198,21 +172,52 @@ export function TokenLibraryDrawer({
                       onDeleteToken(deletedAsset);
                     }}
                   />
-                ))}
-              </div>
-            ) : (
-              <div className="token-library-empty">
-                <PackageOpen size={18} aria-hidden="true" />
-                <span>
-                  {!campaignOpen
-                    ? "Create or open a campaign before importing tokens."
-                    : assets.length === 0
-                      ? "Import a token to start building this campaign library."
-                      : "No tokens match your search."}
-                </span>
-              </div>
+                </div>
+              </section>
             )}
-          </section>
+            <section className="token-library-section token-library-list-section">
+              <TokenLibrarySectionLabel label="Token List" />
+              {filteredAssets.length > 0 ? (
+                <div className="token-library-grid">
+                  {filteredAssets.map((asset) => (
+                    <TokenLibraryItem
+                      key={asset.id}
+                      asset={asset}
+                      activeSceneName={activeSceneName}
+                      selected={selectedTokenAssetId === asset.id}
+                      menuOpen={openTokenMenuId === asset.id}
+                      onToggleMenu={() => setOpenTokenMenuId((openId) => (openId === asset.id ? null : asset.id))}
+                      onAddToken={onAddToken}
+                      onSetTokenDefaults={(defaultAsset) => {
+                        setOpenTokenMenuId(null);
+                        onSetTokenDefaults(defaultAsset);
+                      }}
+                      onRenameToken={(renamedAsset) => {
+                        setOpenTokenMenuId(null);
+                        onRenameToken(renamedAsset);
+                      }}
+                      onDeleteToken={(deletedAsset) => {
+                        setOpenTokenMenuId(null);
+                        onDeleteToken(deletedAsset);
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="token-library-empty">
+                  <PackageOpen size={18} aria-hidden="true" />
+                  <span>
+                    {!campaignOpen
+                      ? "Create or open a campaign before importing tokens."
+                      : assets.length === 0
+                        ? "Import a token to start building this campaign library."
+                        : "No tokens match your search."}
+                  </span>
+                </div>
+              )}
+            </section>
+          </div>
+          {sidePanel && <div className="token-library-side-panel">{sidePanel}</div>}
         </div>
       )}
     </section>
