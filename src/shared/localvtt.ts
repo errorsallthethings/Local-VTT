@@ -434,6 +434,11 @@ export const DEFAULT_VIDEO_PLAYBACK: VideoPlaybackSettings = {
   muted: true
 };
 
+export const DEFAULT_PLAYER_VIEW: Scene["playerView"] = {
+  backgroundColor: "#000000",
+  fitMode: "contain"
+};
+
 export const DEFAULT_TOKEN_BORDER_COLOR = "#7aa2f7";
 export const DEFAULT_TOKEN_BORDER_STYLE: TokenBorderStyle = "none";
 export const DEFAULT_TOKEN_BORDER_WIDTH = 24;
@@ -786,10 +791,7 @@ export function createDefaultScene(name: string): Scene {
     overlays: [],
     videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK },
     notes: "",
-    playerView: {
-      backgroundColor: "#000000",
-      fitMode: "contain"
-    }
+    playerView: { ...DEFAULT_PLAYER_VIEW }
   };
 }
 
@@ -886,7 +888,7 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
 }
 
 function isPoint(value: unknown): value is Point {
-  return isRecord(value) && typeof value.x === "number" && typeof value.y === "number";
+  return isRecord(value) && typeof value.x === "number" && Number.isFinite(value.x) && typeof value.y === "number" && Number.isFinite(value.y);
 }
 
 export function normalizeScene(scene: Scene): Scene {
@@ -910,7 +912,14 @@ export function normalizeScene(scene: Scene): Scene {
     fog: normalizeFog(scene.fog),
     weather: normalizeWeather(scene.weather),
     tokens: normalizeTokens(scene.tokens),
-    videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(scene.videoPlayback ?? {}) }
+    tokenMovementPath: normalizeTokenMovementPath(scene.tokenMovementPath),
+    walls: scene.walls ?? [],
+    lights: scene.lights ?? [],
+    drawings: scene.drawings ?? [],
+    overlays: scene.overlays ?? [],
+    videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(scene.videoPlayback ?? {}) },
+    notes: scene.notes ?? "",
+    playerView: { ...DEFAULT_PLAYER_VIEW, ...(scene.playerView ?? {}) }
   };
 }
 
@@ -1144,6 +1153,14 @@ export function formatDefaultFogShapeName(operation: FogShape["operation"], kind
   return `${operationLabel} ${kindLabel} ${index + 1}`;
 }
 
+function normalizeTokenMovementPath(path?: TokenMovementPath): TokenMovementPath | undefined {
+  if (!path || typeof path.tokenId !== "string" || !Array.isArray(path.points)) {
+    return undefined;
+  }
+  const points = path.points.filter(isPoint);
+  return points.length > 0 ? { tokenId: path.tokenId, points } : undefined;
+}
+
 function normalizeTokens(tokens?: Token[]): Token[] {
   return (tokens ?? []).map((token, index) => ({
     ...token,
@@ -1186,10 +1203,14 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
     playerDisplay: { ...DEFAULT_CALIBRATION, ...(campaign.playerDisplay ?? campaign.defaultCalibration ?? {}) },
     sceneLibrary: { collapsedFolderIds },
     sceneFolders,
-    scenes: (campaign.scenes ?? []).map((scene) => ({
-      ...scene,
-      weather: scene.weather ? normalizeWeather(scene.weather) : undefined
-    })),
+    scenes: (campaign.scenes ?? []).map((scene) => {
+      const { folderId, ...sceneWithoutFolder } = scene;
+      return {
+        ...sceneWithoutFolder,
+        ...(folderId && folderIds.has(folderId) ? { folderId } : {}),
+        weather: scene.weather ? normalizeWeather(scene.weather) : undefined
+      };
+    }),
     assets: (campaign.assets ?? []).map(normalizeAsset)
   };
 }
