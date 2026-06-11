@@ -49,6 +49,7 @@ import {
   type RecentCampaign
 } from "../lib/recentCampaigns";
 import { createImportedToken } from "../lib/tokenDefaults";
+import { addTurnOrderEntry, createTurnOrderEntryFromToken } from "../lib/turnOrder";
 import {
   COLLAPSED_RAIL_WIDTH,
   COMPACT_RIGHT_PANEL_WIDTH,
@@ -555,6 +556,19 @@ export function GmApp() {
 
   const addLibraryTokenToScene = (asset: Asset) => {
     addImportedTokenToScene(asset);
+  };
+
+  const addSceneTokenToTurnOrder = (tokenId: string) => {
+    if (!activeScene) {
+      return;
+    }
+    const token = activeScene.tokens.find((candidate) => candidate.id === tokenId);
+    if (!token || activeScene.turnOrder.entries.some((entry) => entry.tokenId === token.id)) {
+      setSelectedTokenId(tokenId);
+      return;
+    }
+    updateScene(addTurnOrderEntry(activeScene, createTurnOrderEntryFromToken(crypto.randomUUID(), token)));
+    setSelectedTokenId(token.id);
   };
 
   const openTokenDefaultsDialog = (asset: Asset) => {
@@ -1174,6 +1188,7 @@ export function GmApp() {
             selectedTokenId={selectedTokenId}
             onSceneChange={updateCanvasScene}
             onSelectToken={setSelectedTokenId}
+            onAddTokenToTurnOrder={addSceneTokenToTurnOrder}
             onDropTokenAsset={dropLibraryTokenOnScene}
             onLiveTableEvent={emitLiveTableEvent}
             onViewportCenterChange={setGmCanvasCenter}

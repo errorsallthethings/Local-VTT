@@ -5,6 +5,7 @@ import {
   advanceTurnOrder,
   createManualTurnOrderEntry,
   createTurnOrderEntryFromAsset,
+  createTurnOrderEntryFromToken,
   moveTurnOrderEntry,
   removeTurnOrderEntry,
   sortTurnOrderByInitiative,
@@ -77,6 +78,27 @@ describe("turn order helpers", () => {
       initiative: 14,
       assetId: "asset-1",
       visibleInPlayer: true
+    });
+  });
+
+  it("creates entries from scene tokens", () => {
+    const token = {
+      id: "token-1",
+      assetId: "asset-1",
+      name: "Owlbear",
+      position: { x: 0, y: 0 },
+      size: { width: 70, height: 70 },
+      visibleInGm: true,
+      visibleInPlayer: false
+    };
+
+    expect(createTurnOrderEntryFromToken("entry-1", token, 8)).toMatchObject({
+      id: "entry-1",
+      name: "Owlbear",
+      initiative: 8,
+      tokenId: "token-1",
+      assetId: "asset-1",
+      visibleInPlayer: false
     });
   });
 

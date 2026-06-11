@@ -73,6 +73,7 @@ interface SceneCanvasProps {
   selectedTokenId?: string | null;
   onSceneChange?: (scene: Scene, syncScene?: Scene) => void;
   onSelectToken?: (tokenId: string | null) => void;
+  onAddTokenToTurnOrder?: (tokenId: string) => void;
   onDropTokenAsset?: (asset: Asset, point: Point) => void;
   onLiveTableEvent?: (event: LiveTableEvent) => void;
   onViewportCenterChange?: (point: Point) => void;
@@ -120,6 +121,13 @@ type TokenImageSource = {
   path: string;
 };
 
+type TokenContextMenu = {
+  tokenId: string;
+  tokenName: string;
+  x: number;
+  y: number;
+};
+
 function parseTokenImageSourceKey(key: string): TokenImageSource[] {
   try {
     const parsed = JSON.parse(key);
@@ -150,11 +158,13 @@ export function SceneCanvas({
   selectedTokenId = null,
   onSceneChange,
   onSelectToken,
+  onAddTokenToTurnOrder,
   onDropTokenAsset,
   onLiveTableEvent,
   onViewportCenterChange,
   onReady
 }: SceneCanvasProps) {
+  const frameRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, zoom: 1 });
   const [loadedMap, setLoadedMap] = useState<LoadedMap | null>(null);
@@ -170,6 +180,7 @@ export function SceneCanvas({
   const [weatherPolygonDraft, setWeatherPolygonDraft] = useState<WeatherPolygonDraft | null>(null);
   const [brushHoverPoint, setBrushHoverPoint] = useState<Point | null>(null);
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
+  const [tokenContextMenu, setTokenContextMenu] = useState<TokenContextMenu | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; camera: Camera } | null>(null);
   const rulerDragRef = useRef<(RulerDrag & { pointerId: number }) | null>(null);
@@ -184,6 +195,26 @@ export function SceneCanvas({
   const autoFitCameraRef = useRef(true);
   // Player View tween state is mirrored in a ref so requestAnimationFrame can draw without stale React closures.
   const playerTokenTweenPositionsRef = useRef<TokenPositionOverrides | null>(null);
+
+  useEffect(() => {
+    if (!tokenContextMenu) {
+      return;
+    }
+
+    const dismissMenu = () => setTokenContextMenu(null);
+    const dismissMenuOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        dismissMenu();
+      }
+    };
+
+    window.addEventListener("pointerdown", dismissMenu);
+    window.addEventListener("keydown", dismissMenuOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", dismissMenu);
+      window.removeEventListener("keydown", dismissMenuOnEscape);
+    };
+  }, [tokenContextMenu]);
 
   const mapAsset = useMemo(() => {
     if (!campaign || !scene?.mapAssetId) {
@@ -821,6 +852,7 @@ export function SceneCanvas({
   };
 
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    setTokenContextMenu(null);
     if (!interactive) {
       return;
     }
@@ -1191,6 +1223,21 @@ export function SceneCanvas({
     const draft = polygonDraftRef.current;
     const weatherDraft = weatherPolygonDraftRef.current;
     if (!draft && !weatherDraft) {
+      if (mode === "gm" && scene && onAddTokenToTurnOrder && canShowTokens) {
+        const point = clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale));
+        const token = getTokenAtPoint(scene.tokens, point);
+        if (token) {
+          const frameRect = frameRef.current?.getBoundingClientRect();
+          event.preventDefault();
+          onSelectToken?.(token.id);
+          setTokenContextMenu({
+            tokenId: token.id,
+            tokenName: token.name || "Token",
+            x: frameRect ? event.clientX - frameRect.left : event.clientX,
+            y: frameRect ? event.clientY - frameRect.top : event.clientY
+          });
+        }
+      }
       return;
     }
     event.preventDefault();
@@ -1359,7 +1406,7 @@ export function SceneCanvas({
   const mapOverlayMessage = mapLoadStatus === "error" ? "Map asset unavailable" : mapAsset?.mediaType === "video" ? "Loading video map..." : "Loading map...";
 
   return (
-    <div className={className ?? "scene-canvas-frame"}>
+    <div ref={frameRef} className={className ?? "scene-canvas-frame"}>
       {isVideoMap &&
         videoUrls.map((videoUrl, index) => (
           (index === activeVideoIndex || index === preparedVideoIndex) && (
@@ -1437,6 +1484,25 @@ export function SceneCanvas({
       {mode === "gm" && (canvasTool === "ping" || canvasTool === "laser") && <TableToolStatusStrip canvasTool={canvasTool} />}
       {mode === "gm" && weatherMaskTool && <WeatherMaskStatusStrip weatherMaskTool={weatherMaskTool} pointCount={weatherPolygonDraft?.points.length ?? 0} />}
       {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
+      {mode === "gm" && tokenContextMenu && (
+        <div
+          className="canvas-token-context-menu"
+          style={{ left: tokenContextMenu.x, top: tokenContextMenu.y }}
+          role="menu"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              onAddTokenToTurnOrder?.(tokenContextMenu.tokenId);
+              setTokenContextMenu(null);
+            }}
+          >
+            Add "{tokenContextMenu.tokenName}" to Turn Order
+          </button>
+        </div>
+      )}
       {showMapOverlay && <MapLoadOverlay message={mapOverlayMessage} showSpinner={mapLoadStatus === "loading"} />}
       {mode === "gm" && showVideoDiagnostics && isVideoMap && videoDebug && <div className="video-debug">{videoDebug}</div>}
     </div>

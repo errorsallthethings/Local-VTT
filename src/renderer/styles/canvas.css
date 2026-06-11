@@ -148,6 +148,37 @@
   pointer-events: none;
 }
 
+.canvas-token-context-menu {
+  position: absolute;
+  z-index: 8;
+  min-width: 190px;
+  max-width: min(300px, calc(100% - 24px));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-overlay);
+  padding: 5px;
+  box-shadow: var(--shadow-panel);
+  transform: translate(4px, 4px);
+}
+
+.canvas-token-context-menu button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  padding: 7px 8px;
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.canvas-token-context-menu button:hover {
+  background: rgb(122 162 247 / 0.12);
+  color: var(--color-text-strong);
+}
+
 .video-map-controls {
   position: absolute;
   right: 12px;
