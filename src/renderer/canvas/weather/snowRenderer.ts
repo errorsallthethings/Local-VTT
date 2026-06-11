@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { Camera } from "../camera";
 import type { WeatherSettings } from "../../../shared/localvtt";
-import { SNOW_PRESETS, createFrostEdgeMesh, createSnowParticle, getCycleOffset, getDistanceToQuietArea, getQualityMultiplier, getQuietAreaBounds, getWeatherClipPath, hash, isSnowEffect, smoothstep, updateFrostEdgeMesh, type SnowParticle, type SnowPreset, type WeatherArea, type WeatherBounds } from "./weatherCore";
+import { SNOW_PRESETS, createFrostEdgeMesh, createSnowParticle, getCycleOffset, getDistanceToQuietArea, getMinimumWeatherDimension, getQuietAreaBounds, getWeatherClipPath, getWeatherDriftVector, getWeatherParticleCount, hash, isSnowEffect, smoothstep, updateFrostEdgeMesh, type SnowParticle, type SnowPreset, type WeatherArea, type WeatherBounds } from "./weatherCore";
 
 export class SnowRenderer {
   private renderer: THREE.WebGLRenderer | null = null;
@@ -72,7 +72,7 @@ export class SnowRenderer {
     this.scene.clear();
     this.frost = null;
     this.snow = null;
-    const count = Math.round(560 * preset.density * getQualityMultiplier(weather) * Math.max(0.1, weather.intensity));
+    const count = getWeatherParticleCount(560, preset.density, weather);
     this.particles = Array.from({ length: count }, (_, index) => createSnowParticle(bounds, weather, preset, index));
     this.frost = createFrostEdgeMesh(bounds);
     this.frost.renderOrder = 0;
@@ -134,11 +134,9 @@ export class SnowRenderer {
     const sizes: number[] = [];
     const alphas: number[] = [];
     const elapsed = now * 0.001 * weather.speed * preset.speed;
-    const driftRadians = (weather.directionDegrees * Math.PI) / 180;
-    const driftStrength = Math.max(0, Math.min(1, weather.driftStrength));
-    const driftX = Math.cos(driftRadians);
-    const driftY = Math.sin(driftRadians);
-    const maxDriftDistance = Math.min(bounds.width, bounds.height) * 0.5 * driftStrength;
+    const drift = getWeatherDriftVector(weather);
+    const baseSize = getMinimumWeatherDimension(bounds);
+    const maxDriftDistance = baseSize * 0.5 * drift.strength;
     const color = new THREE.Color("#eff7ff");
     const quietBounds = getQuietAreaBounds(bounds, weather.quietAreaSize);
     const centerX = quietBounds.left + quietBounds.width / 2;
@@ -162,11 +160,11 @@ export class SnowRenderer {
       const secondaryWave = Math.cos(elapsed * (0.65 + hash(particle.seed + 735) * 0.8) + particle.drift * Math.PI * 2);
       const crossX = -directionY;
       const crossY = directionX;
-      const lateralDistance = Math.min(bounds.width, bounds.height) * (0.018 + preset.streak * 0.018 + driftStrength * 0.018) * wave;
-      const swayDistance = Math.min(bounds.width, bounds.height) * 0.012 * driftStrength * secondaryWave;
+      const lateralDistance = baseSize * (0.018 + preset.streak * 0.018 + drift.strength * 0.018) * wave;
+      const swayDistance = baseSize * 0.012 * drift.strength * secondaryWave;
       const driftDistance = maxDriftDistance * Math.pow(fallProgress, 1.04) * (0.72 + hash(particle.seed + 746) * 0.48);
-      const x = anchorX + directionX * travel + driftX * driftDistance + crossX * (lateralDistance + swayDistance);
-      const y = anchorY + directionY * travel + driftY * driftDistance + crossY * (lateralDistance + swayDistance);
+      const x = anchorX + directionX * travel + drift.x * driftDistance + crossX * (lateralDistance + swayDistance);
+      const y = anchorY + directionY * travel + drift.y * driftDistance + crossY * (lateralDistance + swayDistance);
       const fadeIn = smoothstep(0, 0.06, fallProgress);
       const fadeOut = 1 - smoothstep(0.82, 1, fallProgress);
       const depthScale = 1.24 - fallProgress * 0.46;

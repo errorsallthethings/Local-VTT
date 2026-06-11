@@ -4,7 +4,7 @@ import { RainRenderer } from "./weather/rainRenderer";
 import { FogRenderer } from "./weather/fogRenderer";
 import { SnowRenderer } from "./weather/snowRenderer";
 import { SandRenderer } from "./weather/sandRenderer";
-import { getScreenWeatherArea } from "./weather/weatherCore";
+import { clamp01, getScreenWeatherArea } from "./weather/weatherCore";
 
 const rainRenderer = new RainRenderer();
 const fogRenderer = new FogRenderer();
@@ -30,7 +30,7 @@ export function drawWeather(
     return;
   }
   const area = getScreenWeatherArea(scene, viewportWidth, viewportHeight, camera, mapSource);
-  const opacity = Math.max(0, Math.min(1, layerOpacity));
+  const opacity = clamp01(layerOpacity);
   if (weather.effects.rain.enabled) {
     rainRenderer.draw(ctx, area, getWeatherForRain(scene.weather), camera, now, opacity);
   }

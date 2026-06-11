@@ -115,6 +115,10 @@ export type SandPreset = {
   tintStrength: number;
 };
 
+type WeatherQualityInput = Pick<WeatherSettings, "quality">;
+type WeatherIntensityInput = Pick<WeatherSettings, "quality" | "intensity">;
+type WeatherDriftInput = Pick<WeatherSettings, "directionDegrees" | "driftStrength">;
+
 const FOG_EFFECTS = new Set<WeatherEffectType>(["light-fog", "fog", "heavy-fog"]);
 const SAND_EFFECTS = new Set<WeatherEffectType>(["light-sand", "sand", "sandstorm"]);
 
@@ -1076,7 +1080,22 @@ export function getEdgeBiasPower(weather: WeatherSettings, preset: RainPreset): 
   return Math.max(1.5, preset.edgeBiasPower * (0.45 + weather.edgeBias * 1.1));
 }
 
-export function getQualityMultiplier(weather: WeatherSettings): number {
+export function clamp(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  return Math.min(max, Math.max(min, value));
+}
+
+export function clamp01(value: number): number {
+  return clamp(value, 0, 1);
+}
+
+export function getMinimumWeatherDimension(bounds: WeatherBounds): number {
+  return Math.min(bounds.width, bounds.height);
+}
+
+export function getQualityMultiplier(weather: WeatherQualityInput): number {
   switch (weather.quality) {
     case "low":
       return 0.62;
@@ -1085,6 +1104,27 @@ export function getQualityMultiplier(weather: WeatherSettings): number {
     default:
       return 1;
   }
+}
+
+export function getWeatherIntensity(weather: Pick<WeatherSettings, "intensity">, minimum = 0.1): number {
+  return Math.max(minimum, Number.isFinite(weather.intensity) ? weather.intensity : minimum);
+}
+
+export function getWeatherParticleCount(baseCount: number, density: number, weather: WeatherIntensityInput): number {
+  return Math.round(baseCount * density * getQualityMultiplier(weather) * getWeatherIntensity(weather));
+}
+
+export function getWeatherDriftVector(weather: WeatherDriftInput, minimumStrength = 0) {
+  const strength = clamp(Number.isFinite(weather.driftStrength) ? weather.driftStrength : 0, minimumStrength, 1);
+  const degrees = Number.isFinite(weather.directionDegrees) ? weather.directionDegrees : 0;
+  const radians = (degrees * Math.PI) / 180;
+  return {
+    degrees,
+    radians,
+    strength,
+    x: Math.cos(radians),
+    y: Math.sin(radians)
+  };
 }
 
 export function valueNoise(x: number, y: number, seed: number): number {

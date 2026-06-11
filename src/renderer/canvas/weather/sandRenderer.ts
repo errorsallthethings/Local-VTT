@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { Camera } from "../camera";
 import type { WeatherSettings } from "../../../shared/localvtt";
-import { SAND_PRESETS, createSandParticle, createSandVeilMesh, getQualityMultiplier, getWeatherClipPath, isSandEffect, smoothstep, updateSandVeilMesh, type SandParticle, type SandPreset, type WeatherArea, type WeatherBounds } from "./weatherCore";
+import { SAND_PRESETS, createSandParticle, createSandVeilMesh, getMinimumWeatherDimension, getWeatherClipPath, getWeatherDriftVector, getWeatherParticleCount, isSandEffect, smoothstep, updateSandVeilMesh, type SandParticle, type SandPreset, type WeatherArea, type WeatherBounds } from "./weatherCore";
 
 export class SandRenderer {
   private renderer: THREE.WebGLRenderer | null = null;
@@ -77,7 +77,7 @@ export class SandRenderer {
     this.veil.renderOrder = 0;
     this.scene.add(this.veil);
 
-    const count = Math.round(620 * preset.density * getQualityMultiplier(weather) * Math.max(0.1, weather.intensity));
+    const count = getWeatherParticleCount(620, preset.density, weather);
     this.particles = Array.from({ length: count }, (_, index) => createSandParticle(bounds, weather, index));
     const material = new THREE.ShaderMaterial({
       transparent: true,
@@ -134,17 +134,16 @@ export class SandRenderer {
     }
     const color = new THREE.Color(weather.color);
     const elapsed = now * 0.001 * weather.speed * preset.speed;
-    const driftRadians = (weather.directionDegrees * Math.PI) / 180;
-    const directionX = Math.cos(driftRadians);
-    const directionY = Math.sin(driftRadians);
+    const drift = getWeatherDriftVector(weather, 0.08);
+    const directionX = drift.x;
+    const directionY = drift.y;
     const crossX = -directionY;
     const crossY = directionX;
-    const driftStrength = Math.max(0.08, weather.driftStrength);
-    const windForce = preset.windBase * (0.55 + driftStrength * 0.75);
+    const windForce = preset.windBase * (0.55 + drift.strength * 0.75);
     const travelDistance = Math.hypot(bounds.width, bounds.height) * (0.62 + windForce * 0.38);
     const centerX = bounds.left + bounds.width / 2;
     const centerY = bounds.top + bounds.height / 2;
-    const baseSize = Math.min(bounds.width, bounds.height);
+    const baseSize = getMinimumWeatherDimension(bounds);
     const positions: number[] = [];
     const colors: number[] = [];
     const sizes: number[] = [];
@@ -153,7 +152,7 @@ export class SandRenderer {
     for (const particle of this.particles) {
       const seedPhase = particle.seed * 0.001;
       const dustTime = elapsed * particle.speed * windForce + seedPhase * 20;
-      const progress = (particle.phase + dustTime * (0.06 + driftStrength * 0.1 + preset.turbulence * 0.035)) % 1;
+      const progress = (particle.phase + dustTime * (0.06 + drift.strength * 0.1 + preset.turbulence * 0.035)) % 1;
       const cycleFade = smoothstep(0, 0.12, progress) * (1 - smoothstep(0.82, 1, progress));
       const swirlPhase = seedPhase * Math.PI * 2;
       const swirlX = Math.sin(dustTime * (1.6 + preset.gustFrequency * 0.6) + swirlPhase) * preset.swirl;

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { Camera } from "../camera";
 import type { RainWeatherEffectType, WeatherSettings } from "../../../shared/localvtt";
-import { createStreak, drawStormFlash, getCycleOffset, getDistanceToQuietArea, getQualityMultiplier, getRainPreset, getWeatherClipPath, hash, smoothstep, type RainPreset, type RainStreak, type WeatherArea, type WeatherBounds } from "./weatherCore";
+import { createStreak, drawStormFlash, getCycleOffset, getDistanceToQuietArea, getMinimumWeatherDimension, getRainPreset, getWeatherClipPath, getWeatherDriftVector, getWeatherParticleCount, hash, smoothstep, type RainPreset, type RainStreak, type WeatherArea, type WeatherBounds } from "./weatherCore";
 
 export class RainRenderer {
   private renderer: THREE.WebGLRenderer | null = null;
@@ -70,7 +70,7 @@ export class RainRenderer {
   private rebuild(area: WeatherArea, weather: WeatherSettings, preset: RainPreset) {
     this.scene.clear();
     this.rain = null;
-    const count = Math.round(1050 * preset.density * getQualityMultiplier(weather) * Math.max(0.1, weather.intensity));
+    const count = getWeatherParticleCount(1050, preset.density, weather);
     this.streaks = Array.from({ length: count }, (_, index) => createStreak(area.clip, area.spawnPadding, preset, weather, index));
 
     const material = new THREE.LineBasicMaterial({
@@ -95,12 +95,8 @@ export class RainRenderer {
     const color = new THREE.Color("#d9ecff");
     const centerX = bounds.left + bounds.width / 2;
     const centerY = bounds.top + bounds.height / 2;
-    const directionDegrees = Number.isFinite(weather.directionDegrees) ? weather.directionDegrees : 0;
-    const driftStrength = Number.isFinite(weather.driftStrength) ? Math.max(0, Math.min(1, weather.driftStrength)) : 0;
-    const directionRadians = (directionDegrees * Math.PI) / 180;
-    const windX = Math.cos(directionRadians);
-    const windY = Math.sin(directionRadians);
-    const maxWindDistance = Math.min(bounds.width, bounds.height) * 0.5 * driftStrength;
+    const drift = getWeatherDriftVector(weather);
+    const maxWindDistance = getMinimumWeatherDimension(bounds) * 0.5 * drift.strength;
 
     for (const streak of this.streaks) {
       const rawFallProgress = streak.depth + elapsed * streak.speed * weather.speed * preset.speed * 2.15;
@@ -124,8 +120,8 @@ export class RainRenderer {
       const travelProgress = Math.pow(fallProgress, 1.35);
       const travel = travelProgress * Math.max(0, distanceToQuietArea);
       const windDistance = maxWindDistance * Math.pow(fallProgress, 1.04) * (0.72 + hash(streak.seed + 746) * 0.48);
-      const x = anchorX + directionX * travel + windX * windDistance;
-      const y = anchorY + directionY * travel + windY * windDistance;
+      const x = anchorX + directionX * travel + drift.x * windDistance;
+      const y = anchorY + directionY * travel + drift.y * windDistance;
       const length = streak.length * cycleLength * preset.length * weather.streakLength * (1.05 + fallProgress * 1.7);
       const screenDrift = 16 + fallProgress * 34;
       const jitter = (streak.drift - 0.5) * 0.18;
