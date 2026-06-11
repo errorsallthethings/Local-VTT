@@ -31,7 +31,8 @@ import {
   ThermometerSnowflake,
   Trash2,
   User,
-  UsersRound
+  UsersRound,
+  Wind
 } from "lucide-react";
 import type {
   Asset,
@@ -42,6 +43,7 @@ import type {
   Layer,
   MapTransform,
   RainWeatherEffectType,
+  SandWeatherEffectType,
   Scene,
   SnowWeatherEffectType,
   WeatherPatternEffectType,
@@ -88,7 +90,17 @@ const SNOW_EFFECT_OPTIONS: Array<{
   { effect: "blizzard", label: "Blizzard", icon: CloudSnow }
 ];
 
-type WeatherCategory = "none" | "rain" | "fog" | "snow";
+const SAND_EFFECT_OPTIONS: Array<{
+  effect: SandWeatherEffectType;
+  label: string;
+  icon: typeof CloudRain;
+}> = [
+  { effect: "light-sand", label: "Light Sand", icon: Wind },
+  { effect: "sand", label: "Sand", icon: CloudSun },
+  { effect: "sandstorm", label: "Sandstorm", icon: Wind }
+];
+
+type WeatherCategory = "none" | "rain" | "fog" | "snow" | "sand";
 type WeatherTuningKey = keyof WeatherTuningSettings;
 type ActiveWeatherCategory = Exclude<WeatherCategory, "none">;
 
@@ -214,14 +226,17 @@ export function LayerPanel({
   };
 
   const toggleLayerExpanded = (layerId: string) => {
-    const shouldCollapseLayer = expandedLayerIds.has(layerId) || settingsLayerIds.has(layerId);
-    if (shouldCollapseLayer) {
-      setExpandedLayerIds((ids) => {
+    if (settingsLayerIds.has(layerId)) {
+      setSettingsLayerIds((ids) => {
         const nextIds = new Set(ids);
         nextIds.delete(layerId);
         return nextIds;
       });
-      setSettingsLayerIds((ids) => {
+      setExpandedLayerIds((ids) => new Set([...ids, layerId]));
+      return;
+    }
+    if (expandedLayerIds.has(layerId)) {
+      setExpandedLayerIds((ids) => {
         const nextIds = new Set(ids);
         nextIds.delete(layerId);
         return nextIds;
@@ -389,6 +404,9 @@ export function LayerPanel({
   const expandedWeatherSettings = expandedWeatherSlot?.enabled ? expandedWeatherSlot.settings : null;
   const expandedWeatherOptions = expandedWeatherCategory ? getWeatherEffectOptions(expandedWeatherCategory) : [];
   const expandedWeatherAdvancedLabels = expandedWeatherCategory ? getWeatherAdvancedLabels(expandedWeatherCategory) : WEATHER_ADVANCED_LABELS.rain;
+  const expandedWeatherIntensityMax = expandedWeatherCategory ? getWeatherIntensityMax(expandedWeatherCategory) : 1;
+  const expandedWeatherOpacityMax = expandedWeatherCategory ? getWeatherOpacityMax(expandedWeatherCategory) : 1;
+  const expandedWeatherColorLabel = expandedWeatherCategory ? getWeatherColorLabel(expandedWeatherCategory) : "Tint";
 
   return (
     <section className="panel">
@@ -566,6 +584,13 @@ export function LayerPanel({
                       onEnabledChange={(enabled) => toggleWeatherCategory("snow", enabled)}
                       onExpand={() => setExpandedWeatherCategory((category) => (category === "snow" ? null : "snow"))}
                     />
+                    <WeatherCategoryRow
+                      label="Sand"
+                      enabled={scene.weather.effects.sand.enabled}
+                      expanded={expandedWeatherCategory === "sand"}
+                      onEnabledChange={(enabled) => toggleWeatherCategory("sand", enabled)}
+                      onExpand={() => setExpandedWeatherCategory((category) => (category === "sand" ? null : "sand"))}
+                    />
                   </div>
                   {expandedWeatherCategory && expandedWeatherSlot && (
                   <div className="weather-category-settings">
@@ -597,7 +622,7 @@ export function LayerPanel({
                       <div className="setting-row">
                         <span>Intensity</span>
                         <div className="weather-setting-control">
-                          <input type="range" min={0.1} max={1} step={0.05} value={expandedWeatherSettings.intensity} onChange={(event) => updateWeatherTuning(expandedWeatherCategory, { intensity: Number(event.target.value) })} />
+                          <input type="range" min={0.1} max={expandedWeatherIntensityMax} step={0.05} value={expandedWeatherSettings.intensity} onChange={(event) => updateWeatherTuning(expandedWeatherCategory, { intensity: Number(event.target.value) })} />
                           <button className="icon-button weather-reset-button" type="button" title="Reset intensity" aria-label="Reset weather intensity" onClick={() => resetWeatherTuning(expandedWeatherCategory, "intensity")}>
                             <RotateCcw size={13} aria-hidden="true" />
                           </button>
@@ -606,12 +631,23 @@ export function LayerPanel({
                       <div className="setting-row">
                         <span>Opacity</span>
                         <div className="weather-setting-control">
-                          <input type="range" min={0.05} max={1} step={0.05} value={expandedWeatherSettings.opacity} onChange={(event) => updateWeatherTuning(expandedWeatherCategory, { opacity: Number(event.target.value) })} />
+                          <input type="range" min={0.05} max={expandedWeatherOpacityMax} step={0.05} value={expandedWeatherSettings.opacity} onChange={(event) => updateWeatherTuning(expandedWeatherCategory, { opacity: Number(event.target.value) })} />
                           <button className="icon-button weather-reset-button" type="button" title="Reset opacity" aria-label="Reset weather opacity" onClick={() => resetWeatherTuning(expandedWeatherCategory, "opacity")}>
                             <RotateCcw size={13} aria-hidden="true" />
                           </button>
                         </div>
                       </div>
+                      {(expandedWeatherCategory === "fog" || expandedWeatherCategory === "sand") && (
+                        <div className="setting-row">
+                          <span>{expandedWeatherColorLabel}</span>
+                          <div className="weather-setting-control">
+                            <input type="color" value={expandedWeatherSettings.color} onChange={(event) => updateWeatherTuning(expandedWeatherCategory, { color: event.target.value })} />
+                            <button className="icon-button weather-reset-button" type="button" title={`Reset ${expandedWeatherColorLabel.toLowerCase()}`} aria-label={`Reset weather ${expandedWeatherColorLabel.toLowerCase()}`} onClick={() => resetWeatherTuning(expandedWeatherCategory, "color")}>
+                              <RotateCcw size={13} aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       <div className="setting-row">
                         <span>Speed</span>
                         <div className="weather-setting-control">
@@ -626,7 +662,7 @@ export function LayerPanel({
                       <summary>Advanced</summary>
                       <div className="settings-grid">
                         <div className="setting-row weather-drift-row">
-                          <span>Drift</span>
+                          <span>{expandedWeatherCategory === "sand" ? "Wind" : "Drift"}</span>
                           <WeatherDirectionDial weather={expandedWeatherSettings} onChange={(patch) => updateWeatherTuning(expandedWeatherCategory, patch)} onReset={() => resetWeatherDrift(expandedWeatherCategory)} />
                         </div>
                         <WeatherRangeRow label={expandedWeatherAdvancedLabels.edgeBias} value={expandedWeatherSettings.edgeBias} min={0} max={1} step={0.05} format={formatPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { edgeBias: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "edgeBias")} />
@@ -937,12 +973,16 @@ function getLegacyWeatherEffect(weather: WeatherSettings): WeatherSettings["effe
   if (weather.effects.snow.enabled) {
     return weather.effects.snow.pattern;
   }
+  if (weather.effects.sand.enabled) {
+    return weather.effects.sand.pattern;
+  }
   return "none";
 }
 
 function getDefaultWeatherSlot(category: "rain"): WeatherSettings["effects"]["rain"];
 function getDefaultWeatherSlot(category: "fog"): WeatherSettings["effects"]["fog"];
 function getDefaultWeatherSlot(category: "snow"): WeatherSettings["effects"]["snow"];
+function getDefaultWeatherSlot(category: "sand"): WeatherSettings["effects"]["sand"];
 function getDefaultWeatherSlot(category: ActiveWeatherCategory): WeatherSettings["effects"][ActiveWeatherCategory];
 function getDefaultWeatherSlot(category: ActiveWeatherCategory): WeatherSettings["effects"][ActiveWeatherCategory] {
   if (category === "rain") {
@@ -957,6 +997,13 @@ function getDefaultWeatherSlot(category: ActiveWeatherCategory): WeatherSettings
       enabled: false,
       pattern: "snow",
       settings: { ...DEFAULT_WEATHER_EFFECT_SETTINGS.snow }
+    };
+  }
+  if (category === "sand") {
+    return {
+      enabled: false,
+      pattern: "sand",
+      settings: { ...DEFAULT_WEATHER_EFFECT_SETTINGS.sand }
     };
   }
   return {
@@ -1102,7 +1149,8 @@ function getWeatherEffectSettingsWithCurrent(weather: WeatherSettings): WeatherS
     ...weather.effectSettings,
     [weather.effects.rain.pattern]: weather.effects.rain.settings,
     [weather.effects.fog.pattern]: weather.effects.fog.settings,
-    [weather.effects.snow.pattern]: weather.effects.snow.settings
+    [weather.effects.snow.pattern]: weather.effects.snow.settings,
+    [weather.effects.sand.pattern]: weather.effects.sand.settings
   };
 }
 
@@ -1120,7 +1168,7 @@ function getWeatherEffectSettingsWithCategoryReset(
 }
 
 function hasEnabledWeatherEffect(effects: WeatherSettings["effects"]): boolean {
-  return effects.rain.enabled || effects.fog.enabled || effects.snow.enabled;
+  return effects.rain.enabled || effects.fog.enabled || effects.snow.enabled || effects.sand.enabled;
 }
 
 function getWeatherEffectOptions(category: ActiveWeatherCategory) {
@@ -1129,6 +1177,9 @@ function getWeatherEffectOptions(category: ActiveWeatherCategory) {
   }
   if (category === "snow") {
     return SNOW_EFFECT_OPTIONS;
+  }
+  if (category === "sand") {
+    return SAND_EFFECT_OPTIONS;
   }
   return FOG_EFFECT_OPTIONS;
 }
@@ -1139,6 +1190,9 @@ function getWeatherCategoryLabel(category: ActiveWeatherCategory): string {
   }
   if (category === "snow") {
     return "Snow";
+  }
+  if (category === "sand") {
+    return "Sand";
   }
   return "Fog";
 }
@@ -1154,21 +1208,51 @@ const WEATHER_ADVANCED_LABELS: Record<
     streakLength: "Streak Length"
   },
   fog: {
-    edgeBias: "Edge Density",
-    quietAreaSize: "Center Clearing",
-    centerStrayDrops: "Soft Pockets",
-    streakLength: "Fog Scale"
+    edgeBias: "Edge Spawn",
+    quietAreaSize: "Interior Area",
+    centerStrayDrops: "Interior Wisps",
+    streakLength: "Bank Scale"
   },
   snow: {
     edgeBias: "Edge Frost",
     quietAreaSize: "Clear Center",
     centerStrayDrops: "Center Flurries",
     streakLength: "Flake Size"
+  },
+  sand: {
+    edgeBias: "Edge Density",
+    quietAreaSize: "Clear Center",
+    centerStrayDrops: "Interior Dust",
+    streakLength: "Grain Size"
   }
 };
 
 function getWeatherAdvancedLabels(category: ActiveWeatherCategory) {
   return WEATHER_ADVANCED_LABELS[category];
+}
+
+function getWeatherIntensityMax(category: ActiveWeatherCategory): number {
+  if (category === "sand") {
+    return 1.5;
+  }
+  if (category === "snow") {
+    return 1.25;
+  }
+  return 1;
+}
+
+function getWeatherOpacityMax(category: ActiveWeatherCategory): number {
+  if (category === "sand") {
+    return 1.25;
+  }
+  return 1;
+}
+
+function getWeatherColorLabel(category: ActiveWeatherCategory): string {
+  if (category === "sand") {
+    return "Dust Color";
+  }
+  return "Tint";
 }
 
 function WeatherDirectionDial({

@@ -589,8 +589,12 @@ export function SceneCanvas({
         ctx.fillRect(0, 0, width, height);
       }
 
-      ctx.save();
       const renderCamera = getRenderCamera(camera, playerDisplayScale);
+      const activeVideo = isVideoMap ? (videoRefs.current[activeVideoIndex] ?? null) : null;
+      const weatherMapSource = loadedMap?.ready ? loadedMap.source : activeVideo && activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA ? activeVideo : null;
+      const weatherMapReady = !canShowMap || !mapAsset || Boolean(weatherMapSource);
+
+      ctx.save();
       // Player Display Scale modifies Player View zoom only; GM camera controls stay scene-local.
       ctx.translate(renderCamera.x, renderCamera.y);
       ctx.scale(renderCamera.zoom, renderCamera.zoom);
@@ -640,9 +644,6 @@ export function SceneCanvas({
         drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, selectedFogShapeId);
       }
       if (canShowWeather) {
-        const activeVideo = isVideoMap ? (videoRefs.current[activeVideoIndex] ?? null) : null;
-        const weatherMapSource = loadedMap?.ready ? loadedMap.source : activeVideo && activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA ? activeVideo : null;
-        const weatherMapReady = !canShowMap || !mapAsset || Boolean(weatherMapSource);
         if (weatherMapReady) {
           drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1, weatherMapSource);
         }
@@ -650,7 +651,7 @@ export function SceneCanvas({
       if (mode === "gm" && weatherMaskPreview) {
         drawWeatherMaskPreview(ctx, weatherMaskPreview, renderCamera);
       }
-      if (mode === "gm" && weatherPolygonDraft) {
+      if (mode === "gm" && weatherMaskTool === "polygon" && weatherPolygonDraft) {
         drawWeatherPolygonDraft(ctx, weatherPolygonDraft, renderCamera);
       }
       if (mode === "gm" && selectedWeatherMaskId) {
@@ -691,7 +692,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeVideoIndex, brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherPolygonDraft]);
+  }, [activeVideoIndex, brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -803,6 +804,8 @@ export function SceneCanvas({
         updateWeatherPolygonDraft(point);
         return;
       }
+      weatherPolygonDraftRef.current = null;
+      setWeatherPolygonDraft(null);
       const maskDrag = {
         pointerId: event.pointerId,
         kind: weatherMaskTool,
@@ -922,7 +925,7 @@ export function SceneCanvas({
       return;
     }
 
-    if (weatherPolygonDraftRef.current) {
+    if (weatherMaskTool === "polygon" && weatherPolygonDraftRef.current) {
       setWeatherPolygonDraft({ ...weatherPolygonDraftRef.current, current: getToolPoint(event) });
       return;
     }
@@ -961,7 +964,7 @@ export function SceneCanvas({
                 id: crypto.randomUUID(),
                 name: `Weather Mask ${scene.weather.masks.length + 1}`,
                 kind: weatherMaskDrag.kind,
-                points: [weatherMaskDrag.start, weatherMaskDrag.current],
+                points: weatherMaskDrag.kind === "circle" ? [weatherMaskDrag.start] : [weatherMaskDrag.start, weatherMaskDrag.current],
                 radius: weatherMaskDrag.kind === "circle" ? distanceBetween(weatherMaskDrag.start, weatherMaskDrag.current) : undefined,
                 visible: true
               }
@@ -1078,7 +1081,7 @@ export function SceneCanvas({
       event.preventDefault();
       commitPolygonDraft();
     }
-    if (weatherPolygonDraftRef.current) {
+    if (weatherMaskTool === "polygon" && weatherPolygonDraftRef.current) {
       event.preventDefault();
       commitWeatherPolygonDraft();
     }

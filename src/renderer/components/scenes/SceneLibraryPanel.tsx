@@ -5,6 +5,7 @@ import {
   CircleCheck,
   CloudFog,
   CloudRain,
+  CloudSun,
   Copy,
   Edit3,
   EllipsisVertical,
@@ -460,7 +461,8 @@ function SceneWeatherBadges({ scene }: { scene: CampaignSceneEntry }) {
   const activeWeather: { key: string; label: string; icon: ReactElement }[] = [
     scene.weather.effects?.rain?.enabled ? { key: "rain", label: getWeatherPatternLabel(scene.weather.effects.rain.pattern), icon: <CloudRain size={12} aria-hidden="true" /> } : null,
     scene.weather.effects?.fog?.enabled ? { key: "fog", label: getWeatherPatternLabel(scene.weather.effects.fog.pattern), icon: <CloudFog size={12} aria-hidden="true" /> } : null,
-    scene.weather.effects?.snow?.enabled ? { key: "snow", label: getWeatherPatternLabel(scene.weather.effects.snow.pattern), icon: <Snowflake size={12} aria-hidden="true" /> } : null
+    scene.weather.effects?.snow?.enabled ? { key: "snow", label: getWeatherPatternLabel(scene.weather.effects.snow.pattern), icon: <Snowflake size={12} aria-hidden="true" /> } : null,
+    scene.weather.effects?.sand?.enabled ? { key: "sand", label: getWeatherPatternLabel(scene.weather.effects.sand.pattern), icon: <CloudSun size={12} aria-hidden="true" /> } : null
   ].filter((item): item is { key: string; label: string; icon: ReactElement } => item !== null);
 
   if (activeWeather.length === 0) {
@@ -500,6 +502,12 @@ function getWeatherPatternLabel(pattern: string): string {
       return "Snow";
     case "blizzard":
       return "Blizzard";
+    case "light-sand":
+      return "Light Sand";
+    case "sand":
+      return "Sand";
+    case "sandstorm":
+      return "Sandstorm";
     default:
       return "Weather";
   }

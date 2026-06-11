@@ -95,6 +95,7 @@ it("normalizeScene clamps weather settings", () => {
     effect: "rain-storm",
     intensity: 1,
     opacity: 0,
+    color: "#d8dee9",
     speed: 3,
     directionDegrees: 360,
     driftStrength: 1,
@@ -111,8 +112,9 @@ it("normalizeScene clamps weather settings", () => {
         enabled: true,
         pattern: "rain-storm",
         settings: {
-          intensity: 1,
+          intensity: 1.5,
           opacity: 0,
+          color: "#d8dee9",
           speed: 3,
           directionDegrees: 360,
           driftStrength: 1,
@@ -126,7 +128,8 @@ it("normalizeScene clamps weather settings", () => {
         }
       },
       fog: DEFAULT_WEATHER.effects.fog,
-      snow: DEFAULT_WEATHER.effects.snow
+      snow: DEFAULT_WEATHER.effects.snow,
+      sand: DEFAULT_WEATHER.effects.sand
     },
     masks: []
   });

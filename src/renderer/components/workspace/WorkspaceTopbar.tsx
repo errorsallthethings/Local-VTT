@@ -1,4 +1,4 @@
-import { CloudFog, CloudRain, EllipsisVertical, Maximize2, Minimize2, MonitorUp, SlidersHorizontal, Snowflake, X } from "lucide-react";
+import { CloudFog, CloudRain, CloudSun, EllipsisVertical, Maximize2, Minimize2, MonitorUp, SlidersHorizontal, Snowflake, X } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Asset, Campaign, Scene } from "../../../shared/localvtt";
 
@@ -109,6 +109,9 @@ function ActiveWeatherIcons({ scene }: { scene: Scene }) {
   if (scene.weather.effects.snow.enabled) {
     activeEffects.push({ key: "snow", label: getWeatherPatternLabel(scene.weather.effects.snow.pattern), icon: <Snowflake size={14} aria-hidden="true" /> });
   }
+  if (scene.weather.effects.sand.enabled) {
+    activeEffects.push({ key: "sand", label: getWeatherPatternLabel(scene.weather.effects.sand.pattern), icon: <CloudSun size={14} aria-hidden="true" /> });
+  }
 
   if (activeEffects.length === 0) {
     return null;
@@ -147,6 +150,12 @@ function getWeatherPatternLabel(pattern: string): string {
       return "Snow";
     case "blizzard":
       return "Blizzard";
+    case "light-sand":
+      return "Light Sand";
+    case "sand":
+      return "Sand";
+    case "sandstorm":
+      return "Sandstorm";
     default:
       return "Weather";
   }
