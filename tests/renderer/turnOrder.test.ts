@@ -120,6 +120,8 @@ describe("turn order helpers", () => {
 
     expect(scene.turnOrder.currentEntryId).toBe("duplicate");
     expect(scene.turnOrder.playerViewEdge).toBe("top");
+    expect(scene.turnOrder.playerViewFacing).toBe("inward");
+    expect(scene.turnOrder.playerViewSize).toBe("md");
     expect(scene.turnOrder.entries).toMatchObject([
       { id: "duplicate", name: "Entry 1", initiative: 99, visibleInPlayer: true },
       { id: "duplicate-2", name: "Cleric", initiative: -99, visibleInPlayer: false }

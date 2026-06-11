@@ -93,6 +93,50 @@ export function TurnOrderPanel({ scene, tokenAssets, onChangeScene }: TurnOrderP
         </button>
       </div>
 
+      {scene && turnOrder && (
+        <div className="turn-order-display-controls" aria-label="Player View turn order display settings">
+          <label>
+            <span>Placement</span>
+            <select
+              value={turnOrder.playerViewEdge}
+              onChange={(event) => updateScene({ ...scene, turnOrder: { ...turnOrder, playerViewEdge: event.target.value as typeof turnOrder.playerViewEdge }, updatedAt: new Date().toISOString() })}
+            >
+              <option value="top">Top</option>
+              <option value="right">Right</option>
+              <option value="bottom">Bottom</option>
+              <option value="left">Left</option>
+            </select>
+          </label>
+          <label>
+            <span>Facing</span>
+            <select
+              value={turnOrder.playerViewFacing}
+              onChange={(event) =>
+                updateScene({ ...scene, turnOrder: { ...turnOrder, playerViewFacing: event.target.value as typeof turnOrder.playerViewFacing }, updatedAt: new Date().toISOString() })
+              }
+            >
+              <option value="inward">Inward</option>
+              <option value="outward">Outward</option>
+            </select>
+          </label>
+          <label>
+            <span>Size</span>
+            <select
+              value={turnOrder.playerViewSize}
+              onChange={(event) =>
+                updateScene({ ...scene, turnOrder: { ...turnOrder, playerViewSize: event.target.value as typeof turnOrder.playerViewSize }, updatedAt: new Date().toISOString() })
+              }
+            >
+              <option value="xs">Extra Small</option>
+              <option value="sm">Small</option>
+              <option value="md">Medium</option>
+              <option value="lg">Large</option>
+              <option value="xl">Extra Large</option>
+            </select>
+          </label>
+        </div>
+      )}
+
       {!scene ? (
         <div className="turn-order-empty">Select a scene to build a turn order.</div>
       ) : turnOrder && turnOrder.entries.length > 0 ? (

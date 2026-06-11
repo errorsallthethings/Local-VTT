@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRight } from "lucide-react";
 import { DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, LiveTableEvent, LiveTablePoint, Point, Scene, Token, WeatherMask } from "../../shared/localvtt";
 import { getRenderCamera, type Camera } from "../canvas/camera";
@@ -1484,6 +1485,7 @@ export function SceneCanvas({
       {mode === "gm" && (canvasTool === "ping" || canvasTool === "laser") && <TableToolStatusStrip canvasTool={canvasTool} />}
       {mode === "gm" && weatherMaskTool && <WeatherMaskStatusStrip weatherMaskTool={weatherMaskTool} pointCount={weatherPolygonDraft?.points.length ?? 0} />}
       {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
+      {mode === "player" && scene && <TurnOrderPlayerBar scene={scene} campaign={campaign} />}
       {mode === "gm" && tokenContextMenu && (
         <div
           className="canvas-token-context-menu"
@@ -1507,6 +1509,53 @@ export function SceneCanvas({
       {mode === "gm" && showVideoDiagnostics && isVideoMap && videoDebug && <div className="video-debug">{videoDebug}</div>}
     </div>
   );
+}
+
+function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign: Campaign | null }) {
+  const turnOrder = scene.turnOrder;
+  const entries = turnOrder.entries.filter((entry) => entry.visibleInPlayer);
+  if (!turnOrder.active || !turnOrder.playerViewVisible || entries.length === 0) {
+    return null;
+  }
+
+  const assetsById = new Map((campaign?.assets ?? []).map((asset) => [asset.id, asset]));
+  const rotation = getTurnOrderFacingRotation(turnOrder.playerViewEdge, turnOrder.playerViewFacing);
+  const arrowRotation = turnOrder.playerViewEdge === "left" || turnOrder.playerViewEdge === "right" ? 90 : 0;
+
+  return (
+    <div
+      className={`turn-order-player-bar turn-order-player-bar-${turnOrder.playerViewEdge} turn-order-player-bar-${turnOrder.playerViewSize}`}
+      style={{ "--turn-entry-rotation": `${rotation}deg`, "--turn-arrow-rotation": `${arrowRotation}deg` } as React.CSSProperties}
+    >
+      <span className="turn-order-player-direction" aria-hidden="true">
+        <ArrowRight size={18} />
+      </span>
+      {entries.map((entry) => {
+        const asset = entry.assetId ? assetsById.get(entry.assetId) : null;
+        const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
+        const active = entry.id === turnOrder.currentEntryId;
+        return (
+          <article key={entry.id} className={active ? "turn-order-player-entry turn-order-player-entry-active" : "turn-order-player-entry"}>
+            <span className="turn-order-player-avatar">
+              {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : entry.name.slice(0, 1).toUpperCase()}
+            </span>
+            <span className="turn-order-player-initiative">{entry.initiative}</span>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function getTurnOrderFacingRotation(edge: "top" | "right" | "bottom" | "left", facing: "inward" | "outward"): number {
+  const inwardRotation = {
+    top: 180,
+    right: -90,
+    bottom: 0,
+    left: 90
+  } satisfies Record<typeof edge, number>;
+  const rotation = inwardRotation[edge];
+  return facing === "inward" ? (rotation + 180) % 360 : rotation;
 }
 
 function MapLoadOverlay({ message, showSpinner }: { message: string; showSpinner: boolean }) {

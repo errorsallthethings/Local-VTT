@@ -309,6 +309,8 @@ export interface TurnOrderSettings {
   currentEntryId?: string;
   playerViewVisible: boolean;
   playerViewEdge: "top" | "right" | "bottom" | "left";
+  playerViewFacing: "inward" | "outward";
+  playerViewSize: "xs" | "sm" | "md" | "lg" | "xl";
   entries: TurnOrderEntry[];
   seats: PlayerSeatIndicator[];
 }
@@ -468,6 +470,8 @@ export const DEFAULT_TURN_ORDER: TurnOrderSettings = {
   active: false,
   playerViewVisible: false,
   playerViewEdge: "top",
+  playerViewFacing: "inward",
+  playerViewSize: "md",
   entries: [],
   seats: []
 };
@@ -1254,6 +1258,11 @@ function normalizeTurnOrder(turnOrder?: Partial<TurnOrderSettings>): TurnOrderSe
       turnOrder?.playerViewEdge === "top" || turnOrder?.playerViewEdge === "right" || turnOrder?.playerViewEdge === "bottom" || turnOrder?.playerViewEdge === "left"
         ? turnOrder.playerViewEdge
         : DEFAULT_TURN_ORDER.playerViewEdge,
+    playerViewFacing: turnOrder?.playerViewFacing === "outward" ? "outward" : DEFAULT_TURN_ORDER.playerViewFacing,
+    playerViewSize:
+      turnOrder?.playerViewSize === "xs" || turnOrder?.playerViewSize === "sm" || turnOrder?.playerViewSize === "lg" || turnOrder?.playerViewSize === "xl"
+        ? turnOrder.playerViewSize
+        : DEFAULT_TURN_ORDER.playerViewSize,
     entries,
     seats
   };
