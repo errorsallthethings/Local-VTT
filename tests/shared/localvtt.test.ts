@@ -401,7 +401,33 @@ it("normalizeCampaign fills portable campaign defaults and empty collections", (
   expect(normalized.playerDisplay).toEqual(DEFAULT_CALIBRATION);
   expect(normalized.sceneLibrary).toEqual({ collapsedFolderIds: [] });
   expect(normalized.sceneFolders).toEqual([]);
+  expect(normalized.players).toEqual([]);
   expect(normalized.assets).toEqual([]);
+});
+
+it("normalizeCampaign normalizes campaign players", () => {
+  const campaign = {
+    ...createDefaultCampaign("Players"),
+    players: [
+      {
+        id: "",
+        name: "",
+        color: "red",
+        defaultSeatEdge: "side" as never,
+        defaultSeatPosition: 9,
+        visibleInPlayer: undefined as never
+      }
+    ]
+  };
+
+  expect(normalizeCampaign(campaign).players[0]).toMatchObject({
+    id: "player-1",
+    name: "Player 1",
+    color: "#7aa2f7",
+    defaultSeatEdge: "bottom",
+    defaultSeatPosition: 1,
+    visibleInPlayer: true
+  });
 });
 
 it("normalizeCampaign preserves valid collapsed scene folders only", () => {

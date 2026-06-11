@@ -6,6 +6,7 @@ import {
   loadTokenLibraryHeight,
   normalizeTokenLibraryHeight,
   normalizeWorkspaceLayout,
+  MAX_TOKEN_LIBRARY_HEIGHT,
   resetPanelWidth,
   resizePanelWidth,
   toggleWorkspacePanel,
@@ -49,7 +50,7 @@ describe("workspace layout helpers", () => {
     expect(loadTokenLibraryHeight({ getItem: () => null })).toBe(DEFAULT_TOKEN_LIBRARY_HEIGHT);
     expect(loadTokenLibraryHeight({ getItem: () => "bad" })).toBe(DEFAULT_TOKEN_LIBRARY_HEIGHT);
     expect(loadTokenLibraryHeight({ getItem: () => "80" })).toBe(170);
-    expect(loadTokenLibraryHeight({ getItem: () => "900" })).toBe(460);
+    expect(loadTokenLibraryHeight({ getItem: () => "900" })).toBe(MAX_TOKEN_LIBRARY_HEIGHT);
     expect(loadTokenLibraryHeight({ getItem: () => "320" })).toBe(320);
   });
 
@@ -67,6 +68,6 @@ describe("workspace layout helpers", () => {
   it("normalizes token library drawer height into supported bounds", () => {
     expect(normalizeTokenLibraryHeight(100)).toBe(170);
     expect(normalizeTokenLibraryHeight(320)).toBe(320);
-    expect(normalizeTokenLibraryHeight(700)).toBe(460);
+    expect(normalizeTokenLibraryHeight(900)).toBe(MAX_TOKEN_LIBRARY_HEIGHT);
   });
 });

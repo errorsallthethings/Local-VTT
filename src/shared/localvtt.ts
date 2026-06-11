@@ -290,6 +290,7 @@ export interface TurnOrderEntry {
   name: string;
   initiative: number;
   visibleInPlayer: boolean;
+  playerId?: string;
   tokenId?: string;
   assetId?: string;
 }
@@ -359,6 +360,16 @@ export interface CampaignSceneFolder {
   color: string;
 }
 
+export interface CampaignPlayer {
+  id: string;
+  name: string;
+  color: string;
+  assetId?: string;
+  defaultSeatEdge: "top" | "right" | "bottom" | "left";
+  defaultSeatPosition: number;
+  visibleInPlayer: boolean;
+}
+
 export interface SceneLibrarySettings {
   collapsedFolderIds: string[];
 }
@@ -376,6 +387,7 @@ export interface Campaign {
   sceneLibrary: SceneLibrarySettings;
   sceneFolders: CampaignSceneFolder[];
   scenes: CampaignSceneEntry[];
+  players: CampaignPlayer[];
   assets: Asset[];
 }
 
@@ -388,6 +400,7 @@ export interface CampaignSummary {
 export interface PlayerSceneProjection {
   campaignName: string;
   playerDisplay: DisplayCalibration;
+  players: CampaignPlayer[];
   scene: Scene;
   assets: Asset[];
 }
@@ -808,6 +821,7 @@ export function createDefaultCampaign(name: string): Campaign {
     sceneLibrary: { collapsedFolderIds: [] },
     sceneFolders: [],
     scenes: [],
+    players: [],
     assets: []
   };
 }
@@ -904,6 +918,7 @@ export function isPlayerSceneProjection(value: unknown): value is PlayerScenePro
     typeof value.campaignName === "string" &&
     isRecord(value.playerDisplay) &&
     Array.isArray(value.assets) &&
+    (!("players" in value) || Array.isArray(value.players)) &&
     isValidSceneShape(value.scene)
   );
 }
@@ -1312,6 +1327,16 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
         weather: scene.weather ? normalizeWeather(scene.weather) : undefined
       };
     }),
+    players: (campaign.players ?? []).map((player, index) => ({
+      ...player,
+      id: typeof player.id === "string" && player.id.trim() ? player.id : `player-${index + 1}`,
+      name: typeof player.name === "string" && player.name.trim() ? player.name : `Player ${index + 1}`,
+      color: normalizeColor(player.color, DEFAULT_TOKEN_BORDER_COLOR),
+      defaultSeatEdge:
+        player.defaultSeatEdge === "top" || player.defaultSeatEdge === "right" || player.defaultSeatEdge === "bottom" || player.defaultSeatEdge === "left" ? player.defaultSeatEdge : "bottom",
+      defaultSeatPosition: clampNumber(player.defaultSeatPosition, 0, 1, 0.5),
+      visibleInPlayer: player.visibleInPlayer ?? true
+    })),
     assets: (campaign.assets ?? []).map(normalizeAsset)
   };
 }
@@ -1373,10 +1398,21 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene): PlayerS
       usedAssetIds.add(overlay.assetId);
     }
   }
+  for (const entry of normalizedScene.turnOrder.entries) {
+    if (entry.visibleInPlayer && entry.assetId) {
+      usedAssetIds.add(entry.assetId);
+    }
+  }
+  for (const player of normalizedCampaign.players) {
+    if (player.visibleInPlayer && player.assetId) {
+      usedAssetIds.add(player.assetId);
+    }
+  }
 
   return {
     campaignName: normalizedCampaign.name,
     playerDisplay: normalizedCampaign.playerDisplay,
+    players: normalizedCampaign.players,
     scene: {
       ...normalizedScene,
       fog: {

@@ -16,7 +16,7 @@ import {
   Trash2,
   Upload
 } from "lucide-react";
-import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Asset } from "../../../shared/localvtt";
@@ -64,6 +64,8 @@ export function TokenLibraryDrawer({
   const [sort, setSort] = useState<TokenLibrarySort>("name-asc");
   const [view, setView] = useState<TokenLibraryView>("list");
   const [openTokenMenuId, setOpenTokenMenuId] = useState<string | null>(null);
+  const [splitPercent, setSplitPercent] = useState(62);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const filteredAssets = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return [...assets]
@@ -76,6 +78,28 @@ export function TokenLibraryDrawer({
     menuRootClass: "token-library-menu-wrap",
     onDismiss: () => setOpenTokenMenuId(null)
   });
+
+  const startSplitResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const content = contentRef.current;
+    if (!content) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const bounds = content.getBoundingClientRect();
+    const updateSplit = (clientX: number) => {
+      const nextPercent = ((clientX - bounds.left) / bounds.width) * 100;
+      setSplitPercent(Math.min(76, Math.max(38, nextPercent)));
+    };
+    updateSplit(event.clientX);
+    const onPointerMove = (moveEvent: PointerEvent) => updateSplit(moveEvent.clientX);
+    const onPointerUp = () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp, { once: true });
+  };
 
   return (
     <section
@@ -112,53 +136,60 @@ export function TokenLibraryDrawer({
           {expanded ? <PanelBottomClose size={16} aria-hidden="true" /> : <PanelBottomOpen size={16} aria-hidden="true" />}
         </button>
         <div className="token-library-title">
-          <strong>Token Library</strong>
-          <span>{assets.length === 1 ? "1 token" : `${assets.length} tokens`}</span>
+          <strong>Scene Tools</strong>
         </div>
-        {expanded && (
-          <div className="token-library-tools">
-            <button
-              className="token-library-import"
-              disabled={!campaignOpen}
-              title={campaignOpen ? "Import Token" : "Create or open a campaign before importing tokens"}
-              onClick={onImportToken}
-            >
-              <Upload size={14} aria-hidden="true" />
-              <span>Import Token</span>
-            </button>
-            <label className="token-library-sort">
-              <span>Sort</span>
-              <select value={sort} onChange={(event) => setSort(event.target.value as TokenLibrarySort)}>
-                <option value="name-asc">Name A-Z</option>
-                <option value="newest">Newest</option>
-                <option value="oldest">Oldest</option>
-              </select>
-            </label>
-            <div className="token-library-view-toggle" aria-label="Token library display size">
-              <ViewButton view="list" currentView={view} label="List view" onSelect={setView}>
-                <List size={14} aria-hidden="true" />
-              </ViewButton>
-              <ViewButton view="small" currentView={view} label="Small tokens" onSelect={setView}>
-                <Grid3X3 size={14} aria-hidden="true" />
-              </ViewButton>
-              <ViewButton view="medium" currentView={view} label="Medium tokens" onSelect={setView}>
-                <Grid2X2 size={14} aria-hidden="true" />
-              </ViewButton>
-              <ViewButton view="large" currentView={view} label="Large tokens" onSelect={setView}>
-                <Square size={14} aria-hidden="true" />
-              </ViewButton>
-            </div>
-            <label className="token-library-search">
-              <Search size={14} aria-hidden="true" />
-              <input value={query} placeholder="Search tokens" onChange={(event) => setQuery(event.target.value)} />
-            </label>
-          </div>
-        )}
       </div>
 
       {expanded && (
-        <div className={sidePanel ? "token-library-content token-library-content-split" : "token-library-content"}>
+        <div
+          ref={contentRef}
+          className={sidePanel ? "token-library-content token-library-content-split" : "token-library-content"}
+          style={sidePanel ? ({ "--scene-tools-token-width": `${splitPercent}%` } as CSSProperties) : undefined}
+        >
           <div className="token-library-main-panel">
+            <div className="token-library-panel-heading">
+              <div className="token-library-title">
+                <strong>Token Library</strong>
+                <span>{assets.length === 1 ? "1 token" : `${assets.length} tokens`}</span>
+              </div>
+              <div className="token-library-tools">
+                <button
+                  className="token-library-import"
+                  disabled={!campaignOpen}
+                  title={campaignOpen ? "Import Token" : "Create or open a campaign before importing tokens"}
+                  onClick={onImportToken}
+                >
+                  <Upload size={14} aria-hidden="true" />
+                  <span>Import Token</span>
+                </button>
+                <label className="token-library-sort">
+                  <span>Sort</span>
+                  <select value={sort} onChange={(event) => setSort(event.target.value as TokenLibrarySort)}>
+                    <option value="name-asc">Name A-Z</option>
+                    <option value="newest">Newest</option>
+                    <option value="oldest">Oldest</option>
+                  </select>
+                </label>
+                <div className="token-library-view-toggle" aria-label="Token library display size">
+                  <ViewButton view="list" currentView={view} label="List view" onSelect={setView}>
+                    <List size={14} aria-hidden="true" />
+                  </ViewButton>
+                  <ViewButton view="small" currentView={view} label="Small tokens" onSelect={setView}>
+                    <Grid3X3 size={14} aria-hidden="true" />
+                  </ViewButton>
+                  <ViewButton view="medium" currentView={view} label="Medium tokens" onSelect={setView}>
+                    <Grid2X2 size={14} aria-hidden="true" />
+                  </ViewButton>
+                  <ViewButton view="large" currentView={view} label="Large tokens" onSelect={setView}>
+                    <Square size={14} aria-hidden="true" />
+                  </ViewButton>
+                </div>
+                <label className="token-library-search">
+                  <Search size={14} aria-hidden="true" />
+                  <input value={query} placeholder="Search tokens" onChange={(event) => setQuery(event.target.value)} />
+                </label>
+              </div>
+            </div>
             {selectedTokenAsset && (
               <section className="token-library-section">
                 <TokenLibrarySectionLabel label="Selected Token" />
@@ -229,7 +260,14 @@ export function TokenLibraryDrawer({
               )}
             </section>
           </div>
-          {sidePanel && <div className="token-library-side-panel">{sidePanel}</div>}
+          {sidePanel && (
+            <>
+              <button className="scene-tools-split-handle" aria-label="Resize scene tools panels" title="Drag to resize panels" onPointerDown={startSplitResize}>
+                <GripVertical size={14} aria-hidden="true" />
+              </button>
+              <div className="token-library-side-panel">{sidePanel}</div>
+            </>
+          )}
         </div>
       )}
     </section>

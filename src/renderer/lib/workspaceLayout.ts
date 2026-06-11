@@ -22,7 +22,7 @@ export const COLLAPSED_RAIL_WIDTH = 44;
 export const TOKEN_LIBRARY_HEIGHT_STORAGE_KEY = "localvtt.tokenLibraryHeight";
 export const DEFAULT_TOKEN_LIBRARY_HEIGHT = 238;
 export const MIN_TOKEN_LIBRARY_HEIGHT = 170;
-export const MAX_TOKEN_LIBRARY_HEIGHT = 460;
+export const MAX_TOKEN_LIBRARY_HEIGHT = 760;
 
 export function loadWorkspaceLayout(storage: Pick<Storage, "getItem"> = window.localStorage): WorkspaceLayout {
   try {

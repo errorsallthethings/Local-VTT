@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createDefaultScene, normalizeScene, type Asset, type Scene } from "../../src/shared/localvtt";
 import {
   addTurnOrderEntry,
+  addPlayersToTurnOrder,
   advanceTurnOrder,
   createManualTurnOrderEntry,
   createTurnOrderEntryFromAsset,
@@ -100,6 +101,21 @@ describe("turn order helpers", () => {
       assetId: "asset-1",
       visibleInPlayer: false
     });
+  });
+
+  it("adds campaign players without duplicating existing player entries", () => {
+    const scene = createDefaultScene("Players");
+    const players = [
+      { id: "player-1", name: "Alice", color: "#ff0000", defaultSeatEdge: "bottom" as const, defaultSeatPosition: 0.25, visibleInPlayer: true },
+      { id: "player-2", name: "Ben", color: "#00ff00", defaultSeatEdge: "left" as const, defaultSeatPosition: 0.5, visibleInPlayer: false }
+    ];
+    const withPlayers = addPlayersToTurnOrder(scene, players, "now");
+    const unchanged = addPlayersToTurnOrder(withPlayers, players, "now");
+
+    expect(withPlayers.turnOrder.entries.map((entry) => entry.playerId)).toEqual(["player-1", "player-2"]);
+    expect(withPlayers.turnOrder.entries[0]).toMatchObject({ name: "Alice", visibleInPlayer: true });
+    expect(withPlayers.turnOrder.entries[1]).toMatchObject({ name: "Ben", visibleInPlayer: false });
+    expect(unchanged).toBe(withPlayers);
   });
 
   it("normalizes turn order from partial scene data", () => {

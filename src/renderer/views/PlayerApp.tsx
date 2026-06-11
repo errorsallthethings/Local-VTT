@@ -240,7 +240,7 @@ function PlayerScene({
   onReady?: () => void;
 }) {
   const campaign = useMemo(
-    () => ({ ...emptyCampaign(projection.campaignName), assets: projection.assets, playerDisplay: projection.playerDisplay }),
+    () => ({ ...emptyCampaign(projection.campaignName), assets: projection.assets, players: projection.players ?? [], playerDisplay: projection.playerDisplay }),
     [projection]
   );
 
@@ -286,6 +286,7 @@ function emptyCampaign(name: string) {
     sceneFolders: [],
     sceneLibrary: { collapsedFolderIds: [] },
     scenes: [],
+    players: [],
     assets: [],
     defaultGrid: {
       type: "square" as const,

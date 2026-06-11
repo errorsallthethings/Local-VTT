@@ -1486,6 +1486,7 @@ export function SceneCanvas({
       {mode === "gm" && weatherMaskTool && <WeatherMaskStatusStrip weatherMaskTool={weatherMaskTool} pointCount={weatherPolygonDraft?.points.length ?? 0} />}
       {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
       {mode === "player" && scene && <TurnOrderPlayerBar scene={scene} campaign={campaign} />}
+      {mode === "player" && scene && <PlayerSeatIndicators campaign={campaign} />}
       {mode === "gm" && tokenContextMenu && (
         <div
           className="canvas-token-context-menu"
@@ -1511,6 +1512,51 @@ export function SceneCanvas({
   );
 }
 
+function PlayerSeatIndicators({ campaign }: { campaign: Campaign | null }) {
+  const seats = (campaign?.players ?? []).filter((player) => player.visibleInPlayer);
+  if (seats.length === 0) {
+    return null;
+  }
+
+  const assetsById = new Map((campaign?.assets ?? []).map((asset) => [asset.id, asset]));
+  return (
+    <>
+      {seats.map((seat) => {
+        const asset = seat.assetId ? assetsById.get(seat.assetId) : null;
+        const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
+        const style = getPlayerSeatStyle(seat.defaultSeatEdge, seat.defaultSeatPosition, seat.color);
+        return (
+          <div key={seat.id} className={`player-seat-indicator player-seat-indicator-${seat.defaultSeatEdge}`} style={style}>
+            <span className="player-seat-indicator-avatar">
+              {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : seat.name.slice(0, 1).toUpperCase()}
+            </span>
+            <span className="player-seat-indicator-name">{seat.name}</span>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function getPlayerSeatStyle(edge: "top" | "right" | "bottom" | "left", position: number, color: string): React.CSSProperties {
+  const clampedPosition = Math.min(1, Math.max(0, position)) * 100;
+  const baseStyle = {
+    "--player-seat-color": color
+  } as React.CSSProperties;
+  if (edge === "top" || edge === "bottom") {
+    return {
+      ...baseStyle,
+      left: `${clampedPosition}%`,
+      [edge]: "12px"
+    };
+  }
+  return {
+    ...baseStyle,
+    top: `${clampedPosition}%`,
+    [edge]: "12px"
+  };
+}
+
 function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign: Campaign | null }) {
   const turnOrder = scene.turnOrder;
   const entries = turnOrder.entries.filter((entry) => entry.visibleInPlayer);
@@ -1519,6 +1565,7 @@ function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign: Campa
   }
 
   const assetsById = new Map((campaign?.assets ?? []).map((asset) => [asset.id, asset]));
+  const playersById = new Map((campaign?.players ?? []).map((player) => [player.id, player]));
   const rotation = getTurnOrderFacingRotation(turnOrder.playerViewEdge, turnOrder.playerViewFacing);
   const arrowRotation = turnOrder.playerViewEdge === "left" || turnOrder.playerViewEdge === "right" ? 90 : 0;
 
@@ -1531,13 +1578,20 @@ function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign: Campa
         <ArrowRight size={18} />
       </span>
       {entries.map((entry) => {
-        const asset = entry.assetId ? assetsById.get(entry.assetId) : null;
+        const player = entry.playerId ? playersById.get(entry.playerId) : null;
+        const assetId = player?.assetId ?? entry.assetId;
+        const asset = assetId ? assetsById.get(assetId) : null;
         const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
         const active = entry.id === turnOrder.currentEntryId;
+        const entryName = player?.name ?? entry.name;
         return (
-          <article key={entry.id} className={active ? "turn-order-player-entry turn-order-player-entry-active" : "turn-order-player-entry"}>
+          <article
+            key={entry.id}
+            className={active ? "turn-order-player-entry turn-order-player-entry-active" : "turn-order-player-entry"}
+            style={player?.color ? ({ "--turn-player-color": player.color } as React.CSSProperties) : undefined}
+          >
             <span className="turn-order-player-avatar">
-              {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : entry.name.slice(0, 1).toUpperCase()}
+              {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : entryName.slice(0, 1).toUpperCase()}
             </span>
             <span className="turn-order-player-initiative">{entry.initiative}</span>
           </article>

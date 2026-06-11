@@ -558,6 +558,86 @@ export function GmApp() {
     addImportedTokenToScene(asset);
   };
 
+  const addCampaignPlayer = () => {
+    if (!campaign || campaign.players.length >= 7) {
+      return;
+    }
+    updateCampaignDraft({
+      ...campaign,
+      players: [
+        ...campaign.players,
+        {
+          id: crypto.randomUUID(),
+          name: `Player ${campaign.players.length + 1}`,
+          color: DEFAULT_TOKEN_BORDER_COLOR,
+          defaultSeatEdge: "bottom",
+          defaultSeatPosition: 0.5,
+          visibleInPlayer: true
+        }
+      ],
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const updateCampaignPlayer = (playerId: string, patch: Partial<Campaign["players"][number]>) => {
+    if (!campaign) {
+      return;
+    }
+    const updatedAt = new Date().toISOString();
+    const players = campaign.players.map((player) => (player.id === playerId ? { ...player, ...patch } : player));
+    const updatedPlayer = players.find((player) => player.id === playerId);
+    const nextCampaign = { ...campaign, players, updatedAt };
+    updateCampaignDraft(nextCampaign);
+    if (activeScene && updatedPlayer && activeScene.turnOrder.entries.some((entry) => entry.playerId === playerId)) {
+      updateScene(
+        {
+          ...activeScene,
+          turnOrder: {
+            ...activeScene.turnOrder,
+            entries: activeScene.turnOrder.entries.map((entry) =>
+              entry.playerId === playerId
+                ? {
+                    ...entry,
+                    name: updatedPlayer.name,
+                    assetId: updatedPlayer.assetId,
+                    visibleInPlayer: updatedPlayer.visibleInPlayer
+                  }
+                : entry
+            )
+          },
+          updatedAt
+        },
+        nextCampaign
+      );
+    }
+  };
+
+  const deleteCampaignPlayer = (playerId: string) => {
+    if (!campaign) {
+      return;
+    }
+    const updatedAt = new Date().toISOString();
+    const nextCampaign = {
+      ...campaign,
+      players: campaign.players.filter((player) => player.id !== playerId),
+      updatedAt
+    };
+    updateCampaignDraft(nextCampaign);
+    if (activeScene?.turnOrder.entries.some((entry) => entry.playerId === playerId)) {
+      updateScene(
+        {
+          ...activeScene,
+          turnOrder: {
+            ...activeScene.turnOrder,
+            entries: activeScene.turnOrder.entries.filter((entry) => entry.playerId !== playerId)
+          },
+          updatedAt
+        },
+        nextCampaign
+      );
+    }
+  };
+
   const addSceneTokenToTurnOrder = (tokenId: string) => {
     if (!activeScene) {
       return;
@@ -1085,6 +1165,7 @@ export function GmApp() {
         openSceneMenuId={openSceneMenuId}
         openFolderMenuId={openFolderMenuId}
         workspaceLayout={workspaceLayout}
+        tokenAssets={tokenLibraryAssets}
         onClearActiveFogTool={clearActiveCanvasTools}
         onToggleWorkspacePanel={toggleWorkspacePanel}
         onResetPanelWidth={resetPanelWidth}
@@ -1097,6 +1178,9 @@ export function GmApp() {
         onSaveCampaign={() => void saveCampaign()}
         onRenameCampaign={openCampaignRenameDialog}
         onOpenBackupsFolder={() => void openBackupsFolder()}
+        onAddPlayer={addCampaignPlayer}
+        onUpdatePlayer={updateCampaignPlayer}
+        onDeletePlayer={deleteCampaignPlayer}
         onOpenSceneDialog={openSceneDialog}
         onOpenFolderDialog={openFolderDialog}
         onLoadScene={(sceneId) => void loadScene(sceneId)}
@@ -1210,7 +1294,7 @@ export function GmApp() {
           onSetTokenDefaults={openTokenDefaultsDialog}
           onRenameToken={openRenameTokenAssetDialog}
           onDeleteToken={(asset) => void openDeleteTokenAssetDialog(asset)}
-          sidePanel={<TurnOrderPanel scene={activeScene} tokenAssets={tokenAssets} onChangeScene={updateScene} />}
+          sidePanel={<TurnOrderPanel scene={activeScene} campaignPlayers={campaign?.players ?? []} tokenAssets={tokenAssets} onChangeScene={updateScene} />}
         />
 
         <footer className="statusbar">

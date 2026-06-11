@@ -20,6 +20,7 @@ export function GmSidebar({
   openFolderMenuId,
   workspaceLayout,
   recentCampaigns,
+  tokenAssets,
   onClearActiveFogTool,
   onToggleWorkspacePanel,
   onResetPanelWidth,
@@ -31,6 +32,9 @@ export function GmSidebar({
   onSaveCampaign,
   onRenameCampaign,
   onOpenBackupsFolder,
+  onAddPlayer,
+  onUpdatePlayer,
+  onDeletePlayer,
   onOpenSceneDialog,
   onOpenFolderDialog,
   onLoadScene,
@@ -62,6 +66,7 @@ export function GmSidebar({
   openFolderMenuId: string | null;
   workspaceLayout: WorkspaceLayout;
   recentCampaigns: RecentCampaign[];
+  tokenAssets: Asset[];
   onClearActiveFogTool: () => void;
   onToggleWorkspacePanel: (side: "left") => void;
   onResetPanelWidth: (side: "left") => void;
@@ -73,6 +78,9 @@ export function GmSidebar({
   onSaveCampaign: () => void;
   onRenameCampaign: () => void;
   onOpenBackupsFolder: () => void;
+  onAddPlayer: () => void;
+  onUpdatePlayer: (playerId: string, patch: Partial<Campaign["players"][number]>) => void;
+  onDeletePlayer: (playerId: string) => void;
   onOpenSceneDialog: () => void;
   onOpenFolderDialog: () => void;
   onLoadScene: (sceneId: string) => void;
@@ -124,6 +132,7 @@ export function GmSidebar({
             missingAssets={missingAssets}
             hasUnsavedChanges={hasUnsavedChanges}
             recentCampaigns={recentCampaigns}
+            tokenAssets={tokenAssets}
             onCreateCampaign={onCreateCampaign}
             onOpenCampaign={onOpenCampaign}
             onOpenRecentCampaign={onOpenRecentCampaign}
@@ -131,6 +140,9 @@ export function GmSidebar({
             onSaveCampaign={onSaveCampaign}
             onRenameCampaign={onRenameCampaign}
             onOpenBackupsFolder={onOpenBackupsFolder}
+            onAddPlayer={onAddPlayer}
+            onUpdatePlayer={onUpdatePlayer}
+            onDeletePlayer={onDeletePlayer}
           />
 
           <div className="section-heading">

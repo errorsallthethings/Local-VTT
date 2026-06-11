@@ -1,4 +1,4 @@
-import type { Asset, Scene, Token, TurnOrderEntry, TurnOrderSettings } from "../../shared/localvtt";
+import type { Asset, CampaignPlayer, Scene, Token, TurnOrderEntry, TurnOrderSettings } from "../../shared/localvtt";
 
 export function createManualTurnOrderEntry(id: string, name: string, initiative = 0): TurnOrderEntry {
   return {
@@ -30,8 +30,37 @@ export function createTurnOrderEntryFromToken(id: string, token: Token, initiati
   };
 }
 
+export function createTurnOrderEntryFromPlayer(id: string, player: CampaignPlayer, initiative = 0): TurnOrderEntry {
+  return {
+    id,
+    name: player.name || "Player",
+    initiative,
+    visibleInPlayer: player.visibleInPlayer,
+    playerId: player.id,
+    assetId: player.assetId
+  };
+}
+
 export function addTurnOrderEntry(scene: Scene, entry: TurnOrderEntry, updatedAt = new Date().toISOString()): Scene {
   return patchTurnOrder(scene, { entries: [...scene.turnOrder.entries, entry], currentEntryId: scene.turnOrder.currentEntryId ?? entry.id }, updatedAt);
+}
+
+export function addPlayersToTurnOrder(scene: Scene, players: CampaignPlayer[], updatedAt = new Date().toISOString()): Scene {
+  const existingPlayerIds = new Set(scene.turnOrder.entries.map((entry) => entry.playerId).filter(Boolean));
+  const newEntries = players
+    .filter((player) => !existingPlayerIds.has(player.id))
+    .map((player) => createTurnOrderEntryFromPlayer(crypto.randomUUID(), player));
+  if (newEntries.length === 0) {
+    return scene;
+  }
+  return patchTurnOrder(
+    scene,
+    {
+      entries: [...scene.turnOrder.entries, ...newEntries],
+      currentEntryId: scene.turnOrder.currentEntryId ?? newEntries[0]?.id
+    },
+    updatedAt
+  );
 }
 
 export function updateTurnOrderEntry(scene: Scene, entryId: string, patch: Partial<TurnOrderEntry>, updatedAt = new Date().toISOString()): Scene {
