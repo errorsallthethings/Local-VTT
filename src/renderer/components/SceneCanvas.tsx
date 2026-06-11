@@ -28,8 +28,14 @@ import {
   type RulerDrag,
   type RulerLabel
 } from "../canvas/measurement";
-import { getPathDistance, getPointAlongPath, normalizeMovementPath } from "../canvas/movementPath";
+import { getPointAlongPath } from "../canvas/movementPath";
 import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
+import {
+  getTokenMovementPath,
+  getTokenMovementTweens,
+  getTokenWaypointPosition,
+  isDuplicateTokenWaypoint
+} from "../canvas/tokenMovement";
 import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
@@ -76,13 +82,6 @@ interface LoadedMap {
 }
 
 type MapLoadStatus = "idle" | "loading" | "ready" | "error";
-
-type TokenTween = {
-  id: string;
-  points: Point[];
-  distance: number;
-  durationMs: number;
-};
 
 type TokenDragState = {
   pointerId: number;
@@ -1968,71 +1967,6 @@ function drawLaserTrail(ctx: CanvasRenderingContext2D, points: LiveTablePoint[],
   ctx.fill();
   ctx.stroke();
   ctx.restore();
-}
-
-function getTokenMovementPath(startPosition: Point, waypoints: Point[], finalPosition: Point): Point[] | null {
-  const points = normalizeMovementPath([startPosition, ...waypoints, finalPosition]);
-  return points.length > 1 ? points : null;
-}
-
-function getTokenMovementTweens(previousTokens: Token[], nextTokens: Token[], scene: Scene): TokenTween[] {
-  const previousById = new Map(previousTokens.map((token) => [token.id, token]));
-  const tweens: TokenTween[] = [];
-  for (const nextToken of nextTokens) {
-    const previousToken = previousById.get(nextToken.id);
-    if (!previousToken || previousToken.assetId !== nextToken.assetId || hasTokenSizeChanged(previousToken, nextToken)) {
-      continue;
-    }
-    if (distanceBetween(previousToken.position, nextToken.position) <= 2) {
-      continue;
-    }
-    // Preserve the GM-authored route when a token move included Shift waypoints; otherwise animate direct movement.
-    const points =
-      scene.tokenMovementPath?.tokenId === nextToken.id
-        ? normalizeMovementPath([previousToken.position, ...scene.tokenMovementPath.points.slice(1, -1), nextToken.position])
-        : [previousToken.position, nextToken.position];
-    const distance = getPathDistance(points);
-    if (points.length < 2 || distance <= 2) {
-      continue;
-    }
-    tweens.push({
-      id: nextToken.id,
-      points,
-      distance,
-      durationMs: getTokenMovementDurationMs(distance, nextToken, scene)
-    });
-  }
-  return tweens;
-}
-
-function getTokenMovementDurationMs(distance: number, token: Token, scene: Scene) {
-  const movementUnit = scene.grid.type === "gridless" || scene.grid.sizePx <= 0 ? Math.max(1, token.size.width) : scene.grid.sizePx;
-  return Math.max(320, Math.round((distance / movementUnit) * 400));
-}
-
-function hasTokenSizeChanged(previousToken: Token, nextToken: Token) {
-  return previousToken.size.width !== nextToken.size.width || previousToken.size.height !== nextToken.size.height;
-}
-
-function isDuplicateTokenWaypoint(existingPosition: Point, waypoint: Point, token: Token, scene: Scene) {
-  const duplicateDistance = scene.grid.type === "gridless" ? Math.max(2, token.size.width) : 2;
-  return distanceBetween(existingPosition, waypoint) <= duplicateDistance;
-}
-
-function getTokenWaypointPosition(position: Point, token: Token, scene: Scene): Point {
-  if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
-    return position;
-  }
-
-  const tokenCenter = {
-    x: position.x + token.size.width / 2,
-    y: position.y + token.size.height / 2
-  };
-  const waypointCenter = scene.grid.type === "hex" ? getNearestHexCenter(tokenCenter, scene.grid) : getNearestGridCellCenter(tokenCenter, scene.grid);
-  return {
-    x: waypointCenter.x - token.size.width / 2,
-    y: waypointCenter.y - token.size.height / 2
-  };
 }
 
 function isDuplicateRulerWaypoint(existingPosition: Point, waypoint: Point, scene: Scene) {
