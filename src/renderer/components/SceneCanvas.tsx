@@ -17,6 +17,12 @@ import {
 } from "../canvas/fogRenderer";
 import { drawHexGrid, drawSquareGrid } from "../canvas/gridRenderer";
 import { getNearestGridPoint } from "../canvas/gridMath";
+import {
+  drawLiveTableEvents,
+  hasActiveLiveTableEvents,
+  LASER_MIN_POINT_DISTANCE,
+  LASER_POINT_LIFETIME_MS
+} from "../canvas/liveTableRenderer";
 import { drawMapSource, getSourceHeight, getSourceWidth, resolveMapTransform } from "../canvas/mapRenderer";
 import {
   drawRuler,
@@ -113,10 +119,6 @@ type TokenImageSource = {
   id: string;
   path: string;
 };
-
-const PING_DURATION_MS = 1600;
-const LASER_POINT_LIFETIME_MS = 1100;
-const LASER_MIN_POINT_DISTANCE = 8;
 
 function parseTokenImageSourceKey(key: string): TokenImageSource[] {
   try {
@@ -1865,108 +1867,6 @@ function isMeaningfulWeatherMaskDrag(drag: WeatherMaskDrag): boolean {
     return distanceBetween(drag.start, drag.current) >= 4;
   }
   return Math.abs(drag.current.x - drag.start.x) >= 4 && Math.abs(drag.current.y - drag.start.y) >= 4;
-}
-
-function hasActiveLiveTableEvents(events: LiveTableEvent[]): boolean {
-  const now = Date.now();
-  return events.some((event) => (event.type === "ping" ? now - event.createdAt <= PING_DURATION_MS : event.points.some((point) => now - point.createdAt <= LASER_POINT_LIFETIME_MS)));
-}
-
-function drawLiveTableEvents(ctx: CanvasRenderingContext2D, events: LiveTableEvent[], camera: Camera) {
-  const now = Date.now();
-  ctx.save();
-  ctx.translate(camera.x, camera.y);
-  ctx.scale(camera.zoom, camera.zoom);
-  for (const event of events) {
-    if (event.type === "ping") {
-      drawPing(ctx, event.point, Math.max(1, camera.zoom), Math.max(0, Math.min(1, (now - event.createdAt) / PING_DURATION_MS)));
-    } else {
-      drawLaserTrail(ctx, event.points, now, Math.max(1, camera.zoom));
-    }
-  }
-  ctx.restore();
-}
-
-function drawPing(ctx: CanvasRenderingContext2D, point: Point, zoom: number, progress: number) {
-  if (progress >= 1) {
-    return;
-  }
-  const baseRadius = 26 / zoom;
-  const alpha = 1 - progress;
-
-  ctx.save();
-  ctx.shadowColor = `rgba(246, 211, 101, ${0.8 * alpha})`;
-  ctx.shadowBlur = 18 / zoom;
-  ctx.lineWidth = 8 / zoom;
-  for (const offset of [0, 0.22, 0.44]) {
-    const ringProgress = Math.max(0, Math.min(1, progress - offset));
-    const ringAlpha = Math.max(0, 1 - ringProgress) * alpha;
-    const rippleRadius = (64 + ringProgress * 136) / zoom;
-    ctx.strokeStyle = `rgba(246, 211, 101, ${0.95 * ringAlpha})`;
-    ctx.beginPath();
-    ctx.arc(point.x, point.y, rippleRadius, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  ctx.fillStyle = `rgba(246, 211, 101, ${0.45 * alpha})`;
-  ctx.beginPath();
-  ctx.arc(point.x, point.y, baseRadius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = `rgba(246, 211, 101, ${alpha})`;
-  ctx.lineWidth = 5 / zoom;
-  ctx.stroke();
-
-  ctx.shadowBlur = 10 / zoom;
-  ctx.strokeStyle = `rgba(255, 255, 255, ${0.88 * alpha})`;
-  ctx.lineWidth = 5 / zoom;
-  ctx.beginPath();
-  ctx.moveTo(point.x - 42 / zoom, point.y);
-  ctx.lineTo(point.x + 42 / zoom, point.y);
-  ctx.moveTo(point.x, point.y - 42 / zoom);
-  ctx.lineTo(point.x, point.y + 42 / zoom);
-  ctx.stroke();
-
-  ctx.lineWidth = 3 / zoom;
-  ctx.beginPath();
-  ctx.arc(point.x, point.y, 11 / zoom, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawLaserTrail(ctx: CanvasRenderingContext2D, points: LiveTablePoint[], now: number, zoom: number) {
-  const visiblePoints = points.filter((point) => now - point.createdAt <= LASER_POINT_LIFETIME_MS);
-  if (visiblePoints.length === 0) {
-    return;
-  }
-
-  ctx.save();
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  for (let index = 1; index < visiblePoints.length; index += 1) {
-    const previous = visiblePoints[index - 1];
-    const current = visiblePoints[index];
-    const age = now - current.createdAt;
-    const alpha = Math.max(0, 1 - age / LASER_POINT_LIFETIME_MS);
-    ctx.strokeStyle = `rgba(255, 82, 94, ${0.88 * alpha})`;
-    ctx.lineWidth = Math.max(8 / zoom, (20 * alpha) / zoom);
-    ctx.beginPath();
-    ctx.moveTo(previous.point.x, previous.point.y);
-    ctx.lineTo(current.point.x, current.point.y);
-    ctx.stroke();
-  }
-
-  const newest = visiblePoints[visiblePoints.length - 1];
-  const newestAlpha = Math.max(0, 1 - (now - newest.createdAt) / LASER_POINT_LIFETIME_MS);
-  ctx.shadowColor = `rgba(255, 82, 94, ${0.9 * newestAlpha})`;
-  ctx.shadowBlur = 12 / zoom;
-  ctx.fillStyle = `rgba(255, 236, 238, ${0.95 * newestAlpha})`;
-  ctx.strokeStyle = `rgba(255, 82, 94, ${0.9 * newestAlpha})`;
-  ctx.lineWidth = 4 / zoom;
-  ctx.beginPath();
-  ctx.arc(newest.point.x, newest.point.y, 12 / zoom, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
 }
 
 function isDuplicateRulerWaypoint(existingPosition: Point, waypoint: Point, scene: Scene) {
