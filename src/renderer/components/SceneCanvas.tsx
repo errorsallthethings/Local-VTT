@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, LiveTableEvent, LiveTablePoint, Point, Scene, Token, WeatherMask } from "../../shared/localvtt";
 import { getRenderCamera, type Camera } from "../canvas/camera";
@@ -17,7 +17,7 @@ import {
 } from "../canvas/fogRenderer";
 import { drawHexGrid, drawSquareGrid } from "../canvas/gridRenderer";
 import { getNearestGridPoint } from "../canvas/gridMath";
-import { drawMapSource } from "../canvas/mapRenderer";
+import { drawMapSource, getSourceHeight, getSourceWidth, resolveMapTransform } from "../canvas/mapRenderer";
 import {
   drawRuler,
   formatMeasurementDistance,
@@ -179,6 +179,8 @@ export function SceneCanvas({
   const polygonDraftRef = useRef<FogPolygonDraft | null>(null);
   const weatherPolygonDraftRef = useRef<WeatherPolygonDraft | null>(null);
   const previousSceneRef = useRef<Scene | null>(null);
+  const fittedSceneCameraRef = useRef<string | null>(null);
+  const autoFitCameraRef = useRef(true);
   // Player View tween state is mirrored in a ref so requestAnimationFrame can draw without stale React closures.
   const playerTokenTweenPositionsRef = useRef<TokenPositionOverrides | null>(null);
 
@@ -252,12 +254,77 @@ export function SceneCanvas({
     mapLoadStatus === "ready" ||
     mapLoadStatus === "error";
 
+  const getCurrentReadyMapSourceForFit = useCallback((): CanvasImageSource | null => {
+    if (!mapAsset || !canShowMap) {
+      return null;
+    }
+    const activeVideo = isVideoMap ? (videoRefs.current[activeVideoIndex] ?? null) : null;
+    return getReadyMapSourceForFit(loadedMap, mapAsset.id, activeVideo, isVideoMap);
+  }, [activeVideoIndex, canShowMap, isVideoMap, loadedMap, mapAsset, videoRefs]);
+
+  const fitGmCameraToReadyMap = useCallback(
+    (viewportWidth: number, viewportHeight: number, force = false): boolean => {
+      if (mode !== "gm" || !scene || !mapAsset || viewportWidth <= 0 || viewportHeight <= 0) {
+        return false;
+      }
+
+      const fitSignature = `${scene.id}:${mapAsset.id}`;
+      if (!force && fittedSceneCameraRef.current === fitSignature) {
+        return false;
+      }
+
+      const mapSource = getCurrentReadyMapSourceForFit();
+      if (!mapSource) {
+        return false;
+      }
+
+      fittedSceneCameraRef.current = fitSignature;
+      setCamera(getCameraForMapFit(scene, mapSource, viewportWidth, viewportHeight));
+      return true;
+    },
+    [getCurrentReadyMapSourceForFit, mapAsset, mode, scene]
+  );
+
   useEffect(() => {
     if (scene && mapReady && tokensReady) {
       // Player scene transitions wait for map/token assets so the splash does not reveal half-loaded content.
       onReady?.();
     }
   }, [mapReady, onReady, scene, tokensReady]);
+
+  useEffect(() => {
+    autoFitCameraRef.current = true;
+    fittedSceneCameraRef.current = null;
+  }, [mapAsset?.id, mode, scene?.id]);
+
+  useEffect(() => {
+    if (mode !== "gm" || !scene) {
+      return;
+    }
+
+    const fitSignature = `${scene.id}:${mapAsset?.id ?? "no-map"}`;
+    if (fittedSceneCameraRef.current === fitSignature) {
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      return;
+    }
+
+    if (!canShowMap || !mapAsset) {
+      fittedSceneCameraRef.current = fitSignature;
+      setCamera({ x: 0, y: 0, zoom: 1 });
+      return;
+    }
+
+    fitGmCameraToReadyMap(rect.width, rect.height);
+  }, [canShowMap, fitGmCameraToReadyMap, mapAsset, mode, scene]);
 
   useEffect(() => {
     polygonDraftRef.current = polygonDraft;
@@ -579,6 +646,9 @@ export function SceneCanvas({
       canvas.width = Math.max(1, Math.floor(rect.width * scale));
       canvas.height = Math.max(1, Math.floor(rect.height * scale));
       context.setTransform(scale, 0, 0, scale, 0, 0);
+      if (autoFitCameraRef.current) {
+        fitGmCameraToReadyMap(rect.width, rect.height, true);
+      }
       drawScene(context, rect.width, rect.height);
     };
 
@@ -692,7 +762,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeVideoIndex, brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeVideoIndex, brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -741,6 +811,7 @@ export function SceneCanvas({
     const worldX = (mouseX - camera.x) / camera.zoom;
     const worldY = (mouseY - camera.y) / camera.zoom;
 
+    autoFitCameraRef.current = false;
     setCamera({
       zoom: nextZoom,
       x: mouseX - worldX * nextZoom,
@@ -941,6 +1012,7 @@ export function SceneCanvas({
     if (!drag || drag.pointerId !== event.pointerId) {
       return;
     }
+    autoFitCameraRef.current = false;
     setCamera({
       ...drag.camera,
       x: drag.camera.x + event.clientX - drag.x,
@@ -1260,6 +1332,28 @@ export function SceneCanvas({
     });
   };
 
+  const fitGmCameraToVideoMap = (video: HTMLVideoElement) => {
+    if (mode !== "gm" || !scene || !mapAsset || !isVideoMap || video.dataset.mapAssetId !== mapAsset.id) {
+      return;
+    }
+
+    if (video.videoWidth <= 0 || video.videoHeight <= 0) {
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      return;
+    }
+
+    fitGmCameraToReadyMap(rect.width, rect.height);
+  };
+
   const showMapOverlay = Boolean(canShowMap && mapAsset && (mapLoadStatus === "loading" || mapLoadStatus === "error"));
   const mapOverlayMessage = mapLoadStatus === "error" ? "Map asset unavailable" : mapAsset?.mediaType === "video" ? "Loading video map..." : "Loading map...";
 
@@ -1275,6 +1369,7 @@ export function SceneCanvas({
               }}
               className="scene-video-map"
               src={videoUrl}
+              data-map-asset-id={mapAsset?.id ?? ""}
               muted={videoMuted}
               autoPlay={index === activeVideoIndex && !videoPaused}
               playsInline
@@ -1283,15 +1378,21 @@ export function SceneCanvas({
                 opacity: index === activeVideoIndex ? (mapLayer?.opacity ?? 1) : 0,
                 transform: getVideoTransform(getRenderCamera(camera, playerDisplayScale), scene)
               }}
-              onCanPlay={() => {
+              onCanPlay={(event) => {
                 setMapLoadStatus("ready");
+                fitGmCameraToVideoMap(event.currentTarget);
                 playActiveWhenReady(index);
               }}
-              onLoadedData={() => {
-                setMapLoadStatus("ready");
+              onLoadedMetadata={(event) => {
+                fitGmCameraToVideoMap(event.currentTarget);
               }}
-              onPlaying={() => {
+              onLoadedData={(event) => {
                 setMapLoadStatus("ready");
+                fitGmCameraToVideoMap(event.currentTarget);
+              }}
+              onPlaying={(event) => {
+                setMapLoadStatus("ready");
+                fitGmCameraToVideoMap(event.currentTarget);
               }}
               onError={(event) => {
                 const video = event.currentTarget;
@@ -1490,6 +1591,66 @@ function getCanvasViewportCenter(element: HTMLCanvasElement, camera: Camera): Po
   return {
     x: (rect.width / 2 - camera.x) / camera.zoom,
     y: (rect.height / 2 - camera.y) / camera.zoom
+  };
+}
+
+function getReadyMapSourceForFit(loadedMap: LoadedMap | null, mapAssetId: string, activeVideo: HTMLVideoElement | null, isVideoMap: boolean): CanvasImageSource | null {
+  if (!isVideoMap) {
+    return loadedMap?.ready && loadedMap.assetId === mapAssetId ? loadedMap.source : null;
+  }
+  if (
+    activeVideo?.dataset.mapAssetId === mapAssetId &&
+    activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA &&
+    activeVideo.videoWidth > 0 &&
+    activeVideo.videoHeight > 0
+  ) {
+    return activeVideo;
+  }
+  return null;
+}
+
+function getCameraForMapFit(scene: Scene, source: CanvasImageSource, viewportWidth: number, viewportHeight: number): Camera {
+  const sourceWidth = getSourceWidth(source);
+  const sourceHeight = getSourceHeight(source);
+  if (sourceWidth <= 0 || sourceHeight <= 0 || viewportWidth <= 0 || viewportHeight <= 0) {
+    return { x: 0, y: 0, zoom: 1 };
+  }
+
+  const transform = resolveMapTransform(scene, sourceWidth, sourceHeight, viewportWidth, viewportHeight);
+  const rotation = (transform.rotation * Math.PI) / 180;
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  const corners = [
+    { x: 0, y: 0 },
+    { x: sourceWidth, y: 0 },
+    { x: sourceWidth, y: sourceHeight },
+    { x: 0, y: sourceHeight }
+  ].map((corner) => {
+    const scaledX = corner.x * transform.scale;
+    const scaledY = corner.y * transform.scale;
+    return {
+      x: transform.x + scaledX * cos - scaledY * sin,
+      y: transform.y + scaledX * sin + scaledY * cos
+    };
+  });
+
+  const minX = Math.min(...corners.map((corner) => corner.x));
+  const maxX = Math.max(...corners.map((corner) => corner.x));
+  const minY = Math.min(...corners.map((corner) => corner.y));
+  const maxY = Math.max(...corners.map((corner) => corner.y));
+  const mapWidth = Math.max(1, maxX - minX);
+  const mapHeight = Math.max(1, maxY - minY);
+  const padding = Math.min(48, Math.max(16, Math.min(viewportWidth, viewportHeight) * 0.04));
+  const availableWidth = Math.max(1, viewportWidth - padding * 2);
+  const availableHeight = Math.max(1, viewportHeight - padding * 2);
+  const zoom = Math.min(6, Math.max(0.05, Math.min(availableWidth / mapWidth, availableHeight / mapHeight)));
+  const centerX = minX + mapWidth / 2;
+  const centerY = minY + mapHeight / 2;
+
+  return {
+    x: viewportWidth / 2 - centerX * zoom,
+    y: viewportHeight / 2 - centerY * zoom,
+    zoom
   };
 }
 

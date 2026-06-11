@@ -17,10 +17,11 @@ import {
   Upload
 } from "lucide-react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Asset } from "../../../shared/localvtt";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
+import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/dragTypes";
 
 type TokenLibrarySort = "name-asc" | "newest" | "oldest";
@@ -352,35 +353,12 @@ function TokenLibraryMenu({
   onRenameToken: (asset: Asset) => void;
   onDeleteToken: (asset: Asset) => void;
 }) {
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-
-  useLayoutEffect(() => {
-    if (!anchor) {
-      return;
-    }
-    const updatePosition = () => {
-      const anchorRect = anchor.getBoundingClientRect();
-      const menuRect = menuRef.current?.getBoundingClientRect();
-      const menuWidth = menuRect?.width ?? 158;
-      const menuHeight = menuRect?.height ?? 118;
-      const gap = 6;
-      const top =
-        anchorRect.bottom + gap + menuHeight <= window.innerHeight
-          ? anchorRect.bottom + gap
-          : Math.max(gap, anchorRect.top - menuHeight - gap);
-      const left = Math.min(window.innerWidth - menuWidth - gap, Math.max(gap, anchorRect.right - menuWidth));
-      setPosition({ top, left });
-    };
-
-    updatePosition();
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
-    return () => {
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
-    };
-  }, [anchor]);
+  const { menuRef, position } = useFloatingMenuPosition({
+    open: Boolean(anchor),
+    anchor,
+    fallbackWidth: 158,
+    fallbackHeight: 118
+  });
 
   return (
     <div ref={menuRef} className="token-library-menu token-library-menu-portal token-library-menu-wrap" style={{ top: position.top, left: position.left }} onClick={(event) => event.stopPropagation()}>

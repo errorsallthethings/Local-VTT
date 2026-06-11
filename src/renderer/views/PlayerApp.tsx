@@ -52,6 +52,19 @@ export function PlayerApp() {
   }, []);
 
   useEffect(() => {
+    const exitFullscreenWithEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      void window.localVtt.setPlayerFullscreen(false);
+    };
+
+    window.addEventListener("keydown", exitFullscreenWithEscape);
+    return () => window.removeEventListener("keydown", exitFullscreenWithEscape);
+  }, []);
+
+  useEffect(() => {
     if (liveTableEvents.length === 0) {
       return;
     }
