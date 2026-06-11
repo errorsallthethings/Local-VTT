@@ -690,6 +690,32 @@ export const DEFAULT_WEATHER: WeatherSettings = {
   masks: []
 };
 
+export function createDefaultWeather(): WeatherSettings {
+  return {
+    ...DEFAULT_WEATHER,
+    effectSettings: {},
+    effects: {
+      rain: {
+        ...DEFAULT_WEATHER.effects.rain,
+        settings: { ...DEFAULT_WEATHER.effects.rain.settings }
+      },
+      fog: {
+        ...DEFAULT_WEATHER.effects.fog,
+        settings: { ...DEFAULT_WEATHER.effects.fog.settings }
+      },
+      snow: {
+        ...DEFAULT_WEATHER.effects.snow,
+        settings: { ...DEFAULT_WEATHER.effects.snow.settings }
+      },
+      sand: {
+        ...DEFAULT_WEATHER.effects.sand,
+        settings: { ...DEFAULT_WEATHER.effects.sand.settings }
+      }
+    },
+    masks: []
+  };
+}
+
 const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "none",
   "light-rain",
@@ -752,7 +778,7 @@ export function createDefaultScene(name: string): Scene {
     layerOrderLocked: true,
     mapTransform: { ...DEFAULT_MAP_TRANSFORM },
     fog: { ...DEFAULT_FOG, shapes: [] },
-    weather: { ...DEFAULT_WEATHER },
+    weather: createDefaultWeather(),
     tokens: [],
     walls: [],
     lights: [],

@@ -1,6 +1,6 @@
-import { CloudFog, CloudRain, CloudSun, EllipsisVertical, Maximize2, Minimize2, MonitorUp, SlidersHorizontal, Snowflake, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { EllipsisVertical, Maximize2, Minimize2, MonitorUp, SlidersHorizontal, X } from "lucide-react";
 import type { Asset, Campaign, Scene } from "../../../shared/localvtt";
+import { getActiveWeatherEffects } from "../../lib/weatherCatalog";
 
 interface WorkspaceTopbarProps {
   campaign: Campaign | null;
@@ -96,22 +96,7 @@ export function WorkspaceTopbar({
 }
 
 function ActiveWeatherIcons({ scene }: { scene: Scene }) {
-  if (!scene.weather.enabled) {
-    return null;
-  }
-  const activeEffects: Array<{ key: string; label: string; icon: ReactNode }> = [];
-  if (scene.weather.effects.rain.enabled) {
-    activeEffects.push({ key: "rain", label: getWeatherPatternLabel(scene.weather.effects.rain.pattern), icon: <CloudRain size={14} aria-hidden="true" /> });
-  }
-  if (scene.weather.effects.fog.enabled) {
-    activeEffects.push({ key: "fog", label: getWeatherPatternLabel(scene.weather.effects.fog.pattern), icon: <CloudFog size={14} aria-hidden="true" /> });
-  }
-  if (scene.weather.effects.snow.enabled) {
-    activeEffects.push({ key: "snow", label: getWeatherPatternLabel(scene.weather.effects.snow.pattern), icon: <Snowflake size={14} aria-hidden="true" /> });
-  }
-  if (scene.weather.effects.sand.enabled) {
-    activeEffects.push({ key: "sand", label: getWeatherPatternLabel(scene.weather.effects.sand.pattern), icon: <CloudSun size={14} aria-hidden="true" /> });
-  }
+  const activeEffects = getActiveWeatherEffects(scene.weather);
 
   if (activeEffects.length === 0) {
     return null;
@@ -121,42 +106,9 @@ function ActiveWeatherIcons({ scene }: { scene: Scene }) {
     <div className="active-weather-icons" aria-label="Active weather effects">
       {activeEffects.map((effect) => (
         <span key={effect.key} title={effect.label} aria-label={effect.label}>
-          {effect.icon}
+          <effect.icon size={14} aria-hidden="true" />
         </span>
       ))}
     </div>
   );
-}
-
-function getWeatherPatternLabel(pattern: string): string {
-  switch (pattern) {
-    case "light-rain":
-      return "Light Rain";
-    case "rain":
-      return "Rain";
-    case "heavy-rain":
-      return "Heavy Rain";
-    case "rain-storm":
-      return "Rain Storm";
-    case "light-fog":
-      return "Light Fog";
-    case "fog":
-      return "Fog";
-    case "heavy-fog":
-      return "Heavy Fog";
-    case "light-snow":
-      return "Light Snow";
-    case "snow":
-      return "Snow";
-    case "blizzard":
-      return "Blizzard";
-    case "light-sand":
-      return "Light Sand";
-    case "sand":
-      return "Sand";
-    case "sandstorm":
-      return "Sandstorm";
-    default:
-      return "Weather";
-  }
 }

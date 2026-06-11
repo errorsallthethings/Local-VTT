@@ -3,16 +3,10 @@ import {
   ArrowDown,
   ArrowUp,
   Box,
-  Cloud,
   Circle,
-  CloudDrizzle,
   CloudFog,
-  CloudLightning,
-  CloudRain,
-  CloudSnow,
   CloudSun,
   Crown,
-  Droplets,
   Eye,
   EyeOff,
   Grid3X3,
@@ -24,28 +18,21 @@ import {
   RotateCcw,
   Settings,
   Shield,
-  Snowflake,
   Sparkles,
   Square,
   SquareDashed,
-  ThermometerSnowflake,
   Trash2,
   User,
-  UsersRound,
-  Wind
+  UsersRound
 } from "lucide-react";
 import type {
   Asset,
   FogSettings,
-  FogWeatherEffectType,
   GridSettings,
   GridType,
   Layer,
   MapTransform,
-  RainWeatherEffectType,
-  SandWeatherEffectType,
   Scene,
-  SnowWeatherEffectType,
   WeatherPatternEffectType,
   WeatherSettings,
   WeatherTuningSettings
@@ -53,56 +40,19 @@ import type {
 import { DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultFogShapeName, type Token } from "../../../shared/localvtt";
 import { getSnappedTokenPosition } from "../../canvas/tokenGeometry";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
+import {
+  WEATHER_CATEGORY_OPTIONS,
+  getWeatherCategoryLabel,
+  getWeatherEffectOptions,
+  type ActiveWeatherCategory
+} from "../../lib/weatherCatalog";
 import { ColorSettingRow } from "../controls/ColorPickerField";
 import { DebouncedNumberInput } from "../controls/DebouncedNumberInput";
 import { MeasurementPanel } from "../settings/MeasurementPanel";
 import { FogShapeList, type FogShapeDropTarget } from "./FogShapeList";
 import { TokenList } from "./TokenList";
 
-const RAIN_EFFECT_OPTIONS: Array<{
-  effect: RainWeatherEffectType;
-  label: string;
-  icon: typeof CloudRain;
-}> = [
-  { effect: "light-rain", label: "Light Rain", icon: CloudDrizzle },
-  { effect: "rain", label: "Rain", icon: Droplets },
-  { effect: "heavy-rain", label: "Heavy Rain", icon: CloudRain },
-  { effect: "rain-storm", label: "Rain Storm", icon: CloudLightning }
-];
-
-const FOG_EFFECT_OPTIONS: Array<{
-  effect: FogWeatherEffectType;
-  label: string;
-  icon: typeof CloudRain;
-}> = [
-  { effect: "light-fog", label: "Light Fog", icon: Cloud },
-  { effect: "fog", label: "Fog", icon: CloudFog },
-  { effect: "heavy-fog", label: "Heavy Fog", icon: CloudFog }
-];
-
-const SNOW_EFFECT_OPTIONS: Array<{
-  effect: SnowWeatherEffectType;
-  label: string;
-  icon: typeof CloudRain;
-}> = [
-  { effect: "light-snow", label: "Light Snow", icon: ThermometerSnowflake },
-  { effect: "snow", label: "Snow", icon: Snowflake },
-  { effect: "blizzard", label: "Blizzard", icon: CloudSnow }
-];
-
-const SAND_EFFECT_OPTIONS: Array<{
-  effect: SandWeatherEffectType;
-  label: string;
-  icon: typeof CloudRain;
-}> = [
-  { effect: "light-sand", label: "Light Sand", icon: Wind },
-  { effect: "sand", label: "Sand", icon: CloudSun },
-  { effect: "sandstorm", label: "Sandstorm", icon: Wind }
-];
-
-type WeatherCategory = "none" | "rain" | "fog" | "snow" | "sand";
 type WeatherTuningKey = keyof WeatherTuningSettings;
-type ActiveWeatherCategory = Exclude<WeatherCategory, "none">;
 
 export function LayerPanel({
   scene,
@@ -563,34 +513,16 @@ export function LayerPanel({
               {layer.id === "weather" && areSettingsExpanded && (
                 <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
                   <div className="weather-category-list">
-                    <WeatherCategoryRow
-                      label="Rain"
-                      enabled={scene.weather.effects.rain.enabled}
-                      expanded={expandedWeatherCategory === "rain"}
-                      onEnabledChange={(enabled) => toggleWeatherCategory("rain", enabled)}
-                      onExpand={() => setExpandedWeatherCategory((category) => (category === "rain" ? null : "rain"))}
-                    />
-                    <WeatherCategoryRow
-                      label="Fog"
-                      enabled={scene.weather.effects.fog.enabled}
-                      expanded={expandedWeatherCategory === "fog"}
-                      onEnabledChange={(enabled) => toggleWeatherCategory("fog", enabled)}
-                      onExpand={() => setExpandedWeatherCategory((category) => (category === "fog" ? null : "fog"))}
-                    />
-                    <WeatherCategoryRow
-                      label="Snow"
-                      enabled={scene.weather.effects.snow.enabled}
-                      expanded={expandedWeatherCategory === "snow"}
-                      onEnabledChange={(enabled) => toggleWeatherCategory("snow", enabled)}
-                      onExpand={() => setExpandedWeatherCategory((category) => (category === "snow" ? null : "snow"))}
-                    />
-                    <WeatherCategoryRow
-                      label="Sand"
-                      enabled={scene.weather.effects.sand.enabled}
-                      expanded={expandedWeatherCategory === "sand"}
-                      onEnabledChange={(enabled) => toggleWeatherCategory("sand", enabled)}
-                      onExpand={() => setExpandedWeatherCategory((category) => (category === "sand" ? null : "sand"))}
-                    />
+                    {WEATHER_CATEGORY_OPTIONS.map((option) => (
+                      <WeatherCategoryRow
+                        key={option.category}
+                        label={option.label}
+                        enabled={scene.weather.effects[option.category].enabled}
+                        expanded={expandedWeatherCategory === option.category}
+                        onEnabledChange={(enabled) => toggleWeatherCategory(option.category, enabled)}
+                        onExpand={() => setExpandedWeatherCategory((category) => (category === option.category ? null : option.category))}
+                      />
+                    ))}
                   </div>
                   {expandedWeatherCategory && expandedWeatherSlot && (
                   <div className="weather-category-settings">
@@ -1169,32 +1101,6 @@ function getWeatherEffectSettingsWithCategoryReset(
 
 function hasEnabledWeatherEffect(effects: WeatherSettings["effects"]): boolean {
   return effects.rain.enabled || effects.fog.enabled || effects.snow.enabled || effects.sand.enabled;
-}
-
-function getWeatherEffectOptions(category: ActiveWeatherCategory) {
-  if (category === "rain") {
-    return RAIN_EFFECT_OPTIONS;
-  }
-  if (category === "snow") {
-    return SNOW_EFFECT_OPTIONS;
-  }
-  if (category === "sand") {
-    return SAND_EFFECT_OPTIONS;
-  }
-  return FOG_EFFECT_OPTIONS;
-}
-
-function getWeatherCategoryLabel(category: ActiveWeatherCategory): string {
-  if (category === "rain") {
-    return "Rain";
-  }
-  if (category === "snow") {
-    return "Snow";
-  }
-  if (category === "sand") {
-    return "Sand";
-  }
-  return "Fog";
 }
 
 const WEATHER_ADVANCED_LABELS: Record<

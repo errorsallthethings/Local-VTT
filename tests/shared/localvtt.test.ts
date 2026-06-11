@@ -564,8 +564,12 @@ it("default creators return isolated nested collections", () => {
 
   first.layers[0].name = "Changed";
   first.fog.shapes.push({ id: "shape", operation: "reveal", kind: "rectangle", points: [] });
+  first.weather.effects.rain.enabled = true;
+  first.weather.effects.rain.settings.opacity = 0.12;
+  first.weather.masks.push({ id: "mask", kind: "circle", points: [{ x: 10, y: 10 }], radius: 20 });
 
   expect(second.layers[0].name).toBe(DEFAULT_LAYERS[0].name);
   expect(second.fog).toEqual(DEFAULT_FOG);
+  expect(second.weather).toEqual(DEFAULT_WEATHER);
 });
 });

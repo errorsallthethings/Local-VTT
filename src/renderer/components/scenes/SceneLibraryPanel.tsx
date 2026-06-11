@@ -1,12 +1,9 @@
-import { useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactElement, type ReactNode } from "react";
+import { useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowDown,
   ArrowUp,
   CircleCheck,
-  CloudFog,
-  CloudRain,
-  CloudSun,
   Copy,
   Edit3,
   EllipsisVertical,
@@ -18,12 +15,12 @@ import {
   Map,
   Palette,
   Save,
-  Snowflake,
   Trash2,
   Video
 } from "lucide-react";
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../../shared/localvtt";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
+import { getActiveWeatherEffects } from "../../lib/weatherCatalog";
 
 interface SceneLibraryPanelProps {
   campaign: Campaign | null;
@@ -496,15 +493,7 @@ function SceneThumbnail({ asset, scene }: { asset: Asset | null; scene: Campaign
 }
 
 function SceneWeatherBadges({ scene }: { scene: CampaignSceneEntry }) {
-  if (!scene.weather?.enabled) {
-    return null;
-  }
-  const activeWeather: { key: string; label: string; icon: ReactElement }[] = [
-    scene.weather.effects?.rain?.enabled ? { key: "rain", label: getWeatherPatternLabel(scene.weather.effects.rain.pattern), icon: <CloudRain size={12} aria-hidden="true" /> } : null,
-    scene.weather.effects?.fog?.enabled ? { key: "fog", label: getWeatherPatternLabel(scene.weather.effects.fog.pattern), icon: <CloudFog size={12} aria-hidden="true" /> } : null,
-    scene.weather.effects?.snow?.enabled ? { key: "snow", label: getWeatherPatternLabel(scene.weather.effects.snow.pattern), icon: <Snowflake size={12} aria-hidden="true" /> } : null,
-    scene.weather.effects?.sand?.enabled ? { key: "sand", label: getWeatherPatternLabel(scene.weather.effects.sand.pattern), icon: <CloudSun size={12} aria-hidden="true" /> } : null
-  ].filter((item): item is { key: string; label: string; icon: ReactElement } => item !== null);
+  const activeWeather = scene.weather ? getActiveWeatherEffects(scene.weather) : [];
 
   if (activeWeather.length === 0) {
     return null;
@@ -514,44 +503,11 @@ function SceneWeatherBadges({ scene }: { scene: CampaignSceneEntry }) {
     <div className="scene-weather-badges" aria-label="Active weather effects">
       {activeWeather.map((weather) => (
         <span key={weather.key} title={weather.label} aria-label={weather.label}>
-          {weather.icon}
+          <weather.icon size={12} aria-hidden="true" />
         </span>
       ))}
     </div>
   );
-}
-
-function getWeatherPatternLabel(pattern: string): string {
-  switch (pattern) {
-    case "light-rain":
-      return "Light Rain";
-    case "rain":
-      return "Rain";
-    case "heavy-rain":
-      return "Heavy Rain";
-    case "rain-storm":
-      return "Rain Storm";
-    case "light-fog":
-      return "Light Fog";
-    case "fog":
-      return "Fog";
-    case "heavy-fog":
-      return "Heavy Fog";
-    case "light-snow":
-      return "Light Snow";
-    case "snow":
-      return "Snow";
-    case "blizzard":
-      return "Blizzard";
-    case "light-sand":
-      return "Light Sand";
-    case "sand":
-      return "Sand";
-    case "sandstorm":
-      return "Sandstorm";
-    default:
-      return "Weather";
-  }
 }
 
 function ThumbnailBadge({ mediaType }: { mediaType: Asset["mediaType"] }) {
