@@ -19,6 +19,10 @@ export const MIN_RIGHT_PANEL_WIDTH = 250;
 export const COMPACT_RIGHT_PANEL_WIDTH = 280;
 export const MAX_PANEL_WIDTH = 520;
 export const COLLAPSED_RAIL_WIDTH = 44;
+export const TOKEN_LIBRARY_HEIGHT_STORAGE_KEY = "localvtt.tokenLibraryHeight";
+export const DEFAULT_TOKEN_LIBRARY_HEIGHT = 238;
+export const MIN_TOKEN_LIBRARY_HEIGHT = 170;
+export const MAX_TOKEN_LIBRARY_HEIGHT = 460;
 
 export function loadWorkspaceLayout(storage: Pick<Storage, "getItem"> = window.localStorage): WorkspaceLayout {
   try {
@@ -33,6 +37,18 @@ export function loadWorkspaceLayout(storage: Pick<Storage, "getItem"> = window.l
   }
 }
 
+export function loadTokenLibraryHeight(storage: Pick<Storage, "getItem"> = window.localStorage): number {
+  const storedValue = storage.getItem(TOKEN_LIBRARY_HEIGHT_STORAGE_KEY);
+  if (!storedValue) {
+    return DEFAULT_TOKEN_LIBRARY_HEIGHT;
+  }
+  const storedHeight = Number(storedValue);
+  if (!Number.isFinite(storedHeight)) {
+    return DEFAULT_TOKEN_LIBRARY_HEIGHT;
+  }
+  return normalizeTokenLibraryHeight(storedHeight);
+}
+
 export function normalizeWorkspaceLayout(layout: Partial<WorkspaceLayout>): WorkspaceLayout {
   return {
     leftWidth: clamp(layout.leftWidth ?? DEFAULT_WORKSPACE_LAYOUT.leftWidth, MIN_LEFT_PANEL_WIDTH, MAX_PANEL_WIDTH),
@@ -40,6 +56,10 @@ export function normalizeWorkspaceLayout(layout: Partial<WorkspaceLayout>): Work
     leftCollapsed: layout.leftCollapsed ?? DEFAULT_WORKSPACE_LAYOUT.leftCollapsed,
     rightCollapsed: layout.rightCollapsed ?? DEFAULT_WORKSPACE_LAYOUT.rightCollapsed
   };
+}
+
+export function normalizeTokenLibraryHeight(height: number): number {
+  return clamp(height, MIN_TOKEN_LIBRARY_HEIGHT, MAX_TOKEN_LIBRARY_HEIGHT);
 }
 
 export function toggleWorkspacePanel(layout: WorkspaceLayout, side: WorkspacePanelSide): WorkspaceLayout {

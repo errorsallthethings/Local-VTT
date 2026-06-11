@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_WORKSPACE_LAYOUT,
+  DEFAULT_TOKEN_LIBRARY_HEIGHT,
   loadWorkspaceLayout,
+  loadTokenLibraryHeight,
+  normalizeTokenLibraryHeight,
   normalizeWorkspaceLayout,
   resetPanelWidth,
   resizePanelWidth,
@@ -42,6 +45,14 @@ describe("workspace layout helpers", () => {
     });
   });
 
+  it("loads and normalizes stored token library drawer height", () => {
+    expect(loadTokenLibraryHeight({ getItem: () => null })).toBe(DEFAULT_TOKEN_LIBRARY_HEIGHT);
+    expect(loadTokenLibraryHeight({ getItem: () => "bad" })).toBe(DEFAULT_TOKEN_LIBRARY_HEIGHT);
+    expect(loadTokenLibraryHeight({ getItem: () => "80" })).toBe(170);
+    expect(loadTokenLibraryHeight({ getItem: () => "900" })).toBe(460);
+    expect(loadTokenLibraryHeight({ getItem: () => "320" })).toBe(320);
+  });
+
   it("toggles collapse state without changing widths", () => {
     expect(toggleWorkspacePanel(layout, "left")).toEqual({ ...layout, leftCollapsed: true });
     expect(toggleWorkspacePanel(layout, "right")).toEqual({ ...layout, rightCollapsed: true });
@@ -51,5 +62,11 @@ describe("workspace layout helpers", () => {
     expect(resizePanelWidth(layout, "left", 300, 40).leftWidth).toBe(340);
     expect(resizePanelWidth(layout, "right", 360, -200).rightWidth).toBe(250);
     expect(resetPanelWidth(layout, "right").rightWidth).toBe(DEFAULT_WORKSPACE_LAYOUT.rightWidth);
+  });
+
+  it("normalizes token library drawer height into supported bounds", () => {
+    expect(normalizeTokenLibraryHeight(100)).toBe(170);
+    expect(normalizeTokenLibraryHeight(320)).toBe(320);
+    expect(normalizeTokenLibraryHeight(700)).toBe(460);
   });
 });

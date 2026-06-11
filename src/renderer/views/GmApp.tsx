@@ -50,10 +50,13 @@ import { createImportedToken } from "../lib/tokenDefaults";
 import {
   COLLAPSED_RAIL_WIDTH,
   COMPACT_RIGHT_PANEL_WIDTH,
+  DEFAULT_TOKEN_LIBRARY_HEIGHT,
+  TOKEN_LIBRARY_HEIGHT_STORAGE_KEY,
   WORKSPACE_LAYOUT_STORAGE_KEY,
-  clamp,
   getWorkspacePanelWidth,
+  loadTokenLibraryHeight,
   loadWorkspaceLayout,
+  normalizeTokenLibraryHeight,
   resetPanelWidth as resetWorkspacePanelWidth,
   resizePanelWidth,
   toggleWorkspacePanel as toggleWorkspacePanelLayout,
@@ -76,11 +79,6 @@ import {
 } from "./GmDialogs";
 import { GmInspector } from "./GmInspector";
 import { GmSidebar } from "./GmSidebar";
-
-const TOKEN_LIBRARY_HEIGHT_STORAGE_KEY = "localvtt.tokenLibraryHeight";
-const DEFAULT_TOKEN_LIBRARY_HEIGHT = 238;
-const MIN_TOKEN_LIBRARY_HEIGHT = 170;
-const MAX_TOKEN_LIBRARY_HEIGHT = 460;
 
 export function GmApp() {
   const workspace = useCampaignWorkspace();
@@ -987,7 +985,7 @@ export function GmApp() {
     const startHeight = tokenLibraryHeight;
 
     const resizeDrawer = (moveEvent: PointerEvent) => {
-      setTokenLibraryHeight(clamp(startHeight + startY - moveEvent.clientY, MIN_TOKEN_LIBRARY_HEIGHT, MAX_TOKEN_LIBRARY_HEIGHT));
+      setTokenLibraryHeight(normalizeTokenLibraryHeight(startHeight + startY - moveEvent.clientY));
     };
     const stopResize = () => {
       document.body.classList.remove("resizing-token-library");
@@ -1364,14 +1362,6 @@ function formatCleanSaveState(saveState: string): string {
     return "Saved";
   }
   return saveState[0].toUpperCase() + saveState.slice(1);
-}
-
-function loadTokenLibraryHeight(): number {
-  const storedHeight = Number(window.localStorage.getItem(TOKEN_LIBRARY_HEIGHT_STORAGE_KEY));
-  if (!Number.isFinite(storedHeight)) {
-    return DEFAULT_TOKEN_LIBRARY_HEIGHT;
-  }
-  return clamp(storedHeight, MIN_TOKEN_LIBRARY_HEIGHT, MAX_TOKEN_LIBRARY_HEIGHT);
 }
 
 function removeSceneTokensByAsset(scene: Scene, assetId: string): Scene {
