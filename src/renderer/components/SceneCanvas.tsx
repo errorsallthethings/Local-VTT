@@ -1488,8 +1488,8 @@ export function SceneCanvas({
       {mode === "gm" && weatherMaskTool && <WeatherMaskStatusStrip weatherMaskTool={weatherMaskTool} pointCount={weatherPolygonDraft?.points.length ?? 0} />}
       {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
       {mode === "player" && scene && <TurnOrderPlayerBar scene={scene} campaign={campaign} />}
+      {mode === "player" && scene && showPlayerSeatIndicators && <PlayerSeatIndicators campaign={campaign} />}
       {mode === "player" && scene && <PlayerTurnStatusIndicators scene={scene} campaign={campaign} />}
-      {mode === "gm" && scene && showPlayerSeatIndicators && <PlayerSeatIndicators campaign={campaign} />}
       {mode === "gm" && tokenContextMenu && (
         <div
           className="canvas-token-context-menu"
@@ -1563,21 +1563,29 @@ function getPlayerSeatStyle(edge: "top" | "right" | "bottom" | "left", position:
 function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign: Campaign | null }) {
   const turnOrder = scene.turnOrder;
   const entries = turnOrder.entries.filter((entry) => entry.visibleInPlayer);
-  if (!turnOrder.active || !turnOrder.playerViewVisible || entries.length === 0) {
+  const visible = turnOrder.active && turnOrder.playerViewVisible && entries.length > 0;
+  const reveal = useEdgeSlide(visible);
+  const renderedEntries = useLastPresentValue(entries, visible && entries.length > 0);
+  const renderedCampaign = useLastPresentValue(campaign, visible && Boolean(campaign));
+  if (!reveal.present || renderedEntries.length === 0) {
     return null;
   }
 
-  const assetsById = new Map((campaign?.assets ?? []).map((asset) => [asset.id, asset]));
-  const playersById = new Map((campaign?.players ?? []).map((player) => [player.id, player]));
-  const rotation = getTurnOrderFacingRotation(turnOrder.playerViewEdge, turnOrder.playerViewFacing);
-  const arrowRotation = turnOrder.playerViewEdge === "left" || turnOrder.playerViewEdge === "right" ? 90 : 0;
-  const sideInward = (turnOrder.playerViewEdge === "left" || turnOrder.playerViewEdge === "right") && turnOrder.playerViewFacing === "inward";
-  const displayedEntries = sideInward ? [...entries].reverse() : entries;
+  const assetsById = new Map((renderedCampaign?.assets ?? []).map((asset) => [asset.id, asset]));
+  const playersById = new Map((renderedCampaign?.players ?? []).map((player) => [player.id, player]));
+  const layout = getTurnOrderPlayerBarLayout(turnOrder.playerViewEdge, turnOrder.playerViewFacing);
+  const displayedEntries = layout.reverseEntries ? [...renderedEntries].reverse() : renderedEntries;
 
   return (
     <div
-      className={`turn-order-player-bar turn-order-player-bar-${turnOrder.playerViewEdge} turn-order-player-bar-${turnOrder.playerViewSize} ${sideInward ? "turn-order-player-bar-side-inward" : ""}`}
-      style={{ "--turn-entry-rotation": `${rotation}deg`, "--turn-arrow-rotation": `${arrowRotation}deg` } as React.CSSProperties}
+      className={`turn-order-player-bar turn-order-player-bar-${turnOrder.playerViewEdge} turn-order-player-bar-${turnOrder.playerViewSize} ${layout.arrowAtEnd ? "turn-order-player-bar-arrow-end" : ""}`}
+      style={
+        {
+          "--turn-entry-rotation": `${layout.entryRotation}deg`,
+          "--turn-arrow-rotation": `${layout.arrowRotation}deg`,
+          transform: getEdgeSlideTransform(turnOrder.playerViewEdge, reveal.progress)
+        } as React.CSSProperties
+      }
     >
       <span className="turn-order-player-direction" aria-hidden="true">
         <ArrowRight size={18} />
@@ -1608,25 +1616,29 @@ function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign: Campa
 
 function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; campaign: Campaign | null }) {
   const turnOrder = scene.turnOrder;
-  if (!turnOrder.active || !turnOrder.playerViewVisible || !campaign) {
-    return null;
-  }
-
+  const visible = turnOrder.active && turnOrder.playerViewVisible && Boolean(campaign);
+  const reveal = useEdgeSlide(visible);
+  const renderedCampaign = useLastPresentValue(campaign, visible && Boolean(campaign));
   const entries = turnOrder.entries.filter((entry) => entry.visibleInPlayer);
-  if (entries.length === 0) {
+  const renderedEntries = useLastPresentValue(entries, visible && entries.length > 0);
+  if (!reveal.present || !renderedCampaign) {
     return null;
   }
 
-  const currentIndex = Math.max(0, entries.findIndex((entry) => entry.id === turnOrder.currentEntryId));
-  const nextEntry = entries.length > 1 ? entries[(currentIndex + 1) % entries.length] : null;
-  const entriesByPlayerId = new Map<string, (typeof entries)[number]>();
-  for (const entry of entries) {
+  if (renderedEntries.length === 0) {
+    return null;
+  }
+
+  const currentIndex = Math.max(0, renderedEntries.findIndex((entry) => entry.id === turnOrder.currentEntryId));
+  const nextEntry = renderedEntries.length > 1 ? renderedEntries[(currentIndex + 1) % renderedEntries.length] : null;
+  const entriesByPlayerId = new Map<string, (typeof renderedEntries)[number]>();
+  for (const entry of renderedEntries) {
     if (entry.playerId) {
       entriesByPlayerId.set(entry.playerId, entry);
     }
   }
-  const assetsById = new Map(campaign.assets.map((asset) => [asset.id, asset]));
-  const players = campaign.players.filter((player) => player.visibleInPlayer && entriesByPlayerId.has(player.id));
+  const assetsById = new Map(renderedCampaign.assets.map((asset) => [asset.id, asset]));
+  const players = renderedCampaign.players.filter((player) => entriesByPlayerId.has(player.id));
   if (players.length === 0) {
     return null;
   }
@@ -1641,7 +1653,7 @@ function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; campaig
         const asset = player.assetId ? assetsById.get(player.assetId) : null;
         const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
         const status = entry.id === turnOrder.currentEntryId ? "current" : entry.id === nextEntry?.id ? "next" : "waiting";
-        const style = getPlayerSeatStyle(player.defaultSeatEdge, player.defaultSeatPosition, player.color);
+        const style = getPlayerTurnStatusStyle(player.defaultSeatEdge, player.defaultSeatPosition, player.color, reveal.progress);
         return (
           <div key={player.id} className={`player-turn-status player-turn-status-${player.defaultSeatEdge} player-turn-status-${status}`} style={style}>
             <span className="player-turn-status-avatar">
@@ -1666,6 +1678,114 @@ function getPlayerTurnStatusLabel(status: "current" | "next" | "waiting"): strin
     return "Up Next";
   }
   return "Waiting";
+}
+
+function getPlayerTurnStatusStyle(edge: "top" | "right" | "bottom" | "left", position: number, color: string, progress: number): React.CSSProperties {
+  return {
+    ...getPlayerSeatStyle(edge, position, color),
+    transform: getEdgeSlideTransform(edge, progress, getPlayerTurnStatusRotation(edge))
+  };
+}
+
+function getPlayerTurnStatusRotation(edge: "top" | "right" | "bottom" | "left"): number {
+  if (edge === "top") {
+    return 180;
+  }
+  if (edge === "left") {
+    return 90;
+  }
+  if (edge === "right") {
+    return -90;
+  }
+  return 0;
+}
+
+function getEdgeSlideTransform(edge: "top" | "right" | "bottom" | "left", progress: number, rotation = 0): string {
+  const clamped = Math.min(1, Math.max(0, progress));
+  const hiddenPercent = (1 - clamped) * 100;
+  const hiddenPixels = (1 - clamped) * 36;
+  const rotationTransform = rotation ? ` rotate(${rotation}deg)` : "";
+  if (edge === "top") {
+    return `translate(-50%, calc(-${hiddenPercent}% - ${hiddenPixels}px))${rotationTransform}`;
+  }
+  if (edge === "bottom") {
+    return `translate(-50%, calc(${hiddenPercent}% + ${hiddenPixels}px))${rotationTransform}`;
+  }
+  if (edge === "left") {
+    return `translate(calc(-${hiddenPercent}% - ${hiddenPixels}px), -50%)${rotationTransform}`;
+  }
+  return `translate(calc(${hiddenPercent}% + ${hiddenPixels}px), -50%)${rotationTransform}`;
+}
+
+function useEdgeSlide(show: boolean, durationMs = 560) {
+  const [present, setPresent] = useState(show);
+  const [progress, setProgress] = useState(show ? 1 : 0);
+  const progressRef = useRef(show ? 1 : 0);
+
+  useEffect(() => {
+    let frame = 0;
+    const start = performance.now();
+    const from = progressRef.current;
+    const to = show ? 1 : 0;
+
+    if (show) {
+      setPresent(true);
+    }
+
+    const step = (now: number) => {
+      const elapsed = now - start;
+      const t = durationMs <= 0 ? 1 : Math.min(1, elapsed / durationMs);
+      const eased = show ? easeOutCubic(t) : easeInCubic(t);
+      const nextProgress = from + (to - from) * eased;
+      progressRef.current = nextProgress;
+      setProgress(nextProgress);
+      if (t < 1) {
+        frame = window.requestAnimationFrame(step);
+        return;
+      }
+      progressRef.current = to;
+      setProgress(to);
+      if (!show) {
+        setPresent(false);
+      }
+    };
+
+    frame = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(frame);
+  }, [durationMs, show]);
+
+  return { present, progress };
+}
+
+function easeOutCubic(value: number): number {
+  return 1 - Math.pow(1 - value, 3);
+}
+
+function easeInCubic(value: number): number {
+  return value * value * value;
+}
+
+function useLastPresentValue<T>(value: T, active: boolean): T {
+  const lastValueRef = useRef(value);
+  if (active) {
+    lastValueRef.current = value;
+  }
+  return active ? value : lastValueRef.current;
+}
+
+function getTurnOrderPlayerBarLayout(edge: "top" | "right" | "bottom" | "left", facing: "inward" | "outward") {
+  const reverseEntries =
+    (edge === "top" && facing === "outward") ||
+    (edge === "right" && facing === "outward") ||
+    (edge === "bottom" && facing === "inward") ||
+    (edge === "left" && facing === "inward");
+  const vertical = edge === "left" || edge === "right";
+  return {
+    entryRotation: getTurnOrderFacingRotation(edge, facing),
+    reverseEntries,
+    arrowAtEnd: reverseEntries,
+    arrowRotation: vertical ? (reverseEntries ? -90 : 90) : reverseEntries ? 180 : 0
+  };
 }
 
 function getTurnOrderFacingRotation(edge: "top" | "right" | "bottom" | "left", facing: "inward" | "outward"): number {

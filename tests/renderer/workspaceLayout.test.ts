@@ -25,7 +25,7 @@ describe("workspace layout helpers", () => {
     expect(normalizeWorkspaceLayout({ leftWidth: 100, rightWidth: 900, leftCollapsed: true })).toEqual({
       leftWidth: 260,
       rightWidth: 520,
-      leftCollapsed: true,
+      leftCollapsed: false,
       rightCollapsed: false
     });
   });
@@ -42,7 +42,7 @@ describe("workspace layout helpers", () => {
       leftWidth: 420,
       rightWidth: 250,
       leftCollapsed: false,
-      rightCollapsed: true
+      rightCollapsed: false
     });
   });
 

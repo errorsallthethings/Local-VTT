@@ -403,8 +403,13 @@ export interface PlayerSceneProjection {
   campaignName: string;
   playerDisplay: DisplayCalibration;
   players: CampaignPlayer[];
+  showPlayerSeatIndicators?: boolean;
   scene: Scene;
   assets: Asset[];
+}
+
+export interface PlayerSceneProjectionOptions {
+  showPlayerSeatIndicators?: boolean;
 }
 
 export interface PlayerIdleState {
@@ -923,6 +928,7 @@ export function isPlayerSceneProjection(value: unknown): value is PlayerScenePro
     isRecord(value.playerDisplay) &&
     Array.isArray(value.assets) &&
     (!("players" in value) || Array.isArray(value.players)) &&
+    (!("showPlayerSeatIndicators" in value) || typeof value.showPlayerSeatIndicators === "boolean") &&
     isValidSceneShape(value.scene)
   );
 }
@@ -1386,7 +1392,7 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
   return typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 }
 
-export function projectSceneForPlayer(campaign: Campaign, scene: Scene): PlayerSceneProjection {
+export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options: PlayerSceneProjectionOptions = {}): PlayerSceneProjection {
   const normalizedCampaign = normalizeCampaign(campaign);
   const normalizedScene = normalizeScene(scene);
   const playerLayerIds = new Set(normalizedScene.layers.filter((layer) => layer.visibleInPlayer).map((layer) => layer.id));
@@ -1410,7 +1416,7 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene): PlayerS
     }
   }
   for (const player of normalizedCampaign.players) {
-    if (player.visibleInPlayer && player.assetId) {
+    if (player.assetId) {
       usedAssetIds.add(player.assetId);
     }
   }
@@ -1419,6 +1425,7 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene): PlayerS
     campaignName: normalizedCampaign.name,
     playerDisplay: normalizedCampaign.playerDisplay,
     players: normalizedCampaign.players,
+    showPlayerSeatIndicators: options.showPlayerSeatIndicators ?? false,
     scene: {
       ...normalizedScene,
       fog: {

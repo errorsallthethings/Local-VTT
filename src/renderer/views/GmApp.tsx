@@ -49,7 +49,7 @@ import {
   type RecentCampaign
 } from "../lib/recentCampaigns";
 import { createImportedToken } from "../lib/tokenDefaults";
-import { addTurnOrderEntry, createTurnOrderEntryFromToken } from "../lib/turnOrder";
+import { addTurnOrderEntry, createTurnOrderEntryFromToken, stopTurnOrder } from "../lib/turnOrder";
 import {
   COLLAPSED_RAIL_WIDTH,
   COMPACT_RIGHT_PANEL_WIDTH,
@@ -96,6 +96,7 @@ export function GmApp() {
     sceneDrafts,
     setSceneDrafts,
     dirtySceneIds,
+    setDirtySceneIds,
     campaignDirty,
     saveState,
     error,
@@ -149,6 +150,7 @@ export function GmApp() {
   const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
   const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
   const [gmCanvasCenter, setGmCanvasCenter] = useState<Point | null>(null);
   const [tokenLibraryHeight, setTokenLibraryHeight] = useState(() => loadTokenLibraryHeight());
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
@@ -168,7 +170,10 @@ export function GmApp() {
   const tokenAssets = useMemo(() => new Map((campaign?.assets ?? []).filter((asset) => asset.kind === "token").map((asset) => [asset.id, asset])), [campaign?.assets]);
   const tokenLibraryAssets = useMemo(() => [...tokenAssets.values()], [tokenAssets]);
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
-  const collapsedFolderIds = useMemo(() => new Set(campaign?.sceneLibrary.collapsedFolderIds ?? []), [campaign?.sceneLibrary.collapsedFolderIds]);
+  const collapsedFolderIds = useMemo(
+    () => new Set((campaign?.sceneFolders ?? []).filter((folder) => !expandedFolderIds.has(folder.id)).map((folder) => folder.id)),
+    [campaign?.sceneFolders, expandedFolderIds]
+  );
   const sceneThumbnailAssets = useMemo(() => {
     const assetsById = new Map((campaign?.assets ?? []).map((asset) => [asset.id, asset]));
     return new Map(
@@ -416,8 +421,8 @@ export function GmApp() {
       skipNextPlayerSceneAutoSyncRef.current = false;
       return;
     }
-    void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(campaign, activeScene));
-  }, [activeScene, campaign, playerDisplayMode, playerSceneId]);
+    void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
+  }, [activeScene, campaign, playerDisplayMode, playerSceneId, playersPanelOpen]);
 
   useEffect(() => {
     window.localStorage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(workspaceLayout));
@@ -442,7 +447,19 @@ export function GmApp() {
   const resetSceneLibraryUi = () => {
     setOpenSceneMenuId(null);
     setOpenFolderMenuId(null);
+    setExpandedFolderIds(new Set());
+    setPlayersPanelOpen(false);
+    setTokenLibraryExpanded(false);
+    setWorkspaceLayout((layout) => ({ ...layout, leftCollapsed: false, rightCollapsed: false }));
   };
+
+  const handleCampaignOpened = useCallback(
+    (summary: CampaignSummary) => {
+      resetSceneLibraryUi();
+      rememberCampaign(summary);
+    },
+    [rememberCampaign]
+  );
 
   const {
     createCampaign,
@@ -452,6 +469,7 @@ export function GmApp() {
     moveScene,
     saveSceneById,
     saveCampaign,
+    saveCampaignBeforeClose,
     importMap,
     confirmDeleteMapAsset,
     saveFolderScenes,
@@ -466,16 +484,16 @@ export function GmApp() {
     onResetSceneLibraryUi: resetSceneLibraryUi,
     onCloseSceneMenu: () => setOpenSceneMenuId(null),
     onCloseFolderMenu: () => setOpenFolderMenuId(null),
-    onCampaignOpened: rememberCampaign,
+    onCampaignOpened: handleCampaignOpened,
     onMapAssetDeleteHandled: () => setMapAssetToDelete(null),
     onSceneDeleteHandled: () => setSceneToDelete(null),
     onFolderDeleteHandled: () => setFolderToDelete(null)
   });
-  const saveBeforeCloseRef = useRef(saveCampaign);
+  const saveBeforeCloseRef = useRef(saveCampaignBeforeClose);
 
   useEffect(() => {
-    saveBeforeCloseRef.current = saveCampaign;
-  }, [saveCampaign]);
+    saveBeforeCloseRef.current = saveCampaignBeforeClose;
+  }, [saveCampaignBeforeClose]);
 
   const {
     updateVideoPlayback,
@@ -711,7 +729,7 @@ export function GmApp() {
     };
     updateCampaignDraft(nextCampaign);
     if (activeScene) {
-      void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(nextCampaign, activeScene));
+      void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(nextCampaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
     }
   };
 
@@ -865,7 +883,7 @@ export function GmApp() {
       if (nextActiveScene) {
         setActiveScene(nextActiveScene);
         if (nextActiveScene.id === playerSceneId) {
-          void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(result.campaignSummary.campaign, nextActiveScene));
+          void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(result.campaignSummary.campaign, nextActiveScene, { showPlayerSeatIndicators: playersPanelOpen }));
         }
       }
       setSelectedTokenId((tokenId) => (nextActiveScene?.tokens.some((token) => token.id === tokenId) ? tokenId : null));
@@ -999,11 +1017,19 @@ export function GmApp() {
       if (!campaign || !activeScene) {
         return;
       }
+      if (campaignPath && playerSceneId && playerSceneId !== activeScene.id) {
+        const previousPlayerScene = sceneDrafts[playerSceneId] ?? (await window.localVtt.loadScene(campaignPath, playerSceneId));
+        if (previousPlayerScene.turnOrder.active) {
+          const pausedPreviousScene = stopTurnOrder(previousPlayerScene);
+          setSceneDrafts((drafts) => ({ ...drafts, [pausedPreviousScene.id]: pausedPreviousScene }));
+          setDirtySceneIds((ids) => new Set(ids).add(pausedPreviousScene.id));
+        }
+      }
       const openResult = await window.localVtt.openPlayerView({
         displayId: campaign.playerDisplay.selectedDisplayId,
         fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
       });
-      await window.localVtt.sendSceneToPlayer(projectSceneForPlayer(campaign, activeScene));
+      await window.localVtt.sendSceneToPlayer(projectSceneForPlayer(campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
       setPlayerSceneId(activeScene.id);
       setPlayerDisplayMode("scene");
       if (!openResult.displayFound && campaign.playerDisplay.selectedDisplayLabel) {
@@ -1058,21 +1084,27 @@ export function GmApp() {
     });
 
   const toggleFolderCollapsed = (folderId: string) => {
-    if (!campaign) {
-      return;
-    }
-    const nextIds = new Set(campaign.sceneLibrary.collapsedFolderIds);
-    if (nextIds.has(folderId)) {
-      nextIds.delete(folderId);
-    } else {
-      nextIds.add(folderId);
-    }
-    updateCampaignDraft({
-      ...campaign,
-      sceneLibrary: { ...campaign.sceneLibrary, collapsedFolderIds: [...nextIds] },
-      updatedAt: new Date().toISOString()
+    setExpandedFolderIds((ids) => {
+      const nextIds = new Set(ids);
+      if (nextIds.has(folderId)) {
+        nextIds.delete(folderId);
+      } else {
+        nextIds.add(folderId);
+      }
+      return nextIds;
     });
   };
+
+  useEffect(() => {
+    setExpandedFolderIds((ids) => {
+      if (!campaign) {
+        return ids.size === 0 ? ids : new Set();
+      }
+      const folderIds = new Set(campaign.sceneFolders.map((folder) => folder.id));
+      const nextIds = new Set([...ids].filter((folderId) => folderIds.has(folderId)));
+      return nextIds.size === ids.size ? ids : nextIds;
+    });
+  }, [campaign?.sceneFolders, campaign]);
 
   const toggleWorkspacePanel = (side: WorkspacePanelSide) => {
     setWorkspaceLayout((layout) => toggleWorkspacePanelLayout(layout, side));
@@ -1277,7 +1309,6 @@ export function GmApp() {
             onDropTokenAsset={dropLibraryTokenOnScene}
             onLiveTableEvent={emitLiveTableEvent}
             onViewportCenterChange={setGmCanvasCenter}
-            showPlayerSeatIndicators={playersPanelOpen}
           />
           {activeMapIsVideo && <VideoMapControls videoPlayback={videoPlayback} onUpdateVideoPlayback={updateVideoPlayback} />}
         </div>
@@ -1296,7 +1327,15 @@ export function GmApp() {
           onSetTokenDefaults={openTokenDefaultsDialog}
           onRenameToken={openRenameTokenAssetDialog}
           onDeleteToken={(asset) => void openDeleteTokenAssetDialog(asset)}
-          sidePanel={<TurnOrderPanel scene={activeScene} campaignPlayers={campaign?.players ?? []} tokenAssets={tokenAssets} onChangeScene={updateScene} />}
+          sidePanel={
+            <TurnOrderPanel
+              scene={activeScene}
+              campaignPlayers={campaign?.players ?? []}
+              tokenAssets={tokenAssets}
+              canStartTurnOrder={Boolean(activeScene && activeScene.id === playerSceneId && playerDisplayMode === "scene")}
+              onChangeScene={updateScene}
+            />
+          }
         />
 
         <footer className="statusbar">

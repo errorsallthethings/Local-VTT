@@ -225,13 +225,11 @@
 .turn-order-player-bar-top {
   top: 12px;
   left: 50%;
-  transform: translateX(-50%);
 }
 
 .turn-order-player-bar-bottom {
   bottom: 12px;
   left: 50%;
-  transform: translateX(-50%);
 }
 
 .turn-order-player-bar-left,
@@ -242,13 +240,11 @@
 .turn-order-player-bar-left {
   top: 50%;
   left: 12px;
-  transform: translateY(-50%);
 }
 
 .turn-order-player-bar-right {
   top: 50%;
   right: 12px;
-  transform: translateY(-50%);
 }
 
 .turn-order-player-entry {
@@ -316,7 +312,7 @@
   transform-origin: center;
 }
 
-.turn-order-player-bar-side-inward .turn-order-player-direction {
+.turn-order-player-bar-arrow-end .turn-order-player-direction {
   order: 2;
 }
 
@@ -444,16 +440,6 @@
   box-shadow: var(--shadow-panel);
   --player-seat-color: var(--color-accent);
   pointer-events: none;
-}
-
-.player-turn-status-top,
-.player-turn-status-bottom {
-  transform: translateX(-50%);
-}
-
-.player-turn-status-left,
-.player-turn-status-right {
-  transform: translateY(-50%);
 }
 
 .player-turn-status-waiting {

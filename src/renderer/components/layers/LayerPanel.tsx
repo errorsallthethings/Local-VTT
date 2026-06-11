@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent, type PointerEvent } from "react";
+import { useState, type MouseEvent, type PointerEvent } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -112,42 +112,6 @@ export function LayerPanel({
   const [draggedFogShapeId, setDraggedFogShapeId] = useState<string | null>(null);
   const [fogShapeDropTarget, setFogShapeDropTarget] = useState<FogShapeDropTarget>(null);
   const [expandedWeatherCategory, setExpandedWeatherCategory] = useState<ActiveWeatherCategory | null>(null);
-
-  useEffect(() => {
-    if (scene.mapAssetId) {
-      return;
-    }
-    setExpandedLayerIds((ids) => {
-      if (ids.has("map")) {
-        return ids;
-      }
-      return new Set([...ids, "map"]);
-    });
-  }, [scene.id, scene.mapAssetId]);
-
-  useEffect(() => {
-    if (scene.fog.shapes.length === 0) {
-      return;
-    }
-    setExpandedLayerIds((ids) => {
-      if (ids.has("fog")) {
-        return ids;
-      }
-      return new Set([...ids, "fog"]);
-    });
-  }, [scene.fog.shapes.length]);
-
-  useEffect(() => {
-    if (scene.tokens.length === 0) {
-      return;
-    }
-    setExpandedLayerIds((ids) => {
-      if (ids.has("token")) {
-        return ids;
-      }
-      return new Set([...ids, "token"]);
-    });
-  }, [scene.tokens.length]);
 
   const updateLayer = (layerId: string, patch: Partial<Layer>) => {
     const nextGrid =

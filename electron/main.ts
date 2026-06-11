@@ -32,6 +32,7 @@ let playerWindow: BrowserWindow | null = null;
 let lastPlayerProjection: unknown = null;
 let gmHasUnsavedChanges = false;
 let forceCloseGmWindow = false;
+let currentCampaignPath: string | null = null;
 const openedCampaignPaths = new Set<string>();
 const knownAssetPaths = new Set<string>();
 
@@ -280,6 +281,43 @@ async function writeScene(campaignPath: string, scene: Scene): Promise<void> {
   await writeFile(sceneFile(campaignPath, scene.id), `${JSON.stringify(scene, null, 2)}\n`, "utf8");
 }
 
+async function pauseActiveTurnOrders(campaignPath: string): Promise<void> {
+  assertKnownCampaignPath(campaignPath);
+  const summary = await loadCampaignFromPath(campaignPath);
+  for (const entry of summary.campaign.scenes) {
+    try {
+      const raw = await readFile(sceneFile(campaignPath, entry.id), "utf8");
+      const scene = JSON.parse(raw) as unknown;
+      assertValidScene(scene);
+      const normalized = normalizeScene(scene);
+      if (!normalized.turnOrder.active && !normalized.turnOrder.playerViewVisible) {
+        continue;
+      }
+      await writeScene(
+        campaignPath,
+        normalizeScene({
+          ...normalized,
+          turnOrder: {
+            ...normalized.turnOrder,
+            active: false,
+            playerViewVisible: false
+          },
+          updatedAt: new Date().toISOString()
+        })
+      );
+    } catch {
+      // Missing or invalid scenes are reported by the normal campaign loading flow.
+    }
+  }
+}
+
+async function loadCampaignWithPausedTurnOrders(campaignPath: string): Promise<CampaignSummary> {
+  registerCampaignPath(campaignPath);
+  currentCampaignPath = path.resolve(campaignPath);
+  await pauseActiveTurnOrders(campaignPath);
+  return loadCampaignFromPath(campaignPath);
+}
+
 async function backupSceneBeforeDelete(campaignPath: string, sceneId: string): Promise<void> {
   await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, sceneId), sceneBackupFolder(campaignPath, sceneId), `${sceneId}.scene.json`);
 }
@@ -477,11 +515,16 @@ function closePlayerWindow(): void {
 function createGmWindow(): BrowserWindow {
   const win = createWindow("gm");
   win.on("close", (event) => {
-    if (forceCloseGmWindow || !gmHasUnsavedChanges) {
+    if (forceCloseGmWindow) {
       return;
     }
 
     event.preventDefault();
+    if (!gmHasUnsavedChanges) {
+      void closeGmWindowAfterPausing(win);
+      return;
+    }
+
     const choice = dialog.showMessageBoxSync(win, {
       type: "warning",
       title: "Unsaved Local VTT changes",
@@ -496,9 +539,7 @@ function createGmWindow(): BrowserWindow {
     if (choice === 1) {
       win.webContents.send("app:saveBeforeClose");
     } else if (choice === 2) {
-      forceCloseGmWindow = true;
-      gmHasUnsavedChanges = false;
-      win.close();
+      void closeGmWindowAfterPausing(win);
     }
   });
   win.on("closed", () => {
@@ -509,6 +550,19 @@ function createGmWindow(): BrowserWindow {
   return win;
 }
 
+async function closeGmWindowAfterPausing(win: BrowserWindow): Promise<void> {
+  try {
+    if (currentCampaignPath) {
+      await pauseActiveTurnOrders(currentCampaignPath);
+    }
+  } catch (caught) {
+    console.error("Could not pause turn orders before closing.", caught);
+  }
+  forceCloseGmWindow = true;
+  gmHasUnsavedChanges = false;
+  win.close();
+}
+
 ipcMain.handle("campaign:create", async () => {
   const campaignPath = await chooseDirectory("Choose a folder for the new Local VTT campaign", true);
   if (!campaignPath) {
@@ -517,6 +571,7 @@ ipcMain.handle("campaign:create", async () => {
 
   const campaign = createDefaultCampaign(path.basename(campaignPath) || "Local VTT Campaign");
   registerCampaignPath(campaignPath);
+  currentCampaignPath = path.resolve(campaignPath);
   await writeCampaign(campaignPath, campaign);
   return loadCampaignFromPath(campaignPath);
 });
@@ -527,16 +582,12 @@ ipcMain.handle("campaign:open", async () => {
     return null;
   }
 
-  const summary = await loadCampaignFromPath(campaignPath);
-  registerCampaignPath(campaignPath);
-  return summary;
+  return loadCampaignWithPausedTurnOrders(campaignPath);
 });
 
 ipcMain.handle("campaign:openRecent", async (_event, campaignPath: string) => {
   await stat(campaignFile(campaignPath));
-  const summary = await loadCampaignFromPath(campaignPath);
-  registerCampaignPath(campaignPath);
-  return summary;
+  return loadCampaignWithPausedTurnOrders(campaignPath);
 });
 
 ipcMain.handle("campaign:save", async (_event, campaignPath: string, campaign: Campaign) => {
@@ -1065,7 +1116,5 @@ ipcMain.on("app:closeAfterSave", () => {
   if (!gmWindow || gmWindow.isDestroyed()) {
     return;
   }
-  forceCloseGmWindow = true;
-  gmHasUnsavedChanges = false;
-  gmWindow.close();
+  void closeGmWindowAfterPausing(gmWindow);
 });

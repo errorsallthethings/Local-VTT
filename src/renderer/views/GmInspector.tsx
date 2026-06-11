@@ -86,11 +86,11 @@ export function GmInspector({
       >
         {workspaceLayout.rightCollapsed ? <PanelRightOpen size={16} aria-hidden="true" /> : <PanelRightClose size={16} aria-hidden="true" />}
       </button>
-      {workspaceLayout.rightCollapsed && <div className="panel-spine-label">Layers</div>}
+      {workspaceLayout.rightCollapsed && <div className="panel-spine-label">Scene Layers</div>}
       {!workspaceLayout.rightCollapsed && (
         <div className="panel-region-content">
           <div className="section-heading">
-            <h2>Layers</h2>
+            <h2>Scene Layers</h2>
             {activeScene && (
               <div className="section-actions">
                   <button
@@ -136,7 +136,7 @@ export function GmInspector({
             <section className="panel">
               <div className="layer-empty-state">
                 <strong>No Scene Selected</strong>
-                <span>Layers will appear once a campaign is open and a scene is selected.</span>
+                <span>Scene layers will appear once a campaign is open and a scene is selected.</span>
               </div>
             </section>
           )}

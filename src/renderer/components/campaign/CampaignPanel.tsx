@@ -45,7 +45,11 @@ export function CampaignPanel({
   onDeletePlayer,
   onPlayersPanelOpenChange
 }: CampaignPanelProps) {
-  const [playersCollapsed, setPlayersCollapsed] = useState(false);
+  const [playersCollapsed, setPlayersCollapsed] = useState(true);
+  useEffect(() => {
+    setPlayersCollapsed(true);
+  }, [campaign?.id]);
+
   useEffect(() => {
     onPlayersPanelOpenChange(Boolean(campaign && !playersCollapsed));
   }, [campaign, onPlayersPanelOpenChange, playersCollapsed]);

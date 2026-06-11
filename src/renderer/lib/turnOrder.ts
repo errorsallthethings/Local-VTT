@@ -152,6 +152,13 @@ export function stopTurnOrder(scene: Scene, updatedAt = new Date().toISOString()
   return patchTurnOrder(scene, { active: false, playerViewVisible: false }, updatedAt);
 }
 
+export function stopActiveTurnOrder(scene: Scene, updatedAt = new Date().toISOString()): Scene {
+  if (!scene.turnOrder.active && !scene.turnOrder.playerViewVisible) {
+    return scene;
+  }
+  return stopTurnOrder(scene, updatedAt);
+}
+
 export function advanceTurnOrder(scene: Scene, direction: "next" | "previous", updatedAt = new Date().toISOString()): Scene {
   const entries = scene.turnOrder.entries;
   if (entries.length === 0) {

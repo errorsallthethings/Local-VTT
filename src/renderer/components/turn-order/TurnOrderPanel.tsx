@@ -24,10 +24,11 @@ interface TurnOrderPanelProps {
   scene: Scene | null;
   campaignPlayers: CampaignPlayer[];
   tokenAssets: Map<string, Asset>;
+  canStartTurnOrder: boolean;
   onChangeScene: (scene: Scene) => void;
 }
 
-export function TurnOrderPanel({ scene, campaignPlayers, tokenAssets, onChangeScene }: TurnOrderPanelProps) {
+export function TurnOrderPanel({ scene, campaignPlayers, tokenAssets, canStartTurnOrder, onChangeScene }: TurnOrderPanelProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ entryId: string; placement: "before" | "after" } | null>(null);
@@ -102,7 +103,11 @@ export function TurnOrderPanel({ scene, campaignPlayers, tokenAssets, onChangeSc
 
       <div className="turn-order-toolbar">
         <div className="turn-order-controls">
-          <button disabled={!scene || !turnOrder || turnOrder.entries.length === 0} title={turnOrder?.active ? "Stop turn order" : "Start turn order"} onClick={() => scene && updateScene(turnOrder?.active ? stopTurnOrder(scene) : startTurnOrder(scene))}>
+          <button
+            disabled={!scene || !turnOrder || turnOrder.entries.length === 0 || (!turnOrder.active && !canStartTurnOrder)}
+            title={turnOrder?.active ? "Stop turn order" : canStartTurnOrder ? "Start turn order" : "Send this scene to Player View before starting turn order"}
+            onClick={() => scene && updateScene(turnOrder?.active ? stopTurnOrder(scene) : startTurnOrder(scene))}
+          >
             {turnOrder?.active ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
           </button>
           <button disabled={!scene || !turnOrder?.active || turnOrder.entries.length === 0} title="Previous turn" onClick={() => scene && updateScene(advanceTurnOrder(scene, "previous"))}>

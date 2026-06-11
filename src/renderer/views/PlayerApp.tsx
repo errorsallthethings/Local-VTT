@@ -252,6 +252,7 @@ function PlayerScene({
         mode="player"
         interactive={false}
         liveTableEvents={liveTableEvents}
+        showPlayerSeatIndicators={projection.showPlayerSeatIndicators ?? false}
         onReady={onReady}
       />
     </div>

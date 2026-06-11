@@ -13,6 +13,7 @@ import {
   rollInitiativeForEntry,
   rollInitiativeForNonPlayers,
   sortTurnOrderByInitiative,
+  stopActiveTurnOrder,
   startTurnOrder,
   stopTurnOrder,
   updateTurnOrderEntry
@@ -72,6 +73,19 @@ describe("turn order helpers", () => {
     scene = stopTurnOrder(scene, "now");
     expect(scene.turnOrder.active).toBe(false);
     expect(scene.turnOrder.playerViewVisible).toBe(false);
+  });
+
+  it("stops active turn orders without dirtying already paused scenes", () => {
+    let scene = sceneWithEntries(["a"]);
+    expect(stopActiveTurnOrder(scene, "now")).toBe(scene);
+
+    scene = startTurnOrder(scene, "now");
+    const stopped = stopActiveTurnOrder(scene, "later");
+
+    expect(stopped).not.toBe(scene);
+    expect(stopped.turnOrder.active).toBe(false);
+    expect(stopped.turnOrder.playerViewVisible).toBe(false);
+    expect(stopped.updatedAt).toBe("later");
   });
 
   it("creates entries from token assets", () => {
