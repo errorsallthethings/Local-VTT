@@ -20,6 +20,7 @@ export function PlayerApp() {
   const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
   const [idleState, setIdleState] = useState<PlayerIdleState>({
     type: "idle",
+    variant: "hold",
     title: "Waiting for GM View",
     message: "The next scene will appear here."
   });
@@ -78,6 +79,7 @@ export function PlayerApp() {
     setLiveTableEvents([]);
     setIdleState({
       type: "idle",
+      variant: "hold",
       title: "Waiting for GM View",
       message: "The next scene will appear here."
     });
@@ -197,6 +199,10 @@ export function PlayerApp() {
 }
 
 function PlayerEmpty({ state }: { state: PlayerIdleState }) {
+  if (state.variant === "blackout") {
+    return <div className="player-blackout" aria-label="Player View blackout" />;
+  }
+
   return (
     <div className="player-empty">
       <div className="player-empty-mark">

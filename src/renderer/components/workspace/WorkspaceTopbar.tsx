@@ -1,4 +1,4 @@
-import { EllipsisVertical, Maximize2, Minimize2, MonitorUp, SlidersHorizontal, X } from "lucide-react";
+import { EllipsisVertical, Eye, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, SlidersHorizontal, X } from "lucide-react";
 import type { Asset, Campaign, Scene } from "../../../shared/localvtt";
 import { getActiveWeatherEffects } from "../../lib/weatherCatalog";
 
@@ -7,8 +7,11 @@ interface WorkspaceTopbarProps {
   activeScene: Scene | null;
   mapAsset: Asset | null;
   playerMenuOpen: boolean;
+  playerDisplayMode: "scene" | "hold" | "blackout";
   onSendToPlayer: () => void;
   onTogglePlayerMenu: () => void;
+  onShowPlayerHold: () => void;
+  onShowPlayerBlackout: () => void;
   onOpenPlayerDisplayScale: () => void;
   onOpenPlayerViewDisplay: () => void;
   onSetPlayerFullscreen: (fullscreen: boolean) => void;
@@ -20,8 +23,11 @@ export function WorkspaceTopbar({
   activeScene,
   mapAsset,
   playerMenuOpen,
+  playerDisplayMode,
   onSendToPlayer,
   onTogglePlayerMenu,
+  onShowPlayerHold,
+  onShowPlayerBlackout,
   onOpenPlayerDisplayScale,
   onOpenPlayerViewDisplay,
   onSetPlayerFullscreen,
@@ -65,6 +71,18 @@ export function WorkspaceTopbar({
               </button>
               {playerMenuOpen && (
                 <div className="scene-menu toolbar-menu">
+                  <button disabled={!activeScene || playerDisplayMode === "scene"} onClick={onSendToPlayer}>
+                    <Eye size={14} aria-hidden="true" />
+                    Show Scene
+                  </button>
+                  <button disabled={playerDisplayMode === "hold"} onClick={onShowPlayerHold}>
+                    <Pause size={14} aria-hidden="true" />
+                    Hold Screen
+                  </button>
+                  <button disabled={playerDisplayMode === "blackout"} onClick={onShowPlayerBlackout}>
+                    <MonitorOff size={14} aria-hidden="true" />
+                    Blackout
+                  </button>
                   <button onClick={() => onSetPlayerFullscreen(true)}>
                     <Maximize2 size={14} aria-hidden="true" />
                     Fullscreen

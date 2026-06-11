@@ -11,6 +11,7 @@ import {
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
+  isPlayerIdleState,
   isPlayerSceneProjection,
   projectSceneForPlayer
 } from "../../shared/localvtt";
@@ -80,6 +81,8 @@ import {
 import { GmInspector } from "./GmInspector";
 import { GmSidebar } from "./GmSidebar";
 
+type PlayerDisplayMode = "scene" | "hold" | "blackout";
+
 export function GmApp() {
   const workspace = useCampaignWorkspace();
   const {
@@ -140,6 +143,7 @@ export function GmApp() {
   const [selectedWeatherMaskId, setSelectedWeatherMaskId] = useState<string | null>(null);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
+  const [playerDisplayMode, setPlayerDisplayMode] = useState<PlayerDisplayMode>("scene");
   const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
   const [gmCanvasCenter, setGmCanvasCenter] = useState<Point | null>(null);
@@ -377,18 +381,23 @@ export function GmApp() {
     if (!playerSceneId || campaign?.scenes.some((scene) => scene.id === playerSceneId)) {
       return;
     }
-    void window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.");
+    void window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.", "hold");
     setPlayerSceneId(null);
+    setPlayerDisplayMode("hold");
   }, [campaign?.scenes, playerSceneId]);
 
   useEffect(() => {
     let cancelled = false;
     void window.localVtt.getLastPlayerState().then((state) => {
-      if (cancelled || !isPlayerSceneProjection(state)) {
+      if (cancelled) {
         return;
       }
-      if (campaign?.scenes.some((scene) => scene.id === state.scene.id)) {
+      if (isPlayerSceneProjection(state) && campaign?.scenes.some((scene) => scene.id === state.scene.id)) {
         setPlayerSceneId(state.scene.id);
+        setPlayerDisplayMode("scene");
+      } else if (isPlayerIdleState(state)) {
+        setPlayerSceneId(null);
+        setPlayerDisplayMode(state.variant ?? "hold");
       }
     });
     return () => {
@@ -397,7 +406,7 @@ export function GmApp() {
   }, [campaign?.scenes]);
 
   useEffect(() => {
-    if (!campaign || !activeScene || activeScene.id !== playerSceneId) {
+    if (!campaign || !activeScene || activeScene.id !== playerSceneId || playerDisplayMode !== "scene") {
       return;
     }
     if (skipNextPlayerSceneAutoSyncRef.current) {
@@ -405,7 +414,7 @@ export function GmApp() {
       return;
     }
     void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(campaign, activeScene));
-  }, [activeScene, campaign, playerSceneId]);
+  }, [activeScene, campaign, playerDisplayMode, playerSceneId]);
 
   useEffect(() => {
     window.localStorage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(workspaceLayout));
@@ -901,6 +910,7 @@ export function GmApp() {
       });
       await window.localVtt.sendSceneToPlayer(projectSceneForPlayer(campaign, activeScene));
       setPlayerSceneId(activeScene.id);
+      setPlayerDisplayMode("scene");
       if (!openResult.displayFound && campaign.playerDisplay.selectedDisplayLabel) {
         setError(`The saved Player View display (${campaign.playerDisplay.selectedDisplayLabel}) is not connected. Player View opened normally so you can move it manually.`);
       }
@@ -916,12 +926,30 @@ export function GmApp() {
     run(async () => {
       await window.localVtt.closePlayerView();
       setPlayerSceneId(null);
+      setPlayerDisplayMode("scene");
+      setPlayerMenuOpen(false);
+    });
+
+  const showPlayerHold = () =>
+    run(async () => {
+      await window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.", "hold");
+      setPlayerSceneId(null);
+      setPlayerDisplayMode("hold");
+      setPlayerMenuOpen(false);
+    });
+
+  const showPlayerBlackout = () =>
+    run(async () => {
+      await window.localVtt.showPlayerIdle("", "", "blackout");
+      setPlayerSceneId(null);
+      setPlayerDisplayMode("blackout");
       setPlayerMenuOpen(false);
     });
 
   const showPlayerIdle = async () => {
-    await window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.");
+    await window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.", "hold");
     setPlayerSceneId(null);
+    setPlayerDisplayMode("hold");
     setPlayerMenuOpen(false);
   };
 
@@ -1085,12 +1113,15 @@ export function GmApp() {
           activeScene={activeScene}
           mapAsset={mapAsset}
           playerMenuOpen={playerMenuOpen}
+          playerDisplayMode={playerDisplayMode}
           onSendToPlayer={sendToPlayer}
           onTogglePlayerMenu={() => {
             if (activeScene) {
               setPlayerMenuOpen((open) => !open);
             }
           }}
+          onShowPlayerHold={showPlayerHold}
+          onShowPlayerBlackout={showPlayerBlackout}
           onOpenPlayerDisplayScale={() => {
             setPlayerDisplayDialogOpen(true);
             setPlayerMenuOpen(false);

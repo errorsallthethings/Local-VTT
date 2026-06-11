@@ -552,6 +552,9 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isPlayerSceneProjection(projectSceneForPlayer(campaign, scene))).toBe(true);
   expect(isPlayerSceneProjection({ campaignName: "Bad", playerDisplay: {}, assets: [], scene: {} })).toBe(false);
   expect(isPlayerIdleState({ type: "idle", title: "Waiting", message: "Preparing scene." })).toBe(true);
+  expect(isPlayerIdleState({ type: "idle", variant: "hold", title: "Waiting", message: "Preparing scene." })).toBe(true);
+  expect(isPlayerIdleState({ type: "idle", variant: "blackout", title: "", message: "" })).toBe(true);
+  expect(isPlayerIdleState({ type: "idle", variant: "dim", title: "Waiting", message: "Preparing scene." })).toBe(false);
   expect(isPlayerIdleState({ type: "idle", title: "Waiting" })).toBe(false);
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "laser", type: "laser", points: [{ point: { x: 1, y: 2 }, createdAt: 1 }], createdAt: 1 })).toBe(true);

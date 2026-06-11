@@ -363,6 +363,7 @@ export interface PlayerSceneProjection {
 
 export interface PlayerIdleState {
   type: "idle";
+  variant?: "hold" | "blackout";
   title: string;
   message: string;
 }
@@ -869,6 +870,7 @@ export function isPlayerIdleState(value: unknown): value is PlayerIdleState {
   return (
     isRecord(value) &&
     value.type === "idle" &&
+    (!("variant" in value) || value.variant === "hold" || value.variant === "blackout") &&
     typeof value.title === "string" &&
     typeof value.message === "string"
   );
