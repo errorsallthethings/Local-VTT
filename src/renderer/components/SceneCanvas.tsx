@@ -79,6 +79,7 @@ interface SceneCanvasProps {
   onLiveTableEvent?: (event: LiveTableEvent) => void;
   onViewportCenterChange?: (point: Point) => void;
   onReady?: () => void;
+  showPlayerSeatIndicators?: boolean;
 }
 
 interface LoadedMap {
@@ -163,7 +164,8 @@ export function SceneCanvas({
   onDropTokenAsset,
   onLiveTableEvent,
   onViewportCenterChange,
-  onReady
+  onReady,
+  showPlayerSeatIndicators = false
 }: SceneCanvasProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1486,7 +1488,8 @@ export function SceneCanvas({
       {mode === "gm" && weatherMaskTool && <WeatherMaskStatusStrip weatherMaskTool={weatherMaskTool} pointCount={weatherPolygonDraft?.points.length ?? 0} />}
       {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
       {mode === "player" && scene && <TurnOrderPlayerBar scene={scene} campaign={campaign} />}
-      {mode === "player" && scene && <PlayerSeatIndicators campaign={campaign} />}
+      {mode === "player" && scene && <PlayerTurnStatusIndicators scene={scene} campaign={campaign} />}
+      {mode === "gm" && scene && showPlayerSeatIndicators && <PlayerSeatIndicators campaign={campaign} />}
       {mode === "gm" && tokenContextMenu && (
         <div
           className="canvas-token-context-menu"
@@ -1568,16 +1571,18 @@ function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign: Campa
   const playersById = new Map((campaign?.players ?? []).map((player) => [player.id, player]));
   const rotation = getTurnOrderFacingRotation(turnOrder.playerViewEdge, turnOrder.playerViewFacing);
   const arrowRotation = turnOrder.playerViewEdge === "left" || turnOrder.playerViewEdge === "right" ? 90 : 0;
+  const sideInward = (turnOrder.playerViewEdge === "left" || turnOrder.playerViewEdge === "right") && turnOrder.playerViewFacing === "inward";
+  const displayedEntries = sideInward ? [...entries].reverse() : entries;
 
   return (
     <div
-      className={`turn-order-player-bar turn-order-player-bar-${turnOrder.playerViewEdge} turn-order-player-bar-${turnOrder.playerViewSize}`}
+      className={`turn-order-player-bar turn-order-player-bar-${turnOrder.playerViewEdge} turn-order-player-bar-${turnOrder.playerViewSize} ${sideInward ? "turn-order-player-bar-side-inward" : ""}`}
       style={{ "--turn-entry-rotation": `${rotation}deg`, "--turn-arrow-rotation": `${arrowRotation}deg` } as React.CSSProperties}
     >
       <span className="turn-order-player-direction" aria-hidden="true">
         <ArrowRight size={18} />
       </span>
-      {entries.map((entry) => {
+      {displayedEntries.map((entry) => {
         const player = entry.playerId ? playersById.get(entry.playerId) : null;
         const assetId = player?.assetId ?? entry.assetId;
         const asset = assetId ? assetsById.get(assetId) : null;
@@ -1599,6 +1604,68 @@ function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign: Campa
       })}
     </div>
   );
+}
+
+function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; campaign: Campaign | null }) {
+  const turnOrder = scene.turnOrder;
+  if (!turnOrder.active || !turnOrder.playerViewVisible || !campaign) {
+    return null;
+  }
+
+  const entries = turnOrder.entries.filter((entry) => entry.visibleInPlayer);
+  if (entries.length === 0) {
+    return null;
+  }
+
+  const currentIndex = Math.max(0, entries.findIndex((entry) => entry.id === turnOrder.currentEntryId));
+  const nextEntry = entries.length > 1 ? entries[(currentIndex + 1) % entries.length] : null;
+  const entriesByPlayerId = new Map<string, (typeof entries)[number]>();
+  for (const entry of entries) {
+    if (entry.playerId) {
+      entriesByPlayerId.set(entry.playerId, entry);
+    }
+  }
+  const assetsById = new Map(campaign.assets.map((asset) => [asset.id, asset]));
+  const players = campaign.players.filter((player) => player.visibleInPlayer && entriesByPlayerId.has(player.id));
+  if (players.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      {players.map((player) => {
+        const entry = entriesByPlayerId.get(player.id);
+        if (!entry) {
+          return null;
+        }
+        const asset = player.assetId ? assetsById.get(player.assetId) : null;
+        const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
+        const status = entry.id === turnOrder.currentEntryId ? "current" : entry.id === nextEntry?.id ? "next" : "waiting";
+        const style = getPlayerSeatStyle(player.defaultSeatEdge, player.defaultSeatPosition, player.color);
+        return (
+          <div key={player.id} className={`player-turn-status player-turn-status-${player.defaultSeatEdge} player-turn-status-${status}`} style={style}>
+            <span className="player-turn-status-avatar">
+              {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : player.name.slice(0, 1).toUpperCase()}
+            </span>
+            <span className="player-turn-status-copy">
+              <strong>{player.name}</strong>
+              <small>{getPlayerTurnStatusLabel(status)}</small>
+            </span>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function getPlayerTurnStatusLabel(status: "current" | "next" | "waiting"): string {
+  if (status === "current") {
+    return "Turn Now";
+  }
+  if (status === "next") {
+    return "Up Next";
+  }
+  return "Waiting";
 }
 
 function getTurnOrderFacingRotation(edge: "top" | "right" | "bottom" | "left", facing: "inward" | "outward"): number {

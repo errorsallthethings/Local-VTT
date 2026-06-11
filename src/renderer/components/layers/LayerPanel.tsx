@@ -16,8 +16,8 @@ import {
   Lightbulb,
   Pentagon,
   RotateCcw,
-  Settings,
   Shield,
+  Settings2,
   Sparkles,
   Square,
   SquareDashed,
@@ -410,7 +410,7 @@ export function LayerPanel({
                 disabled={!hasLayerSettings}
                 onClick={() => toggleLayerSettings(layer.id)}
               >
-                <Settings size={15} aria-hidden="true" />
+                <Settings2 size={15} aria-hidden="true" />
               </button>
               {!scene.layerOrderLocked && (
                 <div className="layer-order-controls">
@@ -663,7 +663,7 @@ export function LayerPanel({
                 <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
                   <div className="layer-empty-state">
                     <strong>Grid Settings</strong>
-                    <span>Use the gear button to configure grid mode, cell size, visibility, colors, and measurement.</span>
+                    <span>Use the settings button to configure grid mode, cell size, visibility, colors, and measurement.</span>
                   </div>
                 </div>
               )}
@@ -772,7 +772,7 @@ export function LayerPanel({
                 <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
                   <div className="layer-empty-state">
                     <strong>Map Settings</strong>
-                    <span>Import a map asset here, then use the gear button for map fit and transform settings.</span>
+                    <span>Import a map asset here, then use the settings button for map fit and transform settings.</span>
                   </div>
                   <button className="import-map-next-step" onClick={onImportMap}>
                     <Import size={16} aria-hidden="true" />
@@ -784,7 +784,7 @@ export function LayerPanel({
                 <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
                   <div className="layer-empty-state">
                     <strong>Map Settings</strong>
-                    <span>Use the gear button to adjust map fit, transform, and asset actions.</span>
+                    <span>Use the settings button to adjust map fit, transform, and asset actions.</span>
                   </div>
                 </div>
               )}
@@ -889,7 +889,7 @@ function WeatherCategoryRow({
         <span>On</span>
       </label>
       <button className={expanded ? "icon-button layer-settings-button layer-settings-active" : "icon-button layer-settings-button"} type="button" title={`${label} settings`} aria-label={`${label} settings`} onClick={onExpand}>
-        <Settings size={15} aria-hidden="true" />
+        <Settings2 size={15} aria-hidden="true" />
       </button>
     </div>
   );

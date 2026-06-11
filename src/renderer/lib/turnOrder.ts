@@ -35,7 +35,7 @@ export function createTurnOrderEntryFromPlayer(id: string, player: CampaignPlaye
     id,
     name: player.name || "Player",
     initiative,
-    visibleInPlayer: player.visibleInPlayer,
+    visibleInPlayer: true,
     playerId: player.id,
     assetId: player.assetId
   };
@@ -84,6 +84,31 @@ export function sortTurnOrderByInitiative(scene: Scene, updatedAt = new Date().t
   return patchTurnOrder(scene, { entries, currentEntryId: scene.turnOrder.currentEntryId ?? entries[0]?.id }, updatedAt);
 }
 
+export function rollInitiativeForNonPlayers(scene: Scene, random = Math.random, updatedAt = new Date().toISOString()): Scene {
+  const diceCount = Math.max(1, Math.min(20, Math.round(scene.turnOrder.initiativeDiceCount || 1)));
+  const diceSides = Math.max(2, Math.min(100, Math.round(scene.turnOrder.initiativeDiceSides || 20)));
+  return patchTurnOrder(
+    scene,
+    {
+      entries: scene.turnOrder.entries.map((entry) =>
+        entry.playerId
+          ? entry
+          : {
+              ...entry,
+              initiative: rollDice(diceCount, diceSides, random)
+            }
+      )
+    },
+    updatedAt
+  );
+}
+
+export function rollInitiativeForEntry(scene: Scene, entryId: string, random = Math.random, updatedAt = new Date().toISOString()): Scene {
+  const diceCount = Math.max(1, Math.min(20, Math.round(scene.turnOrder.initiativeDiceCount || 1)));
+  const diceSides = Math.max(2, Math.min(100, Math.round(scene.turnOrder.initiativeDiceSides || 20)));
+  return updateTurnOrderEntry(scene, entryId, { initiative: rollDice(diceCount, diceSides, random) }, updatedAt);
+}
+
 export function moveTurnOrderEntry(scene: Scene, entryId: string, direction: "up" | "down", updatedAt = new Date().toISOString()): Scene {
   const index = scene.turnOrder.entries.findIndex((entry) => entry.id === entryId);
   const targetIndex = direction === "up" ? index - 1 : index + 1;
@@ -93,6 +118,18 @@ export function moveTurnOrderEntry(scene: Scene, entryId: string, direction: "up
   const entries = [...scene.turnOrder.entries];
   const [entry] = entries.splice(index, 1);
   entries.splice(targetIndex, 0, entry);
+  return patchTurnOrder(scene, { entries }, updatedAt);
+}
+
+export function reorderTurnOrderEntry(scene: Scene, entryId: string, targetIndex: number, updatedAt = new Date().toISOString()): Scene {
+  const currentIndex = scene.turnOrder.entries.findIndex((entry) => entry.id === entryId);
+  if (currentIndex < 0) {
+    return scene;
+  }
+  const entries = [...scene.turnOrder.entries];
+  const [entry] = entries.splice(currentIndex, 1);
+  const clampedIndex = Math.max(0, Math.min(entries.length, targetIndex));
+  entries.splice(clampedIndex, 0, entry);
   return patchTurnOrder(scene, { entries }, updatedAt);
 }
 
@@ -139,4 +176,12 @@ export function patchTurnOrder(scene: Scene, patch: Partial<TurnOrderSettings>, 
 
 function stripFileExtension(fileName: string): string {
   return fileName.replace(/\.[^/.]+$/, "") || fileName;
+}
+
+function rollDice(count: number, sides: number, random: () => number): number {
+  let total = 0;
+  for (let index = 0; index < count; index += 1) {
+    total += Math.floor(random() * sides) + 1;
+  }
+  return total;
 }

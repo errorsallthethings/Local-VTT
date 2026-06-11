@@ -148,6 +148,7 @@ export function GmApp() {
   const [playerDisplayMode, setPlayerDisplayMode] = useState<PlayerDisplayMode>("scene");
   const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
+  const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
   const [gmCanvasCenter, setGmCanvasCenter] = useState<Point | null>(null);
   const [tokenLibraryHeight, setTokenLibraryHeight] = useState(() => loadTokenLibraryHeight());
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
@@ -599,8 +600,7 @@ export function GmApp() {
                 ? {
                     ...entry,
                     name: updatedPlayer.name,
-                    assetId: updatedPlayer.assetId,
-                    visibleInPlayer: updatedPlayer.visibleInPlayer
+                    assetId: updatedPlayer.assetId
                   }
                 : entry
             )
@@ -1181,6 +1181,7 @@ export function GmApp() {
         onAddPlayer={addCampaignPlayer}
         onUpdatePlayer={updateCampaignPlayer}
         onDeletePlayer={deleteCampaignPlayer}
+        onPlayersPanelOpenChange={setPlayersPanelOpen}
         onOpenSceneDialog={openSceneDialog}
         onOpenFolderDialog={openFolderDialog}
         onLoadScene={(sceneId) => void loadScene(sceneId)}
@@ -1276,6 +1277,7 @@ export function GmApp() {
             onDropTokenAsset={dropLibraryTokenOnScene}
             onLiveTableEvent={emitLiveTableEvent}
             onViewportCenterChange={setGmCanvasCenter}
+            showPlayerSeatIndicators={playersPanelOpen}
           />
           {activeMapIsVideo && <VideoMapControls videoPlayback={videoPlayback} onUpdateVideoPlayback={updateVideoPlayback} />}
         </div>

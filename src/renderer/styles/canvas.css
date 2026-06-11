@@ -316,6 +316,10 @@
   transform-origin: center;
 }
 
+.turn-order-player-bar-side-inward .turn-order-player-direction {
+  order: 2;
+}
+
 .turn-order-player-direction svg {
   width: calc(var(--turn-avatar-size) * 0.42);
   height: calc(var(--turn-avatar-size) * 0.42);
@@ -421,6 +425,103 @@
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.player-turn-status {
+  position: absolute;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 38px minmax(0, auto);
+  align-items: center;
+  gap: 8px;
+  min-width: 138px;
+  max-width: 220px;
+  border: 1px solid color-mix(in srgb, var(--player-seat-color) 48%, white 8%);
+  border-radius: var(--radius-control);
+  background: rgb(8 12 18 / 0.82);
+  color: var(--color-text);
+  padding: 7px 9px;
+  box-shadow: var(--shadow-panel);
+  --player-seat-color: var(--color-accent);
+  pointer-events: none;
+}
+
+.player-turn-status-top,
+.player-turn-status-bottom {
+  transform: translateX(-50%);
+}
+
+.player-turn-status-left,
+.player-turn-status-right {
+  transform: translateY(-50%);
+}
+
+.player-turn-status-waiting {
+  opacity: 0.62;
+}
+
+.player-turn-status-next {
+  border-color: color-mix(in srgb, var(--player-seat-color) 70%, white 14%);
+  opacity: 0.88;
+}
+
+.player-turn-status-current {
+  border-color: var(--player-seat-color);
+  background: color-mix(in srgb, var(--player-seat-color) 20%, rgb(8 12 18 / 0.9));
+  box-shadow:
+    inset 3px 0 0 var(--player-seat-color),
+    0 0 22px color-mix(in srgb, var(--player-seat-color) 40%, transparent);
+}
+
+.player-turn-status-avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--player-seat-color) 72%, white 12%);
+  border-radius: var(--radius-control);
+  background: var(--player-seat-color);
+  color: white;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.player-turn-status-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.player-turn-status-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.player-turn-status-copy strong,
+.player-turn-status-copy small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-turn-status-copy strong {
+  color: var(--color-text-strong);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.player-turn-status-copy small {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.player-turn-status-current .player-turn-status-copy small {
+  color: var(--color-text-strong);
 }
 
 .video-map-controls {

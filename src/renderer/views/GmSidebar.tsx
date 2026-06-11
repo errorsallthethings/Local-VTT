@@ -35,6 +35,7 @@ export function GmSidebar({
   onAddPlayer,
   onUpdatePlayer,
   onDeletePlayer,
+  onPlayersPanelOpenChange,
   onOpenSceneDialog,
   onOpenFolderDialog,
   onLoadScene,
@@ -81,6 +82,7 @@ export function GmSidebar({
   onAddPlayer: () => void;
   onUpdatePlayer: (playerId: string, patch: Partial<Campaign["players"][number]>) => void;
   onDeletePlayer: (playerId: string) => void;
+  onPlayersPanelOpenChange: (open: boolean) => void;
   onOpenSceneDialog: () => void;
   onOpenFolderDialog: () => void;
   onLoadScene: (sceneId: string) => void;
@@ -143,6 +145,7 @@ export function GmSidebar({
             onAddPlayer={onAddPlayer}
             onUpdatePlayer={onUpdatePlayer}
             onDeletePlayer={onDeletePlayer}
+            onPlayersPanelOpenChange={onPlayersPanelOpenChange}
           />
 
           <div className="section-heading">

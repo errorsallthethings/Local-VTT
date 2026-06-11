@@ -308,7 +308,7 @@ function TokenLibraryItem({
   asset,
   activeSceneName,
   selected = false,
-  draggable = Boolean(activeSceneName),
+  draggable = true,
   menuOpen,
   onToggleMenu,
   onAddToken,

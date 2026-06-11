@@ -8,7 +8,10 @@ import {
   createTurnOrderEntryFromAsset,
   createTurnOrderEntryFromToken,
   moveTurnOrderEntry,
+  reorderTurnOrderEntry,
   removeTurnOrderEntry,
+  rollInitiativeForEntry,
+  rollInitiativeForNonPlayers,
   sortTurnOrderByInitiative,
   startTurnOrder,
   stopTurnOrder,
@@ -41,6 +44,15 @@ describe("turn order helpers", () => {
     expect(scene.turnOrder.entries.map((entry) => entry.id)).toEqual(["a", "c", "b"]);
     expect(scene.turnOrder.currentEntryId).toBe("b");
     expect(moveTurnOrderEntry(scene, "a", "up", "now")).toBe(scene);
+  });
+
+  it("reorders entries by target index", () => {
+    let scene = sceneWithEntries(["a", "b", "c", "d"]);
+    scene.turnOrder.currentEntryId = "c";
+    scene = reorderTurnOrderEntry(scene, "d", 1, "now");
+
+    expect(scene.turnOrder.entries.map((entry) => entry.id)).toEqual(["a", "d", "b", "c"]);
+    expect(scene.turnOrder.currentEntryId).toBe("c");
   });
 
   it("starts, advances, wraps, and stops turn order", () => {
@@ -114,8 +126,36 @@ describe("turn order helpers", () => {
 
     expect(withPlayers.turnOrder.entries.map((entry) => entry.playerId)).toEqual(["player-1", "player-2"]);
     expect(withPlayers.turnOrder.entries[0]).toMatchObject({ name: "Alice", visibleInPlayer: true });
-    expect(withPlayers.turnOrder.entries[1]).toMatchObject({ name: "Ben", visibleInPlayer: false });
+    expect(withPlayers.turnOrder.entries[1]).toMatchObject({ name: "Ben", visibleInPlayer: true });
     expect(unchanged).toBe(withPlayers);
+  });
+
+  it("rolls initiative for non-player entries only", () => {
+    let scene = createDefaultScene("Roll");
+    scene.turnOrder.initiativeDiceCount = 2;
+    scene.turnOrder.initiativeDiceSides = 6;
+    scene.turnOrder.entries = [
+      createManualTurnOrderEntry("monster", "Monster", 0),
+      { ...createManualTurnOrderEntry("player", "Player", 12), playerId: "player-1" }
+    ];
+
+    scene = rollInitiativeForNonPlayers(scene, () => 0.5, "now");
+
+    expect(scene.turnOrder.entries[0]).toMatchObject({ id: "monster", initiative: 8 });
+    expect(scene.turnOrder.entries[1]).toMatchObject({ id: "player", initiative: 12 });
+  });
+
+  it("rolls initiative for a single entry", () => {
+    let scene = sceneWithEntries(["a", "b"]);
+    scene.turnOrder.initiativeDiceCount = 1;
+    scene.turnOrder.initiativeDiceSides = 8;
+
+    scene = rollInitiativeForEntry(scene, "b", () => 0.75, "now");
+
+    expect(scene.turnOrder.entries.map((entry) => [entry.id, entry.initiative])).toEqual([
+      ["a", 10],
+      ["b", 7]
+    ]);
   });
 
   it("normalizes turn order from partial scene data", () => {
@@ -138,6 +178,8 @@ describe("turn order helpers", () => {
     expect(scene.turnOrder.playerViewEdge).toBe("top");
     expect(scene.turnOrder.playerViewFacing).toBe("inward");
     expect(scene.turnOrder.playerViewSize).toBe("md");
+    expect(scene.turnOrder.initiativeDiceCount).toBe(1);
+    expect(scene.turnOrder.initiativeDiceSides).toBe(20);
     expect(scene.turnOrder.entries).toMatchObject([
       { id: "duplicate", name: "Entry 1", initiative: 99, visibleInPlayer: true },
       { id: "duplicate-2", name: "Cleric", initiative: -99, visibleInPlayer: false }

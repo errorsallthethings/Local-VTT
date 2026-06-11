@@ -1,5 +1,5 @@
 import { ArchiveRestore, ChevronDown, ChevronRight, Clock3, Edit3, Eye, EyeOff, FolderOpen, Plus, Save, Settings2, Trash2, UserRoundPlus, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Asset, Campaign, CampaignPlayer } from "../../../shared/localvtt";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/dragTypes";
 import type { RecentCampaign } from "../../lib/recentCampaigns";
@@ -23,6 +23,7 @@ interface CampaignPanelProps {
   onAddPlayer: () => void;
   onUpdatePlayer: (playerId: string, patch: Partial<CampaignPlayer>) => void;
   onDeletePlayer: (playerId: string) => void;
+  onPlayersPanelOpenChange: (open: boolean) => void;
 }
 
 export function CampaignPanel({
@@ -41,9 +42,14 @@ export function CampaignPanel({
   onOpenBackupsFolder,
   onAddPlayer,
   onUpdatePlayer,
-  onDeletePlayer
+  onDeletePlayer,
+  onPlayersPanelOpenChange
 }: CampaignPanelProps) {
   const [playersCollapsed, setPlayersCollapsed] = useState(false);
+  useEffect(() => {
+    onPlayersPanelOpenChange(Boolean(campaign && !playersCollapsed));
+  }, [campaign, onPlayersPanelOpenChange, playersCollapsed]);
+
   return (
     <section className="panel">
       <div className="campaign-title-row panel-title-row">
@@ -179,9 +185,15 @@ function CampaignPlayerRow({
   const previewPath = selectedAsset?.thumbnailAbsolutePath ?? selectedAsset?.absolutePath;
   return (
     <article className="campaign-player-row">
-      <span
+      <button
+        type="button"
         className={previewPath ? "campaign-player-avatar" : "campaign-player-avatar campaign-player-avatar-drop"}
-        title="Drag a token here to use its thumbnail"
+        title={previewPath ? "Remove thumbnail" : "Drag a token here to use its thumbnail"}
+        onClick={() => {
+          if (previewPath) {
+            onUpdate({ assetId: undefined });
+          }
+        }}
         onDragOver={(event) => {
           if (!event.dataTransfer.types.includes(TOKEN_LIBRARY_ASSET_DRAG_TYPE)) {
             return;
@@ -199,23 +211,16 @@ function CampaignPlayerRow({
         }}
       >
         {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : player.name.slice(0, 1).toUpperCase()}
-      </span>
+        {previewPath && <span className="campaign-player-avatar-reset">Reset</span>}
+      </button>
       <input className="campaign-player-name" value={player.name} aria-label="Player name" onChange={(event) => onUpdate({ name: event.target.value })} />
+      <input className="campaign-player-color" type="color" value={player.color} aria-label="Player color" onChange={(event) => onUpdate({ color: event.target.value })} />
       <button className="icon-button campaign-player-settings" aria-label={`${player.name} settings`} title="Player settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>
         <Settings2 size={14} aria-hidden="true" />
       </button>
       {settingsOpen && (
         <div className="campaign-player-settings-panel">
-          <label>
-            <span>Thumbnail</span>
-            <button type="button" disabled={!player.assetId} onClick={() => onUpdate({ assetId: undefined })}>
-              Use Initial
-            </button>
-          </label>
-          <label>
-            <span>Color</span>
-            <input className="campaign-player-color" type="color" value={player.color} aria-label="Player color" onChange={(event) => onUpdate({ color: event.target.value })} />
-          </label>
+          <div className="campaign-player-settings-label">Seat Placement</div>
           <label>
             <span>Placement</span>
             <select value={player.defaultSeatEdge} aria-label="Default seat edge" onChange={(event) => onUpdate({ defaultSeatEdge: event.target.value as CampaignPlayer["defaultSeatEdge"] })}>

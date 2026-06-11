@@ -1,4 +1,4 @@
-import { EllipsisVertical, Eye, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, SlidersHorizontal, X } from "lucide-react";
+import { EllipsisVertical, Eye, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Settings2, X } from "lucide-react";
 import type { Asset, Campaign, Scene } from "../../../shared/localvtt";
 import { getActiveWeatherEffects } from "../../lib/weatherCatalog";
 
@@ -96,7 +96,7 @@ export function WorkspaceTopbar({
                     Player View Display
                   </button>
                   <button disabled={!activeScene} onClick={onOpenPlayerDisplayScale}>
-                    <SlidersHorizontal size={14} aria-hidden="true" />
+                    <Settings2 size={14} aria-hidden="true" />
                     Player Display Scale
                   </button>
                   <button className="danger-menu-item" onClick={onClosePlayerView}>
