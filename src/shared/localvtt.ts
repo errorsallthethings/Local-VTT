@@ -119,8 +119,7 @@ export type RainWeatherEffectType = "light-rain" | "rain" | "heavy-rain" | "rain
 export type FogWeatherEffectType = "light-fog" | "fog" | "heavy-fog";
 export type SnowWeatherEffectType = "light-snow" | "snow" | "blizzard";
 export type SandWeatherEffectType = "light-sand" | "sand" | "sandstorm";
-export type CloudWeatherEffectType = "light-clouds" | "cloud-shadows" | "overcast";
-export type WeatherPatternEffectType = RainWeatherEffectType | FogWeatherEffectType | SnowWeatherEffectType | SandWeatherEffectType | CloudWeatherEffectType;
+export type WeatherPatternEffectType = RainWeatherEffectType | FogWeatherEffectType | SnowWeatherEffectType | SandWeatherEffectType;
 export type WeatherEffectType = "none" | WeatherPatternEffectType;
 export type WeatherQualityLevel = "low" | "balanced" | "high";
 
@@ -151,7 +150,6 @@ export interface WeatherEffectSlots {
   fog: WeatherEffectSlot<FogWeatherEffectType>;
   snow: WeatherEffectSlot<SnowWeatherEffectType>;
   sand: WeatherEffectSlot<SandWeatherEffectType>;
-  cloud: WeatherEffectSlot<CloudWeatherEffectType>;
 }
 
 export interface WeatherSettings extends WeatherTuningSettings {
@@ -659,51 +657,6 @@ export const DEFAULT_WEATHER_EFFECT_SETTINGS: Record<WeatherPatternEffectType, W
     lightningFrequency: 0,
     flashStrength: 0,
     quality: "balanced"
-  },
-  "light-clouds": {
-    intensity: 1,
-    opacity: 1,
-    color: "#111827",
-    speed: 0.3,
-    directionDegrees: 0,
-    driftStrength: 0.2,
-    edgeBias: 0.22,
-    quietAreaSize: 0.9,
-    centerStrayDrops: 1,
-    streakLength: 1,
-    lightningFrequency: 0,
-    flashStrength: 0,
-    quality: "balanced"
-  },
-  "cloud-shadows": {
-    intensity: 1,
-    opacity: 1,
-    color: "#10141c",
-    speed: 0.25,
-    directionDegrees: 0,
-    driftStrength: 0.3,
-    edgeBias: 0.34,
-    quietAreaSize: 0.9,
-    centerStrayDrops: 1,
-    streakLength: 1.5,
-    lightningFrequency: 0,
-    flashStrength: 0,
-    quality: "balanced"
-  },
-  overcast: {
-    intensity: 1,
-    opacity: 1,
-    color: "#151a22",
-    speed: 0.2,
-    directionDegrees: 0,
-    driftStrength: 0.4,
-    edgeBias: 0.82,
-    quietAreaSize: 0.9,
-    centerStrayDrops: 1,
-    streakLength: 2,
-    lightningFrequency: 0,
-    flashStrength: 0,
-    quality: "balanced"
   }
 };
 
@@ -732,11 +685,6 @@ export const DEFAULT_WEATHER: WeatherSettings = {
       enabled: false,
       pattern: "sand",
       settings: { ...DEFAULT_WEATHER_EFFECT_SETTINGS.sand }
-    },
-    cloud: {
-      enabled: false,
-      pattern: "cloud-shadows",
-      settings: { ...DEFAULT_WEATHER_EFFECT_SETTINGS["cloud-shadows"] }
     }
   },
   masks: []
@@ -756,10 +704,7 @@ const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "blizzard",
   "light-sand",
   "sand",
-  "sandstorm",
-  "light-clouds",
-  "cloud-shadows",
-  "overcast"
+  "sandstorm"
 ]);
 
 export const DEFAULT_LAYERS: Layer[] = [
@@ -985,7 +930,6 @@ function normalizeWeatherEffects(
   const fog = normalizeWeatherEffectSlot(weather?.effects?.fog, "fog", "fog", effectSettings);
   const snow = normalizeWeatherEffectSlot(weather?.effects?.snow, "snow", "snow", effectSettings);
   const sand = normalizeWeatherEffectSlot(weather?.effects?.sand, "sand", "sand", effectSettings);
-  const cloud = normalizeWeatherEffectSlot(weather?.effects?.cloud, "cloud-shadows", "cloud", effectSettings);
 
   if (legacyEffect !== "none" && !weather?.effects) {
     if (isRainWeatherEffect(legacyEffect)) {
@@ -1004,20 +948,16 @@ function normalizeWeatherEffects(
       sand.enabled = weather?.enabled ?? true;
       sand.pattern = legacyEffect;
       sand.settings = normalizeWeatherTuning({ ...sand.settings, ...(weather ?? {}) }, DEFAULT_WEATHER_EFFECT_SETTINGS[legacyEffect]);
-    } else if (isCloudWeatherEffect(legacyEffect)) {
-      cloud.enabled = weather?.enabled ?? true;
-      cloud.pattern = legacyEffect;
-      cloud.settings = normalizeWeatherTuning({ ...cloud.settings, ...(weather ?? {}) }, DEFAULT_WEATHER_EFFECT_SETTINGS[legacyEffect]);
     }
   }
 
-  return { rain, fog, snow, sand, cloud };
+  return { rain, fog, snow, sand };
 }
 
 function normalizeWeatherEffectSlot<TPattern extends WeatherPatternEffectType>(
   slot: WeatherEffectSlot<TPattern> | undefined,
   fallbackPattern: TPattern,
-  kind: "rain" | "fog" | "snow" | "sand" | "cloud",
+  kind: "rain" | "fog" | "snow" | "sand",
   effectSettings: WeatherSettings["effectSettings"]
 ): WeatherEffectSlot<TPattern> {
   const candidatePattern = slot?.pattern;
@@ -1030,9 +970,7 @@ function normalizeWeatherEffectSlot<TPattern extends WeatherPatternEffectType>(
           ? candidatePattern
           : kind === "sand" && candidatePattern && isSandWeatherEffect(candidatePattern)
             ? candidatePattern
-            : kind === "cloud" && candidatePattern && isCloudWeatherEffect(candidatePattern)
-              ? candidatePattern
-              : fallbackPattern;
+            : fallbackPattern;
   const defaults = DEFAULT_WEATHER_EFFECT_SETTINGS[pattern];
   return {
     enabled: slot?.enabled ?? false,
@@ -1123,12 +1061,8 @@ function isSandWeatherEffect(effect: WeatherEffectType): effect is SandWeatherEf
   return effect === "light-sand" || effect === "sand" || effect === "sandstorm";
 }
 
-function isCloudWeatherEffect(effect: WeatherEffectType): effect is CloudWeatherEffectType {
-  return effect === "light-clouds" || effect === "cloud-shadows" || effect === "overcast";
-}
-
 function hasEnabledWeatherEffect(effects: WeatherEffectSlots): boolean {
-  return effects.rain.enabled || effects.fog.enabled || effects.snow.enabled || effects.sand.enabled || effects.cloud.enabled;
+  return effects.rain.enabled || effects.fog.enabled || effects.snow.enabled || effects.sand.enabled;
 }
 
 function isNonEmptyString(value: unknown): value is string {

@@ -129,8 +129,7 @@ it("normalizeScene clamps weather settings", () => {
       },
       fog: DEFAULT_WEATHER.effects.fog,
       snow: DEFAULT_WEATHER.effects.snow,
-      sand: DEFAULT_WEATHER.effects.sand,
-      cloud: DEFAULT_WEATHER.effects.cloud
+      sand: DEFAULT_WEATHER.effects.sand
     },
     masks: []
   });

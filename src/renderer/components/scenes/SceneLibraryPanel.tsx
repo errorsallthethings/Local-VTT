@@ -462,8 +462,7 @@ function SceneWeatherBadges({ scene }: { scene: CampaignSceneEntry }) {
     scene.weather.effects?.rain?.enabled ? { key: "rain", label: getWeatherPatternLabel(scene.weather.effects.rain.pattern), icon: <CloudRain size={12} aria-hidden="true" /> } : null,
     scene.weather.effects?.fog?.enabled ? { key: "fog", label: getWeatherPatternLabel(scene.weather.effects.fog.pattern), icon: <CloudFog size={12} aria-hidden="true" /> } : null,
     scene.weather.effects?.snow?.enabled ? { key: "snow", label: getWeatherPatternLabel(scene.weather.effects.snow.pattern), icon: <Snowflake size={12} aria-hidden="true" /> } : null,
-    scene.weather.effects?.sand?.enabled ? { key: "sand", label: getWeatherPatternLabel(scene.weather.effects.sand.pattern), icon: <CloudSun size={12} aria-hidden="true" /> } : null,
-    scene.weather.effects?.cloud?.enabled ? { key: "cloud", label: getWeatherPatternLabel(scene.weather.effects.cloud.pattern), icon: <CloudFog size={12} aria-hidden="true" /> } : null
+    scene.weather.effects?.sand?.enabled ? { key: "sand", label: getWeatherPatternLabel(scene.weather.effects.sand.pattern), icon: <CloudSun size={12} aria-hidden="true" /> } : null
   ].filter((item): item is { key: string; label: string; icon: ReactElement } => item !== null);
 
   if (activeWeather.length === 0) {
@@ -509,12 +508,6 @@ function getWeatherPatternLabel(pattern: string): string {
       return "Sand";
     case "sandstorm":
       return "Sandstorm";
-    case "light-clouds":
-      return "Light Overcast";
-    case "cloud-shadows":
-      return "Overcast";
-    case "overcast":
-      return "Heavy Overcast";
     default:
       return "Weather";
   }

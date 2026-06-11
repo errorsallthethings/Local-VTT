@@ -589,8 +589,12 @@ export function SceneCanvas({
         ctx.fillRect(0, 0, width, height);
       }
 
-      ctx.save();
       const renderCamera = getRenderCamera(camera, playerDisplayScale);
+      const activeVideo = isVideoMap ? (videoRefs.current[activeVideoIndex] ?? null) : null;
+      const weatherMapSource = loadedMap?.ready ? loadedMap.source : activeVideo && activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA ? activeVideo : null;
+      const weatherMapReady = !canShowMap || !mapAsset || Boolean(weatherMapSource);
+
+      ctx.save();
       // Player Display Scale modifies Player View zoom only; GM camera controls stay scene-local.
       ctx.translate(renderCamera.x, renderCamera.y);
       ctx.scale(renderCamera.zoom, renderCamera.zoom);
@@ -640,9 +644,6 @@ export function SceneCanvas({
         drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, selectedFogShapeId);
       }
       if (canShowWeather) {
-        const activeVideo = isVideoMap ? (videoRefs.current[activeVideoIndex] ?? null) : null;
-        const weatherMapSource = loadedMap?.ready ? loadedMap.source : activeVideo && activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA ? activeVideo : null;
-        const weatherMapReady = !canShowMap || !mapAsset || Boolean(weatherMapSource);
         if (weatherMapReady) {
           drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1, weatherMapSource);
         }

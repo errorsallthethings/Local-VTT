@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { Camera } from "./camera";
 import { getSourceHeight, getSourceWidth, resolveMapTransform } from "./mapRenderer";
-import type { CloudWeatherEffectType, FogWeatherEffectType, RainWeatherEffectType, SandWeatherEffectType, Scene, SnowWeatherEffectType, WeatherEffectType, WeatherMask, WeatherSettings } from "../../shared/localvtt";
+import type { FogWeatherEffectType, RainWeatherEffectType, SandWeatherEffectType, Scene, SnowWeatherEffectType, WeatherEffectType, WeatherMask, WeatherSettings } from "../../shared/localvtt";
 
 type WeatherBounds = {
   left: number;
@@ -74,19 +74,6 @@ type SandParticle = {
   depth: number;
 };
 
-type CloudPatch = {
-  x: number;
-  y: number;
-  localX: number;
-  localY: number;
-  radius: number;
-  alpha: number;
-  phase: number;
-  seed: number;
-  rotation: number;
-  speed: number;
-};
-
 type RainPreset = {
   density: number;
   opacity: number;
@@ -128,18 +115,8 @@ type SandPreset = {
   tintStrength: number;
 };
 
-type CloudPreset = {
-  coverage: number;
-  opacity: number;
-  speed: number;
-  scale: number;
-  softness: number;
-  contrast: number;
-};
-
 const FOG_EFFECTS = new Set<WeatherEffectType>(["light-fog", "fog", "heavy-fog"]);
 const SAND_EFFECTS = new Set<WeatherEffectType>(["light-sand", "sand", "sandstorm"]);
-const CLOUD_EFFECTS = new Set<WeatherEffectType>(["light-clouds", "cloud-shadows", "overcast"]);
 
 const RAIN_PRESETS: Record<RainWeatherEffectType, RainPreset> = {
   "light-rain": {
@@ -271,33 +248,6 @@ const SAND_PRESETS: Record<SandWeatherEffectType, SandPreset> = {
     gustFrequency: 1.05,
     gustAmplitude: 1.42,
     tintStrength: 0.46
-  }
-};
-
-const CLOUD_PRESETS: Record<CloudWeatherEffectType, CloudPreset> = {
-  "light-clouds": {
-    coverage: 0.2,
-    opacity: 1,
-    speed: 0.4,
-    scale: 1,
-    softness: 0.8,
-    contrast: 0.7
-  },
-  "cloud-shadows": {
-    coverage: 0.3,
-    opacity: 1,
-    speed: 0.45,
-    scale: 0.8,
-    softness: 0.8,
-    contrast: 0.7
-  },
-  overcast: {
-    coverage: 0.7,
-    opacity: 1,
-    speed: 0.5,
-    scale: 0.6,
-    softness: 0.8,
-    contrast: 0.7
   }
 };
 
@@ -1033,95 +983,6 @@ class SandRenderer {
   }
 }
 
-class CloudRenderer {
-  private renderer: THREE.WebGLRenderer | null = null;
-  private scene = new THREE.Scene();
-  private camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
-  private clouds: THREE.Mesh | null = null;
-  private patches: THREE.InstancedMesh | null = null;
-  private cloudPatches: CloudPatch[] = [];
-  private matrix = new THREE.Matrix4();
-  private position = new THREE.Vector3();
-  private quaternion = new THREE.Quaternion();
-  private scale = new THREE.Vector3();
-  private signature = "";
-
-  draw(ctx: CanvasRenderingContext2D, area: WeatherArea, weather: WeatherSettings, camera: Camera, now: number, opacity: number) {
-    if (!isCloudEffect(weather.effect)) {
-      return;
-    }
-    const bounds = area.clip;
-    const preset = CLOUD_PRESETS[weather.effect];
-    const width = ctx.canvas.clientWidth || bounds.width;
-    const height = ctx.canvas.clientHeight || bounds.height;
-    const renderer = this.getRenderer(width, height);
-    const signature = [
-      weather.effect,
-      Math.round(bounds.left),
-      Math.round(bounds.top),
-      Math.round(bounds.width),
-      Math.round(bounds.height),
-      weather.intensity.toFixed(2),
-      weather.quality
-    ].join(":");
-    if (signature !== this.signature) {
-      this.signature = signature;
-      this.rebuild(bounds, weather, preset);
-    }
-
-    this.update(bounds, weather, preset, now, opacity);
-    renderer.setSize(width, height, false);
-    renderer.setClearColor(0x000000, 0);
-    renderer.clear();
-    renderer.render(this.scene, this.camera);
-
-    ctx.save();
-    ctx.clip(getWeatherClipPath(bounds, weather.masks, camera), "evenodd");
-    ctx.drawImage(renderer.domElement, 0, 0, width, height);
-    ctx.restore();
-  }
-
-  private getRenderer(width: number, height: number) {
-    if (!this.renderer) {
-      this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-      this.renderer.setPixelRatio(1);
-      this.camera.position.set(0, 0, 1600);
-      this.camera.lookAt(0, 0, 0);
-    }
-    this.camera.left = 0;
-    this.camera.right = width;
-    this.camera.top = 0;
-    this.camera.bottom = height;
-    this.camera.near = 0.1;
-    this.camera.far = 3600;
-    this.camera.updateProjectionMatrix();
-    return this.renderer;
-  }
-
-  private rebuild(bounds: WeatherBounds, weather: WeatherSettings, preset: CloudPreset) {
-    this.scene.clear();
-    this.clouds = createCloudShadowMesh(bounds);
-    this.clouds.renderOrder = 0;
-    this.scene.add(this.clouds);
-
-    const baseClusterCount = weather.effect === "overcast" ? 18 : weather.effect === "light-clouds" ? 8 : 12;
-    const clusterCount = Math.max(2, Math.round(baseClusterCount * getQualityMultiplier(weather) * (0.45 + weather.intensity * 0.55)));
-    this.cloudPatches = createCloudPatches(bounds, weather, preset, clusterCount);
-    if (this.cloudPatches.length > 0) {
-      this.patches = createCloudPatchMesh(this.cloudPatches.length);
-      this.patches.renderOrder = 1;
-      this.scene.add(this.patches);
-    } else {
-      this.patches = null;
-    }
-  }
-
-  private update(bounds: WeatherBounds, weather: WeatherSettings, preset: CloudPreset, now: number, layerOpacity: number) {
-    updateCloudShadowMesh(this.clouds, bounds, weather, preset, now, layerOpacity);
-    updateCloudPatchMesh(this.patches, this.cloudPatches, bounds, weather, preset, now, layerOpacity, this.matrix, this.position, this.quaternion, this.scale);
-  }
-}
-
 function getWeatherClipPath(bounds: WeatherBounds, masks: WeatherMask[], camera: Camera): Path2D {
   const path = new Path2D();
   path.rect(bounds.left, bounds.top, bounds.width, bounds.height);
@@ -1170,10 +1031,9 @@ const rainRenderer = new RainRenderer();
 const fogRenderer = new FogRenderer();
 const snowRenderer = new SnowRenderer();
 const sandRenderer = new SandRenderer();
-const cloudRenderer = new CloudRenderer();
 
 export function shouldAnimateWeather(scene: Scene, visible: boolean): boolean {
-  return visible && scene.weather.enabled && (scene.weather.effects.rain.enabled || scene.weather.effects.fog.enabled || scene.weather.effects.snow.enabled || scene.weather.effects.sand.enabled || scene.weather.effects.cloud.enabled);
+  return visible && scene.weather.enabled && (scene.weather.effects.rain.enabled || scene.weather.effects.fog.enabled || scene.weather.effects.snow.enabled || scene.weather.effects.sand.enabled);
 }
 
 export function drawWeather(
@@ -1203,10 +1063,6 @@ export function drawWeather(
   }
   if (weather.effects.sand.enabled) {
     sandRenderer.draw(ctx, area, getWeatherForSand(scene.weather), camera, now, opacity);
-  }
-  if (weather.effects.cloud.enabled) {
-    const cloudWeather = getWeatherForCloud(scene.weather);
-    cloudRenderer.draw(ctx, area, cloudWeather, camera, now, opacity);
   }
 }
 
@@ -1239,14 +1095,6 @@ function getWeatherForSand(weather: WeatherSettings): WeatherSettings {
     ...weather,
     ...weather.effects.sand.settings,
     effect: weather.effects.sand.pattern
-  };
-}
-
-function getWeatherForCloud(weather: WeatherSettings): WeatherSettings {
-  return {
-    ...weather,
-    ...weather.effects.cloud.settings,
-    effect: weather.effects.cloud.pattern
   };
 }
 
@@ -1487,352 +1335,6 @@ function updateSandVeilMesh(mesh: THREE.Mesh | null, weather: WeatherSettings, p
   mesh.material.uniforms.time.value = now * 0.001 * Math.max(0.12, weather.speed) * preset.speed * (0.55 + driftStrength * 0.45);
   mesh.material.uniforms.direction.value.set(Math.cos(directionRadians), Math.sin(directionRadians));
   mesh.material.uniforms.tintStrength.value = preset.tintStrength;
-}
-
-function createCloudShadowMesh(bounds: WeatherBounds): THREE.Mesh {
-  const geometry = new THREE.PlaneGeometry(bounds.width, bounds.height);
-  geometry.translate(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2, 760);
-  const material = new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    depthTest: false,
-    blending: THREE.NormalBlending,
-    side: THREE.DoubleSide,
-    uniforms: {
-      shadowOpacity: { value: 0 },
-      shadowColor: { value: new THREE.Color("#111827") },
-      time: { value: 0 },
-      direction: { value: new THREE.Vector2(1, 0) },
-      aspect: { value: bounds.width / Math.max(1, bounds.height) },
-      coverage: { value: 0.5 },
-      softness: { value: 0.6 },
-      cloudScale: { value: 1 },
-      breakup: { value: 0.5 },
-      contrast: { value: 0.7 },
-      overcastMix: { value: 0 }
-    },
-    vertexShader: `
-      varying vec2 vUv;
-
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform float shadowOpacity;
-      uniform vec3 shadowColor;
-      uniform float time;
-      uniform vec2 direction;
-      uniform float aspect;
-      uniform float coverage;
-      uniform float softness;
-      uniform float cloudScale;
-      uniform float breakup;
-      uniform float contrast;
-      uniform float overcastMix;
-      varying vec2 vUv;
-
-      float hash(vec2 point) {
-        return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453123);
-      }
-
-      float noise(vec2 point) {
-        vec2 cell = floor(point);
-        vec2 local = fract(point);
-        vec2 curve = local * local * (3.0 - 2.0 * local);
-        float a = hash(cell);
-        float b = hash(cell + vec2(1.0, 0.0));
-        float c = hash(cell + vec2(0.0, 1.0));
-        float d = hash(cell + vec2(1.0, 1.0));
-        return mix(mix(a, b, curve.x), mix(c, d, curve.x), curve.y);
-      }
-
-      float fbm(vec2 point) {
-        float value = 0.0;
-        float amplitude = 0.52;
-        float total = 0.0;
-        for (int octave = 0; octave < 5; octave++) {
-          value += noise(point) * amplitude;
-          total += amplitude;
-          point = point * 2.04 + vec2(19.2, 7.7);
-          amplitude *= 0.5;
-        }
-        return value / total;
-      }
-
-      float softBlob(vec2 point, vec2 center, vec2 radius) {
-        vec2 delta = (point - center) / radius;
-        float distanceToCenter = dot(delta, delta);
-        return 1.0 - smoothstep(0.28, 1.0, distanceToCenter);
-      }
-
-      void main() {
-        vec2 centered = vec2((vUv.x - 0.5) * aspect, vUv.y - 0.5);
-        vec2 dir = normalize(direction);
-        vec2 crossDir = vec2(-dir.y, dir.x);
-        vec2 flow = vec2(dot(centered, dir), dot(centered, crossDir));
-        vec2 windOffset = vec2(time * 0.055, time * 0.012);
-        float largeClouds = fbm(flow * (2.0 / cloudScale) + windOffset);
-        float mediumClouds = fbm(flow * (4.8 / cloudScale) + windOffset * 1.7 + vec2(8.3, 2.1));
-        float fineBreakup = fbm(flow * (10.5 / cloudScale) - windOffset * 0.8 + vec2(1.4, 13.9));
-        float cloudField = largeClouds * 0.62 + mediumClouds * 0.3 + fineBreakup * breakup * 0.22;
-        vec2 uvFlow = vec2(vUv.x * aspect, vUv.y) - dir * time * 0.18;
-        vec2 tile = fract(uvFlow * vec2(3.2 / cloudScale, 2.45 / cloudScale));
-        float movingBlobs =
-          softBlob(tile, vec2(0.22, 0.34), vec2(0.22, 0.12)) * 0.9 +
-          softBlob(tile, vec2(0.5, 0.48), vec2(0.28, 0.15)) +
-          softBlob(tile, vec2(0.76, 0.37), vec2(0.18, 0.1)) * 0.75 +
-          softBlob(tile, vec2(0.38, 0.68), vec2(0.2, 0.11)) * 0.62;
-        movingBlobs = clamp(movingBlobs, 0.0, 1.0);
-        float threshold = mix(0.56, 0.18, coverage);
-        float softWidth = mix(0.08, 0.34, softness);
-        float thresholdMask = smoothstep(threshold, threshold + softWidth, cloudField);
-        float rawMask = smoothstep(0.18, 0.82, cloudField);
-        float naturalBreakup = mix(0.78, 1.0, rawMask) * mix(0.82, 1.0, thresholdMask);
-        float patchMask = clamp(movingBlobs * naturalBreakup, 0.0, 1.0);
-        float shadowMask = mix(patchMask, thresholdMask, overcastMix);
-        float cloudBody = pow(clamp(shadowMask, 0.0, 1.0), mix(1.35, 0.55, contrast));
-        float middleDimming = step(0.5, coverage) * (1.0 - overcastMix) * (0.08 + largeClouds * 0.05);
-        float overcast = mix(middleDimming, 0.22 + largeClouds * 0.14, overcastMix);
-        float alpha = (cloudBody * (0.75 + contrast * 0.55) * (1.0 - overcastMix) + overcast) * shadowOpacity;
-        vec3 debugCloudColor = mix(vec3(1.0, 0.0, 0.72), shadowColor, overcastMix);
-        gl_FragColor = vec4(debugCloudColor, alpha);
-      }
-    `
-  });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.frustumCulled = false;
-  return mesh;
-}
-
-function updateCloudShadowMesh(mesh: THREE.Mesh | null, bounds: WeatherBounds, weather: WeatherSettings, preset: CloudPreset, now: number, layerOpacity: number) {
-  if (!mesh || !(mesh.material instanceof THREE.ShaderMaterial)) {
-    return;
-  }
-  const directionRadians = (weather.directionDegrees * Math.PI) / 180;
-  const windStrength = Math.max(0.02, weather.driftStrength);
-  const coverage = Math.max(0, Math.min(1, preset.coverage * (0.45 + weather.intensity * 0.8) + weather.edgeBias * 0.18));
-  const softness = Math.max(0, Math.min(1, preset.softness * 0.72 + weather.quietAreaSize * 0.34));
-  const breakup = Math.max(0, Math.min(2, weather.centerStrayDrops));
-  mesh.material.uniforms.shadowOpacity.value = Math.min(1.15, preset.opacity * weather.opacity * layerOpacity);
-  mesh.material.uniforms.shadowColor.value.set(weather.color);
-  mesh.material.uniforms.time.value = now * 0.001 * Math.max(0.05, weather.speed) * preset.speed * (0.35 + windStrength * 0.9);
-  mesh.material.uniforms.direction.value.set(Math.cos(directionRadians), Math.sin(directionRadians));
-  mesh.material.uniforms.aspect.value = bounds.width / Math.max(1, bounds.height);
-  mesh.material.uniforms.coverage.value = coverage;
-  mesh.material.uniforms.softness.value = softness;
-  mesh.material.uniforms.cloudScale.value = Math.max(0.35, preset.scale * weather.streakLength);
-  mesh.material.uniforms.breakup.value = breakup;
-  mesh.material.uniforms.contrast.value = preset.contrast;
-  mesh.material.uniforms.overcastMix.value = weather.effect === "overcast" ? 1 : 0;
-}
-
-function createCloudPatchMesh(count: number): THREE.InstancedMesh {
-  const geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
-  geometry.setAttribute("patchAlpha", new THREE.InstancedBufferAttribute(new Float32Array(count), 1));
-  geometry.setAttribute("patchSeed", new THREE.InstancedBufferAttribute(new Float32Array(count), 1));
-  const material = new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    depthTest: false,
-    blending: THREE.NormalBlending,
-    side: THREE.DoubleSide,
-    uniforms: {
-      globalOpacity: { value: 0 },
-      patchColor: { value: new THREE.Color("#161a20") },
-      edgeSoftness: { value: 0.5 },
-      shapeNoise: { value: 0.5 }
-    },
-    vertexShader: `
-      attribute float patchAlpha;
-      attribute float patchSeed;
-      varying vec2 vUv;
-      varying float vAlpha;
-      varying float vSeed;
-
-      void main() {
-        vUv = uv;
-        vAlpha = patchAlpha;
-        vSeed = patchSeed;
-        gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform float globalOpacity;
-      uniform vec3 patchColor;
-      uniform float edgeSoftness;
-      uniform float shapeNoise;
-      varying vec2 vUv;
-      varying float vAlpha;
-      varying float vSeed;
-
-      float hash(vec2 point) {
-        return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453123);
-      }
-
-      float noise(vec2 point) {
-        vec2 cell = floor(point);
-        vec2 local = fract(point);
-        vec2 curve = local * local * (3.0 - 2.0 * local);
-        float a = hash(cell);
-        float b = hash(cell + vec2(1.0, 0.0));
-        float c = hash(cell + vec2(0.0, 1.0));
-        float d = hash(cell + vec2(1.0, 1.0));
-        return mix(mix(a, b, curve.x), mix(c, d, curve.x), curve.y);
-      }
-
-      float fbm(vec2 point) {
-        float value = 0.0;
-        float amplitude = 0.52;
-        float total = 0.0;
-        for (int octave = 0; octave < 5; octave++) {
-          value += noise(point) * amplitude;
-          total += amplitude;
-          point = point * 2.03 + vec2(11.7, 6.9);
-          amplitude *= 0.5;
-        }
-        return value / total;
-      }
-
-      float lobe(vec2 point, vec2 center, vec2 radius) {
-        vec2 delta = (point - center) / radius;
-        return exp(-dot(delta, delta) * 1.55);
-      }
-
-      void main() {
-        vec2 uv = vUv;
-        float seed = vSeed * 97.31;
-        vec2 warp = vec2(fbm(uv * (3.2 + vSeed * 1.4 + shapeNoise * 2.2) + vec2(7.4 + seed, 1.9)), fbm(uv * (3.8 + vSeed * 1.1 + shapeNoise * 2.0) + vec2(2.7, 9.3 + seed))) - 0.5;
-        vec2 warpedUv = uv + warp * (0.04 + shapeNoise * 0.18 + vSeed * 0.05);
-        vec2 shiftA = vec2(hash(vec2(seed, 1.2)), hash(vec2(seed, 2.4))) * 0.14 - 0.07;
-        vec2 shiftB = vec2(hash(vec2(seed, 3.6)), hash(vec2(seed, 4.8))) * 0.16 - 0.08;
-        vec2 shiftC = vec2(hash(vec2(seed, 5.1)), hash(vec2(seed, 6.2))) * 0.18 - 0.09;
-        vec2 shiftD = vec2(hash(vec2(seed, 7.3)), hash(vec2(seed, 8.4))) * 0.2 - 0.1;
-        vec2 shiftE = vec2(hash(vec2(seed, 9.5)), hash(vec2(seed, 10.6))) * 0.18 - 0.09;
-        float lobes =
-          lobe(warpedUv, vec2(0.26, 0.48) + shiftA, vec2(0.18 + vSeed * 0.07, 0.15 + vSeed * 0.05)) * 0.72 +
-          lobe(warpedUv, vec2(0.43, 0.36) - shiftB, vec2(0.22, 0.16 + vSeed * 0.04)) +
-          lobe(warpedUv, vec2(0.58, 0.5) + shiftC, vec2(0.24 + vSeed * 0.06, 0.18)) * 0.9 +
-          lobe(warpedUv, vec2(0.72, 0.4) - shiftA, vec2(0.16, 0.13 + vSeed * 0.05)) * 0.62 +
-          lobe(warpedUv, vec2(0.47, 0.65) + shiftB, vec2(0.25 + vSeed * 0.05, 0.16)) * 0.78 +
-          lobe(warpedUv, vec2(0.34, 0.26) + shiftD, vec2(0.13 + vSeed * 0.04, 0.1 + vSeed * 0.035)) * (0.32 + vSeed * 0.34) +
-          lobe(warpedUv, vec2(0.68, 0.68) - shiftE, vec2(0.15 + vSeed * 0.035, 0.12 + vSeed * 0.04)) * (0.28 + vSeed * 0.28);
-        float erosion = fbm(warpedUv * (7.0 + shapeNoise * 8.0 + vSeed * 4.5) + vec2(4.1 + seed, 12.8));
-        float fineBreakup = fbm(warpedUv * (18.0 + shapeNoise * 18.0 + vSeed * 9.0) + vec2(15.2, 3.6 + seed));
-        float edgeBite = smoothstep(0.32, 0.86, erosion + fineBreakup * (0.18 + shapeNoise * 0.52));
-        float edgeWidth = mix(0.08, 0.32, edgeSoftness);
-        float body = smoothstep(0.54 - edgeWidth * 0.5, 0.54 + edgeWidth * 0.5, lobes - edgeBite * (0.04 + shapeNoise * 0.18) + fineBreakup * (0.015 + shapeNoise * 0.055));
-        float featherWidth = mix(0.025, 0.09, edgeSoftness);
-        float feather = smoothstep(0.0, featherWidth, uv.x) * smoothstep(0.0, featherWidth, uv.y) * (1.0 - smoothstep(1.0 - featherWidth, 1.0, uv.x)) * (1.0 - smoothstep(1.0 - featherWidth, 1.0, uv.y));
-        body = pow(body * feather, 0.92);
-        if (body <= 0.0) {
-          discard;
-        }
-        gl_FragColor = vec4(patchColor, body * vAlpha * globalOpacity);
-      }
-    `
-  });
-  const mesh = new THREE.InstancedMesh(geometry, material, count);
-  mesh.frustumCulled = false;
-  return mesh;
-}
-
-function createCloudPatches(bounds: WeatherBounds, weather: WeatherSettings, preset: CloudPreset, clusterCount: number): CloudPatch[] {
-  const patches: CloudPatch[] = [];
-  const spawnPaddingX = bounds.width * 0.45;
-  const spawnPaddingY = bounds.height * 0.45;
-  const spawnLeft = bounds.left - spawnPaddingX;
-  const spawnTop = bounds.top - spawnPaddingY;
-  const spawnWidth = bounds.width + spawnPaddingX * 2;
-  const spawnHeight = bounds.height + spawnPaddingY * 2;
-  const columns = Math.max(1, Math.ceil(Math.sqrt(clusterCount * (bounds.width / Math.max(1, bounds.height)))));
-  const rows = Math.max(1, Math.ceil(clusterCount / columns));
-  for (let clusterIndex = 0; clusterIndex < clusterCount; clusterIndex += 1) {
-    const baseSize = Math.min(bounds.width, bounds.height);
-    const patternScale = Math.max(0.3, preset.scale);
-    const column = clusterIndex % columns;
-    const row = Math.floor(clusterIndex / columns);
-    const cellWidth = spawnWidth / columns;
-    const cellHeight = spawnHeight / rows;
-    const clusterX = spawnLeft + (column + 0.18 + hash(clusterIndex + 3101) * 0.64) * cellWidth;
-    const clusterY = spawnTop + (row + 0.18 + hash(clusterIndex + 3201) * 0.64) * cellHeight;
-    const childCount = 3 + Math.floor(hash(clusterIndex + 3251) * 4);
-    const clusterRadius = baseSize * patternScale * (0.16 + hash(clusterIndex + 3301) * 0.13);
-    for (let childIndex = 0; childIndex < childCount; childIndex += 1) {
-      const index = patches.length;
-      const angle = hash(clusterIndex * 97 + childIndex + 3401) * Math.PI * 2;
-      const distance = Math.sqrt(hash(clusterIndex * 97 + childIndex + 3501)) * clusterRadius;
-      patches.push({
-        x: clusterX,
-        y: clusterY,
-        localX: Math.cos(angle) * distance,
-        localY: Math.sin(angle) * distance,
-        radius: clusterRadius * (0.72 + hash(index + 3601) * 0.72),
-        alpha: 1,
-        phase: hash(index + 3701),
-        seed: hash(index + 3751),
-        rotation: 0,
-        speed: 0.45 + hash(index + 3801) * 1.25
-      });
-    }
-  }
-  return patches;
-}
-
-function updateCloudPatchMesh(
-  mesh: THREE.InstancedMesh | null,
-  patches: CloudPatch[],
-  bounds: WeatherBounds,
-  weather: WeatherSettings,
-  preset: CloudPreset,
-  now: number,
-  layerOpacity: number,
-  matrix: THREE.Matrix4,
-  position: THREE.Vector3,
-  quaternion: THREE.Quaternion,
-  scale: THREE.Vector3
-) {
-  if (!mesh) {
-    return;
-  }
-  const material = mesh.material;
-  if (material instanceof THREE.ShaderMaterial) {
-    material.uniforms.globalOpacity.value = Math.min(1, weather.opacity * layerOpacity);
-    material.uniforms.patchColor.value.set(weather.color);
-    material.uniforms.edgeSoftness.value = Math.max(0, Math.min(1, (weather.quietAreaSize - 0.35) / 0.55));
-    material.uniforms.shapeNoise.value = Math.max(0, Math.min(2, weather.centerStrayDrops));
-  }
-  const alphaAttribute = mesh.geometry.getAttribute("patchAlpha") as THREE.InstancedBufferAttribute;
-  const seedAttribute = mesh.geometry.getAttribute("patchSeed") as THREE.InstancedBufferAttribute;
-  const seconds = now * 0.001 * Math.max(0.08, weather.speed) * preset.speed;
-  const radians = (weather.directionDegrees * Math.PI) / 180;
-  const directionX = Math.cos(radians);
-  const directionY = Math.sin(radians);
-  const travelDistance = seconds * Math.min(bounds.width, bounds.height) * (0.06 + weather.driftStrength * 0.12);
-  const spread = 0.15 + Math.max(0, Math.min(1, weather.edgeBias)) * 0.85;
-  const cloudScale = Math.max(0.4, weather.streakLength);
-  const minX = bounds.left - bounds.width * 0.35;
-  const maxX = bounds.left + bounds.width * 1.35;
-  const minY = bounds.top - bounds.height * 0.35;
-  const maxY = bounds.top + bounds.height * 1.35;
-
-  patches.forEach((patch, index) => {
-    const pulse = 0.9 + Math.sin(seconds * 0.45 + patch.phase * Math.PI * 2) * 0.08;
-    const patchX = patch.x + patch.localX * spread;
-    const patchY = patch.y + patch.localY * spread;
-    position.set(wrap(patchX + directionX * travelDistance * patch.speed, minX, maxX), wrap(patchY + directionY * travelDistance * patch.speed, minY, maxY), 840 + index * 0.4);
-    quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), 0);
-    scale.set(patch.radius * cloudScale * 2 * pulse, patch.radius * cloudScale * 2 * pulse, 1);
-    matrix.compose(position, quaternion, scale);
-    mesh.setMatrixAt(index, matrix);
-    alphaAttribute.setX(index, patch.alpha);
-    seedAttribute.setX(index, patch.seed);
-  });
-
-  mesh.instanceMatrix.needsUpdate = true;
-  alphaAttribute.needsUpdate = true;
-  seedAttribute.needsUpdate = true;
 }
 
 function createFogDensityTexture(): THREE.CanvasTexture {
@@ -2422,10 +1924,6 @@ function isSandEffect(effect: WeatherEffectType): effect is SandWeatherEffectTyp
   return SAND_EFFECTS.has(effect);
 }
 
-function isCloudEffect(effect: WeatherEffectType): effect is CloudWeatherEffectType {
-  return CLOUD_EFFECTS.has(effect);
-}
-
 function getCycleOffset(seed: number, cycle: number, radius: number): { x: number; y: number } {
   const angle = hash(seed + cycle * 11.31) * Math.PI * 2;
   const distance = Math.sqrt(hash(seed + cycle * 13.97)) * radius;
@@ -2438,11 +1936,6 @@ function getCycleOffset(seed: number, cycle: number, radius: number): { x: numbe
 function smoothstep(edge0: number, edge1: number, value: number): number {
   const t = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
   return t * t * (3 - 2 * t);
-}
-
-function wrap(value: number, min: number, max: number): number {
-  const range = max - min;
-  return ((((value - min) % range) + range) % range) + min;
 }
 
 function hash(value: number): number {

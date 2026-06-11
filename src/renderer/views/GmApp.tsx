@@ -1119,7 +1119,7 @@ export function GmApp() {
               weatherMaskCount={activeScene.weather.masks.length}
               weatherToolsEnabled={
                 activeScene.weather.enabled &&
-                (activeScene.weather.effects.rain.enabled || activeScene.weather.effects.fog.enabled || activeScene.weather.effects.snow.enabled || activeScene.weather.effects.sand.enabled || activeScene.weather.effects.cloud.enabled)
+                (activeScene.weather.effects.rain.enabled || activeScene.weather.effects.fog.enabled || activeScene.weather.effects.snow.enabled || activeScene.weather.effects.sand.enabled)
               }
               onCanvasToolChange={setActiveCanvasTool}
               onFogToolChange={setActiveFogTool}
