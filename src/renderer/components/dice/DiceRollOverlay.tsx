@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import * as THREE from "three";
 import type { DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneSize, LiveTableEvent } from "../../../shared/localvtt";
-import { DICE_EVENT_DURATION_MS, DICE_HISTORY_DURATION_MS, formatDiceRollSummary, getDiceRollTone } from "../../lib/dice";
+import { DICE_EVENT_DURATION_MS, DICE_HISTORY_DURATION_MS, formatDiceRollSummary, formatDieLabel, getDiceRollTone, getDieSides } from "../../lib/dice";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 type DiceVisual = NonNullable<DiceRollEvent["dice"]>[number];
@@ -52,19 +52,30 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
   const show3d = displayMode !== "results";
   const sceneRoll = displayMode === "scene";
   const panelPlacement = displayMode === "panel" || displayMode === "results" ? getDicePanelPlacement(event, mode) : null;
-  const [resultVisible, setResultVisible] = useState(!show3d);
-  const tone = getDiceRollTone(event);
+  const revealDelay = getDiceRevealDelay(event, mode);
+  const [resultVisible, setResultVisible] = useState(revealDelay === 0);
+  const [shuffleTick, setShuffleTick] = useState(0);
+  const tone = resultVisible ? getDiceRollTone(event) : "normal";
   const visualCount = getVisualDice(event).length;
 
   useEffect(() => {
-    if (!show3d) {
+    if (revealDelay === 0) {
       setResultVisible(true);
       return;
     }
     setResultVisible(false);
-    const reveal = window.setTimeout(() => setResultVisible(true), DICE_SETTLE_DURATION_MS);
+    const reveal = window.setTimeout(() => setResultVisible(true), revealDelay);
     return () => window.clearTimeout(reveal);
-  }, [event.id, show3d]);
+  }, [event.id, revealDelay]);
+
+  useEffect(() => {
+    if (displayMode !== "results" || resultVisible) {
+      return;
+    }
+    setShuffleTick(0);
+    const shuffle = window.setInterval(() => setShuffleTick((tick) => tick + 1), 72);
+    return () => window.clearInterval(shuffle);
+  }, [displayMode, event.id, resultVisible]);
 
   useEffect(() => {
     if (!show3d) {
@@ -168,10 +179,10 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
   return (
     <div className={getDiceRollCardClassName(displayMode, tone, visualCount, panelPlacement)}>
       {show3d && <div ref={mountRef} className="dice-roll-canvas" aria-hidden="true" />}
-      {resultVisible && (
-        <div className="dice-roll-result">
-          <span>{getRollSummary(event)}</span>
-          <strong>{event.label}</strong>
+      {(resultVisible || displayMode === "results") && (
+        <div className={resultVisible ? "dice-roll-result" : "dice-roll-result dice-roll-result-rolling"}>
+          <span>{resultVisible ? getRollSummary(event) : getRollingSummary(event)}</span>
+          <strong>{resultVisible ? event.label : getShuffledRollLabel(event, shuffleTick)}</strong>
         </div>
       )}
     </div>
@@ -188,7 +199,10 @@ function getDiceDisplayMode(event: DiceRollEvent, mode: "gm" | "player"): DiceDi
 }
 
 function getDiceRevealDelay(event: DiceRollEvent, mode: "gm" | "player"): number {
-  return getDiceDisplayMode(event, mode) === "results" ? 0 : DICE_SETTLE_DURATION_MS;
+  if (getDiceDisplayMode(event, mode) !== "results") {
+    return DICE_SETTLE_DURATION_MS;
+  }
+  return getDiceDisplayMode(event, mode === "gm" ? "player" : "gm") === "results" ? 0 : DICE_SETTLE_DURATION_MS;
 }
 
 function getDiceSceneSize(event: DiceRollEvent, mode: "gm" | "player"): DiceSceneSize {
@@ -217,6 +231,42 @@ function getVisualDice(event: DiceRollEvent): DiceVisual[] {
 
 function getRollSummary(event: DiceRollEvent): string {
   return formatDiceRollSummary(event);
+}
+
+function getRollingSummary(event: DiceRollEvent): string {
+  const prefix = event.rollLabel ? `${event.rollLabel}: ` : "";
+  if (event.formula) {
+    return `${prefix}${event.formula}`;
+  }
+  const dice = getVisualDice(event);
+  if (dice.length <= 1) {
+    return `${prefix}${formatDieLabel(event.die)}`;
+  }
+  return `${prefix}${dice.map((die) => formatDieLabel(die.die)).join(" + ")}`;
+}
+
+function getShuffledRollLabel(event: DiceRollEvent, tick: number): string {
+  const dice = getVisualDice(event);
+  if (event.die === "coin" && dice.length === 1) {
+    return seedRange(event.seed + tick, 30, 1) < 0.5 ? "Heads" : "Tails";
+  }
+  const total = dice.reduce((sum, die, index) => {
+    if (die.kept === false) {
+      return sum;
+    }
+    return sum + getShuffledDieValue(die.die, die.seed, tick, index);
+  }, 0);
+  return String(total);
+}
+
+function getShuffledDieValue(die: DiceVisual["die"], seed: number, tick: number, index: number): number {
+  if (die === "coin") {
+    return seedRange(seed + tick, index + 31, 1) < 0.5 ? 1 : 2;
+  }
+  if (die === "d00") {
+    return Math.floor(seedRange(seed + tick, index + 31, 10)) * 10;
+  }
+  return Math.floor(seedRange(seed + tick, index + 31, getDieSides(die))) + 1;
 }
 
 function getDiceRollOverlayClassName(displayMode: "panel" | "scene", placement: DicePanelPlacement | null): string {

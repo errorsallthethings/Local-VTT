@@ -241,6 +241,13 @@
   line-height: 1;
 }
 
+.dice-roll-result-rolling strong {
+  min-width: 2.6ch;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .dice-roll-tone-critical .dice-roll-result {
   border-color: rgb(74 222 128 / 0.54);
   background: rgb(20 83 45 / 0.62);
