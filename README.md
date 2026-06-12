@@ -133,6 +133,15 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Fog and Grid color controls open a modal picker with native color selection and reusable swatches.
 - The floating Tools Menu currently contains Fog of War tools and Table Tools.
 
+## Future Ideas
+
+### Custom And Specialty Dice
+
+- Add additional RPG-friendly dice such as D3, Fate/Fudge dice, and D66 table rolls.
+- Support GM-defined custom dice with text or symbol faces, such as oracle, reaction, weather, hit-location, or complication dice.
+- Allow themed dice appearances, including reusable color palettes or style presets for different campaigns and game systems.
+- Keep custom dice campaign-specific so different game systems can maintain their own dice preferences and face sets.
+
 ## Architecture
 
 - `electron/main.ts`: application lifecycle, secure window creation, campaign folder IO, asset import/copy, metadata backups, and Player View window control.
