@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import RAPIER from "@dimforge/rapier3d-compat";
 import * as THREE from "three";
 import type { DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneSize, LiveTableEvent } from "../../../shared/localvtt";
-import { DICE_EVENT_DURATION_MS, DICE_HISTORY_DURATION_MS, formatDiceRollSummary, formatDieLabel, getDiceRollTone, getDieSides, type DiceRollTone } from "../../lib/dice";
+import { DICE_EVENT_DURATION_MS, formatDiceRollSummary, formatDieLabel, getDiceRollTone, getDieSides, type DiceRollTone } from "../../lib/dice";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 type DiceVisual = NonNullable<DiceRollEvent["dice"]>[number];
 const DICE_SETTLE_DURATION_MS = 2800;
+const DICE_RESULTS_SHUFFLE_DURATION_MS = 900;
 const DICE_SCENE_EVENT_DURATION_MS = 7600;
 const RAPIER_READY = RAPIER.init();
 
@@ -21,16 +22,7 @@ export function DiceRollOverlay({ events, mode }: { events: DiceRollEvent[]; mod
     const now = Date.now();
     return events.filter((event) => getDiceDisplayMode(event, mode) !== "hidden" && now - event.createdAt <= getDiceEventDuration(event, mode)).slice(0, 1);
   }, [events, mode]);
-  const historyEvents = useMemo(() => {
-    const now = Date.now();
-    return events
-      .filter((event) => getDiceDisplayMode(event, mode) === "results" && now - event.createdAt <= DICE_HISTORY_DURATION_MS && now - event.createdAt >= getDiceRevealDelay(event, mode))
-      .slice(0, 6);
-  }, [events, mode]);
-  const activePanelVisible = activeEvents.some((event) => getDiceDisplayMode(event, mode) === "panel");
-  const activeSceneVisible = activeEvents.some((event) => getDiceDisplayMode(event, mode) === "scene");
-
-  if (activeEvents.length === 0 && historyEvents.length === 0) {
+  if (activeEvents.length === 0) {
     return null;
   }
   const overlayDisplayMode = activeEvents.some((event) => getDiceDisplayMode(event, mode) === "scene") ? "scene" : "panel";
@@ -42,16 +34,6 @@ export function DiceRollOverlay({ events, mode }: { events: DiceRollEvent[]; mod
       {activeEvents.map((event) => (
         <DiceRollCard key={event.id} event={event} mode={mode} />
       ))}
-      {!activePanelVisible && !activeSceneVisible && historyEvents.length > 0 && (
-        <div className="dice-roll-history" aria-label="Recent dice rolls">
-          {historyEvents.map((event) => (
-            <div key={event.id} className={`dice-roll-history-item dice-roll-tone-${getDiceRollTone(event)}`}>
-              <span>{getRollSummary(event)}</span>
-              <strong>{event.label}</strong>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -271,7 +253,7 @@ function getDiceRevealDelay(event: DiceRollEvent, mode: "gm" | "player"): number
     return DICE_SETTLE_DURATION_MS;
   }
   const pairedDisplayMode = getDiceDisplayMode(event, mode === "gm" ? "player" : "gm");
-  return pairedDisplayMode === "panel" || pairedDisplayMode === "scene" ? DICE_SETTLE_DURATION_MS : 0;
+  return pairedDisplayMode === "panel" || pairedDisplayMode === "scene" ? DICE_SETTLE_DURATION_MS : DICE_RESULTS_SHUFFLE_DURATION_MS;
 }
 
 function getDiceEventDuration(event: DiceRollEvent, mode: "gm" | "player"): number {
