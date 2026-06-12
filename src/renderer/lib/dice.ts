@@ -17,8 +17,8 @@ export function rollDie(die: DiceType, random = Math.random): { result: number; 
     return { result, label: result === 1 ? "Heads" : "Tails" };
   }
   if (die === "d00") {
-    const result = Math.floor(random() * 10) * 10;
-    return { result, label: result === 0 ? "00" : String(result) };
+    const face = Math.floor(random() * 10) * 10;
+    return { result: face === 0 ? 100 : face, label: face === 0 ? "00" : String(face) };
   }
   const sides = getDieSides(die);
   const result = Math.floor(random() * sides) + 1;
@@ -38,7 +38,8 @@ export function rollDiceEvent(die: DiceType, random = Math.random): Omit<Extract
 
   const tens = rollDie("d00", random);
   const ones = rollDie("d10", random);
-  const result = tens.result + ones.result;
+  const onesLabel = ones.result === 10 ? "0" : ones.label;
+  const result = getPercentileTotal(tens.label, onesLabel);
   return {
     die: "d00",
     result,
@@ -46,7 +47,7 @@ export function rollDiceEvent(die: DiceType, random = Math.random): Omit<Extract
     seed: random(),
     dice: [
       { die: "d00", result: tens.result, label: tens.label, seed: random() },
-      { die: "d10", result: ones.result, label: ones.label, seed: random() }
+      { die: "d10", result: ones.result, label: onesLabel, seed: random() }
     ]
   };
 }
@@ -185,8 +186,8 @@ export function getDiceRollTone(event: Extract<LiveTableEvent, { type: "dice" }>
   if (event.die === "coin") {
     return "normal";
   }
-  if (event.die === "d00" && event.result === 100) {
-    return "max";
+  if (event.die === "d00") {
+    return getEventPercentileTotal(event) === 100 ? "max" : "normal";
   }
   if (dice.some((die) => die.result === getDieMaxResult(die.die))) {
     return "max";
@@ -194,8 +195,22 @@ export function getDiceRollTone(event: Extract<LiveTableEvent, { type: "dice" }>
   return "normal";
 }
 
+export function getPercentileTotal(tensLabel: string, onesLabel: string): number {
+  const tens = tensLabel === "00" ? 0 : Number(tensLabel);
+  const ones = onesLabel === "0" || onesLabel === "10" ? 0 : Number(onesLabel);
+  const total = tens + ones;
+  return total === 0 ? 100 : total;
+}
+
 function getEventDice(event: Extract<LiveTableEvent, { type: "dice" }>): DiceVisualRoll[] {
   return event.dice ?? [{ die: event.die, result: event.result, label: event.label, seed: event.seed, kept: true }];
+}
+
+function getEventPercentileTotal(event: Extract<LiveTableEvent, { type: "dice" }>): number {
+  const dice = getEventDice(event).filter((die) => die.kept !== false);
+  const tens = dice.find((die) => die.die === "d00");
+  const ones = dice.find((die) => die.die === "d10");
+  return tens && ones ? getPercentileTotal(tens.label, ones.label) : event.result;
 }
 
 function formatBreakdownDieLabel(die: DiceVisualRoll): string {

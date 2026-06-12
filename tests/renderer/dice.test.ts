@@ -21,7 +21,7 @@ describe("dice helpers", () => {
       ["d6", { result: 1, label: "1" }],
       ["d8", { result: 1, label: "1" }],
       ["d10", { result: 1, label: "1" }],
-      ["d00", { result: 0, label: "00" }],
+      ["d00", { result: 100, label: "00" }],
       ["d12", { result: 1, label: "1" }],
       ["d20", { result: 1, label: "1" }]
     ]);
@@ -72,6 +72,23 @@ describe("dice helpers", () => {
         { die: "d10", result: 3, label: "3" }
       ]
     });
+  });
+
+  it("reads percentile dice using d00 tens and d10 ones slots", () => {
+    const rollPercentile = (values: number[]) => rollDiceEvent("d00", () => values.shift() ?? 0);
+
+    expect(rollPercentile([0, 0.999])).toMatchObject({
+      result: 100,
+      label: "100",
+      dice: [
+        { die: "d00", result: 100, label: "00" },
+        { die: "d10", result: 10, label: "0" }
+      ]
+    });
+    expect(rollPercentile([0.9, 0.8])).toMatchObject({ result: 99, label: "99" });
+    expect(rollPercentile([0, 0.4])).toMatchObject({ result: 5, label: "5" });
+    expect(rollPercentile([0.5, 0.6])).toMatchObject({ result: 57, label: "57" });
+    expect(rollPercentile([0.1, 0.8])).toMatchObject({ result: 19, label: "19" });
   });
 
   it("rolls simple dice expressions with modifiers", () => {
@@ -235,7 +252,7 @@ describe("dice helpers", () => {
         type: "dice",
         createdAt: 1
       })
-    ).toBe("D00 90 + D10 10");
+    ).toBe("D00 90 + D10 0");
 
     expect(
       formatDiceRollBreakdown({
@@ -336,6 +353,28 @@ describe("dice helpers", () => {
       getDiceRollTone({
         ...rollDiceExpression("d8", () => 0.999),
         id: "max",
+        type: "dice",
+        createdAt: 1
+      })
+    ).toBe("max");
+    expect(
+      getDiceRollTone({
+        ...rollDiceEvent("d00", (() => {
+          const values = [0.9, 0.999, 0, 0, 0];
+          return () => values.shift() ?? 0;
+        })()),
+        id: "percentile-not-max",
+        type: "dice",
+        createdAt: 1
+      })
+    ).toBe("normal");
+    expect(
+      getDiceRollTone({
+        ...rollDiceEvent("d00", (() => {
+          const values = [0, 0.999, 0, 0, 0];
+          return () => values.shift() ?? 0;
+        })()),
+        id: "percentile-max",
         type: "dice",
         createdAt: 1
       })
