@@ -192,6 +192,49 @@ npm run check
 
 `npm run check` runs TypeScript typechecking, ESLint, and the Vitest suite.
 
+## Release Process
+
+Release builds are created by GitHub Actions when a version tag matching `v*.*.*` is pushed. The release branch should contain the merged feature work and the matching app version before the tag is created.
+
+Example release flow for `0.1.6`:
+
+```bash
+git fetch origin --prune
+git switch release/0.1.6
+git pull --ff-only origin release/0.1.6
+git merge --no-ff feature/3d-dice-maybe -m "Merge 3D dice feature into release 0.1.6"
+```
+
+Bump the app version before tagging so `electron-builder` produces installers with the correct version:
+
+```bash
+npm version 0.1.6 --no-git-tag-version
+```
+
+Update `CHANGELOG.md`, then verify the release branch:
+
+```bash
+npm run check
+npm run build
+```
+
+Commit the release metadata:
+
+```bash
+git add package.json package-lock.json CHANGELOG.md
+git commit -m "Prepare 0.1.6 release"
+```
+
+Push the release branch, create the release tag on that commit, and push the tag:
+
+```bash
+git push origin release/0.1.6
+git tag -a v0.1.6 -m "Local VTT v0.1.6"
+git push origin v0.1.6
+```
+
+Pushing the tag triggers `.github/workflows/release.yml`, which packages the Windows and macOS builds and publishes the GitHub release assets. Use a new version/tag for each release; existing release assets are treated as immutable.
+
 ## Packaging
 
 Packaging is configured with `electron-builder`. The Windows build uses the Local VTT icon in `build/icon.ico`, creates Desktop and Start Menu shortcuts, and uses an assisted per-user installer so the install location can be reviewed during setup.
