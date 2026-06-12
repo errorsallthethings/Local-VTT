@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import * as THREE from "three";
-import type { DiceDisplayMode, DiceSceneSize, LiveTableEvent } from "../../../shared/localvtt";
+import type { DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneSize, LiveTableEvent } from "../../../shared/localvtt";
 import { DICE_EVENT_DURATION_MS, DICE_HISTORY_DURATION_MS, formatDiceRollSummary, getDiceRollTone } from "../../lib/dice";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
@@ -14,20 +14,25 @@ export function DiceRollOverlay({ events, mode }: { events: DiceRollEvent[]; mod
   }, [events]);
   const historyEvents = useMemo(() => {
     const now = Date.now();
-    return events.filter((event) => now - event.createdAt <= DICE_HISTORY_DURATION_MS && now - event.createdAt >= getDiceRevealDelay(event, mode)).slice(0, 6);
+    return events
+      .filter((event) => getDiceDisplayMode(event, mode) !== "panel" && now - event.createdAt <= DICE_HISTORY_DURATION_MS && now - event.createdAt >= getDiceRevealDelay(event, mode))
+      .slice(0, 6);
   }, [events, mode]);
+  const activePanelVisible = activeEvents.some((event) => getDiceDisplayMode(event, mode) === "panel");
 
   if (activeEvents.length === 0 && historyEvents.length === 0) {
     return null;
   }
   const overlayDisplayMode = activeEvents.some((event) => getDiceDisplayMode(event, mode) === "scene") ? "scene" : "panel";
+  const compactEvent = activeEvents.find((event) => getDiceDisplayMode(event, mode) !== "scene");
+  const panelPlacement = compactEvent ? getDicePanelPlacement(compactEvent, mode) : null;
 
   return (
-    <div className={overlayDisplayMode === "scene" ? "dice-roll-overlay dice-roll-overlay-scene" : "dice-roll-overlay"} aria-live="polite">
+    <div className={getDiceRollOverlayClassName(overlayDisplayMode, panelPlacement)} style={panelPlacement ? getDicePanelOverlayStyle(panelPlacement) : undefined} aria-live="polite">
       {activeEvents.map((event) => (
         <DiceRollCard key={event.id} event={event} mode={mode} />
       ))}
-      {historyEvents.length > 0 && (
+      {!activePanelVisible && historyEvents.length > 0 && (
         <div className="dice-roll-history" aria-label="Recent dice rolls">
           {historyEvents.map((event) => (
             <div key={event.id} className={`dice-roll-history-item dice-roll-tone-${getDiceRollTone(event)}`}>
@@ -46,6 +51,7 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
   const displayMode = getDiceDisplayMode(event, mode);
   const show3d = displayMode !== "results";
   const sceneRoll = displayMode === "scene";
+  const panelPlacement = displayMode === "panel" || displayMode === "results" ? getDicePanelPlacement(event, mode) : null;
   const [resultVisible, setResultVisible] = useState(!show3d);
   const tone = getDiceRollTone(event);
   const visualCount = getVisualDice(event).length;
@@ -160,7 +166,7 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
   }, [event, mode, sceneRoll, show3d]);
 
   return (
-    <div className={getDiceRollCardClassName(displayMode, tone, visualCount)}>
+    <div className={getDiceRollCardClassName(displayMode, tone, visualCount, panelPlacement)}>
       {show3d && <div ref={mountRef} className="dice-roll-canvas" aria-hidden="true" />}
       {resultVisible && (
         <div className="dice-roll-result">
@@ -189,6 +195,22 @@ function getDiceSceneSize(event: DiceRollEvent, mode: "gm" | "player"): DiceScen
   return (mode === "gm" ? event.gmDiceSceneSize : event.playerDiceSceneSize) ?? "md";
 }
 
+type DicePanelPlacement = {
+  advanced: boolean;
+  edge: DicePanelEdge;
+  facing: DicePanelFacing;
+  position: number;
+};
+
+function getDicePanelPlacement(event: DiceRollEvent, mode: "gm" | "player"): DicePanelPlacement {
+  return {
+    advanced: (mode === "gm" ? event.gmDicePanelAdvanced : event.playerDicePanelAdvanced) ?? false,
+    edge: (mode === "gm" ? event.gmDicePanelEdge : event.playerDicePanelEdge) ?? "top",
+    facing: (mode === "gm" ? event.gmDicePanelFacing : event.playerDicePanelFacing) ?? "inward",
+    position: clampUnitNumber((mode === "gm" ? event.gmDicePanelPosition : event.playerDicePanelPosition) ?? 0.5)
+  };
+}
+
 function getVisualDice(event: DiceRollEvent): DiceVisual[] {
   return event.dice ?? [{ die: event.die, result: event.result, label: event.label, seed: event.seed }];
 }
@@ -197,10 +219,43 @@ function getRollSummary(event: DiceRollEvent): string {
   return formatDiceRollSummary(event);
 }
 
-function getDiceRollCardClassName(displayMode: DiceDisplayMode, tone: string, visualCount: number): string {
+function getDiceRollOverlayClassName(displayMode: "panel" | "scene", placement: DicePanelPlacement | null): string {
+  if (displayMode === "scene") {
+    return "dice-roll-overlay dice-roll-overlay-scene";
+  }
+  if (!placement) {
+    return "dice-roll-overlay";
+  }
+  return ["dice-roll-overlay", placement.advanced ? `dice-roll-overlay-panel dice-roll-overlay-panel-${placement.edge}` : "dice-roll-overlay-panel dice-roll-overlay-panel-center"].filter(Boolean).join(" ");
+}
+
+function getDicePanelOverlayStyle(placement: DicePanelPlacement): CSSProperties {
+  if (!placement.advanced) {
+    return {};
+  }
+  const position = `${placement.position * 100}%`;
+  if (placement.edge === "top" || placement.edge === "bottom") {
+    return { left: position, [placement.edge]: "18px" };
+  }
+  return { top: position, [placement.edge]: "18px" };
+}
+
+function clampUnitNumber(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+function getDiceRollCardClassName(displayMode: DiceDisplayMode, tone: string, visualCount: number, panelPlacement: DicePanelPlacement | null): string {
   const poolClass = visualCount > 8 ? "dice-roll-card-pool-lg" : visualCount > 4 ? "dice-roll-card-pool-md" : "";
   const displayClass = displayMode === "results" ? "dice-roll-card dice-roll-card-result-only" : displayMode === "scene" ? "dice-roll-card dice-roll-card-scene" : "dice-roll-card";
-  return [displayClass, `dice-roll-tone-${tone}`, displayMode === "scene" ? "" : poolClass].filter(Boolean).join(" ");
+  return [
+    displayClass,
+    `dice-roll-tone-${tone}`,
+    displayMode === "scene" ? "" : poolClass,
+    panelPlacement?.advanced ? `dice-roll-card-panel-${panelPlacement.edge}` : "",
+    panelPlacement?.advanced ? `dice-roll-card-panel-facing-${panelPlacement.facing}` : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 type DicePoolLayout = {

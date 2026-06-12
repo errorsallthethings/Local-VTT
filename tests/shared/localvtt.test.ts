@@ -6,6 +6,7 @@ import {
   createDefaultScene,
   duplicateScene,
   DEFAULT_CALIBRATION,
+  DEFAULT_DICE_SETTINGS,
   DEFAULT_FOG,
   DEFAULT_GRID,
   DEFAULT_LAYERS,
@@ -399,10 +400,42 @@ it("normalizeCampaign fills portable campaign defaults and empty collections", (
   expect(normalized.defaultMeasurement).toEqual(DEFAULT_MEASUREMENT);
   expect(normalized.defaultCalibration).toEqual(DEFAULT_CALIBRATION);
   expect(normalized.playerDisplay).toEqual(DEFAULT_CALIBRATION);
+  expect(normalized.diceSettings).toEqual(DEFAULT_DICE_SETTINGS);
   expect(normalized.sceneLibrary).toEqual({ collapsedFolderIds: [] });
   expect(normalized.sceneFolders).toEqual([]);
   expect(normalized.players).toEqual([]);
   expect(normalized.assets).toEqual([]);
+});
+
+it("normalizeCampaign normalizes campaign dice settings", () => {
+  const campaign = {
+    ...createDefaultCampaign("Dice"),
+    diceSettings: {
+      gmDisplayMode: "scene",
+      playerDisplayMode: "bad",
+      gmSceneSize: "xl",
+      playerSceneSize: "huge",
+      gmPanelEdge: "right",
+      playerPanelEdge: "corner",
+      gmPanelFacing: "outward",
+      playerPanelFacing: "sideways",
+      gmPanelPosition: 2,
+      playerPanelPosition: 0.25,
+      gmPanelAdvanced: true,
+      playerPanelAdvanced: "yes"
+    }
+  } as unknown as Campaign;
+
+  expect(normalizeCampaign(campaign).diceSettings).toEqual({
+    ...DEFAULT_DICE_SETTINGS,
+    gmDisplayMode: "scene",
+    gmSceneSize: "xl",
+    gmPanelEdge: "right",
+    gmPanelFacing: "outward",
+    gmPanelPosition: 1,
+    playerPanelPosition: 0.25,
+    gmPanelAdvanced: true
+  });
 });
 
 it("normalizeCampaign normalizes campaign players", () => {
@@ -599,6 +632,14 @@ it("runtime validators reject invalid files and accept valid projected state", (
       playerDiceDisplay: "panel",
       gmDiceSceneSize: "md",
       playerDiceSceneSize: "lg",
+      gmDicePanelEdge: "top",
+      playerDicePanelEdge: "right",
+      gmDicePanelFacing: "inward",
+      playerDicePanelFacing: "outward",
+      gmDicePanelPosition: 0.88,
+      playerDicePanelPosition: 0.5,
+      gmDicePanelAdvanced: true,
+      playerDicePanelAdvanced: true,
       createdAt: 1
     })
   ).toBe(true);

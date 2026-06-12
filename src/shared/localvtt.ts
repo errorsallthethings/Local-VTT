@@ -386,6 +386,7 @@ export interface Campaign {
   defaultMeasurement: MeasurementSettings;
   defaultCalibration: DisplayCalibration;
   playerDisplay: DisplayCalibration;
+  diceSettings: DiceSettings;
   sceneLibrary: SceneLibrarySettings;
   sceneFolders: CampaignSceneFolder[];
   scenes: CampaignSceneEntry[];
@@ -426,6 +427,38 @@ export interface LiveTablePoint {
 
 export type DiceDisplayMode = "results" | "panel" | "scene";
 export type DiceSceneSize = "xs" | "sm" | "md" | "lg" | "xl";
+export type DicePanelEdge = "top" | "right" | "bottom" | "left";
+export type DicePanelFacing = "inward" | "outward";
+
+export interface DiceSettings {
+  gmDisplayMode: DiceDisplayMode;
+  playerDisplayMode: DiceDisplayMode;
+  gmSceneSize: DiceSceneSize;
+  playerSceneSize: DiceSceneSize;
+  gmPanelEdge: DicePanelEdge;
+  playerPanelEdge: DicePanelEdge;
+  gmPanelFacing: DicePanelFacing;
+  playerPanelFacing: DicePanelFacing;
+  gmPanelPosition: number;
+  playerPanelPosition: number;
+  gmPanelAdvanced: boolean;
+  playerPanelAdvanced: boolean;
+}
+
+export const DEFAULT_DICE_SETTINGS: DiceSettings = {
+  gmDisplayMode: "results",
+  playerDisplayMode: "results",
+  gmSceneSize: "md",
+  playerSceneSize: "md",
+  gmPanelEdge: "top",
+  playerPanelEdge: "top",
+  gmPanelFacing: "inward",
+  playerPanelFacing: "inward",
+  gmPanelPosition: 0.5,
+  playerPanelPosition: 0.5,
+  gmPanelAdvanced: false,
+  playerPanelAdvanced: false
+};
 
 export type LiveTableEvent =
   | {
@@ -453,6 +486,14 @@ export type LiveTableEvent =
       playerDiceDisplay?: DiceDisplayMode;
       gmDiceSceneSize?: DiceSceneSize;
       playerDiceSceneSize?: DiceSceneSize;
+      gmDicePanelEdge?: DicePanelEdge;
+      playerDicePanelEdge?: DicePanelEdge;
+      gmDicePanelFacing?: DicePanelFacing;
+      playerDicePanelFacing?: DicePanelFacing;
+      gmDicePanelPosition?: number;
+      playerDicePanelPosition?: number;
+      gmDicePanelAdvanced?: boolean;
+      playerDicePanelAdvanced?: boolean;
       gmPresentation?: "3d" | "result";
       playerPresentation?: "3d" | "result";
       presentation?: "3d" | "result";
@@ -860,6 +901,7 @@ export function createDefaultCampaign(name: string): Campaign {
     defaultMeasurement: { ...DEFAULT_MEASUREMENT },
     defaultCalibration: { ...DEFAULT_CALIBRATION },
     playerDisplay: { ...DEFAULT_CALIBRATION },
+    diceSettings: { ...DEFAULT_DICE_SETTINGS },
     sceneLibrary: { collapsedFolderIds: [] },
     sceneFolders: [],
     scenes: [],
@@ -1000,6 +1042,14 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
       (!("playerDiceDisplay" in value) || isDiceDisplayMode(value.playerDiceDisplay)) &&
       (!("gmDiceSceneSize" in value) || isDiceSceneSize(value.gmDiceSceneSize)) &&
       (!("playerDiceSceneSize" in value) || isDiceSceneSize(value.playerDiceSceneSize)) &&
+      (!("gmDicePanelEdge" in value) || isDicePanelEdge(value.gmDicePanelEdge)) &&
+      (!("playerDicePanelEdge" in value) || isDicePanelEdge(value.playerDicePanelEdge)) &&
+      (!("gmDicePanelFacing" in value) || isDicePanelFacing(value.gmDicePanelFacing)) &&
+      (!("playerDicePanelFacing" in value) || isDicePanelFacing(value.playerDicePanelFacing)) &&
+      (!("gmDicePanelPosition" in value) || isUnitNumber(value.gmDicePanelPosition)) &&
+      (!("playerDicePanelPosition" in value) || isUnitNumber(value.playerDicePanelPosition)) &&
+      (!("gmDicePanelAdvanced" in value) || typeof value.gmDicePanelAdvanced === "boolean") &&
+      (!("playerDicePanelAdvanced" in value) || typeof value.playerDicePanelAdvanced === "boolean") &&
       (!("gmPresentation" in value) || value.gmPresentation === "3d" || value.gmPresentation === "result") &&
       (!("playerPresentation" in value) || value.playerPresentation === "3d" || value.playerPresentation === "result") &&
       (!("presentation" in value) || value.presentation === "3d" || value.presentation === "result") &&
@@ -1034,6 +1084,18 @@ function isDiceDisplayMode(value: unknown): value is DiceDisplayMode {
 
 function isDiceSceneSize(value: unknown): value is DiceSceneSize {
   return value === "xs" || value === "sm" || value === "md" || value === "lg" || value === "xl";
+}
+
+function isDicePanelEdge(value: unknown): value is DicePanelEdge {
+  return value === "top" || value === "right" || value === "bottom" || value === "left";
+}
+
+function isDicePanelFacing(value: unknown): value is DicePanelFacing {
+  return value === "inward" || value === "outward";
+}
+
+function isUnitNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
 
 function isPoint(value: unknown): value is Point {
@@ -1394,6 +1456,25 @@ function normalizeTokenBorderStyle(style: unknown): TokenBorderStyle {
     : DEFAULT_TOKEN_BORDER_STYLE;
 }
 
+function normalizeDiceSettings(settings?: Partial<DiceSettings>): DiceSettings {
+  return {
+    ...DEFAULT_DICE_SETTINGS,
+    ...(settings ?? {}),
+    gmDisplayMode: isDiceDisplayMode(settings?.gmDisplayMode) ? settings.gmDisplayMode : DEFAULT_DICE_SETTINGS.gmDisplayMode,
+    playerDisplayMode: isDiceDisplayMode(settings?.playerDisplayMode) ? settings.playerDisplayMode : DEFAULT_DICE_SETTINGS.playerDisplayMode,
+    gmSceneSize: isDiceSceneSize(settings?.gmSceneSize) ? settings.gmSceneSize : DEFAULT_DICE_SETTINGS.gmSceneSize,
+    playerSceneSize: isDiceSceneSize(settings?.playerSceneSize) ? settings.playerSceneSize : DEFAULT_DICE_SETTINGS.playerSceneSize,
+    gmPanelEdge: isDicePanelEdge(settings?.gmPanelEdge) ? settings.gmPanelEdge : DEFAULT_DICE_SETTINGS.gmPanelEdge,
+    playerPanelEdge: isDicePanelEdge(settings?.playerPanelEdge) ? settings.playerPanelEdge : DEFAULT_DICE_SETTINGS.playerPanelEdge,
+    gmPanelFacing: isDicePanelFacing(settings?.gmPanelFacing) ? settings.gmPanelFacing : DEFAULT_DICE_SETTINGS.gmPanelFacing,
+    playerPanelFacing: isDicePanelFacing(settings?.playerPanelFacing) ? settings.playerPanelFacing : DEFAULT_DICE_SETTINGS.playerPanelFacing,
+    gmPanelPosition: clampNumber(settings?.gmPanelPosition, 0, 1, DEFAULT_DICE_SETTINGS.gmPanelPosition),
+    playerPanelPosition: clampNumber(settings?.playerPanelPosition, 0, 1, DEFAULT_DICE_SETTINGS.playerPanelPosition),
+    gmPanelAdvanced: typeof settings?.gmPanelAdvanced === "boolean" ? settings.gmPanelAdvanced : DEFAULT_DICE_SETTINGS.gmPanelAdvanced,
+    playerPanelAdvanced: typeof settings?.playerPanelAdvanced === "boolean" ? settings.playerPanelAdvanced : DEFAULT_DICE_SETTINGS.playerPanelAdvanced
+  };
+}
+
 export function normalizeCampaign(campaign: Campaign): Campaign {
   const sceneFolders = (campaign.sceneFolders ?? []).map((folder) => ({
     ...folder,
@@ -1409,6 +1490,7 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
     defaultMeasurement: { ...DEFAULT_MEASUREMENT, ...(campaign.defaultMeasurement ?? {}) },
     defaultCalibration: { ...DEFAULT_CALIBRATION, ...(campaign.defaultCalibration ?? {}) },
     playerDisplay: { ...DEFAULT_CALIBRATION, ...(campaign.playerDisplay ?? campaign.defaultCalibration ?? {}) },
+    diceSettings: normalizeDiceSettings(campaign.diceSettings),
     sceneLibrary: { collapsedFolderIds },
     sceneFolders,
     scenes: (campaign.scenes ?? []).map((scene) => {

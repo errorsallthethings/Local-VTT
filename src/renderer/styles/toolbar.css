@@ -250,7 +250,7 @@
 
 .dice-settings-row {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
+  grid-template-columns: 118px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -270,6 +270,27 @@
   min-width: 0;
   height: 30px;
   font-size: 12px;
+}
+
+.dice-placement-switch {
+  justify-self: end;
+  grid-template-columns: auto 44px auto !important;
+  gap: 6px !important;
+  font-size: 11px !important;
+}
+
+.dice-position-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dice-position-reset {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
 }
 
 .dice-quick-grid {

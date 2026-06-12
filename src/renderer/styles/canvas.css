@@ -77,6 +77,27 @@
   pointer-events: none;
 }
 
+.dice-roll-overlay-panel {
+  top: auto;
+  right: auto;
+}
+
+.dice-roll-overlay-panel-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.dice-roll-overlay-panel-top,
+.dice-roll-overlay-panel-bottom {
+  transform: translateX(-50%);
+}
+
+.dice-roll-overlay-panel-left,
+.dice-roll-overlay-panel-right {
+  transform: translateY(-50%);
+}
+
 .dice-roll-overlay-scene {
   inset: 0;
   place-items: center;
@@ -84,6 +105,7 @@
 }
 
 .dice-roll-card {
+  --dice-card-facing-rotation: rotate(0deg);
   position: relative;
   width: 188px;
   height: 212px;
@@ -93,6 +115,21 @@
   background: linear-gradient(180deg, rgb(8 12 18 / 0.72), rgb(8 12 18 / 0.46));
   box-shadow: var(--shadow-panel);
   animation: dice-roll-card-in 180ms ease-out both;
+}
+
+.dice-roll-card-panel-top.dice-roll-card-panel-facing-outward,
+.dice-roll-card-panel-bottom.dice-roll-card-panel-facing-inward {
+  --dice-card-facing-rotation: rotate(180deg);
+}
+
+.dice-roll-card-panel-left.dice-roll-card-panel-facing-outward,
+.dice-roll-card-panel-right.dice-roll-card-panel-facing-inward {
+  --dice-card-facing-rotation: rotate(90deg);
+}
+
+.dice-roll-card-panel-right.dice-roll-card-panel-facing-outward,
+.dice-roll-card-panel-left.dice-roll-card-panel-facing-inward {
+  --dice-card-facing-rotation: rotate(-90deg);
 }
 
 .dice-roll-card-scene {
@@ -294,12 +331,12 @@
 @keyframes dice-roll-card-in {
   from {
     opacity: 0;
-    transform: translateY(-8px) scale(0.96);
+    transform: translateY(-8px) scale(0.96) var(--dice-card-facing-rotation);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0) scale(1) var(--dice-card-facing-rotation);
   }
 }
 

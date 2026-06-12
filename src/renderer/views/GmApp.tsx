@@ -8,6 +8,7 @@ import {
   useState
 } from "react";
 import {
+  DEFAULT_DICE_SETTINGS,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
@@ -22,8 +23,7 @@ import type {
   CampaignSceneEntry,
   CampaignSceneFolder,
   DisplayCalibration,
-  DiceDisplayMode,
-  DiceSceneSize,
+  DiceSettings,
   LiveTableEvent,
   Point,
   Scene,
@@ -155,10 +155,6 @@ export function GmApp() {
   const [playerDisplayMode, setPlayerDisplayMode] = useState<PlayerDisplayMode>("scene");
   const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
   const [diceRollHistory, setDiceRollHistory] = useState<DiceRollEvent[]>([]);
-  const [gmDiceDisplayMode, setGmDiceDisplayMode] = useState<DiceDisplayMode>("results");
-  const [playerDiceDisplayMode, setPlayerDiceDisplayMode] = useState<DiceDisplayMode>("results");
-  const [gmDiceSceneSize, setGmDiceSceneSize] = useState<DiceSceneSize>("md");
-  const [playerDiceSceneSize, setPlayerDiceSceneSize] = useState<DiceSceneSize>("md");
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
   const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
@@ -181,6 +177,8 @@ export function GmApp() {
   const tokenAssets = useMemo(() => new Map((campaign?.assets ?? []).filter((asset) => asset.kind === "token").map((asset) => [asset.id, asset])), [campaign?.assets]);
   const tokenLibraryAssets = useMemo(() => [...tokenAssets.values()], [tokenAssets]);
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
+  const diceSettings = useMemo<DiceSettings>(() => ({ ...DEFAULT_DICE_SETTINGS, ...(campaign?.diceSettings ?? {}) }), [campaign?.diceSettings]);
+  const diceSettingsDraftRef = useRef<DiceSettings>(diceSettings);
   const collapsedFolderIds = useMemo(
     () => new Set((campaign?.sceneFolders ?? []).filter((folder) => !expandedFolderIds.has(folder.id)).map((folder) => folder.id)),
     [campaign?.sceneFolders, expandedFolderIds]
@@ -195,6 +193,10 @@ export function GmApp() {
       })
     );
   }, [activeScene, campaign?.assets, campaign?.scenes, sceneDrafts]);
+
+  useEffect(() => {
+    diceSettingsDraftRef.current = diceSettings;
+  }, [diceSettings]);
 
   const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
     // Only sync the active edit to Player View when that same scene is already being shown to players.
@@ -216,6 +218,22 @@ export function GmApp() {
     updateWorkspaceCampaignDraft(nextCampaign, activeScene?.id === playerSceneId ? activeScene : null);
   };
 
+  const updateDiceSettings = (patch: Partial<DiceSettings>) => {
+    if (!campaign) {
+      return;
+    }
+    const nextDiceSettings = {
+      ...diceSettingsDraftRef.current,
+      ...patch
+    };
+    diceSettingsDraftRef.current = nextDiceSettings;
+    updateCampaignDraft({
+      ...campaign,
+      diceSettings: nextDiceSettings,
+      updatedAt: new Date().toISOString()
+    });
+  };
+
   const emitLiveTableEvent = (event: LiveTableEvent) => {
     setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
     if (event.type === "dice") {
@@ -233,10 +251,18 @@ export function GmApp() {
       ...roll,
       id: crypto.randomUUID(),
       type: "dice",
-      gmDiceDisplay: gmDiceDisplayMode,
-      playerDiceDisplay: playerDiceDisplayMode,
-      gmDiceSceneSize,
-      playerDiceSceneSize,
+      gmDiceDisplay: diceSettings.gmDisplayMode,
+      playerDiceDisplay: diceSettings.playerDisplayMode,
+      gmDiceSceneSize: diceSettings.gmSceneSize,
+      playerDiceSceneSize: diceSettings.playerSceneSize,
+      gmDicePanelEdge: diceSettings.gmPanelEdge,
+      playerDicePanelEdge: diceSettings.playerPanelEdge,
+      gmDicePanelFacing: diceSettings.gmPanelFacing,
+      playerDicePanelFacing: diceSettings.playerPanelFacing,
+      gmDicePanelPosition: diceSettings.gmPanelPosition,
+      playerDicePanelPosition: diceSettings.playerPanelPosition,
+      gmDicePanelAdvanced: diceSettings.gmPanelAdvanced,
+      playerDicePanelAdvanced: diceSettings.playerPanelAdvanced,
       createdAt: Date.now()
     });
   };
@@ -251,10 +277,18 @@ export function GmApp() {
         id: crypto.randomUUID(),
         type: "dice",
         ...(trimmedLabel ? { rollLabel: trimmedLabel } : {}),
-        gmDiceDisplay: gmDiceDisplayMode,
-        playerDiceDisplay: playerDiceDisplayMode,
-        gmDiceSceneSize,
-        playerDiceSceneSize,
+        gmDiceDisplay: diceSettings.gmDisplayMode,
+        playerDiceDisplay: diceSettings.playerDisplayMode,
+        gmDiceSceneSize: diceSettings.gmSceneSize,
+        playerDiceSceneSize: diceSettings.playerSceneSize,
+        gmDicePanelEdge: diceSettings.gmPanelEdge,
+        playerDicePanelEdge: diceSettings.playerPanelEdge,
+        gmDicePanelFacing: diceSettings.gmPanelFacing,
+        playerDicePanelFacing: diceSettings.playerPanelFacing,
+        gmDicePanelPosition: diceSettings.gmPanelPosition,
+        playerDicePanelPosition: diceSettings.playerPanelPosition,
+        gmDicePanelAdvanced: diceSettings.gmPanelAdvanced,
+        playerDicePanelAdvanced: diceSettings.playerPanelAdvanced,
         createdAt: Date.now()
       });
       return null;
@@ -1326,15 +1360,31 @@ export function GmApp() {
           }}
           onSetPlayerFullscreen={(fullscreen) => void setPlayerFullscreen(fullscreen)}
           onClosePlayerView={closePlayerView}
-          gmDiceDisplayMode={gmDiceDisplayMode}
-          playerDiceDisplayMode={playerDiceDisplayMode}
-          gmDiceSceneSize={gmDiceSceneSize}
-          playerDiceSceneSize={playerDiceSceneSize}
+          gmDiceDisplayMode={diceSettings.gmDisplayMode}
+          playerDiceDisplayMode={diceSettings.playerDisplayMode}
+          gmDiceSceneSize={diceSettings.gmSceneSize}
+          playerDiceSceneSize={diceSettings.playerSceneSize}
+          gmDicePanelEdge={diceSettings.gmPanelEdge}
+          playerDicePanelEdge={diceSettings.playerPanelEdge}
+          gmDicePanelFacing={diceSettings.gmPanelFacing}
+          playerDicePanelFacing={diceSettings.playerPanelFacing}
+          gmDicePanelPosition={diceSettings.gmPanelPosition}
+          playerDicePanelPosition={diceSettings.playerPanelPosition}
+          gmDicePanelAdvanced={diceSettings.gmPanelAdvanced}
+          playerDicePanelAdvanced={diceSettings.playerPanelAdvanced}
           diceHistory={diceRollHistory}
-          onGmDiceDisplayModeChange={setGmDiceDisplayMode}
-          onPlayerDiceDisplayModeChange={setPlayerDiceDisplayMode}
-          onGmDiceSceneSizeChange={setGmDiceSceneSize}
-          onPlayerDiceSceneSizeChange={setPlayerDiceSceneSize}
+          onGmDiceDisplayModeChange={(gmDisplayMode) => updateDiceSettings({ gmDisplayMode })}
+          onPlayerDiceDisplayModeChange={(playerDisplayMode) => updateDiceSettings({ playerDisplayMode })}
+          onGmDiceSceneSizeChange={(gmSceneSize) => updateDiceSettings({ gmSceneSize })}
+          onPlayerDiceSceneSizeChange={(playerSceneSize) => updateDiceSettings({ playerSceneSize })}
+          onGmDicePanelEdgeChange={(gmPanelEdge) => updateDiceSettings({ gmPanelEdge })}
+          onPlayerDicePanelEdgeChange={(playerPanelEdge) => updateDiceSettings({ playerPanelEdge })}
+          onGmDicePanelFacingChange={(gmPanelFacing) => updateDiceSettings({ gmPanelFacing })}
+          onPlayerDicePanelFacingChange={(playerPanelFacing) => updateDiceSettings({ playerPanelFacing })}
+          onGmDicePanelPositionChange={(gmPanelPosition) => updateDiceSettings({ gmPanelPosition })}
+          onPlayerDicePanelPositionChange={(playerPanelPosition) => updateDiceSettings({ playerPanelPosition })}
+          onGmDicePanelAdvancedChange={(gmPanelAdvanced) => updateDiceSettings({ gmPanelAdvanced })}
+          onPlayerDicePanelAdvancedChange={(playerPanelAdvanced) => updateDiceSettings({ playerPanelAdvanced })}
           onRollDie={rollTableDie}
           onRollExpression={rollTableExpression}
           onClearDiceRolls={clearDiceRolls}

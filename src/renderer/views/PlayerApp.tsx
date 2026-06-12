@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Map as MapIcon } from "lucide-react";
-import { isLiveTableEvent, isPlayerIdleState, isPlayerSceneProjection, type LiveTableEvent, type PlayerIdleState, type PlayerSceneProjection } from "../../shared/localvtt";
+import { DEFAULT_DICE_SETTINGS, isLiveTableEvent, isPlayerIdleState, isPlayerSceneProjection, type LiveTableEvent, type PlayerIdleState, type PlayerSceneProjection } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { DiceRollOverlay } from "../components/dice/DiceRollOverlay";
 import { DICE_HISTORY_DURATION_MS } from "../lib/dice";
@@ -350,7 +350,8 @@ function emptyCampaign(name: string) {
       screenResolutionHeight: 1440,
       defaultScaleLabel: "1 inch = 5 feet"
     },
-    playerDisplay: projectionDisplayFallback()
+    playerDisplay: projectionDisplayFallback(),
+    diceSettings: { ...DEFAULT_DICE_SETTINGS }
   };
 }
 

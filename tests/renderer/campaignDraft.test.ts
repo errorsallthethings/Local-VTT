@@ -24,6 +24,7 @@ it("preserves summary scene metadata while applying draft sidebar fields", () =>
     { id: "scene-2", name: "Draft Scene Two", file: "draft/scene-2.scene.json", folderId: "folder", mapAssetId: "draft-map-2", weather: draftWeather }
   ];
   draft.playerDisplay = { ...draft.playerDisplay, pixelsPerInch: 144 };
+  draft.diceSettings = { ...draft.diceSettings, gmDisplayMode: "panel", playerDisplayMode: "scene" };
 
   const merged = mergeCampaignDraft(summary, draft);
 
@@ -33,6 +34,8 @@ it("preserves summary scene metadata while applying draft sidebar fields", () =>
   expect(merged.sceneFolders).toEqual(draft.sceneFolders);
   expect(merged.sceneLibrary).toEqual({ collapsedFolderIds: ["folder"] });
   expect(merged.playerDisplay.pixelsPerInch).toBe(144);
+  expect(merged.diceSettings.gmDisplayMode).toBe("panel");
+  expect(merged.diceSettings.playerDisplayMode).toBe("scene");
   expect(merged.scenes).toEqual([
     { id: "scene-1", name: "Scene One", file: "scenes/scene-1.scene.json", mapAssetId: "summary-map", folderId: "folder" },
     { id: "scene-2", name: "Scene Two", file: "scenes/scene-2.scene.json", mapAssetId: "draft-map-2", folderId: "folder", weather: draftWeather }
