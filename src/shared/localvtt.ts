@@ -425,6 +425,7 @@ export interface LiveTablePoint {
 }
 
 export type DiceDisplayMode = "results" | "panel" | "scene";
+export type DiceSceneSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 export type LiveTableEvent =
   | {
@@ -450,6 +451,8 @@ export type LiveTableEvent =
       seed: number;
       gmDiceDisplay?: DiceDisplayMode;
       playerDiceDisplay?: DiceDisplayMode;
+      gmDiceSceneSize?: DiceSceneSize;
+      playerDiceSceneSize?: DiceSceneSize;
       gmPresentation?: "3d" | "result";
       playerPresentation?: "3d" | "result";
       presentation?: "3d" | "result";
@@ -995,6 +998,8 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
       Number.isFinite(value.seed) &&
       (!("gmDiceDisplay" in value) || isDiceDisplayMode(value.gmDiceDisplay)) &&
       (!("playerDiceDisplay" in value) || isDiceDisplayMode(value.playerDiceDisplay)) &&
+      (!("gmDiceSceneSize" in value) || isDiceSceneSize(value.gmDiceSceneSize)) &&
+      (!("playerDiceSceneSize" in value) || isDiceSceneSize(value.playerDiceSceneSize)) &&
       (!("gmPresentation" in value) || value.gmPresentation === "3d" || value.gmPresentation === "result") &&
       (!("playerPresentation" in value) || value.playerPresentation === "3d" || value.playerPresentation === "result") &&
       (!("presentation" in value) || value.presentation === "3d" || value.presentation === "result") &&
@@ -1025,6 +1030,10 @@ function isDiceType(value: unknown): value is Extract<LiveTableEvent, { type: "d
 
 function isDiceDisplayMode(value: unknown): value is DiceDisplayMode {
   return value === "results" || value === "panel" || value === "scene";
+}
+
+function isDiceSceneSize(value: unknown): value is DiceSceneSize {
+  return value === "xs" || value === "sm" || value === "md" || value === "lg" || value === "xl";
 }
 
 function isPoint(value: unknown): value is Point {

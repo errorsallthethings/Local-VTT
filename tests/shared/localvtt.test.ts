@@ -597,6 +597,8 @@ it("runtime validators reject invalid files and accept valid projected state", (
       seed: 0.5,
       gmDiceDisplay: "results",
       playerDiceDisplay: "panel",
+      gmDiceSceneSize: "md",
+      playerDiceSceneSize: "lg",
       createdAt: 1
     })
   ).toBe(true);

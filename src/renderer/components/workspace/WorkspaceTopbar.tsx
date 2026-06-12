@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CircleHelp, Dices, EllipsisVertical, Eye, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Plus, Settings2, Trash2, X } from "lucide-react";
-import type { Asset, Campaign, DiceDisplayMode, LiveTableEvent, Scene } from "../../../shared/localvtt";
+import type { Asset, Campaign, DiceDisplayMode, DiceSceneSize, LiveTableEvent, Scene } from "../../../shared/localvtt";
 import {
   DICE_TYPES,
   formatDieLabel,
@@ -34,8 +34,16 @@ type DicePanelDrag = {
 const CUSTOM_DICE_PRESETS_STORAGE_KEY = "localvtt.customDicePresets";
 const DICE_DISPLAY_OPTIONS = [
   { value: "results", label: "Results only" },
-  { value: "panel", label: "3D panel" }
+  { value: "panel", label: "3D panel" },
+  { value: "scene", label: "Scene roll" }
 ] as const satisfies Array<{ value: DiceDisplayMode; label: string }>;
+const DICE_SCENE_SIZE_OPTIONS = [
+  { value: "xs", label: "Extra small" },
+  { value: "sm", label: "Small" },
+  { value: "md", label: "Medium" },
+  { value: "lg", label: "Large" },
+  { value: "xl", label: "Extra large" }
+] as const satisfies Array<{ value: DiceSceneSize; label: string }>;
 
 interface WorkspaceTopbarProps {
   campaign: Campaign | null;
@@ -53,9 +61,13 @@ interface WorkspaceTopbarProps {
   onClosePlayerView: () => void;
   gmDiceDisplayMode: DiceDisplayMode;
   playerDiceDisplayMode: DiceDisplayMode;
+  gmDiceSceneSize: DiceSceneSize;
+  playerDiceSceneSize: DiceSceneSize;
   diceHistory: DiceRollEvent[];
   onGmDiceDisplayModeChange: (mode: DiceDisplayMode) => void;
   onPlayerDiceDisplayModeChange: (mode: DiceDisplayMode) => void;
+  onGmDiceSceneSizeChange: (size: DiceSceneSize) => void;
+  onPlayerDiceSceneSizeChange: (size: DiceSceneSize) => void;
   onRollDie: (die: DiceType) => void;
   onRollExpression: (expression: string, rollLabel?: string) => string | null;
   onClearDiceRolls: () => void;
@@ -77,9 +89,13 @@ export function WorkspaceTopbar({
   onClosePlayerView,
   gmDiceDisplayMode,
   playerDiceDisplayMode,
+  gmDiceSceneSize,
+  playerDiceSceneSize,
   diceHistory,
   onGmDiceDisplayModeChange,
   onPlayerDiceDisplayModeChange,
+  onGmDiceSceneSizeChange,
+  onPlayerDiceSceneSizeChange,
   onRollDie,
   onRollExpression,
   onClearDiceRolls
@@ -293,6 +309,26 @@ export function WorkspaceTopbar({
                         <span>Player Display</span>
                         <select value={playerDiceDisplayMode} aria-label="Player dice display mode" onChange={(event) => onPlayerDiceDisplayModeChange(event.target.value as DiceDisplayMode)}>
                           {DICE_DISPLAY_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="dice-settings-row">
+                        <span>GM Scene Size</span>
+                        <select value={gmDiceSceneSize} aria-label="GM scene dice size" onChange={(event) => onGmDiceSceneSizeChange(event.target.value as DiceSceneSize)}>
+                          {DICE_SCENE_SIZE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="dice-settings-row">
+                        <span>Player Scene Size</span>
+                        <select value={playerDiceSceneSize} aria-label="Player scene dice size" onChange={(event) => onPlayerDiceSceneSizeChange(event.target.value as DiceSceneSize)}>
+                          {DICE_SCENE_SIZE_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
                               {option.label}
                             </option>

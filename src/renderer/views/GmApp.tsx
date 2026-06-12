@@ -23,6 +23,7 @@ import type {
   CampaignSceneFolder,
   DisplayCalibration,
   DiceDisplayMode,
+  DiceSceneSize,
   LiveTableEvent,
   Point,
   Scene,
@@ -156,6 +157,8 @@ export function GmApp() {
   const [diceRollHistory, setDiceRollHistory] = useState<DiceRollEvent[]>([]);
   const [gmDiceDisplayMode, setGmDiceDisplayMode] = useState<DiceDisplayMode>("results");
   const [playerDiceDisplayMode, setPlayerDiceDisplayMode] = useState<DiceDisplayMode>("results");
+  const [gmDiceSceneSize, setGmDiceSceneSize] = useState<DiceSceneSize>("md");
+  const [playerDiceSceneSize, setPlayerDiceSceneSize] = useState<DiceSceneSize>("md");
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
   const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
@@ -232,6 +235,8 @@ export function GmApp() {
       type: "dice",
       gmDiceDisplay: gmDiceDisplayMode,
       playerDiceDisplay: playerDiceDisplayMode,
+      gmDiceSceneSize,
+      playerDiceSceneSize,
       createdAt: Date.now()
     });
   };
@@ -248,6 +253,8 @@ export function GmApp() {
         ...(trimmedLabel ? { rollLabel: trimmedLabel } : {}),
         gmDiceDisplay: gmDiceDisplayMode,
         playerDiceDisplay: playerDiceDisplayMode,
+        gmDiceSceneSize,
+        playerDiceSceneSize,
         createdAt: Date.now()
       });
       return null;
@@ -1321,9 +1328,13 @@ export function GmApp() {
           onClosePlayerView={closePlayerView}
           gmDiceDisplayMode={gmDiceDisplayMode}
           playerDiceDisplayMode={playerDiceDisplayMode}
+          gmDiceSceneSize={gmDiceSceneSize}
+          playerDiceSceneSize={playerDiceSceneSize}
           diceHistory={diceRollHistory}
           onGmDiceDisplayModeChange={setGmDiceDisplayMode}
           onPlayerDiceDisplayModeChange={setPlayerDiceDisplayMode}
+          onGmDiceSceneSizeChange={setGmDiceSceneSize}
+          onPlayerDiceSceneSizeChange={setPlayerDiceSceneSize}
           onRollDie={rollTableDie}
           onRollExpression={rollTableExpression}
           onClearDiceRolls={clearDiceRolls}

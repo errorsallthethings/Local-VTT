@@ -77,6 +77,12 @@
   pointer-events: none;
 }
 
+.dice-roll-overlay-scene {
+  inset: 0;
+  place-items: center;
+  overflow: hidden;
+}
+
 .dice-roll-card {
   position: relative;
   width: 188px;
@@ -87,6 +93,18 @@
   background: linear-gradient(180deg, rgb(8 12 18 / 0.72), rgb(8 12 18 / 0.46));
   box-shadow: var(--shadow-panel);
   animation: dice-roll-card-in 180ms ease-out both;
+}
+
+.dice-roll-card-scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: none;
 }
 
 .dice-roll-card-pool-md {
@@ -158,6 +176,18 @@
   min-height: 62px;
 }
 
+.dice-roll-card-scene .dice-roll-result {
+  right: auto;
+  bottom: 28px;
+  left: 50%;
+  width: min(340px, calc(100% - 36px));
+  transform: translateX(-50%);
+}
+
+.dice-roll-card-scene .dice-roll-result strong {
+  font-size: 34px;
+}
+
 .dice-roll-card-result-only .dice-roll-result strong {
   font-size: 34px;
 }
@@ -214,6 +244,12 @@
   background: rgb(8 12 18 / 0.62);
   padding: 7px;
   box-shadow: 0 8px 20px rgb(0 0 0 / 0.24);
+}
+
+.dice-roll-overlay-scene .dice-roll-history {
+  position: absolute;
+  top: 18px;
+  right: 18px;
 }
 
 .dice-roll-history-item {

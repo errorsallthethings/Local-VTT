@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import type { LiveTableEvent } from "../../../shared/localvtt";
+import type { DiceDisplayMode, DiceSceneSize, LiveTableEvent } from "../../../shared/localvtt";
 import { DICE_EVENT_DURATION_MS, DICE_HISTORY_DURATION_MS, formatDiceRollSummary, getDiceRollTone } from "../../lib/dice";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
@@ -20,9 +20,10 @@ export function DiceRollOverlay({ events, mode }: { events: DiceRollEvent[]; mod
   if (activeEvents.length === 0 && historyEvents.length === 0) {
     return null;
   }
+  const overlayDisplayMode = activeEvents.some((event) => getDiceDisplayMode(event, mode) === "scene") ? "scene" : "panel";
 
   return (
-    <div className="dice-roll-overlay" aria-live="polite">
+    <div className={overlayDisplayMode === "scene" ? "dice-roll-overlay dice-roll-overlay-scene" : "dice-roll-overlay"} aria-live="polite">
       {activeEvents.map((event) => (
         <DiceRollCard key={event.id} event={event} mode={mode} />
       ))}
@@ -42,7 +43,9 @@ export function DiceRollOverlay({ events, mode }: { events: DiceRollEvent[]; mod
 
 function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "player" }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const show3d = getDiceDisplayMode(event, mode) === "panel";
+  const displayMode = getDiceDisplayMode(event, mode);
+  const show3d = displayMode !== "results";
+  const sceneRoll = displayMode === "scene";
   const [resultVisible, setResultVisible] = useState(!show3d);
   const tone = getDiceRollTone(event);
   const visualCount = getVisualDice(event).length;
@@ -74,7 +77,7 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(38, mount.clientWidth / Math.max(1, mount.clientHeight), 0.1, 100);
-    camera.position.set(0, 0.25, 6);
+    camera.position.set(0, sceneRoll ? 0.15 : 0.25, sceneRoll ? 10.5 : 6);
 
     scene.add(new THREE.AmbientLight(0xffffff, 1.4));
     const keyLight = new THREE.DirectionalLight(0xffffff, 2.8);
@@ -85,7 +88,7 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
     scene.add(rimLight);
 
     const visuals = getVisualDice(event);
-    const layout = getDicePoolLayout(visuals.length);
+    const layout = getDicePoolLayout(visuals.length, sceneRoll ? "scene" : "panel", getDiceSceneSize(event, mode));
     const dice = visuals.map((visual, index) => {
       const die = createDieMesh(visual);
       const position = getDicePoolPosition(index, layout);
@@ -154,10 +157,10 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [event, show3d]);
+  }, [event, mode, sceneRoll, show3d]);
 
   return (
-    <div className={getDiceRollCardClassName(show3d, tone, visualCount)}>
+    <div className={getDiceRollCardClassName(displayMode, tone, visualCount)}>
       {show3d && <div ref={mountRef} className="dice-roll-canvas" aria-hidden="true" />}
       {resultVisible && (
         <div className="dice-roll-result">
@@ -169,7 +172,7 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
   );
 }
 
-function getDiceDisplayMode(event: DiceRollEvent, mode: "gm" | "player"): "results" | "panel" | "scene" {
+function getDiceDisplayMode(event: DiceRollEvent, mode: "gm" | "player"): DiceDisplayMode {
   const displayMode = mode === "gm" ? event.gmDiceDisplay : event.playerDiceDisplay;
   if (displayMode) {
     return displayMode;
@@ -179,7 +182,11 @@ function getDiceDisplayMode(event: DiceRollEvent, mode: "gm" | "player"): "resul
 }
 
 function getDiceRevealDelay(event: DiceRollEvent, mode: "gm" | "player"): number {
-  return getDiceDisplayMode(event, mode) === "panel" ? DICE_SETTLE_DURATION_MS : 0;
+  return getDiceDisplayMode(event, mode) === "results" ? 0 : DICE_SETTLE_DURATION_MS;
+}
+
+function getDiceSceneSize(event: DiceRollEvent, mode: "gm" | "player"): DiceSceneSize {
+  return (mode === "gm" ? event.gmDiceSceneSize : event.playerDiceSceneSize) ?? "md";
 }
 
 function getVisualDice(event: DiceRollEvent): DiceVisual[] {
@@ -190,9 +197,10 @@ function getRollSummary(event: DiceRollEvent): string {
   return formatDiceRollSummary(event);
 }
 
-function getDiceRollCardClassName(show3d: boolean, tone: string, visualCount: number): string {
+function getDiceRollCardClassName(displayMode: DiceDisplayMode, tone: string, visualCount: number): string {
   const poolClass = visualCount > 8 ? "dice-roll-card-pool-lg" : visualCount > 4 ? "dice-roll-card-pool-md" : "";
-  return [show3d ? "dice-roll-card" : "dice-roll-card dice-roll-card-result-only", `dice-roll-tone-${tone}`, poolClass].filter(Boolean).join(" ");
+  const displayClass = displayMode === "results" ? "dice-roll-card dice-roll-card-result-only" : displayMode === "scene" ? "dice-roll-card dice-roll-card-scene" : "dice-roll-card";
+  return [displayClass, `dice-roll-tone-${tone}`, displayMode === "scene" ? "" : poolClass].filter(Boolean).join(" ");
 }
 
 type DicePoolLayout = {
@@ -204,7 +212,23 @@ type DicePoolLayout = {
   ySpacing: number;
 };
 
-function getDicePoolLayout(count: number): DicePoolLayout {
+function getDicePoolLayout(count: number, displayMode: "panel" | "scene", sceneSize: DiceSceneSize = "md"): DicePoolLayout {
+  if (displayMode === "scene") {
+    const sizeScale = getSceneDiceSizeScale(sceneSize);
+    if (count <= 1) {
+      return scaleDicePoolLayout({ count, columns: 1, rows: 1, scale: 0.5, xSpacing: 1.2, ySpacing: 1.02 }, sizeScale);
+    }
+    if (count <= 2) {
+      return scaleDicePoolLayout({ count, columns: count, rows: 1, scale: 0.44, xSpacing: 1.0, ySpacing: 1.2 }, sizeScale);
+    }
+    if (count <= 4) {
+      return scaleDicePoolLayout({ count, columns: count, rows: 1, scale: 0.36, xSpacing: 0.72, ySpacing: 1.2 }, sizeScale);
+    }
+    if (count <= 8) {
+      return scaleDicePoolLayout({ count, columns: Math.ceil(count / 2), rows: 2, scale: 0.28, xSpacing: 0.54, ySpacing: 0.58 }, sizeScale);
+    }
+    return scaleDicePoolLayout({ count, columns: 4, rows: Math.ceil(count / 4), scale: 0.22, xSpacing: 0.42, ySpacing: 0.46 }, sizeScale);
+  }
   if (count <= 1) {
     return { count, columns: 1, rows: 1, scale: 1, xSpacing: 1.2, ySpacing: 1.02 };
   }
@@ -218,6 +242,26 @@ function getDicePoolLayout(count: number): DicePoolLayout {
     return { count, columns: Math.ceil(count / 2), rows: 2, scale: 0.52, xSpacing: 0.78, ySpacing: 0.88 };
   }
   return { count, columns: 4, rows: Math.ceil(count / 4), scale: 0.42, xSpacing: 0.66, ySpacing: 0.72 };
+}
+
+function getSceneDiceSizeScale(size: DiceSceneSize): number {
+  const scales = {
+    xs: 0.55,
+    sm: 0.75,
+    md: 1,
+    lg: 1.35,
+    xl: 1.75
+  } satisfies Record<DiceSceneSize, number>;
+  return scales[size];
+}
+
+function scaleDicePoolLayout(layout: DicePoolLayout, scale: number): DicePoolLayout {
+  return {
+    ...layout,
+    scale: layout.scale * scale,
+    xSpacing: layout.xSpacing * scale,
+    ySpacing: layout.ySpacing * scale
+  };
 }
 
 function getDicePoolPosition(index: number, layout: DicePoolLayout): { x: number; y: number } {
