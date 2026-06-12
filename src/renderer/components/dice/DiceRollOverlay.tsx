@@ -322,14 +322,11 @@ function getDieFaceLabelPlacements(die: DiceVisual["die"], geometry: THREE.Buffe
     ];
   }
   const labels = getDieFaceLabels(die);
-  return getGeometryFacePlacements(geometry)
-    .slice(0, labels.length)
-    .map((placement, index) => ({
-      ...placement,
-      label: labels[index],
-      size: getPolyhedralFaceLabelSize(die),
-      up: die === "d8" || die === "d10" || die === "d00" ? getPoleFaceLabelUp(placement.position) : undefined
-    }));
+  const placements = getGeometryFacePlacements(geometry).slice(0, labels.length);
+  if (die === "d10" || die === "d00") {
+    return getD10StyleFacePlacements(die, placements);
+  }
+  return getOppositeSumFacePlacements(die, placements);
 }
 
 function getDieFaceLabels(die: DiceVisual["die"]): string[] {
@@ -354,6 +351,92 @@ function getPolyhedralFaceLabelSize(die: DiceVisual["die"]): number {
     return 0.86;
   }
   return 0.84;
+}
+
+function getOppositeSumFacePlacements(die: DiceVisual["die"], placements: Array<Omit<FaceLabelPlacement, "label" | "size">>): FaceLabelPlacement[] {
+  const oppositeSum = die === "d8" ? 9 : die === "d12" ? 13 : die === "d20" ? 21 : 0;
+  const pairs = getOppositeFacePairs(placements);
+  return pairs.flatMap(([first, second], index) => {
+    const lowValue = index + 1;
+    const highValue = oppositeSum - lowValue;
+    const [lowPlacement, highPlacement] = first.position.y >= second.position.y ? [first, second] : [second, first];
+    return [
+      {
+        ...lowPlacement,
+        label: String(lowValue),
+        size: getPolyhedralFaceLabelSize(die),
+        up: die === "d8" ? getPoleFaceLabelUp(lowPlacement.position) : undefined
+      },
+      {
+        ...highPlacement,
+        label: String(highValue),
+        size: getPolyhedralFaceLabelSize(die),
+        up: die === "d8" ? getPoleFaceLabelUp(highPlacement.position) : undefined
+      }
+    ];
+  });
+}
+
+function getD10StyleFacePlacements(die: "d10" | "d00", placements: Array<Omit<FaceLabelPlacement, "label" | "size">>): FaceLabelPlacement[] {
+  const pairs = getOppositeFacePairs(placements);
+  const oddValues = [1, 3, 5, 7, 9];
+  return pairs.flatMap(([first, second], index) => {
+    const oddValue = oddValues[index] ?? 9;
+    const evenValue = 9 - oddValue;
+    const [oddPlacement, evenPlacement] = first.position.y >= second.position.y ? [first, second] : [second, first];
+    return [
+      {
+        ...oddPlacement,
+        label: formatD10StyleFaceLabel(die, oddValue),
+        size: getPolyhedralFaceLabelSize(die),
+        up: getPoleFaceLabelUp(oddPlacement.position)
+      },
+      {
+        ...evenPlacement,
+        label: formatD10StyleFaceLabel(die, evenValue),
+        size: getPolyhedralFaceLabelSize(die),
+        up: getPoleFaceLabelUp(evenPlacement.position)
+      }
+    ];
+  });
+}
+
+function formatD10StyleFaceLabel(die: "d10" | "d00", value: number): string {
+  if (die === "d10") {
+    return value === 0 ? "0" : String(value);
+  }
+  return value === 0 ? "00" : String(value * 10);
+}
+
+function getOppositeFacePairs(placements: Array<Omit<FaceLabelPlacement, "label" | "size">>): Array<[Omit<FaceLabelPlacement, "label" | "size">, Omit<FaceLabelPlacement, "label" | "size">]> {
+  const available = [...placements].sort(compareFacePlacements);
+  const pairs: Array<[Omit<FaceLabelPlacement, "label" | "size">, Omit<FaceLabelPlacement, "label" | "size">]> = [];
+  while (available.length > 1) {
+    const first = available.shift();
+    if (!first) {
+      break;
+    }
+    let oppositeIndex = 0;
+    let oppositeDot = Number.POSITIVE_INFINITY;
+    available.forEach((candidate, index) => {
+      const dot = first.normal.dot(candidate.normal);
+      if (dot < oppositeDot) {
+        oppositeDot = dot;
+        oppositeIndex = index;
+      }
+    });
+    const [second] = available.splice(oppositeIndex, 1);
+    pairs.push([first, second]);
+  }
+  return pairs.sort(([firstA, secondA], [firstB, secondB]) => compareFacePlacements(getPairSortPlacement(firstA, secondA), getPairSortPlacement(firstB, secondB)));
+}
+
+function getPairSortPlacement(first: Omit<FaceLabelPlacement, "label" | "size">, second: Omit<FaceLabelPlacement, "label" | "size">): Omit<FaceLabelPlacement, "label" | "size"> {
+  return first.position.y >= second.position.y ? first : second;
+}
+
+function compareFacePlacements(first: Omit<FaceLabelPlacement, "label" | "size">, second: Omit<FaceLabelPlacement, "label" | "size">): number {
+  return second.position.y - first.position.y || second.position.z - first.position.z || second.position.x - first.position.x;
 }
 
 function getD4TopReadLabelPlacements(geometry: THREE.BufferGeometry): FaceLabelPlacement[] {
