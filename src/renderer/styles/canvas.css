@@ -67,6 +67,284 @@
   cursor: move;
 }
 
+.dice-roll-overlay {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 7;
+  display: grid;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.dice-roll-overlay-panel {
+  top: auto;
+  right: auto;
+}
+
+.dice-roll-overlay-panel-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.dice-roll-overlay-panel-top,
+.dice-roll-overlay-panel-bottom {
+  transform: translateX(-50%);
+}
+
+.dice-roll-overlay-panel-left,
+.dice-roll-overlay-panel-right {
+  transform: translateY(-50%);
+}
+
+.dice-roll-overlay-scene {
+  inset: 0;
+  place-items: center;
+  overflow: hidden;
+}
+
+.dice-roll-card {
+  --dice-card-facing-rotation: rotate(0deg);
+  position: relative;
+  width: 188px;
+  height: 212px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: var(--radius-panel);
+  background: linear-gradient(180deg, rgb(8 12 18 / 0.72), rgb(8 12 18 / 0.46));
+  box-shadow: var(--shadow-panel);
+  animation: dice-roll-card-in 180ms ease-out both;
+}
+
+.dice-roll-card-panel-top.dice-roll-card-panel-facing-outward,
+.dice-roll-card-panel-bottom.dice-roll-card-panel-facing-inward {
+  --dice-card-facing-rotation: rotate(180deg);
+}
+
+.dice-roll-card-panel-left.dice-roll-card-panel-facing-outward,
+.dice-roll-card-panel-right.dice-roll-card-panel-facing-inward {
+  --dice-card-facing-rotation: rotate(90deg);
+}
+
+.dice-roll-card-panel-right.dice-roll-card-panel-facing-outward,
+.dice-roll-card-panel-left.dice-roll-card-panel-facing-inward {
+  --dice-card-facing-rotation: rotate(-90deg);
+}
+
+.dice-roll-card-scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: none;
+}
+
+.dice-roll-card-pool-md {
+  height: 232px;
+}
+
+.dice-roll-card-pool-lg {
+  height: 252px;
+}
+
+.dice-roll-card-result-only {
+  width: 188px;
+  height: auto;
+  min-height: 78px;
+  background: rgb(8 12 18 / 0.76);
+}
+
+.dice-roll-card-scene-result {
+  width: min(300px, calc(100vw - 48px));
+}
+
+.dice-roll-card.dice-roll-tone-critical {
+  border-color: rgb(74 222 128 / 0.78);
+  box-shadow:
+    var(--shadow-panel),
+    0 0 28px rgb(74 222 128 / 0.24);
+}
+
+.dice-roll-card.dice-roll-tone-fumble {
+  border-color: rgb(248 113 113 / 0.78);
+  box-shadow:
+    var(--shadow-panel),
+    0 0 28px rgb(248 113 113 / 0.22);
+}
+
+.dice-roll-card.dice-roll-tone-max {
+  border-color: rgb(125 211 252 / 0.62);
+  box-shadow:
+    var(--shadow-panel),
+    0 0 24px rgb(125 211 252 / 0.18);
+}
+
+.dice-roll-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.dice-roll-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dice-roll-result {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: var(--radius-control);
+  background: rgb(8 12 18 / 0.72);
+  color: var(--color-text-strong);
+  padding: 7px 9px;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.26);
+}
+
+.dice-roll-card-result-only .dice-roll-result {
+  position: static;
+  min-height: 62px;
+}
+
+.dice-roll-card-scene-result .dice-roll-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  min-height: 76px;
+  gap: 6px;
+}
+
+.dice-roll-card-scene .dice-roll-result {
+  right: auto;
+  bottom: 28px;
+  left: 50%;
+  width: min(340px, calc(100% - 36px));
+  transform: translateX(-50%);
+}
+
+.dice-roll-card-scene .dice-roll-result strong {
+  font-size: 34px;
+}
+
+.dice-roll-card-result-only .dice-roll-result strong {
+  font-size: 34px;
+}
+
+.dice-roll-card-scene-result .dice-roll-result strong {
+  grid-row: 1;
+  font-size: 24px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.dice-roll-card-scene-result .dice-roll-result span {
+  grid-row: 2;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.dice-roll-card-scene-result .dice-roll-result-dismiss {
+  grid-column: 1 / -1;
+  justify-self: end;
+}
+
+.dice-roll-result span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.dice-roll-result strong {
+  font-size: 26px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.dice-roll-result-dismiss {
+  pointer-events: auto;
+  height: 26px;
+  min-width: 0;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: var(--radius-control);
+  background: rgb(255 255 255 / 0.08);
+  color: var(--color-text-strong);
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.dice-roll-result-dismiss:hover {
+  border-color: rgb(255 255 255 / 0.24);
+  background: rgb(255 255 255 / 0.14);
+}
+
+.dice-roll-result-rolling strong {
+  min-width: 2.6ch;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.dice-roll-tone-critical .dice-roll-result {
+  border-color: rgb(74 222 128 / 0.54);
+  background: rgb(20 83 45 / 0.62);
+}
+
+.dice-roll-tone-critical .dice-roll-result strong {
+  color: #bbf7d0;
+}
+
+.dice-roll-tone-fumble .dice-roll-result {
+  border-color: rgb(248 113 113 / 0.58);
+  background: rgb(127 29 29 / 0.58);
+}
+
+.dice-roll-tone-fumble .dice-roll-result strong {
+  color: #fecaca;
+}
+
+.dice-roll-tone-max .dice-roll-result {
+  border-color: rgb(125 211 252 / 0.5);
+  background: rgb(12 74 110 / 0.5);
+}
+
+.dice-roll-tone-max .dice-roll-result strong {
+  color: #bae6fd;
+}
+
+.dice-roll-card-warning .dice-roll-result {
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-bg);
+}
+
+.dice-roll-card-warning .dice-roll-result span,
+.dice-roll-card-warning .dice-roll-result strong {
+  color: var(--color-warning-soft);
+}
+
+@keyframes dice-roll-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96) var(--dice-card-facing-rotation);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1) var(--dice-card-facing-rotation);
+  }
+}
+
 .map-load-overlay {
   position: absolute;
   top: 50%;

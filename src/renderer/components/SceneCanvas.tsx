@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, LiveTableEvent, LiveTablePoint, Point, Scene, Token, WeatherMask } from "../../shared/localvtt";
@@ -58,6 +58,8 @@ import {
   getFogToolHint,
   getFogToolLabel
 } from "../lib/toolCopy";
+
+const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
 
 interface SceneCanvasProps {
   campaign: Campaign | null;
@@ -1487,6 +1489,9 @@ export function SceneCanvas({
       {mode === "gm" && (canvasTool === "ping" || canvasTool === "laser") && <TableToolStatusStrip canvasTool={canvasTool} />}
       {mode === "gm" && weatherMaskTool && <WeatherMaskStatusStrip weatherMaskTool={weatherMaskTool} pointCount={weatherPolygonDraft?.points.length ?? 0} />}
       {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
+      <Suspense fallback={null}>
+        <DiceRollOverlay events={liveTableEvents.filter((event) => isVisibleDiceOverlayEvent(event, mode))} mode={mode} />
+      </Suspense>
       {mode === "player" && scene && <TurnOrderPlayerBar scene={scene} campaign={campaign} />}
       {mode === "player" && scene && showPlayerSeatIndicators && <PlayerSeatIndicators campaign={campaign} />}
       {mode === "player" && scene && <PlayerTurnStatusIndicators scene={scene} campaign={campaign} />}
@@ -1929,6 +1934,19 @@ function getPlayerDisplayScale(campaign: Campaign | null, scene: Scene | null, m
     return 1;
   }
   return targetCellSize / scene.grid.sizePx;
+}
+
+function isVisibleDiceOverlayEvent(event: LiveTableEvent, mode: "gm" | "player"): event is Extract<LiveTableEvent, { type: "dice" }> {
+  return event.type === "dice" && shouldShowDiceOverlay(event, mode);
+}
+
+function shouldShowDiceOverlay(event: Extract<LiveTableEvent, { type: "dice" }>, mode: "gm" | "player"): boolean {
+  const displayMode = mode === "gm" ? event.gmDiceDisplay : event.playerDiceDisplay;
+  if (displayMode) {
+    return displayMode !== "hidden";
+  }
+  const presentation = mode === "gm" ? event.gmPresentation : event.playerPresentation;
+  return presentation ? presentation === "3d" : event.presentation === "3d";
 }
 
 function eventToWorldPoint(event: React.PointerEvent<HTMLCanvasElement>, camera: Camera): Point {

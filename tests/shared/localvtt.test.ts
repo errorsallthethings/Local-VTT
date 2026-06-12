@@ -6,6 +6,7 @@ import {
   createDefaultScene,
   duplicateScene,
   DEFAULT_CALIBRATION,
+  DEFAULT_DICE_SETTINGS,
   DEFAULT_FOG,
   DEFAULT_GRID,
   DEFAULT_LAYERS,
@@ -399,10 +400,42 @@ it("normalizeCampaign fills portable campaign defaults and empty collections", (
   expect(normalized.defaultMeasurement).toEqual(DEFAULT_MEASUREMENT);
   expect(normalized.defaultCalibration).toEqual(DEFAULT_CALIBRATION);
   expect(normalized.playerDisplay).toEqual(DEFAULT_CALIBRATION);
+  expect(normalized.diceSettings).toEqual(DEFAULT_DICE_SETTINGS);
   expect(normalized.sceneLibrary).toEqual({ collapsedFolderIds: [] });
   expect(normalized.sceneFolders).toEqual([]);
   expect(normalized.players).toEqual([]);
   expect(normalized.assets).toEqual([]);
+});
+
+it("normalizeCampaign normalizes campaign dice settings", () => {
+  const campaign = {
+    ...createDefaultCampaign("Dice"),
+    diceSettings: {
+      gmDisplayMode: "scene",
+      playerDisplayMode: "bad",
+      gmSceneSize: "xl",
+      playerSceneSize: "huge",
+      gmPanelEdge: "right",
+      playerPanelEdge: "corner",
+      gmPanelFacing: "outward",
+      playerPanelFacing: "sideways",
+      gmPanelPosition: 2,
+      playerPanelPosition: 0.25,
+      gmPanelAdvanced: true,
+      playerPanelAdvanced: "yes"
+    }
+  } as unknown as Campaign;
+
+  expect(normalizeCampaign(campaign).diceSettings).toEqual({
+    ...DEFAULT_DICE_SETTINGS,
+    gmDisplayMode: "scene",
+    gmSceneSize: "xl",
+    gmPanelEdge: "right",
+    gmPanelFacing: "outward",
+    gmPanelPosition: 1,
+    playerPanelPosition: 0.25,
+    gmPanelAdvanced: true
+  });
 });
 
 it("normalizeCampaign normalizes campaign players", () => {
@@ -584,6 +617,59 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isPlayerIdleState({ type: "idle", title: "Waiting" })).toBe(false);
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "laser", type: "laser", points: [{ point: { x: 1, y: 2 }, createdAt: 1 }], createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "clear", type: "dice-clear", createdAt: 1 })).toBe(true);
+  expect(
+    isLiveTableEvent({
+      id: "dice",
+      type: "dice",
+      die: "d20",
+      result: 20,
+      label: "20",
+      formula: "1D20",
+      rollLabel: "Attack",
+      seed: 0.5,
+      gmDiceDisplay: "results",
+      playerDiceDisplay: "panel",
+      gmDiceSceneSize: "md",
+      playerDiceSceneSize: "lg",
+      gmDicePanelEdge: "top",
+      playerDicePanelEdge: "right",
+      gmDicePanelFacing: "inward",
+      playerDicePanelFacing: "outward",
+      gmDicePanelPosition: 0.88,
+      playerDicePanelPosition: 0.5,
+      gmDicePanelAdvanced: true,
+      playerDicePanelAdvanced: true,
+      createdAt: 1
+    })
+  ).toBe(true);
+  expect(
+    isLiveTableEvent({
+      id: "coin",
+      type: "dice",
+      die: "coin",
+      result: 1,
+      label: "Heads",
+      seed: 0.5,
+      createdAt: 1
+    })
+  ).toBe(true);
+  expect(
+    isLiveTableEvent({
+      id: "percentile",
+      type: "dice",
+      die: "d00",
+      result: 91,
+      label: "91",
+      seed: 0.5,
+      dice: [
+        { die: "d00", result: 90, label: "90", seed: 0.1 },
+        { die: "d10", result: 1, label: "1", seed: 0.2 }
+      ],
+      createdAt: 1
+    })
+  ).toBe(true);
+  expect(isLiveTableEvent({ id: "dice", type: "dice", die: "d30", result: 30, label: "30", seed: 0.5, createdAt: 1 })).toBe(false);
   expect(isLiveTableEvent({ id: "broken", type: "laser", points: [{ point: { x: 1 }, createdAt: 1 }], createdAt: 1 })).toBe(false);
 });
 

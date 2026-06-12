@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Map as MapIcon } from "lucide-react";
-import { isLiveTableEvent, isPlayerIdleState, isPlayerSceneProjection, type LiveTableEvent, type PlayerIdleState, type PlayerSceneProjection } from "../../shared/localvtt";
+import { DEFAULT_DICE_SETTINGS, isLiveTableEvent, isPlayerIdleState, isPlayerSceneProjection, type LiveTableEvent, type PlayerIdleState, type PlayerSceneProjection } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
+import { DICE_HISTORY_DURATION_MS } from "../lib/dice";
 
 const PLAYER_SCENE_SPLASH_FADE_MS = 320;
 const PLAYER_SCENE_SPLASH_MIN_MS = 2000;
 const PLAYER_SCENE_READY_FALLBACK_MS = 3000;
 const LIVE_TABLE_PING_DURATION_MS = 1600;
 const LIVE_TABLE_LASER_POINT_LIFETIME_MS = 1100;
+const DiceRollOverlay = lazy(() => import("../components/dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
 
 export function PlayerApp() {
   const [projection, setProjection] = useState<PlayerSceneProjection | null>(null);
@@ -194,6 +196,11 @@ export function PlayerApp() {
       ) : (
         <PlayerEmpty state={idleState} />
       )}
+      {!projection && (
+        <Suspense fallback={null}>
+          <DiceRollOverlay events={liveTableEvents.filter(isVisiblePlayerDiceOverlayEvent)} mode="player" />
+        </Suspense>
+      )}
     </div>
   );
 }
@@ -261,20 +268,43 @@ function PlayerScene({
 
 function mergeLiveTableEvent(events: LiveTableEvent[], event: LiveTableEvent): LiveTableEvent[] {
   const filteredEvents = filterActiveLiveTableEvents(events);
+  if (event.type === "dice-clear") {
+    return filteredEvents.filter((candidate) => candidate.type !== "dice");
+  }
   return [event, ...filteredEvents.filter((candidate) => candidate.id !== event.id)];
 }
 
 function filterActiveLiveTableEvents(events: LiveTableEvent[]): LiveTableEvent[] {
   const now = Date.now();
-  return events
-    .map((event) => {
-      if (event.type === "ping") {
-        return now - event.createdAt <= LIVE_TABLE_PING_DURATION_MS ? event : null;
+  const activeEvents: LiveTableEvent[] = [];
+  for (const event of events) {
+    if (event.type === "ping") {
+      if (now - event.createdAt <= LIVE_TABLE_PING_DURATION_MS) {
+        activeEvents.push(event);
       }
+    } else if (event.type === "dice") {
+      if (now - event.createdAt <= DICE_HISTORY_DURATION_MS) {
+        activeEvents.push(event);
+      }
+    } else if (event.type === "laser") {
       const points = event.points.filter((point) => now - point.createdAt <= LIVE_TABLE_LASER_POINT_LIFETIME_MS);
-      return points.length > 0 ? { ...event, points } : null;
-    })
-    .filter((event): event is LiveTableEvent => Boolean(event));
+      if (points.length > 0) {
+        activeEvents.push({ ...event, points });
+      }
+    }
+  }
+  return activeEvents;
+}
+
+function isVisiblePlayerDiceOverlayEvent(event: LiveTableEvent): event is Extract<LiveTableEvent, { type: "dice" }> {
+  return event.type === "dice" && shouldShowPlayerDiceOverlay(event);
+}
+
+function shouldShowPlayerDiceOverlay(event: Extract<LiveTableEvent, { type: "dice" }>): boolean {
+  if (event.playerDiceDisplay) {
+    return event.playerDiceDisplay !== "scene" && event.playerDiceDisplay !== "hidden";
+  }
+  return event.playerPresentation ? event.playerPresentation === "3d" : event.presentation === "3d";
 }
 
 function emptyCampaign(name: string) {
@@ -324,7 +354,8 @@ function emptyCampaign(name: string) {
       screenResolutionHeight: 1440,
       defaultScaleLabel: "1 inch = 5 feet"
     },
-    playerDisplay: projectionDisplayFallback()
+    playerDisplay: projectionDisplayFallback(),
+    diceSettings: { ...DEFAULT_DICE_SETTINGS }
   };
 }
 

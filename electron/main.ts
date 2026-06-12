@@ -1060,15 +1060,24 @@ ipcMain.handle("player:showIdle", async (_event, state: unknown) => {
   return true;
 });
 
-ipcMain.handle("player:liveTableEvent", async (_event, event: unknown) => {
+ipcMain.handle("player:liveTableEvent", async (ipcEvent, event: unknown) => {
   if (!isLiveTableEvent(event)) {
     throw new Error("Invalid live table event.");
   }
-  if (!playerWindow || playerWindow.isDestroyed()) {
-    return false;
+  const sentFromPlayer = Boolean(playerWindow && !playerWindow.isDestroyed() && ipcEvent.sender.id === playerWindow.webContents.id);
+  let delivered = false;
+  if (sentFromPlayer) {
+    if (gmWindow && !gmWindow.isDestroyed()) {
+      gmWindow.webContents.send("player:liveTableEvent", event);
+      delivered = true;
+    }
+    return delivered;
   }
-  playerWindow.webContents.send("player:liveTableEvent", event);
-  return true;
+  if (playerWindow && !playerWindow.isDestroyed()) {
+    playerWindow.webContents.send("player:liveTableEvent", event);
+    delivered = true;
+  }
+  return delivered;
 });
 
 ipcMain.handle("player:setFullscreen", async (_event, fullscreen: boolean) => {
