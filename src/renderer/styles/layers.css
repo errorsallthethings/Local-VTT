@@ -347,6 +347,15 @@
   cursor: default;
 }
 
+.token-settings-menu-portal {
+  position: fixed;
+  top: auto;
+  right: auto;
+  z-index: 80;
+  max-height: calc(100vh - 12px);
+  overflow-y: auto;
+}
+
 .token-settings-menu .settings-grid {
   gap: 7px;
 }

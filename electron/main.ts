@@ -15,6 +15,7 @@ import {
   createDefaultCampaign,
   createDefaultScene,
   duplicateScene,
+  isLiveTableEvent,
   isPlayerIdleState,
   normalizeCampaign,
   normalizeScene,
@@ -31,6 +32,7 @@ let playerWindow: BrowserWindow | null = null;
 let lastPlayerProjection: unknown = null;
 let gmHasUnsavedChanges = false;
 let forceCloseGmWindow = false;
+let currentCampaignPath: string | null = null;
 const openedCampaignPaths = new Set<string>();
 const knownAssetPaths = new Set<string>();
 
@@ -188,9 +190,9 @@ async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSumma
   }
 
   await ensureCampaignFolders(campaignPath);
-  const campaignWithSceneMapIds = await hydrateSceneMapAssetIds(campaignPath, parsed);
-  const campaignWithThumbnails = await ensureMapThumbnails(campaignPath, campaignWithSceneMapIds);
-  if (campaignWithThumbnails !== campaignWithSceneMapIds) {
+  const campaignWithSceneSummaries = await hydrateSceneSummaries(campaignPath, parsed);
+  const campaignWithThumbnails = await ensureMapThumbnails(campaignPath, campaignWithSceneSummaries);
+  if (campaignWithThumbnails !== campaignWithSceneSummaries) {
     await writeCampaign(campaignPath, campaignWithThumbnails);
   }
   return {
@@ -200,11 +202,11 @@ async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSumma
   };
 }
 
-async function hydrateSceneMapAssetIds(campaignPath: string, campaign: Campaign): Promise<Campaign> {
+async function hydrateSceneSummaries(campaignPath: string, campaign: Campaign): Promise<Campaign> {
   const normalizedCampaign = normalizeCampaign(campaign);
   const scenes = await Promise.all(
     normalizedCampaign.scenes.map(async (entry) => {
-      if (entry.mapAssetId) {
+      if (entry.mapAssetId && entry.weather) {
         return entry;
       }
       try {
@@ -213,7 +215,12 @@ async function hydrateSceneMapAssetIds(campaignPath: string, campaign: Campaign)
         const raw = await readFile(filePath, "utf8");
         const scene = JSON.parse(raw) as unknown;
         assertValidScene(scene);
-        return scene.mapAssetId ? { ...entry, mapAssetId: scene.mapAssetId } : entry;
+        const normalizedScene = normalizeScene(scene);
+        return {
+          ...entry,
+          mapAssetId: entry.mapAssetId ?? normalizedScene.mapAssetId,
+          weather: entry.weather ?? normalizedScene.weather
+        };
       } catch {
         return entry;
       }
@@ -272,6 +279,43 @@ async function writeScene(campaignPath: string, scene: Scene): Promise<void> {
   await ensureCampaignFolders(campaignPath);
   await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, scene.id), sceneBackupFolder(campaignPath, scene.id), `${scene.id}.scene.json`);
   await writeFile(sceneFile(campaignPath, scene.id), `${JSON.stringify(scene, null, 2)}\n`, "utf8");
+}
+
+async function pauseActiveTurnOrders(campaignPath: string): Promise<void> {
+  assertKnownCampaignPath(campaignPath);
+  const summary = await loadCampaignFromPath(campaignPath);
+  for (const entry of summary.campaign.scenes) {
+    try {
+      const raw = await readFile(sceneFile(campaignPath, entry.id), "utf8");
+      const scene = JSON.parse(raw) as unknown;
+      assertValidScene(scene);
+      const normalized = normalizeScene(scene);
+      if (!normalized.turnOrder.active && !normalized.turnOrder.playerViewVisible) {
+        continue;
+      }
+      await writeScene(
+        campaignPath,
+        normalizeScene({
+          ...normalized,
+          turnOrder: {
+            ...normalized.turnOrder,
+            active: false,
+            playerViewVisible: false
+          },
+          updatedAt: new Date().toISOString()
+        })
+      );
+    } catch {
+      // Missing or invalid scenes are reported by the normal campaign loading flow.
+    }
+  }
+}
+
+async function loadCampaignWithPausedTurnOrders(campaignPath: string): Promise<CampaignSummary> {
+  registerCampaignPath(campaignPath);
+  currentCampaignPath = path.resolve(campaignPath);
+  await pauseActiveTurnOrders(campaignPath);
+  return loadCampaignFromPath(campaignPath);
 }
 
 async function backupSceneBeforeDelete(campaignPath: string, sceneId: string): Promise<void> {
@@ -471,11 +515,16 @@ function closePlayerWindow(): void {
 function createGmWindow(): BrowserWindow {
   const win = createWindow("gm");
   win.on("close", (event) => {
-    if (forceCloseGmWindow || !gmHasUnsavedChanges) {
+    if (forceCloseGmWindow) {
       return;
     }
 
     event.preventDefault();
+    if (!gmHasUnsavedChanges) {
+      void closeGmWindowAfterPausing(win);
+      return;
+    }
+
     const choice = dialog.showMessageBoxSync(win, {
       type: "warning",
       title: "Unsaved Local VTT changes",
@@ -490,9 +539,7 @@ function createGmWindow(): BrowserWindow {
     if (choice === 1) {
       win.webContents.send("app:saveBeforeClose");
     } else if (choice === 2) {
-      forceCloseGmWindow = true;
-      gmHasUnsavedChanges = false;
-      win.close();
+      void closeGmWindowAfterPausing(win);
     }
   });
   win.on("closed", () => {
@@ -503,6 +550,19 @@ function createGmWindow(): BrowserWindow {
   return win;
 }
 
+async function closeGmWindowAfterPausing(win: BrowserWindow): Promise<void> {
+  try {
+    if (currentCampaignPath) {
+      await pauseActiveTurnOrders(currentCampaignPath);
+    }
+  } catch (caught) {
+    console.error("Could not pause turn orders before closing.", caught);
+  }
+  forceCloseGmWindow = true;
+  gmHasUnsavedChanges = false;
+  win.close();
+}
+
 ipcMain.handle("campaign:create", async () => {
   const campaignPath = await chooseDirectory("Choose a folder for the new Local VTT campaign", true);
   if (!campaignPath) {
@@ -511,6 +571,7 @@ ipcMain.handle("campaign:create", async () => {
 
   const campaign = createDefaultCampaign(path.basename(campaignPath) || "Local VTT Campaign");
   registerCampaignPath(campaignPath);
+  currentCampaignPath = path.resolve(campaignPath);
   await writeCampaign(campaignPath, campaign);
   return loadCampaignFromPath(campaignPath);
 });
@@ -521,16 +582,12 @@ ipcMain.handle("campaign:open", async () => {
     return null;
   }
 
-  const summary = await loadCampaignFromPath(campaignPath);
-  registerCampaignPath(campaignPath);
-  return summary;
+  return loadCampaignWithPausedTurnOrders(campaignPath);
 });
 
 ipcMain.handle("campaign:openRecent", async (_event, campaignPath: string) => {
   await stat(campaignFile(campaignPath));
-  const summary = await loadCampaignFromPath(campaignPath);
-  registerCampaignPath(campaignPath);
-  return summary;
+  return loadCampaignWithPausedTurnOrders(campaignPath);
 });
 
 ipcMain.handle("campaign:save", async (_event, campaignPath: string, campaign: Campaign) => {
@@ -559,7 +616,7 @@ ipcMain.handle("scene:create", async (_event, campaignPath: string, sceneName: s
 
   const campaign: Campaign = {
     ...summary.campaign,
-    scenes: [...summary.campaign.scenes, { id: scene.id, name: scene.name, file: `scenes/${scene.id}.scene.json` }],
+    scenes: [...summary.campaign.scenes, { id: scene.id, name: scene.name, file: `scenes/${scene.id}.scene.json`, weather: scene.weather }],
     updatedAt: new Date().toISOString()
   };
   await writeCampaign(campaignPath, campaign);
@@ -578,6 +635,7 @@ ipcMain.handle("scene:duplicate", async (_event, campaignPath: string, sourceSce
     name: scene.name,
     file: `scenes/${scene.id}.scene.json`,
     mapAssetId: scene.mapAssetId,
+    weather: scene.weather,
     folderId
   };
   const sourceIndex = summary.campaign.scenes.findIndex((entry) => entry.id === afterSceneId);
@@ -613,7 +671,9 @@ ipcMain.handle("scene:save", async (_event, campaignPath: string, scene: Scene) 
   const summary = await loadCampaignFromPath(campaignPath);
   const campaign: Campaign = {
     ...summary.campaign,
-    scenes: summary.campaign.scenes.map((entry) => (entry.id === scene.id ? { ...entry, name: scene.name, mapAssetId: updated.mapAssetId } : entry)),
+    scenes: summary.campaign.scenes.map((entry) =>
+      entry.id === scene.id ? { ...entry, name: scene.name, mapAssetId: updated.mapAssetId, weather: updated.weather } : entry
+    ),
     updatedAt: new Date().toISOString()
   };
   await writeCampaign(campaignPath, campaign);
@@ -1000,6 +1060,26 @@ ipcMain.handle("player:showIdle", async (_event, state: unknown) => {
   return true;
 });
 
+ipcMain.handle("player:liveTableEvent", async (ipcEvent, event: unknown) => {
+  if (!isLiveTableEvent(event)) {
+    throw new Error("Invalid live table event.");
+  }
+  const sentFromPlayer = Boolean(playerWindow && !playerWindow.isDestroyed() && ipcEvent.sender.id === playerWindow.webContents.id);
+  let delivered = false;
+  if (sentFromPlayer) {
+    if (gmWindow && !gmWindow.isDestroyed()) {
+      gmWindow.webContents.send("player:liveTableEvent", event);
+      delivered = true;
+    }
+    return delivered;
+  }
+  if (playerWindow && !playerWindow.isDestroyed()) {
+    playerWindow.webContents.send("player:liveTableEvent", event);
+    delivered = true;
+  }
+  return delivered;
+});
+
 ipcMain.handle("player:setFullscreen", async (_event, fullscreen: boolean) => {
   if (!playerWindow || playerWindow.isDestroyed()) {
     playerWindow = createWindow("player");
@@ -1045,7 +1125,5 @@ ipcMain.on("app:closeAfterSave", () => {
   if (!gmWindow || gmWindow.isDestroyed()) {
     return;
   }
-  forceCloseGmWindow = true;
-  gmHasUnsavedChanges = false;
-  gmWindow.close();
+  void closeGmWindowAfterPausing(gmWindow);
 });

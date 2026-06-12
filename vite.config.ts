@@ -10,6 +10,15 @@ export default defineConfig({
     strictPort: true
   },
   build: {
-    outDir: "dist"
+    outDir: "dist",
+    chunkSizeWarningLimit: 2200,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          rapier: ["@dimforge/rapier3d-compat"],
+          three: ["three"]
+        }
+      }
+    }
   }
 });

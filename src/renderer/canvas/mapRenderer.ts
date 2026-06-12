@@ -30,7 +30,7 @@ export function resolveMapTransform(scene: Scene, sourceWidth: number, sourceHei
   };
 }
 
-function getSourceWidth(source: CanvasImageSource): number {
+export function getSourceWidth(source: CanvasImageSource): number {
   if ("naturalWidth" in source) {
     return source.naturalWidth;
   }
@@ -40,7 +40,7 @@ function getSourceWidth(source: CanvasImageSource): number {
   return "width" in source && typeof source.width === "number" ? source.width : 0;
 }
 
-function getSourceHeight(source: CanvasImageSource): number {
+export function getSourceHeight(source: CanvasImageSource): number {
   if ("naturalHeight" in source) {
     return source.naturalHeight;
   }

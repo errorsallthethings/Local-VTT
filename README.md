@@ -18,6 +18,8 @@ This version is intentionally not a full campaign-management VTT. Tokens are lig
 - Draw manual fog of war with brush, rectangle, circle, and polygon tools.
 - Add lightweight tokens, style them, reorder them, duplicate them, and animate visible Player View movement along waypoint paths.
 - Measure distance with a GM-only ruler, including waypoints, snapped grid points, crossed-cell highlights, and distance-mode readouts.
+- Use live Table Tools for click pings and a fading laser pointer trail.
+- Add configurable rain and fog weather effects from the Weather layer.
 - Store metadata-only backups for campaign and scene JSON before overwrites.
 
 ## Campaign Folder Format
@@ -79,12 +81,22 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Grid modes support gridless, square, and hex scenes.
 - Measurement settings are available from the Grid Layer when square or hex grids are active.
 - Player Display Scale stores campaign-level calibration for the external player-facing display.
-- The GM-only ruler supports square, hex, and gridless scenes.
+- Table Tools include the GM-only ruler, ping, and laser pointer.
+- The ruler supports square, hex, and gridless scenes.
 - Ctrl/Cmd snaps ruler points to square grid centers or hex centers. Gridless measurement stays freeform.
 - Shift adds ruler waypoints while dragging. Right-click removes the last active ruler waypoint.
 - Escape clears the active ruler measurement.
 - The ruler highlights crossed squares/hexes and displays total path distance using the scene's Measurement settings.
 - When the selected distance mode is not Euclidean, the ruler also shows a straight-line comparison.
+- Ping sends a live attention marker to GM View and Player View when the GM clicks the map.
+- Laser Pointer shows a live fading trail in GM View and Player View while the GM drags on the map.
+
+### Weather Effects
+
+- Weather is configured per scene from the Weather layer.
+- Weather effects render as lightweight map-bound canvas overlays and respect GM View and Player View layer visibility.
+- Weather effects currently include rain patterns and fog patterns.
+- Weather controls include effect, enabled state, intensity, opacity, speed, drift, masks, and advanced pattern tuning.
 
 ### Fog Of War
 
@@ -119,7 +131,16 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Layer settings are collapsible. Map, Grid, Fog of War, and Tokens expose controls only when relevant.
 - Empty Campaign, Scenes, Layers, and Token Library areas show contextual helper text.
 - Fog and Grid color controls open a modal picker with native color selection and reusable swatches.
-- The floating Tools Menu currently contains Fog of War tools and the GM-only ruler.
+- The floating Tools Menu currently contains Fog of War tools and Table Tools.
+
+## Future Ideas
+
+### Custom And Specialty Dice
+
+- Add additional RPG-friendly dice such as D3, Fate/Fudge dice, and D66 table rolls.
+- Support GM-defined custom dice with text or symbol faces, such as oracle, reaction, weather, hit-location, or complication dice.
+- Allow themed dice appearances, including reusable color palettes or style presets for different campaigns and game systems.
+- Keep custom dice campaign-specific so different game systems can maintain their own dice preferences and face sets.
 
 ## Architecture
 
@@ -170,6 +191,49 @@ npm run check
 ```
 
 `npm run check` runs TypeScript typechecking, ESLint, and the Vitest suite.
+
+## Release Process
+
+Release builds are created by GitHub Actions when a version tag matching `v*.*.*` is pushed. The release branch should contain the merged feature work and the matching app version before the tag is created.
+
+Example release flow for `0.1.6`:
+
+```bash
+git fetch origin --prune
+git switch release/0.1.6
+git pull --ff-only origin release/0.1.6
+git merge --no-ff feature/3d-dice-maybe -m "Merge 3D dice feature into release 0.1.6"
+```
+
+Bump the app version before tagging so `electron-builder` produces installers with the correct version:
+
+```bash
+npm version 0.1.6 --no-git-tag-version
+```
+
+Update `CHANGELOG.md`, then verify the release branch:
+
+```bash
+npm run check
+npm run build
+```
+
+Commit the release metadata:
+
+```bash
+git add package.json package-lock.json CHANGELOG.md
+git commit -m "Prepare 0.1.6 release"
+```
+
+Push the release branch, create the release tag on that commit, and push the tag:
+
+```bash
+git push origin release/0.1.6
+git tag -a v0.1.6 -m "Local VTT v0.1.6"
+git push origin v0.1.6
+```
+
+Pushing the tag triggers `.github/workflows/release.yml`, which packages the Windows and macOS builds and publishes the GitHub release assets. Use a new version/tag for each release; existing release assets are treated as immutable.
 
 ## Packaging
 
@@ -277,7 +341,7 @@ Before packaging or sharing a build, run through these workflows:
 - Add, duplicate, move, rename, resize, restyle, and delete tokens.
 - Confirm token presentation and movement sync to Player View.
 - Use the Token Library to import, rename, search, sort, set defaults, add, drag/drop, and delete tokens with usage warnings.
-- Use the ruler on square, hex, and gridless scenes.
+- Use Table Tools: ruler on square, hex, and gridless scenes; ping by clicking; laser pointer by dragging.
 - Close with unsaved scene changes, campaign-only changes, and both; confirm Save preserves changes and Close Without Saving discards them.
 - Confirm common failure messages are actionable, including missing recent campaigns, missing assets, and disconnected Player View displays.
 - Run `npm run check` and `npm run build`.

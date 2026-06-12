@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Copy, Crown, Eye, EyeOff, GripVertical, MoreVertical, Trash2, User, UsersRound } from "lucide-react";
 import type { Asset, Scene, Token } from "../../../shared/localvtt";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
+import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { duplicateToken } from "../../lib/tokenDefaults";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
 import { TokenSettings } from "./TokenSettings";
@@ -167,57 +169,19 @@ export function TokenList({
                 >
                   {isVisibleInPlayer ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
                 </button>
-                <div className="token-menu-wrap">
-                  <button
-                    className="icon-button fog-shape-action-button"
-                    aria-label={`Open ${label} token menu`}
-                    title="Token options"
-                    aria-expanded={openTokenMenuId === token.id}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setOpenTokenMenuId((openId) => (openId === token.id ? null : token.id));
-                    }}
-                  >
-                    <MoreVertical size={14} aria-hidden="true" />
-                  </button>
-                  {openTokenMenuId === token.id && (
-                    <div className="token-settings-menu" onClick={(event) => event.stopPropagation()}>
-                      <TokenSettings
-                        token={token}
-                        gridSize={scene.grid.sizePx}
-                        gridType={scene.grid.type}
-                        onUpdateToken={(patch) => onUpdateToken(token.id, patch)}
-                        onOpenTokenColor={onOpenTokenColor}
-                      />
-                      <div className="control-divider" />
-                      <button
-                        className="token-menu-action"
-                        onClick={() => {
-                          const duplicateTokenId = crypto.randomUUID();
-                          onUpdateTokens(duplicateToken(scene.tokens, token.id, duplicateTokenId));
-                          onSelectToken(duplicateTokenId);
-                          setOpenTokenMenuId(null);
-                        }}
-                      >
-                        <Copy size={14} aria-hidden="true" />
-                        Duplicate
-                      </button>
-                      <button
-                        className="token-menu-action token-menu-delete"
-                        onClick={() => {
-                          onUpdateTokens(scene.tokens.filter((candidate) => candidate.id !== token.id));
-                          if (selectedTokenId === token.id) {
-                            onSelectToken(null);
-                          }
-                          setOpenTokenMenuId(null);
-                        }}
-                      >
-                        <Trash2 size={14} aria-hidden="true" />
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <TokenMenuButton
+                  token={token}
+                  label={label}
+                  scene={scene}
+                  selectedTokenId={selectedTokenId}
+                  open={openTokenMenuId === token.id}
+                  onToggle={() => setOpenTokenMenuId((openId) => (openId === token.id ? null : token.id))}
+                  onClose={() => setOpenTokenMenuId(null)}
+                  onSelectToken={onSelectToken}
+                  onUpdateToken={onUpdateToken}
+                  onUpdateTokens={onUpdateTokens}
+                  onOpenTokenColor={onOpenTokenColor}
+                />
               </div>
             );
           })}
@@ -228,6 +192,134 @@ export function TokenList({
           <span>Import token images to create token sub-layers.</span>
         </div>
       )}
+    </div>
+  );
+}
+
+function TokenMenuButton({
+  token,
+  label,
+  scene,
+  selectedTokenId,
+  open,
+  onToggle,
+  onClose,
+  onSelectToken,
+  onUpdateToken,
+  onUpdateTokens,
+  onOpenTokenColor
+}: {
+  token: Token;
+  label: string;
+  scene: Scene;
+  selectedTokenId: string | null;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onSelectToken: (tokenId: string | null) => void;
+  onUpdateToken: (tokenId: string, patch: Partial<Token>) => void;
+  onUpdateTokens: (tokens: Token[]) => void;
+  onOpenTokenColor: (tokenId: string, value: string, kind: "border" | "glow") => void;
+}) {
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  return (
+    <div className="token-menu-wrap">
+      <button
+        ref={buttonRef}
+        className="icon-button fog-shape-action-button"
+        aria-label={`Open ${label} token menu`}
+        title="Token options"
+        aria-expanded={open}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggle();
+        }}
+      >
+        <MoreVertical size={14} aria-hidden="true" />
+      </button>
+      {open &&
+        createPortal(
+          <FloatingTokenSettingsMenu
+            anchor={buttonRef.current}
+            token={token}
+            scene={scene}
+            selectedTokenId={selectedTokenId}
+            onClose={onClose}
+            onSelectToken={onSelectToken}
+            onUpdateToken={onUpdateToken}
+            onUpdateTokens={onUpdateTokens}
+            onOpenTokenColor={onOpenTokenColor}
+          />,
+          document.body
+        )}
+    </div>
+  );
+}
+
+function FloatingTokenSettingsMenu({
+  anchor,
+  token,
+  scene,
+  selectedTokenId,
+  onClose,
+  onSelectToken,
+  onUpdateToken,
+  onUpdateTokens,
+  onOpenTokenColor
+}: {
+  anchor: HTMLElement | null;
+  token: Token;
+  scene: Scene;
+  selectedTokenId: string | null;
+  onClose: () => void;
+  onSelectToken: (tokenId: string | null) => void;
+  onUpdateToken: (tokenId: string, patch: Partial<Token>) => void;
+  onUpdateTokens: (tokens: Token[]) => void;
+  onOpenTokenColor: (tokenId: string, value: string, kind: "border" | "glow") => void;
+}) {
+  const { menuRef, position } = useFloatingMenuPosition({
+    open: Boolean(anchor),
+    anchor,
+    fallbackWidth: 248,
+    fallbackHeight: 420
+  });
+
+  return (
+    <div ref={menuRef} className="token-settings-menu token-settings-menu-portal token-menu-wrap" style={{ top: position.top, left: position.left }} onClick={(event) => event.stopPropagation()}>
+      <TokenSettings
+        token={token}
+        gridSize={scene.grid.sizePx}
+        gridType={scene.grid.type}
+        onUpdateToken={(patch) => onUpdateToken(token.id, patch)}
+        onOpenTokenColor={onOpenTokenColor}
+      />
+      <div className="control-divider" />
+      <button
+        className="token-menu-action"
+        onClick={() => {
+          const duplicateTokenId = crypto.randomUUID();
+          onUpdateTokens(duplicateToken(scene.tokens, token.id, duplicateTokenId));
+          onSelectToken(duplicateTokenId);
+          onClose();
+        }}
+      >
+        <Copy size={14} aria-hidden="true" />
+        Duplicate
+      </button>
+      <button
+        className="token-menu-action token-menu-delete"
+        onClick={() => {
+          onUpdateTokens(scene.tokens.filter((candidate) => candidate.id !== token.id));
+          if (selectedTokenId === token.id) {
+            onSelectToken(null);
+          }
+          onClose();
+        }}
+      >
+        <Trash2 size={14} aria-hidden="true" />
+        Delete
+      </button>
     </div>
   );
 }

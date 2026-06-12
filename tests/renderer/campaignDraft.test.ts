@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mergeCampaignDraft } from "../../src/renderer/lib/campaignDraft";
-import { createDefaultCampaign } from "../../src/shared/localvtt";
+import { createDefaultCampaign, createDefaultScene } from "../../src/shared/localvtt";
 
 describe("mergeCampaignDraft", () => {
 it("preserves summary scene metadata while applying draft sidebar fields", () => {
@@ -16,11 +16,15 @@ it("preserves summary scene metadata while applying draft sidebar fields", () =>
   draft.updatedAt = "2026-06-05T12:00:00.000Z";
   draft.sceneFolders = [{ id: "folder", name: "Dungeon", color: "#4cbf78", createdAt: "2026-06-05T00:00:00.000Z" }];
   draft.sceneLibrary = { collapsedFolderIds: ["folder"] };
+  const draftWeather = createDefaultScene("Weather Draft").weather;
+  draftWeather.enabled = true;
+  draftWeather.effects.rain.enabled = true;
   draft.scenes = [
     { id: "scene-1", name: "Draft Scene One", file: "draft/scene-1.scene.json", folderId: "folder", mapAssetId: "draft-map" },
-    { id: "scene-2", name: "Draft Scene Two", file: "draft/scene-2.scene.json", folderId: "folder", mapAssetId: "draft-map-2" }
+    { id: "scene-2", name: "Draft Scene Two", file: "draft/scene-2.scene.json", folderId: "folder", mapAssetId: "draft-map-2", weather: draftWeather }
   ];
   draft.playerDisplay = { ...draft.playerDisplay, pixelsPerInch: 144 };
+  draft.diceSettings = { ...draft.diceSettings, gmDisplayMode: "panel", playerDisplayMode: "scene" };
 
   const merged = mergeCampaignDraft(summary, draft);
 
@@ -30,9 +34,11 @@ it("preserves summary scene metadata while applying draft sidebar fields", () =>
   expect(merged.sceneFolders).toEqual(draft.sceneFolders);
   expect(merged.sceneLibrary).toEqual({ collapsedFolderIds: ["folder"] });
   expect(merged.playerDisplay.pixelsPerInch).toBe(144);
+  expect(merged.diceSettings.gmDisplayMode).toBe("panel");
+  expect(merged.diceSettings.playerDisplayMode).toBe("scene");
   expect(merged.scenes).toEqual([
     { id: "scene-1", name: "Scene One", file: "scenes/scene-1.scene.json", mapAssetId: "summary-map", folderId: "folder" },
-    { id: "scene-2", name: "Scene Two", file: "scenes/scene-2.scene.json", mapAssetId: "draft-map-2", folderId: "folder" }
+    { id: "scene-2", name: "Scene Two", file: "scenes/scene-2.scene.json", mapAssetId: "draft-map-2", folderId: "folder", weather: draftWeather }
   ]);
 });
 

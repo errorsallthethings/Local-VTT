@@ -124,6 +124,12 @@
   padding: 32px;
 }
 
+.player-blackout {
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
 .player-empty-mark {
   display: grid;
   justify-items: center;

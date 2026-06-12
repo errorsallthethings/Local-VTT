@@ -15,12 +15,14 @@ export function mergeCampaignDraft(summaryCampaign: Campaign, draftCampaign: Cam
         ? {
             ...scene,
             folderId: draftScene.folderId,
-            mapAssetId: scene.mapAssetId ?? draftScene.mapAssetId
+            mapAssetId: scene.mapAssetId ?? draftScene.mapAssetId,
+            weather: draftScene.weather ?? scene.weather
           }
         : scene;
     }),
     assets: summaryCampaign.assets.map((asset) => mergeAssetDraft(asset, draftAssetsById.get(asset.id))),
     playerDisplay: draftCampaign.playerDisplay,
+    diceSettings: draftCampaign.diceSettings,
     updatedAt: draftCampaign.updatedAt
   };
 }

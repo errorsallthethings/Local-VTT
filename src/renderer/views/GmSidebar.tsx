@@ -20,6 +20,7 @@ export function GmSidebar({
   openFolderMenuId,
   workspaceLayout,
   recentCampaigns,
+  tokenAssets,
   onClearActiveFogTool,
   onToggleWorkspacePanel,
   onResetPanelWidth,
@@ -31,6 +32,10 @@ export function GmSidebar({
   onSaveCampaign,
   onRenameCampaign,
   onOpenBackupsFolder,
+  onAddPlayer,
+  onUpdatePlayer,
+  onDeletePlayer,
+  onPlayersPanelOpenChange,
   onOpenSceneDialog,
   onOpenFolderDialog,
   onLoadScene,
@@ -62,6 +67,7 @@ export function GmSidebar({
   openFolderMenuId: string | null;
   workspaceLayout: WorkspaceLayout;
   recentCampaigns: RecentCampaign[];
+  tokenAssets: Asset[];
   onClearActiveFogTool: () => void;
   onToggleWorkspacePanel: (side: "left") => void;
   onResetPanelWidth: (side: "left") => void;
@@ -73,6 +79,10 @@ export function GmSidebar({
   onSaveCampaign: () => void;
   onRenameCampaign: () => void;
   onOpenBackupsFolder: () => void;
+  onAddPlayer: () => void;
+  onUpdatePlayer: (playerId: string, patch: Partial<Campaign["players"][number]>) => void;
+  onDeletePlayer: (playerId: string) => void;
+  onPlayersPanelOpenChange: (open: boolean) => void;
   onOpenSceneDialog: () => void;
   onOpenFolderDialog: () => void;
   onLoadScene: (sceneId: string) => void;
@@ -92,12 +102,23 @@ export function GmSidebar({
   onDeleteFolder: (folder: CampaignSceneFolder) => void;
 }) {
   return (
-    <aside className="sidebar" onPointerDown={onClearActiveFogTool}>
+    <aside
+      className={`sidebar ${workspaceLayout.leftCollapsed ? "panel-collapsed-click-target" : ""}`}
+      onClick={() => {
+        if (workspaceLayout.leftCollapsed) {
+          onToggleWorkspacePanel("left");
+        }
+      }}
+      onPointerDown={onClearActiveFogTool}
+    >
       <button
         className="icon-button panel-collapse-button sidebar-collapse-button"
         aria-label={workspaceLayout.leftCollapsed ? "Expand left sidebar" : "Collapse left sidebar"}
         title={workspaceLayout.leftCollapsed ? "Expand left sidebar" : "Collapse left sidebar"}
-        onClick={() => onToggleWorkspacePanel("left")}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggleWorkspacePanel("left");
+        }}
       >
         {workspaceLayout.leftCollapsed ? <PanelLeftOpen size={16} aria-hidden="true" /> : <PanelLeftClose size={16} aria-hidden="true" />}
       </button>
@@ -113,6 +134,7 @@ export function GmSidebar({
             missingAssets={missingAssets}
             hasUnsavedChanges={hasUnsavedChanges}
             recentCampaigns={recentCampaigns}
+            tokenAssets={tokenAssets}
             onCreateCampaign={onCreateCampaign}
             onOpenCampaign={onOpenCampaign}
             onOpenRecentCampaign={onOpenRecentCampaign}
@@ -120,6 +142,10 @@ export function GmSidebar({
             onSaveCampaign={onSaveCampaign}
             onRenameCampaign={onRenameCampaign}
             onOpenBackupsFolder={onOpenBackupsFolder}
+            onAddPlayer={onAddPlayer}
+            onUpdatePlayer={onUpdatePlayer}
+            onDeletePlayer={onDeletePlayer}
+            onPlayersPanelOpenChange={onPlayersPanelOpenChange}
           />
 
           <div className="section-heading">

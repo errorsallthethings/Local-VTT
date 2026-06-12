@@ -11,6 +11,7 @@ import {
   removeFolderFromCampaign,
   removeSceneDraft
 } from "../lib/campaignActions";
+import { stopActiveTurnOrder } from "../lib/turnOrder";
 import type { useCampaignWorkspace } from "./useCampaignWorkspace";
 
 type CampaignWorkspace = ReturnType<typeof useCampaignWorkspace>;
@@ -173,6 +174,56 @@ export function useCampaignActions({
       setCampaignDirty(false);
       setSaveState("saved");
       window.setTimeout(() => setSaveState("idle"), 1500);
+    });
+    if (!ok) {
+      setSaveState("error");
+    }
+    return ok;
+  };
+
+  const saveCampaignBeforeClose = async () => {
+    const ok = await run(async () => {
+      if (!campaignPath || !campaign) {
+        return;
+      }
+
+      setSaveState("saving");
+      let latestSummary: CampaignSummary | null = null;
+      const scenesToSave = new Map<string, Scene>();
+      for (const sceneEntry of campaign.scenes) {
+        const localScene = getSceneDraftToSave(sceneEntry.id, sceneDrafts, activeScene);
+        if (localScene) {
+          const stoppedScene = stopActiveTurnOrder(localScene, new Date().toISOString());
+          if (dirtySceneIds.has(sceneEntry.id) || stoppedScene !== localScene) {
+            scenesToSave.set(sceneEntry.id, stoppedScene);
+          }
+          continue;
+        }
+
+        const savedScene = await window.localVtt.loadScene(campaignPath, sceneEntry.id);
+        const stoppedScene = stopActiveTurnOrder(savedScene, new Date().toISOString());
+        if (stoppedScene !== savedScene) {
+          scenesToSave.set(sceneEntry.id, stoppedScene);
+        }
+      }
+
+      if (campaignDirty) {
+        latestSummary = await window.localVtt.saveCampaign(campaignPath, campaign);
+      }
+      for (const [sceneId, scene] of scenesToSave) {
+        const result = await window.localVtt.saveScene(campaignPath, scene);
+        latestSummary = result.campaignSummary;
+        if (activeScene?.id === sceneId) {
+          setActiveScene(result.scene);
+        }
+      }
+      if (latestSummary) {
+        applySummary(latestSummary);
+      }
+      setSceneDrafts({});
+      setDirtySceneIds(new Set());
+      setCampaignDirty(false);
+      setSaveState("saved");
     });
     if (!ok) {
       setSaveState("error");
@@ -356,6 +407,7 @@ export function useCampaignActions({
     moveScene,
     saveSceneById,
     saveCampaign,
+    saveCampaignBeforeClose,
     importMap,
     confirmDeleteMapAsset,
     saveFolderScenes,

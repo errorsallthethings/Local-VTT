@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_WORKSPACE_LAYOUT,
+  DEFAULT_TOKEN_LIBRARY_HEIGHT,
   loadWorkspaceLayout,
+  loadTokenLibraryHeight,
+  normalizeTokenLibraryHeight,
   normalizeWorkspaceLayout,
+  MAX_TOKEN_LIBRARY_HEIGHT,
   resetPanelWidth,
   resizePanelWidth,
   toggleWorkspacePanel,
@@ -21,7 +25,7 @@ describe("workspace layout helpers", () => {
     expect(normalizeWorkspaceLayout({ leftWidth: 100, rightWidth: 900, leftCollapsed: true })).toEqual({
       leftWidth: 260,
       rightWidth: 520,
-      leftCollapsed: true,
+      leftCollapsed: false,
       rightCollapsed: false
     });
   });
@@ -38,8 +42,16 @@ describe("workspace layout helpers", () => {
       leftWidth: 420,
       rightWidth: 250,
       leftCollapsed: false,
-      rightCollapsed: true
+      rightCollapsed: false
     });
+  });
+
+  it("loads and normalizes stored token library drawer height", () => {
+    expect(loadTokenLibraryHeight({ getItem: () => null })).toBe(DEFAULT_TOKEN_LIBRARY_HEIGHT);
+    expect(loadTokenLibraryHeight({ getItem: () => "bad" })).toBe(DEFAULT_TOKEN_LIBRARY_HEIGHT);
+    expect(loadTokenLibraryHeight({ getItem: () => "80" })).toBe(170);
+    expect(loadTokenLibraryHeight({ getItem: () => "900" })).toBe(MAX_TOKEN_LIBRARY_HEIGHT);
+    expect(loadTokenLibraryHeight({ getItem: () => "320" })).toBe(320);
   });
 
   it("toggles collapse state without changing widths", () => {
@@ -51,5 +63,11 @@ describe("workspace layout helpers", () => {
     expect(resizePanelWidth(layout, "left", 300, 40).leftWidth).toBe(340);
     expect(resizePanelWidth(layout, "right", 360, -200).rightWidth).toBe(250);
     expect(resetPanelWidth(layout, "right").rightWidth).toBe(DEFAULT_WORKSPACE_LAYOUT.rightWidth);
+  });
+
+  it("normalizes token library drawer height into supported bounds", () => {
+    expect(normalizeTokenLibraryHeight(100)).toBe(170);
+    expect(normalizeTokenLibraryHeight(320)).toBe(320);
+    expect(normalizeTokenLibraryHeight(900)).toBe(MAX_TOKEN_LIBRARY_HEIGHT);
   });
 });

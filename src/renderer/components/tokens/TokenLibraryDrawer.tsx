@@ -16,11 +16,12 @@ import {
   Trash2,
   Upload
 } from "lucide-react";
-import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Asset } from "../../../shared/localvtt";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
+import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/dragTypes";
 
 type TokenLibrarySort = "name-asc" | "newest" | "oldest";
@@ -40,6 +41,7 @@ interface TokenLibraryDrawerProps {
   onSetTokenDefaults: (asset: Asset) => void;
   onRenameToken: (asset: Asset) => void;
   onDeleteToken: (asset: Asset) => void;
+  sidePanel?: ReactNode;
 }
 
 export function TokenLibraryDrawer({
@@ -55,12 +57,15 @@ export function TokenLibraryDrawer({
   selectedTokenAssetId,
   onSetTokenDefaults,
   onRenameToken,
-  onDeleteToken
+  onDeleteToken,
+  sidePanel
 }: TokenLibraryDrawerProps) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<TokenLibrarySort>("name-asc");
   const [view, setView] = useState<TokenLibraryView>("list");
   const [openTokenMenuId, setOpenTokenMenuId] = useState<string | null>(null);
+  const [splitPercent, setSplitPercent] = useState(62);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const filteredAssets = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return [...assets]
@@ -74,8 +79,39 @@ export function TokenLibraryDrawer({
     onDismiss: () => setOpenTokenMenuId(null)
   });
 
+  const startSplitResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const content = contentRef.current;
+    if (!content) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const bounds = content.getBoundingClientRect();
+    const updateSplit = (clientX: number) => {
+      const nextPercent = ((clientX - bounds.left) / bounds.width) * 100;
+      setSplitPercent(Math.min(76, Math.max(38, nextPercent)));
+    };
+    updateSplit(event.clientX);
+    const onPointerMove = (moveEvent: PointerEvent) => updateSplit(moveEvent.clientX);
+    const onPointerUp = () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp, { once: true });
+  };
+
   return (
-    <section className={`token-library-drawer token-library-view-${view} ${expanded ? "token-library-expanded" : ""}`}>
+    <section
+      className={`token-library-drawer token-library-view-${view} ${
+        expanded ? "token-library-expanded" : "token-library-collapsed-click-target"
+      }`}
+      onClick={() => {
+        if (!expanded) {
+          onToggleExpanded();
+        }
+      }}
+    >
       {expanded && (
         <button
           className="token-library-resize-handle"
@@ -92,97 +128,79 @@ export function TokenLibraryDrawer({
           className="icon-button token-library-toggle"
           aria-label={expanded ? "Collapse token library" : "Expand token library"}
           title={expanded ? "Collapse token library" : "Expand token library"}
-          onClick={onToggleExpanded}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleExpanded();
+          }}
         >
           {expanded ? <PanelBottomClose size={16} aria-hidden="true" /> : <PanelBottomOpen size={16} aria-hidden="true" />}
         </button>
         <div className="token-library-title">
-          <strong>Token Library</strong>
-          <span>{assets.length === 1 ? "1 token" : `${assets.length} tokens`}</span>
+          <strong>Scene Tools</strong>
         </div>
-        {expanded && (
-          <div className="token-library-tools">
-            <button
-              className="token-library-import"
-              disabled={!campaignOpen}
-              title={campaignOpen ? "Import Token" : "Create or open a campaign before importing tokens"}
-              onClick={onImportToken}
-            >
-              <Upload size={14} aria-hidden="true" />
-              <span>Import Token</span>
-            </button>
-            <label className="token-library-sort">
-              <span>Sort</span>
-              <select value={sort} onChange={(event) => setSort(event.target.value as TokenLibrarySort)}>
-                <option value="name-asc">Name A-Z</option>
-                <option value="newest">Newest</option>
-                <option value="oldest">Oldest</option>
-              </select>
-            </label>
-            <div className="token-library-view-toggle" aria-label="Token library display size">
-              <ViewButton view="list" currentView={view} label="List view" onSelect={setView}>
-                <List size={14} aria-hidden="true" />
-              </ViewButton>
-              <ViewButton view="small" currentView={view} label="Small tokens" onSelect={setView}>
-                <Grid3X3 size={14} aria-hidden="true" />
-              </ViewButton>
-              <ViewButton view="medium" currentView={view} label="Medium tokens" onSelect={setView}>
-                <Grid2X2 size={14} aria-hidden="true" />
-              </ViewButton>
-              <ViewButton view="large" currentView={view} label="Large tokens" onSelect={setView}>
-                <Square size={14} aria-hidden="true" />
-              </ViewButton>
-            </div>
-            <label className="token-library-search">
-              <Search size={14} aria-hidden="true" />
-              <input value={query} placeholder="Search tokens" onChange={(event) => setQuery(event.target.value)} />
-            </label>
-          </div>
-        )}
       </div>
 
       {expanded && (
-        <div className="token-library-content">
-          {selectedTokenAsset && (
-            <section className="token-library-section">
-              <TokenLibrarySectionLabel label="Selected Token" />
-              <div className="token-library-selected-token">
-                <TokenLibraryItem
-                  asset={selectedTokenAsset}
-                  activeSceneName={activeSceneName}
-                  selected
-                  draggable={false}
-                  menuOpen={openTokenMenuId === `selected:${selectedTokenAsset.id}`}
-                  onToggleMenu={() => setOpenTokenMenuId((openId) => (openId === `selected:${selectedTokenAsset.id}` ? null : `selected:${selectedTokenAsset.id}`))}
-                  onAddToken={onAddToken}
-                  onSetTokenDefaults={(defaultAsset) => {
-                    setOpenTokenMenuId(null);
-                    onSetTokenDefaults(defaultAsset);
-                  }}
-                  onRenameToken={(renamedAsset) => {
-                    setOpenTokenMenuId(null);
-                    onRenameToken(renamedAsset);
-                  }}
-                  onDeleteToken={(deletedAsset) => {
-                    setOpenTokenMenuId(null);
-                    onDeleteToken(deletedAsset);
-                  }}
-                />
+        <div
+          ref={contentRef}
+          className={sidePanel ? "token-library-content token-library-content-split" : "token-library-content"}
+          style={sidePanel ? ({ "--scene-tools-token-width": `${splitPercent}%` } as CSSProperties) : undefined}
+        >
+          <div className="token-library-main-panel">
+            <div className="token-library-panel-heading">
+              <div className="token-library-title">
+                <strong>Token Library</strong>
+                <span>{assets.length === 1 ? "1 token" : `${assets.length} tokens`}</span>
               </div>
-            </section>
-          )}
-          <section className="token-library-section token-library-list-section">
-            <TokenLibrarySectionLabel label="Token List" />
-            {filteredAssets.length > 0 ? (
-              <div className="token-library-grid">
-                {filteredAssets.map((asset) => (
+              <div className="token-library-tools">
+                <button
+                  className="token-library-import"
+                  disabled={!campaignOpen}
+                  title={campaignOpen ? "Import Token" : "Create or open a campaign before importing tokens"}
+                  onClick={onImportToken}
+                >
+                  <Upload size={14} aria-hidden="true" />
+                  <span>Import Token</span>
+                </button>
+                <label className="token-library-sort">
+                  <span>Sort</span>
+                  <select value={sort} onChange={(event) => setSort(event.target.value as TokenLibrarySort)}>
+                    <option value="name-asc">Name A-Z</option>
+                    <option value="newest">Newest</option>
+                    <option value="oldest">Oldest</option>
+                  </select>
+                </label>
+                <div className="token-library-view-toggle" aria-label="Token library display size">
+                  <ViewButton view="list" currentView={view} label="List view" onSelect={setView}>
+                    <List size={14} aria-hidden="true" />
+                  </ViewButton>
+                  <ViewButton view="small" currentView={view} label="Small tokens" onSelect={setView}>
+                    <Grid3X3 size={14} aria-hidden="true" />
+                  </ViewButton>
+                  <ViewButton view="medium" currentView={view} label="Medium tokens" onSelect={setView}>
+                    <Grid2X2 size={14} aria-hidden="true" />
+                  </ViewButton>
+                  <ViewButton view="large" currentView={view} label="Large tokens" onSelect={setView}>
+                    <Square size={14} aria-hidden="true" />
+                  </ViewButton>
+                </div>
+                <label className="token-library-search">
+                  <Search size={14} aria-hidden="true" />
+                  <input value={query} placeholder="Search tokens" onChange={(event) => setQuery(event.target.value)} />
+                </label>
+              </div>
+            </div>
+            {selectedTokenAsset && (
+              <section className="token-library-section">
+                <TokenLibrarySectionLabel label="Selected Token" />
+                <div className="token-library-selected-token">
                   <TokenLibraryItem
-                    key={asset.id}
-                    asset={asset}
+                    asset={selectedTokenAsset}
                     activeSceneName={activeSceneName}
-                    selected={selectedTokenAssetId === asset.id}
-                    menuOpen={openTokenMenuId === asset.id}
-                    onToggleMenu={() => setOpenTokenMenuId((openId) => (openId === asset.id ? null : asset.id))}
+                    selected
+                    draggable={false}
+                    menuOpen={openTokenMenuId === `selected:${selectedTokenAsset.id}`}
+                    onToggleMenu={() => setOpenTokenMenuId((openId) => (openId === `selected:${selectedTokenAsset.id}` ? null : `selected:${selectedTokenAsset.id}`))}
                     onAddToken={onAddToken}
                     onSetTokenDefaults={(defaultAsset) => {
                       setOpenTokenMenuId(null);
@@ -197,21 +215,59 @@ export function TokenLibraryDrawer({
                       onDeleteToken(deletedAsset);
                     }}
                   />
-                ))}
-              </div>
-            ) : (
-              <div className="token-library-empty">
-                <PackageOpen size={18} aria-hidden="true" />
-                <span>
-                  {!campaignOpen
-                    ? "Create or open a campaign before importing tokens."
-                    : assets.length === 0
-                      ? "Import a token to start building this campaign library."
-                      : "No tokens match your search."}
-                </span>
-              </div>
+                </div>
+              </section>
             )}
-          </section>
+            <section className="token-library-section token-library-list-section">
+              <TokenLibrarySectionLabel label="Token List" />
+              {filteredAssets.length > 0 ? (
+                <div className="token-library-grid">
+                  {filteredAssets.map((asset) => (
+                    <TokenLibraryItem
+                      key={asset.id}
+                      asset={asset}
+                      activeSceneName={activeSceneName}
+                      selected={selectedTokenAssetId === asset.id}
+                      menuOpen={openTokenMenuId === asset.id}
+                      onToggleMenu={() => setOpenTokenMenuId((openId) => (openId === asset.id ? null : asset.id))}
+                      onAddToken={onAddToken}
+                      onSetTokenDefaults={(defaultAsset) => {
+                        setOpenTokenMenuId(null);
+                        onSetTokenDefaults(defaultAsset);
+                      }}
+                      onRenameToken={(renamedAsset) => {
+                        setOpenTokenMenuId(null);
+                        onRenameToken(renamedAsset);
+                      }}
+                      onDeleteToken={(deletedAsset) => {
+                        setOpenTokenMenuId(null);
+                        onDeleteToken(deletedAsset);
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="token-library-empty">
+                  <PackageOpen size={18} aria-hidden="true" />
+                  <span>
+                    {!campaignOpen
+                      ? "Create or open a campaign before importing tokens."
+                      : assets.length === 0
+                        ? "Import a token to start building this campaign library."
+                        : "No tokens match your search."}
+                  </span>
+                </div>
+              )}
+            </section>
+          </div>
+          {sidePanel && (
+            <>
+              <button className="scene-tools-split-handle" aria-label="Resize scene tools panels" title="Drag to resize panels" onPointerDown={startSplitResize}>
+                <GripVertical size={14} aria-hidden="true" />
+              </button>
+              <div className="token-library-side-panel">{sidePanel}</div>
+            </>
+          )}
         </div>
       )}
     </section>
@@ -252,7 +308,7 @@ function TokenLibraryItem({
   asset,
   activeSceneName,
   selected = false,
-  draggable = Boolean(activeSceneName),
+  draggable = true,
   menuOpen,
   onToggleMenu,
   onAddToken,
@@ -352,35 +408,12 @@ function TokenLibraryMenu({
   onRenameToken: (asset: Asset) => void;
   onDeleteToken: (asset: Asset) => void;
 }) {
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-
-  useLayoutEffect(() => {
-    if (!anchor) {
-      return;
-    }
-    const updatePosition = () => {
-      const anchorRect = anchor.getBoundingClientRect();
-      const menuRect = menuRef.current?.getBoundingClientRect();
-      const menuWidth = menuRect?.width ?? 158;
-      const menuHeight = menuRect?.height ?? 118;
-      const gap = 6;
-      const top =
-        anchorRect.bottom + gap + menuHeight <= window.innerHeight
-          ? anchorRect.bottom + gap
-          : Math.max(gap, anchorRect.top - menuHeight - gap);
-      const left = Math.min(window.innerWidth - menuWidth - gap, Math.max(gap, anchorRect.right - menuWidth));
-      setPosition({ top, left });
-    };
-
-    updatePosition();
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
-    return () => {
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
-    };
-  }, [anchor]);
+  const { menuRef, position } = useFloatingMenuPosition({
+    open: Boolean(anchor),
+    anchor,
+    fallbackWidth: 158,
+    fallbackHeight: 118
+  });
 
   return (
     <div ref={menuRef} className="token-library-menu token-library-menu-portal token-library-menu-wrap" style={{ top: position.top, left: position.left }} onClick={(event) => event.stopPropagation()}>

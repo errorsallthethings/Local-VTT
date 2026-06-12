@@ -8,9 +8,13 @@ import {
   useState
 } from "react";
 import {
+  DEFAULT_DICE_SETTINGS,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
+  isLiveTableEvent,
+  isPlayerIdleState,
+  isPlayerSceneProjection,
   projectSceneForPlayer
 } from "../../shared/localvtt";
 import type {
@@ -20,6 +24,9 @@ import type {
   CampaignSceneEntry,
   CampaignSceneFolder,
   DisplayCalibration,
+  DiceDisplayMode,
+  DiceSettings,
+  LiveTableEvent,
   Point,
   Scene,
   SquareCropRect,
@@ -27,8 +34,9 @@ import type {
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ToolsMenu, type CanvasTool, type FogOperation } from "../components/tools/ToolsMenu";
+import { ToolsMenu, type CanvasTool, type FogOperation, type WeatherMaskTool } from "../components/tools/ToolsMenu";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
+import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import type { FogTool } from "../canvas/fogRenderer";
@@ -37,6 +45,7 @@ import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { moveSceneFolder } from "../lib/campaignActions";
+import { DICE_HISTORY_DURATION_MS, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import {
   RECENT_CAMPAIGNS_STORAGE_KEY,
   addRecentCampaign,
@@ -45,13 +54,17 @@ import {
   type RecentCampaign
 } from "../lib/recentCampaigns";
 import { createImportedToken } from "../lib/tokenDefaults";
+import { addTurnOrderEntry, createTurnOrderEntryFromToken, stopTurnOrder } from "../lib/turnOrder";
 import {
   COLLAPSED_RAIL_WIDTH,
   COMPACT_RIGHT_PANEL_WIDTH,
+  DEFAULT_TOKEN_LIBRARY_HEIGHT,
+  TOKEN_LIBRARY_HEIGHT_STORAGE_KEY,
   WORKSPACE_LAYOUT_STORAGE_KEY,
-  clamp,
   getWorkspacePanelWidth,
+  loadTokenLibraryHeight,
   loadWorkspaceLayout,
+  normalizeTokenLibraryHeight,
   resetPanelWidth as resetWorkspacePanelWidth,
   resizePanelWidth,
   toggleWorkspacePanel as toggleWorkspacePanelLayout,
@@ -75,10 +88,11 @@ import {
 import { GmInspector } from "./GmInspector";
 import { GmSidebar } from "./GmSidebar";
 
-const TOKEN_LIBRARY_HEIGHT_STORAGE_KEY = "localvtt.tokenLibraryHeight";
-const DEFAULT_TOKEN_LIBRARY_HEIGHT = 238;
-const MIN_TOKEN_LIBRARY_HEIGHT = 170;
-const MAX_TOKEN_LIBRARY_HEIGHT = 460;
+type PlayerDisplayMode = "scene" | "hold" | "blackout";
+type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
+
+const MAX_DICE_ROLL_HISTORY = 100;
+const DICE_SETTINGS_PREFERENCES_STORAGE_KEY = "localvtt.diceSettingsPreferences";
 
 export function GmApp() {
   const workspace = useCampaignWorkspace();
@@ -91,6 +105,7 @@ export function GmApp() {
     sceneDrafts,
     setSceneDrafts,
     dirtySceneIds,
+    setDirtySceneIds,
     campaignDirty,
     saveState,
     error,
@@ -125,6 +140,7 @@ export function GmApp() {
   const [playerViewDisplayDialogOpen, setPlayerViewDisplayDialogOpen] = useState(false);
   const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasTool | null>(null);
   const [activeFogTool, setActiveFogTool] = useState<FogTool | null>(null);
+  const [activeWeatherMaskTool, setActiveWeatherMaskTool] = useState<WeatherMaskTool | null>(null);
   const [fogOperation, setFogOperation] = useState<FogOperation>("reveal");
   const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
@@ -136,9 +152,15 @@ export function GmApp() {
   const [newCampaignName, setNewCampaignName] = useState("");
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [selectedFogShapeId, setSelectedFogShapeId] = useState<string | null>(null);
+  const [selectedWeatherMaskId, setSelectedWeatherMaskId] = useState<string | null>(null);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
+  const [playerDisplayMode, setPlayerDisplayMode] = useState<PlayerDisplayMode>("scene");
+  const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
+  const [diceRollHistory, setDiceRollHistory] = useState<DiceRollEvent[]>([]);
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
+  const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
   const [gmCanvasCenter, setGmCanvasCenter] = useState<Point | null>(null);
   const [tokenLibraryHeight, setTokenLibraryHeight] = useState(() => loadTokenLibraryHeight());
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
@@ -146,6 +168,7 @@ export function GmApp() {
     parseRecentCampaigns(window.localStorage.getItem(RECENT_CAMPAIGNS_STORAGE_KEY))
   );
   const [busyState, setBusyState] = useState<CampaignBusyState | null>(null);
+  const skipNextPlayerSceneAutoSyncRef = useRef(false);
 
   const mapAsset = useMemo(() => {
     if (!campaign || !activeScene?.mapAssetId) {
@@ -157,7 +180,13 @@ export function GmApp() {
   const tokenAssets = useMemo(() => new Map((campaign?.assets ?? []).filter((asset) => asset.kind === "token").map((asset) => [asset.id, asset])), [campaign?.assets]);
   const tokenLibraryAssets = useMemo(() => [...tokenAssets.values()], [tokenAssets]);
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
-  const collapsedFolderIds = useMemo(() => new Set(campaign?.sceneLibrary.collapsedFolderIds ?? []), [campaign?.sceneLibrary.collapsedFolderIds]);
+  const [diceSettingsPreference, setDiceSettingsPreference] = useState<DiceSettings>(() => loadDiceSettingsPreference());
+  const diceSettings = useMemo<DiceSettings>(() => ({ ...DEFAULT_DICE_SETTINGS, ...(campaign?.diceSettings ?? diceSettingsPreference) }), [campaign?.diceSettings, diceSettingsPreference]);
+  const diceSettingsDraftRef = useRef<DiceSettings>(diceSettings);
+  const collapsedFolderIds = useMemo(
+    () => new Set((campaign?.sceneFolders ?? []).filter((folder) => !expandedFolderIds.has(folder.id)).map((folder) => folder.id)),
+    [campaign?.sceneFolders, expandedFolderIds]
+  );
   const sceneThumbnailAssets = useMemo(() => {
     const assetsById = new Map((campaign?.assets ?? []).map((asset) => [asset.id, asset]));
     return new Map(
@@ -169,8 +198,13 @@ export function GmApp() {
     );
   }, [activeScene, campaign?.assets, campaign?.scenes, sceneDrafts]);
 
+  useEffect(() => {
+    diceSettingsDraftRef.current = diceSettings;
+  }, [diceSettings]);
+
   const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
     // Only sync the active edit to Player View when that same scene is already being shown to players.
+    skipNextPlayerSceneAutoSyncRef.current = syncScene !== nextScene;
     updateWorkspaceScene(nextScene, nextScene.id === playerSceneId ? syncCampaign : null, syncScene);
   };
 
@@ -181,10 +215,142 @@ export function GmApp() {
   const clearActiveCanvasTools = () => {
     setActiveCanvasTool(null);
     setActiveFogTool(null);
+    setActiveWeatherMaskTool(null);
   };
 
   const updateCampaignDraft = (nextCampaign: Campaign) => {
     updateWorkspaceCampaignDraft(nextCampaign, activeScene?.id === playerSceneId ? activeScene : null);
+  };
+
+  const updateDiceSettings = (patch: Partial<DiceSettings>) => {
+    const nextDiceSettings = {
+      ...diceSettingsDraftRef.current,
+      ...patch
+    };
+    diceSettingsDraftRef.current = nextDiceSettings;
+    if (!campaign) {
+      setDiceSettingsPreference(nextDiceSettings);
+      saveDiceSettingsPreference(nextDiceSettings);
+      return;
+    }
+    updateCampaignDraft({
+      ...campaign,
+      diceSettings: nextDiceSettings,
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const emitLiveTableEvent = (event: LiveTableEvent) => {
+    setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
+    if (event.type === "dice") {
+      setDiceRollHistory((history) => [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, MAX_DICE_ROLL_HISTORY));
+    } else if (event.type === "dice-clear") {
+      setDiceRollHistory([]);
+    }
+    void window.localVtt.sendLiveTableEvent(event);
+  };
+
+  useEffect(() => {
+    const removeListener = window.localVtt.onLiveTableEvent((event) => {
+      if (isLiveTableEvent(event)) {
+        setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
+        if (event.type === "dice") {
+          setDiceRollHistory((history) => [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, MAX_DICE_ROLL_HISTORY));
+        } else if (event.type === "dice-clear") {
+          setDiceRollHistory([]);
+        }
+      }
+    });
+    return removeListener;
+  }, []);
+
+  const getEffectiveDiceDisplayModes = (): { gmDisplayMode: DiceDisplayMode; playerDisplayMode: DiceDisplayMode; gmPanelAdvanced: boolean; playerPanelAdvanced: boolean } => {
+    if (diceSettings.sceneRollEnabled) {
+      if (diceSettings.sceneRollTarget === "player") {
+        return {
+          gmDisplayMode: "scene-result",
+          playerDisplayMode: "scene",
+          gmPanelAdvanced: false,
+          playerPanelAdvanced: diceSettings.playerPanelAdvanced
+        };
+      }
+      return {
+        gmDisplayMode: "scene",
+        playerDisplayMode: "hidden",
+        gmPanelAdvanced: diceSettings.gmPanelAdvanced,
+        playerPanelAdvanced: diceSettings.playerPanelAdvanced
+      };
+    }
+    return {
+      gmDisplayMode: diceSettings.gmDisplayMode === "panel" ? "panel" : "results",
+      playerDisplayMode: diceSettings.playerDisplayMode === "panel" || diceSettings.playerDisplayMode === "hidden" ? diceSettings.playerDisplayMode : "results",
+      gmPanelAdvanced: diceSettings.gmPanelAdvanced,
+      playerPanelAdvanced: diceSettings.playerPanelAdvanced
+    };
+  };
+
+  const rollTableDie = (die: DiceType) => {
+    const roll = rollDiceEvent(die);
+    const diceDisplayModes = getEffectiveDiceDisplayModes();
+    setError(null);
+    emitLiveTableEvent({
+      ...roll,
+      id: crypto.randomUUID(),
+      type: "dice",
+      gmDiceDisplay: diceDisplayModes.gmDisplayMode,
+      playerDiceDisplay: diceDisplayModes.playerDisplayMode,
+      gmDiceSceneSize: diceSettings.gmSceneSize,
+      playerDiceSceneSize: diceSettings.playerSceneSize,
+      gmDicePanelEdge: diceSettings.gmPanelEdge,
+      playerDicePanelEdge: diceSettings.playerPanelEdge,
+      gmDicePanelFacing: diceSettings.gmPanelFacing,
+      playerDicePanelFacing: diceSettings.playerPanelFacing,
+      gmDicePanelPosition: diceSettings.gmPanelPosition,
+      playerDicePanelPosition: diceSettings.playerPanelPosition,
+      gmDicePanelAdvanced: diceDisplayModes.gmPanelAdvanced,
+      playerDicePanelAdvanced: diceDisplayModes.playerPanelAdvanced,
+      createdAt: Date.now()
+    });
+  };
+
+  const rollTableExpression = (expression: string, rollLabel?: string) => {
+    try {
+      const roll = rollDiceExpression(expression);
+      const trimmedLabel = rollLabel?.trim();
+      const diceDisplayModes = getEffectiveDiceDisplayModes();
+      setError(null);
+      emitLiveTableEvent({
+        ...roll,
+        id: crypto.randomUUID(),
+        type: "dice",
+        ...(trimmedLabel ? { rollLabel: trimmedLabel } : {}),
+        gmDiceDisplay: diceDisplayModes.gmDisplayMode,
+        playerDiceDisplay: diceDisplayModes.playerDisplayMode,
+        gmDiceSceneSize: diceSettings.gmSceneSize,
+        playerDiceSceneSize: diceSettings.playerSceneSize,
+        gmDicePanelEdge: diceSettings.gmPanelEdge,
+        playerDicePanelEdge: diceSettings.playerPanelEdge,
+        gmDicePanelFacing: diceSettings.gmPanelFacing,
+        playerDicePanelFacing: diceSettings.playerPanelFacing,
+        gmDicePanelPosition: diceSettings.gmPanelPosition,
+        playerDicePanelPosition: diceSettings.playerPanelPosition,
+        gmDicePanelAdvanced: diceDisplayModes.gmPanelAdvanced,
+        playerDicePanelAdvanced: diceDisplayModes.playerPanelAdvanced,
+        createdAt: Date.now()
+      });
+      return null;
+    } catch (caught) {
+      return caught instanceof Error ? caught.message : "Could not roll that dice expression.";
+    }
+  };
+
+  const clearDiceRolls = () => {
+    setError(null);
+    emitLiveTableEvent({
+      id: crypto.randomUUID(),
+      type: "dice-clear",
+      createdAt: Date.now()
+    });
   };
 
   const refreshDisplays = () =>
@@ -307,6 +473,20 @@ export function GmApp() {
   }, [activeScene]);
 
   useEffect(() => {
+    setLiveTableEvents([]);
+  }, [activeScene?.id]);
+
+  useEffect(() => {
+    if (liveTableEvents.length === 0) {
+      return;
+    }
+    const cleanupTimer = window.setTimeout(() => {
+      setLiveTableEvents((events) => filterActiveLiveTableEvents(events));
+    }, 250);
+    return () => window.clearTimeout(cleanupTimer);
+  }, [liveTableEvents]);
+
+  useEffect(() => {
     void refreshDisplays();
     // Displays are refreshed once on mount; later updates happen when the GM opens display settings.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -318,6 +498,13 @@ export function GmApp() {
     }
     setSelectedFogShapeId(null);
   }, [activeScene?.fog.shapes, selectedFogShapeId]);
+
+  useEffect(() => {
+    if (!selectedWeatherMaskId || activeScene?.weather.masks.some((mask) => mask.id === selectedWeatherMaskId)) {
+      return;
+    }
+    setSelectedWeatherMaskId(null);
+  }, [activeScene?.weather.masks, selectedWeatherMaskId]);
 
   useEffect(() => {
     if (!selectedFogShapeId) {
@@ -345,9 +532,40 @@ export function GmApp() {
     if (!playerSceneId || campaign?.scenes.some((scene) => scene.id === playerSceneId)) {
       return;
     }
-    void window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.");
+    void window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.", "hold");
     setPlayerSceneId(null);
+    setPlayerDisplayMode("hold");
   }, [campaign?.scenes, playerSceneId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void window.localVtt.getLastPlayerState().then((state) => {
+      if (cancelled) {
+        return;
+      }
+      if (isPlayerSceneProjection(state) && campaign?.scenes.some((scene) => scene.id === state.scene.id)) {
+        setPlayerSceneId(state.scene.id);
+        setPlayerDisplayMode("scene");
+      } else if (isPlayerIdleState(state)) {
+        setPlayerSceneId(null);
+        setPlayerDisplayMode(state.variant ?? "hold");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [campaign?.scenes]);
+
+  useEffect(() => {
+    if (!campaign || !activeScene || activeScene.id !== playerSceneId || playerDisplayMode !== "scene") {
+      return;
+    }
+    if (skipNextPlayerSceneAutoSyncRef.current) {
+      skipNextPlayerSceneAutoSyncRef.current = false;
+      return;
+    }
+    void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
+  }, [activeScene, campaign, playerDisplayMode, playerSceneId, playersPanelOpen]);
 
   useEffect(() => {
     window.localStorage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(workspaceLayout));
@@ -372,7 +590,19 @@ export function GmApp() {
   const resetSceneLibraryUi = () => {
     setOpenSceneMenuId(null);
     setOpenFolderMenuId(null);
+    setExpandedFolderIds(new Set());
+    setPlayersPanelOpen(false);
+    setTokenLibraryExpanded(false);
+    setWorkspaceLayout((layout) => ({ ...layout, leftCollapsed: false, rightCollapsed: false }));
   };
+
+  const handleCampaignOpened = useCallback(
+    (summary: CampaignSummary) => {
+      resetSceneLibraryUi();
+      rememberCampaign(summary);
+    },
+    [rememberCampaign]
+  );
 
   const {
     createCampaign,
@@ -382,6 +612,7 @@ export function GmApp() {
     moveScene,
     saveSceneById,
     saveCampaign,
+    saveCampaignBeforeClose,
     importMap,
     confirmDeleteMapAsset,
     saveFolderScenes,
@@ -396,16 +627,16 @@ export function GmApp() {
     onResetSceneLibraryUi: resetSceneLibraryUi,
     onCloseSceneMenu: () => setOpenSceneMenuId(null),
     onCloseFolderMenu: () => setOpenFolderMenuId(null),
-    onCampaignOpened: rememberCampaign,
+    onCampaignOpened: handleCampaignOpened,
     onMapAssetDeleteHandled: () => setMapAssetToDelete(null),
     onSceneDeleteHandled: () => setSceneToDelete(null),
     onFolderDeleteHandled: () => setFolderToDelete(null)
   });
-  const saveBeforeCloseRef = useRef(saveCampaign);
+  const saveBeforeCloseRef = useRef(saveCampaignBeforeClose);
 
   useEffect(() => {
-    saveBeforeCloseRef.current = saveCampaign;
-  }, [saveCampaign]);
+    saveBeforeCloseRef.current = saveCampaignBeforeClose;
+  }, [saveCampaignBeforeClose]);
 
   const {
     updateVideoPlayback,
@@ -424,6 +655,20 @@ export function GmApp() {
     updateScene,
     onClearFogConfirmed: () => setConfirmClearFogOpen(false)
   });
+
+  const undoWeatherMask = () => {
+    if (!activeScene || activeScene.weather.masks.length === 0) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      weather: {
+        ...activeScene.weather,
+        masks: activeScene.weather.masks.slice(0, -1)
+      },
+      updatedAt: new Date().toISOString()
+    });
+  };
 
   const reopenRecentCampaign = async (recentCampaignPath: string) => {
     const ok = await openRecentCampaign(recentCampaignPath);
@@ -473,6 +718,98 @@ export function GmApp() {
 
   const addLibraryTokenToScene = (asset: Asset) => {
     addImportedTokenToScene(asset);
+  };
+
+  const addCampaignPlayer = () => {
+    if (!campaign || campaign.players.length >= 7) {
+      return;
+    }
+    updateCampaignDraft({
+      ...campaign,
+      players: [
+        ...campaign.players,
+        {
+          id: crypto.randomUUID(),
+          name: `Player ${campaign.players.length + 1}`,
+          color: DEFAULT_TOKEN_BORDER_COLOR,
+          defaultSeatEdge: "bottom",
+          defaultSeatPosition: 0.5,
+          visibleInPlayer: true
+        }
+      ],
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const updateCampaignPlayer = (playerId: string, patch: Partial<Campaign["players"][number]>) => {
+    if (!campaign) {
+      return;
+    }
+    const updatedAt = new Date().toISOString();
+    const players = campaign.players.map((player) => (player.id === playerId ? { ...player, ...patch } : player));
+    const updatedPlayer = players.find((player) => player.id === playerId);
+    const nextCampaign = { ...campaign, players, updatedAt };
+    updateCampaignDraft(nextCampaign);
+    if (activeScene && updatedPlayer && activeScene.turnOrder.entries.some((entry) => entry.playerId === playerId)) {
+      updateScene(
+        {
+          ...activeScene,
+          turnOrder: {
+            ...activeScene.turnOrder,
+            entries: activeScene.turnOrder.entries.map((entry) =>
+              entry.playerId === playerId
+                ? {
+                    ...entry,
+                    name: updatedPlayer.name,
+                    assetId: updatedPlayer.assetId
+                  }
+                : entry
+            )
+          },
+          updatedAt
+        },
+        nextCampaign
+      );
+    }
+  };
+
+  const deleteCampaignPlayer = (playerId: string) => {
+    if (!campaign) {
+      return;
+    }
+    const updatedAt = new Date().toISOString();
+    const nextCampaign = {
+      ...campaign,
+      players: campaign.players.filter((player) => player.id !== playerId),
+      updatedAt
+    };
+    updateCampaignDraft(nextCampaign);
+    if (activeScene?.turnOrder.entries.some((entry) => entry.playerId === playerId)) {
+      updateScene(
+        {
+          ...activeScene,
+          turnOrder: {
+            ...activeScene.turnOrder,
+            entries: activeScene.turnOrder.entries.filter((entry) => entry.playerId !== playerId)
+          },
+          updatedAt
+        },
+        nextCampaign
+      );
+    }
+  };
+
+  const addSceneTokenToTurnOrder = (tokenId: string) => {
+    if (!activeScene) {
+      return;
+    }
+    const token = activeScene.tokens.find((candidate) => candidate.id === tokenId);
+    if (!token || activeScene.turnOrder.entries.some((entry) => entry.tokenId === token.id)) {
+      setSelectedTokenId(tokenId);
+      return;
+    }
+    updateScene(addTurnOrderEntry(activeScene, createTurnOrderEntryFromToken(crypto.randomUUID(), token)));
+    setSelectedTokenId(token.id);
   };
 
   const openTokenDefaultsDialog = (asset: Asset) => {
@@ -535,7 +872,7 @@ export function GmApp() {
     };
     updateCampaignDraft(nextCampaign);
     if (activeScene) {
-      void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(nextCampaign, activeScene));
+      void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(nextCampaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
     }
   };
 
@@ -689,7 +1026,7 @@ export function GmApp() {
       if (nextActiveScene) {
         setActiveScene(nextActiveScene);
         if (nextActiveScene.id === playerSceneId) {
-          void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(result.campaignSummary.campaign, nextActiveScene));
+          void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(result.campaignSummary.campaign, nextActiveScene, { showPlayerSeatIndicators: playersPanelOpen }));
         }
       }
       setSelectedTokenId((tokenId) => (nextActiveScene?.tokens.some((token) => token.id === tokenId) ? tokenId : null));
@@ -823,12 +1160,21 @@ export function GmApp() {
       if (!campaign || !activeScene) {
         return;
       }
+      if (campaignPath && playerSceneId && playerSceneId !== activeScene.id) {
+        const previousPlayerScene = sceneDrafts[playerSceneId] ?? (await window.localVtt.loadScene(campaignPath, playerSceneId));
+        if (previousPlayerScene.turnOrder.active) {
+          const pausedPreviousScene = stopTurnOrder(previousPlayerScene);
+          setSceneDrafts((drafts) => ({ ...drafts, [pausedPreviousScene.id]: pausedPreviousScene }));
+          setDirtySceneIds((ids) => new Set(ids).add(pausedPreviousScene.id));
+        }
+      }
       const openResult = await window.localVtt.openPlayerView({
         displayId: campaign.playerDisplay.selectedDisplayId,
         fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
       });
-      await window.localVtt.sendSceneToPlayer(projectSceneForPlayer(campaign, activeScene));
+      await window.localVtt.sendSceneToPlayer(projectSceneForPlayer(campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
       setPlayerSceneId(activeScene.id);
+      setPlayerDisplayMode("scene");
       if (!openResult.displayFound && campaign.playerDisplay.selectedDisplayLabel) {
         setError(`The saved Player View display (${campaign.playerDisplay.selectedDisplayLabel}) is not connected. Player View opened normally so you can move it manually.`);
       }
@@ -844,12 +1190,30 @@ export function GmApp() {
     run(async () => {
       await window.localVtt.closePlayerView();
       setPlayerSceneId(null);
+      setPlayerDisplayMode("scene");
+      setPlayerMenuOpen(false);
+    });
+
+  const showPlayerHold = () =>
+    run(async () => {
+      await window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.", "hold");
+      setPlayerSceneId(null);
+      setPlayerDisplayMode("hold");
+      setPlayerMenuOpen(false);
+    });
+
+  const showPlayerBlackout = () =>
+    run(async () => {
+      await window.localVtt.showPlayerIdle("", "", "blackout");
+      setPlayerSceneId(null);
+      setPlayerDisplayMode("blackout");
       setPlayerMenuOpen(false);
     });
 
   const showPlayerIdle = async () => {
-    await window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.");
+    await window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.", "hold");
     setPlayerSceneId(null);
+    setPlayerDisplayMode("hold");
     setPlayerMenuOpen(false);
   };
 
@@ -863,21 +1227,27 @@ export function GmApp() {
     });
 
   const toggleFolderCollapsed = (folderId: string) => {
-    if (!campaign) {
-      return;
-    }
-    const nextIds = new Set(campaign.sceneLibrary.collapsedFolderIds);
-    if (nextIds.has(folderId)) {
-      nextIds.delete(folderId);
-    } else {
-      nextIds.add(folderId);
-    }
-    updateCampaignDraft({
-      ...campaign,
-      sceneLibrary: { ...campaign.sceneLibrary, collapsedFolderIds: [...nextIds] },
-      updatedAt: new Date().toISOString()
+    setExpandedFolderIds((ids) => {
+      const nextIds = new Set(ids);
+      if (nextIds.has(folderId)) {
+        nextIds.delete(folderId);
+      } else {
+        nextIds.add(folderId);
+      }
+      return nextIds;
     });
   };
+
+  useEffect(() => {
+    setExpandedFolderIds((ids) => {
+      if (!campaign) {
+        return ids.size === 0 ? ids : new Set();
+      }
+      const folderIds = new Set(campaign.sceneFolders.map((folder) => folder.id));
+      const nextIds = new Set([...ids].filter((folderId) => folderIds.has(folderId)));
+      return nextIds.size === ids.size ? ids : nextIds;
+    });
+  }, [campaign?.sceneFolders, campaign]);
 
   const toggleWorkspacePanel = (side: WorkspacePanelSide) => {
     setWorkspaceLayout((layout) => toggleWorkspacePanelLayout(layout, side));
@@ -913,7 +1283,7 @@ export function GmApp() {
     const startHeight = tokenLibraryHeight;
 
     const resizeDrawer = (moveEvent: PointerEvent) => {
-      setTokenLibraryHeight(clamp(startHeight + startY - moveEvent.clientY, MIN_TOKEN_LIBRARY_HEIGHT, MAX_TOKEN_LIBRARY_HEIGHT));
+      setTokenLibraryHeight(normalizeTokenLibraryHeight(startHeight + startY - moveEvent.clientY));
     };
     const stopResize = () => {
       document.body.classList.remove("resizing-token-library");
@@ -970,6 +1340,7 @@ export function GmApp() {
         openSceneMenuId={openSceneMenuId}
         openFolderMenuId={openFolderMenuId}
         workspaceLayout={workspaceLayout}
+        tokenAssets={tokenLibraryAssets}
         onClearActiveFogTool={clearActiveCanvasTools}
         onToggleWorkspacePanel={toggleWorkspacePanel}
         onResetPanelWidth={resetPanelWidth}
@@ -982,6 +1353,10 @@ export function GmApp() {
         onSaveCampaign={() => void saveCampaign()}
         onRenameCampaign={openCampaignRenameDialog}
         onOpenBackupsFolder={() => void openBackupsFolder()}
+        onAddPlayer={addCampaignPlayer}
+        onUpdatePlayer={updateCampaignPlayer}
+        onDeletePlayer={deleteCampaignPlayer}
+        onPlayersPanelOpenChange={setPlayersPanelOpen}
         onOpenSceneDialog={openSceneDialog}
         onOpenFolderDialog={openFolderDialog}
         onLoadScene={(sceneId) => void loadScene(sceneId)}
@@ -1013,12 +1388,15 @@ export function GmApp() {
           activeScene={activeScene}
           mapAsset={mapAsset}
           playerMenuOpen={playerMenuOpen}
+          playerDisplayMode={playerDisplayMode}
           onSendToPlayer={sendToPlayer}
           onTogglePlayerMenu={() => {
             if (activeScene) {
               setPlayerMenuOpen((open) => !open);
             }
           }}
+          onShowPlayerHold={showPlayerHold}
+          onShowPlayerBlackout={showPlayerBlackout}
           onOpenPlayerDisplayScale={() => {
             setPlayerDisplayDialogOpen(true);
             setPlayerMenuOpen(false);
@@ -1029,6 +1407,38 @@ export function GmApp() {
           }}
           onSetPlayerFullscreen={(fullscreen) => void setPlayerFullscreen(fullscreen)}
           onClosePlayerView={closePlayerView}
+          gmDiceDisplayMode={diceSettings.gmDisplayMode}
+          playerDiceDisplayMode={diceSettings.playerDisplayMode}
+          diceSceneRollEnabled={diceSettings.sceneRollEnabled}
+          diceSceneRollTarget={diceSettings.sceneRollTarget}
+          gmDiceSceneSize={diceSettings.gmSceneSize}
+          playerDiceSceneSize={diceSettings.playerSceneSize}
+          gmDicePanelEdge={diceSettings.gmPanelEdge}
+          playerDicePanelEdge={diceSettings.playerPanelEdge}
+          gmDicePanelFacing={diceSettings.gmPanelFacing}
+          playerDicePanelFacing={diceSettings.playerPanelFacing}
+          gmDicePanelPosition={diceSettings.gmPanelPosition}
+          playerDicePanelPosition={diceSettings.playerPanelPosition}
+          gmDicePanelAdvanced={diceSettings.gmPanelAdvanced}
+          playerDicePanelAdvanced={diceSettings.playerPanelAdvanced}
+          diceHistory={diceRollHistory}
+          onGmDiceDisplayModeChange={(gmDisplayMode) => updateDiceSettings({ gmDisplayMode })}
+          onPlayerDiceDisplayModeChange={(playerDisplayMode) => updateDiceSettings({ playerDisplayMode })}
+          onDiceSceneRollEnabledChange={(sceneRollEnabled) => updateDiceSettings({ sceneRollEnabled })}
+          onDiceSceneRollTargetChange={(sceneRollTarget) => updateDiceSettings({ sceneRollTarget })}
+          onGmDiceSceneSizeChange={(gmSceneSize) => updateDiceSettings({ gmSceneSize })}
+          onPlayerDiceSceneSizeChange={(playerSceneSize) => updateDiceSettings({ playerSceneSize })}
+          onGmDicePanelEdgeChange={(gmPanelEdge) => updateDiceSettings({ gmPanelEdge })}
+          onPlayerDicePanelEdgeChange={(playerPanelEdge) => updateDiceSettings({ playerPanelEdge })}
+          onGmDicePanelFacingChange={(gmPanelFacing) => updateDiceSettings({ gmPanelFacing })}
+          onPlayerDicePanelFacingChange={(playerPanelFacing) => updateDiceSettings({ playerPanelFacing })}
+          onGmDicePanelPositionChange={(gmPanelPosition) => updateDiceSettings({ gmPanelPosition })}
+          onPlayerDicePanelPositionChange={(playerPanelPosition) => updateDiceSettings({ playerPanelPosition })}
+          onGmDicePanelAdvancedChange={(gmPanelAdvanced) => updateDiceSettings({ gmPanelAdvanced })}
+          onPlayerDicePanelAdvancedChange={(playerPanelAdvanced) => updateDiceSettings({ playerPanelAdvanced })}
+          onRollDie={rollTableDie}
+          onRollExpression={rollTableExpression}
+          onClearDiceRolls={clearDiceRolls}
         />
 
         <div className={error ? "error-banner" : "error-banner error-banner-empty"}>{error}</div>
@@ -1038,14 +1448,22 @@ export function GmApp() {
             <ToolsMenu
               activeCanvasTool={activeCanvasTool}
               activeFogTool={activeFogTool}
+              activeWeatherMaskTool={activeWeatherMaskTool}
               fogOperation={fogOperation}
               brushSize={activeScene.fog.brushSize}
               fogShapeCount={activeScene.fog.shapes.length}
+              weatherMaskCount={activeScene.weather.masks.length}
+              weatherToolsEnabled={
+                activeScene.weather.enabled &&
+                (activeScene.weather.effects.rain.enabled || activeScene.weather.effects.fog.enabled || activeScene.weather.effects.snow.enabled || activeScene.weather.effects.sand.enabled)
+              }
               onCanvasToolChange={setActiveCanvasTool}
               onFogToolChange={setActiveFogTool}
+              onWeatherMaskToolChange={setActiveWeatherMaskTool}
               onFogOperationChange={setFogOperation}
               onBrushSizeChange={(brushSize) => updateFog({ brushSize })}
               onUndoFogShape={undoFogShape}
+              onUndoWeatherMask={undoWeatherMask}
               onRequestClearFog={() => setConfirmClearFogOpen(true)}
             />
           )}
@@ -1055,11 +1473,16 @@ export function GmApp() {
             mode="gm"
             canvasTool={activeCanvasTool}
             fogTool={activeFogTool}
+            weatherMaskTool={activeWeatherMaskTool}
+            liveTableEvents={liveTableEvents}
             selectedFogShapeId={selectedFogShapeId}
+            selectedWeatherMaskId={selectedWeatherMaskId}
             selectedTokenId={selectedTokenId}
             onSceneChange={updateCanvasScene}
             onSelectToken={setSelectedTokenId}
+            onAddTokenToTurnOrder={addSceneTokenToTurnOrder}
             onDropTokenAsset={dropLibraryTokenOnScene}
+            onLiveTableEvent={emitLiveTableEvent}
             onViewportCenterChange={setGmCanvasCenter}
           />
           {activeMapIsVideo && <VideoMapControls videoPlayback={videoPlayback} onUpdateVideoPlayback={updateVideoPlayback} />}
@@ -1079,6 +1502,15 @@ export function GmApp() {
           onSetTokenDefaults={openTokenDefaultsDialog}
           onRenameToken={openRenameTokenAssetDialog}
           onDeleteToken={(asset) => void openDeleteTokenAssetDialog(asset)}
+          sidePanel={
+            <TurnOrderPanel
+              scene={activeScene}
+              campaignPlayers={campaign?.players ?? []}
+              tokenAssets={tokenAssets}
+              canStartTurnOrder={Boolean(activeScene && activeScene.id === playerSceneId && playerDisplayMode === "scene")}
+              onChangeScene={updateScene}
+            />
+          }
         />
 
         <footer className="statusbar">
@@ -1094,6 +1526,7 @@ export function GmApp() {
         mapAsset={mapAsset}
         tokenAssets={tokenAssets}
         selectedFogShapeId={selectedFogShapeId}
+        selectedWeatherMaskId={selectedWeatherMaskId}
         selectedTokenId={selectedTokenId}
         workspaceLayout={workspaceLayout}
         onClearActiveFogTool={clearActiveCanvasTools}
@@ -1111,6 +1544,7 @@ export function GmApp() {
         onImportToken={() => void importToken("scene")}
         onDeleteMap={setMapAssetToDelete}
         onSelectFogShape={setSelectedFogShapeId}
+        onSelectWeatherMask={setSelectedWeatherMaskId}
         onSelectToken={setSelectedTokenId}
         onRenameFogShape={openRenameFogShapeDialog}
         onRenameToken={openRenameTokenDialog}
@@ -1231,6 +1665,38 @@ function CampaignBusyOverlay({ busyState }: { busyState: CampaignBusyState }) {
   );
 }
 
+const LIVE_TABLE_PING_DURATION_MS = 1600;
+const LIVE_TABLE_LASER_POINT_LIFETIME_MS = 1100;
+function mergeLiveTableEvent(events: LiveTableEvent[], event: LiveTableEvent): LiveTableEvent[] {
+  const filteredEvents = filterActiveLiveTableEvents(events);
+  if (event.type === "dice-clear") {
+    return filteredEvents.filter((candidate) => candidate.type !== "dice");
+  }
+  return [event, ...filteredEvents.filter((candidate) => candidate.id !== event.id)];
+}
+
+function filterActiveLiveTableEvents(events: LiveTableEvent[]): LiveTableEvent[] {
+  const now = Date.now();
+  const activeEvents: LiveTableEvent[] = [];
+  for (const event of events) {
+    if (event.type === "ping") {
+      if (now - event.createdAt <= LIVE_TABLE_PING_DURATION_MS) {
+        activeEvents.push(event);
+      }
+    } else if (event.type === "dice") {
+      if (now - event.createdAt <= DICE_HISTORY_DURATION_MS) {
+        activeEvents.push(event);
+      }
+    } else if (event.type === "laser") {
+      const points = event.points.filter((point) => now - point.createdAt <= LIVE_TABLE_LASER_POINT_LIFETIME_MS);
+      if (points.length > 0) {
+        activeEvents.push({ ...event, points });
+      }
+    }
+  }
+  return activeEvents;
+}
+
 function formatSaveStatus({
   dirtySceneCount,
   campaignDirty,
@@ -1257,12 +1723,57 @@ function formatCleanSaveState(saveState: string): string {
   return saveState[0].toUpperCase() + saveState.slice(1);
 }
 
-function loadTokenLibraryHeight(): number {
-  const storedHeight = Number(window.localStorage.getItem(TOKEN_LIBRARY_HEIGHT_STORAGE_KEY));
-  if (!Number.isFinite(storedHeight)) {
-    return DEFAULT_TOKEN_LIBRARY_HEIGHT;
+function loadDiceSettingsPreference(): DiceSettings {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(DICE_SETTINGS_PREFERENCES_STORAGE_KEY) ?? "null") as Partial<DiceSettings> | null;
+    return normalizeDiceSettingsPreference(parsed);
+  } catch {
+    return { ...DEFAULT_DICE_SETTINGS };
   }
-  return clamp(storedHeight, MIN_TOKEN_LIBRARY_HEIGHT, MAX_TOKEN_LIBRARY_HEIGHT);
+}
+
+function saveDiceSettingsPreference(settings: DiceSettings): void {
+  try {
+    window.localStorage.setItem(DICE_SETTINGS_PREFERENCES_STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    // Preference persistence is helpful, but dice controls should still work if storage is unavailable.
+  }
+}
+
+function normalizeDiceSettingsPreference(settings?: Partial<DiceSettings> | null): DiceSettings {
+  return {
+    ...DEFAULT_DICE_SETTINGS,
+    gmDisplayMode: isDiceDisplayModePreference(settings?.gmDisplayMode) ? settings.gmDisplayMode : DEFAULT_DICE_SETTINGS.gmDisplayMode,
+    playerDisplayMode: isDiceDisplayModePreference(settings?.playerDisplayMode) ? settings.playerDisplayMode : DEFAULT_DICE_SETTINGS.playerDisplayMode,
+    sceneRollEnabled: typeof settings?.sceneRollEnabled === "boolean" ? settings.sceneRollEnabled : DEFAULT_DICE_SETTINGS.sceneRollEnabled,
+    sceneRollTarget: settings?.sceneRollTarget === "gm" || settings?.sceneRollTarget === "player" ? settings.sceneRollTarget : DEFAULT_DICE_SETTINGS.sceneRollTarget,
+    gmSceneSize: isDiceSceneSizePreference(settings?.gmSceneSize) ? settings.gmSceneSize : DEFAULT_DICE_SETTINGS.gmSceneSize,
+    playerSceneSize: isDiceSceneSizePreference(settings?.playerSceneSize) ? settings.playerSceneSize : DEFAULT_DICE_SETTINGS.playerSceneSize,
+    gmPanelEdge: isDicePanelEdgePreference(settings?.gmPanelEdge) ? settings.gmPanelEdge : DEFAULT_DICE_SETTINGS.gmPanelEdge,
+    playerPanelEdge: isDicePanelEdgePreference(settings?.playerPanelEdge) ? settings.playerPanelEdge : DEFAULT_DICE_SETTINGS.playerPanelEdge,
+    gmPanelFacing: settings?.gmPanelFacing === "inward" || settings?.gmPanelFacing === "outward" ? settings.gmPanelFacing : DEFAULT_DICE_SETTINGS.gmPanelFacing,
+    playerPanelFacing: settings?.playerPanelFacing === "inward" || settings?.playerPanelFacing === "outward" ? settings.playerPanelFacing : DEFAULT_DICE_SETTINGS.playerPanelFacing,
+    gmPanelPosition: clampUnitPreference(settings?.gmPanelPosition, DEFAULT_DICE_SETTINGS.gmPanelPosition),
+    playerPanelPosition: clampUnitPreference(settings?.playerPanelPosition, DEFAULT_DICE_SETTINGS.playerPanelPosition),
+    gmPanelAdvanced: typeof settings?.gmPanelAdvanced === "boolean" ? settings.gmPanelAdvanced : DEFAULT_DICE_SETTINGS.gmPanelAdvanced,
+    playerPanelAdvanced: typeof settings?.playerPanelAdvanced === "boolean" ? settings.playerPanelAdvanced : DEFAULT_DICE_SETTINGS.playerPanelAdvanced
+  };
+}
+
+function isDiceDisplayModePreference(value: unknown): value is DiceSettings["gmDisplayMode"] {
+  return value === "results" || value === "panel" || value === "scene" || value === "scene-result" || value === "hidden";
+}
+
+function isDiceSceneSizePreference(value: unknown): value is DiceSettings["gmSceneSize"] {
+  return value === "xs" || value === "sm" || value === "md" || value === "lg" || value === "xl";
+}
+
+function isDicePanelEdgePreference(value: unknown): value is DiceSettings["gmPanelEdge"] {
+  return value === "top" || value === "right" || value === "bottom" || value === "left";
+}
+
+function clampUnitPreference(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : fallback;
 }
 
 function removeSceneTokensByAsset(scene: Scene, assetId: string): Scene {

@@ -6,6 +6,7 @@ import {
   createDefaultScene,
   duplicateScene,
   DEFAULT_CALIBRATION,
+  DEFAULT_DICE_SETTINGS,
   DEFAULT_FOG,
   DEFAULT_GRID,
   DEFAULT_LAYERS,
@@ -13,6 +14,8 @@ import {
   DEFAULT_MEASUREMENT,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
+  DEFAULT_WEATHER,
+  isLiveTableEvent,
   isPlayerIdleState,
   isPlayerSceneProjection,
   normalizeCampaign,
@@ -60,10 +63,77 @@ it("normalizeScene fills default settings for older scene files", () => {
   expect(normalized.videoPlayback).toEqual(DEFAULT_VIDEO_PLAYBACK);
   expect(normalized.layerOrderLocked).toBe(true);
   expect(normalized.layers.length).toBe(DEFAULT_LAYERS.length);
+  expect(normalized.weather).toEqual(DEFAULT_WEATHER);
   expect(normalized.fog.opacity).toBe(0.8);
   expect(normalized.fog.gmOpacity).toBe(0.5);
   expect(normalized.fog.playerOpacity).toBe(0.8);
   expect(normalized.fog.newShapesVisibleInPlayer).toBe(true);
+});
+
+it("normalizeScene clamps weather settings", () => {
+  const scene = createDefaultScene("Weather");
+  scene.weather = {
+    enabled: true,
+    effect: "rain-storm",
+    intensity: 9,
+    opacity: -2,
+    speed: 99,
+    directionDegrees: 720,
+    driftStrength: 5,
+    edgeBias: 4,
+    quietAreaSize: 0.1,
+    centerStrayDrops: -1,
+    streakLength: 9,
+    lightningFrequency: 3,
+    flashStrength: -2,
+    quality: "ultra"
+  };
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.weather).toEqual({
+    enabled: true,
+    effect: "rain-storm",
+    intensity: 1,
+    opacity: 0,
+    color: "#d8dee9",
+    speed: 3,
+    directionDegrees: 360,
+    driftStrength: 1,
+    edgeBias: 1,
+    quietAreaSize: 0.35,
+    centerStrayDrops: 0,
+    streakLength: 2,
+    lightningFrequency: 1,
+    flashStrength: 0,
+    quality: "balanced",
+    effectSettings: {},
+    effects: {
+      rain: {
+        enabled: true,
+        pattern: "rain-storm",
+        settings: {
+          intensity: 1.5,
+          opacity: 0,
+          color: "#d8dee9",
+          speed: 3,
+          directionDegrees: 360,
+          driftStrength: 1,
+          edgeBias: 1,
+          quietAreaSize: 0.35,
+          centerStrayDrops: 0,
+          streakLength: 2,
+          lightningFrequency: 1,
+          flashStrength: 0,
+          quality: "balanced"
+        }
+      },
+      fog: DEFAULT_WEATHER.effects.fog,
+      snow: DEFAULT_WEATHER.effects.snow,
+      sand: DEFAULT_WEATHER.effects.sand
+    },
+    masks: []
+  });
 });
 
 it("normalizeScene applies canonical core layer names and order", () => {
@@ -330,9 +400,67 @@ it("normalizeCampaign fills portable campaign defaults and empty collections", (
   expect(normalized.defaultMeasurement).toEqual(DEFAULT_MEASUREMENT);
   expect(normalized.defaultCalibration).toEqual(DEFAULT_CALIBRATION);
   expect(normalized.playerDisplay).toEqual(DEFAULT_CALIBRATION);
+  expect(normalized.diceSettings).toEqual(DEFAULT_DICE_SETTINGS);
   expect(normalized.sceneLibrary).toEqual({ collapsedFolderIds: [] });
   expect(normalized.sceneFolders).toEqual([]);
+  expect(normalized.players).toEqual([]);
   expect(normalized.assets).toEqual([]);
+});
+
+it("normalizeCampaign normalizes campaign dice settings", () => {
+  const campaign = {
+    ...createDefaultCampaign("Dice"),
+    diceSettings: {
+      gmDisplayMode: "scene",
+      playerDisplayMode: "bad",
+      gmSceneSize: "xl",
+      playerSceneSize: "huge",
+      gmPanelEdge: "right",
+      playerPanelEdge: "corner",
+      gmPanelFacing: "outward",
+      playerPanelFacing: "sideways",
+      gmPanelPosition: 2,
+      playerPanelPosition: 0.25,
+      gmPanelAdvanced: true,
+      playerPanelAdvanced: "yes"
+    }
+  } as unknown as Campaign;
+
+  expect(normalizeCampaign(campaign).diceSettings).toEqual({
+    ...DEFAULT_DICE_SETTINGS,
+    gmDisplayMode: "scene",
+    gmSceneSize: "xl",
+    gmPanelEdge: "right",
+    gmPanelFacing: "outward",
+    gmPanelPosition: 1,
+    playerPanelPosition: 0.25,
+    gmPanelAdvanced: true
+  });
+});
+
+it("normalizeCampaign normalizes campaign players", () => {
+  const campaign = {
+    ...createDefaultCampaign("Players"),
+    players: [
+      {
+        id: "",
+        name: "",
+        color: "red",
+        defaultSeatEdge: "side" as never,
+        defaultSeatPosition: 9,
+        visibleInPlayer: undefined as never
+      }
+    ]
+  };
+
+  expect(normalizeCampaign(campaign).players[0]).toMatchObject({
+    id: "player-1",
+    name: "Player 1",
+    color: "#7aa2f7",
+    defaultSeatEdge: "bottom",
+    defaultSeatPosition: 1,
+    visibleInPlayer: true
+  });
 });
 
 it("normalizeCampaign preserves valid collapsed scene folders only", () => {
@@ -414,6 +542,64 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   ).toEqual(["map", "overlay", "visible-token"]);
 });
 
+it("projectSceneForPlayer preserves per-category weather tuning", () => {
+  const campaign = createDefaultCampaign("Weather Campaign");
+  const scene = createDefaultScene("Storm");
+  scene.weather.enabled = true;
+  scene.weather.effect = "rain";
+  scene.weather.intensity = 0.65;
+  scene.weather.opacity = 0.65;
+  scene.weather.effects.rain = {
+    enabled: true,
+    pattern: "rain",
+    settings: {
+      ...scene.weather.effects.rain.settings,
+      intensity: 0.25,
+      opacity: 0.35,
+      speed: 1.4,
+      edgeBias: 0.2,
+      quietAreaSize: 0.85
+    }
+  };
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.scene.weather.effects.rain.settings).toMatchObject({
+    intensity: 0.25,
+    opacity: 0.35,
+    speed: 1.4,
+    edgeBias: 0.2,
+    quietAreaSize: 0.85
+  });
+});
+
+it("projectSceneForPlayer preserves snow weather tuning", () => {
+  const campaign = createDefaultCampaign("Weather Campaign");
+  const scene = createDefaultScene("Snow Field");
+  scene.weather.enabled = true;
+  scene.weather.effect = "snow";
+  scene.weather.effects.snow = {
+    enabled: true,
+    pattern: "blizzard",
+    settings: {
+      ...scene.weather.effects.snow.settings,
+      intensity: 0.9,
+      opacity: 0.7,
+      speed: 1.25,
+      driftStrength: 0.5
+    }
+  };
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.scene.weather.effects.snow.settings).toMatchObject({
+    intensity: 0.9,
+    opacity: 0.7,
+    speed: 1.25,
+    driftStrength: 0.5
+  });
+});
+
 it("runtime validators reject invalid files and accept valid projected state", () => {
   expect(() => assertValidCampaign(createDefaultCampaign("Valid"))).not.toThrow();
   expect(() => assertValidCampaign({ id: "", name: "Broken", scenes: [] })).toThrow(/Invalid campaign/);
@@ -425,7 +611,66 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isPlayerSceneProjection(projectSceneForPlayer(campaign, scene))).toBe(true);
   expect(isPlayerSceneProjection({ campaignName: "Bad", playerDisplay: {}, assets: [], scene: {} })).toBe(false);
   expect(isPlayerIdleState({ type: "idle", title: "Waiting", message: "Preparing scene." })).toBe(true);
+  expect(isPlayerIdleState({ type: "idle", variant: "hold", title: "Waiting", message: "Preparing scene." })).toBe(true);
+  expect(isPlayerIdleState({ type: "idle", variant: "blackout", title: "", message: "" })).toBe(true);
+  expect(isPlayerIdleState({ type: "idle", variant: "dim", title: "Waiting", message: "Preparing scene." })).toBe(false);
   expect(isPlayerIdleState({ type: "idle", title: "Waiting" })).toBe(false);
+  expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "laser", type: "laser", points: [{ point: { x: 1, y: 2 }, createdAt: 1 }], createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "clear", type: "dice-clear", createdAt: 1 })).toBe(true);
+  expect(
+    isLiveTableEvent({
+      id: "dice",
+      type: "dice",
+      die: "d20",
+      result: 20,
+      label: "20",
+      formula: "1D20",
+      rollLabel: "Attack",
+      seed: 0.5,
+      gmDiceDisplay: "results",
+      playerDiceDisplay: "panel",
+      gmDiceSceneSize: "md",
+      playerDiceSceneSize: "lg",
+      gmDicePanelEdge: "top",
+      playerDicePanelEdge: "right",
+      gmDicePanelFacing: "inward",
+      playerDicePanelFacing: "outward",
+      gmDicePanelPosition: 0.88,
+      playerDicePanelPosition: 0.5,
+      gmDicePanelAdvanced: true,
+      playerDicePanelAdvanced: true,
+      createdAt: 1
+    })
+  ).toBe(true);
+  expect(
+    isLiveTableEvent({
+      id: "coin",
+      type: "dice",
+      die: "coin",
+      result: 1,
+      label: "Heads",
+      seed: 0.5,
+      createdAt: 1
+    })
+  ).toBe(true);
+  expect(
+    isLiveTableEvent({
+      id: "percentile",
+      type: "dice",
+      die: "d00",
+      result: 91,
+      label: "91",
+      seed: 0.5,
+      dice: [
+        { die: "d00", result: 90, label: "90", seed: 0.1 },
+        { die: "d10", result: 1, label: "1", seed: 0.2 }
+      ],
+      createdAt: 1
+    })
+  ).toBe(true);
+  expect(isLiveTableEvent({ id: "dice", type: "dice", die: "d30", result: 30, label: "30", seed: 0.5, createdAt: 1 })).toBe(false);
+  expect(isLiveTableEvent({ id: "broken", type: "laser", points: [{ point: { x: 1 }, createdAt: 1 }], createdAt: 1 })).toBe(false);
 });
 
 it("default creators return isolated nested collections", () => {
@@ -434,8 +679,12 @@ it("default creators return isolated nested collections", () => {
 
   first.layers[0].name = "Changed";
   first.fog.shapes.push({ id: "shape", operation: "reveal", kind: "rectangle", points: [] });
+  first.weather.effects.rain.enabled = true;
+  first.weather.effects.rain.settings.opacity = 0.12;
+  first.weather.masks.push({ id: "mask", kind: "circle", points: [{ x: 10, y: 10 }], radius: 20 });
 
   expect(second.layers[0].name).toBe(DEFAULT_LAYERS[0].name);
   expect(second.fog).toEqual(DEFAULT_FOG);
+  expect(second.weather).toEqual(DEFAULT_WEATHER);
 });
 });

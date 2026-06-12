@@ -60,6 +60,19 @@
   transform: rotate(180deg);
 }
 
+.panel-collapsed-click-target {
+  cursor: pointer;
+}
+
+.panel-collapsed-click-target:hover {
+  background: rgb(122 162 247 / 0.04);
+}
+
+.panel-collapsed-click-target:hover .panel-spine-label,
+.panel-collapsed-click-target:hover .panel-collapse-button {
+  color: var(--color-text-strong);
+}
+
 .panel-collapse-button {
   position: absolute;
   top: 14px;
@@ -301,6 +314,196 @@
   color: var(--color-danger);
 }
 
+.campaign-players {
+  display: grid;
+  gap: 8px;
+}
+
+.campaign-players-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.campaign-players-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  padding: 0;
+  box-shadow: none;
+  text-align: left;
+}
+
+.campaign-players-title:hover:not(:disabled) {
+  background: transparent;
+  color: var(--color-text-strong);
+}
+
+.campaign-players-heading strong {
+  color: var(--color-text-strong);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.campaign-players-heading span,
+.campaign-players-empty {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.campaign-player-list {
+  display: grid;
+  gap: 6px;
+}
+
+.campaign-player-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 30px 28px;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-panel-deep);
+  padding: 6px;
+}
+
+.campaign-player-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-input);
+  color: var(--color-text-strong);
+  padding: 0;
+  font-size: 13px;
+  font-weight: 850;
+  box-shadow: none;
+}
+
+.campaign-player-avatar-drop {
+  outline: 1px dashed rgb(122 162 247 / 0.35);
+  outline-offset: -4px;
+}
+
+.campaign-player-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.campaign-player-avatar-reset {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(8 12 18 / 0.76);
+  color: var(--color-text-strong);
+  font-size: 9px;
+  font-weight: 850;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.campaign-player-avatar:not(:disabled):hover .campaign-player-avatar-reset,
+.campaign-player-avatar:not(:disabled):focus-visible .campaign-player-avatar-reset {
+  opacity: 1;
+}
+
+.campaign-player-name {
+  min-width: 0;
+  height: 28px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+.campaign-player-settings-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+  border-top: 1px solid var(--color-border-muted);
+  padding-top: 7px;
+}
+
+.campaign-player-settings-label {
+  color: var(--color-text-soft);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.campaign-player-settings-panel label {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.campaign-player-settings-panel select,
+.campaign-player-settings-panel button {
+  min-width: 0;
+  height: 28px;
+  font-size: 12px;
+}
+
+.campaign-player-color {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-control);
+  background: transparent;
+  padding: 2px;
+}
+
+.campaign-player-position {
+  min-width: 0;
+}
+
+.campaign-player-settings {
+  width: 26px;
+  min-width: 26px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.campaign-player-settings-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.campaign-player-settings-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.campaign-players-empty {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-control);
+  padding: 8px;
+  text-align: center;
+}
+
 .workspace {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto 32px;
@@ -321,6 +524,31 @@
 
 .topbar h2 {
   font-size: 19px;
+}
+
+.topbar-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.active-weather-icons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.active-weather-icons span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-pill);
+  background: rgb(12 18 26 / 0.72);
+  color: var(--color-text-soft);
 }
 
 .button-row {
