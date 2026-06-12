@@ -424,6 +424,8 @@ export interface LiveTablePoint {
   createdAt: number;
 }
 
+export type DiceDisplayMode = "results" | "panel" | "scene";
+
 export type LiveTableEvent =
   | {
       id: string;
@@ -446,6 +448,8 @@ export type LiveTableEvent =
       formula?: string;
       rollLabel?: string;
       seed: number;
+      gmDiceDisplay?: DiceDisplayMode;
+      playerDiceDisplay?: DiceDisplayMode;
       gmPresentation?: "3d" | "result";
       playerPresentation?: "3d" | "result";
       presentation?: "3d" | "result";
@@ -989,6 +993,8 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
       (!("rollLabel" in value) || typeof value.rollLabel === "string") &&
       typeof value.seed === "number" &&
       Number.isFinite(value.seed) &&
+      (!("gmDiceDisplay" in value) || isDiceDisplayMode(value.gmDiceDisplay)) &&
+      (!("playerDiceDisplay" in value) || isDiceDisplayMode(value.playerDiceDisplay)) &&
       (!("gmPresentation" in value) || value.gmPresentation === "3d" || value.gmPresentation === "result") &&
       (!("playerPresentation" in value) || value.playerPresentation === "3d" || value.playerPresentation === "result") &&
       (!("presentation" in value) || value.presentation === "3d" || value.presentation === "result") &&
@@ -1015,6 +1021,10 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
 
 function isDiceType(value: unknown): value is Extract<LiveTableEvent, { type: "dice" }>["die"] {
   return value === "coin" || value === "d2" || value === "d4" || value === "d6" || value === "d8" || value === "d10" || value === "d00" || value === "d12" || value === "d20";
+}
+
+function isDiceDisplayMode(value: unknown): value is DiceDisplayMode {
+  return value === "results" || value === "panel" || value === "scene";
 }
 
 function isPoint(value: unknown): value is Point {

@@ -6,10 +6,10 @@ import { DICE_EVENT_DURATION_MS, DICE_HISTORY_DURATION_MS, formatDiceRollSummary
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 type DiceVisual = NonNullable<DiceRollEvent["dice"]>[number];
 
-export function DiceRollOverlay({ events }: { events: DiceRollEvent[] }) {
+export function DiceRollOverlay({ events, mode }: { events: DiceRollEvent[]; mode: "gm" | "player" }) {
   const activeEvents = useMemo(() => {
     const now = Date.now();
-    return events.filter((event) => now - event.createdAt <= DICE_EVENT_DURATION_MS).slice(0, 3);
+    return events.filter((event) => now - event.createdAt <= DICE_EVENT_DURATION_MS).slice(0, 1);
   }, [events]);
   const historyEvents = useMemo(() => {
     const now = Date.now();
@@ -23,7 +23,7 @@ export function DiceRollOverlay({ events }: { events: DiceRollEvent[] }) {
   return (
     <div className="dice-roll-overlay" aria-live="polite">
       {activeEvents.map((event) => (
-        <DiceRollCard key={event.id} event={event} />
+        <DiceRollCard key={event.id} event={event} mode={mode} />
       ))}
       {historyEvents.length > 0 && (
         <div className="dice-roll-history" aria-label="Recent dice rolls">
@@ -39,9 +39,9 @@ export function DiceRollOverlay({ events }: { events: DiceRollEvent[] }) {
   );
 }
 
-function DiceRollCard({ event }: { event: DiceRollEvent }) {
+function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "player" }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const show3d = event.presentation !== "result";
+  const show3d = getDiceDisplayMode(event, mode) === "panel";
   const tone = getDiceRollTone(event);
   const visualCount = getVisualDice(event).length;
 
@@ -150,6 +150,15 @@ function DiceRollCard({ event }: { event: DiceRollEvent }) {
       </div>
     </div>
   );
+}
+
+function getDiceDisplayMode(event: DiceRollEvent, mode: "gm" | "player"): "results" | "panel" | "scene" {
+  const displayMode = mode === "gm" ? event.gmDiceDisplay : event.playerDiceDisplay;
+  if (displayMode) {
+    return displayMode;
+  }
+  const presentation = mode === "gm" ? event.gmPresentation : event.playerPresentation;
+  return (presentation ?? event.presentation) === "3d" ? "panel" : "results";
 }
 
 function getVisualDice(event: DiceRollEvent): DiceVisual[] {

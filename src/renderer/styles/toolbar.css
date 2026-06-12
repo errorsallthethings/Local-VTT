@@ -50,20 +50,6 @@
   justify-content: center;
 }
 
-.dice-panel-trigger span {
-  display: grid;
-  place-items: center;
-  min-width: 18px;
-  height: 18px;
-  border-radius: var(--radius-pill);
-  background: rgb(122 162 247 / 0.22);
-  color: var(--color-text-strong);
-  padding: 0 5px;
-  font-size: 10px;
-  font-weight: 900;
-  line-height: 1;
-}
-
 .dice-panel-trigger-active {
   border-color: var(--color-accent);
   background: rgb(122 162 247 / 0.18);
@@ -252,7 +238,7 @@
 
 .dice-settings-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 92px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -267,11 +253,11 @@
   text-overflow: ellipsis;
 }
 
-.dice-display-switch {
-  grid-template-columns: auto 44px auto !important;
-  justify-content: end !important;
-  gap: 6px !important;
-  font-size: 11px !important;
+.dice-settings-row select {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  font-size: 12px;
 }
 
 .dice-quick-grid {
@@ -455,8 +441,6 @@
 
 .dice-roll-feed {
   display: grid;
-  max-height: 212px;
-  overflow: hidden;
   gap: 5px;
 }
 
@@ -476,16 +460,19 @@
   text-transform: uppercase;
 }
 
-.dice-roll-feed-heading strong {
-  color: var(--color-text-soft);
-  font-size: 10px;
-  font-weight: 900;
-}
-
 .dice-roll-feed-actions {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.dice-roll-feed-list {
+  display: grid;
+  max-height: 212px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  gap: 5px;
+  padding-right: 2px;
 }
 
 .dice-roll-feed-item {

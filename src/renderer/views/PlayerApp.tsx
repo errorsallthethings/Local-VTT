@@ -196,7 +196,7 @@ export function PlayerApp() {
       ) : (
         <PlayerEmpty state={idleState} />
       )}
-      {!projection && <DiceRollOverlay events={liveTableEvents.filter(isVisiblePlayerDiceOverlayEvent)} />}
+      {!projection && <DiceRollOverlay events={liveTableEvents.filter(isVisiblePlayerDiceOverlayEvent)} mode="player" />}
     </div>
   );
 }
@@ -297,6 +297,9 @@ function isVisiblePlayerDiceOverlayEvent(event: LiveTableEvent): event is Extrac
 }
 
 function shouldShowPlayerDiceOverlay(event: Extract<LiveTableEvent, { type: "dice" }>): boolean {
+  if (event.playerDiceDisplay) {
+    return event.playerDiceDisplay !== "scene";
+  }
   return event.playerPresentation ? event.playerPresentation === "3d" : event.presentation === "3d";
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CircleHelp, Dices, EllipsisVertical, Eye, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Plus, Settings2, Trash2, X } from "lucide-react";
-import type { Asset, Campaign, LiveTableEvent, Scene } from "../../../shared/localvtt";
+import type { Asset, Campaign, DiceDisplayMode, LiveTableEvent, Scene } from "../../../shared/localvtt";
 import {
   DICE_TYPES,
   formatDieLabel,
@@ -21,6 +21,10 @@ type CustomDicePreset = {
 };
 
 const CUSTOM_DICE_PRESETS_STORAGE_KEY = "localvtt.customDicePresets";
+const DICE_DISPLAY_OPTIONS = [
+  { value: "results", label: "Results only" },
+  { value: "panel", label: "3D panel" }
+] as const satisfies Array<{ value: DiceDisplayMode; label: string }>;
 
 interface WorkspaceTopbarProps {
   campaign: Campaign | null;
@@ -36,11 +40,11 @@ interface WorkspaceTopbarProps {
   onOpenPlayerViewDisplay: () => void;
   onSetPlayerFullscreen: (fullscreen: boolean) => void;
   onClosePlayerView: () => void;
-  gmDiceOverlayEnabled: boolean;
-  playerDiceOverlayEnabled: boolean;
+  gmDiceDisplayMode: DiceDisplayMode;
+  playerDiceDisplayMode: DiceDisplayMode;
   diceHistory: DiceRollEvent[];
-  onToggleGmDiceOverlay: () => void;
-  onTogglePlayerDiceOverlay: () => void;
+  onGmDiceDisplayModeChange: (mode: DiceDisplayMode) => void;
+  onPlayerDiceDisplayModeChange: (mode: DiceDisplayMode) => void;
   onRollDie: (die: DiceType) => void;
   onRollExpression: (expression: string, rollLabel?: string) => string | null;
   onClearDiceRolls: () => void;
@@ -60,11 +64,11 @@ export function WorkspaceTopbar({
   onOpenPlayerViewDisplay,
   onSetPlayerFullscreen,
   onClosePlayerView,
-  gmDiceOverlayEnabled,
-  playerDiceOverlayEnabled,
+  gmDiceDisplayMode,
+  playerDiceDisplayMode,
   diceHistory,
-  onToggleGmDiceOverlay,
-  onTogglePlayerDiceOverlay,
+  onGmDiceDisplayModeChange,
+  onPlayerDiceDisplayModeChange,
   onRollDie,
   onRollExpression,
   onClearDiceRolls
@@ -171,7 +175,6 @@ export function WorkspaceTopbar({
             >
               <Dices size={16} aria-hidden="true" />
               Dice
-              {diceHistory.length > 0 && <span>{diceHistory.length}</span>}
             </button>
           </div>
           {dicePanelOpen && (
@@ -198,20 +201,24 @@ export function WorkspaceTopbar({
                   <section className="dice-panel-section" aria-label="Dice rendering settings">
                     <div className="dice-settings-panel">
                       <div className="dice-settings-row">
-                        <span>GM Dice Panel</span>
-                        <label className="fog-operation-switch weather-category-switch dice-display-switch" title="Show dice in a 3D panel on GM View">
-                          <span>Off</span>
-                          <input type="checkbox" checked={gmDiceOverlayEnabled} aria-label="Show dice in a 3D panel on GM View" onChange={onToggleGmDiceOverlay} />
-                          <span>On</span>
-                        </label>
+                        <span>GM Display</span>
+                        <select value={gmDiceDisplayMode} aria-label="GM dice display mode" onChange={(event) => onGmDiceDisplayModeChange(event.target.value as DiceDisplayMode)}>
+                          {DICE_DISPLAY_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div className="dice-settings-row">
-                        <span>Player Dice Panel</span>
-                        <label className="fog-operation-switch weather-category-switch dice-display-switch" title="Show dice in a 3D panel on Player View">
-                          <span>Off</span>
-                          <input type="checkbox" checked={playerDiceOverlayEnabled} aria-label="Show dice in a 3D panel on Player View" onChange={onTogglePlayerDiceOverlay} />
-                          <span>On</span>
-                        </label>
+                        <span>Player Display</span>
+                        <select value={playerDiceDisplayMode} aria-label="Player dice display mode" onChange={(event) => onPlayerDiceDisplayModeChange(event.target.value as DiceDisplayMode)}>
+                          {DICE_DISPLAY_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                   </section>
@@ -366,7 +373,6 @@ export function WorkspaceTopbar({
                     <div className="dice-roll-feed-heading">
                       <span>Recent</span>
                       <div className="dice-roll-feed-actions">
-                        <strong>{diceHistory.length}</strong>
                         <button
                           className="icon-button dice-section-icon-button dice-clear-button"
                           title="Clear recent rolls and Player View overlay"
@@ -381,17 +387,19 @@ export function WorkspaceTopbar({
                         </button>
                       </div>
                     </div>
-                    {diceHistory.length > 0 ? (
-                      diceHistory.slice(0, 6).map((roll) => (
-                        <div key={roll.id} className={`dice-roll-feed-item dice-roll-tone-${getDiceRollTone(roll)}`}>
-                          <span>{formatDiceRollSummary(roll)}</span>
-                          <strong>{roll.label}</strong>
-                          <small title={formatDiceRollBreakdownTooltip(roll)}>{formatDiceFeedBreakdown(roll)}</small>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="dice-empty-state">No recent rolls.</div>
-                    )}
+                    <div className="dice-roll-feed-list">
+                      {diceHistory.length > 0 ? (
+                        diceHistory.map((roll) => (
+                          <div key={roll.id} className={`dice-roll-feed-item dice-roll-tone-${getDiceRollTone(roll)}`}>
+                            <span>{formatDiceRollSummary(roll)}</span>
+                            <strong>{roll.label}</strong>
+                            <small title={formatDiceRollBreakdownTooltip(roll)}>{formatDiceFeedBreakdown(roll)}</small>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="dice-empty-state">No recent rolls.</div>
+                      )}
+                    </div>
                   </div>
                 </section>
               </div>

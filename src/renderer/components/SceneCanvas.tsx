@@ -1488,7 +1488,7 @@ export function SceneCanvas({
       {mode === "gm" && (canvasTool === "ping" || canvasTool === "laser") && <TableToolStatusStrip canvasTool={canvasTool} />}
       {mode === "gm" && weatherMaskTool && <WeatherMaskStatusStrip weatherMaskTool={weatherMaskTool} pointCount={weatherPolygonDraft?.points.length ?? 0} />}
       {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
-      <DiceRollOverlay events={liveTableEvents.filter((event) => isVisibleDiceOverlayEvent(event, mode))} />
+      <DiceRollOverlay events={liveTableEvents.filter((event) => isVisibleDiceOverlayEvent(event, mode))} mode={mode} />
       {mode === "player" && scene && <TurnOrderPlayerBar scene={scene} campaign={campaign} />}
       {mode === "player" && scene && showPlayerSeatIndicators && <PlayerSeatIndicators campaign={campaign} />}
       {mode === "player" && scene && <PlayerTurnStatusIndicators scene={scene} campaign={campaign} />}
@@ -1938,6 +1938,10 @@ function isVisibleDiceOverlayEvent(event: LiveTableEvent, mode: "gm" | "player")
 }
 
 function shouldShowDiceOverlay(event: Extract<LiveTableEvent, { type: "dice" }>, mode: "gm" | "player"): boolean {
+  const displayMode = mode === "gm" ? event.gmDiceDisplay : event.playerDiceDisplay;
+  if (displayMode) {
+    return displayMode !== "scene";
+  }
   const presentation = mode === "gm" ? event.gmPresentation : event.playerPresentation;
   return presentation ? presentation === "3d" : event.presentation === "3d";
 }

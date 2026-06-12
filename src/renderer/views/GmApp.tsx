@@ -22,6 +22,7 @@ import type {
   CampaignSceneEntry,
   CampaignSceneFolder,
   DisplayCalibration,
+  DiceDisplayMode,
   LiveTableEvent,
   Point,
   Scene,
@@ -153,8 +154,8 @@ export function GmApp() {
   const [playerDisplayMode, setPlayerDisplayMode] = useState<PlayerDisplayMode>("scene");
   const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
   const [diceRollHistory, setDiceRollHistory] = useState<DiceRollEvent[]>([]);
-  const [gmDiceOverlayEnabled, setGmDiceOverlayEnabled] = useState(false);
-  const [playerDiceOverlayEnabled, setPlayerDiceOverlayEnabled] = useState(false);
+  const [gmDiceDisplayMode, setGmDiceDisplayMode] = useState<DiceDisplayMode>("results");
+  const [playerDiceDisplayMode, setPlayerDiceDisplayMode] = useState<DiceDisplayMode>("results");
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
   const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
@@ -229,8 +230,8 @@ export function GmApp() {
       ...roll,
       id: crypto.randomUUID(),
       type: "dice",
-      gmPresentation: gmDiceOverlayEnabled ? "3d" : "result",
-      playerPresentation: playerDiceOverlayEnabled ? "3d" : "result",
+      gmDiceDisplay: gmDiceDisplayMode,
+      playerDiceDisplay: playerDiceDisplayMode,
       createdAt: Date.now()
     });
   };
@@ -245,8 +246,8 @@ export function GmApp() {
         id: crypto.randomUUID(),
         type: "dice",
         ...(trimmedLabel ? { rollLabel: trimmedLabel } : {}),
-        gmPresentation: gmDiceOverlayEnabled ? "3d" : "result",
-        playerPresentation: playerDiceOverlayEnabled ? "3d" : "result",
+        gmDiceDisplay: gmDiceDisplayMode,
+        playerDiceDisplay: playerDiceDisplayMode,
         createdAt: Date.now()
       });
       return null;
@@ -1318,11 +1319,11 @@ export function GmApp() {
           }}
           onSetPlayerFullscreen={(fullscreen) => void setPlayerFullscreen(fullscreen)}
           onClosePlayerView={closePlayerView}
-          gmDiceOverlayEnabled={gmDiceOverlayEnabled}
-          playerDiceOverlayEnabled={playerDiceOverlayEnabled}
+          gmDiceDisplayMode={gmDiceDisplayMode}
+          playerDiceDisplayMode={playerDiceDisplayMode}
           diceHistory={diceRollHistory}
-          onToggleGmDiceOverlay={() => setGmDiceOverlayEnabled((enabled) => !enabled)}
-          onTogglePlayerDiceOverlay={() => setPlayerDiceOverlayEnabled((enabled) => !enabled)}
+          onGmDiceDisplayModeChange={setGmDiceDisplayMode}
+          onPlayerDiceDisplayModeChange={setPlayerDiceDisplayMode}
           onRollDie={rollTableDie}
           onRollExpression={rollTableExpression}
           onClearDiceRolls={clearDiceRolls}

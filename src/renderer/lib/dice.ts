@@ -5,8 +5,8 @@ export type DiceVisualRoll = NonNullable<Extract<LiveTableEvent, { type: "dice" 
 export type DiceRollTone = "critical" | "fumble" | "max" | "normal";
 
 export const DICE_TYPES: DiceType[] = ["coin", "d4", "d6", "d8", "d10", "d00", "d12", "d20"];
-export const DICE_EVENT_DURATION_MS = 5200;
-export const DICE_HISTORY_DURATION_MS = 30000;
+export const DICE_EVENT_DURATION_MS = 4000;
+export const DICE_HISTORY_DURATION_MS = 12000;
 export const MAX_COMPOSER_DICE = 12;
 const MAX_INLINE_BREAKDOWN_DICE = 6;
 const MAX_COMPACT_BREAKDOWN_DICE = 6;
