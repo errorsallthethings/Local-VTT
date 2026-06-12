@@ -391,152 +391,165 @@ export function WorkspaceTopbar({
                 {diceSettingsOpen && (
                   <section className="dice-panel-section" aria-label="Dice rendering settings">
                     <div className="dice-settings-panel">
-                      <div className="dice-settings-row">
-                        <span>Scene Roll</span>
-                        <label className="fog-operation-switch weather-category-switch dice-placement-switch" title="Roll dice directly on one scene view">
-                          <span>Off</span>
-                          <input type="checkbox" checked={diceSceneRollEnabled} aria-label="Scene roll" onChange={(event) => onDiceSceneRollEnabledChange(event.target.checked)} />
-                          <span>On</span>
-                        </label>
-                      </div>
-                      {diceSceneRollEnabled && (
+                      <div className="dice-settings-group">
+                        <div className="dice-settings-group-heading">Display</div>
                         <div className="dice-settings-row">
-                          <span>Roll On</span>
-                          <select value={diceSceneRollTarget} aria-label="Scene roll target view" onChange={(event) => onDiceSceneRollTargetChange(event.target.value as DiceSceneRollTarget)}>
-                            {DICE_SCENE_ROLL_TARGET_OPTIONS.map((option) => (
+                          <span>Scene Roll</span>
+                          <label className="fog-operation-switch weather-category-switch dice-placement-switch" title="Roll dice directly on one scene view">
+                            <span>Off</span>
+                            <input type="checkbox" checked={diceSceneRollEnabled} aria-label="Scene roll" onChange={(event) => onDiceSceneRollEnabledChange(event.target.checked)} />
+                            <span>On</span>
+                          </label>
+                        </div>
+                        {diceSceneRollEnabled && (
+                          <div className="dice-settings-row">
+                            <span>Roll Scene On</span>
+                            <select value={diceSceneRollTarget} aria-label="Scene roll target view" onChange={(event) => onDiceSceneRollTargetChange(event.target.value as DiceSceneRollTarget)}>
+                              {DICE_SCENE_ROLL_TARGET_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        <div className="dice-settings-row">
+                          <span>GM Display</span>
+                          <select value={gmDiceDisplayMode === "panel" ? "panel" : "results"} aria-label="GM dice display mode" disabled={diceSceneRollEnabled} onChange={(event) => onGmDiceDisplayModeChange(event.target.value as DiceDisplayMode)}>
+                            {DICE_DISPLAY_OPTIONS.map((option) => (
                               <option key={option.value} value={option.value}>
                                 {option.label}
                               </option>
                             ))}
                           </select>
                         </div>
+                        <div className="dice-settings-row">
+                          <span>Player Display</span>
+                          <select
+                            value={playerDiceDisplayMode === "panel" || playerDiceDisplayMode === "hidden" ? playerDiceDisplayMode : "results"}
+                            aria-label="Player dice display mode"
+                            disabled={diceSceneRollEnabled}
+                            onChange={(event) => onPlayerDiceDisplayModeChange(event.target.value as DiceDisplayMode)}
+                          >
+                            {PLAYER_DICE_DISPLAY_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {diceSceneRollEnabled && (
+                        <div className="dice-settings-group">
+                          <div className="dice-settings-group-heading">Scene Roll</div>
+                          <div className="dice-settings-row">
+                            <span>GM Scene Dice Size</span>
+                            <select value={gmDiceSceneSize} aria-label="GM scene dice size" onChange={(event) => onGmDiceSceneSizeChange(event.target.value as DiceSceneSize)}>
+                              {DICE_SCENE_SIZE_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="dice-settings-row">
+                            <span>Player Scene Dice Size</span>
+                            <select value={playerDiceSceneSize} aria-label="Player scene dice size" onChange={(event) => onPlayerDiceSceneSizeChange(event.target.value as DiceSceneSize)}>
+                              {DICE_SCENE_SIZE_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
                       )}
-                      <div className="dice-settings-row">
-                        <span>GM Display</span>
-                        <select value={gmDiceDisplayMode === "panel" ? "panel" : "results"} aria-label="GM dice display mode" disabled={diceSceneRollEnabled} onChange={(event) => onGmDiceDisplayModeChange(event.target.value as DiceDisplayMode)}>
-                          {DICE_DISPLAY_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="dice-settings-row">
-                        <span>Player Display</span>
-                        <select
-                          value={playerDiceDisplayMode === "panel" || playerDiceDisplayMode === "hidden" ? playerDiceDisplayMode : "results"}
-                          aria-label="Player dice display mode"
-                          disabled={diceSceneRollEnabled}
-                          onChange={(event) => onPlayerDiceDisplayModeChange(event.target.value as DiceDisplayMode)}
-                        >
-                          {PLAYER_DICE_DISPLAY_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="dice-settings-row">
-                        <span>GM Advanced Placement</span>
-                        <label className="fog-operation-switch weather-category-switch dice-placement-switch" title="Enable GM Results and 3D panel edge placement">
-                          <span>Off</span>
-                          <input type="checkbox" checked={gmDicePanelAdvanced} aria-label="GM advanced dice panel placement" onChange={(event) => updateGmDicePanelAdvanced(event.target.checked)} />
-                          <span>On</span>
-                        </label>
-                      </div>
-                      {gmDicePanelAdvanced && (
-                        <>
-                          <div className="dice-settings-row">
-                            <span>GM Panel Edge</span>
-                            <select value={gmDicePanelEdge} aria-label="GM dice panel edge" onChange={(event) => onGmDicePanelEdgeChange(event.target.value as DicePanelEdge)}>
-                              {DICE_PANEL_EDGE_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="dice-settings-row">
-                            <span>GM Panel Facing</span>
-                            <select value={gmDicePanelFacing} aria-label="GM dice panel facing" onChange={(event) => onGmDicePanelFacingChange(event.target.value as DicePanelFacing)}>
-                              {DICE_PANEL_FACING_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <label className="dice-settings-row">
-                            <span>GM Panel Position</span>
-                            <div className="dice-position-control">
-                              <input type="range" min="0" max="100" value={Math.round(gmDicePanelPosition * 100)} aria-label="GM dice panel position" onChange={(event) => onGmDicePanelPositionChange(Number(event.target.value) / 100)} />
-                              <button type="button" className="icon-button dice-position-reset" title="Reset GM panel position" aria-label="Reset GM panel position" onClick={() => onGmDicePanelPositionChange(0.5)}>
-                                <RotateCcw size={13} aria-hidden="true" />
-                              </button>
-                            </div>
+
+                      <div className="dice-settings-group">
+                        <div className="dice-settings-group-heading">Placement</div>
+                        <div className="dice-settings-row">
+                          <span>GM Placement</span>
+                          <label className="fog-operation-switch weather-category-switch dice-placement-switch" title="Enable GM Results and 3D panel edge placement">
+                            <span>Off</span>
+                            <input type="checkbox" checked={gmDicePanelAdvanced} aria-label="GM dice panel placement" onChange={(event) => updateGmDicePanelAdvanced(event.target.checked)} />
+                            <span>On</span>
                           </label>
-                        </>
-                      )}
-                      <div className="dice-settings-row">
-                        <span>Player Advanced Placement</span>
-                        <label className="fog-operation-switch weather-category-switch dice-placement-switch" title="Enable Player Results and 3D panel edge placement">
-                          <span>Off</span>
-                          <input type="checkbox" checked={playerDicePanelAdvanced} aria-label="Player advanced dice panel placement" onChange={(event) => updatePlayerDicePanelAdvanced(event.target.checked)} />
-                          <span>On</span>
-                        </label>
-                      </div>
-                      {playerDicePanelAdvanced && (
-                        <>
-                          <div className="dice-settings-row">
-                            <span>Player Panel Edge</span>
-                            <select value={playerDicePanelEdge} aria-label="Player dice panel edge" onChange={(event) => onPlayerDicePanelEdgeChange(event.target.value as DicePanelEdge)}>
-                              {DICE_PANEL_EDGE_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="dice-settings-row">
-                            <span>Player Panel Facing</span>
-                            <select value={playerDicePanelFacing} aria-label="Player dice panel facing" onChange={(event) => onPlayerDicePanelFacingChange(event.target.value as DicePanelFacing)}>
-                              {DICE_PANEL_FACING_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <label className="dice-settings-row">
-                            <span>Player Panel Position</span>
-                            <div className="dice-position-control">
-                              <input type="range" min="0" max="100" value={Math.round(playerDicePanelPosition * 100)} aria-label="Player dice panel position" onChange={(event) => onPlayerDicePanelPositionChange(Number(event.target.value) / 100)} />
-                              <button type="button" className="icon-button dice-position-reset" title="Reset Player panel position" aria-label="Reset Player panel position" onClick={() => onPlayerDicePanelPositionChange(0.5)}>
-                                <RotateCcw size={13} aria-hidden="true" />
-                              </button>
+                        </div>
+                        {gmDicePanelAdvanced && (
+                          <>
+                            <div className="dice-settings-row">
+                              <span>GM Panel Edge</span>
+                              <select value={gmDicePanelEdge} aria-label="GM dice panel edge" onChange={(event) => onGmDicePanelEdgeChange(event.target.value as DicePanelEdge)}>
+                                {DICE_PANEL_EDGE_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
+                            <div className="dice-settings-row">
+                              <span>GM Panel Facing</span>
+                              <select value={gmDicePanelFacing} aria-label="GM dice panel facing" onChange={(event) => onGmDicePanelFacingChange(event.target.value as DicePanelFacing)}>
+                                {DICE_PANEL_FACING_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <label className="dice-settings-row">
+                              <span>GM Panel Position</span>
+                              <div className="dice-position-control">
+                                <input type="range" min="0" max="100" value={Math.round(gmDicePanelPosition * 100)} aria-label="GM dice panel position" onChange={(event) => onGmDicePanelPositionChange(Number(event.target.value) / 100)} />
+                                <button type="button" className="icon-button dice-position-reset" title="Reset GM panel position" aria-label="Reset GM panel position" onClick={() => onGmDicePanelPositionChange(0.5)}>
+                                  <RotateCcw size={13} aria-hidden="true" />
+                                </button>
+                              </div>
+                            </label>
+                          </>
+                        )}
+                        <div className="dice-settings-row">
+                          <span>Player Placement</span>
+                          <label className="fog-operation-switch weather-category-switch dice-placement-switch" title="Enable Player Results and 3D panel edge placement">
+                            <span>Off</span>
+                            <input type="checkbox" checked={playerDicePanelAdvanced} aria-label="Player dice panel placement" onChange={(event) => updatePlayerDicePanelAdvanced(event.target.checked)} />
+                            <span>On</span>
                           </label>
-                        </>
-                      )}
-                      <div className="dice-settings-row">
-                        <span>GM Scene Size</span>
-                        <select value={gmDiceSceneSize} aria-label="GM scene dice size" onChange={(event) => onGmDiceSceneSizeChange(event.target.value as DiceSceneSize)}>
-                          {DICE_SCENE_SIZE_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="dice-settings-row">
-                        <span>Player Scene Size</span>
-                        <select value={playerDiceSceneSize} aria-label="Player scene dice size" onChange={(event) => onPlayerDiceSceneSizeChange(event.target.value as DiceSceneSize)}>
-                          {DICE_SCENE_SIZE_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
+                        </div>
+                        {playerDicePanelAdvanced && (
+                          <>
+                            <div className="dice-settings-row">
+                              <span>Player Panel Edge</span>
+                              <select value={playerDicePanelEdge} aria-label="Player dice panel edge" onChange={(event) => onPlayerDicePanelEdgeChange(event.target.value as DicePanelEdge)}>
+                                {DICE_PANEL_EDGE_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="dice-settings-row">
+                              <span>Player Panel Facing</span>
+                              <select value={playerDicePanelFacing} aria-label="Player dice panel facing" onChange={(event) => onPlayerDicePanelFacingChange(event.target.value as DicePanelFacing)}>
+                                {DICE_PANEL_FACING_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <label className="dice-settings-row">
+                              <span>Player Panel Position</span>
+                              <div className="dice-position-control">
+                                <input type="range" min="0" max="100" value={Math.round(playerDicePanelPosition * 100)} aria-label="Player dice panel position" onChange={(event) => onPlayerDicePanelPositionChange(Number(event.target.value) / 100)} />
+                                <button type="button" className="icon-button dice-position-reset" title="Reset Player panel position" aria-label="Reset Player panel position" onClick={() => onPlayerDicePanelPositionChange(0.5)}>
+                                  <RotateCcw size={13} aria-hidden="true" />
+                                </button>
+                              </div>
+                            </label>
+                          </>
+                        )}
                       </div>
                     </div>
                   </section>
