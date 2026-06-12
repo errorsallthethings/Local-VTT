@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { LiveTableEvent } from "../../../shared/localvtt";
 import { DICE_EVENT_DURATION_MS, DICE_HISTORY_DURATION_MS, formatDiceRollSummary, getDiceRollTone } from "../../lib/dice";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 type DiceVisual = NonNullable<DiceRollEvent["dice"]>[number];
+const DICE_SETTLE_DURATION_MS = 2800;
 
 export function DiceRollOverlay({ events, mode }: { events: DiceRollEvent[]; mode: "gm" | "player" }) {
   const activeEvents = useMemo(() => {
@@ -13,8 +14,8 @@ export function DiceRollOverlay({ events, mode }: { events: DiceRollEvent[]; mod
   }, [events]);
   const historyEvents = useMemo(() => {
     const now = Date.now();
-    return events.filter((event) => now - event.createdAt <= DICE_HISTORY_DURATION_MS).slice(0, 6);
-  }, [events]);
+    return events.filter((event) => now - event.createdAt <= DICE_HISTORY_DURATION_MS && now - event.createdAt >= getDiceRevealDelay(event, mode)).slice(0, 6);
+  }, [events, mode]);
 
   if (activeEvents.length === 0 && historyEvents.length === 0) {
     return null;
@@ -42,8 +43,19 @@ export function DiceRollOverlay({ events, mode }: { events: DiceRollEvent[]; mod
 function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "player" }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const show3d = getDiceDisplayMode(event, mode) === "panel";
+  const [resultVisible, setResultVisible] = useState(!show3d);
   const tone = getDiceRollTone(event);
   const visualCount = getVisualDice(event).length;
+
+  useEffect(() => {
+    if (!show3d) {
+      setResultVisible(true);
+      return;
+    }
+    setResultVisible(false);
+    const reveal = window.setTimeout(() => setResultVisible(true), DICE_SETTLE_DURATION_MS);
+    return () => window.clearTimeout(reveal);
+  }, [event.id, show3d]);
 
   useEffect(() => {
     if (!show3d) {
@@ -87,8 +99,8 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
         baseX: die.position.x,
         baseY: die.position.y,
         baseScale: die.scale.x,
-        startRotation: die.rotation.clone(),
-        finalRotation: getSettledRotation(visual)
+        startQuaternion: die.quaternion.clone(),
+        finalQuaternion: new THREE.Quaternion().setFromEuler(getSettledRotation(visual))
       };
     });
 
@@ -98,12 +110,15 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
       const elapsed = now - start;
       const tumbleProgress = Math.min(1, elapsed / 2800);
       const settleProgress = easeOutCubic(tumbleProgress);
-      dice.forEach(({ die, visual, baseX, baseY, baseScale, startRotation, finalRotation }, index) => {
+      dice.forEach(({ die, visual, baseX, baseY, baseScale, startQuaternion, finalQuaternion }, index) => {
         const offsetElapsed = Math.max(0, elapsed - index * 120);
         const spinTurns = 6 + Math.floor(seedRange(visual.seed, 7, 4));
-        die.rotation.x = startRotation.x + (finalRotation.x - startRotation.x) * settleProgress + Math.PI * 2 * spinTurns * (1 - settleProgress);
-        die.rotation.y = startRotation.y + (finalRotation.y - startRotation.y) * settleProgress + Math.PI * 2 * (spinTurns + 1) * (1 - settleProgress);
-        die.rotation.z = startRotation.z + (finalRotation.z - startRotation.z) * settleProgress + Math.PI * 2 * (spinTurns - 1) * (1 - settleProgress);
+        const tumbleRotation = new THREE.Euler(
+          Math.PI * 2 * spinTurns * (1 - settleProgress),
+          Math.PI * 2 * (spinTurns + 1) * (1 - settleProgress),
+          Math.PI * 2 * (spinTurns - 1) * (1 - settleProgress)
+        );
+        die.quaternion.copy(startQuaternion).slerp(finalQuaternion, settleProgress).multiply(new THREE.Quaternion().setFromEuler(tumbleRotation));
         const bounce = Math.abs(Math.sin(offsetElapsed / 125)) * 0.42 * (1 - settleProgress) * baseScale;
         die.position.set(baseX, baseY + bounce - 0.08 * settleProgress, 0);
         const arrivalPulse = Math.sin(Math.min(1, offsetElapsed / 480) * Math.PI) * 0.1 + Math.sin(Math.min(1, Math.max(0, offsetElapsed - 2700) / 360) * Math.PI) * 0.08;
@@ -144,10 +159,12 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
   return (
     <div className={getDiceRollCardClassName(show3d, tone, visualCount)}>
       {show3d && <div ref={mountRef} className="dice-roll-canvas" aria-hidden="true" />}
-      <div className="dice-roll-result">
-        <span>{getRollSummary(event)}</span>
-        <strong>{event.label}</strong>
-      </div>
+      {resultVisible && (
+        <div className="dice-roll-result">
+          <span>{getRollSummary(event)}</span>
+          <strong>{event.label}</strong>
+        </div>
+      )}
     </div>
   );
 }
@@ -159,6 +176,10 @@ function getDiceDisplayMode(event: DiceRollEvent, mode: "gm" | "player"): "resul
   }
   const presentation = mode === "gm" ? event.gmPresentation : event.playerPresentation;
   return (presentation ?? event.presentation) === "3d" ? "panel" : "results";
+}
+
+function getDiceRevealDelay(event: DiceRollEvent, mode: "gm" | "player"): number {
+  return getDiceDisplayMode(event, mode) === "panel" ? DICE_SETTLE_DURATION_MS : 0;
 }
 
 function getVisualDice(event: DiceRollEvent): DiceVisual[] {
@@ -221,6 +242,7 @@ function indexCountInLastRow(layout: DicePoolLayout, row: number): number {
 
 function createDieMesh(event: DiceVisual): THREE.Group {
   const group = new THREE.Group();
+  const geometry = createDieGeometry(event.die);
   const material = new THREE.MeshStandardMaterial({
     color: getDieColor(event.die),
     roughness: 0.48,
@@ -231,23 +253,28 @@ function createDieMesh(event: DiceVisual): THREE.Group {
     opacity: event.kept === false ? 0.42 : 1
   });
   const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: event.kept === false ? 0.16 : 0.36 });
-  const geometry = createDieGeometry(event.die);
   const mesh = new THREE.Mesh(geometry, material);
   group.add(mesh);
   const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial);
   group.add(edges);
   createDieFaceLabels(event, geometry).forEach((faceLabel) => group.add(faceLabel));
-
-  const label = makeLabelSprite(event.kept === false ? `(${event.label})` : event.label);
-  label.position.set(0, -1.75, 0.1);
-  group.add(label);
   return group;
 }
 
 function getSettledRotation(event: DiceVisual): THREE.Euler {
-  const base = (event.result % 8) * (Math.PI / 4);
-  const tilt = event.die === "coin" || event.die === "d2" ? Math.PI / 2 : Math.PI * 0.12;
-  return new THREE.Euler(tilt + seedRange(event.seed, 3, 0.12), base + seedRange(event.seed, 4, 0.18), seedRange(event.seed, 5, 0.16), "XYZ");
+  const geometry = createDieGeometry(event.die);
+  const resultVector = getResultFacingVector(event, geometry);
+  geometry.dispose();
+  if (!resultVector) {
+    const base = (event.result % 8) * (Math.PI / 4);
+    const tilt = event.die === "coin" || event.die === "d2" ? Math.PI / 2 : Math.PI * 0.12;
+    return new THREE.Euler(tilt + seedRange(event.seed, 3, 0.12), base + seedRange(event.seed, 4, 0.18), seedRange(event.seed, 5, 0.16), "XYZ");
+  }
+  const target = new THREE.Vector3(0, 0, 1);
+  const quaternion = new THREE.Quaternion().setFromUnitVectors(resultVector.normalize(), target);
+  const twist = new THREE.Quaternion().setFromAxisAngle(target, seedRange(event.seed, 6, Math.PI * 2));
+  quaternion.premultiply(twist);
+  return new THREE.Euler().setFromQuaternion(quaternion, "XYZ");
 }
 
 function createDieGeometry(die: DiceVisual["die"]): THREE.BufferGeometry {
@@ -293,6 +320,28 @@ function createDieFaceLabels(event: DiceVisual, geometry: THREE.BufferGeometry):
   const textColor = getDieFaceTextColor(event.die);
   const opacity = event.kept === false ? 0.38 : 0.92;
   return labels.map(({ label, position, normal, size, up }) => makeFaceLabelMesh(label, position, normal, size ?? 0.56, textColor, opacity, up, event.die));
+}
+
+function getResultFacingVector(event: DiceVisual, geometry: THREE.BufferGeometry): THREE.Vector3 | null {
+  const resultLabel = getVisualResultFaceLabel(event);
+  const matchingFaces = getDieFaceLabelPlacements(event.die, geometry).filter((placement) => placement.label === resultLabel);
+  if (matchingFaces.length === 0) {
+    return null;
+  }
+  if (event.die === "d4") {
+    return matchingFaces.reduce((sum, placement) => sum.add(placement.position), new THREE.Vector3()).normalize();
+  }
+  return matchingFaces[0].normal.clone().normalize();
+}
+
+function getVisualResultFaceLabel(event: DiceVisual): string {
+  if (event.die === "d10" && event.result === 10) {
+    return "0";
+  }
+  if (event.die === "d00" && event.result === 0) {
+    return "00";
+  }
+  return event.label;
 }
 
 function getDieFaceLabelPlacements(die: DiceVisual["die"], geometry: THREE.BufferGeometry): FaceLabelPlacement[] {
@@ -620,45 +669,6 @@ function createPentagonalTrapezohedronGeometry(): THREE.BufferGeometry {
   geometry.setIndex(faces);
   geometry.computeVertexNormals();
   return geometry;
-}
-
-function makeLabelSprite(label: string): THREE.Sprite {
-  const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 128;
-  const context = canvas.getContext("2d");
-  if (context) {
-    context.fillStyle = "rgba(8, 12, 18, 0.76)";
-    roundRect(context, 20, 22, 216, 84, 18);
-    context.fill();
-    context.strokeStyle = "rgba(255, 255, 255, 0.28)";
-    context.lineWidth = 3;
-    roundRect(context, 20, 22, 216, 84, 18);
-    context.stroke();
-    context.fillStyle = "#f8fafc";
-    context.font = "900 54px sans-serif";
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillText(label, 128, 65);
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
-  sprite.scale.set(1.9, 0.95, 1);
-  return sprite;
-}
-
-function roundRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
-  context.beginPath();
-  context.moveTo(x + radius, y);
-  context.lineTo(x + width - radius, y);
-  context.quadraticCurveTo(x + width, y, x + width, y + radius);
-  context.lineTo(x + width, y + height - radius);
-  context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  context.lineTo(x + radius, y + height);
-  context.quadraticCurveTo(x, y + height, x, y + height - radius);
-  context.lineTo(x, y + radius);
-  context.quadraticCurveTo(x, y, x + radius, y);
 }
 
 function getDieColor(die: DiceVisual["die"]): number {
