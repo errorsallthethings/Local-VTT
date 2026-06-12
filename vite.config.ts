@@ -11,10 +11,11 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    chunkSizeWarningLimit: 650,
+    chunkSizeWarningLimit: 2200,
     rollupOptions: {
       output: {
         manualChunks: {
+          rapier: ["@dimforge/rapier3d-compat"],
           three: ["three"]
         }
       }

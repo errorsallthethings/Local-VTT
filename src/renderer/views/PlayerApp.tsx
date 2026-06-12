@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Map as MapIcon } from "lucide-react";
 import { DEFAULT_DICE_SETTINGS, isLiveTableEvent, isPlayerIdleState, isPlayerSceneProjection, type LiveTableEvent, type PlayerIdleState, type PlayerSceneProjection } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
-import { DiceRollOverlay } from "../components/dice/DiceRollOverlay";
 import { DICE_HISTORY_DURATION_MS } from "../lib/dice";
 
 const PLAYER_SCENE_SPLASH_FADE_MS = 320;
@@ -10,6 +9,7 @@ const PLAYER_SCENE_SPLASH_MIN_MS = 2000;
 const PLAYER_SCENE_READY_FALLBACK_MS = 3000;
 const LIVE_TABLE_PING_DURATION_MS = 1600;
 const LIVE_TABLE_LASER_POINT_LIFETIME_MS = 1100;
+const DiceRollOverlay = lazy(() => import("../components/dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
 
 export function PlayerApp() {
   const [projection, setProjection] = useState<PlayerSceneProjection | null>(null);
@@ -196,7 +196,11 @@ export function PlayerApp() {
       ) : (
         <PlayerEmpty state={idleState} />
       )}
-      {!projection && <DiceRollOverlay events={liveTableEvents.filter(isVisiblePlayerDiceOverlayEvent)} mode="player" />}
+      {!projection && (
+        <Suspense fallback={null}>
+          <DiceRollOverlay events={liveTableEvents.filter(isVisiblePlayerDiceOverlayEvent)} mode="player" />
+        </Suspense>
+      )}
     </div>
   );
 }
