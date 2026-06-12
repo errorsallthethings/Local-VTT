@@ -97,6 +97,13 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  flex: 0 0 auto;
+}
+
+.dice-popover-title {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
 }
 
 .dice-popover-header strong {
@@ -104,6 +111,31 @@
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.dice-display-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dice-display-summary span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  max-width: 126px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  background: rgb(255 255 255 / 0.05);
+  color: var(--color-text-muted);
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dice-popover-header .icon-button {

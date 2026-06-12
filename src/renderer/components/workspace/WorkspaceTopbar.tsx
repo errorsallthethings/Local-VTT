@@ -36,6 +36,10 @@ const DICE_DISPLAY_OPTIONS = [
   { value: "results", label: "Results only" },
   { value: "panel", label: "3D panel" }
 ] as const satisfies Array<{ value: DiceDisplayMode; label: string }>;
+const PLAYER_DICE_DISPLAY_OPTIONS = [
+  ...DICE_DISPLAY_OPTIONS,
+  { value: "hidden", label: "Hidden" }
+] as const satisfies Array<{ value: DiceDisplayMode; label: string }>;
 const DICE_SCENE_ROLL_TARGET_OPTIONS = [
   { value: "gm", label: "GM View" },
   { value: "player", label: "Player View" }
@@ -283,6 +287,13 @@ export function WorkspaceTopbar({
     }
   };
 
+  const diceDisplaySummary = getDiceDisplaySummary({
+    gmDiceDisplayMode,
+    playerDiceDisplayMode,
+    diceSceneRollEnabled,
+    diceSceneRollTarget
+  });
+
   const rollPreset = (label: string, formula: string) => {
     setDiceExpression(formula);
     setDiceExpressionError(onRollExpression(formula, label));
@@ -354,7 +365,13 @@ export function WorkspaceTopbar({
                 onPointerUp={endDicePanelDrag}
                 onPointerCancel={endDicePanelDrag}
               >
-                <strong>Dice</strong>
+                <div className="dice-popover-title">
+                  <strong>Dice</strong>
+                  <div className="dice-display-summary" aria-label={`Dice display settings: GM ${diceDisplaySummary.gm}, Player ${diceDisplaySummary.player}`}>
+                    <span title={`GM Display: ${diceDisplaySummary.gm}`}>GM: {diceDisplaySummary.gm}</span>
+                    <span title={`Player Display: ${diceDisplaySummary.player}`}>Player: {diceDisplaySummary.player}</span>
+                  </div>
+                </div>
                 <div className="dice-popover-header-actions">
                   <button
                     className={diceSettingsOpen ? "icon-button dice-panel-icon-active" : "icon-button"}
@@ -406,8 +423,13 @@ export function WorkspaceTopbar({
                       </div>
                       <div className="dice-settings-row">
                         <span>Player Display</span>
-                        <select value={playerDiceDisplayMode === "panel" ? "panel" : "results"} aria-label="Player dice display mode" disabled={diceSceneRollEnabled} onChange={(event) => onPlayerDiceDisplayModeChange(event.target.value as DiceDisplayMode)}>
-                          {DICE_DISPLAY_OPTIONS.map((option) => (
+                        <select
+                          value={playerDiceDisplayMode === "panel" || playerDiceDisplayMode === "hidden" ? playerDiceDisplayMode : "results"}
+                          aria-label="Player dice display mode"
+                          disabled={diceSceneRollEnabled}
+                          onChange={(event) => onPlayerDiceDisplayModeChange(event.target.value as DiceDisplayMode)}
+                        >
+                          {PLAYER_DICE_DISPLAY_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
                               {option.label}
                             </option>
@@ -780,6 +802,39 @@ function clampDicePanelPosition(x: number, y: number, rect?: DOMRect | null): Di
     x: Math.min(Math.max(margin, x), maxX),
     y: Math.min(Math.max(margin, y), maxY)
   };
+}
+
+function getDiceDisplaySummary({
+  gmDiceDisplayMode,
+  playerDiceDisplayMode,
+  diceSceneRollEnabled,
+  diceSceneRollTarget
+}: {
+  gmDiceDisplayMode: DiceDisplayMode;
+  playerDiceDisplayMode: DiceDisplayMode;
+  diceSceneRollEnabled: boolean;
+  diceSceneRollTarget: DiceSceneRollTarget;
+}): { gm: string; player: string } {
+  if (diceSceneRollEnabled) {
+    return diceSceneRollTarget === "player" ? { gm: "Results", player: "Scene" } : { gm: "Scene", player: "Hidden" };
+  }
+  return {
+    gm: getDiceDisplayLabel(gmDiceDisplayMode),
+    player: getDiceDisplayLabel(playerDiceDisplayMode)
+  };
+}
+
+function getDiceDisplayLabel(mode: DiceDisplayMode): string {
+  if (mode === "panel") {
+    return "3D Panel";
+  }
+  if (mode === "hidden") {
+    return "Hidden";
+  }
+  if (mode === "scene" || mode === "scene-result") {
+    return "Scene";
+  }
+  return "Results";
 }
 
 function loadCustomDicePresets(): CustomDicePreset[] {

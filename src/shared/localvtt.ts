@@ -450,7 +450,7 @@ export interface DiceSettings {
 
 export const DEFAULT_DICE_SETTINGS: DiceSettings = {
   gmDisplayMode: "results",
-  playerDisplayMode: "results",
+  playerDisplayMode: "hidden",
   sceneRollEnabled: false,
   sceneRollTarget: "gm",
   gmSceneSize: "md",
