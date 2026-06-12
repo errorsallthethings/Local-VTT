@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.1.6
+
+### Added
+
+- Added configurable weather effects for scenes, including rain, snow, fog, and sand with per-effect tuning and mask support.
+- Added Table Tools for live pings and laser pointer trails shared between GM View and Player View.
+- Added turn order management with campaign players, token-to-turn-order actions, initiative rolling, drag-and-drop reordering, play/pause controls, and Player View indicators.
+- Added dice rolling from the GM toolbar with quick dice, formulas, custom presets, recent roll history, and GM/Player display settings.
+- Added 3D dice rendering for standard polyhedral dice, coin rolls, percentile rolls, results-only display, panel placement controls, and scene-based physics rolls.
+- Added percentile dice support with `D%`, `d%`, `d100`, and legacy `d00` formula handling.
+- Added Player View hold and blackout display modes.
+- Added Token Library drawer height persistence and improved panel collapse/expand behavior.
+- Added token movement path animation support for Player View.
+- Added release process documentation for version bumping, tagging, and GitHub Actions release builds.
+
+### Changed
+
+- Improved Weather layer organization, controls, and visual tuning.
+- Improved floating menu positioning for tools and contextual menus.
+- Improved dice panel layout, settings grouping, display labels, and helper text.
+- Improved 3D dice face labels, colors, percentile behavior, and D10/D12/D20 six/nine readability.
+- Split dice overlay and physics dependencies into separate build chunks to keep production builds warning-free.
+
+### Fixed
+
+- Pause active turn orders on application close.
+- Keep campaign player lists collapsed by default when loading campaigns.
+- Fix Player View turn order and active-player indicators so they animate on and off scene instead of only toggling visibility.
+- Fix percentile roll totals and max-result styling, including `00 + 0 = 100`.
+- Fix Player-targeted scene dice results so the GM waits for the resolved Player View physics result instead of revealing a precomputed value.
+
 ## 0.1.5
 
 ### Fixed
