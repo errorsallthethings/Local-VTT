@@ -87,10 +87,47 @@
 }
 
 .measurement-help-button {
-  width: 22px;
-  min-width: 22px;
-  height: 22px;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-soft);
   padding: 0;
+}
+
+.measurement-help-button:hover:not(:disabled),
+.measurement-help-button:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-strong);
+}
+
+.dice-formula-help-button {
+  width: 38px;
+  min-width: 38px;
+  height: 36px;
+  min-height: 36px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-soft);
+  padding: 0;
+}
+
+.dice-formula-help-button svg {
+  width: 30px !important;
+  height: 30px !important;
+  stroke-width: 2.35;
+}
+
+.dice-formula-help-button:hover:not(:disabled),
+.dice-formula-help-button:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-strong);
 }
 
 .measurement-help-panel {

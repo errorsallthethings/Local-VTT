@@ -41,6 +41,7 @@ import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { moveSceneFolder } from "../lib/campaignActions";
+import { DICE_HISTORY_DURATION_MS, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import {
   RECENT_CAMPAIGNS_STORAGE_KEY,
   addRecentCampaign,
@@ -84,6 +85,9 @@ import { GmInspector } from "./GmInspector";
 import { GmSidebar } from "./GmSidebar";
 
 type PlayerDisplayMode = "scene" | "hold" | "blackout";
+type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
+
+const MAX_DICE_ROLL_HISTORY = 20;
 
 export function GmApp() {
   const workspace = useCampaignWorkspace();
@@ -148,6 +152,9 @@ export function GmApp() {
   const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
   const [playerDisplayMode, setPlayerDisplayMode] = useState<PlayerDisplayMode>("scene");
   const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
+  const [diceRollHistory, setDiceRollHistory] = useState<DiceRollEvent[]>([]);
+  const [gmDiceOverlayEnabled, setGmDiceOverlayEnabled] = useState(false);
+  const [playerDiceOverlayEnabled, setPlayerDiceOverlayEnabled] = useState(false);
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
   const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
@@ -207,7 +214,54 @@ export function GmApp() {
 
   const emitLiveTableEvent = (event: LiveTableEvent) => {
     setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
+    if (event.type === "dice") {
+      setDiceRollHistory((history) => [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, MAX_DICE_ROLL_HISTORY));
+    } else if (event.type === "dice-clear") {
+      setDiceRollHistory([]);
+    }
     void window.localVtt.sendLiveTableEvent(event);
+  };
+
+  const rollTableDie = (die: DiceType) => {
+    const roll = rollDiceEvent(die);
+    setError(null);
+    emitLiveTableEvent({
+      ...roll,
+      id: crypto.randomUUID(),
+      type: "dice",
+      gmPresentation: gmDiceOverlayEnabled ? "3d" : "result",
+      playerPresentation: playerDiceOverlayEnabled ? "3d" : "result",
+      createdAt: Date.now()
+    });
+  };
+
+  const rollTableExpression = (expression: string, rollLabel?: string) => {
+    try {
+      const roll = rollDiceExpression(expression);
+      const trimmedLabel = rollLabel?.trim();
+      setError(null);
+      emitLiveTableEvent({
+        ...roll,
+        id: crypto.randomUUID(),
+        type: "dice",
+        ...(trimmedLabel ? { rollLabel: trimmedLabel } : {}),
+        gmPresentation: gmDiceOverlayEnabled ? "3d" : "result",
+        playerPresentation: playerDiceOverlayEnabled ? "3d" : "result",
+        createdAt: Date.now()
+      });
+      return null;
+    } catch (caught) {
+      return caught instanceof Error ? caught.message : "Could not roll that dice expression.";
+    }
+  };
+
+  const clearDiceRolls = () => {
+    setError(null);
+    emitLiveTableEvent({
+      id: crypto.randomUUID(),
+      type: "dice-clear",
+      createdAt: Date.now()
+    });
   };
 
   const refreshDisplays = () =>
@@ -1264,6 +1318,14 @@ export function GmApp() {
           }}
           onSetPlayerFullscreen={(fullscreen) => void setPlayerFullscreen(fullscreen)}
           onClosePlayerView={closePlayerView}
+          gmDiceOverlayEnabled={gmDiceOverlayEnabled}
+          playerDiceOverlayEnabled={playerDiceOverlayEnabled}
+          diceHistory={diceRollHistory}
+          onToggleGmDiceOverlay={() => setGmDiceOverlayEnabled((enabled) => !enabled)}
+          onTogglePlayerDiceOverlay={() => setPlayerDiceOverlayEnabled((enabled) => !enabled)}
+          onRollDie={rollTableDie}
+          onRollExpression={rollTableExpression}
+          onClearDiceRolls={clearDiceRolls}
         />
 
         <div className={error ? "error-banner" : "error-banner error-banner-empty"}>{error}</div>
@@ -1492,23 +1554,34 @@ function CampaignBusyOverlay({ busyState }: { busyState: CampaignBusyState }) {
 
 const LIVE_TABLE_PING_DURATION_MS = 1600;
 const LIVE_TABLE_LASER_POINT_LIFETIME_MS = 1100;
-
 function mergeLiveTableEvent(events: LiveTableEvent[], event: LiveTableEvent): LiveTableEvent[] {
   const filteredEvents = filterActiveLiveTableEvents(events);
+  if (event.type === "dice-clear") {
+    return filteredEvents.filter((candidate) => candidate.type !== "dice");
+  }
   return [event, ...filteredEvents.filter((candidate) => candidate.id !== event.id)];
 }
 
 function filterActiveLiveTableEvents(events: LiveTableEvent[]): LiveTableEvent[] {
   const now = Date.now();
-  return events
-    .map((event) => {
-      if (event.type === "ping") {
-        return now - event.createdAt <= LIVE_TABLE_PING_DURATION_MS ? event : null;
+  const activeEvents: LiveTableEvent[] = [];
+  for (const event of events) {
+    if (event.type === "ping") {
+      if (now - event.createdAt <= LIVE_TABLE_PING_DURATION_MS) {
+        activeEvents.push(event);
       }
+    } else if (event.type === "dice") {
+      if (now - event.createdAt <= DICE_HISTORY_DURATION_MS) {
+        activeEvents.push(event);
+      }
+    } else if (event.type === "laser") {
       const points = event.points.filter((point) => now - point.createdAt <= LIVE_TABLE_LASER_POINT_LIFETIME_MS);
-      return points.length > 0 ? { ...event, points } : null;
-    })
-    .filter((event): event is LiveTableEvent => Boolean(event));
+      if (points.length > 0) {
+        activeEvents.push({ ...event, points });
+      }
+    }
+  }
+  return activeEvents;
 }
 
 function formatSaveStatus({

@@ -35,6 +35,525 @@
   height: 38px;
 }
 
+.dice-toolbar-block {
+  position: relative;
+}
+
+.dice-toolbar-trigger {
+  flex-wrap: nowrap;
+}
+
+.dice-panel-trigger {
+  height: 38px;
+  min-width: 82px;
+  gap: 6px;
+  justify-content: center;
+}
+
+.dice-panel-trigger span {
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background: rgb(122 162 247 / 0.22);
+  color: var(--color-text-strong);
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.dice-panel-trigger-active {
+  border-color: var(--color-accent);
+  background: rgb(122 162 247 / 0.18);
+  color: var(--color-text-strong);
+}
+
+.dice-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: 300px;
+  max-height: min(620px, calc(100vh - 112px));
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: rgb(12 18 26 / 0.98);
+  box-shadow: var(--shadow-panel);
+  padding: 8px;
+}
+
+.dice-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  margin-bottom: 7px;
+  padding: 0 0 7px;
+}
+
+.dice-popover-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dice-popover-header strong {
+  color: var(--color-text-strong);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.dice-popover-header .icon-button {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+}
+
+.dice-panel-icon-active {
+  color: var(--color-accent-soft);
+}
+
+.dice-panel-body {
+  display: grid;
+  gap: 8px;
+}
+
+.dice-panel-section {
+  display: grid;
+  gap: 7px;
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: 8px;
+}
+
+.dice-panel-section:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.dice-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 24px;
+  gap: 8px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dice-expression-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px;
+  gap: 6px;
+}
+
+.dice-expression-input-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.dice-expression-form input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-input);
+  color: var(--color-text);
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dice-expression-form input[aria-invalid="true"] {
+  border-color: var(--color-border);
+}
+
+.dice-expression-form button {
+  height: 36px;
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.dice-formula-help-button {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  align-self: center;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-soft);
+  padding: 0;
+}
+
+.dice-formula-help-button:hover:not(:disabled),
+.dice-formula-help-button:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-strong);
+}
+
+.dice-formula-help-panel {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-compact);
+  background: rgb(12 18 26 / 0.72);
+  color: var(--color-text-soft);
+  padding: 9px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.dice-formula-help-panel p {
+  margin: 0;
+}
+
+.dice-formula-help-panel strong {
+  color: var(--color-text-strong);
+}
+
+.dice-expression-error {
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-control);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-soft);
+  padding: 7px 8px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.dice-clear-button {
+  color: var(--color-text-soft);
+}
+
+.dice-clear-button:hover:not(:disabled) {
+  border-color: var(--color-danger);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.dice-settings-panel {
+  display: grid;
+  gap: 7px;
+}
+
+.dice-settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.dice-settings-row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dice-display-switch {
+  grid-template-columns: auto 44px auto !important;
+  justify-content: end !important;
+  gap: 6px !important;
+  font-size: 11px !important;
+}
+
+.dice-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.dice-quick-button {
+  --dice-button-color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  min-width: 0;
+  border-color: color-mix(in srgb, var(--dice-button-color) 42%, var(--color-border));
+  background: color-mix(in srgb, var(--dice-button-color) 14%, var(--color-bg-panel-muted));
+  padding: 0 7px;
+}
+
+.dice-quick-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--dice-button-color) 70%, var(--color-border));
+  background: color-mix(in srgb, var(--dice-button-color) 22%, var(--color-bg-panel-muted));
+}
+
+.dice-quick-button span {
+  min-width: 0;
+  color: var(--color-text-strong);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dice-quick-button-coin {
+  --dice-button-color: #ec4899;
+}
+
+.dice-quick-button-d4 {
+  --dice-button-color: #f2d35c;
+}
+
+.dice-quick-button-d6 {
+  --dice-button-color: #f59e0b;
+}
+
+.dice-quick-button-d8 {
+  --dice-button-color: #4ade80;
+}
+
+.dice-quick-button-d10 {
+  --dice-button-color: #7c3aed;
+}
+
+.dice-quick-button-d00 {
+  --dice-button-color: #9ca3af;
+}
+
+.dice-quick-button-d12 {
+  --dice-button-color: #7dd3fc;
+}
+
+.dice-quick-button-d20 {
+  --dice-button-color: #f8fafc;
+}
+
+.dice-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.dice-preset-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 26px;
+  min-width: 0;
+  border-radius: 6px;
+  padding: 0 7px;
+  color: var(--color-text-soft);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.dice-preset-button:hover:not(:disabled) {
+  color: var(--color-text-strong);
+}
+
+.dice-preset-button-custom {
+  border-color: rgb(122 162 247 / 0.3);
+  color: var(--color-text-strong);
+}
+
+.dice-section-icon-button {
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0;
+}
+
+.dice-empty-state {
+  width: 100%;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  padding: 8px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.dice-custom-preset {
+  display: inline-flex;
+  min-width: 0;
+}
+
+.dice-custom-preset .dice-preset-button {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.dice-preset-delete {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  min-width: 20px;
+  height: 26px;
+  border-left: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  padding: 0;
+  color: var(--color-text-muted);
+}
+
+.dice-preset-delete:hover:not(:disabled) {
+  color: var(--color-danger);
+}
+
+.dice-preset-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+  gap: 5px;
+}
+
+.dice-preset-form input {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-input);
+  color: var(--color-text);
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.dice-preset-form button {
+  height: 28px;
+  min-width: 34px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.dice-preset-cancel {
+  width: 28px;
+  min-width: 28px !important;
+  padding: 0 !important;
+}
+
+.dice-preset-error {
+  grid-column: 1 / -1;
+  color: var(--color-danger);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.dice-roll-feed {
+  display: grid;
+  max-height: 212px;
+  overflow: hidden;
+  gap: 5px;
+}
+
+.dice-roll-feed-heading,
+.dice-roll-feed-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px 8px;
+}
+
+.dice-roll-feed-heading {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dice-roll-feed-heading strong {
+  color: var(--color-text-soft);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.dice-roll-feed-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dice-roll-feed-item {
+  min-height: 42px;
+  align-content: center;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 0.045);
+  padding: 6px 7px;
+}
+
+.dice-roll-feed-item span,
+.dice-roll-feed-item small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dice-roll-feed-item span {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.dice-roll-feed-item strong {
+  color: var(--color-text-strong);
+  font-size: 16px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.dice-roll-feed-item.dice-roll-tone-critical {
+  border-color: rgb(74 222 128 / 0.38);
+  background: rgb(20 83 45 / 0.36);
+}
+
+.dice-roll-feed-item.dice-roll-tone-critical strong {
+  color: #bbf7d0;
+}
+
+.dice-roll-feed-item.dice-roll-tone-fumble {
+  border-color: rgb(248 113 113 / 0.38);
+  background: rgb(127 29 29 / 0.36);
+}
+
+.dice-roll-feed-item.dice-roll-tone-fumble strong {
+  color: #fecaca;
+}
+
+.dice-roll-feed-item.dice-roll-tone-max {
+  border-color: rgb(125 211 252 / 0.3);
+  background: rgb(12 74 110 / 0.3);
+}
+
+.dice-roll-feed-item.dice-roll-tone-max strong {
+  color: #bae6fd;
+}
+
+.dice-roll-feed-item small {
+  grid-column: 1 / -1;
+  color: var(--color-text-soft);
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.1;
+}
+
 .dirty-save {
   border-color: var(--color-warning-border-strong);
   background: var(--color-warning-bg-strong);

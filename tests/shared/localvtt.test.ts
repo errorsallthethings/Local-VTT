@@ -584,6 +584,49 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isPlayerIdleState({ type: "idle", title: "Waiting" })).toBe(false);
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "laser", type: "laser", points: [{ point: { x: 1, y: 2 }, createdAt: 1 }], createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "clear", type: "dice-clear", createdAt: 1 })).toBe(true);
+  expect(
+    isLiveTableEvent({
+      id: "dice",
+      type: "dice",
+      die: "d20",
+      result: 20,
+      label: "20",
+      formula: "1D20",
+      rollLabel: "Attack",
+      seed: 0.5,
+      gmPresentation: "result",
+      playerPresentation: "3d",
+      createdAt: 1
+    })
+  ).toBe(true);
+  expect(
+    isLiveTableEvent({
+      id: "coin",
+      type: "dice",
+      die: "coin",
+      result: 1,
+      label: "Heads",
+      seed: 0.5,
+      createdAt: 1
+    })
+  ).toBe(true);
+  expect(
+    isLiveTableEvent({
+      id: "percentile",
+      type: "dice",
+      die: "d00",
+      result: 91,
+      label: "91",
+      seed: 0.5,
+      dice: [
+        { die: "d00", result: 90, label: "90", seed: 0.1 },
+        { die: "d10", result: 1, label: "1", seed: 0.2 }
+      ],
+      createdAt: 1
+    })
+  ).toBe(true);
+  expect(isLiveTableEvent({ id: "dice", type: "dice", die: "d30", result: 30, label: "30", seed: 0.5, createdAt: 1 })).toBe(false);
   expect(isLiveTableEvent({ id: "broken", type: "laser", points: [{ point: { x: 1 }, createdAt: 1 }], createdAt: 1 })).toBe(false);
 });
 

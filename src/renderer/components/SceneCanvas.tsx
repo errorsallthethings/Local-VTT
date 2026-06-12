@@ -48,6 +48,7 @@ import { getVideoTransform } from "../canvas/videoMap";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
+import { DiceRollOverlay } from "./dice/DiceRollOverlay";
 import type { WeatherMaskTool } from "./tools/ToolsMenu";
 import {
   FOG_GRID_SNAP_HINT,
@@ -1487,6 +1488,7 @@ export function SceneCanvas({
       {mode === "gm" && (canvasTool === "ping" || canvasTool === "laser") && <TableToolStatusStrip canvasTool={canvasTool} />}
       {mode === "gm" && weatherMaskTool && <WeatherMaskStatusStrip weatherMaskTool={weatherMaskTool} pointCount={weatherPolygonDraft?.points.length ?? 0} />}
       {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
+      <DiceRollOverlay events={liveTableEvents.filter((event) => isVisibleDiceOverlayEvent(event, mode))} />
       {mode === "player" && scene && <TurnOrderPlayerBar scene={scene} campaign={campaign} />}
       {mode === "player" && scene && showPlayerSeatIndicators && <PlayerSeatIndicators campaign={campaign} />}
       {mode === "player" && scene && <PlayerTurnStatusIndicators scene={scene} campaign={campaign} />}
@@ -1929,6 +1931,15 @@ function getPlayerDisplayScale(campaign: Campaign | null, scene: Scene | null, m
     return 1;
   }
   return targetCellSize / scene.grid.sizePx;
+}
+
+function isVisibleDiceOverlayEvent(event: LiveTableEvent, mode: "gm" | "player"): event is Extract<LiveTableEvent, { type: "dice" }> {
+  return event.type === "dice" && shouldShowDiceOverlay(event, mode);
+}
+
+function shouldShowDiceOverlay(event: Extract<LiveTableEvent, { type: "dice" }>, mode: "gm" | "player"): boolean {
+  const presentation = mode === "gm" ? event.gmPresentation : event.playerPresentation;
+  return presentation ? presentation === "3d" : event.presentation === "3d";
 }
 
 function eventToWorldPoint(event: React.PointerEvent<HTMLCanvasElement>, camera: Camera): Point {

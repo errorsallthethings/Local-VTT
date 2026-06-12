@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Map as MapIcon } from "lucide-react";
 import { isLiveTableEvent, isPlayerIdleState, isPlayerSceneProjection, type LiveTableEvent, type PlayerIdleState, type PlayerSceneProjection } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
+import { DiceRollOverlay } from "../components/dice/DiceRollOverlay";
+import { DICE_HISTORY_DURATION_MS } from "../lib/dice";
 
 const PLAYER_SCENE_SPLASH_FADE_MS = 320;
 const PLAYER_SCENE_SPLASH_MIN_MS = 2000;
@@ -194,6 +196,7 @@ export function PlayerApp() {
       ) : (
         <PlayerEmpty state={idleState} />
       )}
+      {!projection && <DiceRollOverlay events={liveTableEvents.filter(isVisiblePlayerDiceOverlayEvent)} />}
     </div>
   );
 }
@@ -261,20 +264,40 @@ function PlayerScene({
 
 function mergeLiveTableEvent(events: LiveTableEvent[], event: LiveTableEvent): LiveTableEvent[] {
   const filteredEvents = filterActiveLiveTableEvents(events);
+  if (event.type === "dice-clear") {
+    return filteredEvents.filter((candidate) => candidate.type !== "dice");
+  }
   return [event, ...filteredEvents.filter((candidate) => candidate.id !== event.id)];
 }
 
 function filterActiveLiveTableEvents(events: LiveTableEvent[]): LiveTableEvent[] {
   const now = Date.now();
-  return events
-    .map((event) => {
-      if (event.type === "ping") {
-        return now - event.createdAt <= LIVE_TABLE_PING_DURATION_MS ? event : null;
+  const activeEvents: LiveTableEvent[] = [];
+  for (const event of events) {
+    if (event.type === "ping") {
+      if (now - event.createdAt <= LIVE_TABLE_PING_DURATION_MS) {
+        activeEvents.push(event);
       }
+    } else if (event.type === "dice") {
+      if (now - event.createdAt <= DICE_HISTORY_DURATION_MS) {
+        activeEvents.push(event);
+      }
+    } else if (event.type === "laser") {
       const points = event.points.filter((point) => now - point.createdAt <= LIVE_TABLE_LASER_POINT_LIFETIME_MS);
-      return points.length > 0 ? { ...event, points } : null;
-    })
-    .filter((event): event is LiveTableEvent => Boolean(event));
+      if (points.length > 0) {
+        activeEvents.push({ ...event, points });
+      }
+    }
+  }
+  return activeEvents;
+}
+
+function isVisiblePlayerDiceOverlayEvent(event: LiveTableEvent): event is Extract<LiveTableEvent, { type: "dice" }> {
+  return event.type === "dice" && shouldShowPlayerDiceOverlay(event);
+}
+
+function shouldShowPlayerDiceOverlay(event: Extract<LiveTableEvent, { type: "dice" }>): boolean {
+  return event.playerPresentation ? event.playerPresentation === "3d" : event.presentation === "3d";
 }
 
 function emptyCampaign(name: string) {

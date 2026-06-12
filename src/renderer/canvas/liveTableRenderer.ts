@@ -14,7 +14,10 @@ export function hasActiveLiveTableEvents(events: LiveTableEvent[], now = Date.no
     if (event.type === "ping") {
       return now - event.createdAt <= PING_DURATION_MS;
     }
-    return getActiveLaserPoints(event.points, now).length > 0;
+    if (event.type === "laser") {
+      return getActiveLaserPoints(event.points, now).length > 0;
+    }
+    return false;
   });
 }
 
@@ -26,7 +29,7 @@ export function drawLiveTableEvents(ctx: CanvasRenderingContext2D, events: LiveT
   for (const event of events) {
     if (event.type === "ping") {
       drawPing(ctx, event.point, Math.max(1, camera.zoom), Math.max(0, Math.min(1, (now - event.createdAt) / PING_DURATION_MS)));
-    } else {
+    } else if (event.type === "laser") {
       drawLaserTrail(ctx, event.points, now, Math.max(1, camera.zoom));
     }
   }

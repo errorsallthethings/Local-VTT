@@ -436,6 +436,32 @@ export type LiveTableEvent =
       type: "laser";
       points: LiveTablePoint[];
       createdAt: number;
+    }
+  | {
+      id: string;
+      type: "dice";
+      die: "coin" | "d2" | "d4" | "d6" | "d8" | "d10" | "d00" | "d12" | "d20";
+      result: number;
+      label: string;
+      formula?: string;
+      rollLabel?: string;
+      seed: number;
+      gmPresentation?: "3d" | "result";
+      playerPresentation?: "3d" | "result";
+      presentation?: "3d" | "result";
+      dice?: Array<{
+        die: "coin" | "d2" | "d4" | "d6" | "d8" | "d10" | "d00" | "d12" | "d20";
+        result: number;
+        label: string;
+        seed: number;
+        kept?: boolean;
+      }>;
+      createdAt: number;
+    }
+  | {
+      id: string;
+      type: "dice-clear";
+      createdAt: number;
     };
 
 export const DEFAULT_MEASUREMENT: MeasurementSettings = {
@@ -953,7 +979,42 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
   if (value.type === "laser") {
     return Array.isArray(value.points) && value.points.every((entry) => isRecord(entry) && isPoint(entry.point) && typeof entry.createdAt === "number");
   }
+  if (value.type === "dice") {
+    return (
+      isDiceType(value.die) &&
+      typeof value.result === "number" &&
+      Number.isInteger(value.result) &&
+      typeof value.label === "string" &&
+      (!("formula" in value) || typeof value.formula === "string") &&
+      (!("rollLabel" in value) || typeof value.rollLabel === "string") &&
+      typeof value.seed === "number" &&
+      Number.isFinite(value.seed) &&
+      (!("gmPresentation" in value) || value.gmPresentation === "3d" || value.gmPresentation === "result") &&
+      (!("playerPresentation" in value) || value.playerPresentation === "3d" || value.playerPresentation === "result") &&
+      (!("presentation" in value) || value.presentation === "3d" || value.presentation === "result") &&
+      (!("dice" in value) ||
+        (Array.isArray(value.dice) &&
+          value.dice.every(
+            (die) =>
+              isRecord(die) &&
+              isDiceType(die.die) &&
+              typeof die.result === "number" &&
+              Number.isInteger(die.result) &&
+              typeof die.label === "string" &&
+              typeof die.seed === "number" &&
+              Number.isFinite(die.seed) &&
+              (!("kept" in die) || typeof die.kept === "boolean")
+          )))
+    );
+  }
+  if (value.type === "dice-clear") {
+    return true;
+  }
   return false;
+}
+
+function isDiceType(value: unknown): value is Extract<LiveTableEvent, { type: "dice" }>["die"] {
+  return value === "coin" || value === "d2" || value === "d4" || value === "d6" || value === "d8" || value === "d10" || value === "d00" || value === "d12" || value === "d20";
 }
 
 function isPoint(value: unknown): value is Point {

@@ -67,6 +67,206 @@
   cursor: move;
 }
 
+.dice-roll-overlay {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 7;
+  display: grid;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.dice-roll-card {
+  position: relative;
+  width: 188px;
+  height: 212px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: var(--radius-panel);
+  background: linear-gradient(180deg, rgb(8 12 18 / 0.72), rgb(8 12 18 / 0.46));
+  box-shadow: var(--shadow-panel);
+  animation: dice-roll-card-in 180ms ease-out both;
+}
+
+.dice-roll-card-pool-md {
+  height: 232px;
+}
+
+.dice-roll-card-pool-lg {
+  height: 252px;
+}
+
+.dice-roll-card-result-only {
+  width: 188px;
+  height: auto;
+  min-height: 78px;
+  background: rgb(8 12 18 / 0.76);
+}
+
+.dice-roll-card.dice-roll-tone-critical {
+  border-color: rgb(74 222 128 / 0.78);
+  box-shadow:
+    var(--shadow-panel),
+    0 0 28px rgb(74 222 128 / 0.24);
+}
+
+.dice-roll-card.dice-roll-tone-fumble {
+  border-color: rgb(248 113 113 / 0.78);
+  box-shadow:
+    var(--shadow-panel),
+    0 0 28px rgb(248 113 113 / 0.22);
+}
+
+.dice-roll-card.dice-roll-tone-max {
+  border-color: rgb(125 211 252 / 0.62);
+  box-shadow:
+    var(--shadow-panel),
+    0 0 24px rgb(125 211 252 / 0.18);
+}
+
+.dice-roll-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.dice-roll-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dice-roll-result {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: var(--radius-control);
+  background: rgb(8 12 18 / 0.72);
+  color: var(--color-text-strong);
+  padding: 7px 9px;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.26);
+}
+
+.dice-roll-card-result-only .dice-roll-result {
+  position: static;
+  min-height: 62px;
+}
+
+.dice-roll-card-result-only .dice-roll-result strong {
+  font-size: 34px;
+}
+
+.dice-roll-result span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.dice-roll-result strong {
+  font-size: 26px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.dice-roll-tone-critical .dice-roll-result {
+  border-color: rgb(74 222 128 / 0.54);
+  background: rgb(20 83 45 / 0.62);
+}
+
+.dice-roll-tone-critical .dice-roll-result strong,
+.dice-roll-tone-critical.dice-roll-history-item strong {
+  color: #bbf7d0;
+}
+
+.dice-roll-tone-fumble .dice-roll-result {
+  border-color: rgb(248 113 113 / 0.58);
+  background: rgb(127 29 29 / 0.58);
+}
+
+.dice-roll-tone-fumble .dice-roll-result strong,
+.dice-roll-tone-fumble.dice-roll-history-item strong {
+  color: #fecaca;
+}
+
+.dice-roll-tone-max .dice-roll-result {
+  border-color: rgb(125 211 252 / 0.5);
+  background: rgb(12 74 110 / 0.5);
+}
+
+.dice-roll-tone-max .dice-roll-result strong,
+.dice-roll-tone-max.dice-roll-history-item strong {
+  color: #bae6fd;
+}
+
+.dice-roll-history {
+  display: grid;
+  gap: 6px;
+  justify-self: end;
+  width: 188px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: var(--radius-control);
+  background: rgb(8 12 18 / 0.62);
+  padding: 7px;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.24);
+}
+
+.dice-roll-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 0.06);
+  color: var(--color-text);
+  padding: 5px 7px;
+}
+
+.dice-roll-history-item span {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.dice-roll-history-item strong {
+  color: var(--color-text-strong);
+  font-size: 16px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.dice-roll-history-item.dice-roll-tone-critical {
+  border: 1px solid rgb(74 222 128 / 0.34);
+  background: rgb(20 83 45 / 0.42);
+}
+
+.dice-roll-history-item.dice-roll-tone-fumble {
+  border: 1px solid rgb(248 113 113 / 0.34);
+  background: rgb(127 29 29 / 0.4);
+}
+
+.dice-roll-history-item.dice-roll-tone-max {
+  border: 1px solid rgb(125 211 252 / 0.28);
+  background: rgb(12 74 110 / 0.34);
+}
+
+@keyframes dice-roll-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .map-load-overlay {
   position: absolute;
   top: 50%;
