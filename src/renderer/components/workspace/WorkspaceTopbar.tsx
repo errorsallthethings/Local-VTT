@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CircleHelp, Dices, EllipsisVertical, Eye, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
-import type { Asset, Campaign, DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneSize, LiveTableEvent, Scene } from "../../../shared/localvtt";
+import type { Asset, Campaign, DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneRollTarget, DiceSceneSize, LiveTableEvent, Scene } from "../../../shared/localvtt";
 import {
   DICE_TYPES,
   formatDieLabel,
@@ -34,9 +34,12 @@ type DicePanelDrag = {
 const CUSTOM_DICE_PRESETS_STORAGE_KEY = "localvtt.customDicePresets";
 const DICE_DISPLAY_OPTIONS = [
   { value: "results", label: "Results only" },
-  { value: "panel", label: "3D panel" },
-  { value: "scene", label: "Scene roll" }
+  { value: "panel", label: "3D panel" }
 ] as const satisfies Array<{ value: DiceDisplayMode; label: string }>;
+const DICE_SCENE_ROLL_TARGET_OPTIONS = [
+  { value: "gm", label: "GM View" },
+  { value: "player", label: "Player View" }
+] as const satisfies Array<{ value: DiceSceneRollTarget; label: string }>;
 const DICE_SCENE_SIZE_OPTIONS = [
   { value: "xs", label: "Extra small" },
   { value: "sm", label: "Small" },
@@ -71,6 +74,8 @@ interface WorkspaceTopbarProps {
   onClosePlayerView: () => void;
   gmDiceDisplayMode: DiceDisplayMode;
   playerDiceDisplayMode: DiceDisplayMode;
+  diceSceneRollEnabled: boolean;
+  diceSceneRollTarget: DiceSceneRollTarget;
   gmDiceSceneSize: DiceSceneSize;
   playerDiceSceneSize: DiceSceneSize;
   gmDicePanelEdge: DicePanelEdge;
@@ -84,6 +89,8 @@ interface WorkspaceTopbarProps {
   diceHistory: DiceRollEvent[];
   onGmDiceDisplayModeChange: (mode: DiceDisplayMode) => void;
   onPlayerDiceDisplayModeChange: (mode: DiceDisplayMode) => void;
+  onDiceSceneRollEnabledChange: (enabled: boolean) => void;
+  onDiceSceneRollTargetChange: (target: DiceSceneRollTarget) => void;
   onGmDiceSceneSizeChange: (size: DiceSceneSize) => void;
   onPlayerDiceSceneSizeChange: (size: DiceSceneSize) => void;
   onGmDicePanelEdgeChange: (edge: DicePanelEdge) => void;
@@ -115,6 +122,8 @@ export function WorkspaceTopbar({
   onClosePlayerView,
   gmDiceDisplayMode,
   playerDiceDisplayMode,
+  diceSceneRollEnabled,
+  diceSceneRollTarget,
   gmDiceSceneSize,
   playerDiceSceneSize,
   gmDicePanelEdge,
@@ -128,6 +137,8 @@ export function WorkspaceTopbar({
   diceHistory,
   onGmDiceDisplayModeChange,
   onPlayerDiceDisplayModeChange,
+  onDiceSceneRollEnabledChange,
+  onDiceSceneRollTargetChange,
   onGmDiceSceneSizeChange,
   onPlayerDiceSceneSizeChange,
   onGmDicePanelEdgeChange,
@@ -364,8 +375,28 @@ export function WorkspaceTopbar({
                   <section className="dice-panel-section" aria-label="Dice rendering settings">
                     <div className="dice-settings-panel">
                       <div className="dice-settings-row">
+                        <span>Scene Roll</span>
+                        <label className="fog-operation-switch weather-category-switch dice-placement-switch" title="Roll dice directly on one scene view">
+                          <span>Off</span>
+                          <input type="checkbox" checked={diceSceneRollEnabled} aria-label="Scene roll" onChange={(event) => onDiceSceneRollEnabledChange(event.target.checked)} />
+                          <span>On</span>
+                        </label>
+                      </div>
+                      {diceSceneRollEnabled && (
+                        <div className="dice-settings-row">
+                          <span>Roll On</span>
+                          <select value={diceSceneRollTarget} aria-label="Scene roll target view" onChange={(event) => onDiceSceneRollTargetChange(event.target.value as DiceSceneRollTarget)}>
+                            {DICE_SCENE_ROLL_TARGET_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      <div className="dice-settings-row">
                         <span>GM Display</span>
-                        <select value={gmDiceDisplayMode} aria-label="GM dice display mode" onChange={(event) => onGmDiceDisplayModeChange(event.target.value as DiceDisplayMode)}>
+                        <select value={gmDiceDisplayMode === "panel" ? "panel" : "results"} aria-label="GM dice display mode" disabled={diceSceneRollEnabled} onChange={(event) => onGmDiceDisplayModeChange(event.target.value as DiceDisplayMode)}>
                           {DICE_DISPLAY_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
                               {option.label}
@@ -375,7 +406,7 @@ export function WorkspaceTopbar({
                       </div>
                       <div className="dice-settings-row">
                         <span>Player Display</span>
-                        <select value={playerDiceDisplayMode} aria-label="Player dice display mode" onChange={(event) => onPlayerDiceDisplayModeChange(event.target.value as DiceDisplayMode)}>
+                        <select value={playerDiceDisplayMode === "panel" ? "panel" : "results"} aria-label="Player dice display mode" disabled={diceSceneRollEnabled} onChange={(event) => onPlayerDiceDisplayModeChange(event.target.value as DiceDisplayMode)}>
                           {DICE_DISPLAY_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
                               {option.label}

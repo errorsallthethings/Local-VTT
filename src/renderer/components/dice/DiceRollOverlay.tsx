@@ -1,24 +1,34 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import RAPIER from "@dimforge/rapier3d-compat";
 import * as THREE from "three";
 import type { DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneSize, LiveTableEvent } from "../../../shared/localvtt";
-import { DICE_EVENT_DURATION_MS, DICE_HISTORY_DURATION_MS, formatDiceRollSummary, formatDieLabel, getDiceRollTone, getDieSides } from "../../lib/dice";
+import { DICE_EVENT_DURATION_MS, DICE_HISTORY_DURATION_MS, formatDiceRollSummary, formatDieLabel, getDiceRollTone, getDieSides, type DiceRollTone } from "../../lib/dice";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 type DiceVisual = NonNullable<DiceRollEvent["dice"]>[number];
 const DICE_SETTLE_DURATION_MS = 2800;
+const DICE_SCENE_EVENT_DURATION_MS = 7600;
+const RAPIER_READY = RAPIER.init();
+
+type ResolvedDiceResult = {
+  label: string;
+  summary: string;
+  result: number;
+};
 
 export function DiceRollOverlay({ events, mode }: { events: DiceRollEvent[]; mode: "gm" | "player" }) {
   const activeEvents = useMemo(() => {
     const now = Date.now();
-    return events.filter((event) => now - event.createdAt <= DICE_EVENT_DURATION_MS).slice(0, 1);
-  }, [events]);
+    return events.filter((event) => getDiceDisplayMode(event, mode) !== "hidden" && now - event.createdAt <= getDiceEventDuration(event, mode)).slice(0, 1);
+  }, [events, mode]);
   const historyEvents = useMemo(() => {
     const now = Date.now();
     return events
-      .filter((event) => getDiceDisplayMode(event, mode) !== "panel" && now - event.createdAt <= DICE_HISTORY_DURATION_MS && now - event.createdAt >= getDiceRevealDelay(event, mode))
+      .filter((event) => getDiceDisplayMode(event, mode) === "results" && now - event.createdAt <= DICE_HISTORY_DURATION_MS && now - event.createdAt >= getDiceRevealDelay(event, mode))
       .slice(0, 6);
   }, [events, mode]);
   const activePanelVisible = activeEvents.some((event) => getDiceDisplayMode(event, mode) === "panel");
+  const activeSceneVisible = activeEvents.some((event) => getDiceDisplayMode(event, mode) === "scene");
 
   if (activeEvents.length === 0 && historyEvents.length === 0) {
     return null;
@@ -32,7 +42,7 @@ export function DiceRollOverlay({ events, mode }: { events: DiceRollEvent[]; mod
       {activeEvents.map((event) => (
         <DiceRollCard key={event.id} event={event} mode={mode} />
       ))}
-      {!activePanelVisible && historyEvents.length > 0 && (
+      {!activePanelVisible && !activeSceneVisible && historyEvents.length > 0 && (
         <div className="dice-roll-history" aria-label="Recent dice rolls">
           {historyEvents.map((event) => (
             <div key={event.id} className={`dice-roll-history-item dice-roll-tone-${getDiceRollTone(event)}`}>
@@ -49,13 +59,15 @@ export function DiceRollOverlay({ events, mode }: { events: DiceRollEvent[]; mod
 function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "player" }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const displayMode = getDiceDisplayMode(event, mode);
-  const show3d = displayMode !== "results";
+  const show3d = displayMode === "panel" || displayMode === "scene";
   const sceneRoll = displayMode === "scene";
-  const panelPlacement = displayMode === "panel" || displayMode === "results" ? getDicePanelPlacement(event, mode) : null;
+  const sceneResult = displayMode === "scene-result";
+  const panelPlacement = displayMode === "panel" || displayMode === "results" || sceneResult ? getDicePanelPlacement(event, mode) : null;
   const revealDelay = getDiceRevealDelay(event, mode);
   const [resultVisible, setResultVisible] = useState(revealDelay === 0);
   const [shuffleTick, setShuffleTick] = useState(0);
-  const tone = resultVisible ? getDiceRollTone(event) : "normal";
+  const [resolvedPhysicsResult, setResolvedPhysicsResult] = useState<ResolvedDiceResult | null>(null);
+  const tone = getDisplayedRollTone(event, displayMode, resultVisible, resolvedPhysicsResult);
   const visualCount = getVisualDice(event).length;
 
   useEffect(() => {
@@ -64,6 +76,7 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
       return;
     }
     setResultVisible(false);
+    setResolvedPhysicsResult(null);
     const reveal = window.setTimeout(() => setResultVisible(true), revealDelay);
     return () => window.clearTimeout(reveal);
   }, [event.id, revealDelay]);
@@ -106,44 +119,93 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
 
     const visuals = getVisualDice(event);
     const layout = getDicePoolLayout(visuals.length, sceneRoll ? "scene" : "panel", getDiceSceneSize(event, mode));
+    const sceneBounds = sceneRoll ? getSceneRollBounds(mount, camera, layout.scale) : null;
+    let physicsWorld: RAPIER.World | null = null;
+    let physicsReady = !sceneRoll;
+    let physicsAccumulator = 0;
+    let resolvedPhysics = false;
+    let disposed = false;
     const dice = visuals.map((visual, index) => {
       const die = createDieMesh(visual);
-      const position = getDicePoolPosition(index, layout);
-      die.position.set(position.x, position.y, 0);
+      const landing = sceneRoll ? getSceneDiceLanding(index, layout, visual, mount, camera) : getPanelDiceLanding(index, layout);
+      die.position.set(landing.startX, landing.startY, 0);
       die.scale.setScalar(layout.scale);
       die.rotation.set(seedRange(visual.seed, 0, Math.PI), seedRange(visual.seed, 1, Math.PI), seedRange(visual.seed, 2, Math.PI));
       scene.add(die);
       return {
         die,
         visual,
-        baseX: die.position.x,
-        baseY: die.position.y,
+        baseX: landing.baseX,
+        baseY: landing.baseY,
+        startX: landing.startX,
+        startY: landing.startY,
+        x: landing.startX,
+        y: landing.startY,
+        vx: sceneRoll ? getSceneThrowVelocity(landing.startX, landing.baseX, visual.seed, index) : 0,
+        vy: sceneRoll ? getSceneThrowVelocity(landing.startY, landing.baseY, visual.seed, index + 8) : 0,
+        radius: layout.scale * 0.94,
+        body: null as RAPIER.RigidBody | null,
         baseScale: die.scale.x,
         startQuaternion: die.quaternion.clone(),
         finalQuaternion: new THREE.Quaternion().setFromEuler(getSettledRotation(visual))
       };
     });
+    if (sceneRoll && sceneBounds) {
+      void RAPIER_READY.then(() => {
+        if (disposed) {
+          return;
+        }
+        physicsWorld = createScenePhysicsWorld(sceneBounds);
+        const world = physicsWorld;
+        dice.forEach((entry, index) => {
+          entry.body = createSceneDiceBody(world, entry.startX, entry.startY, entry.vx, entry.vy, entry.radius, entry.visual, index);
+        });
+        physicsReady = true;
+      });
+    }
 
     const start = performance.now();
+    let previousFrame = start;
     let frame = 0;
     const animate = (now: number) => {
       const elapsed = now - start;
       const tumbleProgress = Math.min(1, elapsed / 2800);
       const settleProgress = easeOutCubic(tumbleProgress);
-      dice.forEach(({ die, visual, baseX, baseY, baseScale, startQuaternion, finalQuaternion }, index) => {
-        const offsetElapsed = Math.max(0, elapsed - index * 120);
-        const spinTurns = 6 + Math.floor(seedRange(visual.seed, 7, 4));
-        const tumbleRotation = new THREE.Euler(
-          Math.PI * 2 * spinTurns * (1 - settleProgress),
-          Math.PI * 2 * (spinTurns + 1) * (1 - settleProgress),
-          Math.PI * 2 * (spinTurns - 1) * (1 - settleProgress)
-        );
-        die.quaternion.copy(startQuaternion).slerp(finalQuaternion, settleProgress).multiply(new THREE.Quaternion().setFromEuler(tumbleRotation));
-        const bounce = Math.abs(Math.sin(offsetElapsed / 125)) * 0.42 * (1 - settleProgress) * baseScale;
-        die.position.set(baseX, baseY + bounce - 0.08 * settleProgress, 0);
-        const arrivalPulse = Math.sin(Math.min(1, offsetElapsed / 480) * Math.PI) * 0.1 + Math.sin(Math.min(1, Math.max(0, offsetElapsed - 2700) / 360) * Math.PI) * 0.08;
-        die.scale.setScalar(baseScale * (1 + arrivalPulse));
-      });
+      const delta = Math.min(0.034, Math.max(0.001, (now - previousFrame) / 1000));
+      previousFrame = now;
+      if (sceneRoll && sceneBounds) {
+        if (!physicsReady || !physicsWorld) {
+          renderer.render(scene, camera);
+          frame = window.requestAnimationFrame(animate);
+          return;
+        }
+        physicsAccumulator = stepScenePhysicsWorld(physicsWorld, physicsAccumulator + delta);
+        dice.forEach(syncSceneDiceFromPhysics);
+        if (!resolvedPhysics && elapsed >= DICE_SETTLE_DURATION_MS - 120) {
+          resolvedPhysics = true;
+          const resolvedResult = getPhysicsRollResult(dice);
+          setResolvedPhysicsResult(resolvedResult);
+          publishSceneRollResult(event, mode, resolvedResult);
+        }
+      } else {
+        dice.forEach(({ die, visual, baseX, baseY, startX, startY, baseScale, startQuaternion, finalQuaternion }, index) => {
+          const offsetElapsed = Math.max(0, elapsed - index * 120);
+          const throwProgress = easeOutCubic(Math.min(1, offsetElapsed / 2300));
+          const spinTurns = 6 + Math.floor(seedRange(visual.seed, 7, 4));
+          const tumbleRotation = new THREE.Euler(
+            Math.PI * 2 * spinTurns * (1 - settleProgress),
+            Math.PI * 2 * (spinTurns + 1) * (1 - settleProgress),
+            Math.PI * 2 * (spinTurns - 1) * (1 - settleProgress)
+          );
+          die.quaternion.copy(startQuaternion).slerp(finalQuaternion, settleProgress).multiply(new THREE.Quaternion().setFromEuler(tumbleRotation));
+          const bounce = Math.abs(Math.sin(offsetElapsed / 125)) * 0.42 * (1 - settleProgress) * baseScale;
+          const x = startX + (baseX - startX) * throwProgress;
+          const y = startY + (baseY - startY) * throwProgress + bounce - 0.08 * settleProgress;
+          die.position.set(x, y, 0);
+          const arrivalPulse = Math.sin(Math.min(1, offsetElapsed / 480) * Math.PI) * 0.1 + Math.sin(Math.min(1, Math.max(0, offsetElapsed - 2700) / 360) * Math.PI) * 0.08;
+          die.scale.setScalar(baseScale * (1 + arrivalPulse));
+        });
+      }
       renderer.render(scene, camera);
       frame = window.requestAnimationFrame(animate);
     };
@@ -159,8 +221,10 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
     resizeObserver.observe(mount);
 
     return () => {
+      disposed = true;
       window.cancelAnimationFrame(frame);
       resizeObserver.disconnect();
+      physicsWorld?.free();
       dice.forEach(({ die }) => {
         scene.remove(die);
         die.traverse((object) => {
@@ -181,8 +245,8 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
       {show3d && <div ref={mountRef} className="dice-roll-canvas" aria-hidden="true" />}
       {(resultVisible || displayMode === "results") && (
         <div className={resultVisible ? "dice-roll-result" : "dice-roll-result dice-roll-result-rolling"}>
-          <span>{resultVisible ? getRollSummary(event) : getRollingSummary(event)}</span>
-          <strong>{resultVisible ? event.label : getShuffledRollLabel(event, shuffleTick)}</strong>
+          <span>{resultVisible ? (resolvedPhysicsResult?.summary ?? getDisplayedRollSummary(event)) : getRollingSummary(event)}</span>
+          <strong>{resultVisible ? (resolvedPhysicsResult?.label ?? getDisplayedRollLabel(event)) : getShuffledRollLabel(event, shuffleTick)}</strong>
         </div>
       )}
     </div>
@@ -199,10 +263,20 @@ function getDiceDisplayMode(event: DiceRollEvent, mode: "gm" | "player"): DiceDi
 }
 
 function getDiceRevealDelay(event: DiceRollEvent, mode: "gm" | "player"): number {
-  if (getDiceDisplayMode(event, mode) !== "results") {
+  const displayMode = getDiceDisplayMode(event, mode);
+  if (displayMode === "scene-result") {
+    return event.sceneResolvedLabel ? 0 : DICE_SETTLE_DURATION_MS;
+  }
+  if (displayMode !== "results") {
     return DICE_SETTLE_DURATION_MS;
   }
-  return getDiceDisplayMode(event, mode === "gm" ? "player" : "gm") === "results" ? 0 : DICE_SETTLE_DURATION_MS;
+  const pairedDisplayMode = getDiceDisplayMode(event, mode === "gm" ? "player" : "gm");
+  return pairedDisplayMode === "panel" || pairedDisplayMode === "scene" ? DICE_SETTLE_DURATION_MS : 0;
+}
+
+function getDiceEventDuration(event: DiceRollEvent, mode: "gm" | "player"): number {
+  const displayMode = getDiceDisplayMode(event, mode);
+  return displayMode === "scene" || displayMode === "scene-result" ? DICE_SCENE_EVENT_DURATION_MS : DICE_EVENT_DURATION_MS;
 }
 
 function getDiceSceneSize(event: DiceRollEvent, mode: "gm" | "player"): DiceSceneSize {
@@ -231,6 +305,39 @@ function getVisualDice(event: DiceRollEvent): DiceVisual[] {
 
 function getRollSummary(event: DiceRollEvent): string {
   return formatDiceRollSummary(event);
+}
+
+function getDisplayedRollSummary(event: DiceRollEvent): string {
+  return event.sceneResolvedSummary ?? getRollSummary(event);
+}
+
+function getDisplayedRollLabel(event: DiceRollEvent): string {
+  return event.sceneResolvedLabel ?? event.label;
+}
+
+function getDisplayedRollTone(event: DiceRollEvent, displayMode: DiceDisplayMode, resultVisible: boolean, resolvedPhysicsResult: ResolvedDiceResult | null): DiceRollTone {
+  if (!resultVisible) {
+    return "normal";
+  }
+  if (displayMode !== "scene" && displayMode !== "scene-result") {
+    return getDiceRollTone(event);
+  }
+  const label = resolvedPhysicsResult?.label ?? event.sceneResolvedLabel;
+  const dice = getVisualDice(event);
+  if (!label || dice.length !== 1) {
+    return "normal";
+  }
+  const die = dice[0]?.die;
+  if (die === "d20") {
+    if (label === "20") {
+      return "critical";
+    }
+    if (label === "1") {
+      return "fumble";
+    }
+  }
+  const sides = getDieSides(die ?? event.die);
+  return Number(label) === sides ? "max" : "normal";
 }
 
 function getRollingSummary(event: DiceRollEvent): string {
@@ -296,7 +403,7 @@ function clampUnitNumber(value: number): number {
 
 function getDiceRollCardClassName(displayMode: DiceDisplayMode, tone: string, visualCount: number, panelPlacement: DicePanelPlacement | null): string {
   const poolClass = visualCount > 8 ? "dice-roll-card-pool-lg" : visualCount > 4 ? "dice-roll-card-pool-md" : "";
-  const displayClass = displayMode === "results" ? "dice-roll-card dice-roll-card-result-only" : displayMode === "scene" ? "dice-roll-card dice-roll-card-scene" : "dice-roll-card";
+  const displayClass = displayMode === "results" || displayMode === "scene-result" ? "dice-roll-card dice-roll-card-result-only" : displayMode === "scene" ? "dice-roll-card dice-roll-card-scene" : "dice-roll-card";
   return [
     displayClass,
     `dice-roll-tone-${tone}`,
@@ -315,6 +422,20 @@ type DicePoolLayout = {
   scale: number;
   xSpacing: number;
   ySpacing: number;
+};
+
+type DiceLanding = {
+  baseX: number;
+  baseY: number;
+  startX: number;
+  startY: number;
+};
+
+type SceneRollBounds = {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
 };
 
 function getDicePoolLayout(count: number, displayMode: "panel" | "scene", sceneSize: DiceSceneSize = "md"): DicePoolLayout {
@@ -347,6 +468,188 @@ function getDicePoolLayout(count: number, displayMode: "panel" | "scene", sceneS
     return { count, columns: Math.ceil(count / 2), rows: 2, scale: 0.52, xSpacing: 0.78, ySpacing: 0.88 };
   }
   return { count, columns: 4, rows: Math.ceil(count / 4), scale: 0.42, xSpacing: 0.66, ySpacing: 0.72 };
+}
+
+function getPanelDiceLanding(index: number, layout: DicePoolLayout): DiceLanding {
+  const position = getDicePoolPosition(index, layout);
+  return {
+    baseX: position.x,
+    baseY: position.y,
+    startX: position.x,
+    startY: position.y
+  };
+}
+
+function getSceneDiceLanding(index: number, layout: DicePoolLayout, visual: DiceVisual, mount: HTMLElement, camera: THREE.PerspectiveCamera): DiceLanding {
+  const arranged = getDicePoolPosition(index, layout);
+  const bounds = getVisibleWorldBounds(mount, camera);
+  const margin = Math.max(0.62, layout.scale * 1.85);
+  const landingWidth = Math.max(margin * 2, bounds.width - margin * 2);
+  const landingHeight = Math.max(margin * 2, bounds.height - margin * 2);
+  const startMaxX = Math.max(margin, bounds.width / 2 - margin * 1.15);
+  const startMaxY = Math.max(margin, bounds.height / 2 - margin * 1.15);
+  const jitterX = (seedRange(visual.seed, 20, 1) - 0.5) * Math.min(bounds.width * 0.22, 2.2);
+  const jitterY = (seedRange(visual.seed, 21, 1) - 0.5) * Math.min(bounds.height * 0.2, 1.5);
+  const baseX = clampNumber(arranged.x + jitterX, -landingWidth / 2 + margin, landingWidth / 2 - margin);
+  const baseY = clampNumber(arranged.y + jitterY, -landingHeight / 2 + margin, landingHeight / 2 - margin);
+  const edge = Math.floor(seedRange(visual.seed, 22, 4));
+  const sideOffset = seedRange(visual.seed, 23, 1) - 0.5;
+  if (edge === 0) {
+    return { baseX, baseY, startX: sideOffset * startMaxX * 2, startY: startMaxY };
+  }
+  if (edge === 1) {
+    return { baseX, baseY, startX: startMaxX, startY: sideOffset * startMaxY * 2 };
+  }
+  if (edge === 2) {
+    return { baseX, baseY, startX: sideOffset * startMaxX * 2, startY: -startMaxY };
+  }
+  return { baseX, baseY, startX: -startMaxX, startY: sideOffset * startMaxY * 2 };
+}
+
+function getSceneRollBounds(mount: HTMLElement, camera: THREE.PerspectiveCamera, _scale: number): SceneRollBounds {
+  const bounds = getVisibleWorldBounds(mount, camera);
+  return {
+    minX: -bounds.width / 2,
+    maxX: bounds.width / 2,
+    minY: -bounds.height / 2,
+    maxY: bounds.height / 2
+  };
+}
+
+function getVisibleWorldBounds(mount: HTMLElement, camera: THREE.PerspectiveCamera): { width: number; height: number } {
+  const aspect = mount.clientWidth / Math.max(1, mount.clientHeight);
+  const height = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * camera.position.z;
+  return { width: height * aspect, height };
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function createScenePhysicsWorld(bounds: SceneRollBounds): RAPIER.World {
+  const world = new RAPIER.World({ x: 0, y: 0, z: -28 });
+  world.integrationParameters.numSolverIterations = 12;
+  const floorBody = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0, 0, -0.82));
+  world.createCollider(RAPIER.ColliderDesc.cuboid(Math.max(0.1, (bounds.maxX - bounds.minX) / 2), Math.max(0.1, (bounds.maxY - bounds.minY) / 2), 0.08).setFriction(1.18).setRestitution(0.2), floorBody);
+  const ceilingBody = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0, 0, 4.2));
+  world.createCollider(RAPIER.ColliderDesc.cuboid(Math.max(0.1, (bounds.maxX - bounds.minX) / 2), Math.max(0.1, (bounds.maxY - bounds.minY) / 2), 0.12).setFriction(0.7).setRestitution(0.16), ceilingBody);
+  const wallHeight = 6.5;
+  const wallThickness = 0.2;
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const centerY = (bounds.minY + bounds.maxY) / 2;
+  const halfWidth = (bounds.maxX - bounds.minX) / 2;
+  const halfHeight = (bounds.maxY - bounds.minY) / 2;
+  const wallColliders = [
+    { x: bounds.minX - wallThickness, y: centerY, sx: wallThickness, sy: halfHeight + wallThickness },
+    { x: bounds.maxX + wallThickness, y: centerY, sx: wallThickness, sy: halfHeight + wallThickness },
+    { x: centerX, y: bounds.minY - wallThickness, sx: halfWidth + wallThickness, sy: wallThickness },
+    { x: centerX, y: bounds.maxY + wallThickness, sx: halfWidth + wallThickness, sy: wallThickness }
+  ];
+  wallColliders.forEach((wall) => {
+    const wallBody = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(wall.x, wall.y, 0));
+    world.createCollider(RAPIER.ColliderDesc.cuboid(wall.sx, wall.sy, wallHeight).setFriction(0.9).setRestitution(0.34), wallBody);
+  });
+  return world;
+}
+
+function createSceneDiceBody(world: RAPIER.World, startX: number, startY: number, vx: number, vy: number, radius: number, visual: DiceVisual, index: number): RAPIER.RigidBody {
+  const coinLike = visual.die === "coin" || visual.die === "d2";
+  const launchZ = coinLike ? 6.2 + seedRange(visual.seed, 50 + index, 2.4) : 5.4 + seedRange(visual.seed, 50 + index, 2.8);
+  const angularVelocity = coinLike
+    ? {
+        x: (seedRange(visual.seed, 60 + index, 2) - 1) * 18 + 34,
+        y: (seedRange(visual.seed, 70 + index, 2) - 1) * 7,
+        z: (seedRange(visual.seed, 80 + index, 2) - 1) * 18 + 28
+      }
+    : {
+        x: (seedRange(visual.seed, 60 + index, 2) - 1) * 20 + 30,
+        y: (seedRange(visual.seed, 70 + index, 2) - 1) * 18 + 22,
+        z: (seedRange(visual.seed, 80 + index, 2) - 1) * 20 + 26
+      };
+  const body = world.createRigidBody(
+    RAPIER.RigidBodyDesc.dynamic()
+      .setTranslation(startX, startY, 1.02 + radius * (coinLike ? 1.3 : 0.78))
+      .setRotation(getSceneInitialRotation(visual, index))
+      .setLinvel(vx, vy, launchZ)
+      .setAngvel(angularVelocity)
+      .setLinearDamping(0.32)
+      .setAngularDamping(coinLike ? 0.28 : 0.3)
+      .setCcdEnabled(true)
+      .setAdditionalSolverIterations(10)
+  );
+  const collider = createDiePhysicsCollider(visual.die, radius);
+  world.createCollider(collider.setDensity(2.35).setFriction(1.16).setRestitution(0.2), body);
+  return body;
+}
+
+function createDiePhysicsCollider(die: DiceVisual["die"], radius: number): RAPIER.ColliderDesc {
+  const geometry = createDieGeometry(die);
+  const points = getScaledGeometryPoints(geometry, getPhysicsColliderScale(die, radius));
+  geometry.dispose();
+  return RAPIER.ColliderDesc.roundConvexHull(points, Math.max(0.018, radius * 0.035)) ?? RAPIER.ColliderDesc.ball(radius);
+}
+
+function getPhysicsColliderScale(die: DiceVisual["die"], radius: number): number {
+  const baseRadius = die === "d6" ? 0.95 : die === "coin" || die === "d2" ? 1.28 : die === "d4" ? 1.45 : die === "d8" ? 1.55 : die === "d10" || die === "d00" ? 1.32 : 1.48;
+  return (radius / baseRadius) * 1.18;
+}
+
+function getScaledGeometryPoints(geometry: THREE.BufferGeometry, scale: number): Float32Array {
+  const position = geometry.getAttribute("position");
+  const points = new Float32Array(position.count * 3);
+  const vertex = new THREE.Vector3();
+  for (let index = 0; index < position.count; index += 1) {
+    vertex.fromBufferAttribute(position, index).multiplyScalar(scale);
+    points[index * 3] = vertex.x;
+    points[index * 3 + 1] = vertex.y;
+    points[index * 3 + 2] = vertex.z;
+  }
+  return points;
+}
+
+function stepScenePhysicsWorld(world: RAPIER.World, accumulator: number): number {
+  const fixedStep = 1 / 120;
+  let remaining = Math.min(accumulator, fixedStep * 8);
+  while (remaining >= fixedStep) {
+    world.timestep = fixedStep;
+    world.step();
+    remaining -= fixedStep;
+  }
+  return remaining;
+}
+
+function syncSceneDiceFromPhysics(entry: {
+  body: RAPIER.RigidBody | null;
+  die: THREE.Group;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+}): void {
+  if (!entry.body) {
+    return;
+  }
+  const translation = entry.body.translation();
+  const rotation = entry.body.rotation();
+  const velocity = entry.body.linvel();
+  entry.x = translation.x;
+  entry.y = translation.y;
+  entry.vx = velocity.x;
+  entry.vy = velocity.y;
+  entry.die.position.set(translation.x, translation.y, translation.z);
+  entry.die.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+}
+
+function getSceneThrowVelocity(start: number, end: number, seed: number, offset: number): number {
+  const travelTime = 0.34 + seedRange(seed, offset + 32, 0.18);
+  const push = (seedRange(seed, offset + 42, 2) - 1) * 7.2;
+  return (end - start) / travelTime + push;
+}
+
+function getSceneInitialRotation(visual: DiceVisual, index: number): RAPIER.Rotation {
+  const euler = new THREE.Euler(seedRange(visual.seed, 90 + index, Math.PI * 2), seedRange(visual.seed, 100 + index, Math.PI * 2), seedRange(visual.seed, 110 + index, Math.PI * 2));
+  const quaternion = new THREE.Quaternion().setFromEuler(euler);
+  return { x: quaternion.x, y: quaternion.y, z: quaternion.z, w: quaternion.w };
 }
 
 function getSceneDiceSizeScale(size: DiceSceneSize): number {
@@ -491,6 +794,86 @@ function getVisualResultFaceLabel(event: DiceVisual): string {
     return "00";
   }
   return event.label;
+}
+
+function getPhysicsRollResult(
+  dice: Array<{
+    visual: DiceVisual;
+    die: THREE.Group;
+  }>
+): ResolvedDiceResult {
+  const resolvedDice = dice.map(({ visual, die }) => getPhysicsVisualResult(visual, die.quaternion));
+  if (resolvedDice.length === 1 && dice[0]?.visual.die === "coin") {
+    return {
+      label: resolvedDice[0]?.label ?? "Heads",
+      summary: formatDieLabel("coin"),
+      result: resolvedDice[0]?.value ?? 1
+    };
+  }
+  const total = resolvedDice.reduce((sum, result, index) => (dice[index]?.visual.kept === false ? sum : sum + result.value), 0);
+  const summary =
+    resolvedDice.length <= 1
+      ? formatDieLabel(dice[0]?.visual.die ?? "d20")
+      : resolvedDice.map((result, index) => `${formatDieLabel(dice[index]?.visual.die ?? "d20")} ${result.label}`).join(" + ");
+  return {
+    label: String(total),
+    summary,
+    result: total
+  };
+}
+
+function publishSceneRollResult(event: DiceRollEvent, mode: "gm" | "player", resolvedResult: ResolvedDiceResult): void {
+  if (mode !== "player" || getDiceDisplayMode(event, "gm") !== "scene-result") {
+    return;
+  }
+  void window.localVtt.sendLiveTableEvent({
+    ...event,
+    label: resolvedResult.label,
+    result: resolvedResult.result,
+    sceneResolvedLabel: resolvedResult.label,
+    sceneResolvedSummary: resolvedResult.summary,
+    sceneResolvedResult: resolvedResult.result
+  });
+}
+
+function getPhysicsVisualResult(visual: DiceVisual, quaternion: THREE.Quaternion): { label: string; value: number } {
+  if (visual.die === "d4") {
+    const label = getPhysicsD4TopLabel(quaternion);
+    return { label, value: Number(label) };
+  }
+  const geometry = createDieGeometry(visual.die);
+  const placements = getDieFaceLabelPlacements(visual.die, geometry);
+  geometry.dispose();
+  const placement = placements.reduce((best, candidate) => {
+    const normal = candidate.normal.clone().applyQuaternion(quaternion);
+    const bestNormal = best.normal.clone().applyQuaternion(quaternion);
+    return normal.z > bestNormal.z ? candidate : best;
+  }, placements[0]);
+  const label = placement?.label ?? visual.label;
+  if (visual.die === "coin") {
+    return { label, value: label === "Tails" ? 2 : 1 };
+  }
+  if (visual.die === "d10") {
+    return { label, value: label === "0" ? 10 : Number(label) };
+  }
+  if (visual.die === "d00") {
+    return { label, value: label === "00" ? 0 : Number(label) };
+  }
+  return { label, value: Number(label) };
+}
+
+function getPhysicsD4TopLabel(quaternion: THREE.Quaternion): string {
+  const geometry = createDieGeometry("d4");
+  const triangles = getGeometryTriangles(geometry);
+  geometry.dispose();
+  const vertexLabels = getD4VertexLabels(triangles.flatMap((triangle) => triangle.vertices));
+  const topVertex = [...vertexLabels.keys()]
+    .map((key) => {
+      const [x, y, z] = key.split(",").map(Number);
+      return { key, vertex: new THREE.Vector3(x, y, z).applyQuaternion(quaternion) };
+    })
+    .sort((first, second) => second.vertex.z - first.vertex.z)[0];
+  return topVertex ? (vertexLabels.get(topVertex.key) ?? "1") : "1";
 }
 
 function getDieFaceLabelPlacements(die: DiceVisual["die"], geometry: THREE.BufferGeometry): FaceLabelPlacement[] {

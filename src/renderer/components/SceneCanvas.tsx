@@ -1940,7 +1940,7 @@ function isVisibleDiceOverlayEvent(event: LiveTableEvent, mode: "gm" | "player")
 function shouldShowDiceOverlay(event: Extract<LiveTableEvent, { type: "dice" }>, mode: "gm" | "player"): boolean {
   const displayMode = mode === "gm" ? event.gmDiceDisplay : event.playerDiceDisplay;
   if (displayMode) {
-    return true;
+    return displayMode !== "hidden";
   }
   const presentation = mode === "gm" ? event.gmPresentation : event.playerPresentation;
   return presentation ? presentation === "3d" : event.presentation === "3d";

@@ -12,6 +12,7 @@ import {
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
+  isLiveTableEvent,
   isPlayerIdleState,
   isPlayerSceneProjection,
   projectSceneForPlayer
@@ -23,6 +24,7 @@ import type {
   CampaignSceneEntry,
   CampaignSceneFolder,
   DisplayCalibration,
+  DiceDisplayMode,
   DiceSettings,
   LiveTableEvent,
   Point,
@@ -244,15 +246,55 @@ export function GmApp() {
     void window.localVtt.sendLiveTableEvent(event);
   };
 
+  useEffect(() => {
+    const removeListener = window.localVtt.onLiveTableEvent((event) => {
+      if (isLiveTableEvent(event)) {
+        setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
+        if (event.type === "dice") {
+          setDiceRollHistory((history) => [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, MAX_DICE_ROLL_HISTORY));
+        } else if (event.type === "dice-clear") {
+          setDiceRollHistory([]);
+        }
+      }
+    });
+    return removeListener;
+  }, []);
+
+  const getEffectiveDiceDisplayModes = (): { gmDisplayMode: DiceDisplayMode; playerDisplayMode: DiceDisplayMode; gmPanelAdvanced: boolean; playerPanelAdvanced: boolean } => {
+    if (diceSettings.sceneRollEnabled) {
+      if (diceSettings.sceneRollTarget === "player") {
+        return {
+          gmDisplayMode: "scene-result",
+          playerDisplayMode: "scene",
+          gmPanelAdvanced: false,
+          playerPanelAdvanced: diceSettings.playerPanelAdvanced
+        };
+      }
+      return {
+        gmDisplayMode: "scene",
+        playerDisplayMode: "hidden",
+        gmPanelAdvanced: diceSettings.gmPanelAdvanced,
+        playerPanelAdvanced: diceSettings.playerPanelAdvanced
+      };
+    }
+    return {
+      gmDisplayMode: diceSettings.gmDisplayMode === "panel" ? "panel" : "results",
+      playerDisplayMode: diceSettings.playerDisplayMode === "panel" ? "panel" : "results",
+      gmPanelAdvanced: diceSettings.gmPanelAdvanced,
+      playerPanelAdvanced: diceSettings.playerPanelAdvanced
+    };
+  };
+
   const rollTableDie = (die: DiceType) => {
     const roll = rollDiceEvent(die);
+    const diceDisplayModes = getEffectiveDiceDisplayModes();
     setError(null);
     emitLiveTableEvent({
       ...roll,
       id: crypto.randomUUID(),
       type: "dice",
-      gmDiceDisplay: diceSettings.gmDisplayMode,
-      playerDiceDisplay: diceSettings.playerDisplayMode,
+      gmDiceDisplay: diceDisplayModes.gmDisplayMode,
+      playerDiceDisplay: diceDisplayModes.playerDisplayMode,
       gmDiceSceneSize: diceSettings.gmSceneSize,
       playerDiceSceneSize: diceSettings.playerSceneSize,
       gmDicePanelEdge: diceSettings.gmPanelEdge,
@@ -261,8 +303,8 @@ export function GmApp() {
       playerDicePanelFacing: diceSettings.playerPanelFacing,
       gmDicePanelPosition: diceSettings.gmPanelPosition,
       playerDicePanelPosition: diceSettings.playerPanelPosition,
-      gmDicePanelAdvanced: diceSettings.gmPanelAdvanced,
-      playerDicePanelAdvanced: diceSettings.playerPanelAdvanced,
+      gmDicePanelAdvanced: diceDisplayModes.gmPanelAdvanced,
+      playerDicePanelAdvanced: diceDisplayModes.playerPanelAdvanced,
       createdAt: Date.now()
     });
   };
@@ -271,14 +313,15 @@ export function GmApp() {
     try {
       const roll = rollDiceExpression(expression);
       const trimmedLabel = rollLabel?.trim();
+      const diceDisplayModes = getEffectiveDiceDisplayModes();
       setError(null);
       emitLiveTableEvent({
         ...roll,
         id: crypto.randomUUID(),
         type: "dice",
         ...(trimmedLabel ? { rollLabel: trimmedLabel } : {}),
-        gmDiceDisplay: diceSettings.gmDisplayMode,
-        playerDiceDisplay: diceSettings.playerDisplayMode,
+        gmDiceDisplay: diceDisplayModes.gmDisplayMode,
+        playerDiceDisplay: diceDisplayModes.playerDisplayMode,
         gmDiceSceneSize: diceSettings.gmSceneSize,
         playerDiceSceneSize: diceSettings.playerSceneSize,
         gmDicePanelEdge: diceSettings.gmPanelEdge,
@@ -287,8 +330,8 @@ export function GmApp() {
         playerDicePanelFacing: diceSettings.playerPanelFacing,
         gmDicePanelPosition: diceSettings.gmPanelPosition,
         playerDicePanelPosition: diceSettings.playerPanelPosition,
-        gmDicePanelAdvanced: diceSettings.gmPanelAdvanced,
-        playerDicePanelAdvanced: diceSettings.playerPanelAdvanced,
+        gmDicePanelAdvanced: diceDisplayModes.gmPanelAdvanced,
+        playerDicePanelAdvanced: diceDisplayModes.playerPanelAdvanced,
         createdAt: Date.now()
       });
       return null;
@@ -1362,6 +1405,8 @@ export function GmApp() {
           onClosePlayerView={closePlayerView}
           gmDiceDisplayMode={diceSettings.gmDisplayMode}
           playerDiceDisplayMode={diceSettings.playerDisplayMode}
+          diceSceneRollEnabled={diceSettings.sceneRollEnabled}
+          diceSceneRollTarget={diceSettings.sceneRollTarget}
           gmDiceSceneSize={diceSettings.gmSceneSize}
           playerDiceSceneSize={diceSettings.playerSceneSize}
           gmDicePanelEdge={diceSettings.gmPanelEdge}
@@ -1375,6 +1420,8 @@ export function GmApp() {
           diceHistory={diceRollHistory}
           onGmDiceDisplayModeChange={(gmDisplayMode) => updateDiceSettings({ gmDisplayMode })}
           onPlayerDiceDisplayModeChange={(playerDisplayMode) => updateDiceSettings({ playerDisplayMode })}
+          onDiceSceneRollEnabledChange={(sceneRollEnabled) => updateDiceSettings({ sceneRollEnabled })}
+          onDiceSceneRollTargetChange={(sceneRollTarget) => updateDiceSettings({ sceneRollTarget })}
           onGmDiceSceneSizeChange={(gmSceneSize) => updateDiceSettings({ gmSceneSize })}
           onPlayerDiceSceneSizeChange={(playerSceneSize) => updateDiceSettings({ playerSceneSize })}
           onGmDicePanelEdgeChange={(gmPanelEdge) => updateDiceSettings({ gmPanelEdge })}

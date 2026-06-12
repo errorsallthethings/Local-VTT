@@ -19,7 +19,9 @@
     "package:mac": "npm run build && electron-builder --mac",
     "package:win": "npm run build && electron-builder --win"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.12.0"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.13.0",

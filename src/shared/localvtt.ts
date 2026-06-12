@@ -425,7 +425,8 @@ export interface LiveTablePoint {
   createdAt: number;
 }
 
-export type DiceDisplayMode = "results" | "panel" | "scene";
+export type DiceDisplayMode = "results" | "panel" | "scene" | "scene-result" | "hidden";
+export type DiceSceneRollTarget = "gm" | "player";
 export type DiceSceneSize = "xs" | "sm" | "md" | "lg" | "xl";
 export type DicePanelEdge = "top" | "right" | "bottom" | "left";
 export type DicePanelFacing = "inward" | "outward";
@@ -433,6 +434,8 @@ export type DicePanelFacing = "inward" | "outward";
 export interface DiceSettings {
   gmDisplayMode: DiceDisplayMode;
   playerDisplayMode: DiceDisplayMode;
+  sceneRollEnabled: boolean;
+  sceneRollTarget: DiceSceneRollTarget;
   gmSceneSize: DiceSceneSize;
   playerSceneSize: DiceSceneSize;
   gmPanelEdge: DicePanelEdge;
@@ -448,6 +451,8 @@ export interface DiceSettings {
 export const DEFAULT_DICE_SETTINGS: DiceSettings = {
   gmDisplayMode: "results",
   playerDisplayMode: "results",
+  sceneRollEnabled: false,
+  sceneRollTarget: "gm",
   gmSceneSize: "md",
   playerSceneSize: "md",
   gmPanelEdge: "top",
@@ -482,6 +487,9 @@ export type LiveTableEvent =
       formula?: string;
       rollLabel?: string;
       seed: number;
+      sceneResolvedLabel?: string;
+      sceneResolvedSummary?: string;
+      sceneResolvedResult?: number;
       gmDiceDisplay?: DiceDisplayMode;
       playerDiceDisplay?: DiceDisplayMode;
       gmDiceSceneSize?: DiceSceneSize;
@@ -1038,6 +1046,9 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
       (!("rollLabel" in value) || typeof value.rollLabel === "string") &&
       typeof value.seed === "number" &&
       Number.isFinite(value.seed) &&
+      (!("sceneResolvedLabel" in value) || typeof value.sceneResolvedLabel === "string") &&
+      (!("sceneResolvedSummary" in value) || typeof value.sceneResolvedSummary === "string") &&
+      (!("sceneResolvedResult" in value) || (typeof value.sceneResolvedResult === "number" && Number.isInteger(value.sceneResolvedResult))) &&
       (!("gmDiceDisplay" in value) || isDiceDisplayMode(value.gmDiceDisplay)) &&
       (!("playerDiceDisplay" in value) || isDiceDisplayMode(value.playerDiceDisplay)) &&
       (!("gmDiceSceneSize" in value) || isDiceSceneSize(value.gmDiceSceneSize)) &&
@@ -1079,11 +1090,15 @@ function isDiceType(value: unknown): value is Extract<LiveTableEvent, { type: "d
 }
 
 function isDiceDisplayMode(value: unknown): value is DiceDisplayMode {
-  return value === "results" || value === "panel" || value === "scene";
+  return value === "results" || value === "panel" || value === "scene" || value === "scene-result" || value === "hidden";
 }
 
 function isDiceSceneSize(value: unknown): value is DiceSceneSize {
   return value === "xs" || value === "sm" || value === "md" || value === "lg" || value === "xl";
+}
+
+function isDiceSceneRollTarget(value: unknown): value is DiceSceneRollTarget {
+  return value === "gm" || value === "player";
 }
 
 function isDicePanelEdge(value: unknown): value is DicePanelEdge {
@@ -1462,6 +1477,8 @@ function normalizeDiceSettings(settings?: Partial<DiceSettings>): DiceSettings {
     ...(settings ?? {}),
     gmDisplayMode: isDiceDisplayMode(settings?.gmDisplayMode) ? settings.gmDisplayMode : DEFAULT_DICE_SETTINGS.gmDisplayMode,
     playerDisplayMode: isDiceDisplayMode(settings?.playerDisplayMode) ? settings.playerDisplayMode : DEFAULT_DICE_SETTINGS.playerDisplayMode,
+    sceneRollEnabled: typeof settings?.sceneRollEnabled === "boolean" ? settings.sceneRollEnabled : DEFAULT_DICE_SETTINGS.sceneRollEnabled,
+    sceneRollTarget: isDiceSceneRollTarget(settings?.sceneRollTarget) ? settings.sceneRollTarget : DEFAULT_DICE_SETTINGS.sceneRollTarget,
     gmSceneSize: isDiceSceneSize(settings?.gmSceneSize) ? settings.gmSceneSize : DEFAULT_DICE_SETTINGS.gmSceneSize,
     playerSceneSize: isDiceSceneSize(settings?.playerSceneSize) ? settings.playerSceneSize : DEFAULT_DICE_SETTINGS.playerSceneSize,
     gmPanelEdge: isDicePanelEdge(settings?.gmPanelEdge) ? settings.gmPanelEdge : DEFAULT_DICE_SETTINGS.gmPanelEdge,
