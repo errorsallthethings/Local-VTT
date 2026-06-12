@@ -10,6 +10,7 @@ export const DICE_HISTORY_DURATION_MS = 10000;
 export const MAX_COMPOSER_DICE = 12;
 const MAX_INLINE_BREAKDOWN_DICE = 6;
 const MAX_COMPACT_BREAKDOWN_DICE = 6;
+const DICE_EXPRESSION_ERROR = "Use dice like d20, d20a, d20d, 4d6kh3, 4d6dl1, 2d6+3, d20+d4+5, or d%.";
 
 export function rollDie(die: DiceType, random = Math.random): { result: number; label: string } {
   if (die === "coin") {
@@ -56,7 +57,7 @@ export function rollDiceExpression(expression: string, random = Math.random): Om
   const normalizedExpression = expression.trim().toLowerCase().replace(/\s+/g, "");
   const terms = parseExpressionTerms(normalizedExpression);
   if (terms.length === 0 || !terms.some((term) => term.kind === "dice")) {
-    throw new Error("Use dice like d20, d20a, d20d, 4d6kh3, 4d6dl1, 2d6+3, d20+d4+5, or d100.");
+    throw new Error(DICE_EXPRESSION_ERROR);
   }
 
   let total = 0;
@@ -106,7 +107,7 @@ function rollDiceTerm(term: DiceExpressionDiceTerm, random: () => number): { die
       throw new Error("Percentile rolls do not support advantage or keep modifiers.");
     }
     if (count !== 1) {
-      throw new Error("Percentile rolls use one d00 and one d10.");
+      throw new Error("Percentile rolls use one D00 tens die and one D10 ones die.");
     }
     const roll = rollDiceEvent("d00", random);
     return {
@@ -150,7 +151,10 @@ export function formatDiceRollSummary(event: Extract<LiveTableEvent, { type: "di
   if (!event.dice || event.dice.length === 0) {
     return `${prefix}${formatDieLabel(event.die)}`;
   }
-  return `${prefix}${event.dice.map((die) => `${formatDieLabel(die.die)} ${die.label}`).join(" + ")}`;
+  if (event.die === "d00" && isPercentileDicePair(event.dice)) {
+    return `${prefix}${formatDieLabel(event.die)}`;
+  }
+  return `${prefix}${event.dice.map((die) => `${formatPhysicalDieLabel(die.die)} ${die.label}`).join(" + ")}`;
 }
 
 export function formatDiceRollBreakdown(event: Extract<LiveTableEvent, { type: "dice" }>): string {
@@ -237,17 +241,17 @@ function parseExpressionTerms(expression: string): DiceExpressionTerm[] {
   }
   const parts = expression.match(/[+-]?[^+-]+/g) ?? [];
   if (parts.length === 0 || parts.join("") !== expression) {
-    throw new Error("Use dice like d20, d20a, d20d, 4d6kh3, 4d6dl1, 2d6+3, d20+d4+5, or d100.");
+    throw new Error(DICE_EXPRESSION_ERROR);
   }
 
   return parts.map((part, index) => {
     const sign: 1 | -1 = part.startsWith("-") ? -1 : 1;
     const body = part.startsWith("+") || part.startsWith("-") ? part.slice(1) : part;
     if (body.length === 0 || (index === 0 && part.startsWith("+"))) {
-      throw new Error("Use dice like d20, d20a, d20d, 4d6kh3, 4d6dl1, 2d6+3, d20+d4+5, or d100.");
+      throw new Error(DICE_EXPRESSION_ERROR);
     }
 
-    const diceMatch = /^(\d*)d(00|100|2|4|6|8|10|12|20)(adv|dis|a|d|kh(\d+)|kl(\d+)|dh(\d+)|dl(\d+))?$/.exec(body);
+    const diceMatch = /^(\d*)d(%|00|100|2|4|6|8|10|12|20)(adv|dis|a|d|kh(\d+)|kl(\d+)|dh(\d+)|dl(\d+))?$/.exec(body);
     if (diceMatch) {
       return {
         kind: "dice",
@@ -262,7 +266,7 @@ function parseExpressionTerms(expression: string): DiceExpressionTerm[] {
         value: Number(body)
       };
     }
-    throw new Error("Use dice like d20, d20a, d20d, 4d6kh3, 4d6dl1, 2d6+3, d20+d4+5, or d100.");
+    throw new Error(DICE_EXPRESSION_ERROR);
   });
 }
 
@@ -341,14 +345,16 @@ function getKeptIndexes(dice: DiceVisualRoll[], mode: RollMode, keepCount: numbe
 }
 
 function normalizeExpressionDie(sidesText: string): DiceType {
-  if (sidesText === "100" || sidesText === "00") {
+  if (sidesText === "%" || sidesText === "100" || sidesText === "00") {
     return "d00";
   }
   return `d${sidesText}` as DiceType;
 }
 
 function formatFormula(expression: string): string {
-  return expression.replace(/(^|[+-])(\d*)d/g, (_match, sign: string, count: string) => `${sign}${count || "1"}d`).toUpperCase();
+  return expression
+    .replace(/(^|[+-])(\d*)d(%|00|100|2|4|6|8|10|12|20)/g, (_match, sign: string, count: string, sides: string) => `${sign}${count || "1"}d${sides === "00" ? "%" : sides}`)
+    .toUpperCase();
 }
 
 export function getDieSides(die: DiceType): number {
@@ -384,5 +390,19 @@ function getDieMaxResult(die: DiceType): number {
 }
 
 export function formatDieLabel(die: DiceType): string {
+  if (die === "coin") {
+    return "Coin";
+  }
+  if (die === "d00") {
+    return "D%";
+  }
+  return die.toUpperCase();
+}
+
+export function formatPhysicalDieLabel(die: DiceType): string {
   return die === "coin" ? "Coin" : die.toUpperCase();
+}
+
+function isPercentileDicePair(dice: DiceVisualRoll[]): boolean {
+  return dice.length === 2 && dice[0]?.die === "d00" && dice[1]?.die === "d10";
 }

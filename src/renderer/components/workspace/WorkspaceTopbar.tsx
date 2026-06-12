@@ -591,7 +591,10 @@ export function WorkspaceTopbar({
                   {diceFormulaHelpOpen && (
                     <div className="dice-formula-help-panel" role="note">
                       <p>
-                        <strong>Examples:</strong> d20, 2d6+3, d20+d4+5, d100
+                        <strong>Examples:</strong> d20, 2d6+3, d20+d4+5, d%
+                      </p>
+                      <p>
+                        <strong>Percentile:</strong> d% or d100
                       </p>
                       <p>
                         <strong>D20:</strong> d20a or d20adv, d20d or d20dis

@@ -136,6 +136,26 @@ describe("dice helpers", () => {
         { die: "d10", result: 2, label: "2" }
       ]
     });
+
+    const percentValues = [0, 0.4, 0, 0, 0];
+    expect(rollDiceExpression("d%+3", () => percentValues.shift() ?? 0)).toMatchObject({
+      die: "d00",
+      result: 8,
+      label: "8",
+      formula: "1D%+3",
+      dice: [
+        { die: "d00", result: 100, label: "00" },
+        { die: "d10", result: 5, label: "5" }
+      ]
+    });
+
+    const legacyValues = [0.1, 0.8, 0, 0, 0];
+    expect(rollDiceExpression("d00", () => legacyValues.shift() ?? 0)).toMatchObject({
+      die: "d00",
+      result: 19,
+      label: "19",
+      formula: "1D%"
+    });
   });
 
   it("rolls advantage and disadvantage", () => {
@@ -252,7 +272,7 @@ describe("dice helpers", () => {
         type: "dice",
         createdAt: 1
       })
-    ).toBe("D00 90 + D10 0");
+    ).toBe("D%");
 
     expect(
       formatDiceRollBreakdown({

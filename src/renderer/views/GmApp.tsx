@@ -91,7 +91,7 @@ import { GmSidebar } from "./GmSidebar";
 type PlayerDisplayMode = "scene" | "hold" | "blackout";
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 
-const MAX_DICE_ROLL_HISTORY = 20;
+const MAX_DICE_ROLL_HISTORY = 100;
 const DICE_SETTINGS_PREFERENCES_STORAGE_KEY = "localvtt.diceSettingsPreferences";
 
 export function GmApp() {

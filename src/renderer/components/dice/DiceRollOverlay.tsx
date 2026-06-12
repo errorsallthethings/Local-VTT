@@ -389,6 +389,9 @@ function getRollingSummary(event: DiceRollEvent): string {
     return `${prefix}${event.formula}`;
   }
   const dice = getVisualDice(event);
+  if (event.die === "d00" && hasPercentileDice(dice)) {
+    return `${prefix}${formatDieLabel(event.die)}`;
+  }
   if (dice.length <= 1) {
     return `${prefix}${formatDieLabel(event.die)}`;
   }
@@ -863,11 +866,13 @@ function getPhysicsRollResult(
       result: resolvedDice[0]?.value ?? 1
     };
   }
-  const total = hasResolvedPercentileDice(dice, resolvedDice)
+  const percentileDice = hasResolvedPercentileDice(dice, resolvedDice);
+  const total = percentileDice
     ? getPercentileTotal(resolvedDice[0]?.label ?? "00", resolvedDice[1]?.label ?? "0")
     : resolvedDice.reduce((sum, result, index) => (dice[index]?.visual.kept === false ? sum : sum + result.value), 0);
-  const summary =
-    resolvedDice.length <= 1
+  const summary = percentileDice
+    ? formatDieLabel("d00")
+    : resolvedDice.length <= 1
       ? formatDieLabel(dice[0]?.visual.die ?? "d20")
       : resolvedDice.map((result, index) => `${formatDieLabel(dice[index]?.visual.die ?? "d20")} ${result.label}`).join(" + ");
   return {
