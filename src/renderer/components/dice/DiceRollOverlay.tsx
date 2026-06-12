@@ -129,10 +129,10 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
       dice.forEach(({ die }) => {
         scene.remove(die);
         die.traverse((object) => {
-          if (object instanceof THREE.Mesh) {
+          if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments) {
             object.geometry.dispose();
             const materials = Array.isArray(object.material) ? object.material : [object.material];
-            materials.forEach((material) => material.dispose());
+            materials.forEach(disposeMaterial);
           }
         });
       });
@@ -226,6 +226,7 @@ function createDieMesh(event: DiceVisual): THREE.Group {
     roughness: 0.48,
     metalness: 0.1,
     flatShading: true,
+    side: THREE.DoubleSide,
     transparent: event.kept === false,
     opacity: event.kept === false ? 0.42 : 1
   });
@@ -235,6 +236,7 @@ function createDieMesh(event: DiceVisual): THREE.Group {
   group.add(mesh);
   const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial);
   group.add(edges);
+  createDieFaceLabels(event, geometry).forEach((faceLabel) => group.add(faceLabel));
 
   const label = makeLabelSprite(event.kept === false ? `(${event.label})` : event.label);
   label.position.set(0, -1.75, 0.1);
@@ -270,10 +272,242 @@ function createDieGeometry(die: DiceVisual["die"]): THREE.BufferGeometry {
   return new THREE.IcosahedronGeometry(1.48, 0);
 }
 
+type FaceLabelPlacement = {
+  label: string;
+  position: THREE.Vector3;
+  normal: THREE.Vector3;
+  size?: number;
+  up?: THREE.Vector3;
+};
+
+type GeometryTriangle = {
+  normal: THREE.Vector3;
+  center: THREE.Vector3;
+  vertices: [THREE.Vector3, THREE.Vector3, THREE.Vector3];
+};
+
+const D10_POLE_HEIGHT = 1.32;
+
+function createDieFaceLabels(event: DiceVisual, geometry: THREE.BufferGeometry): THREE.Mesh[] {
+  const labels = getDieFaceLabelPlacements(event.die, geometry);
+  const textColor = getDieFaceTextColor(event.die);
+  const opacity = event.kept === false ? 0.38 : 0.92;
+  return labels.map(({ label, position, normal, size, up }) => makeFaceLabelMesh(label, position, normal, size ?? 0.56, textColor, opacity, up, event.die));
+}
+
+function getDieFaceLabelPlacements(die: DiceVisual["die"], geometry: THREE.BufferGeometry): FaceLabelPlacement[] {
+  if (die === "coin") {
+    return [
+      { label: "Heads", position: new THREE.Vector3(0, 0.175, 0), normal: new THREE.Vector3(0, 1, 0), size: 1.5 },
+      { label: "Tails", position: new THREE.Vector3(0, -0.175, 0), normal: new THREE.Vector3(0, -1, 0), size: 1.5 }
+    ];
+  }
+  if (die === "d2") {
+    return [
+      { label: "1", position: new THREE.Vector3(0, 0.175, 0), normal: new THREE.Vector3(0, 1, 0), size: 1.22 },
+      { label: "2", position: new THREE.Vector3(0, -0.175, 0), normal: new THREE.Vector3(0, -1, 0), size: 1.22 }
+    ];
+  }
+  if (die === "d4") {
+    return getD4TopReadLabelPlacements(geometry);
+  }
+  if (die === "d6") {
+    return [
+      { label: "1", position: new THREE.Vector3(0, 0, 0.956), normal: new THREE.Vector3(0, 0, 1), size: 1.18 },
+      { label: "2", position: new THREE.Vector3(0.956, 0, 0), normal: new THREE.Vector3(1, 0, 0), size: 1.18 },
+      { label: "3", position: new THREE.Vector3(0, 0.956, 0), normal: new THREE.Vector3(0, 1, 0), size: 1.18 },
+      { label: "4", position: new THREE.Vector3(0, -0.956, 0), normal: new THREE.Vector3(0, -1, 0), size: 1.18 },
+      { label: "5", position: new THREE.Vector3(-0.956, 0, 0), normal: new THREE.Vector3(-1, 0, 0), size: 1.18 },
+      { label: "6", position: new THREE.Vector3(0, 0, -0.956), normal: new THREE.Vector3(0, 0, -1), size: 1.18 }
+    ];
+  }
+  const labels = getDieFaceLabels(die);
+  return getGeometryFacePlacements(geometry)
+    .slice(0, labels.length)
+    .map((placement, index) => ({
+      ...placement,
+      label: labels[index],
+      size: getPolyhedralFaceLabelSize(die),
+      up: die === "d8" || die === "d10" || die === "d00" ? getPoleFaceLabelUp(placement.position) : undefined
+    }));
+}
+
+function getDieFaceLabels(die: DiceVisual["die"]): string[] {
+  if (die === "d00") {
+    return ["00", "10", "20", "30", "40", "50", "60", "70", "80", "90"];
+  }
+  if (die === "d10") {
+    return ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+  }
+  const sides = die === "d4" ? 4 : die === "d8" ? 8 : die === "d12" ? 12 : 20;
+  return Array.from({ length: sides }, (_, index) => String(index + 1));
+}
+
+function getPolyhedralFaceLabelSize(die: DiceVisual["die"]): number {
+  if (die === "d10" || die === "d00") {
+    return 0.76;
+  }
+  if (die === "d8") {
+    return 1.0;
+  }
+  if (die === "d12") {
+    return 0.86;
+  }
+  return 0.84;
+}
+
+function getD4TopReadLabelPlacements(geometry: THREE.BufferGeometry): FaceLabelPlacement[] {
+  const triangles = getGeometryTriangles(geometry);
+  const vertexLabels = getD4VertexLabels(triangles.flatMap((triangle) => triangle.vertices));
+  return triangles.flatMap((triangle) =>
+    triangle.vertices.map((vertex) => ({
+      label: vertexLabels.get(getVertexKey(vertex)) ?? "1",
+      position: vertex.clone().lerp(triangle.center, 0.36).add(triangle.normal.clone().multiplyScalar(0.02)),
+      normal: triangle.normal.clone(),
+      size: 0.57,
+      up: vertex.clone().sub(triangle.center).normalize()
+    }))
+  );
+}
+
+function getPoleFaceLabelUp(position: THREE.Vector3): THREE.Vector3 {
+  const pole = new THREE.Vector3(0, position.y >= 0 ? D10_POLE_HEIGHT : -D10_POLE_HEIGHT, 0);
+  return pole.sub(position).normalize();
+}
+
+function getD4VertexLabels(vertices: THREE.Vector3[]): Map<string, string> {
+  const uniqueVertices = new Map<string, THREE.Vector3>();
+  vertices.forEach((vertex) => uniqueVertices.set(getVertexKey(vertex), vertex.clone()));
+  return new Map(
+    [...uniqueVertices.entries()]
+      .sort(([, a], [, b]) => b.y - a.y || b.z - a.z || b.x - a.x)
+      .map(([key], index) => [key, String(index + 1)])
+  );
+}
+
+function getVertexKey(vertex: THREE.Vector3): string {
+  return `${vertex.x.toFixed(4)},${vertex.y.toFixed(4)},${vertex.z.toFixed(4)}`;
+}
+
+function getGeometryFacePlacements(geometry: THREE.BufferGeometry): Array<Omit<FaceLabelPlacement, "label" | "size">> {
+  const triangles = getGeometryTriangles(geometry);
+  const clusters: Array<{ normal: THREE.Vector3; center: THREE.Vector3; count: number }> = [];
+  triangles.forEach(({ normal, center }) => {
+    const cluster = clusters.find((candidate) => candidate.normal.dot(normal) > 0.996);
+    if (cluster) {
+      cluster.normal.add(normal).normalize();
+      cluster.center.add(center);
+      cluster.count += 1;
+      return;
+    }
+    clusters.push({ normal: normal.clone(), center: center.clone(), count: 1 });
+  });
+  return clusters
+    .map((cluster) => {
+      const center = cluster.center.multiplyScalar(1 / cluster.count);
+      const normal = cluster.normal.normalize();
+      return {
+        normal,
+        position: center.add(normal.clone().multiplyScalar(0.018))
+      };
+    })
+    .sort((a, b) => b.position.y - a.position.y || b.position.z - a.position.z || b.position.x - a.position.x);
+}
+
+function getGeometryTriangles(geometry: THREE.BufferGeometry): GeometryTriangle[] {
+  const position = geometry.getAttribute("position");
+  const index = geometry.getIndex();
+  const triangles: GeometryTriangle[] = [];
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const edgeA = new THREE.Vector3();
+  const edgeB = new THREE.Vector3();
+  const readVertex = (vertexIndex: number, target: THREE.Vector3) => target.fromBufferAttribute(position, vertexIndex);
+  const triangleCount = index ? index.count / 3 : position.count / 3;
+  for (let triangleIndex = 0; triangleIndex < triangleCount; triangleIndex += 1) {
+    const vertexA = index ? index.getX(triangleIndex * 3) : triangleIndex * 3;
+    const vertexB = index ? index.getX(triangleIndex * 3 + 1) : triangleIndex * 3 + 1;
+    const vertexC = index ? index.getX(triangleIndex * 3 + 2) : triangleIndex * 3 + 2;
+    readVertex(vertexA, a);
+    readVertex(vertexB, b);
+    readVertex(vertexC, c);
+    const normal = edgeA.subVectors(b, a).cross(edgeB.subVectors(c, a)).normalize();
+    const center = new THREE.Vector3().addVectors(a, b).add(c).multiplyScalar(1 / 3);
+    if (normal.dot(center) < 0) {
+      normal.multiplyScalar(-1);
+    }
+    if (normal.lengthSq() > 0) {
+      triangles.push({ normal: normal.clone(), center, vertices: [a.clone(), b.clone(), c.clone()] });
+    }
+  }
+  return triangles;
+}
+
+function makeFaceLabelMesh(label: string, position: THREE.Vector3, normal: THREE.Vector3, size: number, color: string, opacity: number, up?: THREE.Vector3, die?: DiceVisual["die"]): THREE.Mesh {
+  const canvas = document.createElement("canvas");
+  canvas.width = die === "coin" ? 384 : 256;
+  canvas.height = 256;
+  const context = canvas.getContext("2d");
+  if (context) {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = color;
+    context.font = `${label.length > 2 ? 800 : 950} ${getFaceLabelFontSize(label)}px sans-serif`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.lineWidth = label.length > 2 ? 9 : 11;
+    context.strokeStyle = color === "#f8fafc" ? "rgba(4, 8, 14, 0.42)" : "rgba(255, 255, 255, 0.2)";
+    context.strokeText(label, canvas.width / 2, 132);
+    context.fillText(label, canvas.width / 2, 132);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+    side: THREE.FrontSide
+  });
+  const aspect = canvas.width / canvas.height;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size * aspect, size), material);
+  mesh.position.copy(position);
+  mesh.quaternion.copy(getFaceLabelQuaternion(normal, up));
+  mesh.renderOrder = 2;
+  return mesh;
+}
+
+function getFaceLabelQuaternion(normal: THREE.Vector3, up?: THREE.Vector3): THREE.Quaternion {
+  const faceNormal = normal.clone().normalize();
+  if (!up) {
+    return new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), faceNormal);
+  }
+  const labelUp = up.clone().projectOnPlane(faceNormal).normalize();
+  if (labelUp.lengthSq() === 0) {
+    return new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), faceNormal);
+  }
+  const labelRight = labelUp.clone().cross(faceNormal).normalize();
+  const matrix = new THREE.Matrix4().makeBasis(labelRight, labelUp, faceNormal);
+  return new THREE.Quaternion().setFromRotationMatrix(matrix);
+}
+
+function getFaceLabelFontSize(label: string): number {
+  if (label.length > 4) {
+    return 118;
+  }
+  if (label.length > 2) {
+    return 132;
+  }
+  if (label.length > 1) {
+    return 148;
+  }
+  return 170;
+}
+
 function createPentagonalTrapezohedronGeometry(): THREE.BufferGeometry {
   const vertices: number[] = [];
   const faces: number[] = [];
-  const capHeight = 1.45;
+  const capHeight = D10_POLE_HEIGHT;
   const ringRadius = 1.08;
   const ringHeight = (capHeight * (1 - Math.cos(Math.PI / 5))) / (1 + Math.cos(Math.PI / 5));
   const top = new THREE.Vector3(0, capHeight, 0);
@@ -346,10 +580,10 @@ function roundRect(context: CanvasRenderingContext2D, x: number, y: number, widt
 
 function getDieColor(die: DiceVisual["die"]): number {
   const colors = {
-    coin: 0xec4899,
+    coin: 0xf97316,
     d2: 0xd7dde8,
     d4: 0xf2d35c,
-    d6: 0xe8752a,
+    d6: 0xdc2626,
     d8: 0x2f9d68,
     d10: 0x3b1f5f,
     d00: 0x101010,
@@ -357,6 +591,19 @@ function getDieColor(die: DiceVisual["die"]): number {
     d20: 0xf4f1e8
   } satisfies Record<DiceVisual["die"], number>;
   return colors[die];
+}
+
+function getDieFaceTextColor(die: DiceVisual["die"]): string {
+  if (die === "d4" || die === "d12" || die === "d20") {
+    return "#10131a";
+  }
+  return "#f8fafc";
+}
+
+function disposeMaterial(material: THREE.Material) {
+  const textureMaterial = material as THREE.Material & { map?: THREE.Texture | null };
+  textureMaterial.map?.dispose();
+  material.dispose();
 }
 
 function seedRange(seed: number, offset: number, max: number): number {

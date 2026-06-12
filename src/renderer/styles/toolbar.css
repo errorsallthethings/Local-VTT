@@ -71,14 +71,26 @@
   padding: 8px;
 }
 
+.dice-popover-dragged {
+  position: fixed;
+  right: auto;
+}
+
 .dice-popover-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   border-bottom: 1px solid var(--color-border-subtle);
+  cursor: grab;
   margin-bottom: 7px;
   padding: 0 0 7px;
+  touch-action: none;
+  user-select: none;
+}
+
+.dice-popover-header-dragging {
+  cursor: grabbing;
 }
 
 .dice-popover-header-actions {
@@ -294,7 +306,7 @@
 }
 
 .dice-quick-button-coin {
-  --dice-button-color: #ec4899;
+  --dice-button-color: #f97316;
 }
 
 .dice-quick-button-d4 {
@@ -302,7 +314,7 @@
 }
 
 .dice-quick-button-d6 {
-  --dice-button-color: #f59e0b;
+  --dice-button-color: #dc2626;
 }
 
 .dice-quick-button-d8 {

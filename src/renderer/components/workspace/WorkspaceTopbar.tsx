@@ -20,6 +20,17 @@ type CustomDicePreset = {
   formula: string;
 };
 
+type DicePanelPosition = {
+  x: number;
+  y: number;
+};
+
+type DicePanelDrag = {
+  pointerId: number;
+  offsetX: number;
+  offsetY: number;
+};
+
 const CUSTOM_DICE_PRESETS_STORAGE_KEY = "localvtt.customDicePresets";
 const DICE_DISPLAY_OPTIONS = [
   { value: "results", label: "Results only" },
@@ -83,7 +94,11 @@ export function WorkspaceTopbar({
   const [dicePanelOpen, setDicePanelOpen] = useState(false);
   const [diceSettingsOpen, setDiceSettingsOpen] = useState(false);
   const [diceFormulaHelpOpen, setDiceFormulaHelpOpen] = useState(false);
+  const [dicePanelPosition, setDicePanelPosition] = useState<DicePanelPosition | null>(null);
+  const [dicePanelDragging, setDicePanelDragging] = useState(false);
   const dicePanelRef = useRef<HTMLDivElement | null>(null);
+  const dicePopoverRef = useRef<HTMLDivElement | null>(null);
+  const dicePanelDragRef = useRef<DicePanelDrag | null>(null);
   const title = activeScene?.name ?? (campaign ? "Select or Create a Scene" : "Create or Open a Campaign");
   const subtitle = activeScene
     ? mapAsset
@@ -120,6 +135,58 @@ export function WorkspaceTopbar({
       window.removeEventListener("keydown", closeOnEscape);
     };
   }, [dicePanelOpen]);
+
+  useEffect(() => {
+    if (!dicePanelOpen || !dicePanelPosition) {
+      return;
+    }
+    setDicePanelPosition((position) => {
+      if (!position) {
+        return position;
+      }
+      const nextPosition = clampDicePanelPosition(position.x, position.y, dicePopoverRef.current?.getBoundingClientRect());
+      return nextPosition.x === position.x && nextPosition.y === position.y ? position : nextPosition;
+    });
+  }, [dicePanelOpen, dicePanelPosition]);
+
+  const beginDicePanelDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (target instanceof Element && target.closest("button")) {
+      return;
+    }
+    const popover = dicePopoverRef.current;
+    if (!popover) {
+      return;
+    }
+    const rect = popover.getBoundingClientRect();
+    dicePanelDragRef.current = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top
+    };
+    setDicePanelPosition(clampDicePanelPosition(rect.left, rect.top, rect));
+    setDicePanelDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  };
+
+  const moveDicePanelDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dicePanelDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    setDicePanelPosition(clampDicePanelPosition(event.clientX - drag.offsetX, event.clientY - drag.offsetY, dicePopoverRef.current?.getBoundingClientRect()));
+  };
+
+  const endDicePanelDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dicePanelDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    dicePanelDragRef.current = null;
+    setDicePanelDragging(false);
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  };
 
   const rollPreset = (label: string, formula: string) => {
     setDiceExpression(formula);
@@ -178,8 +245,20 @@ export function WorkspaceTopbar({
             </button>
           </div>
           {dicePanelOpen && (
-            <div className="dice-popover" role="dialog" aria-label="Dice roller">
-              <div className="dice-popover-header">
+            <div
+              ref={dicePopoverRef}
+              className={dicePanelPosition ? "dice-popover dice-popover-dragged" : "dice-popover"}
+              style={dicePanelPosition ? { left: dicePanelPosition.x, top: dicePanelPosition.y } : undefined}
+              role="dialog"
+              aria-label="Dice roller"
+            >
+              <div
+                className={dicePanelDragging ? "dice-popover-header dice-popover-header-dragging" : "dice-popover-header"}
+                onPointerDown={beginDicePanelDrag}
+                onPointerMove={moveDicePanelDrag}
+                onPointerUp={endDicePanelDrag}
+                onPointerCancel={endDicePanelDrag}
+              >
                 <strong>Dice</strong>
                 <div className="dice-popover-header-actions">
                   <button
@@ -472,6 +551,18 @@ function formatDiceFeedBreakdown(roll: DiceRollEvent): string {
     return roll.label;
   }
   return formatDiceRollBreakdown(roll);
+}
+
+function clampDicePanelPosition(x: number, y: number, rect?: DOMRect | null): DicePanelPosition {
+  const margin = 8;
+  const width = rect?.width ?? 300;
+  const height = rect?.height ?? 520;
+  const maxX = Math.max(margin, window.innerWidth - width - margin);
+  const maxY = Math.max(margin, window.innerHeight - height - margin);
+  return {
+    x: Math.min(Math.max(margin, x), maxX),
+    y: Math.min(Math.max(margin, y), maxY)
+  };
 }
 
 function loadCustomDicePresets(): CustomDicePreset[] {
