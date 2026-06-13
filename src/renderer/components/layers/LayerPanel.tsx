@@ -37,7 +37,7 @@ import type {
   WeatherSettings,
   WeatherTuningSettings
 } from "../../../shared/localvtt";
-import { DEFAULT_GRID, DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultFogShapeName, type Token } from "../../../shared/localvtt";
+import { DEFAULT_GRID, DEFAULT_MAP_TRANSFORM, DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultFogShapeName, type Token } from "../../../shared/localvtt";
 import { getSnappedTokenPosition } from "../../canvas/tokenGeometry";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
 import {
@@ -107,6 +107,8 @@ export function LayerPanel({
   const visualGridEnabled = scene.grid.type !== "gridless";
   const canFitGridToMap = mapAsset?.mediaType === "image";
   const fitModeHelp = getFitModeHelp(scene.mapTransform.fitMode);
+  const gridFootprint = getGridFootprint(scene.grid);
+  const transformSummary = getMapTransformSummary(scene.mapTransform);
   const [expandedLayerIds, setExpandedLayerIds] = useState<Set<string>>(() => new Set());
   const [settingsLayerIds, setSettingsLayerIds] = useState<Set<string>>(() => new Set());
   const [draggedFogShapeId, setDraggedFogShapeId] = useState<string | null>(null);
@@ -757,7 +759,17 @@ export function LayerPanel({
                         <button disabled={!canFitGridToMap} onClick={onFitGridToMapDimensions}>
                           Fit grid to map dimensions
                         </button>
-                        {!canFitGridToMap && <div className="inline-help">Grid fitting currently supports static image maps.</div>}
+                        <div className="map-calibration-readout">
+                          <strong>Current footprint</strong>
+                          <span>
+                            {gridFootprint.width}px x {gridFootprint.height}px from {scene.grid.mapGridColumns} x {scene.grid.mapGridRows} cells at {formatNumber(scene.grid.sizePx)}px.
+                          </span>
+                          {canFitGridToMap ? (
+                            <span>Fit grid updates cell size and offsets from the imported image dimensions.</span>
+                          ) : (
+                            <span>Grid fitting currently supports static image maps.</span>
+                          )}
+                        </div>
                       </div>
                       <div className="control-divider" />
                       <MeasurementPanel
@@ -810,6 +822,10 @@ export function LayerPanel({
                         </select>
                       </label>
                       <div className="inline-help">{fitModeHelp}</div>
+                      <div className="map-calibration-readout">
+                        <strong>Current transform</strong>
+                        <span>{transformSummary}</span>
+                      </div>
                       <div className="control-divider" />
                       <div className="settings-grid">
                         <div className="setting-row">
@@ -856,6 +872,10 @@ export function LayerPanel({
                           />
                         </label>
                       </div>
+                      <button className="map-reset-transform-button" onClick={() => onUpdateMapTransform({ ...DEFAULT_MAP_TRANSFORM })}>
+                        <RotateCcw size={14} aria-hidden="true" />
+                        Reset map transform
+                      </button>
                     </>
                   ) : null}
                 </div>
@@ -1289,4 +1309,35 @@ function getFitModeHelp(fitMode: MapTransform["fitMode"]): string {
     case "actual-size":
       return "Actual size draws the map at native pixel size and centers it.";
   }
+}
+
+function getGridFootprint(grid: GridSettings): { width: number; height: number } {
+  return {
+    width: Math.round(Math.max(1, grid.mapGridColumns) * Math.max(1, grid.sizePx)),
+    height: Math.round(Math.max(1, grid.mapGridRows) * Math.max(1, grid.sizePx))
+  };
+}
+
+function getMapTransformSummary(transform: MapTransform): string {
+  if (transform.fitMode !== "manual") {
+    return `${getFitModeLabel(transform.fitMode)} controls map position and scale at render time. Rotation remains ${formatNumber(transform.rotation)}deg.`;
+  }
+  return `Manual position ${formatNumber(transform.x)}, ${formatNumber(transform.y)}; scale ${formatNumber(transform.scale)}x; rotation ${formatNumber(transform.rotation)}deg.`;
+}
+
+function getFitModeLabel(fitMode: MapTransform["fitMode"]): string {
+  switch (fitMode) {
+    case "contain":
+      return "Fit contain";
+    case "cover":
+      return "Fit cover";
+    case "actual-size":
+      return "Actual size";
+    case "manual":
+      return "Manual";
+  }
+}
+
+function formatNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
