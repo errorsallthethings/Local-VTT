@@ -75,6 +75,41 @@ describe("turn order helpers", () => {
     expect(scene.turnOrder.playerViewVisible).toBe(false);
   });
 
+  it("resets stale current turn state when rebuilding a turn order list", () => {
+    let scene = sceneWithEntries(["old-a", "old-b"]);
+    scene = startTurnOrder(scene, "start");
+    scene = advanceTurnOrder(scene, "next", "next");
+    scene.turnOrder.currentEntryId = "old-b";
+    scene.turnOrder.active = true;
+    scene.turnOrder.playerViewVisible = true;
+
+    scene = removeTurnOrderEntry(scene, "old-a", "remove-a");
+    scene = removeTurnOrderEntry(scene, "old-b", "remove-b");
+
+    expect(scene.turnOrder.entries).toEqual([]);
+    expect(scene.turnOrder.currentEntryId).toBeUndefined();
+    expect(scene.turnOrder.active).toBe(false);
+    expect(scene.turnOrder.playerViewVisible).toBe(false);
+
+    scene = addTurnOrderEntry(scene, createManualTurnOrderEntry("cleric", "Cleric", 12), "cleric");
+    scene = addTurnOrderEntry(scene, createManualTurnOrderEntry("rogue", "Rogue", 19), "rogue");
+    scene = addTurnOrderEntry(scene, createManualTurnOrderEntry("goblin", "Goblin", 8), "goblin");
+    scene = sortTurnOrderByInitiative(scene, "sort");
+    scene = startTurnOrder(scene, "restart");
+
+    expect(scene.turnOrder.entries.map((entry) => entry.id)).toEqual(["rogue", "cleric", "goblin"]);
+    expect(scene.turnOrder.currentEntryId).toBe("rogue");
+  });
+
+  it("ignores stale current turn ids when adding entries", () => {
+    let scene = createDefaultScene("Stale Current");
+    scene.turnOrder.currentEntryId = "missing";
+
+    scene = addTurnOrderEntry(scene, createManualTurnOrderEntry("new", "New", 10), "now");
+
+    expect(scene.turnOrder.currentEntryId).toBe("new");
+  });
+
   it("stops active turn orders without dirtying already paused scenes", () => {
     let scene = sceneWithEntries(["a"]);
     expect(stopActiveTurnOrder(scene, "now")).toBe(scene);
