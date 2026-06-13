@@ -517,7 +517,7 @@ export function GmApp() {
     }
     const clearFogShapeSelection = (event: MouseEvent) => {
       const target = event.target;
-      if (target instanceof HTMLElement && target.closest(".fog-layer-shape-row")) {
+      if (target instanceof HTMLElement && (target.closest(".fog-layer-shape-row") || target.closest(".scene-canvas-frame"))) {
         return;
       }
       setSelectedFogShapeId(null);
@@ -1502,6 +1502,8 @@ export function GmApp() {
             selectedTokenId={selectedTokenId}
             onSceneChange={updateCanvasScene}
             onSelectToken={setSelectedTokenId}
+            onSelectFogShape={setSelectedFogShapeId}
+            onSelectWeatherMask={setSelectedWeatherMaskId}
             onAddTokenToTurnOrder={addSceneTokenToTurnOrder}
             onDropTokenAsset={dropLibraryTokenOnScene}
             onLiveTableEvent={emitLiveTableEvent}

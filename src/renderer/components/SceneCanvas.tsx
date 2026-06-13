@@ -36,7 +36,7 @@ import {
   type RulerLabel
 } from "../canvas/measurement";
 import { getPointAlongPath } from "../canvas/movementPath";
-import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
+import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex, getSnappedTokenPosition, getTokenAtPoint, isPointInsideFogShape } from "../canvas/tokenGeometry";
 import {
   getTokenMovementPath,
   getTokenMovementTweens,
@@ -76,6 +76,8 @@ interface SceneCanvasProps {
   selectedTokenId?: string | null;
   onSceneChange?: (scene: Scene, syncScene?: Scene) => void;
   onSelectToken?: (tokenId: string | null) => void;
+  onSelectFogShape?: (shapeId: string | null) => void;
+  onSelectWeatherMask?: (maskId: string | null) => void;
   onAddTokenToTurnOrder?: (tokenId: string) => void;
   onDropTokenAsset?: (asset: Asset, point: Point) => void;
   onLiveTableEvent?: (event: LiveTableEvent) => void;
@@ -133,6 +135,24 @@ type TokenContextMenu = {
   y: number;
 };
 
+type MaskContextMenu =
+  | {
+      kind: "fog";
+      shapeId: string;
+      label: string;
+      visibleInPlayer: boolean;
+      x: number;
+      y: number;
+    }
+  | {
+      kind: "weather";
+      maskId: string;
+      label: string;
+      visible: boolean;
+      x: number;
+      y: number;
+    };
+
 function parseTokenImageSourceKey(key: string): TokenImageSource[] {
   try {
     const parsed = JSON.parse(key);
@@ -163,6 +183,8 @@ export function SceneCanvas({
   selectedTokenId = null,
   onSceneChange,
   onSelectToken,
+  onSelectFogShape,
+  onSelectWeatherMask,
   onAddTokenToTurnOrder,
   onDropTokenAsset,
   onLiveTableEvent,
@@ -188,6 +210,7 @@ export function SceneCanvas({
   const [brushHoverPoint, setBrushHoverPoint] = useState<Point | null>(null);
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
   const [tokenContextMenu, setTokenContextMenu] = useState<TokenContextMenu | null>(null);
+  const [maskContextMenu, setMaskContextMenu] = useState<MaskContextMenu | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; camera: Camera } | null>(null);
   const rulerDragRef = useRef<(RulerDrag & { pointerId: number }) | null>(null);
@@ -204,11 +227,14 @@ export function SceneCanvas({
   const playerTokenTweenPositionsRef = useRef<TokenPositionOverrides | null>(null);
 
   useEffect(() => {
-    if (!tokenContextMenu) {
+    if (!tokenContextMenu && !maskContextMenu) {
       return;
     }
 
-    const dismissMenu = () => setTokenContextMenu(null);
+    const dismissMenu = () => {
+      setTokenContextMenu(null);
+      setMaskContextMenu(null);
+    };
     const dismissMenuOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         dismissMenu();
@@ -221,7 +247,7 @@ export function SceneCanvas({
       window.removeEventListener("pointerdown", dismissMenu);
       window.removeEventListener("keydown", dismissMenuOnEscape);
     };
-  }, [tokenContextMenu]);
+  }, [maskContextMenu, tokenContextMenu]);
 
   const mapAsset = useMemo(() => {
     if (!campaign || !scene?.mapAssetId) {
@@ -860,6 +886,7 @@ export function SceneCanvas({
 
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     setTokenContextMenu(null);
+    setMaskContextMenu(null);
     if (!interactive) {
       return;
     }
@@ -927,11 +954,13 @@ export function SceneCanvas({
       setWeatherMaskPreview(maskDrag);
       return;
     }
-    if (mode === "gm" && scene && onSceneChange && event.button === 0 && canShowTokens) {
+    if (mode === "gm" && scene && onSceneChange && event.button === 0) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const token = getTokenAtPoint(scene.tokens, point);
+      const token = canShowTokens ? getTokenAtPoint(scene.tokens, point) : null;
       if (token) {
         onSelectToken?.(token.id);
+        onSelectFogShape?.(null);
+        onSelectWeatherMask?.(null);
         const snappedPosition = getSnappedTokenPosition(token.position, token, scene);
         tokenDragRef.current = {
           pointerId: event.pointerId,
@@ -953,6 +982,21 @@ export function SceneCanvas({
         return;
       }
       onSelectToken?.(null);
+      if (!canvasTool && !fogTool && !weatherMaskTool) {
+        const maskHit = getMaskHitAtPoint(scene, point);
+        if (maskHit?.kind === "weather") {
+          onSelectWeatherMask?.(maskHit.mask.id);
+          onSelectFogShape?.(null);
+          return;
+        }
+        if (maskHit?.kind === "fog") {
+          onSelectFogShape?.(maskHit.shape.id);
+          onSelectWeatherMask?.(null);
+          return;
+        }
+        onSelectFogShape?.(null);
+        onSelectWeatherMask?.(null);
+      }
     }
     dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, camera };
     setIsPanning(true);
@@ -1232,19 +1276,56 @@ export function SceneCanvas({
     const draft = polygonDraftRef.current;
     const weatherDraft = weatherPolygonDraftRef.current;
     if (!draft && !weatherDraft) {
-      if (mode === "gm" && scene && onAddTokenToTurnOrder && canShowTokens) {
+      if (mode === "gm" && scene) {
         const point = clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale));
-        const token = getTokenAtPoint(scene.tokens, point);
-        if (token) {
+        const token = canShowTokens ? getTokenAtPoint(scene.tokens, point) : null;
+        if (token && onAddTokenToTurnOrder) {
           const frameRect = frameRef.current?.getBoundingClientRect();
           event.preventDefault();
           onSelectToken?.(token.id);
+          onSelectFogShape?.(null);
+          onSelectWeatherMask?.(null);
           setTokenContextMenu({
             tokenId: token.id,
             tokenName: token.name || "Token",
             x: frameRect ? event.clientX - frameRect.left : event.clientX,
             y: frameRect ? event.clientY - frameRect.top : event.clientY
           });
+          return;
+        }
+        if (!canvasTool && !fogTool && !weatherMaskTool) {
+          const maskHit = getMaskHitAtPoint(scene, point);
+          if (maskHit) {
+            const frameRect = frameRef.current?.getBoundingClientRect();
+            event.preventDefault();
+            onSelectToken?.(null);
+            if (maskHit.kind === "weather") {
+              onSelectWeatherMask?.(maskHit.mask.id);
+              onSelectFogShape?.(null);
+              setMaskContextMenu({
+                kind: "weather",
+                maskId: maskHit.mask.id,
+                label: maskHit.mask.name?.trim() || "Weather Mask",
+                visible: maskHit.mask.visible ?? true,
+                x: frameRect ? event.clientX - frameRect.left : event.clientX,
+                y: frameRect ? event.clientY - frameRect.top : event.clientY
+              });
+            } else {
+              const shapeIndex = scene.fog.shapes.findIndex((shape) => shape.id === maskHit.shape.id);
+              const label = maskHit.shape.name?.trim() || formatDefaultFogShapeName(maskHit.shape.operation, maskHit.shape.kind, Math.max(0, shapeIndex));
+              const visibleInPlayer = maskHit.shape.visibleInPlayer ?? maskHit.shape.visible ?? true;
+              onSelectFogShape?.(maskHit.shape.id);
+              onSelectWeatherMask?.(null);
+              setMaskContextMenu({
+                kind: "fog",
+                shapeId: maskHit.shape.id,
+                label,
+                visibleInPlayer,
+                x: frameRect ? event.clientX - frameRect.left : event.clientX,
+                y: frameRect ? event.clientY - frameRect.top : event.clientY
+              });
+            }
+          }
         }
       }
       return;
@@ -1515,6 +1596,53 @@ export function SceneCanvas({
             }}
           >
             Add "{tokenContextMenu.tokenName}" to Turn Order
+          </button>
+        </div>
+      )}
+      {mode === "gm" && maskContextMenu && (
+        <div
+          className="canvas-token-context-menu"
+          style={{ left: maskContextMenu.x, top: maskContextMenu.y }}
+          role="menu"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              if (!scene || !onSceneChange) {
+                setMaskContextMenu(null);
+                return;
+              }
+              if (maskContextMenu.kind === "fog") {
+                onSceneChange({
+                  ...scene,
+                  fog: {
+                    ...scene.fog,
+                    shapes: scene.fog.shapes.map((shape) =>
+                      shape.id === maskContextMenu.shapeId
+                        ? { ...shape, visibleInPlayer: !maskContextMenu.visibleInPlayer, visible: (shape.visibleInGm ?? shape.visible ?? true) || !maskContextMenu.visibleInPlayer }
+                        : shape
+                    )
+                  },
+                  updatedAt: new Date().toISOString()
+                });
+              } else {
+                onSceneChange({
+                  ...scene,
+                  weather: {
+                    ...scene.weather,
+                    masks: scene.weather.masks.map((mask) => (mask.id === maskContextMenu.maskId ? { ...mask, visible: !maskContextMenu.visible } : mask))
+                  },
+                  updatedAt: new Date().toISOString()
+                });
+              }
+              setMaskContextMenu(null);
+            }}
+          >
+            {maskContextMenu.kind === "fog"
+              ? `${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} "${maskContextMenu.label}" on Player View`
+              : `${maskContextMenu.visible ? "Disable" : "Enable"} "${maskContextMenu.label}"`}
           </button>
         </div>
       )}
@@ -1964,6 +2092,52 @@ function getPlayerDisplayScale(campaign: Campaign | null, scene: Scene | null, m
     return 1;
   }
   return targetCellSize / scene.grid.sizePx;
+}
+
+function getMaskHitAtPoint(scene: Scene, point: Point): { kind: "weather"; mask: WeatherMask } | { kind: "fog"; shape: Scene["fog"]["shapes"][number] } | null {
+  for (const mask of [...scene.weather.masks].reverse()) {
+    if ((mask.visible ?? true) && isPointInsideWeatherMask(point, mask)) {
+      return { kind: "weather", mask };
+    }
+  }
+  for (const shape of [...scene.fog.shapes].reverse()) {
+    if ((shape.visibleInGm ?? shape.visible ?? true) && isPointInsideFogShape(point, shape)) {
+      return { kind: "fog", shape };
+    }
+  }
+  return null;
+}
+
+function isPointInsideWeatherMask(point: Point, mask: WeatherMask): boolean {
+  if (mask.kind === "circle") {
+    return Boolean(mask.points[0] && distanceBetween(point, mask.points[0]) <= (mask.radius ?? 0));
+  }
+  if (mask.kind === "rectangle") {
+    if (mask.points.length < 2) {
+      return false;
+    }
+    const minX = Math.min(mask.points[0].x, mask.points[1].x);
+    const maxX = Math.max(mask.points[0].x, mask.points[1].x);
+    const minY = Math.min(mask.points[0].y, mask.points[1].y);
+    const maxY = Math.max(mask.points[0].y, mask.points[1].y);
+    return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
+  }
+  return isPointInsidePolygon(point, mask.points);
+}
+
+function isPointInsidePolygon(point: Point, polygon: Point[]): boolean {
+  if (polygon.length < 3) {
+    return false;
+  }
+  let inside = false;
+  for (let index = 0, previousIndex = polygon.length - 1; index < polygon.length; previousIndex = index, index += 1) {
+    const current = polygon[index];
+    const previous = polygon[previousIndex];
+    if ((current.y > point.y) !== (previous.y > point.y) && point.x < ((previous.x - current.x) * (point.y - current.y)) / (previous.y - current.y) + current.x) {
+      inside = !inside;
+    }
+  }
+  return inside;
 }
 
 function isVisibleDiceOverlayEvent(event: LiveTableEvent, mode: "gm" | "player"): event is Extract<LiveTableEvent, { type: "dice" }> {

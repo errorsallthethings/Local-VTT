@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { Camera } from "../camera";
 import type { WeatherSettings } from "../../../shared/localvtt";
-import { SNOW_PRESETS, createFrostEdgeMesh, createSnowParticle, getCycleOffset, getDistanceToQuietArea, getMinimumWeatherDimension, getQuietAreaBounds, getWeatherClipPath, getWeatherDriftVector, getWeatherParticleCount, hash, isSnowEffect, smoothstep, updateFrostEdgeMesh, type SnowParticle, type SnowPreset, type WeatherArea, type WeatherBounds } from "./weatherCore";
+import { SNOW_PRESETS, createFrostEdgeMesh, createSnowParticle, getCycleOffset, getDistanceToQuietArea, getMinimumWeatherDimension, getQuietAreaBounds, getWeatherDriftVector, getWeatherParticleCount, hash, isSnowEffect, smoothstep, updateFrostEdgeMesh, type SnowParticle, type SnowPreset, type WeatherArea, type WeatherBounds } from "./weatherCore";
 
 export class SnowRenderer {
   private renderer: THREE.WebGLRenderer | null = null;
@@ -10,9 +10,13 @@ export class SnowRenderer {
   private frost: THREE.Group | null = null;
   private snow: THREE.Points | null = null;
   private particles: SnowParticle[] = [];
+  private positions = new Float32Array(0);
+  private colors = new Float32Array(0);
+  private sizes = new Float32Array(0);
+  private alphas = new Float32Array(0);
   private signature = "";
 
-  draw(ctx: CanvasRenderingContext2D, area: WeatherArea, weather: WeatherSettings, camera: Camera, now: number, opacity: number) {
+  draw(ctx: CanvasRenderingContext2D, area: WeatherArea, weather: WeatherSettings, camera: Camera, now: number, opacity: number, clipPath: Path2D) {
     if (!isSnowEffect(weather.effect)) {
       return;
     }
@@ -46,7 +50,7 @@ export class SnowRenderer {
     renderer.render(this.scene, this.camera);
 
     ctx.save();
-    ctx.clip(getWeatherClipPath(area.clip, weather.masks, camera), "evenodd");
+    ctx.clip(clipPath, "evenodd");
     ctx.drawImage(renderer.domElement, 0, 0, width, height);
     ctx.restore();
   }
@@ -74,6 +78,10 @@ export class SnowRenderer {
     this.snow = null;
     const count = getWeatherParticleCount(560, preset.density, weather);
     this.particles = Array.from({ length: count }, (_, index) => createSnowParticle(bounds, weather, preset, index));
+    this.positions = new Float32Array(count * 3);
+    this.colors = new Float32Array(count * 3);
+    this.sizes = new Float32Array(count);
+    this.alphas = new Float32Array(count);
     this.frost = createFrostEdgeMesh(bounds);
     this.frost.renderOrder = 0;
     this.scene.add(this.frost);
@@ -115,7 +123,12 @@ export class SnowRenderer {
         }
       `
     });
-    this.snow = new THREE.Points(new THREE.BufferGeometry(), material);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(this.positions, 3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute("color", new THREE.BufferAttribute(this.colors, 3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute("particleSize", new THREE.BufferAttribute(this.sizes, 1).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute("particleAlpha", new THREE.BufferAttribute(this.alphas, 1).setUsage(THREE.DynamicDrawUsage));
+    this.snow = new THREE.Points(geometry, material);
     this.snow.renderOrder = 1;
     this.scene.add(this.snow);
   }
@@ -129,10 +142,6 @@ export class SnowRenderer {
     if (material instanceof THREE.ShaderMaterial) {
       material.uniforms.globalOpacity.value = 0.92 * preset.opacity * weather.opacity * layerOpacity;
     }
-    const positions: number[] = [];
-    const colors: number[] = [];
-    const sizes: number[] = [];
-    const alphas: number[] = [];
     const elapsed = now * 0.001 * weather.speed * preset.speed;
     const drift = getWeatherDriftVector(weather);
     const baseSize = getMinimumWeatherDimension(bounds);
@@ -142,6 +151,7 @@ export class SnowRenderer {
     const centerX = quietBounds.left + quietBounds.width / 2;
     const centerY = quietBounds.top + quietBounds.height / 2;
 
+    let index = 0;
     for (const particle of this.particles) {
       const rawFallProgress = particle.phase + elapsed * particle.speed * (1.1 + preset.streak * 0.82);
       const cycle = Math.floor(rawFallProgress);
@@ -171,16 +181,18 @@ export class SnowRenderer {
       const alpha = (0.46 + hash(particle.seed + 750) * 0.36) * particle.centerFade * fadeIn * fadeOut * (0.9 - fallProgress * 0.24);
       const size = Math.max(1.4, 3.2 * preset.size * weather.streakLength * particle.size * depthScale);
       const z = 1260 - fallProgress * 1160;
-      positions.push(x, y, z);
-      colors.push(color.r, color.g, color.b);
-      sizes.push(size);
-      alphas.push(alpha);
+      const vertexOffset = index * 3;
+      this.positions[vertexOffset] = x;
+      this.positions[vertexOffset + 1] = y;
+      this.positions[vertexOffset + 2] = z;
+      this.colors[vertexOffset] = color.r;
+      this.colors[vertexOffset + 1] = color.g;
+      this.colors[vertexOffset + 2] = color.b;
+      this.sizes[index] = size;
+      this.alphas[index] = alpha;
+      index += 1;
     }
 
-    this.snow.geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    this.snow.geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    this.snow.geometry.setAttribute("particleSize", new THREE.Float32BufferAttribute(sizes, 1));
-    this.snow.geometry.setAttribute("particleAlpha", new THREE.Float32BufferAttribute(alphas, 1));
     this.snow.geometry.attributes.position.needsUpdate = true;
     this.snow.geometry.attributes.color.needsUpdate = true;
     this.snow.geometry.attributes.particleSize.needsUpdate = true;
