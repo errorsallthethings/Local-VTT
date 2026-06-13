@@ -711,9 +711,11 @@
   min-width: var(--player-turn-min-width, 168px);
   max-width: var(--player-turn-max-width, 290px);
   color: var(--color-text);
-  padding: var(--player-turn-padding-y, 9px) var(--player-turn-padding-x, 12px);
+  padding: var(--player-turn-padding-y, 9px) var(--player-turn-padding-x, 14px);
   --player-seat-color: var(--color-accent);
   --player-turn-frame-fill: rgb(8 12 18 / 0.93);
+  --player-turn-frame-panel: rgb(12 18 26 / 0.72);
+  --player-turn-frame-crest: color-mix(in srgb, var(--player-seat-color) 28%, rgb(9 13 20 / 0.92));
   --player-turn-frame-primary: color-mix(in srgb, var(--player-seat-color) 76%, white 10%);
   --player-turn-frame-trim: color-mix(in srgb, var(--player-seat-color) 42%, #c9a45a 58%);
   --player-turn-frame-accent: color-mix(in srgb, var(--player-seat-color) 82%, white 8%);
@@ -724,19 +726,37 @@
 
 .player-turn-status-frame {
   position: absolute;
-  inset: -3px;
-  z-index: -1;
-  width: calc(100% + 6px);
-  height: calc(100% + 6px);
+  inset: -5px;
+  z-index: 0;
+  width: calc(100% + 10px);
+  height: calc(100% + 10px);
   overflow: visible;
   filter: drop-shadow(0 12px 24px rgb(0 0 0 / 0.44));
   pointer-events: none;
+}
+
+.player-turn-frame-shadow {
+  fill: rgb(0 0 0 / 0.26);
 }
 
 .player-turn-frame-fill {
   fill: var(--player-turn-frame-fill);
   stroke: var(--player-turn-frame-trim);
   stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.player-turn-frame-panel {
+  fill: var(--player-turn-frame-panel);
+  stroke: rgb(255 255 255 / 0.06);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.player-turn-frame-crest {
+  fill: var(--player-turn-frame-crest);
+  stroke: color-mix(in srgb, var(--player-turn-frame-trim) 80%, white 8%);
+  stroke-width: 1.4;
   vector-effect: non-scaling-stroke;
 }
 
@@ -749,7 +769,8 @@
 }
 
 .player-turn-frame-corners,
-.player-turn-frame-runes {
+.player-turn-frame-runes,
+.player-turn-frame-sigil {
   fill: none;
   stroke: var(--player-turn-frame-accent);
   stroke-linecap: round;
@@ -762,6 +783,10 @@
   opacity: 0.75;
 }
 
+.player-turn-frame-sigil {
+  opacity: 0.72;
+}
+
 .player-turn-frame-gem {
   fill: var(--player-turn-frame-accent);
   stroke: rgb(255 255 255 / 0.38);
@@ -772,7 +797,7 @@
 .player-turn-status-xs {
   --player-turn-avatar-size: 34px;
   --player-turn-gap: 7px;
-  --player-turn-min-width: 126px;
+  --player-turn-min-width: 134px;
   --player-turn-max-width: 190px;
   --player-turn-padding-y: 6px;
   --player-turn-padding-x: 8px;
@@ -783,7 +808,7 @@
 .player-turn-status-sm {
   --player-turn-avatar-size: 40px;
   --player-turn-gap: 8px;
-  --player-turn-min-width: 146px;
+  --player-turn-min-width: 154px;
   --player-turn-max-width: 230px;
   --player-turn-padding-y: 7px;
   --player-turn-padding-x: 10px;
@@ -794,7 +819,7 @@
 .player-turn-status-md {
   --player-turn-avatar-size: 46px;
   --player-turn-gap: 10px;
-  --player-turn-min-width: 168px;
+  --player-turn-min-width: 178px;
   --player-turn-max-width: 290px;
   --player-turn-padding-y: 9px;
   --player-turn-padding-x: 12px;
@@ -805,7 +830,7 @@
 .player-turn-status-lg {
   --player-turn-avatar-size: 56px;
   --player-turn-gap: 12px;
-  --player-turn-min-width: 206px;
+  --player-turn-min-width: 218px;
   --player-turn-max-width: 360px;
   --player-turn-padding-y: 11px;
   --player-turn-padding-x: 15px;
@@ -816,7 +841,7 @@
 .player-turn-status-xl {
   --player-turn-avatar-size: 68px;
   --player-turn-gap: 14px;
-  --player-turn-min-width: 250px;
+  --player-turn-min-width: 264px;
   --player-turn-max-width: 430px;
   --player-turn-padding-y: 14px;
   --player-turn-padding-x: 18px;
@@ -835,6 +860,8 @@
 
 .player-turn-status-current {
   --player-turn-frame-fill: color-mix(in srgb, var(--player-seat-color) 24%, rgb(8 12 18 / 0.94));
+  --player-turn-frame-panel: color-mix(in srgb, var(--player-seat-color) 16%, rgb(12 18 26 / 0.78));
+  --player-turn-frame-crest: color-mix(in srgb, var(--player-seat-color) 42%, rgb(9 13 20 / 0.94));
   --player-turn-frame-primary: color-mix(in srgb, var(--player-seat-color) 92%, white 12%);
 }
 
@@ -848,6 +875,10 @@
   stroke-width: 2;
 }
 
+.player-turn-status-current .player-turn-frame-gem {
+  filter: drop-shadow(0 0 7px var(--player-turn-frame-accent));
+}
+
 .player-turn-status-avatar {
   position: relative;
   z-index: 1;
@@ -856,15 +887,19 @@
   width: var(--player-turn-avatar-size, 46px);
   height: var(--player-turn-avatar-size, 46px);
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--player-seat-color) 72%, white 12%);
-  border-radius: 8px;
+  border: 2px solid color-mix(in srgb, var(--player-turn-frame-trim) 72%, white 10%);
+  border-radius: 0;
   background:
     radial-gradient(circle at 30% 24%, rgb(255 255 255 / 0.38), transparent 34%),
     var(--player-seat-color);
   color: white;
+  clip-path: polygon(50% 0, 92% 18%, 92% 82%, 50% 100%, 8% 82%, 8% 18%);
   font-size: calc(var(--player-turn-avatar-size, 46px) * 0.42);
   font-weight: 900;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.18),
+    0 0 0 2px rgb(0 0 0 / 0.18);
 }
 
 .player-turn-status-avatar img {
@@ -877,7 +912,7 @@
   position: relative;
   z-index: 1;
   display: grid;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -893,16 +928,26 @@
   color: var(--color-text-strong);
   font-size: var(--player-turn-name-size, 15px);
   font-weight: 850;
+  letter-spacing: 0;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.52);
 }
 
 .player-turn-status-copy small {
+  justify-self: start;
+  border: 1px solid color-mix(in srgb, var(--player-turn-frame-primary) 56%, transparent);
+  border-radius: var(--radius-compact);
+  background: rgb(4 7 11 / 0.42);
   color: var(--color-text-muted);
+  padding: 2px 6px;
   font-size: var(--player-turn-label-size, 11px);
   font-weight: 800;
+  line-height: 1.1;
   text-transform: uppercase;
 }
 
 .player-turn-status-current .player-turn-status-copy small {
+  border-color: color-mix(in srgb, var(--player-turn-frame-accent) 72%, white 10%);
+  background: color-mix(in srgb, var(--player-turn-frame-accent) 18%, rgb(4 7 11 / 0.58));
   color: var(--color-text-strong);
 }
 

@@ -1686,10 +1686,14 @@ function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; campaig
 function PlayerTurnStatusFrame() {
   return (
     <svg className="player-turn-status-frame" viewBox="0 0 260 82" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path className="player-turn-frame-shadow" d="M18 5H242L257 20V62L242 77H18L3 62V20L18 5Z" />
       <path className="player-turn-frame-fill" d="M22 4H238L254 20V62L238 78H22L6 62V20L22 4Z" />
+      <path className="player-turn-frame-panel" d="M66 13H221L244 25V57L221 69H66L77 41L66 13Z" />
+      <path className="player-turn-frame-crest" d="M22 11H64L77 41L64 71H22L12 59V23L22 11Z" />
       <path className="player-turn-frame-inner" d="M33 12H227L246 25V57L227 70H33L14 57V25L33 12Z" />
       <path className="player-turn-frame-corners" d="M24 10L35 18M236 10L225 18M24 72L35 64M236 72L225 64M8 31L18 41L8 51M252 31L242 41L252 51" />
-      <path className="player-turn-frame-runes" d="M58 18H75M185 18H202M58 64H75M185 64H202" />
+      <path className="player-turn-frame-runes" d="M91 20H111M190 20H210M91 62H111M190 62H210" />
+      <path className="player-turn-frame-sigil" d="M42 17L49 28L42 39L35 28L42 17ZM42 43L50 54L42 66L34 54L42 43Z" />
       <circle className="player-turn-frame-gem" cx="31" cy="41" r="4.5" />
       <circle className="player-turn-frame-gem" cx="229" cy="41" r="4.5" />
     </svg>
