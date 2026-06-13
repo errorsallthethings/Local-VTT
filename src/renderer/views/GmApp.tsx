@@ -636,7 +636,8 @@ export function GmApp() {
     onCampaignOpened: handleCampaignOpened,
     onMapAssetDeleteHandled: () => setMapAssetToDelete(null),
     onSceneDeleteHandled: () => setSceneToDelete(null),
-    onFolderDeleteHandled: () => setFolderToDelete(null)
+    onFolderDeleteHandled: () => setFolderToDelete(null),
+    shouldSyncSceneToPlayer: (sceneId) => sceneId === playerSceneId
   });
   const saveBeforeCloseRef = useRef(saveCampaignBeforeClose);
 

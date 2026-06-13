@@ -27,6 +27,7 @@ interface UseCampaignActionsOptions {
   onMapAssetDeleteHandled: () => void;
   onSceneDeleteHandled: () => void;
   onFolderDeleteHandled: () => void;
+  shouldSyncSceneToPlayer: (sceneId: string) => boolean;
 }
 
 export interface CampaignBusyState {
@@ -46,7 +47,8 @@ export function useCampaignActions({
   onCampaignOpened,
   onMapAssetDeleteHandled,
   onSceneDeleteHandled,
-  onFolderDeleteHandled
+  onFolderDeleteHandled,
+  shouldSyncSceneToPlayer
 }: UseCampaignActionsOptions) {
   const {
     campaignPath,
@@ -250,7 +252,8 @@ export function useCampaignActions({
       setCampaignPath(result.campaignSummary.campaignPath);
       setMissingAssets(result.campaignSummary.missingAssets);
       setCampaign(nextCampaign);
-      updateScene({ ...activeScene, mapAssetId: result.asset.id, updatedAt: new Date().toISOString() }, nextCampaign);
+      const nextScene = { ...activeScene, mapAssetId: result.asset.id, updatedAt: new Date().toISOString() };
+      updateScene(nextScene, shouldSyncSceneToPlayer(nextScene.id) ? nextCampaign : null);
     });
 
   const confirmDeleteMapAsset = () =>
