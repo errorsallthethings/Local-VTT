@@ -240,10 +240,14 @@ export function GmApp() {
     });
   };
 
+  const updateDiceRollHistory = useCallback((event: DiceRollEvent) => {
+    setDiceRollHistory((history) => [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, MAX_DICE_ROLL_HISTORY));
+  }, []);
+
   const emitLiveTableEvent = (event: LiveTableEvent) => {
     setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
     if (event.type === "dice") {
-      setDiceRollHistory((history) => [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, MAX_DICE_ROLL_HISTORY));
+      updateDiceRollHistory(event);
     } else if (event.type === "dice-clear") {
       setDiceRollHistory([]);
     }
@@ -255,14 +259,14 @@ export function GmApp() {
       if (isLiveTableEvent(event)) {
         setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
         if (event.type === "dice") {
-          setDiceRollHistory((history) => [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, MAX_DICE_ROLL_HISTORY));
+          updateDiceRollHistory(event);
         } else if (event.type === "dice-clear") {
           setDiceRollHistory([]);
         }
       }
     });
     return removeListener;
-  }, []);
+  }, [updateDiceRollHistory]);
 
   const getEffectiveDiceDisplayModes = (): { gmDisplayMode: DiceDisplayMode; playerDisplayMode: DiceDisplayMode; gmPanelAdvanced: boolean; playerPanelAdvanced: boolean } => {
     if (diceSettings.sceneRollEnabled) {
@@ -1483,6 +1487,7 @@ export function GmApp() {
             onAddTokenToTurnOrder={addSceneTokenToTurnOrder}
             onDropTokenAsset={dropLibraryTokenOnScene}
             onLiveTableEvent={emitLiveTableEvent}
+            onDiceRollResolved={updateDiceRollHistory}
             onViewportCenterChange={setGmCanvasCenter}
           />
           {activeMapIsVideo && <VideoMapControls videoPlayback={videoPlayback} onUpdateVideoPlayback={updateVideoPlayback} />}

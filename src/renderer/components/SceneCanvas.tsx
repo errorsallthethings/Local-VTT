@@ -79,6 +79,7 @@ interface SceneCanvasProps {
   onAddTokenToTurnOrder?: (tokenId: string) => void;
   onDropTokenAsset?: (asset: Asset, point: Point) => void;
   onLiveTableEvent?: (event: LiveTableEvent) => void;
+  onDiceRollResolved?: (event: Extract<LiveTableEvent, { type: "dice" }>) => void;
   onViewportCenterChange?: (point: Point) => void;
   onReady?: () => void;
   showPlayerSeatIndicators?: boolean;
@@ -165,6 +166,7 @@ export function SceneCanvas({
   onAddTokenToTurnOrder,
   onDropTokenAsset,
   onLiveTableEvent,
+  onDiceRollResolved,
   onViewportCenterChange,
   onReady,
   showPlayerSeatIndicators = false
@@ -1490,7 +1492,7 @@ export function SceneCanvas({
       {mode === "gm" && weatherMaskTool && <WeatherMaskStatusStrip weatherMaskTool={weatherMaskTool} pointCount={weatherPolygonDraft?.points.length ?? 0} />}
       {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
       <Suspense fallback={null}>
-        <DiceRollOverlay events={liveTableEvents.filter((event) => isVisibleDiceOverlayEvent(event, mode))} mode={mode} />
+        <DiceRollOverlay events={liveTableEvents.filter((event) => isVisibleDiceOverlayEvent(event, mode))} mode={mode} onDiceRollResolved={onDiceRollResolved} />
       </Suspense>
       {mode === "player" && scene && <TurnOrderPlayerBar scene={scene} campaign={campaign} />}
       {mode === "player" && scene && showPlayerSeatIndicators && <PlayerSeatIndicators campaign={campaign} />}

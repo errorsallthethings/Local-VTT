@@ -158,10 +158,18 @@ export function formatDiceRollSummary(event: Extract<LiveTableEvent, { type: "di
 }
 
 export function formatDiceRollBreakdown(event: Extract<LiveTableEvent, { type: "dice" }>): string {
-  if (!event.dice || event.dice.length <= 1) {
+  if (!event.dice || event.dice.length === 0) {
     return formatDieLabel(event.die);
   }
+  const diceTotal = getDiceVisualTotal(event.dice);
+  const modifier = event.result - diceTotal;
+  if (event.dice.length <= 1) {
+    return modifier === 0 ? formatBreakdownDieLabel(event.dice[0]) : formatRollTotalExpression([formatBreakdownDieLabel(event.dice[0])], modifier);
+  }
   const diceLabels = event.dice.map(formatBreakdownDieLabel);
+  if (modifier !== 0 && diceLabels.length <= MAX_INLINE_BREAKDOWN_DICE) {
+    return formatRollTotalExpression(diceLabels, modifier);
+  }
   if (diceLabels.length <= MAX_INLINE_BREAKDOWN_DICE) {
     return diceLabels.join(" + ");
   }
@@ -177,6 +185,16 @@ export function formatDiceRollBreakdownTooltip(event: Extract<LiveTableEvent, { 
     return undefined;
   }
   return event.dice.map(formatBreakdownDieLabel).join(", ");
+}
+
+export function getDiceVisualTotal(dice: DiceVisualRoll[]): number {
+  const keptDice = dice.filter((die) => die.kept !== false);
+  const percentileTens = keptDice.find((die) => die.die === "d00");
+  const percentileOnes = keptDice.find((die) => die.die === "d10");
+  if (percentileTens && percentileOnes && keptDice.length === 2) {
+    return getPercentileTotal(percentileTens.label, percentileOnes.label);
+  }
+  return keptDice.reduce((total, die) => total + getDiceVisualValue(die), 0);
 }
 
 export function getDiceRollTone(event: Extract<LiveTableEvent, { type: "dice" }>): DiceRollTone {
@@ -219,6 +237,24 @@ function getEventPercentileTotal(event: Extract<LiveTableEvent, { type: "dice" }
 
 function formatBreakdownDieLabel(die: DiceVisualRoll): string {
   return die.kept === false ? `(${die.label})` : die.label;
+}
+
+function formatRollTotalExpression(diceLabels: string[], modifier: number): string {
+  const modifierLabel = modifier > 0 ? `+ ${modifier}` : `- ${Math.abs(modifier)}`;
+  return `${diceLabels.join(" + ")} ${modifierLabel}`;
+}
+
+function getDiceVisualValue(die: DiceVisualRoll): number {
+  if (die.die === "coin") {
+    return die.label === "Tails" ? 2 : 1;
+  }
+  if (die.die === "d10") {
+    return die.label === "0" ? 10 : die.result;
+  }
+  if (die.die === "d00") {
+    return die.label === "00" ? 100 : die.result;
+  }
+  return die.result;
 }
 
 type DiceExpressionTerm = DiceExpressionDiceTerm | DiceExpressionModifierTerm;

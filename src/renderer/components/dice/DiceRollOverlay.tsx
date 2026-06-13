@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import RAPIER from "@dimforge/rapier3d-compat";
 import * as THREE from "three";
 import type { DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneSize, LiveTableEvent } from "../../../shared/localvtt";
-import { DICE_EVENT_DURATION_MS, formatDiceRollSummary, formatDieLabel, getDiceRollTone, getDieSides, getPercentileTotal, type DiceRollTone } from "../../lib/dice";
+import { DICE_EVENT_DURATION_MS, formatDiceRollSummary, formatDieLabel, getDiceRollTone, getDiceVisualTotal, getDieSides, getPercentileTotal, type DiceRollTone } from "../../lib/dice";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 type DiceVisual = NonNullable<DiceRollEvent["dice"]>[number];
@@ -16,9 +16,10 @@ type ResolvedDiceResult = {
   label: string;
   summary: string;
   result: number;
+  dice: Array<{ label: string; value: number }>;
 };
 
-export function DiceRollOverlay({ events, mode }: { events: DiceRollEvent[]; mode: "gm" | "player" }) {
+export function DiceRollOverlay({ events, mode, onDiceRollResolved }: { events: DiceRollEvent[]; mode: "gm" | "player"; onDiceRollResolved?: (event: DiceRollEvent) => void }) {
   const activeEvents = useMemo(() => {
     const now = Date.now();
     return events.filter((event) => getDiceDisplayMode(event, mode) !== "hidden" && now - event.createdAt <= getDiceEventDuration(event, mode)).slice(0, 1);
@@ -33,14 +34,15 @@ export function DiceRollOverlay({ events, mode }: { events: DiceRollEvent[]; mod
   return (
     <div className={getDiceRollOverlayClassName(overlayDisplayMode, panelPlacement)} style={panelPlacement ? getDicePanelOverlayStyle(panelPlacement) : undefined} aria-live="polite">
       {activeEvents.map((event) => (
-        <DiceRollCard key={event.id} event={event} mode={mode} />
+        <DiceRollCard key={event.id} event={event} mode={mode} onDiceRollResolved={onDiceRollResolved} />
       ))}
     </div>
   );
 }
 
-function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "player" }) {
+function DiceRollCard({ event, mode, onDiceRollResolved }: { event: DiceRollEvent; mode: "gm" | "player"; onDiceRollResolved?: (event: DiceRollEvent) => void }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const onDiceRollResolvedRef = useRef(onDiceRollResolved);
   const displayMode = getDiceDisplayMode(event, mode);
   const show3d = displayMode === "panel" || displayMode === "scene";
   const sceneRoll = displayMode === "scene";
@@ -54,6 +56,10 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
   const [dismissed, setDismissed] = useState(false);
   const tone = getDisplayedRollTone(event, displayMode, resultVisible, resolvedPhysicsResult);
   const visualCount = getVisualDice(event).length;
+
+  useEffect(() => {
+    onDiceRollResolvedRef.current = onDiceRollResolved;
+  }, [onDiceRollResolved]);
 
   useEffect(() => {
     setDismissed(false);
@@ -188,7 +194,7 @@ function DiceRollCard({ event, mode }: { event: DiceRollEvent; mode: "gm" | "pla
           resolvedPhysics = true;
           const resolvedResult = getPhysicsRollResult(dice);
           setResolvedPhysicsResult(resolvedResult);
-          publishSceneRollResult(event, mode, resolvedResult);
+          publishSceneRollResult(event, mode, resolvedResult, onDiceRollResolvedRef.current);
         }
       } else {
         dice.forEach(({ die, visual, baseX, baseY, startX, startY, baseScale, startQuaternion, finalQuaternion }, index) => {
@@ -350,9 +356,26 @@ function getDiceResultContent(
     };
   }
   return {
-    summary: resolvedPhysicsResult?.summary ?? getDisplayedRollSummary(event),
-    label: resolvedPhysicsResult?.label ?? getDisplayedRollLabel(event)
+    summary: resolvedPhysicsResult ? getResolvedDisplayedSummary(event, resolvedPhysicsResult) : getDisplayedRollSummary(event),
+    label: resolvedPhysicsResult ? getResolvedDisplayedLabel(event, resolvedPhysicsResult) : getDisplayedRollLabel(event)
   };
+}
+
+function getResolvedDisplayedSummary(event: DiceRollEvent, resolvedPhysicsResult: ResolvedDiceResult): string {
+  const modifier = getRollModifier(event);
+  if (modifier === 0) {
+    return resolvedPhysicsResult.summary;
+  }
+  const modifierLabel = modifier > 0 ? `+ ${modifier}` : `- ${Math.abs(modifier)}`;
+  return `${resolvedPhysicsResult.summary} ${resolvedPhysicsResult.label} ${modifierLabel}`;
+}
+
+function getResolvedDisplayedLabel(event: DiceRollEvent, resolvedPhysicsResult: ResolvedDiceResult): string {
+  const modifier = getRollModifier(event);
+  if (modifier === 0) {
+    return resolvedPhysicsResult.label;
+  }
+  return String(resolvedPhysicsResult.result + modifier);
 }
 
 function getDisplayedRollTone(event: DiceRollEvent, displayMode: DiceDisplayMode, resultVisible: boolean, resolvedPhysicsResult: ResolvedDiceResult | null): DiceRollTone {
@@ -381,6 +404,14 @@ function getDisplayedRollTone(event: DiceRollEvent, displayMode: DiceDisplayMode
   }
   const sides = getDieSides(die ?? event.die);
   return Number(label) === sides ? "max" : "normal";
+}
+
+function getRollModifier(event: DiceRollEvent): number {
+  const dice = getVisualDice(event);
+  if (dice.length === 0) {
+    return 0;
+  }
+  return event.result - getDiceVisualTotal(dice);
 }
 
 function getRollingSummary(event: DiceRollEvent): string {
@@ -863,7 +894,8 @@ function getPhysicsRollResult(
     return {
       label: resolvedDice[0]?.label ?? "Heads",
       summary: formatDieLabel("coin"),
-      result: resolvedDice[0]?.value ?? 1
+      result: resolvedDice[0]?.value ?? 1,
+      dice: resolvedDice
     };
   }
   const percentileDice = hasResolvedPercentileDice(dice, resolvedDice);
@@ -878,21 +910,50 @@ function getPhysicsRollResult(
   return {
     label: String(total),
     summary,
-    result: total
+    result: total,
+    dice: resolvedDice
   };
 }
 
-function publishSceneRollResult(event: DiceRollEvent, mode: "gm" | "player", resolvedResult: ResolvedDiceResult): void {
-  if (mode !== "player" || getDiceDisplayMode(event, "gm") !== "scene-result") {
+function publishSceneRollResult(event: DiceRollEvent, mode: "gm" | "player", resolvedResult: ResolvedDiceResult, onDiceRollResolved?: (event: DiceRollEvent) => void): void {
+  if (event.sceneResolvedLabel) {
     return;
   }
-  void window.localVtt.sendLiveTableEvent({
+  const modifier = getRollModifier(event);
+  const sceneResolvedResult = resolvedResult.result + modifier;
+  const sceneResolvedLabel = String(sceneResolvedResult);
+  const sceneResolvedSummary = modifier === 0 ? resolvedResult.summary : getResolvedDisplayedSummary(event, resolvedResult);
+  const resolvedDice = getResolvedEventDice(event, resolvedResult);
+  const resolvedEvent = {
     ...event,
-    label: resolvedResult.label,
-    result: resolvedResult.result,
-    sceneResolvedLabel: resolvedResult.label,
-    sceneResolvedSummary: resolvedResult.summary,
-    sceneResolvedResult: resolvedResult.result
+    label: sceneResolvedLabel,
+    result: sceneResolvedResult,
+    dice: resolvedDice,
+    sceneResolvedLabel,
+    sceneResolvedSummary,
+    sceneResolvedResult
+  };
+  if (mode === "gm") {
+    onDiceRollResolved?.(resolvedEvent);
+    return;
+  }
+  if (getDiceDisplayMode(event, "gm") === "scene-result") {
+    void window.localVtt.sendLiveTableEvent(resolvedEvent);
+  }
+}
+
+function getResolvedEventDice(event: DiceRollEvent, resolvedResult: ResolvedDiceResult): DiceVisual[] {
+  const dice = getVisualDice(event);
+  return dice.map((visual, index) => {
+    const resolvedDie = resolvedResult.dice[index];
+    if (!resolvedDie) {
+      return visual;
+    }
+    return {
+      ...visual,
+      label: resolvedDie.label,
+      result: resolvedDie.value
+    };
   });
 }
 

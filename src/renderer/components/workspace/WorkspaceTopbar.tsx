@@ -32,6 +32,7 @@ type DicePanelDrag = {
 };
 
 const CUSTOM_DICE_PRESETS_STORAGE_KEY = "localvtt.customDicePresets";
+const DICE_PANEL_REVEAL_DELAY_MS = 2800;
 const DICE_DISPLAY_OPTIONS = [
   { value: "results", label: "Results only" },
   { value: "panel", label: "3D panel" }
@@ -167,6 +168,7 @@ export function WorkspaceTopbar({
   const [dicePanelOpen, setDicePanelOpen] = useState(false);
   const [diceSettingsOpen, setDiceSettingsOpen] = useState(false);
   const [diceFormulaHelpOpen, setDiceFormulaHelpOpen] = useState(false);
+  const [diceRecentTick, setDiceRecentTick] = useState(0);
   const [dicePanelPosition, setDicePanelPosition] = useState<DicePanelPosition | null>(null);
   const [dicePanelDragging, setDicePanelDragging] = useState(false);
   const dicePanelRef = useRef<HTMLDivElement | null>(null);
@@ -184,6 +186,14 @@ export function WorkspaceTopbar({
   useEffect(() => {
     window.localStorage.setItem(CUSTOM_DICE_PRESETS_STORAGE_KEY, JSON.stringify(customDicePresets));
   }, [customDicePresets]);
+
+  useEffect(() => {
+    if (!diceHistory.some(isPendingRecentDiceRoll)) {
+      return;
+    }
+    const timer = window.setInterval(() => setDiceRecentTick((tick) => tick + 1), 120);
+    return () => window.clearInterval(timer);
+  }, [diceHistory, diceRecentTick]);
 
   useEffect(() => {
     if (!dicePanelOpen) {
@@ -724,10 +734,10 @@ export function WorkspaceTopbar({
                     <div className="dice-roll-feed-list">
                       {diceHistory.length > 0 ? (
                         diceHistory.map((roll) => (
-                          <div key={roll.id} className={`dice-roll-feed-item dice-roll-tone-${getDiceRollTone(roll)}`}>
+                          <div key={roll.id} className={`dice-roll-feed-item dice-roll-tone-${getDiceFeedTone(roll, diceRecentTick)}`}>
                             <span>{formatDiceRollSummary(roll)}</span>
-                            <strong>{roll.label}</strong>
-                            <small title={formatDiceRollBreakdownTooltip(roll)}>{formatDiceFeedBreakdown(roll)}</small>
+                            <strong>{formatDiceFeedLabel(roll, diceRecentTick)}</strong>
+                            <small title={formatDiceFeedBreakdownTooltip(roll, diceRecentTick)}>{formatDiceFeedBreakdown(roll, diceRecentTick)}</small>
                           </div>
                         ))
                       ) : (
@@ -801,11 +811,41 @@ export function WorkspaceTopbar({
   );
 }
 
-function formatDiceFeedBreakdown(roll: DiceRollEvent): string {
-  if (!roll.dice || roll.dice.length <= 1) {
+function formatDiceFeedBreakdown(roll: DiceRollEvent, tick = 0): string {
+  if (isPendingRecentDiceRoll(roll, tick)) {
+    return "Waiting for dice to settle";
+  }
+  if (!roll.dice) {
     return roll.label;
   }
   return formatDiceRollBreakdown(roll);
+}
+
+function formatDiceFeedBreakdownTooltip(roll: DiceRollEvent, tick = 0): string | undefined {
+  return isPendingRecentDiceRoll(roll, tick) ? undefined : formatDiceRollBreakdownTooltip(roll);
+}
+
+function formatDiceFeedLabel(roll: DiceRollEvent, tick = 0): string {
+  return isPendingRecentDiceRoll(roll, tick) ? "Rolling" : roll.label;
+}
+
+function getDiceFeedTone(roll: DiceRollEvent, tick = 0) {
+  return isPendingRecentDiceRoll(roll, tick) ? "normal" : getDiceRollTone(roll);
+}
+
+function isPendingRecentDiceRoll(roll: DiceRollEvent, _tick = 0): boolean {
+  return isUnresolvedSceneDiceRoll(roll) || isUnrevealedPanelDiceRoll(roll);
+}
+
+function isUnresolvedSceneDiceRoll(roll: DiceRollEvent): boolean {
+  return (roll.gmDiceDisplay === "scene" || roll.gmDiceDisplay === "scene-result" || roll.playerDiceDisplay === "scene") && !roll.sceneResolvedLabel;
+}
+
+function isUnrevealedPanelDiceRoll(roll: DiceRollEvent): boolean {
+  if (roll.sceneResolvedLabel || (roll.gmDiceDisplay !== "panel" && roll.playerDiceDisplay !== "panel")) {
+    return false;
+  }
+  return Date.now() - roll.createdAt < DICE_PANEL_REVEAL_DELAY_MS;
 }
 
 function clampDicePanelPosition(x: number, y: number, rect?: DOMRect | null): DicePanelPosition {

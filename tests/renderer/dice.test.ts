@@ -342,6 +342,36 @@ describe("dice helpers", () => {
         createdAt: 1
       })
     ).toBe("Init: 1D20+2");
+    expect(
+      formatDiceRollBreakdown({
+        ...rollDiceExpression("1d20+1", () => 0.35),
+        id: "single-modifier",
+        type: "dice",
+        createdAt: 1
+      })
+    ).toBe("8 + 1");
+    expect(
+      formatDiceRollBreakdown({
+        ...rollDiceExpression("2d6-1", (() => {
+          const values = [0, 0.5, 0.6, 0, 0];
+          return () => values.shift() ?? 0;
+        })()),
+        id: "pool-modifier",
+        type: "dice",
+        createdAt: 1
+      })
+    ).toBe("1 + 4 - 1");
+    expect(
+      formatDiceRollBreakdown({
+        ...rollDiceExpression("1d20+1", () => 0.7),
+        id: "resolved-scene-modifier",
+        type: "dice",
+        result: 19,
+        label: "19",
+        dice: [{ die: "d20", result: 18, label: "18", seed: 0.7 }],
+        createdAt: 1
+      })
+    ).toBe("18 + 1");
   });
 
   it("detects dice roll tones from kept natural results", () => {
