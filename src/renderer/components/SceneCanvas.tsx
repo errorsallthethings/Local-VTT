@@ -1582,6 +1582,8 @@ function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign: Campa
   const playersById = new Map((renderedCampaign?.players ?? []).map((player) => [player.id, player]));
   const layout = getTurnOrderPlayerBarLayout(turnOrder.playerViewEdge, turnOrder.playerViewFacing);
   const displayedEntries = layout.reverseEntries ? [...renderedEntries].reverse() : renderedEntries;
+  const currentIndex = Math.max(0, renderedEntries.findIndex((entry) => entry.id === turnOrder.currentEntryId));
+  const nextEntryId = renderedEntries.length > 1 ? renderedEntries[(currentIndex + 1) % renderedEntries.length]?.id : null;
 
   return (
     <div
@@ -1603,11 +1605,12 @@ function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign: Campa
         const asset = assetId ? assetsById.get(assetId) : null;
         const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
         const active = entry.id === turnOrder.currentEntryId;
+        const next = entry.id === nextEntryId;
         const entryName = player?.name ?? entry.name;
         return (
           <article
             key={entry.id}
-            className={active ? "turn-order-player-entry turn-order-player-entry-active" : "turn-order-player-entry"}
+            className={["turn-order-player-entry", active ? "turn-order-player-entry-active" : "", next ? "turn-order-player-entry-next" : ""].filter(Boolean).join(" ")}
             style={player?.color ? ({ "--turn-player-color": player.color } as React.CSSProperties) : undefined}
           >
             <span className="turn-order-player-avatar">
