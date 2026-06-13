@@ -825,6 +825,9 @@ export function LayerPanel({
                       <div className="map-calibration-readout">
                         <strong>Current transform</strong>
                         <span>{transformSummary}</span>
+                        {visualGridEnabled && scene.mapTransform.fitMode !== "manual" && (
+                          <span>Viewport fit modes resize the map independently from the grid. Use Manual for grid-aligned maps.</span>
+                        )}
                       </div>
                       <div className="control-divider" />
                       <div className="settings-grid">

@@ -74,6 +74,7 @@ interface WorkspaceTopbarProps {
   onShowPlayerHold: () => void;
   onShowPlayerBlackout: () => void;
   onOpenPlayerDisplayScale: () => void;
+  onOpenMapCalibrationAssistant: () => void;
   onSetPlayerFullscreen: (fullscreen: boolean) => void;
   onClosePlayerView: () => void;
   gmDiceDisplayMode: DiceDisplayMode;
@@ -121,6 +122,7 @@ export function WorkspaceTopbar({
   onShowPlayerHold,
   onShowPlayerBlackout,
   onOpenPlayerDisplayScale,
+  onOpenMapCalibrationAssistant,
   onSetPlayerFullscreen,
   onClosePlayerView,
   gmDiceDisplayMode,
@@ -790,6 +792,10 @@ export function WorkspaceTopbar({
                   <button disabled={!activeScene} onClick={onOpenPlayerDisplayScale}>
                     <MonitorUp size={14} aria-hidden="true" />
                     Player View Setup
+                  </button>
+                  <button disabled={!activeScene} onClick={onOpenMapCalibrationAssistant}>
+                    <Settings2 size={14} aria-hidden="true" />
+                    Map Calibration Assistant
                   </button>
                   <button className="danger-menu-item" onClick={onClosePlayerView}>
                     <X size={14} aria-hidden="true" />

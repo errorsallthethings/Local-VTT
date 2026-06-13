@@ -34,6 +34,7 @@ import type {
   TokenPresentationDefaults
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
+import type { MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type CanvasTool, type FogOperation, type WeatherMaskTool } from "../components/tools/ToolsMenu";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
@@ -138,6 +139,7 @@ export function GmApp() {
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null);
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
   const [playerDisplayDialogOpen, setPlayerDisplayDialogOpen] = useState(false);
+  const [mapCalibrationAssistantOpen, setMapCalibrationAssistantOpen] = useState(false);
   const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasTool | null>(null);
   const [activeFogTool, setActiveFogTool] = useState<FogTool | null>(null);
   const [activeWeatherMaskTool, setActiveWeatherMaskTool] = useState<WeatherMaskTool | null>(null);
@@ -387,6 +389,7 @@ export function GmApp() {
       !sceneColorDialog &&
       !campaignNameDialogOpen &&
       !playerDisplayDialogOpen &&
+      !mapCalibrationAssistantOpen &&
       !sceneToDelete &&
       !folderToDelete &&
       !mapAssetToDelete &&
@@ -413,6 +416,7 @@ export function GmApp() {
         setSceneColorDialog(null);
         setCampaignNameDialogOpen(false);
         setPlayerDisplayDialogOpen(false);
+        setMapCalibrationAssistantOpen(false);
         setSceneToDelete(null);
         setFolderToDelete(null);
         setMapAssetToDelete(null);
@@ -443,6 +447,7 @@ export function GmApp() {
     tokenAssetToDelete,
     openFolderMenuId,
     openSceneMenuId,
+    mapCalibrationAssistantOpen,
     playerDisplayDialogOpen,
     playerMenuOpen,
     sceneColorDialog,
@@ -876,6 +881,26 @@ export function GmApp() {
     if (activeScene) {
       void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(nextCampaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
     }
+  };
+
+  const applyMapCalibration = (draft: MapCalibrationDraft) => {
+    if (!activeScene) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      grid: {
+        ...activeScene.grid,
+        mapGridColumns: draft.mapGridColumns,
+        mapGridRows: draft.mapGridRows
+      },
+      mapTransform: {
+        ...activeScene.mapTransform,
+        fitMode: draft.fitMode
+      },
+      updatedAt: new Date().toISOString()
+    });
+    setMapCalibrationAssistantOpen(false);
   };
 
   const openSceneDialog = () => {
@@ -1403,6 +1428,10 @@ export function GmApp() {
             setPlayerDisplayDialogOpen(true);
             setPlayerMenuOpen(false);
           }}
+          onOpenMapCalibrationAssistant={() => {
+            setMapCalibrationAssistantOpen(true);
+            setPlayerMenuOpen(false);
+          }}
           onSetPlayerFullscreen={(fullscreen) => void setPlayerFullscreen(fullscreen)}
           onClosePlayerView={closePlayerView}
           gmDiceDisplayMode={diceSettings.gmDisplayMode}
@@ -1583,6 +1612,7 @@ export function GmApp() {
         tokenColorDialog={tokenColorDialog}
         campaignNameDialogOpen={campaignNameDialogOpen}
         playerDisplayDialogOpen={playerDisplayDialogOpen}
+        mapCalibrationAssistantOpen={mapCalibrationAssistantOpen}
         sceneToDelete={sceneToDelete}
         folderToDelete={folderToDelete}
         mapAssetToDelete={mapAssetToDelete}
@@ -1590,6 +1620,7 @@ export function GmApp() {
         confirmClearFogOpen={confirmClearFogOpen}
         campaign={campaign}
         activeScene={activeScene}
+        mapAsset={mapAsset}
         playerSceneId={playerSceneId}
         dirtySceneIds={dirtySceneIds}
         displays={displays}
@@ -1619,6 +1650,7 @@ export function GmApp() {
         onCancelTokenColorDialog={() => setTokenColorDialog(null)}
         onCancelCampaignNameDialog={() => setCampaignNameDialogOpen(false)}
         onCancelPlayerDisplayDialog={() => setPlayerDisplayDialogOpen(false)}
+        onCancelMapCalibrationAssistant={() => setMapCalibrationAssistantOpen(false)}
         onCancelSceneDelete={() => setSceneToDelete(null)}
         onCancelFolderDelete={() => setFolderToDelete(null)}
         onCancelMapAssetDelete={() => setMapAssetToDelete(null)}
@@ -1648,6 +1680,11 @@ export function GmApp() {
         onSubmitTokenBorderColor={submitTokenBorderColor}
         onSubmitCampaignName={submitCampaignName}
         onUpdatePlayerDisplay={updatePlayerDisplay}
+        onApplyMapCalibration={applyMapCalibration}
+        onOpenPlayerViewSetupFromAssistant={() => {
+          setMapCalibrationAssistantOpen(false);
+          setPlayerDisplayDialogOpen(true);
+        }}
         onRefreshDisplays={refreshDisplays}
         onConfirmDeleteScene={(scene) => void confirmDeleteScene(scene)}
         onConfirmDeleteFolder={deleteFolder}

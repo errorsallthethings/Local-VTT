@@ -57,3 +57,13 @@
   padding: 8px;
   font-size: 12px;
 }
+
+.calibration-warning {
+  border: 1px solid rgb(246 195 67 / 0.45);
+  border-radius: var(--radius-control);
+  background: rgb(246 195 67 / 0.12);
+  color: #f4d589;
+  padding: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+}

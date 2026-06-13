@@ -13,6 +13,7 @@ import { ConfirmDialog } from "../components/modals/ConfirmDialog";
 import { NameDialog } from "../components/modals/NameDialog";
 import { SettingsModal } from "../components/modals/SettingsModal";
 import { TokenCropDialog } from "../components/modals/TokenCropDialog";
+import { MapCalibrationAssistant, type MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { TokenDefaultsPanel } from "../components/tokens/TokenDefaultsPanel";
 
@@ -41,6 +42,7 @@ export function GmDialogs({
   tokenColorDialog,
   campaignNameDialogOpen,
   playerDisplayDialogOpen,
+  mapCalibrationAssistantOpen,
   sceneToDelete,
   folderToDelete,
   mapAssetToDelete,
@@ -48,6 +50,7 @@ export function GmDialogs({
   confirmClearFogOpen,
   campaign,
   activeScene,
+  mapAsset,
   playerSceneId,
   dirtySceneIds,
   displays,
@@ -77,6 +80,7 @@ export function GmDialogs({
   onCancelTokenColorDialog,
   onCancelCampaignNameDialog,
   onCancelPlayerDisplayDialog,
+  onCancelMapCalibrationAssistant,
   onCancelSceneDelete,
   onCancelFolderDelete,
   onCancelMapAssetDelete,
@@ -97,6 +101,8 @@ export function GmDialogs({
   onSubmitTokenBorderColor,
   onSubmitCampaignName,
   onUpdatePlayerDisplay,
+  onApplyMapCalibration,
+  onOpenPlayerViewSetupFromAssistant,
   onRefreshDisplays,
   onConfirmDeleteScene,
   onConfirmDeleteFolder,
@@ -116,6 +122,7 @@ export function GmDialogs({
   tokenColorDialog: TokenColorDialog | null;
   campaignNameDialogOpen: boolean;
   playerDisplayDialogOpen: boolean;
+  mapCalibrationAssistantOpen: boolean;
   sceneToDelete: CampaignSceneEntry | null;
   folderToDelete: CampaignSceneFolder | null;
   mapAssetToDelete: Asset | null;
@@ -123,6 +130,7 @@ export function GmDialogs({
   confirmClearFogOpen: boolean;
   campaign: Campaign | null;
   activeScene: Scene | null;
+  mapAsset: Asset | null;
   playerSceneId: string | null;
   dirtySceneIds: Set<string>;
   displays: DisplayInfo[];
@@ -152,6 +160,7 @@ export function GmDialogs({
   onCancelTokenColorDialog: () => void;
   onCancelCampaignNameDialog: () => void;
   onCancelPlayerDisplayDialog: () => void;
+  onCancelMapCalibrationAssistant: () => void;
   onCancelSceneDelete: () => void;
   onCancelFolderDelete: () => void;
   onCancelMapAssetDelete: () => void;
@@ -172,6 +181,8 @@ export function GmDialogs({
   onSubmitTokenBorderColor: () => void;
   onSubmitCampaignName: () => void;
   onUpdatePlayerDisplay: (nextDisplay: DisplayCalibration) => void;
+  onApplyMapCalibration: (draft: MapCalibrationDraft) => void;
+  onOpenPlayerViewSetupFromAssistant: () => void;
   onRefreshDisplays: () => Promise<boolean | undefined>;
   onConfirmDeleteScene: (scene: CampaignSceneEntry) => void;
   onConfirmDeleteFolder: (folder: CampaignSceneFolder) => void;
@@ -328,6 +339,18 @@ export function GmDialogs({
             displays={displays}
             onApply={onUpdatePlayerDisplay}
             onRefreshDisplays={onRefreshDisplays}
+          />
+        </SettingsModal>
+      )}
+
+      {mapCalibrationAssistantOpen && campaign && activeScene && (
+        <SettingsModal onClose={onCancelMapCalibrationAssistant}>
+          <MapCalibrationAssistant
+            scene={activeScene}
+            mapAsset={mapAsset}
+            calibration={campaign.playerDisplay}
+            onApply={onApplyMapCalibration}
+            onOpenPlayerViewSetup={onOpenPlayerViewSetupFromAssistant}
           />
         </SettingsModal>
       )}
