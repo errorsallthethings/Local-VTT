@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   DEFAULT_DICE_SETTINGS,
+  DEFAULT_MAP_TRANSFORM,
   PLAYER_INDICATOR_THEMES,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
@@ -884,25 +885,47 @@ export function GmApp() {
     }
   };
 
-  const applyMapCalibration = (draft: MapCalibrationDraft) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      grid: {
-        ...activeScene.grid,
-        mapGridColumns: draft.mapGridColumns,
-        mapGridRows: draft.mapGridRows
-      },
-      mapTransform: {
-        ...activeScene.mapTransform,
-        fitMode: draft.fitMode
-      },
-      updatedAt: new Date().toISOString()
+  const applyMapCalibration = (draft: MapCalibrationDraft) =>
+    run(async () => {
+      if (!activeScene) {
+        return;
+      }
+      const columns = Math.max(1, draft.mapGridColumns);
+      const rows = Math.max(1, draft.mapGridRows);
+      if (draft.alignGridToMap && mapAsset?.absolutePath && mapAsset.mediaType === "image") {
+        const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath));
+        const cellWidth = dimensions.width / columns;
+        const cellHeight = dimensions.height / rows;
+        updateScene({
+          ...activeScene,
+          grid: {
+            ...activeScene.grid,
+            mapGridColumns: columns,
+            mapGridRows: rows,
+            sizePx: Math.max(1, Math.round(((cellWidth + cellHeight) / 2) * 100) / 100),
+            offsetX: 0,
+            offsetY: 0
+          },
+          mapTransform: { ...DEFAULT_MAP_TRANSFORM },
+          updatedAt: new Date().toISOString()
+        });
+      } else {
+        updateScene({
+          ...activeScene,
+          grid: {
+            ...activeScene.grid,
+            mapGridColumns: columns,
+            mapGridRows: rows
+          },
+          mapTransform: {
+            ...activeScene.mapTransform,
+            fitMode: draft.fitMode
+          },
+          updatedAt: new Date().toISOString()
+        });
+      }
+      setMapCalibrationAssistantOpen(false);
     });
-    setMapCalibrationAssistantOpen(false);
-  };
 
   const openSceneDialog = () => {
     setNewSceneName("New Battle Map");
@@ -1774,6 +1797,15 @@ function formatCleanSaveState(saveState: string): string {
     return "Saved";
   }
   return saveState[0].toUpperCase() + saveState.slice(1);
+}
+
+function loadImageDimensions(src: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    image.onerror = () => reject(new Error("Unable to read the selected map image dimensions."));
+    image.src = src;
+  });
 }
 
 function loadDiceSettingsPreference(): DiceSettings {

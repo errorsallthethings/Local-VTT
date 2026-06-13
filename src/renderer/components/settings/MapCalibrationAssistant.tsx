@@ -5,6 +5,7 @@ export interface MapCalibrationDraft {
   fitMode: MapTransform["fitMode"];
   mapGridColumns: number;
   mapGridRows: number;
+  alignGridToMap: boolean;
 }
 
 interface MapCalibrationAssistantProps {
@@ -16,18 +17,21 @@ interface MapCalibrationAssistantProps {
 }
 
 export function MapCalibrationAssistant({ scene, mapAsset, calibration, onApply, onOpenPlayerViewSetup }: MapCalibrationAssistantProps) {
-  const [draft, setDraft] = useState<MapCalibrationDraft>(() => getDraftFromScene(scene));
+  const canAlignGridToMap = mapAsset?.mediaType === "image" && scene.grid.type !== "gridless";
+  const [draft, setDraft] = useState<MapCalibrationDraft>(() => getDraftFromScene(scene, canAlignGridToMap));
 
   useEffect(() => {
-    setDraft(getDraftFromScene(scene));
-  }, [scene]);
+    setDraft(getDraftFromScene(scene, canAlignGridToMap));
+  }, [canAlignGridToMap, scene]);
 
   const preview = useMemo(() => getGridPreview(draft, scene.grid), [draft, scene.grid]);
-  const fitModeBreaksGridAlignment = scene.grid.type !== "gridless" && draft.fitMode !== "manual";
+  const effectiveFitMode = draft.alignGridToMap ? "manual" : draft.fitMode;
+  const fitModeBreaksGridAlignment = scene.grid.type !== "gridless" && effectiveFitMode !== "manual";
   const hasDraftChanges =
-    draft.fitMode !== scene.mapTransform.fitMode ||
+    effectiveFitMode !== scene.mapTransform.fitMode ||
     draft.mapGridColumns !== scene.grid.mapGridColumns ||
-    draft.mapGridRows !== scene.grid.mapGridRows;
+    draft.mapGridRows !== scene.grid.mapGridRows ||
+    draft.alignGridToMap;
 
   return (
     <section className="panel calibration-assistant">
@@ -62,14 +66,18 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, onApply,
         </div>
         <label>
           Fit mode
-          <select value={draft.fitMode} onChange={(event) => setDraft({ ...draft, fitMode: event.target.value as MapTransform["fitMode"] })}>
+          <select
+            value={effectiveFitMode}
+            disabled={draft.alignGridToMap}
+            onChange={(event) => setDraft({ ...draft, fitMode: event.target.value as MapTransform["fitMode"] })}
+          >
             <option value="contain">Fit contain</option>
             <option value="cover">Fit cover</option>
             <option value="actual-size">Actual size</option>
             <option value="manual">Manual</option>
           </select>
         </label>
-        <div className="calibration-readout">{getFitModeHelp(draft.fitMode)}</div>
+        <div className="calibration-readout">{getFitModeHelp(effectiveFitMode)}</div>
         {fitModeBreaksGridAlignment && (
           <div className="calibration-warning">
             Viewport fit modes resize the map independently from the scene grid. Use Manual for grid-aligned battle maps.
@@ -109,13 +117,28 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, onApply,
           <br />
           Player View target cell: {getPlayerTargetCell(calibration)}.
         </div>
+        {canAlignGridToMap && (
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={draft.alignGridToMap}
+              onChange={(event) => setDraft({ ...draft, alignGridToMap: event.target.checked, fitMode: event.target.checked ? "manual" : draft.fitMode })}
+            />
+            Grid-align image map
+          </label>
+        )}
+        {draft.alignGridToMap && (
+          <div className="calibration-readout">
+            Apply will use the image dimensions to calculate grid cell size, set map fit to Manual, reset map transform, and set grid offsets to 0.
+          </div>
+        )}
       </div>
 
       <div className="button-row">
         <button type="button" disabled={!hasDraftChanges || fitModeBreaksGridAlignment} onClick={() => onApply(draft)}>
           Apply calibration
         </button>
-        <button type="button" disabled={!hasDraftChanges} onClick={() => setDraft(getDraftFromScene(scene))}>
+        <button type="button" disabled={!hasDraftChanges} onClick={() => setDraft(getDraftFromScene(scene, canAlignGridToMap))}>
           Reset
         </button>
       </div>
@@ -123,11 +146,12 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, onApply,
   );
 }
 
-function getDraftFromScene(scene: Scene): MapCalibrationDraft {
+function getDraftFromScene(scene: Scene, alignGridToMap: boolean): MapCalibrationDraft {
   return {
     fitMode: scene.mapTransform.fitMode,
     mapGridColumns: scene.grid.mapGridColumns,
-    mapGridRows: scene.grid.mapGridRows
+    mapGridRows: scene.grid.mapGridRows,
+    alignGridToMap
   };
 }
 
