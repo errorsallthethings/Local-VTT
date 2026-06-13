@@ -138,7 +138,6 @@ export function GmApp() {
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null);
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
   const [playerDisplayDialogOpen, setPlayerDisplayDialogOpen] = useState(false);
-  const [playerViewDisplayDialogOpen, setPlayerViewDisplayDialogOpen] = useState(false);
   const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasTool | null>(null);
   const [activeFogTool, setActiveFogTool] = useState<FogTool | null>(null);
   const [activeWeatherMaskTool, setActiveWeatherMaskTool] = useState<WeatherMaskTool | null>(null);
@@ -388,7 +387,6 @@ export function GmApp() {
       !sceneColorDialog &&
       !campaignNameDialogOpen &&
       !playerDisplayDialogOpen &&
-      !playerViewDisplayDialogOpen &&
       !sceneToDelete &&
       !folderToDelete &&
       !mapAssetToDelete &&
@@ -415,7 +413,6 @@ export function GmApp() {
         setSceneColorDialog(null);
         setCampaignNameDialogOpen(false);
         setPlayerDisplayDialogOpen(false);
-        setPlayerViewDisplayDialogOpen(false);
         setSceneToDelete(null);
         setFolderToDelete(null);
         setMapAssetToDelete(null);
@@ -447,7 +444,6 @@ export function GmApp() {
     openFolderMenuId,
     openSceneMenuId,
     playerDisplayDialogOpen,
-    playerViewDisplayDialogOpen,
     playerMenuOpen,
     sceneColorDialog,
     sceneDialog,
@@ -1407,10 +1403,6 @@ export function GmApp() {
             setPlayerDisplayDialogOpen(true);
             setPlayerMenuOpen(false);
           }}
-          onOpenPlayerViewDisplay={() => {
-            setPlayerViewDisplayDialogOpen(true);
-            setPlayerMenuOpen(false);
-          }}
           onSetPlayerFullscreen={(fullscreen) => void setPlayerFullscreen(fullscreen)}
           onClosePlayerView={closePlayerView}
           gmDiceDisplayMode={diceSettings.gmDisplayMode}
@@ -1591,7 +1583,6 @@ export function GmApp() {
         tokenColorDialog={tokenColorDialog}
         campaignNameDialogOpen={campaignNameDialogOpen}
         playerDisplayDialogOpen={playerDisplayDialogOpen}
-        playerViewDisplayDialogOpen={playerViewDisplayDialogOpen}
         sceneToDelete={sceneToDelete}
         folderToDelete={folderToDelete}
         mapAssetToDelete={mapAssetToDelete}
@@ -1628,7 +1619,6 @@ export function GmApp() {
         onCancelTokenColorDialog={() => setTokenColorDialog(null)}
         onCancelCampaignNameDialog={() => setCampaignNameDialogOpen(false)}
         onCancelPlayerDisplayDialog={() => setPlayerDisplayDialogOpen(false)}
-        onCancelPlayerViewDisplayDialog={() => setPlayerViewDisplayDialogOpen(false)}
         onCancelSceneDelete={() => setSceneToDelete(null)}
         onCancelFolderDelete={() => setFolderToDelete(null)}
         onCancelMapAssetDelete={() => setMapAssetToDelete(null)}

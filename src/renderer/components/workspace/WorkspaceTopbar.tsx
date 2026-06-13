@@ -74,7 +74,6 @@ interface WorkspaceTopbarProps {
   onShowPlayerHold: () => void;
   onShowPlayerBlackout: () => void;
   onOpenPlayerDisplayScale: () => void;
-  onOpenPlayerViewDisplay: () => void;
   onSetPlayerFullscreen: (fullscreen: boolean) => void;
   onClosePlayerView: () => void;
   gmDiceDisplayMode: DiceDisplayMode;
@@ -122,7 +121,6 @@ export function WorkspaceTopbar({
   onShowPlayerHold,
   onShowPlayerBlackout,
   onOpenPlayerDisplayScale,
-  onOpenPlayerViewDisplay,
   onSetPlayerFullscreen,
   onClosePlayerView,
   gmDiceDisplayMode,
@@ -789,13 +787,9 @@ export function WorkspaceTopbar({
                     <Minimize2 size={14} aria-hidden="true" />
                     Exit fullscreen
                   </button>
-                  <button onClick={onOpenPlayerViewDisplay}>
-                    <MonitorUp size={14} aria-hidden="true" />
-                    Player View Display
-                  </button>
                   <button disabled={!activeScene} onClick={onOpenPlayerDisplayScale}>
-                    <Settings2 size={14} aria-hidden="true" />
-                    Player Display Scale
+                    <MonitorUp size={14} aria-hidden="true" />
+                    Player View Setup
                   </button>
                   <button className="danger-menu-item" onClick={onClosePlayerView}>
                     <X size={14} aria-hidden="true" />

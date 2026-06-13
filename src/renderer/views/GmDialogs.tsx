@@ -14,7 +14,6 @@ import { NameDialog } from "../components/modals/NameDialog";
 import { SettingsModal } from "../components/modals/SettingsModal";
 import { TokenCropDialog } from "../components/modals/TokenCropDialog";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { PlayerViewDisplayPanel } from "../components/settings/PlayerViewDisplayPanel";
 import { TokenDefaultsPanel } from "../components/tokens/TokenDefaultsPanel";
 
 export type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
@@ -42,7 +41,6 @@ export function GmDialogs({
   tokenColorDialog,
   campaignNameDialogOpen,
   playerDisplayDialogOpen,
-  playerViewDisplayDialogOpen,
   sceneToDelete,
   folderToDelete,
   mapAssetToDelete,
@@ -79,7 +77,6 @@ export function GmDialogs({
   onCancelTokenColorDialog,
   onCancelCampaignNameDialog,
   onCancelPlayerDisplayDialog,
-  onCancelPlayerViewDisplayDialog,
   onCancelSceneDelete,
   onCancelFolderDelete,
   onCancelMapAssetDelete,
@@ -119,7 +116,6 @@ export function GmDialogs({
   tokenColorDialog: TokenColorDialog | null;
   campaignNameDialogOpen: boolean;
   playerDisplayDialogOpen: boolean;
-  playerViewDisplayDialogOpen: boolean;
   sceneToDelete: CampaignSceneEntry | null;
   folderToDelete: CampaignSceneFolder | null;
   mapAssetToDelete: Asset | null;
@@ -156,7 +152,6 @@ export function GmDialogs({
   onCancelTokenColorDialog: () => void;
   onCancelCampaignNameDialog: () => void;
   onCancelPlayerDisplayDialog: () => void;
-  onCancelPlayerViewDisplayDialog: () => void;
   onCancelSceneDelete: () => void;
   onCancelFolderDelete: () => void;
   onCancelMapAssetDelete: () => void;
@@ -329,17 +324,6 @@ export function GmDialogs({
         <SettingsModal onClose={onCancelPlayerDisplayDialog}>
           <PlayerDisplayScalePanel
             scene={activeScene}
-            calibration={campaign.playerDisplay}
-            displays={displays}
-            onApply={onUpdatePlayerDisplay}
-            onRefreshDisplays={onRefreshDisplays}
-          />
-        </SettingsModal>
-      )}
-
-      {playerViewDisplayDialogOpen && campaign && (
-        <SettingsModal onClose={onCancelPlayerViewDisplayDialog}>
-          <PlayerViewDisplayPanel
             calibration={campaign.playerDisplay}
             displays={displays}
             onApply={onUpdatePlayerDisplay}

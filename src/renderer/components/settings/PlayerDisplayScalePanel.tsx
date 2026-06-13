@@ -38,22 +38,92 @@ export function PlayerDisplayScalePanel({
   const targetPlayerCellSize = Math.max(1, Math.round(draft.pixelsPerInch * draft.inchesPerGridCell));
   const effectiveTargetCellSize = draft.mode === "screen-size" ? Math.max(1, Math.round(estimatedPpi * draft.inchesPerGridCell)) : targetPlayerCellSize;
   const playerScale = scene.grid.sizePx > 0 ? effectiveTargetCellSize / scene.grid.sizePx : 1;
+  const selectedDisplay = displays.find((display) => display.id === draft.selectedDisplayId) ?? null;
   const hasDraftChanges = JSON.stringify(draft) !== JSON.stringify(calibration);
-  const hasDisplayValueChanges =
-    JSON.stringify({ ...draft, physicalScaleEnabled: calibration.physicalScaleEnabled }) !== JSON.stringify(calibration);
+  const hasScaleValueChanges =
+    draft.mode !== calibration.mode ||
+    draft.pixelsPerInch !== calibration.pixelsPerInch ||
+    draft.inchesPerGridCell !== calibration.inchesPerGridCell ||
+    draft.screenDiagonalInches !== calibration.screenDiagonalInches ||
+    draft.screenAspectRatio !== calibration.screenAspectRatio ||
+    draft.screenResolutionWidth !== calibration.screenResolutionWidth ||
+    draft.screenResolutionHeight !== calibration.screenResolutionHeight ||
+    draft.defaultScaleLabel !== calibration.defaultScaleLabel;
   const applyDraft = () => {
     onApply({
       ...(draft.mode === "screen-size" ? { ...draft, pixelsPerInch: Math.round(estimatedPpi) } : draft),
-      physicalScaleEnabled: hasDisplayValueChanges ? true : draft.physicalScaleEnabled
+      physicalScaleEnabled: hasScaleValueChanges ? true : draft.physicalScaleEnabled
     });
   };
 
   return (
     <section className="panel">
-      <h2>Player Display Scale</h2>
+      <h2>Player View Setup</h2>
       <div className="inline-help">
-        Set and store Player View display calibration information. These settings do not change the GM View grid.
+        Choose where Player View opens and how the scene grid should scale on that display. These settings do not change the GM View grid.
       </div>
+      <div className="settings-section">
+        <div className="settings-section-heading">
+          <strong>Window</strong>
+          <span>Saved per campaign</span>
+        </div>
+        <label>
+          Preferred display
+          <select
+            value={draft.selectedDisplayId ?? ""}
+            onChange={(event) => {
+              const nextDisplay = displays.find((display) => display.id === Number(event.target.value));
+              setDraft({
+                ...draft,
+                selectedDisplayId: nextDisplay?.id,
+                selectedDisplayLabel: nextDisplay ? getDisplayLabel(nextDisplay) : undefined
+              });
+            }}
+          >
+            <option value="">No saved display</option>
+            {displays.map((display) => (
+              <option value={display.id} key={display.id}>
+                {getDisplayLabel(display)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={draft.openPlayerViewFullscreen}
+            onChange={(event) => setDraft({ ...draft, openPlayerViewFullscreen: event.target.checked })}
+          />
+          Open fullscreen on selected display
+        </label>
+        <div className="calibration-readout">
+          Saved display: {calibration.selectedDisplayLabel ?? "None"}
+          <br />
+          Current match: {selectedDisplay ? getDisplayDetails(selectedDisplay) : "Not connected or not selected"}
+        </div>
+        <div className="button-row">
+          <button onClick={() => void onRefreshDisplays()}>Refresh displays</button>
+          <button
+            disabled={!draft.selectedDisplayId && !draft.selectedDisplayLabel && !draft.openPlayerViewFullscreen}
+            onClick={() =>
+              setDraft({
+                ...draft,
+                selectedDisplayId: undefined,
+                selectedDisplayLabel: undefined,
+                openPlayerViewFullscreen: false
+              })
+            }
+          >
+            Clear display
+          </button>
+        </div>
+      </div>
+      <div className="control-divider" />
+      <div className="settings-section">
+        <div className="settings-section-heading">
+          <strong>Table Scale</strong>
+          <span>Player View only</span>
+        </div>
       <label>
         Calibration mode
         <select value={draft.mode} onChange={(event) => setDraft({ ...draft, mode: event.target.value as DisplayCalibration["mode"] })}>
@@ -202,9 +272,10 @@ export function PlayerDisplayScalePanel({
         />
         Use physical display scale
       </label>
+      </div>
       <div className="button-row">
         <button disabled={!hasDraftChanges} onClick={applyDraft}>
-          Apply
+          Apply setup
         </button>
         <button disabled={!hasDraftChanges} onClick={() => setDraft(calibration)}>
           Reset
@@ -224,4 +295,8 @@ function estimatePixelsPerInch(width: number, height: number, diagonalInches: nu
 function getDisplayLabel(display: DisplayInfo): string {
   const name = display.label?.trim() ? display.label.trim() : `Display ${display.id}`;
   return `${name} - ${display.nativeResolution.width}x${display.nativeResolution.height}`;
+}
+
+function getDisplayDetails(display: DisplayInfo): string {
+  return `${getDisplayLabel(display)}, bounds ${display.bounds.x},${display.bounds.y} ${display.bounds.width}x${display.bounds.height}, scale ${display.scaleFactor}`;
 }
