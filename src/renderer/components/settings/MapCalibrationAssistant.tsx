@@ -35,12 +35,16 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, calibrat
     setDraft(getDraftFromScene(scene, canAlignGridToMap));
   }, [canAlignGridToMap, scene]);
 
+  useEffect(() => {
+    if (calibrationBox) {
+      setDraft((currentDraft) => ({ ...currentDraft, alignGridToMap: false }));
+    }
+  }, [calibrationBox]);
+
   const preview = useMemo(() => getGridPreview(draft, scene.grid), [draft, scene.grid]);
   const hasBoxCalibration = Boolean(calibrationBox) && draft.boxColumns > 0 && draft.boxRows > 0;
-  const effectiveFitMode = draft.alignGridToMap ? "manual" : draft.fitMode;
-  const fitModeBreaksGridAlignment = scene.grid.type !== "gridless" && effectiveFitMode !== "manual";
   const hasDraftChanges =
-    effectiveFitMode !== scene.mapTransform.fitMode ||
+    scene.mapTransform.fitMode !== "manual" ||
     draft.mapGridColumns !== scene.grid.mapGridColumns ||
     draft.mapGridRows !== scene.grid.mapGridRows ||
     draft.alignGridToMap ||
@@ -48,20 +52,18 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, calibrat
 
   return (
     <section className="panel calibration-assistant">
-      <h2>Map Calibration Assistant</h2>
+      <h2>Map Calibration</h2>
       <div className="inline-help">
-        Apply the core Player View map setup in one pass. Advanced position, offsets, and image-dimension fitting remain available in the Map and Grid layers.
+        Choose how Local VTT should line up the scene grid with the map image. Advanced map fit controls stay in the Map layer.
       </div>
 
       <div className="settings-section">
         <div className="settings-section-heading">
-          <strong>Display</strong>
-          <span>Campaign setting</span>
+          <strong>Player View</strong>
+          <span>Reference</span>
         </div>
         <div className="calibration-readout">
-          Saved display: {calibration.selectedDisplayLabel ?? "None"}
-          <br />
-          Fullscreen: {calibration.openPlayerViewFullscreen ? "On" : "Off"}
+          Display: {calibration.selectedDisplayLabel ?? "None"}{calibration.openPlayerViewFullscreen ? ", fullscreen" : ""}
           <br />
           Physical scale: {calibration.physicalScaleEnabled ? `${calibration.pixelsPerInch} PPI, ${calibration.inchesPerGridCell} in/cell` : "Off"}
         </div>
@@ -74,36 +76,8 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, calibrat
 
       <div className="settings-section">
         <div className="settings-section-heading">
-          <strong>Map Fit</strong>
-          <span>{mapAsset ? mapAsset.mediaType : "No map"}</span>
-        </div>
-        <label>
-          Fit mode
-          <select
-            value={effectiveFitMode}
-            disabled={draft.alignGridToMap}
-            onChange={(event) => setDraft({ ...draft, fitMode: event.target.value as MapTransform["fitMode"] })}
-          >
-            <option value="contain">Fit contain</option>
-            <option value="cover">Fit cover</option>
-            <option value="actual-size">Actual size</option>
-            <option value="manual">Manual</option>
-          </select>
-        </label>
-        <div className="calibration-readout">{getFitModeHelp(effectiveFitMode)}</div>
-        {fitModeBreaksGridAlignment && (
-          <div className="calibration-warning">
-            Viewport fit modes resize the map independently from the scene grid. Use Manual for grid-aligned battle maps.
-          </div>
-        )}
-      </div>
-
-      <div className="control-divider" />
-
-      <div className="settings-section">
-        <div className="settings-section-heading">
-          <strong>Grid</strong>
-          <span>Scene setting</span>
+          <strong>Map Grid Size</strong>
+          <span>Whole map</span>
         </div>
         <div className="panel-subgrid">
           <label>
@@ -130,33 +104,44 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, calibrat
           <br />
           Player View target cell: {getPlayerTargetCell(calibration)}.
         </div>
-        {canAlignGridToMap && (
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={draft.alignGridToMap}
-              onChange={(event) => setDraft({ ...draft, alignGridToMap: event.target.checked, fitMode: event.target.checked ? "manual" : draft.fitMode })}
-            />
-            Grid-align image map
-          </label>
-        )}
-        {draft.alignGridToMap && (
-          <div className="calibration-readout">
-            Apply will use the image dimensions to calculate grid cell size, set map fit to Manual, reset map transform, and set grid offsets to 0.
-          </div>
-        )}
       </div>
 
       <div className="control-divider" />
 
       <div className="settings-section">
         <div className="settings-section-heading">
-          <strong>Match Grid Area</strong>
-          <span>{calibrationBox ? `${formatNumber(calibrationBox.width)} x ${formatNumber(calibrationBox.height)}px` : "No area"}</span>
+          <strong>Calibration Method</strong>
+          <span>{draft.alignGridToMap ? "Full image" : "Drawn area"}</span>
         </div>
-        <button type="button" onClick={onStartBoxCapture}>
-          Draw area on map
-        </button>
+        {canAlignGridToMap && (
+          <label className="calibration-method-option">
+            <input
+              type="radio"
+              checked={draft.alignGridToMap}
+              onChange={() => setDraft({ ...draft, alignGridToMap: true, fitMode: "manual" })}
+            />
+            <span>
+              <strong>Use full image dimensions</strong>
+              <small>Best when the map image is exactly cropped to its grid.</small>
+            </span>
+          </label>
+        )}
+        <label className="calibration-method-option">
+          <input
+            type="radio"
+            checked={!draft.alignGridToMap}
+            onChange={() => setDraft({ ...draft, alignGridToMap: false, fitMode: "manual" })}
+          />
+          <span>
+            <strong>Match a drawn grid area</strong>
+            <small>Best when the map already has a printed grid or needs fine alignment.</small>
+          </span>
+        </label>
+        {!draft.alignGridToMap && (
+          <button type="button" onClick={onStartBoxCapture}>
+            Draw area on map
+          </button>
+        )}
         {calibrationBox ? (
           <>
             <div className="panel-subgrid">
@@ -183,13 +168,13 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, calibrat
               Apply will calculate grid cell size from the drawn area and align grid offsets to its top-left corner.
             </div>
           </>
-        ) : (
+        ) : !draft.alignGridToMap ? (
           <div className="calibration-readout">Drag over one printed square, or over a larger block such as 5 x 5 squares for better accuracy.</div>
-        )}
+        ) : null}
       </div>
 
       <div className="button-row">
-        <button type="button" disabled={!hasDraftChanges || fitModeBreaksGridAlignment} onClick={() => onApply(draft)}>
+        <button type="button" disabled={!hasDraftChanges} onClick={() => onApply(draft)}>
           Apply calibration
         </button>
         <button type="button" disabled={!hasDraftChanges} onClick={() => setDraft(getDraftFromScene(scene, canAlignGridToMap))}>
@@ -223,19 +208,6 @@ function getPlayerTargetCell(calibration: DisplayCalibration): string {
     return "physical scale off";
   }
   return `${Math.max(1, Math.round(calibration.pixelsPerInch * calibration.inchesPerGridCell))}px`;
-}
-
-function getFitModeHelp(fitMode: MapTransform["fitMode"]): string {
-  switch (fitMode) {
-    case "contain":
-      return "Shows the whole map in Player View without cropping.";
-    case "cover":
-      return "Fills Player View and may crop map edges.";
-    case "actual-size":
-      return "Draws the map at native pixel size and centers it.";
-    case "manual":
-      return "Uses the current manual map position, scale, and rotation from Map Settings.";
-  }
 }
 
 function formatNumber(value: number): string {

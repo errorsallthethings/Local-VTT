@@ -40,19 +40,10 @@ export function PlayerDisplayScalePanel({
   const playerScale = scene.grid.sizePx > 0 ? effectiveTargetCellSize / scene.grid.sizePx : 1;
   const selectedDisplay = displays.find((display) => display.id === draft.selectedDisplayId) ?? null;
   const hasDraftChanges = JSON.stringify(draft) !== JSON.stringify(calibration);
-  const hasScaleValueChanges =
-    draft.mode !== calibration.mode ||
-    draft.pixelsPerInch !== calibration.pixelsPerInch ||
-    draft.inchesPerGridCell !== calibration.inchesPerGridCell ||
-    draft.screenDiagonalInches !== calibration.screenDiagonalInches ||
-    draft.screenAspectRatio !== calibration.screenAspectRatio ||
-    draft.screenResolutionWidth !== calibration.screenResolutionWidth ||
-    draft.screenResolutionHeight !== calibration.screenResolutionHeight ||
-    draft.defaultScaleLabel !== calibration.defaultScaleLabel;
   const applyDraft = () => {
     onApply({
       ...(draft.mode === "screen-size" ? { ...draft, pixelsPerInch: Math.round(estimatedPpi) } : draft),
-      physicalScaleEnabled: hasScaleValueChanges ? true : draft.physicalScaleEnabled
+      physicalScaleEnabled: draft.physicalScaleEnabled
     });
   };
 
@@ -124,154 +115,159 @@ export function PlayerDisplayScalePanel({
           <strong>Table Scale</strong>
           <span>Player View only</span>
         </div>
-      <label>
-        Calibration mode
-        <select value={draft.mode} onChange={(event) => setDraft({ ...draft, mode: event.target.value as DisplayCalibration["mode"] })}>
-          <option value="manual">Manual pixels per inch</option>
-          <option value="screen-size">Screen size estimate</option>
-          <option value="grid-cell">Grid cell size</option>
-        </select>
-      </label>
-
-      {draft.mode === "manual" && (
-        <label>
-          Pixels per inch
+        <label className="check">
           <input
-            type="number"
-            min={1}
-            step={1}
-            value={draft.pixelsPerInch}
-            onChange={(event) => setDraft({ ...draft, pixelsPerInch: Number(event.target.value) })}
+            type="checkbox"
+            checked={draft.physicalScaleEnabled}
+            onChange={(event) => setDraft({ ...draft, physicalScaleEnabled: event.target.checked })}
           />
+          Use physical display scale
         </label>
-      )}
 
-      {draft.mode === "screen-size" && (
-        <>
-          <label>
-            Detected display
-            <select
-              value={draft.selectedDisplayId ?? ""}
-              onChange={(event) => {
-                const selectedDisplay = displays.find((display) => display.id === Number(event.target.value));
-                if (!selectedDisplay) {
-                  setDraft({ ...draft, selectedDisplayId: undefined, selectedDisplayLabel: undefined });
-                  return;
-                }
-                setDraft({
-                  ...draft,
-                  selectedDisplayId: selectedDisplay.id,
-                  selectedDisplayLabel: getDisplayLabel(selectedDisplay),
-                  screenResolutionWidth: selectedDisplay.nativeResolution.width,
-                  screenResolutionHeight: selectedDisplay.nativeResolution.height
-                });
-              }}
-            >
-              <option value="">Manual resolution</option>
-              {displays.map((display) => (
-                <option value={display.id} key={display.id}>
-                  {getDisplayLabel(display)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button onClick={() => void onRefreshDisplays()}>Refresh displays</button>
-          <div className="panel-subgrid">
+        {draft.physicalScaleEnabled ? (
+          <>
             <label>
-              Resolution width
-              <input
-                type="number"
-                min={1}
-                value={draft.screenResolutionWidth}
-                onChange={(event) => setDraft({ ...draft, screenResolutionWidth: Number(event.target.value) })}
-              />
-            </label>
-            <label>
-              Resolution height
-              <input
-                type="number"
-                min={1}
-                value={draft.screenResolutionHeight}
-                onChange={(event) => setDraft({ ...draft, screenResolutionHeight: Number(event.target.value) })}
-              />
-            </label>
-          </div>
-          <div className="panel-subgrid">
-            <label>
-              Diagonal inches
-              <input
-                type="number"
-                min={1}
-                step={0.1}
-                value={draft.screenDiagonalInches}
-                onChange={(event) => setDraft({ ...draft, screenDiagonalInches: Number(event.target.value) })}
-              />
-            </label>
-            <label>
-              Aspect ratio
-              <select
-                value={draft.screenAspectRatio}
-                onChange={(event) => setDraft({ ...draft, screenAspectRatio: event.target.value as DisplayCalibration["screenAspectRatio"] })}
-              >
-                <option value="16:9">16:9</option>
-                <option value="16:10">16:10</option>
-                <option value="4:3">4:3</option>
-                <option value="custom">Custom</option>
+              Calibration mode
+              <select value={draft.mode} onChange={(event) => setDraft({ ...draft, mode: event.target.value as DisplayCalibration["mode"] })}>
+                <option value="manual">Manual pixels per inch</option>
+                <option value="screen-size">Screen size estimate</option>
+                <option value="grid-cell">Grid cell size</option>
               </select>
             </label>
-          </div>
-          <div className="calibration-readout">Estimated PPI from screen size: {estimatedPpi.toFixed(1)}</div>
-          <button onClick={() => setDraft({ ...draft, pixelsPerInch: Math.round(estimatedPpi) })}>Use estimated PPI</button>
-        </>
-      )}
 
-      {draft.mode === "grid-cell" && (
-        <div className="panel-subgrid">
-          <label>
-            Pixels per inch
-            <input
-              type="number"
-              min={1}
-              step={1}
-              value={draft.pixelsPerInch}
-              onChange={(event) => setDraft({ ...draft, pixelsPerInch: Number(event.target.value) })}
-            />
-          </label>
-          <label>
-            Inches per cell
-            <input
-              type="number"
-              min={0.1}
-              step={0.1}
-              value={draft.inchesPerGridCell}
-              onChange={(event) => setDraft({ ...draft, inchesPerGridCell: Number(event.target.value) })}
-            />
-          </label>
-        </div>
-      )}
+            {draft.mode === "manual" && (
+              <label>
+                Pixels per inch
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={draft.pixelsPerInch}
+                  onChange={(event) => setDraft({ ...draft, pixelsPerInch: Number(event.target.value) })}
+                />
+              </label>
+            )}
 
-      <div className="calibration-readout">
-        Saved player display PPI: {calibration.pixelsPerInch}
-        <br />
-        Draft target player grid cell: {effectiveTargetCellSize} px for {draft.inchesPerGridCell} inch{draft.inchesPerGridCell === 1 ? "" : "es"}.
-        <br />
-        Current scene grid cell: {scene.grid.sizePx} px.
-        <br />
-        Player View scale after Apply: {playerScale.toFixed(2)}x.
-      </div>
+            {draft.mode === "screen-size" && (
+              <>
+                <label>
+                  Detected display
+                  <select
+                    value={draft.selectedDisplayId ?? ""}
+                    onChange={(event) => {
+                      const selectedDisplay = displays.find((display) => display.id === Number(event.target.value));
+                      if (!selectedDisplay) {
+                        setDraft({ ...draft, selectedDisplayId: undefined, selectedDisplayLabel: undefined });
+                        return;
+                      }
+                      setDraft({
+                        ...draft,
+                        selectedDisplayId: selectedDisplay.id,
+                        selectedDisplayLabel: getDisplayLabel(selectedDisplay),
+                        screenResolutionWidth: selectedDisplay.nativeResolution.width,
+                        screenResolutionHeight: selectedDisplay.nativeResolution.height
+                      });
+                    }}
+                  >
+                    <option value="">Manual resolution</option>
+                    {displays.map((display) => (
+                      <option value={display.id} key={display.id}>
+                        {getDisplayLabel(display)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button onClick={() => void onRefreshDisplays()}>Refresh displays</button>
+                <div className="panel-subgrid">
+                  <label>
+                    Resolution width
+                    <input
+                      type="number"
+                      min={1}
+                      value={draft.screenResolutionWidth}
+                      onChange={(event) => setDraft({ ...draft, screenResolutionWidth: Number(event.target.value) })}
+                    />
+                  </label>
+                  <label>
+                    Resolution height
+                    <input
+                      type="number"
+                      min={1}
+                      value={draft.screenResolutionHeight}
+                      onChange={(event) => setDraft({ ...draft, screenResolutionHeight: Number(event.target.value) })}
+                    />
+                  </label>
+                </div>
+                <div className="panel-subgrid">
+                  <label>
+                    Diagonal inches
+                    <input
+                      type="number"
+                      min={1}
+                      step={0.1}
+                      value={draft.screenDiagonalInches}
+                      onChange={(event) => setDraft({ ...draft, screenDiagonalInches: Number(event.target.value) })}
+                    />
+                  </label>
+                  <label>
+                    Aspect ratio
+                    <select
+                      value={draft.screenAspectRatio}
+                      onChange={(event) => setDraft({ ...draft, screenAspectRatio: event.target.value as DisplayCalibration["screenAspectRatio"] })}
+                    >
+                      <option value="16:9">16:9</option>
+                      <option value="16:10">16:10</option>
+                      <option value="4:3">4:3</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="calibration-readout">Estimated PPI from screen size: {estimatedPpi.toFixed(1)}</div>
+                <button onClick={() => setDraft({ ...draft, pixelsPerInch: Math.round(estimatedPpi) })}>Use estimated PPI</button>
+              </>
+            )}
 
-      <label>
-        Scale label
-        <input value={draft.defaultScaleLabel} onChange={(event) => setDraft({ ...draft, defaultScaleLabel: event.target.value })} />
-      </label>
-      <label className="check">
-        <input
-          type="checkbox"
-          checked={draft.physicalScaleEnabled}
-          onChange={(event) => setDraft({ ...draft, physicalScaleEnabled: event.target.checked })}
-        />
-        Use physical display scale
-      </label>
+            {draft.mode === "grid-cell" && (
+              <div className="panel-subgrid">
+                <label>
+                  Pixels per inch
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={draft.pixelsPerInch}
+                    onChange={(event) => setDraft({ ...draft, pixelsPerInch: Number(event.target.value) })}
+                  />
+                </label>
+                <label>
+                  Inches per cell
+                  <input
+                    type="number"
+                    min={0.1}
+                    step={0.1}
+                    value={draft.inchesPerGridCell}
+                    onChange={(event) => setDraft({ ...draft, inchesPerGridCell: Number(event.target.value) })}
+                  />
+                </label>
+              </div>
+            )}
+
+            <div className="calibration-readout">
+              Target player grid cell: {effectiveTargetCellSize} px for {draft.inchesPerGridCell} inch{draft.inchesPerGridCell === 1 ? "" : "es"}.
+              <br />
+              Current scene grid cell: {scene.grid.sizePx} px.
+              <br />
+              Player View scale after Apply: {playerScale.toFixed(2)}x.
+            </div>
+
+            <label>
+              Scale label
+              <input value={draft.defaultScaleLabel} onChange={(event) => setDraft({ ...draft, defaultScaleLabel: event.target.value })} />
+            </label>
+          </>
+        ) : (
+          <div className="calibration-readout">Physical table scale is off. Player View will use the scene grid size without trying to match real-world inches.</div>
+        )}
       </div>
       <div className="button-row">
         <button disabled={!hasDraftChanges} onClick={applyDraft}>
