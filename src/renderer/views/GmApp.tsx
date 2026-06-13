@@ -1457,6 +1457,8 @@ export function GmApp() {
               activeWeatherMaskTool={activeWeatherMaskTool}
               fogOperation={fogOperation}
               brushSize={activeScene.fog.brushSize}
+              pingSize={activeScene.tableTools.pingSize}
+              pingColor={activeScene.tableTools.pingColor}
               fogShapeCount={activeScene.fog.shapes.length}
               weatherMaskCount={activeScene.weather.masks.length}
               weatherToolsEnabled={
@@ -1468,6 +1470,20 @@ export function GmApp() {
               onWeatherMaskToolChange={setActiveWeatherMaskTool}
               onFogOperationChange={setFogOperation}
               onBrushSizeChange={(brushSize) => updateFog({ brushSize })}
+              onPingSizeChange={(pingSize) =>
+                updateScene({
+                  ...activeScene,
+                  tableTools: { ...activeScene.tableTools, pingSize },
+                  updatedAt: new Date().toISOString()
+                })
+              }
+              onPingColorChange={(pingColor) =>
+                updateScene({
+                  ...activeScene,
+                  tableTools: { ...activeScene.tableTools, pingColor },
+                  updatedAt: new Date().toISOString()
+                })
+              }
               onUndoFogShape={undoFogShape}
               onUndoWeatherMask={undoWeatherMask}
               onRequestClearFog={() => setConfirmClearFogOpen(true)}

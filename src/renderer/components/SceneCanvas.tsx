@@ -1173,6 +1173,8 @@ export function SceneCanvas({
       id: crypto.randomUUID(),
       type: "ping",
       point: clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale)),
+      size: scene?.tableTools.pingSize,
+      color: scene?.tableTools.pingColor,
       createdAt: Date.now()
     });
   };

@@ -285,6 +285,11 @@ export interface VideoPlaybackSettings {
   muted: boolean;
 }
 
+export interface TableToolSettings {
+  pingSize: number;
+  pingColor: string;
+}
+
 export interface TurnOrderEntry {
   id: string;
   name: string;
@@ -387,6 +392,7 @@ export interface Scene {
   overlays: SceneOverlay[];
   turnOrder: TurnOrderSettings;
   videoPlayback: VideoPlaybackSettings;
+  tableTools: TableToolSettings;
   notes: string;
   playerView: {
     backgroundColor: string;
@@ -519,6 +525,8 @@ export type LiveTableEvent =
       id: string;
       type: "ping";
       point: Point;
+      size?: number;
+      color?: string;
       createdAt: number;
     }
   | {
@@ -615,6 +623,11 @@ export const DEFAULT_VIDEO_PLAYBACK: VideoPlaybackSettings = {
   diagnosticsVisible: false,
   paused: false,
   muted: true
+};
+
+export const DEFAULT_TABLE_TOOLS: TableToolSettings = {
+  pingSize: 1,
+  pingColor: "#f6d365"
 };
 
 export const DEFAULT_TURN_ORDER: TurnOrderSettings = {
@@ -989,6 +1002,7 @@ export function createDefaultScene(name: string): Scene {
     overlays: [],
     turnOrder: { ...DEFAULT_TURN_ORDER, entries: [], seats: [] },
     videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK },
+    tableTools: { ...DEFAULT_TABLE_TOOLS },
     notes: "",
     playerView: { ...DEFAULT_PLAYER_VIEW }
   };
@@ -1081,7 +1095,7 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
     return false;
   }
   if (value.type === "ping") {
-    return isPoint(value.point);
+    return isPoint(value.point) && (!("size" in value) || (typeof value.size === "number" && Number.isFinite(value.size))) && (!("color" in value) || typeof value.color === "string");
   }
   if (value.type === "laser") {
     return Array.isArray(value.points) && value.points.every((entry) => isRecord(entry) && isPoint(entry.point) && typeof entry.createdAt === "number");
@@ -1163,6 +1177,15 @@ function normalizePlayerIndicatorTheme(value: unknown): PlayerIndicatorTheme {
   return PLAYER_INDICATOR_THEMES.includes(value as PlayerIndicatorTheme) ? (value as PlayerIndicatorTheme) : "generic";
 }
 
+function normalizeTableTools(settings?: Partial<TableToolSettings>): TableToolSettings {
+  return {
+    ...DEFAULT_TABLE_TOOLS,
+    ...(settings ?? {}),
+    pingSize: clampNumber(settings?.pingSize, 0.5, 3, DEFAULT_TABLE_TOOLS.pingSize),
+    pingColor: normalizeColor(settings?.pingColor, DEFAULT_TABLE_TOOLS.pingColor)
+  };
+}
+
 function isUnitNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
@@ -1199,6 +1222,7 @@ export function normalizeScene(scene: Scene): Scene {
     overlays: scene.overlays ?? [],
     turnOrder: normalizeTurnOrder(scene.turnOrder),
     videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(scene.videoPlayback ?? {}) },
+    tableTools: normalizeTableTools(scene.tableTools),
     notes: scene.notes ?? "",
     playerView: { ...DEFAULT_PLAYER_VIEW, ...(scene.playerView ?? {}) }
   };
