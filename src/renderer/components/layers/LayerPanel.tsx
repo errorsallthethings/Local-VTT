@@ -46,7 +46,7 @@ import {
   getWeatherEffectOptions,
   type ActiveWeatherCategory
 } from "../../lib/weatherCatalog";
-import { ColorSettingRow } from "../controls/ColorPickerField";
+import { ColorInput, ColorSettingRow } from "../controls/ColorPickerField";
 import { DebouncedNumberInput } from "../controls/DebouncedNumberInput";
 import { MeasurementPanel } from "../settings/MeasurementPanel";
 import { FogShapeList, type FogShapeDropTarget } from "./FogShapeList";
@@ -537,7 +537,7 @@ export function LayerPanel({
                         <div className="setting-row">
                           <span>{expandedWeatherColorLabel}</span>
                           <div className="weather-setting-control">
-                            <input type="color" value={expandedWeatherSettings.color} onChange={(event) => updateWeatherTuning(expandedWeatherCategory, { color: event.target.value })} />
+                            <ColorInput value={expandedWeatherSettings.color} onChange={(color) => updateWeatherTuning(expandedWeatherCategory, { color })} />
                             <button className="icon-button weather-reset-button" type="button" title={`Reset ${expandedWeatherColorLabel.toLowerCase()}`} aria-label={`Reset weather ${expandedWeatherColorLabel.toLowerCase()}`} onClick={() => resetWeatherTuning(expandedWeatherCategory, "color")}>
                               <RotateCcw size={13} aria-hidden="true" />
                             </button>

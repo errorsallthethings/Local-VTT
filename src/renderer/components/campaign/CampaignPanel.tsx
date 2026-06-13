@@ -2,6 +2,7 @@ import { ArchiveRestore, ChevronDown, ChevronRight, Clock3, Edit3, Eye, EyeOff, 
 import { useEffect, useState } from "react";
 import { PLAYER_INDICATOR_THEME_LABELS, PLAYER_INDICATOR_THEMES } from "../../../shared/localvtt";
 import type { Asset, Campaign, CampaignPlayer, PlayerIndicatorTheme } from "../../../shared/localvtt";
+import { ColorInput } from "../controls/ColorPickerField";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/dragTypes";
 import type { RecentCampaign } from "../../lib/recentCampaigns";
 
@@ -219,7 +220,7 @@ function CampaignPlayerRow({
         {previewPath && <span className="campaign-player-avatar-reset">Reset</span>}
       </button>
       <input className="campaign-player-name" value={player.name} aria-label="Player name" onChange={(event) => onUpdate({ name: event.target.value })} />
-      <input className="campaign-player-color" type="color" value={player.color} aria-label="Player color" onChange={(event) => onUpdate({ color: event.target.value })} />
+      <ColorInput className="campaign-player-color" value={player.color} aria-label="Player color" onChange={(color) => onUpdate({ color })} />
       <button className="icon-button campaign-player-settings" aria-label={`${player.name} settings`} title="Player settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>
         <Settings2 size={14} aria-hidden="true" />
       </button>
