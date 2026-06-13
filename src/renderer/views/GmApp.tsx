@@ -35,7 +35,7 @@ import type {
   TokenPresentationDefaults
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
-import type { MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
+import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type CanvasTool, type FogOperation, type WeatherMaskTool } from "../components/tools/ToolsMenu";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
@@ -157,6 +157,8 @@ export function GmApp() {
   const [selectedFogShapeId, setSelectedFogShapeId] = useState<string | null>(null);
   const [selectedWeatherMaskId, setSelectedWeatherMaskId] = useState<string | null>(null);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+  const [mapCalibrationBox, setMapCalibrationBox] = useState<MapCalibrationBox | null>(null);
+  const [mapCalibrationBoxPicking, setMapCalibrationBoxPicking] = useState(false);
   const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
   const [playerDisplayMode, setPlayerDisplayMode] = useState<PlayerDisplayMode>("scene");
   const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
@@ -204,6 +206,11 @@ export function GmApp() {
   useEffect(() => {
     diceSettingsDraftRef.current = diceSettings;
   }, [diceSettings]);
+
+  useEffect(() => {
+    setMapCalibrationBox(null);
+    setMapCalibrationBoxPicking(false);
+  }, [activeScene?.id]);
 
   const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
     // Only sync the active edit to Player View when that same scene is already being shown to players.
@@ -391,6 +398,7 @@ export function GmApp() {
       !campaignNameDialogOpen &&
       !playerDisplayDialogOpen &&
       !mapCalibrationAssistantOpen &&
+      !mapCalibrationBoxPicking &&
       !sceneToDelete &&
       !folderToDelete &&
       !mapAssetToDelete &&
@@ -418,6 +426,7 @@ export function GmApp() {
         setCampaignNameDialogOpen(false);
         setPlayerDisplayDialogOpen(false);
         setMapCalibrationAssistantOpen(false);
+        setMapCalibrationBoxPicking(false);
         setSceneToDelete(null);
         setFolderToDelete(null);
         setMapAssetToDelete(null);
@@ -449,6 +458,7 @@ export function GmApp() {
     openFolderMenuId,
     openSceneMenuId,
     mapCalibrationAssistantOpen,
+    mapCalibrationBoxPicking,
     playerDisplayDialogOpen,
     playerMenuOpen,
     sceneColorDialog,
@@ -892,7 +902,23 @@ export function GmApp() {
       }
       const columns = Math.max(1, draft.mapGridColumns);
       const rows = Math.max(1, draft.mapGridRows);
-      if (draft.alignGridToMap && mapAsset?.absolutePath && mapAsset.mediaType === "image") {
+      const boxGridPatch = getBoxCalibrationGridPatch(draft, mapCalibrationBox);
+      if (boxGridPatch) {
+        updateScene({
+          ...activeScene,
+          grid: {
+            ...activeScene.grid,
+            mapGridColumns: columns,
+            mapGridRows: rows,
+            ...boxGridPatch
+          },
+          mapTransform: {
+            ...activeScene.mapTransform,
+            fitMode: "manual"
+          },
+          updatedAt: new Date().toISOString()
+        });
+      } else if (draft.alignGridToMap && mapAsset?.absolutePath && mapAsset.mediaType === "image") {
         const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath));
         const cellWidth = dimensions.width / columns;
         const cellHeight = dimensions.height / rows;
@@ -924,8 +950,27 @@ export function GmApp() {
           updatedAt: new Date().toISOString()
         });
       }
+      setMapCalibrationBox(null);
       setMapCalibrationAssistantOpen(false);
     });
+
+  const startMapCalibrationBoxCapture = () => {
+    setMapCalibrationBox(null);
+    setMapCalibrationBoxPicking(true);
+    setMapCalibrationAssistantOpen(false);
+    clearActiveCanvasTools();
+  };
+
+  const captureMapCalibrationBox = (box: MapCalibrationBox) => {
+    setMapCalibrationBox(box);
+    setMapCalibrationBoxPicking(false);
+    setMapCalibrationAssistantOpen(true);
+  };
+
+  const cancelMapCalibrationBoxCapture = () => {
+    setMapCalibrationBoxPicking(false);
+    setMapCalibrationAssistantOpen(true);
+  };
 
   const openSceneDialog = () => {
     setNewSceneName("New Battle Map");
@@ -1554,6 +1599,9 @@ export function GmApp() {
             onLiveTableEvent={emitLiveTableEvent}
             onDiceRollResolved={updateDiceRollHistory}
             onViewportCenterChange={setGmCanvasCenter}
+            mapCalibrationBox={mapCalibrationBox}
+            onMapCalibrationBox={mapCalibrationBoxPicking ? captureMapCalibrationBox : undefined}
+            onMapCalibrationCancel={mapCalibrationBoxPicking ? cancelMapCalibrationBoxCapture : undefined}
           />
           {activeMapIsVideo && <VideoMapControls videoPlayback={videoPlayback} onUpdateVideoPlayback={updateVideoPlayback} />}
         </div>
@@ -1645,6 +1693,7 @@ export function GmApp() {
         campaign={campaign}
         activeScene={activeScene}
         mapAsset={mapAsset}
+        mapCalibrationBox={mapCalibrationBox}
         playerSceneId={playerSceneId}
         dirtySceneIds={dirtySceneIds}
         displays={displays}
@@ -1705,6 +1754,7 @@ export function GmApp() {
         onSubmitCampaignName={submitCampaignName}
         onUpdatePlayerDisplay={updatePlayerDisplay}
         onApplyMapCalibration={applyMapCalibration}
+        onStartMapCalibrationBoxCapture={startMapCalibrationBoxCapture}
         onOpenPlayerViewSetupFromAssistant={() => {
           setMapCalibrationAssistantOpen(false);
           setPlayerDisplayDialogOpen(true);
@@ -1806,6 +1856,27 @@ function loadImageDimensions(src: string): Promise<{ width: number; height: numb
     image.onerror = () => reject(new Error("Unable to read the selected map image dimensions."));
     image.src = src;
   });
+}
+
+function getBoxCalibrationGridPatch(draft: MapCalibrationDraft, box: MapCalibrationBox | null): { sizePx: number; offsetX: number; offsetY: number } | null {
+  if (!box || draft.boxColumns <= 0 || draft.boxRows <= 0) {
+    return null;
+  }
+  const cellWidth = box.width / draft.boxColumns;
+  const cellHeight = box.height / draft.boxRows;
+  if (!Number.isFinite(cellWidth) || !Number.isFinite(cellHeight) || cellWidth <= 0 || cellHeight <= 0) {
+    return null;
+  }
+  const sizePx = Math.max(1, Math.round(((cellWidth + cellHeight) / 2) * 100) / 100);
+  return {
+    sizePx,
+    offsetX: positiveModulo(box.x, sizePx),
+    offsetY: positiveModulo(box.y, sizePx)
+  };
+}
+
+function positiveModulo(value: number, divisor: number): number {
+  return ((value % divisor) + divisor) % divisor;
 }
 
 function loadDiceSettingsPreference(): DiceSettings {

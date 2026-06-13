@@ -13,7 +13,7 @@ import { ConfirmDialog } from "../components/modals/ConfirmDialog";
 import { NameDialog } from "../components/modals/NameDialog";
 import { SettingsModal } from "../components/modals/SettingsModal";
 import { TokenCropDialog } from "../components/modals/TokenCropDialog";
-import { MapCalibrationAssistant, type MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
+import { MapCalibrationAssistant, type MapCalibrationBox, type MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { TokenDefaultsPanel } from "../components/tokens/TokenDefaultsPanel";
 
@@ -51,6 +51,7 @@ export function GmDialogs({
   campaign,
   activeScene,
   mapAsset,
+  mapCalibrationBox,
   playerSceneId,
   dirtySceneIds,
   displays,
@@ -102,6 +103,7 @@ export function GmDialogs({
   onSubmitCampaignName,
   onUpdatePlayerDisplay,
   onApplyMapCalibration,
+  onStartMapCalibrationBoxCapture,
   onOpenPlayerViewSetupFromAssistant,
   onRefreshDisplays,
   onConfirmDeleteScene,
@@ -131,6 +133,7 @@ export function GmDialogs({
   campaign: Campaign | null;
   activeScene: Scene | null;
   mapAsset: Asset | null;
+  mapCalibrationBox: MapCalibrationBox | null;
   playerSceneId: string | null;
   dirtySceneIds: Set<string>;
   displays: DisplayInfo[];
@@ -182,6 +185,7 @@ export function GmDialogs({
   onSubmitCampaignName: () => void;
   onUpdatePlayerDisplay: (nextDisplay: DisplayCalibration) => void;
   onApplyMapCalibration: (draft: MapCalibrationDraft) => void;
+  onStartMapCalibrationBoxCapture: () => void;
   onOpenPlayerViewSetupFromAssistant: () => void;
   onRefreshDisplays: () => Promise<boolean | undefined>;
   onConfirmDeleteScene: (scene: CampaignSceneEntry) => void;
@@ -349,7 +353,9 @@ export function GmDialogs({
             scene={activeScene}
             mapAsset={mapAsset}
             calibration={campaign.playerDisplay}
+            calibrationBox={mapCalibrationBox}
             onApply={onApplyMapCalibration}
+            onStartBoxCapture={onStartMapCalibrationBoxCapture}
             onOpenPlayerViewSetup={onOpenPlayerViewSetupFromAssistant}
           />
         </SettingsModal>

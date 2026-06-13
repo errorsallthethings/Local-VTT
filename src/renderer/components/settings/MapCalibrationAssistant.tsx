@@ -1,22 +1,33 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Asset, DisplayCalibration, GridSettings, MapTransform, Scene } from "../../../shared/localvtt";
 
+export interface MapCalibrationBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface MapCalibrationDraft {
   fitMode: MapTransform["fitMode"];
   mapGridColumns: number;
   mapGridRows: number;
   alignGridToMap: boolean;
+  boxColumns: number;
+  boxRows: number;
 }
 
 interface MapCalibrationAssistantProps {
   scene: Scene;
   mapAsset: Asset | null;
   calibration: DisplayCalibration;
+  calibrationBox: MapCalibrationBox | null;
   onApply: (draft: MapCalibrationDraft) => void;
+  onStartBoxCapture: () => void;
   onOpenPlayerViewSetup: () => void;
 }
 
-export function MapCalibrationAssistant({ scene, mapAsset, calibration, onApply, onOpenPlayerViewSetup }: MapCalibrationAssistantProps) {
+export function MapCalibrationAssistant({ scene, mapAsset, calibration, calibrationBox, onApply, onStartBoxCapture, onOpenPlayerViewSetup }: MapCalibrationAssistantProps) {
   const canAlignGridToMap = mapAsset?.mediaType === "image" && scene.grid.type !== "gridless";
   const [draft, setDraft] = useState<MapCalibrationDraft>(() => getDraftFromScene(scene, canAlignGridToMap));
 
@@ -25,13 +36,15 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, onApply,
   }, [canAlignGridToMap, scene]);
 
   const preview = useMemo(() => getGridPreview(draft, scene.grid), [draft, scene.grid]);
+  const hasBoxCalibration = Boolean(calibrationBox) && draft.boxColumns > 0 && draft.boxRows > 0;
   const effectiveFitMode = draft.alignGridToMap ? "manual" : draft.fitMode;
   const fitModeBreaksGridAlignment = scene.grid.type !== "gridless" && effectiveFitMode !== "manual";
   const hasDraftChanges =
     effectiveFitMode !== scene.mapTransform.fitMode ||
     draft.mapGridColumns !== scene.grid.mapGridColumns ||
     draft.mapGridRows !== scene.grid.mapGridRows ||
-    draft.alignGridToMap;
+    draft.alignGridToMap ||
+    hasBoxCalibration;
 
   return (
     <section className="panel calibration-assistant">
@@ -134,6 +147,47 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, onApply,
         )}
       </div>
 
+      <div className="control-divider" />
+
+      <div className="settings-section">
+        <div className="settings-section-heading">
+          <strong>Match Grid Area</strong>
+          <span>{calibrationBox ? `${formatNumber(calibrationBox.width)} x ${formatNumber(calibrationBox.height)}px` : "No area"}</span>
+        </div>
+        <button type="button" onClick={onStartBoxCapture}>
+          Draw area on map
+        </button>
+        {calibrationBox ? (
+          <>
+            <div className="panel-subgrid">
+              <label>
+                Columns in area
+                <input
+                  type="number"
+                  min={1}
+                  value={draft.boxColumns}
+                  onChange={(event) => setDraft({ ...draft, boxColumns: Math.max(1, Number(event.target.value)) })}
+                />
+              </label>
+              <label>
+                Rows in area
+                <input
+                  type="number"
+                  min={1}
+                  value={draft.boxRows}
+                  onChange={(event) => setDraft({ ...draft, boxRows: Math.max(1, Number(event.target.value)) })}
+                />
+              </label>
+            </div>
+            <div className="calibration-readout">
+              Apply will calculate grid cell size from the drawn area and align grid offsets to its top-left corner.
+            </div>
+          </>
+        ) : (
+          <div className="calibration-readout">Drag over one printed square, or over a larger block such as 5 x 5 squares for better accuracy.</div>
+        )}
+      </div>
+
       <div className="button-row">
         <button type="button" disabled={!hasDraftChanges || fitModeBreaksGridAlignment} onClick={() => onApply(draft)}>
           Apply calibration
@@ -151,7 +205,9 @@ function getDraftFromScene(scene: Scene, alignGridToMap: boolean): MapCalibratio
     fitMode: scene.mapTransform.fitMode,
     mapGridColumns: scene.grid.mapGridColumns,
     mapGridRows: scene.grid.mapGridRows,
-    alignGridToMap
+    alignGridToMap,
+    boxColumns: 1,
+    boxRows: 1
   };
 }
 

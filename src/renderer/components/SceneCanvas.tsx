@@ -83,6 +83,9 @@ interface SceneCanvasProps {
   onLiveTableEvent?: (event: LiveTableEvent) => void;
   onDiceRollResolved?: (event: Extract<LiveTableEvent, { type: "dice" }>) => void;
   onViewportCenterChange?: (point: Point) => void;
+  mapCalibrationBox?: MapCalibrationBox | null;
+  onMapCalibrationBox?: (box: MapCalibrationBox) => void;
+  onMapCalibrationCancel?: () => void;
   onReady?: () => void;
   showPlayerSeatIndicators?: boolean;
 }
@@ -121,6 +124,22 @@ type WeatherMaskDrag = {
 type WeatherPolygonDraft = {
   points: Point[];
   current?: Point;
+};
+
+type MapCalibrationBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type MapCalibrationDrag = {
+  pointerId: number;
+  mode: "draw" | "move" | "resize";
+  start: Point;
+  current: Point;
+  box?: MapCalibrationBox;
+  offset?: Point;
 };
 
 type TokenImageSource = {
@@ -190,6 +209,9 @@ export function SceneCanvas({
   onLiveTableEvent,
   onDiceRollResolved,
   onViewportCenterChange,
+  mapCalibrationBox = null,
+  onMapCalibrationBox,
+  onMapCalibrationCancel,
   onReady,
   showPlayerSeatIndicators = false
 }: SceneCanvasProps) {
@@ -207,6 +229,8 @@ export function SceneCanvas({
   const [playerTokenTweenPositions, setPlayerTokenTweenPositions] = useState<TokenPositionOverrides | null>(null);
   const [polygonDraft, setPolygonDraft] = useState<FogPolygonDraft | null>(null);
   const [weatherPolygonDraft, setWeatherPolygonDraft] = useState<WeatherPolygonDraft | null>(null);
+  const [mapCalibrationDrag, setMapCalibrationDrag] = useState<MapCalibrationDrag | null>(null);
+  const [mapCalibrationDraftBox, setMapCalibrationDraftBox] = useState<MapCalibrationBox | null>(null);
   const [brushHoverPoint, setBrushHoverPoint] = useState<Point | null>(null);
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
   const [tokenContextMenu, setTokenContextMenu] = useState<TokenContextMenu | null>(null);
@@ -218,6 +242,7 @@ export function SceneCanvas({
   const laserDragRef = useRef<LaserDragState | null>(null);
   const fogDragRef = useRef<FogDrag | null>(null);
   const weatherMaskDragRef = useRef<WeatherMaskDrag | null>(null);
+  const mapCalibrationDragRef = useRef<MapCalibrationDrag | null>(null);
   const polygonDraftRef = useRef<FogPolygonDraft | null>(null);
   const weatherPolygonDraftRef = useRef<WeatherPolygonDraft | null>(null);
   const previousSceneRef = useRef<Scene | null>(null);
@@ -398,6 +423,14 @@ export function SceneCanvas({
   useEffect(() => {
     weatherPolygonDraftRef.current = weatherPolygonDraft;
   }, [weatherPolygonDraft]);
+
+  useEffect(() => {
+    if (!onMapCalibrationBox) {
+      setMapCalibrationDraftBox(null);
+      mapCalibrationDragRef.current = null;
+      setMapCalibrationDrag(null);
+    }
+  }, [onMapCalibrationBox]);
 
   useEffect(() => {
     setPolygonDraft(null);
@@ -801,6 +834,9 @@ export function SceneCanvas({
       if (mode === "gm" && snapPoint && fogTool) {
         drawSnapMarker(ctx, snapPoint, renderCamera, getFogOperationForTool(fogTool));
       }
+      if (mode === "gm" && (onMapCalibrationBox || mapCalibrationBox)) {
+        drawMapCalibrationBox(ctx, getVisibleMapCalibrationBox(mapCalibrationDrag, mapCalibrationDraftBox ?? mapCalibrationBox), renderCamera);
+      }
       if (liveTableEvents.length > 0) {
         drawLiveTableEvents(ctx, liveTableEvents, renderCamera);
       }
@@ -827,7 +863,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeVideoIndex, brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapLayer?.opacity, mode, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeVideoIndex, brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -897,6 +933,29 @@ export function SceneCanvas({
       return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);
+    if (mode === "gm" && scene && onMapCalibrationBox && event.button === 0) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const editableBox = mapCalibrationDraftBox ?? mapCalibrationBox;
+      const hit = editableBox ? getMapCalibrationBoxHit(point, editableBox, getRenderCamera(camera, playerDisplayScale)) : null;
+      let drag: MapCalibrationDrag;
+      if (hit === "resize" && editableBox) {
+        drag = { pointerId: event.pointerId, mode: "resize", start: { x: editableBox.x, y: editableBox.y }, current: point, box: editableBox };
+      } else if (hit === "move" && editableBox) {
+        drag = {
+          pointerId: event.pointerId,
+          mode: "move",
+          start: point,
+          current: point,
+          box: editableBox,
+          offset: { x: point.x - editableBox.x, y: point.y - editableBox.y }
+        };
+      } else {
+        drag = { pointerId: event.pointerId, mode: "draw", start: point, current: point };
+      }
+      mapCalibrationDragRef.current = drag;
+      setMapCalibrationDrag(drag);
+      return;
+    }
     if (mode === "gm" && canvasTool === "ruler" && scene && event.button === 0) {
       const point = getRulerPoint(event);
       const nextRulerDrag = { pointerId: event.pointerId, start: point, current: point, waypoints: [] };
@@ -1006,6 +1065,25 @@ export function SceneCanvas({
     const tokenDrag = tokenDragRef.current;
     const laserDrag = laserDragRef.current;
     const rulerDragValue = rulerDragRef.current;
+    const mapCalibrationDragValue = mapCalibrationDragRef.current;
+    if (mapCalibrationDragValue?.pointerId === event.pointerId) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const nextDrag = { ...mapCalibrationDragValue, current: point };
+      mapCalibrationDragRef.current = nextDrag;
+      setMapCalibrationDrag(nextDrag);
+      if (nextDrag.mode === "move" && nextDrag.box && nextDrag.offset) {
+        setMapCalibrationDraftBox({
+          ...nextDrag.box,
+          x: point.x - nextDrag.offset.x,
+          y: point.y - nextDrag.offset.y
+        });
+      } else if (nextDrag.mode === "resize") {
+        setMapCalibrationDraftBox(getSquareCalibrationBox(nextDrag.start, point));
+      } else {
+        setMapCalibrationDraftBox(getSquareCalibrationBox(nextDrag.start, point));
+      }
+      return;
+    }
     if (laserDrag?.pointerId === event.pointerId) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const previousPoint = laserDrag.points[laserDrag.points.length - 1]?.point;
@@ -1105,6 +1183,17 @@ export function SceneCanvas({
   };
 
   const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const mapCalibrationDragValue = mapCalibrationDragRef.current;
+    if (mapCalibrationDragValue?.pointerId === event.pointerId) {
+      mapCalibrationDragRef.current = null;
+      setMapCalibrationDrag(null);
+      const box = getVisibleMapCalibrationBox(mapCalibrationDragValue, mapCalibrationDraftBox);
+      if (box && box.width >= 4 && box.height >= 4) {
+        setMapCalibrationDraftBox(box);
+      }
+      return;
+    }
+
     const weatherMaskDrag = weatherMaskDragRef.current;
     if (weatherMaskDrag?.pointerId === event.pointerId) {
       weatherMaskDragRef.current = null;
@@ -1494,6 +1583,15 @@ export function SceneCanvas({
 
   const showMapOverlay = Boolean(canShowMap && mapAsset && (mapLoadStatus === "loading" || mapLoadStatus === "error"));
   const mapOverlayMessage = mapLoadStatus === "error" ? "Map asset unavailable" : mapAsset?.mediaType === "video" ? "Loading video map..." : "Loading map...";
+  const activeCalibrationBox = onMapCalibrationBox ? mapCalibrationDraftBox : null;
+  const activeCalibrationBoxCamera = getRenderCamera(camera, playerDisplayScale);
+  const calibrationSizeControlStyle =
+    activeCalibrationBox && onMapCalibrationBox
+      ? {
+          left: activeCalibrationBox.x * activeCalibrationBoxCamera.zoom + activeCalibrationBoxCamera.x + activeCalibrationBox.width * activeCalibrationBoxCamera.zoom + 12,
+          top: activeCalibrationBox.y * activeCalibrationBoxCamera.zoom + activeCalibrationBoxCamera.y
+        }
+      : undefined;
 
   return (
     <div ref={frameRef} className={className ?? "scene-canvas-frame"}>
@@ -1569,6 +1667,38 @@ export function SceneCanvas({
       />
       {mode === "gm" && fogTool && (
         <FogToolStatusStrip fogTool={fogTool} polygonPointCount={polygonDraft?.points.length ?? 0} brushSize={scene?.fog.brushSize ?? 0} />
+      )}
+      {mode === "gm" && onMapCalibrationBox && <MapCalibrationStatusStrip />}
+      {mode === "gm" && onMapCalibrationBox && activeCalibrationBox && calibrationSizeControlStyle && (
+        <label className="map-calibration-size-control" style={calibrationSizeControlStyle} onPointerDown={(event) => event.stopPropagation()}>
+          Size
+          <input
+            type="number"
+            min={4}
+            step={1}
+            value={Math.round(activeCalibrationBox.width)}
+            onChange={(event) => {
+              const size = Math.max(4, Number(event.target.value));
+              setMapCalibrationDraftBox({ ...activeCalibrationBox, width: size, height: size });
+            }}
+          />
+        </label>
+      )}
+      {mode === "gm" && onMapCalibrationBox && mapCalibrationDraftBox && (
+        <div className="map-calibration-actions" onPointerDown={(event) => event.stopPropagation()}>
+          <button type="button" onClick={() => onMapCalibrationBox(mapCalibrationDraftBox)}>
+            Confirm
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMapCalibrationDraftBox(null);
+              onMapCalibrationCancel?.();
+            }}
+          >
+            Cancel
+          </button>
+        </div>
       )}
       {mode === "gm" && canvasTool === "ruler" && <RulerStatusStrip rulerDrag={rulerDrag} scene={scene} />}
       {mode === "gm" && (canvasTool === "ping" || canvasTool === "laser") && <TableToolStatusStrip canvasTool={canvasTool} />}
@@ -2032,6 +2162,15 @@ function TableToolStatusStrip({ canvasTool }: { canvasTool: "ping" | "laser" }) 
   );
 }
 
+function MapCalibrationStatusStrip() {
+  return (
+    <div className="fog-tool-status" aria-live="polite">
+      <strong>Map Calibration</strong>
+      <span>Drag over one printed grid square, or a larger block such as 5 x 5 squares.</span>
+    </div>
+  );
+}
+
 function WeatherMaskStatusStrip({ weatherMaskTool, pointCount }: { weatherMaskTool: WeatherMaskTool; pointCount: number }) {
   const label = weatherMaskTool === "polygon" ? "Weather Mask Polygon" : weatherMaskTool === "circle" ? "Weather Mask Circle" : "Weather Mask Rectangle";
   const hint =
@@ -2372,6 +2511,86 @@ function drawWeatherMaskPreview(ctx: CanvasRenderingContext2D, preview: WeatherM
     ctx.strokeRect(x, y, width, height);
   }
   ctx.restore();
+}
+
+function drawMapCalibrationBox(ctx: CanvasRenderingContext2D, box: MapCalibrationBox | null, camera: Camera) {
+  if (!box) {
+    return;
+  }
+  ctx.save();
+  const scale = window.devicePixelRatio || 1;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  const x = box.x * camera.zoom + camera.x;
+  const y = box.y * camera.zoom + camera.y;
+  const width = box.width * camera.zoom;
+  const height = box.height * camera.zoom;
+  ctx.fillStyle = "rgb(246 195 67 / 0.16)";
+  ctx.strokeStyle = "#f6c343";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([7, 5]);
+  ctx.fillRect(x, y, width, height);
+  ctx.strokeRect(x, y, width, height);
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + width, y + height);
+  ctx.moveTo(x + width, y);
+  ctx.lineTo(x, y + height);
+  ctx.stroke();
+  ctx.fillStyle = "#f6d98a";
+  ctx.font = "700 12px system-ui, sans-serif";
+  ctx.fillText(`${Math.round(box.width)} x ${Math.round(box.height)}px`, x + 8, y - 8);
+  ctx.fillStyle = "#0b1118";
+  ctx.strokeStyle = "#f6d98a";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.rect(x + width - 7, y + height - 7, 14, 14);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function getVisibleMapCalibrationBox(drag: MapCalibrationDrag | null, fallback: MapCalibrationBox | null): MapCalibrationBox | null {
+  if (!drag) {
+    return fallback;
+  }
+  if (drag.mode === "move" && drag.box && drag.offset) {
+    return {
+      ...drag.box,
+      x: drag.current.x - drag.offset.x,
+      y: drag.current.y - drag.offset.y
+    };
+  }
+  return getSquareCalibrationBox(drag.start, drag.current);
+}
+
+function getSquareCalibrationBox(start: Point, current: Point): MapCalibrationBox {
+  const width = current.x - start.x;
+  const height = current.y - start.y;
+  const size = Math.max(Math.abs(width), Math.abs(height));
+  const endX = start.x + Math.sign(width || 1) * size;
+  const endY = start.y + Math.sign(height || 1) * size;
+  const x = Math.min(start.x, endX);
+  const y = Math.min(start.y, endY);
+  return {
+    x,
+    y,
+    width: size,
+    height: size
+  };
+}
+
+function getMapCalibrationBoxHit(point: Point, box: MapCalibrationBox, camera: Camera): "move" | "resize" | null {
+  const handleSize = 14 / Math.max(0.1, camera.zoom);
+  const handleLeft = box.x + box.width - handleSize / 2;
+  const handleTop = box.y + box.height - handleSize / 2;
+  if (point.x >= handleLeft && point.x <= handleLeft + handleSize && point.y >= handleTop && point.y <= handleTop + handleSize) {
+    return "resize";
+  }
+  if (point.x >= box.x && point.x <= box.x + box.width && point.y >= box.y && point.y <= box.y + box.height) {
+    return "move";
+  }
+  return null;
 }
 
 function drawWeatherPolygonDraft(ctx: CanvasRenderingContext2D, draft: WeatherPolygonDraft, camera: Camera) {
