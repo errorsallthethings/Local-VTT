@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CircleHelp, Dices, EllipsisVertical, Eye, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
+import { CircleHelp, Dices, EllipsisVertical, Eye, Map, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
 import type { Asset, Campaign, DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneRollTarget, DiceSceneSize, LiveTableEvent, Scene } from "../../../shared/localvtt";
 import {
   DICE_TYPES,
@@ -769,38 +769,47 @@ export function WorkspaceTopbar({
               </button>
               {playerMenuOpen && (
                 <div className="scene-menu toolbar-menu">
-                  <button disabled={!activeScene || playerDisplayMode === "scene"} onClick={onSendToPlayer}>
-                    <Eye size={14} aria-hidden="true" />
-                    Show Scene
-                  </button>
-                  <button disabled={playerDisplayMode === "hold"} onClick={onShowPlayerHold}>
-                    <Pause size={14} aria-hidden="true" />
-                    Hold Screen
-                  </button>
-                  <button disabled={playerDisplayMode === "blackout"} onClick={onShowPlayerBlackout}>
-                    <MonitorOff size={14} aria-hidden="true" />
-                    Blackout
-                  </button>
-                  <button onClick={() => onSetPlayerFullscreen(true)}>
-                    <Maximize2 size={14} aria-hidden="true" />
-                    Fullscreen
-                  </button>
-                  <button onClick={() => onSetPlayerFullscreen(false)}>
-                    <Minimize2 size={14} aria-hidden="true" />
-                    Exit fullscreen
-                  </button>
-                  <button disabled={!activeScene} onClick={onOpenPlayerDisplayScale}>
-                    <MonitorUp size={14} aria-hidden="true" />
-                    Player View Setup
-                  </button>
-                  <button disabled={!activeScene} onClick={onOpenMapCalibrationAssistant}>
-                    <Settings2 size={14} aria-hidden="true" />
-                    Map Calibration Assistant
-                  </button>
-                  <button className="danger-menu-item" onClick={onClosePlayerView}>
-                    <X size={14} aria-hidden="true" />
-                    Close window
-                  </button>
+                  <div className="menu-section-label">Playback</div>
+                  <div className="menu-section">
+                    <button disabled={!activeScene || playerDisplayMode === "scene"} onClick={onSendToPlayer}>
+                      <Eye size={14} aria-hidden="true" />
+                      Show Scene
+                    </button>
+                    <button disabled={playerDisplayMode === "hold"} onClick={onShowPlayerHold}>
+                      <Pause size={14} aria-hidden="true" />
+                      Hold Screen
+                    </button>
+                    <button disabled={playerDisplayMode === "blackout"} onClick={onShowPlayerBlackout}>
+                      <MonitorOff size={14} aria-hidden="true" />
+                      Blackout
+                    </button>
+                  </div>
+                  <div className="menu-section-label">Window</div>
+                  <div className="menu-section">
+                    <button onClick={() => onSetPlayerFullscreen(true)}>
+                      <Maximize2 size={14} aria-hidden="true" />
+                      Fullscreen
+                    </button>
+                    <button onClick={() => onSetPlayerFullscreen(false)}>
+                      <Minimize2 size={14} aria-hidden="true" />
+                      Exit fullscreen
+                    </button>
+                    <button className="danger-menu-item" onClick={onClosePlayerView}>
+                      <X size={14} aria-hidden="true" />
+                      Close window
+                    </button>
+                  </div>
+                  <div className="menu-section-label">Setup</div>
+                  <div className="menu-section">
+                    <button disabled={!activeScene} onClick={onOpenPlayerDisplayScale}>
+                      <MonitorUp size={14} aria-hidden="true" />
+                      Player View Setup
+                    </button>
+                    <button disabled={!activeScene} onClick={onOpenMapCalibrationAssistant}>
+                      <Map size={14} aria-hidden="true" />
+                      Map Calibration
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

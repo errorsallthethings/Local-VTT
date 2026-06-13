@@ -69,6 +69,27 @@
   white-space: nowrap;
 }
 
+.scene-menu .menu-section {
+  display: grid;
+  gap: 2px;
+}
+
+.scene-menu .menu-section + .menu-section-label {
+  border-top: 1px solid var(--color-border-muted);
+  margin-top: 4px;
+  padding-top: 7px;
+}
+
+.scene-menu .menu-section-label {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  padding: 2px 8px 3px;
+  text-transform: uppercase;
+}
+
 :is(.scene-menu, .token-settings-menu) button:hover:not(:disabled),
 .token-menu-action:hover:not(:disabled) {
   background: #253146;
