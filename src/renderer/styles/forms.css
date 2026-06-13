@@ -261,6 +261,33 @@
   min-width: 44px;
 }
 
+.grid-opacity-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.grid-opacity-control input {
+  min-width: 0;
+}
+
+.grid-reset-button {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.grid-visibility-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .weather-preset-group {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, InputHTMLAttributes, KeyboardEvent } from "react";
 
 export const COLOR_PRESETS = [
+  { label: "White", value: "#ffffff" },
+  { label: "Black", value: "#000000" },
   { label: "Blue", value: "#7aa2f7" },
   { label: "Green", value: "#4cbf78" },
   { label: "Amber", value: "#d99a35" },

@@ -590,7 +590,7 @@ export const DEFAULT_GRID: GridSettings = {
   offsetY: 0,
   mapGridColumns: 44,
   mapGridRows: 25,
-  color: "#d8dee9",
+  color: "#ffffff",
   opacity: 0.45,
   lineThickness: 1,
   showOnGm: true,

@@ -37,7 +37,7 @@ import type {
   WeatherSettings,
   WeatherTuningSettings
 } from "../../../shared/localvtt";
-import { DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultFogShapeName, type Token } from "../../../shared/localvtt";
+import { DEFAULT_GRID, DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultFogShapeName, type Token } from "../../../shared/localvtt";
 import { getSnappedTokenPosition } from "../../canvas/tokenGeometry";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
 import {
@@ -657,15 +657,52 @@ export function LayerPanel({
                         </label>
                         <label className="setting-row">
                           <span>Opacity</span>
-                          <input
-                            type="range"
-                            min={0}
-                            max={1}
-                            step={0.05}
-                            value={scene.grid.opacity}
-                            onChange={(event) => onUpdateGrid({ opacity: Number(event.target.value) })}
-                          />
+                          <div className="grid-opacity-control">
+                            <input
+                              type="range"
+                              min={0}
+                              max={1}
+                              step={0.05}
+                              value={scene.grid.opacity}
+                              onChange={(event) => onUpdateGrid({ opacity: Number(event.target.value) })}
+                            />
+                            <button
+                              type="button"
+                              className="icon-button grid-reset-button"
+                              aria-label="Reset grid opacity"
+                              title="Reset opacity"
+                              disabled={scene.grid.opacity === DEFAULT_GRID.opacity}
+                              onClick={() => onUpdateGrid({ opacity: DEFAULT_GRID.opacity })}
+                            >
+                              <RotateCcw size={13} aria-hidden="true" />
+                            </button>
+                          </div>
                         </label>
+                        <div className="setting-row">
+                          <span>Visibility</span>
+                          <div className="grid-visibility-controls" aria-label="Grid visibility">
+                            <button
+                              type="button"
+                              className={scene.grid.showOnGm ? "icon-button layer-visibility-button layer-visibility-active" : "icon-button layer-visibility-button"}
+                              aria-label={scene.grid.showOnGm ? "Hide grid on GM View" : "Show grid on GM View"}
+                              aria-pressed={scene.grid.showOnGm}
+                              title={scene.grid.showOnGm ? "Hide grid on GM View" : "Show grid on GM View"}
+                              onClick={() => onUpdateGrid({ showOnGm: !scene.grid.showOnGm })}
+                            >
+                              <Crown size={14} aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              className={scene.grid.showOnPlayer ? "icon-button layer-visibility-button layer-visibility-active" : "icon-button layer-visibility-button"}
+                              aria-label={scene.grid.showOnPlayer ? "Hide grid on Player View" : "Show grid on Player View"}
+                              aria-pressed={scene.grid.showOnPlayer}
+                              title={scene.grid.showOnPlayer ? "Hide grid on Player View" : "Show grid on Player View"}
+                              onClick={() => onUpdateGrid({ showOnPlayer: !scene.grid.showOnPlayer })}
+                            >
+                              <User size={14} aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
                         <div className="setting-row">
                           <span>Offset</span>
                           <div className="xy-inputs">
