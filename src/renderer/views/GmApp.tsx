@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   DEFAULT_DICE_SETTINGS,
+  PLAYER_INDICATOR_THEMES,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
@@ -736,6 +737,7 @@ export function GmApp() {
           id: crypto.randomUUID(),
           name: `Player ${campaign.players.length + 1}`,
           color: DEFAULT_TOKEN_BORDER_COLOR,
+          indicatorTheme: PLAYER_INDICATOR_THEMES[0],
           defaultSeatEdge: "bottom",
           defaultSeatPosition: 0.5,
           visibleInPlayer: true

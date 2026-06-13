@@ -710,18 +710,63 @@
   gap: var(--player-turn-gap, 10px);
   min-width: var(--player-turn-min-width, 168px);
   max-width: var(--player-turn-max-width, 290px);
-  border: 1px solid color-mix(in srgb, var(--player-seat-color) 54%, white 10%);
-  border-radius: 9px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--player-seat-color) 18%, rgb(10 14 22 / 0.94)), rgb(8 12 18 / 0.9)),
-    rgb(8 12 18 / 0.92);
   color: var(--color-text);
   padding: var(--player-turn-padding-y, 9px) var(--player-turn-padding-x, 12px);
-  box-shadow:
-    inset 4px 0 0 color-mix(in srgb, var(--player-seat-color) 74%, white 8%),
-    0 12px 30px rgb(0 0 0 / 0.42);
   --player-seat-color: var(--color-accent);
+  --player-turn-frame-fill: rgb(8 12 18 / 0.93);
+  --player-turn-frame-primary: color-mix(in srgb, var(--player-seat-color) 76%, white 10%);
+  --player-turn-frame-trim: color-mix(in srgb, var(--player-seat-color) 42%, #c9a45a 58%);
+  --player-turn-frame-accent: color-mix(in srgb, var(--player-seat-color) 82%, white 8%);
+  --player-turn-frame-glow: color-mix(in srgb, var(--player-seat-color) 44%, transparent);
+  isolation: isolate;
   pointer-events: none;
+}
+
+.player-turn-status-frame {
+  position: absolute;
+  inset: -3px;
+  z-index: -1;
+  width: calc(100% + 6px);
+  height: calc(100% + 6px);
+  overflow: visible;
+  filter: drop-shadow(0 12px 24px rgb(0 0 0 / 0.44));
+  pointer-events: none;
+}
+
+.player-turn-frame-fill {
+  fill: var(--player-turn-frame-fill);
+  stroke: var(--player-turn-frame-trim);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.player-turn-frame-inner {
+  fill: none;
+  stroke: var(--player-turn-frame-primary);
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.player-turn-frame-corners,
+.player-turn-frame-runes {
+  fill: none;
+  stroke: var(--player-turn-frame-accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+  vector-effect: non-scaling-stroke;
+}
+
+.player-turn-frame-runes {
+  opacity: 0.75;
+}
+
+.player-turn-frame-gem {
+  fill: var(--player-turn-frame-accent);
+  stroke: rgb(255 255 255 / 0.38);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
 }
 
 .player-turn-status-xs {
@@ -784,23 +829,28 @@
 }
 
 .player-turn-status-next {
-  border-color: color-mix(in srgb, var(--player-seat-color) 78%, white 16%);
+  --player-turn-frame-primary: color-mix(in srgb, var(--player-seat-color) 86%, white 16%);
   opacity: 0.88;
 }
 
 .player-turn-status-current {
-  border-color: var(--player-seat-color);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--player-seat-color) 34%, rgb(8 12 18 / 0.94)), rgb(8 12 18 / 0.9)),
-    rgb(8 12 18 / 0.92);
-  box-shadow:
-    inset 5px 0 0 var(--player-seat-color),
-    0 0 0 1px color-mix(in srgb, var(--player-seat-color) 30%, transparent),
-    0 0 28px color-mix(in srgb, var(--player-seat-color) 48%, transparent),
-    0 16px 34px rgb(0 0 0 / 0.44);
+  --player-turn-frame-fill: color-mix(in srgb, var(--player-seat-color) 24%, rgb(8 12 18 / 0.94));
+  --player-turn-frame-primary: color-mix(in srgb, var(--player-seat-color) 92%, white 12%);
+}
+
+.player-turn-status-current .player-turn-status-frame {
+  filter:
+    drop-shadow(0 0 18px var(--player-turn-frame-glow))
+    drop-shadow(0 16px 30px rgb(0 0 0 / 0.46));
+}
+
+.player-turn-status-current .player-turn-frame-inner {
+  stroke-width: 2;
 }
 
 .player-turn-status-avatar {
+  position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
   width: var(--player-turn-avatar-size, 46px);
@@ -824,6 +874,8 @@
 }
 
 .player-turn-status-copy {
+  position: relative;
+  z-index: 1;
   display: grid;
   gap: 2px;
   min-width: 0;
@@ -852,6 +904,113 @@
 
 .player-turn-status-current .player-turn-status-copy small {
   color: var(--color-text-strong);
+}
+
+.player-turn-theme-generic {
+  --player-turn-frame-trim: #c9a45a;
+  --player-turn-frame-primary: color-mix(in srgb, var(--player-seat-color) 72%, #f3d98b 28%);
+  --player-turn-frame-accent: #f0c86a;
+}
+
+.player-turn-theme-barbarian {
+  --player-turn-frame-trim: #8f3d22;
+  --player-turn-frame-primary: #ef4444;
+  --player-turn-frame-accent: #f97316;
+  --player-turn-frame-fill: rgb(24 10 10 / 0.94);
+}
+
+.player-turn-theme-bard {
+  --player-turn-frame-trim: #d8a34d;
+  --player-turn-frame-primary: #d946ef;
+  --player-turn-frame-accent: #facc15;
+  --player-turn-frame-fill: rgb(20 12 28 / 0.94);
+}
+
+.player-turn-theme-cleric {
+  --player-turn-frame-trim: #f5d77b;
+  --player-turn-frame-primary: #f8fafc;
+  --player-turn-frame-accent: #fde68a;
+  --player-turn-frame-fill: rgb(16 20 24 / 0.94);
+}
+
+.player-turn-theme-druid {
+  --player-turn-frame-trim: #8b6f3f;
+  --player-turn-frame-primary: #22c55e;
+  --player-turn-frame-accent: #a3e635;
+  --player-turn-frame-fill: rgb(8 23 18 / 0.94);
+}
+
+.player-turn-theme-fighter {
+  --player-turn-frame-trim: #94a3b8;
+  --player-turn-frame-primary: #cbd5e1;
+  --player-turn-frame-accent: #f97316;
+  --player-turn-frame-fill: rgb(12 15 20 / 0.94);
+}
+
+.player-turn-theme-monk {
+  --player-turn-frame-trim: #c0842d;
+  --player-turn-frame-primary: #f59e0b;
+  --player-turn-frame-accent: #fef3c7;
+  --player-turn-frame-fill: rgb(22 15 9 / 0.94);
+}
+
+.player-turn-theme-paladin {
+  --player-turn-frame-trim: #f8d76f;
+  --player-turn-frame-primary: #e2e8f0;
+  --player-turn-frame-accent: #38bdf8;
+  --player-turn-frame-fill: rgb(14 17 23 / 0.94);
+}
+
+.player-turn-theme-ranger {
+  --player-turn-frame-trim: #8b5e34;
+  --player-turn-frame-primary: #16a34a;
+  --player-turn-frame-accent: #fbbf24;
+  --player-turn-frame-fill: rgb(9 22 16 / 0.94);
+}
+
+.player-turn-theme-rogue {
+  --player-turn-frame-trim: #64748b;
+  --player-turn-frame-primary: #a855f7;
+  --player-turn-frame-accent: #94a3b8;
+  --player-turn-frame-fill: rgb(14 12 21 / 0.94);
+}
+
+.player-turn-theme-sorcerer {
+  --player-turn-frame-trim: #f472b6;
+  --player-turn-frame-primary: #fb7185;
+  --player-turn-frame-accent: #22d3ee;
+  --player-turn-frame-fill: rgb(24 10 23 / 0.94);
+}
+
+.player-turn-theme-warlock {
+  --player-turn-frame-trim: #7c3aed;
+  --player-turn-frame-primary: #a855f7;
+  --player-turn-frame-accent: #84cc16;
+  --player-turn-frame-fill: rgb(17 10 25 / 0.94);
+}
+
+.player-turn-theme-wizard {
+  --player-turn-frame-trim: #60a5fa;
+  --player-turn-frame-primary: #38bdf8;
+  --player-turn-frame-accent: #facc15;
+  --player-turn-frame-fill: rgb(8 14 28 / 0.94);
+}
+
+.player-turn-theme-fighter .player-turn-frame-inner,
+.player-turn-theme-paladin .player-turn-frame-inner {
+  stroke-dasharray: none;
+}
+
+.player-turn-theme-bard .player-turn-frame-runes,
+.player-turn-theme-sorcerer .player-turn-frame-runes,
+.player-turn-theme-wizard .player-turn-frame-runes,
+.player-turn-theme-warlock .player-turn-frame-runes {
+  stroke-dasharray: 1 5;
+}
+
+.player-turn-theme-ranger .player-turn-frame-corners,
+.player-turn-theme-rogue .player-turn-frame-corners {
+  stroke-dasharray: 9 5;
 }
 
 .video-map-controls {

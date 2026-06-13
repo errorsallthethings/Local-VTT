@@ -446,6 +446,7 @@ it("normalizeCampaign normalizes campaign players", () => {
         id: "",
         name: "",
         color: "red",
+        indicatorTheme: "necromancer" as never,
         defaultSeatEdge: "side" as never,
         defaultSeatPosition: 9,
         visibleInPlayer: undefined as never
@@ -457,6 +458,7 @@ it("normalizeCampaign normalizes campaign players", () => {
     id: "player-1",
     name: "Player 1",
     color: "#7aa2f7",
+    indicatorTheme: "generic",
     defaultSeatEdge: "bottom",
     defaultSeatPosition: 1,
     visibleInPlayer: true

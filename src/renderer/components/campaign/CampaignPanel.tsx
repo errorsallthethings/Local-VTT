@@ -1,6 +1,7 @@
 import { ArchiveRestore, ChevronDown, ChevronRight, Clock3, Edit3, Eye, EyeOff, FolderOpen, Plus, Save, Settings2, Trash2, UserRoundPlus, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Asset, Campaign, CampaignPlayer } from "../../../shared/localvtt";
+import { PLAYER_INDICATOR_THEME_LABELS, PLAYER_INDICATOR_THEMES } from "../../../shared/localvtt";
+import type { Asset, Campaign, CampaignPlayer, PlayerIndicatorTheme } from "../../../shared/localvtt";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/dragTypes";
 import type { RecentCampaign } from "../../lib/recentCampaigns";
 
@@ -245,6 +246,17 @@ function CampaignPlayerRow({
               aria-label="Default seat position"
               onChange={(event) => onUpdate({ defaultSeatPosition: Number(event.target.value) / 100 })}
             />
+          </label>
+          <div className="campaign-player-settings-label">Turn Indicator</div>
+          <label>
+            <span>Theme</span>
+            <select value={player.indicatorTheme ?? "generic"} aria-label="Player turn indicator theme" onChange={(event) => onUpdate({ indicatorTheme: event.target.value as PlayerIndicatorTheme })}>
+              {PLAYER_INDICATOR_THEMES.map((theme) => (
+                <option key={theme} value={theme}>
+                  {PLAYER_INDICATOR_THEME_LABELS[theme]}
+                </option>
+              ))}
+            </select>
           </label>
           <div className="campaign-player-settings-actions">
             <button

@@ -305,6 +305,53 @@ export interface PlayerSeatIndicator {
   visibleInPlayer: boolean;
 }
 
+export type PlayerIndicatorTheme =
+  | "generic"
+  | "barbarian"
+  | "bard"
+  | "cleric"
+  | "druid"
+  | "fighter"
+  | "monk"
+  | "paladin"
+  | "ranger"
+  | "rogue"
+  | "sorcerer"
+  | "warlock"
+  | "wizard";
+
+export const PLAYER_INDICATOR_THEMES: PlayerIndicatorTheme[] = [
+  "generic",
+  "barbarian",
+  "bard",
+  "cleric",
+  "druid",
+  "fighter",
+  "monk",
+  "paladin",
+  "ranger",
+  "rogue",
+  "sorcerer",
+  "warlock",
+  "wizard"
+];
+
+export const PLAYER_INDICATOR_THEME_LABELS: Record<PlayerIndicatorTheme, string> = {
+  generic: "Generic",
+  barbarian: "Barbarian",
+  bard: "Bard",
+  cleric: "Cleric",
+  druid: "Druid",
+  fighter: "Fighter",
+  monk: "Monk",
+  paladin: "Paladin",
+  ranger: "Ranger",
+  rogue: "Rogue",
+  sorcerer: "Sorcerer",
+  warlock: "Warlock",
+  wizard: "Wizard"
+};
+
 export interface TurnOrderSettings {
   active: boolean;
   currentEntryId?: string;
@@ -368,6 +415,7 @@ export interface CampaignPlayer {
   name: string;
   color: string;
   assetId?: string;
+  indicatorTheme?: PlayerIndicatorTheme;
   defaultSeatEdge: "top" | "right" | "bottom" | "left";
   defaultSeatPosition: number;
   visibleInPlayer: boolean;
@@ -1111,6 +1159,10 @@ function isDicePanelFacing(value: unknown): value is DicePanelFacing {
   return value === "inward" || value === "outward";
 }
 
+function normalizePlayerIndicatorTheme(value: unknown): PlayerIndicatorTheme {
+  return PLAYER_INDICATOR_THEMES.includes(value as PlayerIndicatorTheme) ? (value as PlayerIndicatorTheme) : "generic";
+}
+
 function isUnitNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
@@ -1529,6 +1581,7 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
       id: typeof player.id === "string" && player.id.trim() ? player.id : `player-${index + 1}`,
       name: typeof player.name === "string" && player.name.trim() ? player.name : `Player ${index + 1}`,
       color: normalizeColor(player.color, DEFAULT_TOKEN_BORDER_COLOR),
+      indicatorTheme: normalizePlayerIndicatorTheme(player.indicatorTheme),
       defaultSeatEdge:
         player.defaultSeatEdge === "top" || player.defaultSeatEdge === "right" || player.defaultSeatEdge === "bottom" || player.defaultSeatEdge === "left" ? player.defaultSeatEdge : "bottom",
       defaultSeatPosition: clampNumber(player.defaultSeatPosition, 0, 1, 0.5),

@@ -1660,9 +1660,15 @@ function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; campaig
         const asset = player.assetId ? assetsById.get(player.assetId) : null;
         const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
         const status = entry.id === turnOrder.currentEntryId ? "current" : entry.id === nextEntry?.id ? "next" : "waiting";
+        const theme = player.indicatorTheme ?? "generic";
         const style = getPlayerTurnStatusStyle(player.defaultSeatEdge, player.defaultSeatPosition, player.color, reveal.progress);
         return (
-          <div key={player.id} className={`player-turn-status player-turn-status-${player.defaultSeatEdge} player-turn-status-${turnOrder.playerTurnStatusSize} player-turn-status-${status}`} style={style}>
+          <div
+            key={player.id}
+            className={`player-turn-status player-turn-status-${player.defaultSeatEdge} player-turn-status-${turnOrder.playerTurnStatusSize} player-turn-status-${status} player-turn-theme-${theme}`}
+            style={style}
+          >
+            <PlayerTurnStatusFrame />
             <span className="player-turn-status-avatar">
               {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : player.name.slice(0, 1).toUpperCase()}
             </span>
@@ -1674,6 +1680,19 @@ function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; campaig
         );
       })}
     </>
+  );
+}
+
+function PlayerTurnStatusFrame() {
+  return (
+    <svg className="player-turn-status-frame" viewBox="0 0 260 82" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path className="player-turn-frame-fill" d="M22 4H238L254 20V62L238 78H22L6 62V20L22 4Z" />
+      <path className="player-turn-frame-inner" d="M33 12H227L246 25V57L227 70H33L14 57V25L33 12Z" />
+      <path className="player-turn-frame-corners" d="M24 10L35 18M236 10L225 18M24 72L35 64M236 72L225 64M8 31L18 41L8 51M252 31L242 41L252 51" />
+      <path className="player-turn-frame-runes" d="M58 18H75M185 18H202M58 64H75M185 64H202" />
+      <circle className="player-turn-frame-gem" cx="31" cy="41" r="4.5" />
+      <circle className="player-turn-frame-gem" cx="229" cy="41" r="4.5" />
+    </svg>
   );
 }
 
