@@ -312,6 +312,7 @@ export interface TurnOrderSettings {
   playerViewEdge: "top" | "right" | "bottom" | "left";
   playerViewFacing: "inward" | "outward";
   playerViewSize: "xs" | "sm" | "md" | "lg" | "xl";
+  playerTurnStatusSize: "xs" | "sm" | "md" | "lg" | "xl";
   initiativeDiceCount: number;
   initiativeDiceSides: number;
   entries: TurnOrderEntry[];
@@ -574,6 +575,7 @@ export const DEFAULT_TURN_ORDER: TurnOrderSettings = {
   playerViewEdge: "top",
   playerViewFacing: "inward",
   playerViewSize: "md",
+  playerTurnStatusSize: "md",
   initiativeDiceCount: 1,
   initiativeDiceSides: 20,
   entries: [],
@@ -1445,6 +1447,10 @@ function normalizeTurnOrder(turnOrder?: Partial<TurnOrderSettings>): TurnOrderSe
       turnOrder?.playerViewSize === "xs" || turnOrder?.playerViewSize === "sm" || turnOrder?.playerViewSize === "lg" || turnOrder?.playerViewSize === "xl"
         ? turnOrder.playerViewSize
         : DEFAULT_TURN_ORDER.playerViewSize,
+    playerTurnStatusSize:
+      turnOrder?.playerTurnStatusSize === "xs" || turnOrder?.playerTurnStatusSize === "sm" || turnOrder?.playerTurnStatusSize === "lg" || turnOrder?.playerTurnStatusSize === "xl"
+        ? turnOrder.playerTurnStatusSize
+        : DEFAULT_TURN_ORDER.playerTurnStatusSize,
     initiativeDiceCount: clampNumber(turnOrder?.initiativeDiceCount, 1, 20, DEFAULT_TURN_ORDER.initiativeDiceCount),
     initiativeDiceSides: clampNumber(turnOrder?.initiativeDiceSides, 2, 100, DEFAULT_TURN_ORDER.initiativeDiceSides),
     entries,

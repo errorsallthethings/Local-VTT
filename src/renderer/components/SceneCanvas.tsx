@@ -1662,7 +1662,7 @@ function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; campaig
         const status = entry.id === turnOrder.currentEntryId ? "current" : entry.id === nextEntry?.id ? "next" : "waiting";
         const style = getPlayerTurnStatusStyle(player.defaultSeatEdge, player.defaultSeatPosition, player.color, reveal.progress);
         return (
-          <div key={player.id} className={`player-turn-status player-turn-status-${player.defaultSeatEdge} player-turn-status-${status}`} style={style}>
+          <div key={player.id} className={`player-turn-status player-turn-status-${player.defaultSeatEdge} player-turn-status-${turnOrder.playerTurnStatusSize} player-turn-status-${status}`} style={style}>
             <span className="player-turn-status-avatar">
               {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : player.name.slice(0, 1).toUpperCase()}
             </span>

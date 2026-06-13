@@ -170,10 +170,23 @@ export function TurnOrderPanel({ scene, campaignPlayers, tokenAssets, canStartTu
                 </select>
               </label>
               <label>
-                <span>Size</span>
+                <span>Tracker Size</span>
                 <select
                   value={turnOrder.playerViewSize}
                   onChange={(event) => updateTurnOrder({ playerViewSize: event.target.value as typeof turnOrder.playerViewSize })}
+                >
+                  <option value="xs">Extra Small</option>
+                  <option value="sm">Small</option>
+                  <option value="md">Medium</option>
+                  <option value="lg">Large</option>
+                  <option value="xl">Extra Large</option>
+                </select>
+              </label>
+              <label>
+                <span>Player Turn Size</span>
+                <select
+                  value={turnOrder.playerTurnStatusSize}
+                  onChange={(event) => updateTurnOrder({ playerTurnStatusSize: event.target.value as typeof turnOrder.playerTurnStatusSize })}
                 >
                   <option value="xs">Extra Small</option>
                   <option value="sm">Small</option>
