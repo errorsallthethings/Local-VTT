@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Circle, CloudFog, CloudSun, HelpCircle, LineSquiggle, Paintbrush, Pentagon, Ruler, Square, Table2, Target, Trash2, Undo2 } from "lucide-react";
+import { Circle, CloudFog, CloudSun, HelpCircle, LineSquiggle, Minus, Paintbrush, Pentagon, Ruler, Square, Table2, Target, Trash2, Triangle, Undo2 } from "lucide-react";
 import type { DrawingTool } from "../../canvas/drawingRenderer";
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getDrawingHelpLines, getFogHelpLines, getRulerHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
@@ -410,7 +410,7 @@ export function ToolsMenu({
             title="Freehand Drawing"
             onClick={() => setDrawingTool("freehand")}
           >
-            <Paintbrush size={17} aria-hidden="true" />
+            <LineSquiggle size={17} aria-hidden="true" />
           </button>
           <button
             className={activeDrawingTool === "line" ? "tool-circle-button tool-active" : "tool-circle-button"}
@@ -418,7 +418,7 @@ export function ToolsMenu({
             title="Drawing Line"
             onClick={() => setDrawingTool("line")}
           >
-            <LineSquiggle size={17} aria-hidden="true" />
+            <Minus size={17} aria-hidden="true" />
           </button>
           <button
             className={activeDrawingTool === "circle" ? "tool-circle-button tool-active" : "tool-circle-button"}
@@ -442,7 +442,7 @@ export function ToolsMenu({
             title="Cone Template"
             onClick={() => setDrawingTool("cone")}
           >
-            <Pentagon size={17} aria-hidden="true" />
+            <Triangle size={17} aria-hidden="true" />
           </button>
           <button
             className="tool-circle-button"
