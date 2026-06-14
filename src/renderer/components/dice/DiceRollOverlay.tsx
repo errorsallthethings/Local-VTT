@@ -160,8 +160,8 @@ function DiceRollCard({ event, mode, onDiceRollResolved }: { event: DiceRollEven
         startY: landing.startY,
         x: landing.startX,
         y: landing.startY,
-        vx: sceneRoll ? getSceneThrowVelocity(landing.startX, landing.baseX, visual.seed, index) : 0,
-        vy: sceneRoll ? getSceneThrowVelocity(landing.startY, landing.baseY, visual.seed, index + 8) : 0,
+        vx: sceneRoll ? getSceneThrowVelocity(landing.startX, landing.baseX, visual.seed, index, visual) : 0,
+        vy: sceneRoll ? getSceneThrowVelocity(landing.startY, landing.baseY, visual.seed, index + 8, visual) : 0,
         radius: layout.scale * 0.94,
         body: null as RAPIER.RigidBody | null,
         baseScale: die.scale.x,
@@ -714,7 +714,7 @@ function createScenePhysicsWorld(bounds: SceneRollBounds): RAPIER.World {
 
 function createSceneDiceBody(world: RAPIER.World, startX: number, startY: number, vx: number, vy: number, radius: number, visual: DiceVisual, index: number): RAPIER.RigidBody {
   const coinLike = visual.die === "coin" || visual.die === "d2";
-  const launchZ = coinLike ? 7.4 + seedRange(visual.seed, 50 + index, 2.8) : 6.6 + seedRange(visual.seed, 50 + index, 3.2);
+  const launchZ = coinLike ? 7.8 + seedRange(visual.seed, 50 + index, 2.8) : 8.4 + seedRange(visual.seed, 50 + index, 3.6);
   const angularVelocity = coinLike
     ? {
         x: (seedRange(visual.seed, 60 + index, 2) - 1) * 8 + 38,
@@ -722,13 +722,13 @@ function createSceneDiceBody(world: RAPIER.World, startX: number, startY: number
         z: (seedRange(visual.seed, 80 + index, 2) - 1) * 6
       }
     : {
-        x: (seedRange(visual.seed, 60 + index, 2) - 1) * 20 + 30,
-        y: (seedRange(visual.seed, 70 + index, 2) - 1) * 18 + 22,
-        z: (seedRange(visual.seed, 80 + index, 2) - 1) * 20 + 26
+        x: (seedRange(visual.seed, 60 + index, 2) - 1) * 23 + 36,
+        y: (seedRange(visual.seed, 70 + index, 2) - 1) * 21 + 26,
+        z: (seedRange(visual.seed, 80 + index, 2) - 1) * 23 + 31
       };
   const body = world.createRigidBody(
     RAPIER.RigidBodyDesc.dynamic()
-      .setTranslation(startX, startY, 1.02 + radius * (coinLike ? 1.3 : 0.78))
+      .setTranslation(startX, startY, 1.02 + radius * (coinLike ? 1.36 : 1.08))
       .setRotation(getSceneInitialRotation(visual, index))
       .setLinvel(vx, vy, launchZ)
       .setAngvel(angularVelocity)
@@ -927,9 +927,10 @@ function getCoinCenterPush(entry: { x: number; y: number }, bounds: SceneRollBou
   return push.x === 0 && push.y === 0 ? null : push;
 }
 
-function getSceneThrowVelocity(start: number, end: number, seed: number, offset: number): number {
-  const travelTime = 0.28 + seedRange(seed, offset + 32, 0.16);
-  const push = (seedRange(seed, offset + 42, 2) - 1) * 9.4;
+function getSceneThrowVelocity(start: number, end: number, seed: number, offset: number, visual: DiceVisual): number {
+  const coinLike = visual.die === "coin" || visual.die === "d2";
+  const travelTime = coinLike ? 0.28 + seedRange(seed, offset + 32, 0.16) : 0.23 + seedRange(seed, offset + 32, 0.13);
+  const push = (seedRange(seed, offset + 42, 2) - 1) * (coinLike ? 9.4 : 13.2);
   return (end - start) / travelTime + push;
 }
 
@@ -1576,16 +1577,17 @@ function makeFaceLabelMesh(
     context.fillText(label, canvas.width / 2, 132);
     if (underline) {
       const metrics = context.measureText(label);
-      const underlineWidth = Math.max(44, metrics.width * 0.88);
-      const underlineY = 132 + getFaceLabelFontSize(label) * 0.36;
+      const fontSize = getFaceLabelFontSize(label);
+      const underlineWidth = Math.max(fontSize * 0.34, Math.min(metrics.width * 0.62, fontSize * 0.52));
+      const underlineY = 132 + fontSize * 0.36;
       context.lineCap = "round";
-      context.lineWidth = 12;
+      context.lineWidth = Math.max(7, fontSize * 0.055);
       context.strokeStyle = color === "#f8fafc" ? "rgba(4, 8, 14, 0.5)" : "rgba(255, 255, 255, 0.24)";
       context.beginPath();
       context.moveTo(canvas.width / 2 - underlineWidth / 2, underlineY);
       context.lineTo(canvas.width / 2 + underlineWidth / 2, underlineY);
       context.stroke();
-      context.lineWidth = 7;
+      context.lineWidth = Math.max(4, fontSize * 0.034);
       context.strokeStyle = color;
       context.beginPath();
       context.moveTo(canvas.width / 2 - underlineWidth / 2, underlineY);

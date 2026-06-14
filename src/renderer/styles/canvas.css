@@ -435,20 +435,10 @@
 }
 
 .dice-roll-result-ring .dice-roll-result-underline {
-  position: relative;
-  text-decoration: none;
-}
-
-.dice-roll-result-ring .dice-roll-result-underline::after {
-  position: absolute;
-  bottom: -0.12em;
-  left: 50%;
-  width: 0.66em;
-  height: 0.08em;
-  border-radius: var(--radius-pill);
-  background: currentColor;
-  content: "";
-  transform: translateX(-50%);
+  text-decoration-line: underline;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.12em;
 }
 
 .dice-roll-result-dismiss {
