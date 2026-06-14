@@ -36,7 +36,7 @@ import type {
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ToolsMenu, type CanvasTool, type FogOperation, type WeatherMaskTool } from "../components/tools/ToolsMenu";
+import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type FogOperation, type WeatherMaskTool } from "../components/tools/ToolsMenu";
 import type { DrawingTool } from "../canvas/drawingRenderer";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -149,6 +149,7 @@ export function GmApp() {
   const [drawingColor, setDrawingColor] = useState("#ff0000");
   const [drawingOpacity, setDrawingOpacity] = useState(1);
   const [drawingStrokeWidth, setDrawingStrokeWidth] = useState(80);
+  const [drawingTemplateSize, setDrawingTemplateSize] = useState<DrawingTemplateSize>("custom");
   const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
   const [newFolderName, setNewFolderName] = useState("New Folder");
@@ -1542,6 +1543,7 @@ export function GmApp() {
               drawingColor={drawingColor}
               drawingOpacity={drawingOpacity}
               drawingStrokeWidth={drawingStrokeWidth}
+              drawingTemplateSize={drawingTemplateSize}
               pingSize={activeScene.tableTools.pingSize}
               pingColor={activeScene.tableTools.pingColor}
               fogShapeCount={activeScene.fog.shapes.length}
@@ -1560,6 +1562,7 @@ export function GmApp() {
               onDrawingColorChange={setDrawingColor}
               onDrawingOpacityChange={setDrawingOpacity}
               onDrawingStrokeWidthChange={setDrawingStrokeWidth}
+              onDrawingTemplateSizeChange={setDrawingTemplateSize}
               onPingSizeChange={(pingSize) =>
                 updateScene({
                   ...activeScene,
@@ -1589,6 +1592,7 @@ export function GmApp() {
             drawingColor={drawingColor}
             drawingOpacity={drawingOpacity}
             drawingStrokeWidth={drawingStrokeWidth}
+            drawingTemplateSize={drawingTemplateSize}
             fogTool={activeFogTool}
             weatherMaskTool={activeWeatherMaskTool}
             liveTableEvents={liveTableEvents}

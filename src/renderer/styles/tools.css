@@ -164,6 +164,10 @@
   padding: 5px 9px;
 }
 
+.tools-drawing-settings-template {
+  grid-template-columns: 40px 112px 104px 104px;
+}
+
 .tools-brush-size input {
   width: 100%;
   min-width: 0;
@@ -199,6 +203,11 @@
 .tools-strip-thickness-control {
   border-right: 1px solid var(--color-border-muted);
   padding-right: 8px;
+}
+
+.tools-strip-template-size-control {
+  border-left: 1px solid var(--color-border-muted);
+  padding-left: 8px;
 }
 
 .tools-strip-select-field > div {

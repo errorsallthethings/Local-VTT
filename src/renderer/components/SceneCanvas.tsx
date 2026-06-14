@@ -56,7 +56,7 @@ import { getVideoTransform } from "../canvas/videoMap";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
-import type { WeatherMaskTool } from "./tools/ToolsMenu";
+import type { DrawingTemplateSize, WeatherMaskTool } from "./tools/ToolsMenu";
 import {
   FOG_GRID_SNAP_HINT,
   getDrawingToolHint,
@@ -86,6 +86,7 @@ interface SceneCanvasProps {
   drawingColor?: string;
   drawingOpacity?: number;
   drawingStrokeWidth?: number;
+  drawingTemplateSize?: DrawingTemplateSize;
   fogTool?: FogTool | null;
   weatherMaskTool?: WeatherMaskTool | null;
   liveTableEvents?: LiveTableEvent[];
@@ -226,6 +227,7 @@ export function SceneCanvas({
   drawingColor = "#ff0000",
   drawingOpacity = 1,
   drawingStrokeWidth = 80,
+  drawingTemplateSize = "custom",
   fogTool = null,
   weatherMaskTool = null,
   liveTableEvents = [],
@@ -1242,7 +1244,7 @@ export function SceneCanvas({
 
     if (drawingDrag?.pointerId === event.pointerId) {
       const point = getDrawingToolPoint(event, drawingDrag.kind);
-      const current = drawingDrag.kind === "rectangle" ? constrainSquarePoint(drawingDrag.points[0], point) : point;
+      const current = getDrawingTemplateCurrentPoint(drawingDrag.points[0], point, drawingDrag.kind, scene, drawingTemplateSize);
       const nextPoints =
         drawingDrag.kind === "freehand" && shouldAddDrawingPoint(drawingDrag.points[drawingDrag.points.length - 1], current)
           ? [...drawingDrag.points, current]
@@ -1861,7 +1863,7 @@ export function SceneCanvas({
       {mode === "gm" && fogTool && (
         <FogToolStatusStrip fogTool={fogTool} polygonPointCount={polygonDraft?.points.length ?? 0} brushSize={scene?.fog.brushSize ?? 0} />
       )}
-      {mode === "gm" && drawingTool && <DrawingToolStatusStrip drawingTool={drawingTool} />}
+      {mode === "gm" && drawingTool && <DrawingToolStatusStrip drawingTool={drawingTool} drawingTemplateSize={drawingTemplateSize} />}
       {mode === "gm" && onMapCalibrationBox && <MapCalibrationStatusStrip />}
       {mode === "gm" && onMapCalibrationBox && activeCalibrationBox && calibrationSizeControlStyle && (
         <label className="map-calibration-size-control" style={calibrationSizeControlStyle} onPointerDown={(event) => event.stopPropagation()}>
@@ -2317,11 +2319,13 @@ function FogToolStatusStrip({
   );
 }
 
-function DrawingToolStatusStrip({ drawingTool }: { drawingTool: DrawingTool }) {
+function DrawingToolStatusStrip({ drawingTool, drawingTemplateSize }: { drawingTool: DrawingTool; drawingTemplateSize: DrawingTemplateSize }) {
+  const sizeLabel = drawingTemplateSize === "custom" || drawingTool === "freehand" ? "Custom size" : `${drawingTemplateSize} ft preset`;
   return (
     <div className="fog-tool-status" aria-live="polite">
       <strong>{getDrawingToolLabel(drawingTool)}</strong>
       <span>{getDrawingToolHint(drawingTool)}</span>
+      {drawingTool !== "freehand" && <span>{sizeLabel}</span>}
       <span>Escape cancels active drawing.</span>
       <span>Middle-click drag pans.</span>
     </div>
@@ -2723,6 +2727,37 @@ function getCanvasInteractionClass({
     return "scene-canvas-tool-circle";
   }
   return "scene-canvas-tool-rectangle";
+}
+
+function getDrawingTemplateCurrentPoint(start: Point, current: Point, tool: DrawingTool, scene: Scene | null, templateSize: DrawingTemplateSize): Point {
+  if (templateSize === "custom" || tool === "freehand") {
+    return tool === "rectangle" ? constrainSquarePoint(start, current) : current;
+  }
+
+  const distancePx = getTemplateDistancePixels(scene, templateSize);
+  if (!distancePx) {
+    return tool === "rectangle" ? constrainSquarePoint(start, current) : current;
+  }
+
+  if (tool === "rectangle") {
+    return {
+      x: start.x + distancePx * (current.x >= start.x ? 1 : -1),
+      y: start.y + distancePx * (current.y >= start.y ? 1 : -1)
+    };
+  }
+
+  const distance = Math.max(0.001, distanceBetween(start, current));
+  return {
+    x: start.x + ((current.x - start.x) / distance) * distancePx,
+    y: start.y + ((current.y - start.y) / distance) * distancePx
+  };
+}
+
+function getTemplateDistancePixels(scene: Scene | null, templateSize: Exclude<DrawingTemplateSize, "custom">): number | null {
+  if (!scene || scene.grid.type === "gridless" || scene.grid.sizePx <= 0 || scene.grid.measurement.unitsPerGridCell <= 0) {
+    return null;
+  }
+  return (templateSize / scene.grid.measurement.unitsPerGridCell) * scene.grid.sizePx;
 }
 
 function isSnapModifier(event: React.PointerEvent<HTMLCanvasElement>): boolean {

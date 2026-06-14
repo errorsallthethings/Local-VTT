@@ -8,6 +8,7 @@ import { ColorInput } from "../controls/ColorPickerField";
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";
 export type WeatherMaskTool = "rectangle" | "circle" | "polygon";
+export type DrawingTemplateSize = "custom" | 5 | 10 | 15 | 20 | 30 | 60 | 100;
 type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
 
 const BRUSH_SIZE_PRESETS = [
@@ -25,6 +26,8 @@ const DRAWING_OPACITY_PRESETS = [
   { label: "Solid", value: 1 }
 ];
 
+const TEMPLATE_SIZE_PRESETS: DrawingTemplateSize[] = ["custom", 5, 10, 15, 20, 30, 60, 100];
+
 interface ToolsMenuProps {
   activeCanvasTool: CanvasTool | null;
   activeFogTool: FogTool | null;
@@ -35,6 +38,7 @@ interface ToolsMenuProps {
   drawingColor: string;
   drawingOpacity: number;
   drawingStrokeWidth: number;
+  drawingTemplateSize: DrawingTemplateSize;
   pingSize: number;
   pingColor: string;
   fogShapeCount: number;
@@ -50,6 +54,7 @@ interface ToolsMenuProps {
   onDrawingColorChange: (color: string) => void;
   onDrawingOpacityChange: (opacity: number) => void;
   onDrawingStrokeWidthChange: (strokeWidth: number) => void;
+  onDrawingTemplateSizeChange: (size: DrawingTemplateSize) => void;
   onPingSizeChange: (pingSize: number) => void;
   onPingColorChange: (pingColor: string) => void;
   onUndoFogShape: () => void;
@@ -68,6 +73,7 @@ export function ToolsMenu({
   drawingColor,
   drawingOpacity,
   drawingStrokeWidth,
+  drawingTemplateSize,
   pingSize,
   pingColor,
   fogShapeCount,
@@ -83,6 +89,7 @@ export function ToolsMenu({
   onDrawingColorChange,
   onDrawingOpacityChange,
   onDrawingStrokeWidthChange,
+  onDrawingTemplateSizeChange,
   onPingSizeChange,
   onPingColorChange,
   onUndoFogShape,
@@ -99,6 +106,7 @@ export function ToolsMenu({
   const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
   const [helpTopic, setHelpTopic] = useState<"drawing" | "fog" | "ruler" | "weather" | null>(null);
   const activeFogShape = getActiveFogShape(activeFogTool);
+  const templateToolActive = isTemplateDrawingTool(activeDrawingTool);
 
   useEffect(() => {
     if (activeFogTool) {
@@ -454,7 +462,7 @@ export function ToolsMenu({
           >
             <HelpCircle size={17} aria-hidden="true" />
           </button>
-          <div className="tools-drawing-settings">
+          <div className={templateToolActive ? "tools-drawing-settings tools-drawing-settings-template" : "tools-drawing-settings"}>
             <label className="tools-strip-field tools-strip-color-field">
               <span>Color</span>
               <ColorInput className="tools-drawing-color" value={drawingColor} aria-label="Drawing color" title="Drawing color" onChange={onDrawingColorChange} />
@@ -509,6 +517,28 @@ export function ToolsMenu({
                 </select>
               </div>
             </div>
+            {templateToolActive && (
+              <div className="tools-strip-select-field tools-strip-template-size-control">
+                <strong>Size</strong>
+                <div>
+                  <select
+                    aria-label="Template size"
+                    title="Template size"
+                    value={String(drawingTemplateSize)}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      onDrawingTemplateSizeChange(value === "custom" ? "custom" : (Number(value) as DrawingTemplateSize));
+                    }}
+                  >
+                    {TEMPLATE_SIZE_PRESETS.map((size) => (
+                      <option key={size} value={size}>
+                        {size === "custom" ? "Custom" : `${size} ft`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
             {(drawingThicknessCustomOpen || !hasPresetValue(BRUSH_SIZE_PRESETS, drawingStrokeWidth)) && (
               <div className="tools-strip-advanced-slider tools-strip-thickness-slider">
                 <input
@@ -739,4 +769,8 @@ function getActiveFogShape(tool: FogTool | null): FogToolShape | null {
     return "circle";
   }
   return "rectangle";
+}
+
+function isTemplateDrawingTool(tool: DrawingTool | null): boolean {
+  return tool === "line" || tool === "circle" || tool === "rectangle" || tool === "cone";
 }
