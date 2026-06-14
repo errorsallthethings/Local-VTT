@@ -1,8 +1,14 @@
-import type { LiveTableEvent } from "../../shared/localvtt";
+import type { DiceDisplayMode, DiceSettings, LiveTableEvent } from "../../shared/localvtt";
 
 export type DiceType = Extract<LiveTableEvent, { type: "dice" }>["die"];
 export type DiceVisualRoll = NonNullable<Extract<LiveTableEvent, { type: "dice" }>["dice"]>[number];
 export type DiceRollTone = "critical" | "fumble" | "max" | "normal";
+export type EffectiveDiceDisplayModes = {
+  gmDisplayMode: DiceDisplayMode;
+  playerDisplayMode: DiceDisplayMode;
+  gmPanelAdvanced: boolean;
+  playerPanelAdvanced: boolean;
+};
 
 export const DICE_TYPES: DiceType[] = ["coin", "d4", "d6", "d8", "d10", "d00", "d12", "d20"];
 export const DICE_EVENT_DURATION_MS = 5200;
@@ -11,6 +17,31 @@ export const MAX_COMPOSER_DICE = 12;
 const MAX_INLINE_BREAKDOWN_DICE = 6;
 const MAX_COMPACT_BREAKDOWN_DICE = 6;
 const DICE_EXPRESSION_ERROR = "Use dice like d20, d20a, d20d, 4d6kh3, 4d6dl1, 2d6+3, d20+d4+5, or d%.";
+
+export function getEffectiveDiceDisplayModes(settings: Pick<DiceSettings, "gmDisplayMode" | "playerDisplayMode" | "sceneRollEnabled" | "sceneRollTarget" | "gmPanelAdvanced" | "playerPanelAdvanced">): EffectiveDiceDisplayModes {
+  if (settings.sceneRollEnabled) {
+    if (settings.sceneRollTarget === "player") {
+      return {
+        gmDisplayMode: "scene-result",
+        playerDisplayMode: "scene",
+        gmPanelAdvanced: false,
+        playerPanelAdvanced: settings.playerPanelAdvanced
+      };
+    }
+    return {
+      gmDisplayMode: "scene",
+      playerDisplayMode: "hidden",
+      gmPanelAdvanced: settings.gmPanelAdvanced,
+      playerPanelAdvanced: settings.playerPanelAdvanced
+    };
+  }
+  return {
+    gmDisplayMode: settings.gmDisplayMode === "panel" || settings.gmDisplayMode === "hidden" ? settings.gmDisplayMode : "results",
+    playerDisplayMode: settings.playerDisplayMode === "panel" || settings.playerDisplayMode === "hidden" ? settings.playerDisplayMode : "results",
+    gmPanelAdvanced: settings.gmPanelAdvanced,
+    playerPanelAdvanced: settings.playerPanelAdvanced
+  };
+}
 
 export function rollDie(die: DiceType, random = Math.random): { result: number; label: string } {
   if (die === "coin") {
@@ -158,10 +189,18 @@ export function formatDiceRollSummary(event: Extract<LiveTableEvent, { type: "di
 }
 
 export function formatDiceRollBreakdown(event: Extract<LiveTableEvent, { type: "dice" }>): string {
-  if (!event.dice || event.dice.length <= 1) {
+  if (!event.dice || event.dice.length === 0) {
     return formatDieLabel(event.die);
   }
+  const diceTotal = getDiceVisualTotal(event.dice);
+  const modifier = event.result - diceTotal;
+  if (event.dice.length <= 1) {
+    return modifier === 0 ? formatBreakdownDieLabel(event.dice[0]) : formatRollTotalExpression([formatBreakdownDieLabel(event.dice[0])], modifier);
+  }
   const diceLabels = event.dice.map(formatBreakdownDieLabel);
+  if (modifier !== 0 && diceLabels.length <= MAX_INLINE_BREAKDOWN_DICE) {
+    return formatRollTotalExpression(diceLabels, modifier);
+  }
   if (diceLabels.length <= MAX_INLINE_BREAKDOWN_DICE) {
     return diceLabels.join(" + ");
   }
@@ -179,12 +218,23 @@ export function formatDiceRollBreakdownTooltip(event: Extract<LiveTableEvent, { 
   return event.dice.map(formatBreakdownDieLabel).join(", ");
 }
 
+export function getDiceVisualTotal(dice: DiceVisualRoll[]): number {
+  const keptDice = dice.filter((die) => die.kept !== false);
+  const percentileTens = keptDice.find((die) => die.die === "d00");
+  const percentileOnes = keptDice.find((die) => die.die === "d10");
+  if (percentileTens && percentileOnes && keptDice.length === 2) {
+    return getPercentileTotal(percentileTens.label, percentileOnes.label);
+  }
+  return keptDice.reduce((total, die) => total + getDiceVisualValue(die), 0);
+}
+
 export function getDiceRollTone(event: Extract<LiveTableEvent, { type: "dice" }>): DiceRollTone {
   const dice = getEventDice(event).filter((die) => die.kept !== false);
-  if (dice.some((die) => die.die === "d20" && die.result === 20)) {
+  const countedD20Roll = getCountedD20Roll(dice);
+  if (countedD20Roll?.result === 20) {
     return "critical";
   }
-  if (dice.some((die) => die.die === "d20" && die.result === 1)) {
+  if (countedD20Roll?.result === 1) {
     return "fumble";
   }
   if (event.die === "coin") {
@@ -193,10 +243,12 @@ export function getDiceRollTone(event: Extract<LiveTableEvent, { type: "dice" }>
   if (event.die === "d00") {
     return getEventPercentileTotal(event) === 100 ? "max" : "normal";
   }
-  if (dice.some((die) => die.result === getDieMaxResult(die.die))) {
-    return "max";
-  }
   return "normal";
+}
+
+function getCountedD20Roll(dice: DiceVisualRoll[]): DiceVisualRoll | null {
+  const d20Rolls = dice.filter((die) => die.die === "d20");
+  return d20Rolls.length === 1 ? d20Rolls[0] : null;
 }
 
 export function getPercentileTotal(tensLabel: string, onesLabel: string): number {
@@ -219,6 +271,24 @@ function getEventPercentileTotal(event: Extract<LiveTableEvent, { type: "dice" }
 
 function formatBreakdownDieLabel(die: DiceVisualRoll): string {
   return die.kept === false ? `(${die.label})` : die.label;
+}
+
+function formatRollTotalExpression(diceLabels: string[], modifier: number): string {
+  const modifierLabel = modifier > 0 ? `+ ${modifier}` : `- ${Math.abs(modifier)}`;
+  return `${diceLabels.join(" + ")} ${modifierLabel}`;
+}
+
+function getDiceVisualValue(die: DiceVisualRoll): number {
+  if (die.die === "coin") {
+    return die.label === "Tails" ? 2 : 1;
+  }
+  if (die.die === "d10") {
+    return die.label === "0" ? 10 : die.result;
+  }
+  if (die.die === "d00") {
+    return die.label === "00" ? 100 : die.result;
+  }
+  return die.result;
 }
 
 type DiceExpressionTerm = DiceExpressionDiceTerm | DiceExpressionModifierTerm;
@@ -383,10 +453,6 @@ export function getDieSides(die: DiceType): number {
     return 20;
   }
   return 10;
-}
-
-function getDieMaxResult(die: DiceType): number {
-  return die === "d00" ? 90 : getDieSides(die);
 }
 
 export function formatDieLabel(die: DiceType): string {

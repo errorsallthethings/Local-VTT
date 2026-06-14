@@ -285,6 +285,11 @@ export interface VideoPlaybackSettings {
   muted: boolean;
 }
 
+export interface TableToolSettings {
+  pingSize: number;
+  pingColor: string;
+}
+
 export interface TurnOrderEntry {
   id: string;
   name: string;
@@ -305,6 +310,53 @@ export interface PlayerSeatIndicator {
   visibleInPlayer: boolean;
 }
 
+export type PlayerIndicatorTheme =
+  | "generic"
+  | "barbarian"
+  | "bard"
+  | "cleric"
+  | "druid"
+  | "fighter"
+  | "monk"
+  | "paladin"
+  | "ranger"
+  | "rogue"
+  | "sorcerer"
+  | "warlock"
+  | "wizard";
+
+export const PLAYER_INDICATOR_THEMES: PlayerIndicatorTheme[] = [
+  "generic",
+  "barbarian",
+  "bard",
+  "cleric",
+  "druid",
+  "fighter",
+  "monk",
+  "paladin",
+  "ranger",
+  "rogue",
+  "sorcerer",
+  "warlock",
+  "wizard"
+];
+
+export const PLAYER_INDICATOR_THEME_LABELS: Record<PlayerIndicatorTheme, string> = {
+  generic: "Generic",
+  barbarian: "Barbarian",
+  bard: "Bard",
+  cleric: "Cleric",
+  druid: "Druid",
+  fighter: "Fighter",
+  monk: "Monk",
+  paladin: "Paladin",
+  ranger: "Ranger",
+  rogue: "Rogue",
+  sorcerer: "Sorcerer",
+  warlock: "Warlock",
+  wizard: "Wizard"
+};
+
 export interface TurnOrderSettings {
   active: boolean;
   currentEntryId?: string;
@@ -312,6 +364,7 @@ export interface TurnOrderSettings {
   playerViewEdge: "top" | "right" | "bottom" | "left";
   playerViewFacing: "inward" | "outward";
   playerViewSize: "xs" | "sm" | "md" | "lg" | "xl";
+  playerTurnStatusSize: "xs" | "sm" | "md" | "lg" | "xl";
   initiativeDiceCount: number;
   initiativeDiceSides: number;
   entries: TurnOrderEntry[];
@@ -339,6 +392,7 @@ export interface Scene {
   overlays: SceneOverlay[];
   turnOrder: TurnOrderSettings;
   videoPlayback: VideoPlaybackSettings;
+  tableTools: TableToolSettings;
   notes: string;
   playerView: {
     backgroundColor: string;
@@ -367,6 +421,7 @@ export interface CampaignPlayer {
   name: string;
   color: string;
   assetId?: string;
+  indicatorTheme?: PlayerIndicatorTheme;
   defaultSeatEdge: "top" | "right" | "bottom" | "left";
   defaultSeatPosition: number;
   visibleInPlayer: boolean;
@@ -449,7 +504,7 @@ export interface DiceSettings {
 }
 
 export const DEFAULT_DICE_SETTINGS: DiceSettings = {
-  gmDisplayMode: "results",
+  gmDisplayMode: "panel",
   playerDisplayMode: "hidden",
   sceneRollEnabled: false,
   sceneRollTarget: "gm",
@@ -470,6 +525,8 @@ export type LiveTableEvent =
       id: string;
       type: "ping";
       point: Point;
+      size?: number;
+      color?: string;
       createdAt: number;
     }
   | {
@@ -533,7 +590,7 @@ export const DEFAULT_GRID: GridSettings = {
   offsetY: 0,
   mapGridColumns: 44,
   mapGridRows: 25,
-  color: "#d8dee9",
+  color: "#ffffff",
   opacity: 0.45,
   lineThickness: 1,
   showOnGm: true,
@@ -568,12 +625,18 @@ export const DEFAULT_VIDEO_PLAYBACK: VideoPlaybackSettings = {
   muted: true
 };
 
+export const DEFAULT_TABLE_TOOLS: TableToolSettings = {
+  pingSize: 1,
+  pingColor: "#f6d365"
+};
+
 export const DEFAULT_TURN_ORDER: TurnOrderSettings = {
   active: false,
   playerViewVisible: false,
   playerViewEdge: "top",
   playerViewFacing: "inward",
   playerViewSize: "md",
+  playerTurnStatusSize: "md",
   initiativeDiceCount: 1,
   initiativeDiceSides: 20,
   entries: [],
@@ -939,6 +1002,7 @@ export function createDefaultScene(name: string): Scene {
     overlays: [],
     turnOrder: { ...DEFAULT_TURN_ORDER, entries: [], seats: [] },
     videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK },
+    tableTools: { ...DEFAULT_TABLE_TOOLS },
     notes: "",
     playerView: { ...DEFAULT_PLAYER_VIEW }
   };
@@ -1031,7 +1095,7 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
     return false;
   }
   if (value.type === "ping") {
-    return isPoint(value.point);
+    return isPoint(value.point) && (!("size" in value) || (typeof value.size === "number" && Number.isFinite(value.size))) && (!("color" in value) || typeof value.color === "string");
   }
   if (value.type === "laser") {
     return Array.isArray(value.points) && value.points.every((entry) => isRecord(entry) && isPoint(entry.point) && typeof entry.createdAt === "number");
@@ -1109,6 +1173,19 @@ function isDicePanelFacing(value: unknown): value is DicePanelFacing {
   return value === "inward" || value === "outward";
 }
 
+function normalizePlayerIndicatorTheme(value: unknown): PlayerIndicatorTheme {
+  return PLAYER_INDICATOR_THEMES.includes(value as PlayerIndicatorTheme) ? (value as PlayerIndicatorTheme) : "generic";
+}
+
+function normalizeTableTools(settings?: Partial<TableToolSettings>): TableToolSettings {
+  return {
+    ...DEFAULT_TABLE_TOOLS,
+    ...(settings ?? {}),
+    pingSize: clampNumber(settings?.pingSize, 0.5, 3, DEFAULT_TABLE_TOOLS.pingSize),
+    pingColor: normalizeColor(settings?.pingColor, DEFAULT_TABLE_TOOLS.pingColor)
+  };
+}
+
 function isUnitNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
@@ -1145,6 +1222,7 @@ export function normalizeScene(scene: Scene): Scene {
     overlays: scene.overlays ?? [],
     turnOrder: normalizeTurnOrder(scene.turnOrder),
     videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(scene.videoPlayback ?? {}) },
+    tableTools: normalizeTableTools(scene.tableTools),
     notes: scene.notes ?? "",
     playerView: { ...DEFAULT_PLAYER_VIEW, ...(scene.playerView ?? {}) }
   };
@@ -1445,6 +1523,10 @@ function normalizeTurnOrder(turnOrder?: Partial<TurnOrderSettings>): TurnOrderSe
       turnOrder?.playerViewSize === "xs" || turnOrder?.playerViewSize === "sm" || turnOrder?.playerViewSize === "lg" || turnOrder?.playerViewSize === "xl"
         ? turnOrder.playerViewSize
         : DEFAULT_TURN_ORDER.playerViewSize,
+    playerTurnStatusSize:
+      turnOrder?.playerTurnStatusSize === "xs" || turnOrder?.playerTurnStatusSize === "sm" || turnOrder?.playerTurnStatusSize === "lg" || turnOrder?.playerTurnStatusSize === "xl"
+        ? turnOrder.playerTurnStatusSize
+        : DEFAULT_TURN_ORDER.playerTurnStatusSize,
     initiativeDiceCount: clampNumber(turnOrder?.initiativeDiceCount, 1, 20, DEFAULT_TURN_ORDER.initiativeDiceCount),
     initiativeDiceSides: clampNumber(turnOrder?.initiativeDiceSides, 2, 100, DEFAULT_TURN_ORDER.initiativeDiceSides),
     entries,
@@ -1523,6 +1605,7 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
       id: typeof player.id === "string" && player.id.trim() ? player.id : `player-${index + 1}`,
       name: typeof player.name === "string" && player.name.trim() ? player.name : `Player ${index + 1}`,
       color: normalizeColor(player.color, DEFAULT_TOKEN_BORDER_COLOR),
+      indicatorTheme: normalizePlayerIndicatorTheme(player.indicatorTheme),
       defaultSeatEdge:
         player.defaultSeatEdge === "top" || player.defaultSeatEdge === "right" || player.defaultSeatEdge === "bottom" || player.defaultSeatEdge === "left" ? player.defaultSeatEdge : "bottom",
       defaultSeatPosition: clampNumber(player.defaultSeatPosition, 0, 1, 0.5),

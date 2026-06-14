@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { Camera } from "../camera";
 import type { RainWeatherEffectType, WeatherSettings } from "../../../shared/localvtt";
-import { createStreak, drawStormFlash, getCycleOffset, getDistanceToQuietArea, getMinimumWeatherDimension, getRainPreset, getWeatherClipPath, getWeatherDriftVector, getWeatherParticleCount, hash, smoothstep, type RainPreset, type RainStreak, type WeatherArea, type WeatherBounds } from "./weatherCore";
+import { createStreak, drawStormFlash, getCycleOffset, getDistanceToQuietArea, getMinimumWeatherDimension, getRainPreset, getWeatherDriftVector, getWeatherParticleCount, hash, smoothstep, type RainPreset, type RainStreak, type WeatherArea, type WeatherBounds } from "./weatherCore";
 
 export class RainRenderer {
   private renderer: THREE.WebGLRenderer | null = null;
@@ -9,9 +9,11 @@ export class RainRenderer {
   private camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
   private rain: THREE.LineSegments | null = null;
   private streaks: RainStreak[] = [];
+  private positions = new Float32Array(0);
+  private colors = new Float32Array(0);
   private signature = "";
 
-  draw(ctx: CanvasRenderingContext2D, area: WeatherArea, weather: WeatherSettings, camera: Camera, now: number, opacity: number) {
+  draw(ctx: CanvasRenderingContext2D, area: WeatherArea, weather: WeatherSettings, camera: Camera, now: number, opacity: number, clipPath: Path2D) {
     const bounds = area.clip;
     const preset = getRainPreset(weather.effect as RainWeatherEffectType);
     const width = ctx.canvas.clientWidth || bounds.width;
@@ -42,7 +44,7 @@ export class RainRenderer {
     renderer.render(this.scene, this.camera);
 
     ctx.save();
-    ctx.clip(getWeatherClipPath(area.clip, weather.masks, camera), "evenodd");
+    ctx.clip(clipPath, "evenodd");
     ctx.drawImage(renderer.domElement, 0, 0, width, height);
     if (preset.stormFlash) {
       drawStormFlash(ctx, area.clip, weather, now, opacity);
@@ -72,6 +74,8 @@ export class RainRenderer {
     this.rain = null;
     const count = getWeatherParticleCount(1050, preset.density, weather);
     this.streaks = Array.from({ length: count }, (_, index) => createStreak(area.clip, area.spawnPadding, preset, weather, index));
+    this.positions = new Float32Array(count * 2 * 3);
+    this.colors = new Float32Array(count * 2 * 3);
 
     const material = new THREE.LineBasicMaterial({
       transparent: true,
@@ -81,7 +85,10 @@ export class RainRenderer {
       vertexColors: true,
       blending: THREE.NormalBlending
     });
-    this.rain = new THREE.LineSegments(new THREE.BufferGeometry(), material);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(this.positions, 3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute("color", new THREE.BufferAttribute(this.colors, 3).setUsage(THREE.DynamicDrawUsage));
+    this.rain = new THREE.LineSegments(geometry, material);
     this.scene.add(this.rain);
   }
 
@@ -89,8 +96,6 @@ export class RainRenderer {
     if (!this.rain) {
       return;
     }
-    const positions: number[] = [];
-    const colors: number[] = [];
     const elapsed = now * 0.001;
     const color = new THREE.Color("#d9ecff");
     const centerX = bounds.left + bounds.width / 2;
@@ -98,6 +103,7 @@ export class RainRenderer {
     const drift = getWeatherDriftVector(weather);
     const maxWindDistance = getMinimumWeatherDimension(bounds) * 0.5 * drift.strength;
 
+    let offset = 0;
     for (const streak of this.streaks) {
       const rawFallProgress = streak.depth + elapsed * streak.speed * weather.speed * preset.speed * 2.15;
       const cycle = Math.floor(rawFallProgress);
@@ -133,14 +139,21 @@ export class RainRenderer {
       const nearZ = 1280 - fallProgress * 1180;
       const farZ = nearZ + length * 6.4;
 
-      positions.push(x - driftX * 0.5, y - driftY * 0.5, nearZ);
-      positions.push(x + driftX * 0.5, y + driftY * 0.5, farZ);
-      colors.push(color.r * alpha, color.g * alpha, color.b * alpha);
-      colors.push(color.r * alpha, color.g * alpha, color.b * alpha);
+      this.positions[offset] = x - driftX * 0.5;
+      this.positions[offset + 1] = y - driftY * 0.5;
+      this.positions[offset + 2] = nearZ;
+      this.positions[offset + 3] = x + driftX * 0.5;
+      this.positions[offset + 4] = y + driftY * 0.5;
+      this.positions[offset + 5] = farZ;
+      this.colors[offset] = color.r * alpha;
+      this.colors[offset + 1] = color.g * alpha;
+      this.colors[offset + 2] = color.b * alpha;
+      this.colors[offset + 3] = color.r * alpha;
+      this.colors[offset + 4] = color.g * alpha;
+      this.colors[offset + 5] = color.b * alpha;
+      offset += 6;
     }
 
-    this.rain.geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    this.rain.geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     this.rain.geometry.attributes.position.needsUpdate = true;
     this.rain.geometry.attributes.color.needsUpdate = true;
   }

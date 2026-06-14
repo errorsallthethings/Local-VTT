@@ -1,6 +1,8 @@
 import { ArchiveRestore, ChevronDown, ChevronRight, Clock3, Edit3, Eye, EyeOff, FolderOpen, Plus, Save, Settings2, Trash2, UserRoundPlus, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Asset, Campaign, CampaignPlayer } from "../../../shared/localvtt";
+import { PLAYER_INDICATOR_THEME_LABELS, PLAYER_INDICATOR_THEMES } from "../../../shared/localvtt";
+import type { Asset, Campaign, CampaignPlayer, PlayerIndicatorTheme } from "../../../shared/localvtt";
+import { ColorInput } from "../controls/ColorPickerField";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/dragTypes";
 import type { RecentCampaign } from "../../lib/recentCampaigns";
 
@@ -218,7 +220,7 @@ function CampaignPlayerRow({
         {previewPath && <span className="campaign-player-avatar-reset">Reset</span>}
       </button>
       <input className="campaign-player-name" value={player.name} aria-label="Player name" onChange={(event) => onUpdate({ name: event.target.value })} />
-      <input className="campaign-player-color" type="color" value={player.color} aria-label="Player color" onChange={(event) => onUpdate({ color: event.target.value })} />
+      <ColorInput className="campaign-player-color" value={player.color} aria-label="Player color" onChange={(color) => onUpdate({ color })} />
       <button className="icon-button campaign-player-settings" aria-label={`${player.name} settings`} title="Player settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>
         <Settings2 size={14} aria-hidden="true" />
       </button>
@@ -245,6 +247,17 @@ function CampaignPlayerRow({
               aria-label="Default seat position"
               onChange={(event) => onUpdate({ defaultSeatPosition: Number(event.target.value) / 100 })}
             />
+          </label>
+          <div className="campaign-player-settings-label">Turn Indicator</div>
+          <label>
+            <span>Theme</span>
+            <select value={player.indicatorTheme ?? "generic"} aria-label="Player turn indicator theme" onChange={(event) => onUpdate({ indicatorTheme: event.target.value as PlayerIndicatorTheme })}>
+              {PLAYER_INDICATOR_THEMES.map((theme) => (
+                <option key={theme} value={theme}>
+                  {PLAYER_INDICATOR_THEME_LABELS[theme]}
+                </option>
+              ))}
+            </select>
           </label>
           <div className="campaign-player-settings-actions">
             <button

@@ -9,6 +9,8 @@ import {
 } from "react";
 import {
   DEFAULT_DICE_SETTINGS,
+  DEFAULT_MAP_TRANSFORM,
+  PLAYER_INDICATOR_THEMES,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
@@ -24,7 +26,6 @@ import type {
   CampaignSceneEntry,
   CampaignSceneFolder,
   DisplayCalibration,
-  DiceDisplayMode,
   DiceSettings,
   LiveTableEvent,
   Point,
@@ -33,6 +34,7 @@ import type {
   TokenPresentationDefaults
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
+import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type CanvasTool, type FogOperation, type WeatherMaskTool } from "../components/tools/ToolsMenu";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
@@ -45,7 +47,7 @@ import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { moveSceneFolder } from "../lib/campaignActions";
-import { DICE_HISTORY_DURATION_MS, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
+import { DICE_HISTORY_DURATION_MS, getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import {
   RECENT_CAMPAIGNS_STORAGE_KEY,
   addRecentCampaign,
@@ -137,7 +139,7 @@ export function GmApp() {
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null);
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
   const [playerDisplayDialogOpen, setPlayerDisplayDialogOpen] = useState(false);
-  const [playerViewDisplayDialogOpen, setPlayerViewDisplayDialogOpen] = useState(false);
+  const [mapCalibrationAssistantOpen, setMapCalibrationAssistantOpen] = useState(false);
   const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasTool | null>(null);
   const [activeFogTool, setActiveFogTool] = useState<FogTool | null>(null);
   const [activeWeatherMaskTool, setActiveWeatherMaskTool] = useState<WeatherMaskTool | null>(null);
@@ -154,6 +156,8 @@ export function GmApp() {
   const [selectedFogShapeId, setSelectedFogShapeId] = useState<string | null>(null);
   const [selectedWeatherMaskId, setSelectedWeatherMaskId] = useState<string | null>(null);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+  const [mapCalibrationBox, setMapCalibrationBox] = useState<MapCalibrationBox | null>(null);
+  const [mapCalibrationBoxPicking, setMapCalibrationBoxPicking] = useState(false);
   const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
   const [playerDisplayMode, setPlayerDisplayMode] = useState<PlayerDisplayMode>("scene");
   const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
@@ -202,6 +206,11 @@ export function GmApp() {
     diceSettingsDraftRef.current = diceSettings;
   }, [diceSettings]);
 
+  useEffect(() => {
+    setMapCalibrationBox(null);
+    setMapCalibrationBoxPicking(false);
+  }, [activeScene?.id]);
+
   const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
     // Only sync the active edit to Player View when that same scene is already being shown to players.
     skipNextPlayerSceneAutoSyncRef.current = syncScene !== nextScene;
@@ -240,10 +249,14 @@ export function GmApp() {
     });
   };
 
+  const updateDiceRollHistory = useCallback((event: DiceRollEvent) => {
+    setDiceRollHistory((history) => [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, MAX_DICE_ROLL_HISTORY));
+  }, []);
+
   const emitLiveTableEvent = (event: LiveTableEvent) => {
     setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
     if (event.type === "dice") {
-      setDiceRollHistory((history) => [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, MAX_DICE_ROLL_HISTORY));
+      updateDiceRollHistory(event);
     } else if (event.type === "dice-clear") {
       setDiceRollHistory([]);
     }
@@ -255,43 +268,18 @@ export function GmApp() {
       if (isLiveTableEvent(event)) {
         setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
         if (event.type === "dice") {
-          setDiceRollHistory((history) => [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, MAX_DICE_ROLL_HISTORY));
+          updateDiceRollHistory(event);
         } else if (event.type === "dice-clear") {
           setDiceRollHistory([]);
         }
       }
     });
     return removeListener;
-  }, []);
-
-  const getEffectiveDiceDisplayModes = (): { gmDisplayMode: DiceDisplayMode; playerDisplayMode: DiceDisplayMode; gmPanelAdvanced: boolean; playerPanelAdvanced: boolean } => {
-    if (diceSettings.sceneRollEnabled) {
-      if (diceSettings.sceneRollTarget === "player") {
-        return {
-          gmDisplayMode: "scene-result",
-          playerDisplayMode: "scene",
-          gmPanelAdvanced: false,
-          playerPanelAdvanced: diceSettings.playerPanelAdvanced
-        };
-      }
-      return {
-        gmDisplayMode: "scene",
-        playerDisplayMode: "hidden",
-        gmPanelAdvanced: diceSettings.gmPanelAdvanced,
-        playerPanelAdvanced: diceSettings.playerPanelAdvanced
-      };
-    }
-    return {
-      gmDisplayMode: diceSettings.gmDisplayMode === "panel" ? "panel" : "results",
-      playerDisplayMode: diceSettings.playerDisplayMode === "panel" || diceSettings.playerDisplayMode === "hidden" ? diceSettings.playerDisplayMode : "results",
-      gmPanelAdvanced: diceSettings.gmPanelAdvanced,
-      playerPanelAdvanced: diceSettings.playerPanelAdvanced
-    };
-  };
+  }, [updateDiceRollHistory]);
 
   const rollTableDie = (die: DiceType) => {
     const roll = rollDiceEvent(die);
-    const diceDisplayModes = getEffectiveDiceDisplayModes();
+    const diceDisplayModes = getEffectiveDiceDisplayModes(diceSettings);
     setError(null);
     emitLiveTableEvent({
       ...roll,
@@ -317,7 +305,7 @@ export function GmApp() {
     try {
       const roll = rollDiceExpression(expression);
       const trimmedLabel = rollLabel?.trim();
-      const diceDisplayModes = getEffectiveDiceDisplayModes();
+      const diceDisplayModes = getEffectiveDiceDisplayModes(diceSettings);
       setError(null);
       emitLiveTableEvent({
         ...roll,
@@ -383,7 +371,8 @@ export function GmApp() {
       !sceneColorDialog &&
       !campaignNameDialogOpen &&
       !playerDisplayDialogOpen &&
-      !playerViewDisplayDialogOpen &&
+      !mapCalibrationAssistantOpen &&
+      !mapCalibrationBoxPicking &&
       !sceneToDelete &&
       !folderToDelete &&
       !mapAssetToDelete &&
@@ -410,7 +399,8 @@ export function GmApp() {
         setSceneColorDialog(null);
         setCampaignNameDialogOpen(false);
         setPlayerDisplayDialogOpen(false);
-        setPlayerViewDisplayDialogOpen(false);
+        setMapCalibrationAssistantOpen(false);
+        setMapCalibrationBoxPicking(false);
         setSceneToDelete(null);
         setFolderToDelete(null);
         setMapAssetToDelete(null);
@@ -441,8 +431,9 @@ export function GmApp() {
     tokenAssetToDelete,
     openFolderMenuId,
     openSceneMenuId,
+    mapCalibrationAssistantOpen,
+    mapCalibrationBoxPicking,
     playerDisplayDialogOpen,
-    playerViewDisplayDialogOpen,
     playerMenuOpen,
     sceneColorDialog,
     sceneDialog,
@@ -512,7 +503,7 @@ export function GmApp() {
     }
     const clearFogShapeSelection = (event: MouseEvent) => {
       const target = event.target;
-      if (target instanceof HTMLElement && target.closest(".fog-layer-shape-row")) {
+      if (target instanceof HTMLElement && (target.closest(".fog-layer-shape-row") || target.closest(".scene-canvas-frame"))) {
         return;
       }
       setSelectedFogShapeId(null);
@@ -630,7 +621,8 @@ export function GmApp() {
     onCampaignOpened: handleCampaignOpened,
     onMapAssetDeleteHandled: () => setMapAssetToDelete(null),
     onSceneDeleteHandled: () => setSceneToDelete(null),
-    onFolderDeleteHandled: () => setFolderToDelete(null)
+    onFolderDeleteHandled: () => setFolderToDelete(null),
+    shouldSyncSceneToPlayer: (sceneId) => sceneId === playerSceneId
   });
   const saveBeforeCloseRef = useRef(saveCampaignBeforeClose);
 
@@ -732,6 +724,7 @@ export function GmApp() {
           id: crypto.randomUUID(),
           name: `Player ${campaign.players.length + 1}`,
           color: DEFAULT_TOKEN_BORDER_COLOR,
+          indicatorTheme: PLAYER_INDICATOR_THEMES[0],
           defaultSeatEdge: "bottom",
           defaultSeatPosition: 0.5,
           visibleInPlayer: true
@@ -874,6 +867,83 @@ export function GmApp() {
     if (activeScene) {
       void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(nextCampaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
     }
+  };
+
+  const applyMapCalibration = (draft: MapCalibrationDraft) =>
+    run(async () => {
+      if (!activeScene) {
+        return;
+      }
+      const columns = Math.max(1, draft.mapGridColumns);
+      const rows = Math.max(1, draft.mapGridRows);
+      const boxGridPatch = getBoxCalibrationGridPatch(draft, mapCalibrationBox);
+      if (boxGridPatch) {
+        updateScene({
+          ...activeScene,
+          grid: {
+            ...activeScene.grid,
+            mapGridColumns: columns,
+            mapGridRows: rows,
+            ...boxGridPatch
+          },
+          mapTransform: {
+            ...activeScene.mapTransform,
+            fitMode: "manual"
+          },
+          updatedAt: new Date().toISOString()
+        });
+      } else if (draft.alignGridToMap && mapAsset?.absolutePath && mapAsset.mediaType === "image") {
+        const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath));
+        const cellWidth = dimensions.width / columns;
+        const cellHeight = dimensions.height / rows;
+        updateScene({
+          ...activeScene,
+          grid: {
+            ...activeScene.grid,
+            mapGridColumns: columns,
+            mapGridRows: rows,
+            sizePx: Math.max(1, Math.round(((cellWidth + cellHeight) / 2) * 100) / 100),
+            offsetX: 0,
+            offsetY: 0
+          },
+          mapTransform: { ...DEFAULT_MAP_TRANSFORM },
+          updatedAt: new Date().toISOString()
+        });
+      } else {
+        updateScene({
+          ...activeScene,
+          grid: {
+            ...activeScene.grid,
+            mapGridColumns: columns,
+            mapGridRows: rows
+          },
+          mapTransform: {
+            ...activeScene.mapTransform,
+            fitMode: draft.fitMode
+          },
+          updatedAt: new Date().toISOString()
+        });
+      }
+      setMapCalibrationBox(null);
+      setMapCalibrationAssistantOpen(false);
+    });
+
+  const startMapCalibrationBoxCapture = () => {
+    setMapCalibrationBox(null);
+    setMapCalibrationBoxPicking(true);
+    setMapCalibrationAssistantOpen(false);
+    clearActiveCanvasTools();
+  };
+
+  const captureMapCalibrationBox = (box: MapCalibrationBox) => {
+    setMapCalibrationBox(box);
+    setMapCalibrationBoxPicking(false);
+    setMapCalibrationAssistantOpen(true);
+  };
+
+  const cancelMapCalibrationBoxCapture = () => {
+    setMapCalibrationBoxPicking(false);
+    setMapCalibrationAssistantOpen(true);
   };
 
   const openSceneDialog = () => {
@@ -1401,8 +1471,8 @@ export function GmApp() {
             setPlayerDisplayDialogOpen(true);
             setPlayerMenuOpen(false);
           }}
-          onOpenPlayerViewDisplay={() => {
-            setPlayerViewDisplayDialogOpen(true);
+          onOpenMapCalibrationAssistant={() => {
+            setMapCalibrationAssistantOpen(true);
             setPlayerMenuOpen(false);
           }}
           onSetPlayerFullscreen={(fullscreen) => void setPlayerFullscreen(fullscreen)}
@@ -1451,6 +1521,8 @@ export function GmApp() {
               activeWeatherMaskTool={activeWeatherMaskTool}
               fogOperation={fogOperation}
               brushSize={activeScene.fog.brushSize}
+              pingSize={activeScene.tableTools.pingSize}
+              pingColor={activeScene.tableTools.pingColor}
               fogShapeCount={activeScene.fog.shapes.length}
               weatherMaskCount={activeScene.weather.masks.length}
               weatherToolsEnabled={
@@ -1462,6 +1534,20 @@ export function GmApp() {
               onWeatherMaskToolChange={setActiveWeatherMaskTool}
               onFogOperationChange={setFogOperation}
               onBrushSizeChange={(brushSize) => updateFog({ brushSize })}
+              onPingSizeChange={(pingSize) =>
+                updateScene({
+                  ...activeScene,
+                  tableTools: { ...activeScene.tableTools, pingSize },
+                  updatedAt: new Date().toISOString()
+                })
+              }
+              onPingColorChange={(pingColor) =>
+                updateScene({
+                  ...activeScene,
+                  tableTools: { ...activeScene.tableTools, pingColor },
+                  updatedAt: new Date().toISOString()
+                })
+              }
               onUndoFogShape={undoFogShape}
               onUndoWeatherMask={undoWeatherMask}
               onRequestClearFog={() => setConfirmClearFogOpen(true)}
@@ -1480,10 +1566,16 @@ export function GmApp() {
             selectedTokenId={selectedTokenId}
             onSceneChange={updateCanvasScene}
             onSelectToken={setSelectedTokenId}
+            onSelectFogShape={setSelectedFogShapeId}
+            onSelectWeatherMask={setSelectedWeatherMaskId}
             onAddTokenToTurnOrder={addSceneTokenToTurnOrder}
             onDropTokenAsset={dropLibraryTokenOnScene}
             onLiveTableEvent={emitLiveTableEvent}
+            onDiceRollResolved={updateDiceRollHistory}
             onViewportCenterChange={setGmCanvasCenter}
+            mapCalibrationBox={mapCalibrationBox}
+            onMapCalibrationBox={mapCalibrationBoxPicking ? captureMapCalibrationBox : undefined}
+            onMapCalibrationCancel={mapCalibrationBoxPicking ? cancelMapCalibrationBoxCapture : undefined}
           />
           {activeMapIsVideo && <VideoMapControls videoPlayback={videoPlayback} onUpdateVideoPlayback={updateVideoPlayback} />}
         </div>
@@ -1566,7 +1658,7 @@ export function GmApp() {
         tokenColorDialog={tokenColorDialog}
         campaignNameDialogOpen={campaignNameDialogOpen}
         playerDisplayDialogOpen={playerDisplayDialogOpen}
-        playerViewDisplayDialogOpen={playerViewDisplayDialogOpen}
+        mapCalibrationAssistantOpen={mapCalibrationAssistantOpen}
         sceneToDelete={sceneToDelete}
         folderToDelete={folderToDelete}
         mapAssetToDelete={mapAssetToDelete}
@@ -1574,6 +1666,8 @@ export function GmApp() {
         confirmClearFogOpen={confirmClearFogOpen}
         campaign={campaign}
         activeScene={activeScene}
+        mapAsset={mapAsset}
+        mapCalibrationBox={mapCalibrationBox}
         playerSceneId={playerSceneId}
         dirtySceneIds={dirtySceneIds}
         displays={displays}
@@ -1603,7 +1697,7 @@ export function GmApp() {
         onCancelTokenColorDialog={() => setTokenColorDialog(null)}
         onCancelCampaignNameDialog={() => setCampaignNameDialogOpen(false)}
         onCancelPlayerDisplayDialog={() => setPlayerDisplayDialogOpen(false)}
-        onCancelPlayerViewDisplayDialog={() => setPlayerViewDisplayDialogOpen(false)}
+        onCancelMapCalibrationAssistant={() => setMapCalibrationAssistantOpen(false)}
         onCancelSceneDelete={() => setSceneToDelete(null)}
         onCancelFolderDelete={() => setFolderToDelete(null)}
         onCancelMapAssetDelete={() => setMapAssetToDelete(null)}
@@ -1633,6 +1727,12 @@ export function GmApp() {
         onSubmitTokenBorderColor={submitTokenBorderColor}
         onSubmitCampaignName={submitCampaignName}
         onUpdatePlayerDisplay={updatePlayerDisplay}
+        onApplyMapCalibration={applyMapCalibration}
+        onStartMapCalibrationBoxCapture={startMapCalibrationBoxCapture}
+        onOpenPlayerViewSetupFromAssistant={() => {
+          setMapCalibrationAssistantOpen(false);
+          setPlayerDisplayDialogOpen(true);
+        }}
         onRefreshDisplays={refreshDisplays}
         onConfirmDeleteScene={(scene) => void confirmDeleteScene(scene)}
         onConfirmDeleteFolder={deleteFolder}
@@ -1721,6 +1821,36 @@ function formatCleanSaveState(saveState: string): string {
     return "Saved";
   }
   return saveState[0].toUpperCase() + saveState.slice(1);
+}
+
+function loadImageDimensions(src: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    image.onerror = () => reject(new Error("Unable to read the selected map image dimensions."));
+    image.src = src;
+  });
+}
+
+function getBoxCalibrationGridPatch(draft: MapCalibrationDraft, box: MapCalibrationBox | null): { sizePx: number; offsetX: number; offsetY: number } | null {
+  if (!box || draft.boxColumns <= 0 || draft.boxRows <= 0) {
+    return null;
+  }
+  const cellWidth = box.width / draft.boxColumns;
+  const cellHeight = box.height / draft.boxRows;
+  if (!Number.isFinite(cellWidth) || !Number.isFinite(cellHeight) || cellWidth <= 0 || cellHeight <= 0) {
+    return null;
+  }
+  const sizePx = Math.max(1, Math.round(((cellWidth + cellHeight) / 2) * 100) / 100);
+  return {
+    sizePx,
+    offsetX: positiveModulo(box.x, sizePx),
+    offsetY: positiveModulo(box.y, sizePx)
+  };
+}
+
+function positiveModulo(value: number, divisor: number): number {
+  return ((value % divisor) + divisor) % divisor;
 }
 
 function loadDiceSettingsPreference(): DiceSettings {

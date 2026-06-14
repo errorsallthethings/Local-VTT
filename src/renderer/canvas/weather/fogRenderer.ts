@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { Camera } from "../camera";
 import type { WeatherSettings } from "../../../shared/localvtt";
-import { FOG_PRESETS, createFogBanks, createFogDensityTexture, createFogHazeMesh, getQualityMultiplier, getWeatherClipPath, hash, isFogEffect, smoothstep, updateFogHazeMesh, type FogBank, type FogPreset, type WeatherArea, type WeatherBounds } from "./weatherCore";
+import { FOG_PRESETS, createFogBanks, createFogDensityTexture, createFogHazeMesh, getQualityMultiplier, hash, isFogEffect, smoothstep, updateFogHazeMesh, type FogBank, type FogPreset, type WeatherArea, type WeatherBounds } from "./weatherCore";
 
 export class FogRenderer {
   private renderer: THREE.WebGLRenderer | null = null;
@@ -17,7 +17,7 @@ export class FogRenderer {
   private quaternion = new THREE.Quaternion();
   private scale = new THREE.Vector3();
 
-  draw(ctx: CanvasRenderingContext2D, area: WeatherArea, weather: WeatherSettings, camera: Camera, now: number, opacity: number) {
+  draw(ctx: CanvasRenderingContext2D, area: WeatherArea, weather: WeatherSettings, camera: Camera, now: number, opacity: number, clipPath: Path2D) {
     if (!isFogEffect(weather.effect)) {
       return;
     }
@@ -55,7 +55,7 @@ export class FogRenderer {
     renderer.render(this.scene, this.camera);
 
     ctx.save();
-    ctx.clip(getWeatherClipPath(area.clip, weather.masks, camera), "evenodd");
+    ctx.clip(clipPath, "evenodd");
     ctx.drawImage(renderer.domElement, 0, 0, width, height);
     ctx.restore();
   }

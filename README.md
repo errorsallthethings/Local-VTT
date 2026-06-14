@@ -18,8 +18,10 @@ This version is intentionally not a full campaign-management VTT. Tokens are lig
 - Draw manual fog of war with brush, rectangle, circle, and polygon tools.
 - Add lightweight tokens, style them, reorder them, duplicate them, and animate visible Player View movement along waypoint paths.
 - Measure distance with a GM-only ruler, including waypoints, snapped grid points, crossed-cell highlights, and distance-mode readouts.
-- Use live Table Tools for click pings and a fading laser pointer trail.
-- Add configurable rain and fog weather effects from the Weather layer.
+- Use live Table Tools for configurable click pings and a fading laser pointer trail.
+- Run turn orders with campaign players, initiative values, Player View turn indicators, and display placement controls.
+- Roll dice from the GM toolbar with formulas, custom presets, recent history, text results, 3D Panels, and scene-based 3D physics rolls.
+- Add configurable rain, snow, fog, and sand weather effects from the Weather layer.
 - Store metadata-only backups for campaign and scene JSON before overwrites.
 
 ## Campaign Folder Format
@@ -72,31 +74,44 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Video map playback can be paused/resumed, muted/unmuted, and inspected with optional diagnostics from contextual GM canvas controls.
 - Map fit modes include Manual, Fit contain, Fit cover, and Actual size.
 - Static image maps can use known map grid dimensions, such as `44` by `25`, to fit the grid to the map's native pixel size.
+- Map Calibration Assistant can align imported image maps to known grid dimensions or a drawn calibration area.
+- GM View uses adaptive static map rendering quality to keep large maps responsive while Player View can preserve the source image where practical.
 - Player View can be opened, fullscreened, moved to a preferred display, exited from fullscreen, and closed from the Player View menu.
 - If a preferred Player View display is disconnected, Local VTT opens the Player View normally so the GM can drag it manually.
-- Player View Display and Player Display Scale are available from the Player View menu.
+- Player View Setup and Map Calibration Assistant are available from the Player View menu.
 
 ### Grid, Measurement, And Ruler
 
 - Grid modes support gridless, square, and hex scenes.
+- Grid controls include quick visibility, opacity reset, reusable color swatches, and fit-to-map helpers for static image maps.
 - Measurement settings are available from the Grid Layer when square or hex grids are active.
-- Player Display Scale stores campaign-level calibration for the external player-facing display.
-- Table Tools include the GM-only ruler, ping, and laser pointer.
+- Player View Setup stores campaign-level calibration for the external player-facing display.
+- Table Tools include the GM-only ruler, configurable ping, and laser pointer.
 - The ruler supports square, hex, and gridless scenes.
 - Ctrl/Cmd snaps ruler points to square grid centers or hex centers. Gridless measurement stays freeform.
 - Shift adds ruler waypoints while dragging. Right-click removes the last active ruler waypoint.
 - Escape clears the active ruler measurement.
 - The ruler highlights crossed squares/hexes and displays total path distance using the scene's Measurement settings.
 - When the selected distance mode is not Euclidean, the ruler also shows a straight-line comparison.
-- Ping sends a live attention marker to GM View and Player View when the GM clicks the map.
+- Ping sends a configurable live attention marker to GM View and Player View when the GM clicks the map.
 - Laser Pointer shows a live fading trail in GM View and Player View while the GM drags on the map.
+
+### Dice And Turn Order
+
+- Dice rolls support standard polyhedral dice, coin flips, percentile rolls, arithmetic modifiers, advantage/disadvantage, quick dice buttons, and custom presets.
+- Dice display settings are campaign-specific and can independently show or hide GM View and Player View results.
+- Dice results can render as text-only results, a 3D Panel, or a 3D Scene Roll with physics and delayed result reveal.
+- Recent dice roll history is capped and keeps delayed 3D/scene roll results in sync with the final visible result.
+- Turn orders can be built from campaign players or tokens, sorted by initiative, reset between encounters, and played/paused for Player View display.
+- Player View turn order indicators include configurable sizing, placement, facing, and player status styling.
 
 ### Weather Effects
 
 - Weather is configured per scene from the Weather layer.
 - Weather effects render as lightweight map-bound canvas overlays and respect GM View and Player View layer visibility.
-- Weather effects currently include rain patterns and fog patterns.
+- Weather effects currently include rain, snow, fog, and sand patterns.
 - Weather controls include effect, enabled state, intensity, opacity, speed, drift, masks, and advanced pattern tuning.
+- Weather masks can be selected from the GM canvas, highlighted in their layer list, and toggled from a context menu.
 
 ### Fog Of War
 
@@ -108,6 +123,7 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Ctrl/Cmd shows the nearest square grid-corner or hex-corner snap point for rectangle, circle, and polygon placement.
 - Polygon drawing supports Enter or double-click to finish, Escape to cancel, and right-click to remove the last active point.
 - Fog shapes appear as sub-layers under Fog of War with tool icons, rename, reorder, GM/Player visibility, delete controls, and temporary canvas highlighting.
+- Fog masks can be selected from the GM canvas, highlighted in their layer list, and toggled from a context menu while token selection keeps priority.
 - In partially or fully hidden fog modes, Player View tokens are shown only where a player-visible reveal shape overlaps them.
 
 ### Tokens And Token Library
@@ -131,6 +147,7 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Layer settings are collapsible. Map, Grid, Fog of War, and Tokens expose controls only when relevant.
 - Empty Campaign, Scenes, Layers, and Token Library areas show contextual helper text.
 - Fog and Grid color controls open a modal picker with native color selection and reusable swatches.
+- Player View Setup and Map Calibration use collapsible sections, inline help, readouts, and fixed footer actions.
 - The floating Tools Menu currently contains Fog of War tools and Table Tools.
 
 ## Future Ideas
@@ -337,11 +354,15 @@ Before packaging or sharing a build, run through these workflows:
 - Resize/collapse GM side panels and the Token Library drawer.
 - Change layer visibility and settings.
 - Draw, rename, reorder, toggle, and delete fog shapes.
+- Select weather and fog masks from the GM canvas and confirm token selection still takes priority.
 - Configure square, hex, and gridless scenes, including grid fit-to-map for static maps.
+- Use Player View Setup and Map Calibration Assistant on at least one static image map.
 - Add, duplicate, move, rename, resize, restyle, and delete tokens.
 - Confirm token presentation and movement sync to Player View.
 - Use the Token Library to import, rename, search, sort, set defaults, add, drag/drop, and delete tokens with usage warnings.
-- Use Table Tools: ruler on square, hex, and gridless scenes; ping by clicking; laser pointer by dragging.
+- Use Table Tools: ruler on square, hex, and gridless scenes; ping by clicking after changing size/color; laser pointer by dragging.
+- Build, clear, rebuild, play, pause, and advance a turn order; confirm Player View indicators update correctly.
+- Roll dice with quick dice, formulas with modifiers, custom presets, GM/Player Hidden display modes, 3D Panel, and 3D Scene Roll.
 - Close with unsaved scene changes, campaign-only changes, and both; confirm Save preserves changes and Close Without Saving discards them.
 - Confirm common failure messages are actionable, including missing recent campaigns, missing assets, and disconnected Player View displays.
 - Run `npm run check` and `npm run build`.
@@ -360,7 +381,7 @@ For packaged Windows builds, also run:
 ## Known Limitations
 
 - The Windows installer is not code signed, so Windows may show a publisher warning.
-- Local VTT does not currently include initiative tracking, health bars, permissions, character sheets, or combat automation.
+- Local VTT does not currently include health bars, permissions, character sheets, or combat automation.
 - Dynamic lighting, walls, doors, windows, and vision-aware fog are not implemented yet.
 - Token Library export/import packs are deferred.
 - Backups cover campaign and scene JSON metadata only; map, video, token, and thumbnail assets are not duplicated.
@@ -371,9 +392,9 @@ For packaged Windows builds, also run:
 These ideas are intentionally outside the current MVP unless they become release blockers:
 
 - Token Library export/import packs.
-- Initiative, health bars, conditions, permissions, and advanced token sheets.
+- Health bars, conditions, permissions, and advanced token sheets.
 - Full dynamic lighting, walls, doors, windows, and vision-aware fog.
-- Drawing layers, pings, laser pointer, spell templates, overlays, and animated effects.
+- Drawing layers, spell templates, overlays, and advanced animated effects.
 - Advanced token library tags, grouping, bulk editing, and external asset management.
 - Localization/string resource files after UI wording stabilizes.
 - Light/custom themes after the dark-theme CSS token structure is stable.

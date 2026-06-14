@@ -25,7 +25,7 @@ describe("workspace layout helpers", () => {
     expect(normalizeWorkspaceLayout({ leftWidth: 100, rightWidth: 900, leftCollapsed: true })).toEqual({
       leftWidth: 260,
       rightWidth: 520,
-      leftCollapsed: false,
+      leftCollapsed: true,
       rightCollapsed: false
     });
   });
@@ -41,6 +41,13 @@ describe("workspace layout helpers", () => {
     expect(loadWorkspaceLayout({ getItem: () => stored })).toEqual({
       leftWidth: 420,
       rightWidth: 250,
+      leftCollapsed: false,
+      rightCollapsed: true
+    });
+  });
+
+  it("falls back to default collapse state for invalid stored values", () => {
+    expect(normalizeWorkspaceLayout({ leftCollapsed: "yes" as unknown as boolean, rightCollapsed: 1 as unknown as boolean })).toMatchObject({
       leftCollapsed: false,
       rightCollapsed: false
     });

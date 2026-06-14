@@ -27,6 +27,203 @@
   gap: 10px;
 }
 
+.settings-section {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-section-collapsible {
+  min-width: 0;
+}
+
+.settings-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-section-toggle {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  padding: 0;
+  box-shadow: none;
+  text-align: left;
+}
+
+.settings-section-toggle:hover:not(:disabled),
+.settings-section-toggle:focus-visible {
+  background: transparent;
+  color: var(--color-text-strong);
+}
+
+.settings-section-toggle svg {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+}
+
+.settings-section-toggle strong {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-section-body {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.settings-field-control {
+  min-width: 0;
+}
+
+.settings-field-control input,
+.settings-field-control select {
+  width: 100%;
+  max-width: 260px;
+  height: 30px;
+  min-height: 30px;
+  min-width: 0;
+  padding: 5px 7px;
+  font-size: 12px;
+}
+
+.settings-control-cluster {
+  display: grid;
+  grid-template-columns: minmax(0, 260px) auto auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 328px;
+}
+
+.settings-inline-icon-button {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-soft);
+  padding: 0;
+}
+
+.settings-inline-icon-button:hover:not(:disabled),
+.settings-inline-icon-button:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-strong);
+}
+
+.settings-paired-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 134px));
+  gap: 8px;
+  min-width: 0;
+  max-width: 276px;
+}
+
+.settings-paired-inputs label {
+  display: grid !important;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center !important;
+  gap: 5px;
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.settings-paired-inputs input,
+.settings-paired-inputs select {
+  max-width: none;
+}
+
+.settings-field-check {
+  justify-content: start;
+}
+
+.settings-help-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.settings-help-field .setting-row {
+  grid-template-columns: 148px minmax(0, 1fr);
+}
+
+.settings-label-with-help {
+  display: grid;
+  grid-template-columns: 121px 22px;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.settings-label-with-help .measurement-help-button {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  min-height: 22px;
+}
+
+.settings-help-panel {
+  display: grid;
+  gap: 6px;
+  margin-left: 158px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-compact);
+  background: rgb(122 162 247 / 0.08);
+  color: var(--color-text-soft);
+  padding: 9px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.settings-help-panel p {
+  margin: 0;
+}
+
+.settings-readout-block {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.settings-readout-block > span {
+  color: var(--color-text-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settings-readout-block .calibration-readout {
+  border-color: transparent;
+  background: rgb(122 162 247 / 0.07);
+}
+
+.calibration-method-group {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  max-width: 360px;
+}
+
+.settings-section-heading strong {
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.settings-section-heading span {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
 .calibration-readout {
   border: 1px solid var(--color-border-muted);
   border-radius: var(--radius-control);
@@ -34,4 +231,46 @@
   color: var(--color-text-soft);
   padding: 8px;
   font-size: 12px;
+}
+
+.calibration-warning {
+  border: 1px solid rgb(246 195 67 / 0.45);
+  border-radius: var(--radius-control);
+  background: rgb(246 195 67 / 0.12);
+  color: #f4d589;
+  padding: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.calibration-method-option {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start !important;
+  gap: 8px;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-control);
+  background: rgb(18 24 33 / 0.72);
+  padding: 8px;
+}
+
+.calibration-method-option input {
+  margin-top: 2px;
+}
+
+.calibration-method-option span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.calibration-method-option strong {
+  color: var(--color-text);
+  font-size: 12px;
+}
+
+.calibration-method-option small {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.35;
 }

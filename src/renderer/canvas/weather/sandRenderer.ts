@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { Camera } from "../camera";
 import type { WeatherSettings } from "../../../shared/localvtt";
-import { SAND_PRESETS, createSandParticle, createSandVeilMesh, getMinimumWeatherDimension, getWeatherClipPath, getWeatherDriftVector, getWeatherParticleCount, isSandEffect, smoothstep, updateSandVeilMesh, type SandParticle, type SandPreset, type WeatherArea, type WeatherBounds } from "./weatherCore";
+import { SAND_PRESETS, createSandParticle, createSandVeilMesh, getMinimumWeatherDimension, getWeatherDriftVector, getWeatherParticleCount, isSandEffect, smoothstep, updateSandVeilMesh, type SandParticle, type SandPreset, type WeatherArea, type WeatherBounds } from "./weatherCore";
 
 export class SandRenderer {
   private renderer: THREE.WebGLRenderer | null = null;
@@ -10,9 +10,13 @@ export class SandRenderer {
   private veil: THREE.Mesh | null = null;
   private sand: THREE.Points | null = null;
   private particles: SandParticle[] = [];
+  private positions = new Float32Array(0);
+  private colors = new Float32Array(0);
+  private sizes = new Float32Array(0);
+  private alphas = new Float32Array(0);
   private signature = "";
 
-  draw(ctx: CanvasRenderingContext2D, area: WeatherArea, weather: WeatherSettings, camera: Camera, now: number, opacity: number) {
+  draw(ctx: CanvasRenderingContext2D, area: WeatherArea, weather: WeatherSettings, camera: Camera, now: number, opacity: number, clipPath: Path2D) {
     if (!isSandEffect(weather.effect)) {
       return;
     }
@@ -49,7 +53,7 @@ export class SandRenderer {
     renderer.render(this.scene, this.camera);
 
     ctx.save();
-    ctx.clip(getWeatherClipPath(bounds, weather.masks, camera), "evenodd");
+    ctx.clip(clipPath, "evenodd");
     ctx.drawImage(renderer.domElement, 0, 0, width, height);
     ctx.restore();
   }
@@ -79,6 +83,10 @@ export class SandRenderer {
 
     const count = getWeatherParticleCount(620, preset.density, weather);
     this.particles = Array.from({ length: count }, (_, index) => createSandParticle(bounds, weather, index));
+    this.positions = new Float32Array(count * 3);
+    this.colors = new Float32Array(count * 3);
+    this.sizes = new Float32Array(count);
+    this.alphas = new Float32Array(count);
     const material = new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
@@ -118,7 +126,12 @@ export class SandRenderer {
         }
       `
     });
-    this.sand = new THREE.Points(new THREE.BufferGeometry(), material);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(this.positions, 3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute("color", new THREE.BufferAttribute(this.colors, 3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute("particleSize", new THREE.BufferAttribute(this.sizes, 1).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute("particleAlpha", new THREE.BufferAttribute(this.alphas, 1).setUsage(THREE.DynamicDrawUsage));
+    this.sand = new THREE.Points(geometry, material);
     this.sand.renderOrder = 1;
     this.scene.add(this.sand);
   }
@@ -144,11 +157,8 @@ export class SandRenderer {
     const centerX = bounds.left + bounds.width / 2;
     const centerY = bounds.top + bounds.height / 2;
     const baseSize = getMinimumWeatherDimension(bounds);
-    const positions: number[] = [];
-    const colors: number[] = [];
-    const sizes: number[] = [];
-    const alphas: number[] = [];
 
+    let index = 0;
     for (const particle of this.particles) {
       const seedPhase = particle.seed * 0.001;
       const dustTime = elapsed * particle.speed * windForce + seedPhase * 20;
@@ -171,16 +181,18 @@ export class SandRenderer {
       const y = rawY + crossY * turbulenceDistance * swirlX + tangentY * swirlDistance * swirlY + directionY * baseSize * 0.025 * gust;
       const alpha = particle.centerFade * cycleFade * (0.24 + particle.depth * 0.54) * (0.78 + preset.turbulence * 0.24);
       const size = Math.max(1.8, 2.8 * preset.size * weather.streakLength * particle.size * (0.9 + particle.depth * 1.55));
-      positions.push(x, y, 860 + particle.depth * 160);
-      colors.push(color.r, color.g, color.b);
-      sizes.push(size);
-      alphas.push(alpha);
+      const vertexOffset = index * 3;
+      this.positions[vertexOffset] = x;
+      this.positions[vertexOffset + 1] = y;
+      this.positions[vertexOffset + 2] = 860 + particle.depth * 160;
+      this.colors[vertexOffset] = color.r;
+      this.colors[vertexOffset + 1] = color.g;
+      this.colors[vertexOffset + 2] = color.b;
+      this.sizes[index] = size;
+      this.alphas[index] = alpha;
+      index += 1;
     }
 
-    this.sand.geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    this.sand.geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    this.sand.geometry.setAttribute("particleSize", new THREE.Float32BufferAttribute(sizes, 1));
-    this.sand.geometry.setAttribute("particleAlpha", new THREE.Float32BufferAttribute(alphas, 1));
     this.sand.geometry.attributes.position.needsUpdate = true;
     this.sand.geometry.attributes.color.needsUpdate = true;
     this.sand.geometry.attributes.particleSize.needsUpdate = true;

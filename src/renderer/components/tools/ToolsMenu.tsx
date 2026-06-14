@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Circle, CloudFog, CloudSun, HelpCircle, LineSquiggle, Paintbrush, Pentagon, Ruler, Square, Table2, Target, Trash2, Undo2 } from "lucide-react";
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getFogHelpLines, getRulerHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
+import { ColorInput } from "../controls/ColorPickerField";
 
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";
@@ -14,6 +15,8 @@ interface ToolsMenuProps {
   activeWeatherMaskTool: WeatherMaskTool | null;
   fogOperation: FogOperation;
   brushSize: number;
+  pingSize: number;
+  pingColor: string;
   fogShapeCount: number;
   weatherMaskCount: number;
   weatherToolsEnabled: boolean;
@@ -22,6 +25,8 @@ interface ToolsMenuProps {
   onWeatherMaskToolChange: (tool: WeatherMaskTool | null) => void;
   onFogOperationChange: (operation: FogOperation) => void;
   onBrushSizeChange: (brushSize: number) => void;
+  onPingSizeChange: (pingSize: number) => void;
+  onPingColorChange: (pingColor: string) => void;
   onUndoFogShape: () => void;
   onUndoWeatherMask: () => void;
   onRequestClearFog: () => void;
@@ -33,6 +38,8 @@ export function ToolsMenu({
   activeWeatherMaskTool,
   fogOperation,
   brushSize,
+  pingSize,
+  pingColor,
   fogShapeCount,
   weatherMaskCount,
   weatherToolsEnabled,
@@ -41,6 +48,8 @@ export function ToolsMenu({
   onWeatherMaskToolChange,
   onFogOperationChange,
   onBrushSizeChange,
+  onPingSizeChange,
+  onPingColorChange,
   onUndoFogShape,
   onUndoWeatherMask,
   onRequestClearFog
@@ -360,6 +369,22 @@ export function ToolsMenu({
           >
             <HelpCircle size={17} aria-hidden="true" />
           </button>
+          {activeCanvasTool === "ping" && (
+            <div className="tools-ping-settings">
+              <input
+                aria-label="Ping size"
+                title="Ping size"
+                type="range"
+                min={0.5}
+                max={3}
+                step={0.1}
+                value={pingSize}
+                onChange={(event) => onPingSizeChange(Number(event.target.value))}
+              />
+              <span>{Math.round(pingSize * 100)}%</span>
+              <ColorInput className="tools-ping-color" value={pingColor} aria-label="Ping color" title="Ping color" onChange={onPingColorChange} />
+            </div>
+          )}
         </div>
       )}
       {helpTopic && <ToolHelpCard topic={helpTopic} />}

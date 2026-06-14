@@ -1,15 +1,21 @@
 import type { Scene } from "../../shared/localvtt";
 
-export function drawMapSource(ctx: CanvasRenderingContext2D, source: CanvasImageSource, scene: Scene, viewportWidth: number, viewportHeight: number) {
-  const sourceWidth = getSourceWidth(source);
-  const sourceHeight = getSourceHeight(source);
+export function drawMapSource(
+  ctx: CanvasRenderingContext2D,
+  source: CanvasImageSource,
+  scene: Scene,
+  viewportWidth: number,
+  viewportHeight: number,
+  sourceWidth = getSourceWidth(source),
+  sourceHeight = getSourceHeight(source)
+) {
   const transform = resolveMapTransform(scene, sourceWidth, sourceHeight, viewportWidth, viewportHeight);
 
   ctx.save();
   ctx.translate(transform.x, transform.y);
   ctx.rotate((transform.rotation * Math.PI) / 180);
   ctx.scale(transform.scale, transform.scale);
-  ctx.drawImage(source, 0, 0);
+  ctx.drawImage(source, 0, 0, sourceWidth, sourceHeight);
   ctx.restore();
 }
 

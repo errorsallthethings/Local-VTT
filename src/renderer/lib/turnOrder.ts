@@ -42,7 +42,8 @@ export function createTurnOrderEntryFromPlayer(id: string, player: CampaignPlaye
 }
 
 export function addTurnOrderEntry(scene: Scene, entry: TurnOrderEntry, updatedAt = new Date().toISOString()): Scene {
-  return patchTurnOrder(scene, { entries: [...scene.turnOrder.entries, entry], currentEntryId: scene.turnOrder.currentEntryId ?? entry.id }, updatedAt);
+  const entries = [...scene.turnOrder.entries, entry];
+  return patchTurnOrder(scene, { entries, currentEntryId: getValidCurrentEntryId(entries, scene.turnOrder.currentEntryId) ?? entry.id }, updatedAt);
 }
 
 export function addPlayersToTurnOrder(scene: Scene, players: CampaignPlayer[], updatedAt = new Date().toISOString()): Scene {
@@ -57,7 +58,7 @@ export function addPlayersToTurnOrder(scene: Scene, players: CampaignPlayer[], u
     scene,
     {
       entries: [...scene.turnOrder.entries, ...newEntries],
-      currentEntryId: scene.turnOrder.currentEntryId ?? newEntries[0]?.id
+      currentEntryId: getValidCurrentEntryId([...scene.turnOrder.entries, ...newEntries], scene.turnOrder.currentEntryId) ?? newEntries[0]?.id
     },
     updatedAt
   );
@@ -75,13 +76,22 @@ export function updateTurnOrderEntry(scene: Scene, entryId: string, patch: Parti
 
 export function removeTurnOrderEntry(scene: Scene, entryId: string, updatedAt = new Date().toISOString()): Scene {
   const entries = scene.turnOrder.entries.filter((entry) => entry.id !== entryId);
-  const currentEntryId = scene.turnOrder.currentEntryId === entryId ? entries[0]?.id : scene.turnOrder.currentEntryId;
-  return patchTurnOrder(scene, { entries, currentEntryId, active: entries.length > 0 && scene.turnOrder.active }, updatedAt);
+  const currentEntryId = getValidCurrentEntryId(entries, scene.turnOrder.currentEntryId === entryId ? undefined : scene.turnOrder.currentEntryId) ?? entries[0]?.id;
+  return patchTurnOrder(
+    scene,
+    {
+      entries,
+      currentEntryId,
+      active: entries.length > 0 && scene.turnOrder.active,
+      playerViewVisible: entries.length > 0 && scene.turnOrder.playerViewVisible
+    },
+    updatedAt
+  );
 }
 
 export function sortTurnOrderByInitiative(scene: Scene, updatedAt = new Date().toISOString()): Scene {
   const entries = [...scene.turnOrder.entries].sort((a, b) => b.initiative - a.initiative || a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
-  return patchTurnOrder(scene, { entries, currentEntryId: scene.turnOrder.currentEntryId ?? entries[0]?.id }, updatedAt);
+  return patchTurnOrder(scene, { entries, currentEntryId: scene.turnOrder.active ? (getValidCurrentEntryId(entries, scene.turnOrder.currentEntryId) ?? entries[0]?.id) : entries[0]?.id }, updatedAt);
 }
 
 export function rollInitiativeForNonPlayers(scene: Scene, random = Math.random, updatedAt = new Date().toISOString()): Scene {
@@ -141,7 +151,7 @@ export function startTurnOrder(scene: Scene, updatedAt = new Date().toISOString(
     scene,
     {
       active: true,
-      currentEntryId: scene.turnOrder.currentEntryId ?? scene.turnOrder.entries[0].id,
+      currentEntryId: getValidCurrentEntryId(scene.turnOrder.entries, scene.turnOrder.currentEntryId) ?? scene.turnOrder.entries[0].id,
       playerViewVisible: true
     },
     updatedAt
@@ -179,6 +189,10 @@ export function patchTurnOrder(scene: Scene, patch: Partial<TurnOrderSettings>, 
     },
     updatedAt
   };
+}
+
+function getValidCurrentEntryId(entries: TurnOrderEntry[], currentEntryId?: string): string | undefined {
+  return currentEntryId && entries.some((entry) => entry.id === currentEntryId) ? currentEntryId : undefined;
 }
 
 function stripFileExtension(fileName: string): string {

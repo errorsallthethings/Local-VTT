@@ -1,6 +1,9 @@
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { CSSProperties, InputHTMLAttributes, KeyboardEvent } from "react";
 
 export const COLOR_PRESETS = [
+  { label: "White", value: "#ffffff" },
+  { label: "Black", value: "#000000" },
   { label: "Blue", value: "#7aa2f7" },
   { label: "Green", value: "#4cbf78" },
   { label: "Amber", value: "#d99a35" },
@@ -21,12 +24,57 @@ interface ColorSettingRowProps {
   onOpen: () => void;
 }
 
+interface ColorInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange" | "defaultValue"> {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+export function ColorInput({ value, onChange, onBlur, onKeyDown, ...props }: ColorInputProps) {
+  const [draftValue, setDraftValue] = useState(value);
+  const draftRef = useRef(draftValue);
+
+  useEffect(() => {
+    setDraftValue(value);
+    draftRef.current = value;
+  }, [value]);
+
+  const commitDraft = () => {
+    if (draftRef.current !== value) {
+      onChange(draftRef.current);
+    }
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      commitDraft();
+    }
+    onKeyDown?.(event);
+  };
+
+  return (
+    <input
+      {...props}
+      type="color"
+      value={draftValue}
+      onChange={(event) => {
+        draftRef.current = event.target.value;
+        setDraftValue(event.target.value);
+      }}
+      onBlur={(event) => {
+        commitDraft();
+        onBlur?.(event);
+      }}
+      onKeyDown={handleKeyDown}
+    />
+  );
+}
+
 export function ColorPickerField({ label, value, onChange }: ColorPickerFieldProps) {
   return (
     <div className="color-picker-field">
       <label>
         <span>{label}</span>
-        <input type="color" value={value} onChange={(event) => onChange(event.target.value)} />
+        <ColorInput value={value} onChange={onChange} />
       </label>
       <div className="color-swatch-row" aria-label={`${label} presets`}>
         {COLOR_PRESETS.map((preset) => (

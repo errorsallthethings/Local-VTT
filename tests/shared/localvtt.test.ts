@@ -13,6 +13,7 @@ import {
   DEFAULT_MAP_TRANSFORM,
   DEFAULT_MEASUREMENT,
   DEFAULT_SCENE_FOLDER_COLOR,
+  DEFAULT_TABLE_TOOLS,
   DEFAULT_VIDEO_PLAYBACK,
   DEFAULT_WEATHER,
   isLiveTableEvent,
@@ -446,6 +447,7 @@ it("normalizeCampaign normalizes campaign players", () => {
         id: "",
         name: "",
         color: "red",
+        indicatorTheme: "necromancer" as never,
         defaultSeatEdge: "side" as never,
         defaultSeatPosition: 9,
         visibleInPlayer: undefined as never
@@ -457,6 +459,7 @@ it("normalizeCampaign normalizes campaign players", () => {
     id: "player-1",
     name: "Player 1",
     color: "#7aa2f7",
+    indicatorTheme: "generic",
     defaultSeatEdge: "bottom",
     defaultSeatPosition: 1,
     visibleInPlayer: true
@@ -616,6 +619,7 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isPlayerIdleState({ type: "idle", variant: "dim", title: "Waiting", message: "Preparing scene." })).toBe(false);
   expect(isPlayerIdleState({ type: "idle", title: "Waiting" })).toBe(false);
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, size: 1.5, color: "#ffcc00", createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "laser", type: "laser", points: [{ point: { x: 1, y: 2 }, createdAt: 1 }], createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "clear", type: "dice-clear", createdAt: 1 })).toBe(true);
   expect(
@@ -670,7 +674,16 @@ it("runtime validators reject invalid files and accept valid projected state", (
     })
   ).toBe(true);
   expect(isLiveTableEvent({ id: "dice", type: "dice", die: "d30", result: 30, label: "30", seed: 0.5, createdAt: 1 })).toBe(false);
+  expect(isLiveTableEvent({ id: "broken", type: "ping", point: { x: 1, y: 2 }, size: Number.NaN, createdAt: 1 })).toBe(false);
   expect(isLiveTableEvent({ id: "broken", type: "laser", points: [{ point: { x: 1 }, createdAt: 1 }], createdAt: 1 })).toBe(false);
+});
+
+it("normalizeScene normalizes table tool settings", () => {
+  expect(normalizeScene({ ...createDefaultScene("Legacy"), tableTools: undefined as never }).tableTools).toEqual(DEFAULT_TABLE_TOOLS);
+  expect(normalizeScene({ ...createDefaultScene("Tools"), tableTools: { pingSize: 9, pingColor: "red" } }).tableTools).toEqual({
+    pingSize: 3,
+    pingColor: DEFAULT_TABLE_TOOLS.pingColor
+  });
 });
 
 it("default creators return isolated nested collections", () => {

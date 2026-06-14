@@ -8,13 +8,14 @@ import type {
   SquareCropRect,
   TokenPresentationDefaults
 } from "../../shared/localvtt";
+import { useState, type ReactNode } from "react";
 import { ColorPickerField } from "../components/controls/ColorPickerField";
 import { ConfirmDialog } from "../components/modals/ConfirmDialog";
 import { NameDialog } from "../components/modals/NameDialog";
 import { SettingsModal } from "../components/modals/SettingsModal";
 import { TokenCropDialog } from "../components/modals/TokenCropDialog";
+import { MapCalibrationAssistant, type MapCalibrationBox, type MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { PlayerViewDisplayPanel } from "../components/settings/PlayerViewDisplayPanel";
 import { TokenDefaultsPanel } from "../components/tokens/TokenDefaultsPanel";
 
 export type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
@@ -42,7 +43,7 @@ export function GmDialogs({
   tokenColorDialog,
   campaignNameDialogOpen,
   playerDisplayDialogOpen,
-  playerViewDisplayDialogOpen,
+  mapCalibrationAssistantOpen,
   sceneToDelete,
   folderToDelete,
   mapAssetToDelete,
@@ -50,6 +51,8 @@ export function GmDialogs({
   confirmClearFogOpen,
   campaign,
   activeScene,
+  mapAsset,
+  mapCalibrationBox,
   playerSceneId,
   dirtySceneIds,
   displays,
@@ -79,7 +82,7 @@ export function GmDialogs({
   onCancelTokenColorDialog,
   onCancelCampaignNameDialog,
   onCancelPlayerDisplayDialog,
-  onCancelPlayerViewDisplayDialog,
+  onCancelMapCalibrationAssistant,
   onCancelSceneDelete,
   onCancelFolderDelete,
   onCancelMapAssetDelete,
@@ -100,6 +103,9 @@ export function GmDialogs({
   onSubmitTokenBorderColor,
   onSubmitCampaignName,
   onUpdatePlayerDisplay,
+  onApplyMapCalibration,
+  onStartMapCalibrationBoxCapture,
+  onOpenPlayerViewSetupFromAssistant,
   onRefreshDisplays,
   onConfirmDeleteScene,
   onConfirmDeleteFolder,
@@ -119,7 +125,7 @@ export function GmDialogs({
   tokenColorDialog: TokenColorDialog | null;
   campaignNameDialogOpen: boolean;
   playerDisplayDialogOpen: boolean;
-  playerViewDisplayDialogOpen: boolean;
+  mapCalibrationAssistantOpen: boolean;
   sceneToDelete: CampaignSceneEntry | null;
   folderToDelete: CampaignSceneFolder | null;
   mapAssetToDelete: Asset | null;
@@ -127,6 +133,8 @@ export function GmDialogs({
   confirmClearFogOpen: boolean;
   campaign: Campaign | null;
   activeScene: Scene | null;
+  mapAsset: Asset | null;
+  mapCalibrationBox: MapCalibrationBox | null;
   playerSceneId: string | null;
   dirtySceneIds: Set<string>;
   displays: DisplayInfo[];
@@ -156,7 +164,7 @@ export function GmDialogs({
   onCancelTokenColorDialog: () => void;
   onCancelCampaignNameDialog: () => void;
   onCancelPlayerDisplayDialog: () => void;
-  onCancelPlayerViewDisplayDialog: () => void;
+  onCancelMapCalibrationAssistant: () => void;
   onCancelSceneDelete: () => void;
   onCancelFolderDelete: () => void;
   onCancelMapAssetDelete: () => void;
@@ -177,6 +185,9 @@ export function GmDialogs({
   onSubmitTokenBorderColor: () => void;
   onSubmitCampaignName: () => void;
   onUpdatePlayerDisplay: (nextDisplay: DisplayCalibration) => void;
+  onApplyMapCalibration: (draft: MapCalibrationDraft) => void;
+  onStartMapCalibrationBoxCapture: () => void;
+  onOpenPlayerViewSetupFromAssistant: () => void;
   onRefreshDisplays: () => Promise<boolean | undefined>;
   onConfirmDeleteScene: (scene: CampaignSceneEntry) => void;
   onConfirmDeleteFolder: (folder: CampaignSceneFolder) => void;
@@ -186,6 +197,8 @@ export function GmDialogs({
 }) {
   const sceneDeleteDetail = sceneToDelete ? getSceneDeleteDetail(sceneToDelete, dirtySceneIds, playerSceneId) : null;
   const folderDeleteDetail = folderToDelete && campaign ? getFolderDeleteDetail(folderToDelete, campaign, dirtySceneIds, playerSceneId) : null;
+  const [playerDisplayFooterActions, setPlayerDisplayFooterActions] = useState<ReactNode | null>(null);
+  const [mapCalibrationFooterActions, setMapCalibrationFooterActions] = useState<ReactNode | null>(null);
 
   return (
     <>
@@ -326,24 +339,29 @@ export function GmDialogs({
       )}
 
       {playerDisplayDialogOpen && campaign && activeScene && (
-        <SettingsModal onClose={onCancelPlayerDisplayDialog}>
+        <SettingsModal footerStart={playerDisplayFooterActions} onClose={onCancelPlayerDisplayDialog}>
           <PlayerDisplayScalePanel
             scene={activeScene}
             calibration={campaign.playerDisplay}
             displays={displays}
             onApply={onUpdatePlayerDisplay}
             onRefreshDisplays={onRefreshDisplays}
+            onFooterActionsChange={setPlayerDisplayFooterActions}
           />
         </SettingsModal>
       )}
 
-      {playerViewDisplayDialogOpen && campaign && (
-        <SettingsModal onClose={onCancelPlayerViewDisplayDialog}>
-          <PlayerViewDisplayPanel
+      {mapCalibrationAssistantOpen && campaign && activeScene && (
+        <SettingsModal footerStart={mapCalibrationFooterActions} onClose={onCancelMapCalibrationAssistant}>
+          <MapCalibrationAssistant
+            scene={activeScene}
+            mapAsset={mapAsset}
             calibration={campaign.playerDisplay}
-            displays={displays}
-            onApply={onUpdatePlayerDisplay}
-            onRefreshDisplays={onRefreshDisplays}
+            calibrationBox={mapCalibrationBox}
+            onApply={onApplyMapCalibration}
+            onStartBoxCapture={onStartMapCalibrationBoxCapture}
+            onOpenPlayerViewSetup={onOpenPlayerViewSetupFromAssistant}
+            onFooterActionsChange={setMapCalibrationFooterActions}
           />
         </SettingsModal>
       )}

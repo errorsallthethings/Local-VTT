@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.1.7
+
+### Added
+
+- Added configurable Player View turn indicator sizing and class-inspired visual themes for player turn status indicators.
+- Added sonar ping size and color controls for table tools.
+- Added map calibration assistance for aligning imported maps to scene grid dimensions, including drawn calibration areas and reset/apply controls.
+- Added Player View setup refinements with collapsible settings sections, clearer display targeting, and table scale calibration controls.
+- Added weather and fog mask canvas selection, highlighting, and right-click visibility actions while preserving token selection priority.
+
+### Changed
+
+- Improved dice display settings with explicit GM/Player display modes, including Hidden, Text Result Only, 3D Panel, and 3D Scene Roll.
+- Improved 3D scene dice rolling with stronger scatter/throw tuning, clearer result rings, settled-face highlighting, and tighter six/nine underline treatment.
+- Improved dice roll result handling so Recent rolls, visible results, modifiers, percentile totals, and delayed 3D/scene results stay in sync.
+- Improved turn order Player View readability with larger player turn indicators, themed frames, and more polished main turn order tracker styling.
+- Improved grid controls with opacity reset, visibility toggle polish, and updated default swatches.
+- Improved large static map rendering performance with adaptive GM View image quality while preserving Player View quality where possible.
+- Improved Player View and Map Calibration modal layout, helper text, collapsible sections, and fixed modal footers.
+
+### Fixed
+
+- Fixed dice formula totals with `+` and `-` modifiers so displayed results and recent roll history match the actual rolled value.
+- Fixed scene dice result styling so normal multi-die rolls do not show critical, fumble, or highest-result styling unless the roll rules call for it.
+- Fixed turn order reset behavior so cleared and rebuilt encounters do not retain stale current-turn state.
+- Fixed Player View scene synchronization so importing a map into a new scene does not unexpectedly replace the currently shown player scene.
+- Fixed fog mask selection highlighting and reduced weather/mask rendering stutter on the GM canvas.
+- Fixed dropdown label cropping in compact settings controls.
+
 ## 0.1.6
 
 ### Added

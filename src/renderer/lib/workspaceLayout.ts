@@ -53,8 +53,8 @@ export function normalizeWorkspaceLayout(layout: Partial<WorkspaceLayout>): Work
   return {
     leftWidth: clamp(layout.leftWidth ?? DEFAULT_WORKSPACE_LAYOUT.leftWidth, MIN_LEFT_PANEL_WIDTH, MAX_PANEL_WIDTH),
     rightWidth: clamp(layout.rightWidth ?? DEFAULT_WORKSPACE_LAYOUT.rightWidth, MIN_RIGHT_PANEL_WIDTH, MAX_PANEL_WIDTH),
-    leftCollapsed: DEFAULT_WORKSPACE_LAYOUT.leftCollapsed,
-    rightCollapsed: DEFAULT_WORKSPACE_LAYOUT.rightCollapsed
+    leftCollapsed: typeof layout.leftCollapsed === "boolean" ? layout.leftCollapsed : DEFAULT_WORKSPACE_LAYOUT.leftCollapsed,
+    rightCollapsed: typeof layout.rightCollapsed === "boolean" ? layout.rightCollapsed : DEFAULT_WORKSPACE_LAYOUT.rightCollapsed
   };
 }
 
