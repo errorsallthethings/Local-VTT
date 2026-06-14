@@ -188,7 +188,7 @@ export function WorkspaceTopbar({
     }
     const timer = window.setInterval(() => setDiceRecentTick((tick) => tick + 1), 120);
     return () => window.clearInterval(timer);
-  }, [diceHistory, diceRecentTick]);
+  }, [diceHistory]);
 
   useEffect(() => {
     if (!diceSettingsOpen) {

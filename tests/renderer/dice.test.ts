@@ -4,11 +4,13 @@ import {
   formatDiceRollBreakdown,
   formatDiceRollBreakdownTooltip,
   formatDiceRollSummary,
+  getEffectiveDiceDisplayModes,
   getDiceRollTone,
   rollDiceEvent,
   rollDiceExpression,
   rollDie
 } from "../../src/renderer/lib/dice";
+import { DEFAULT_DICE_SETTINGS } from "../../src/shared/localvtt";
 
 describe("dice helpers", () => {
   it("rolls each supported die in range", () => {
@@ -451,6 +453,64 @@ describe("dice helpers", () => {
         createdAt: 1
       })
     ).toBe("max");
+  });
+
+  it("maps campaign dice display settings to effective roll display modes", () => {
+    expect(
+      getEffectiveDiceDisplayModes({
+        ...DEFAULT_DICE_SETTINGS,
+        gmDisplayMode: "hidden",
+        playerDisplayMode: "panel",
+        gmPanelAdvanced: true,
+        playerPanelAdvanced: true
+      })
+    ).toEqual({
+      gmDisplayMode: "hidden",
+      playerDisplayMode: "panel",
+      gmPanelAdvanced: true,
+      playerPanelAdvanced: true
+    });
+
+    expect(
+      getEffectiveDiceDisplayModes({
+        ...DEFAULT_DICE_SETTINGS,
+        gmDisplayMode: "scene",
+        playerDisplayMode: "scene-result"
+      })
+    ).toMatchObject({
+      gmDisplayMode: "results",
+      playerDisplayMode: "results"
+    });
+
+    expect(
+      getEffectiveDiceDisplayModes({
+        ...DEFAULT_DICE_SETTINGS,
+        sceneRollEnabled: true,
+        sceneRollTarget: "gm",
+        gmPanelAdvanced: true,
+        playerPanelAdvanced: true
+      })
+    ).toEqual({
+      gmDisplayMode: "scene",
+      playerDisplayMode: "hidden",
+      gmPanelAdvanced: true,
+      playerPanelAdvanced: true
+    });
+
+    expect(
+      getEffectiveDiceDisplayModes({
+        ...DEFAULT_DICE_SETTINGS,
+        sceneRollEnabled: true,
+        sceneRollTarget: "player",
+        gmPanelAdvanced: true,
+        playerPanelAdvanced: true
+      })
+    ).toEqual({
+      gmDisplayMode: "scene-result",
+      playerDisplayMode: "scene",
+      gmPanelAdvanced: false,
+      playerPanelAdvanced: true
+    });
   });
 
   it("rejects unsupported dice expressions", () => {
