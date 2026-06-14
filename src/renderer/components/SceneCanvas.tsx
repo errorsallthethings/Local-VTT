@@ -225,7 +225,7 @@ export function SceneCanvas({
   drawingTool = null,
   drawingColor = "#ff0000",
   drawingOpacity = 1,
-  drawingStrokeWidth = 6,
+  drawingStrokeWidth = 24,
   fogTool = null,
   weatherMaskTool = null,
   liveTableEvents = [],

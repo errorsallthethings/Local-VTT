@@ -148,7 +148,7 @@ export function GmApp() {
   const [fogOperation, setFogOperation] = useState<FogOperation>("reveal");
   const [drawingColor, setDrawingColor] = useState("#ff0000");
   const [drawingOpacity, setDrawingOpacity] = useState(1);
-  const [drawingStrokeWidth, setDrawingStrokeWidth] = useState(6);
+  const [drawingStrokeWidth, setDrawingStrokeWidth] = useState(24);
   const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
   const [newFolderName, setNewFolderName] = useState("New Folder");

@@ -11,11 +11,11 @@ export type WeatherMaskTool = "rectangle" | "circle" | "polygon";
 type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
 
 const DRAWING_THICKNESS_PRESETS = [
-  { label: "Extra Thin", value: 2 },
-  { label: "Thin", value: 4 },
-  { label: "Medium", value: 6 },
-  { label: "Thick", value: 10 },
-  { label: "Extra Thick", value: 16 }
+  { label: "Extra Thin", value: 6 },
+  { label: "Thin", value: 12 },
+  { label: "Medium", value: 24 },
+  { label: "Thick", value: 36 },
+  { label: "Extra Thick", value: 48 }
 ];
 
 const DRAWING_OPACITY_PRESETS = [

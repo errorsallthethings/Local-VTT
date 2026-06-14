@@ -292,9 +292,10 @@
   position: absolute;
   top: calc(100% + 4px);
   display: grid;
-  grid-template-columns: 104px auto;
+  grid-template-columns: minmax(0, 1fr) 34px;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
+  width: 104px;
   min-width: 0;
 }
 
@@ -308,15 +309,16 @@
 
 .tools-strip-advanced-slider input[type="range"] {
   display: block;
-  width: 104px;
-  min-width: 104px;
-  max-width: 104px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .tools-strip-advanced-slider span {
   color: var(--color-text-strong);
   font-size: 12px;
   font-weight: 850;
+  justify-self: end;
   line-height: 1;
   white-space: nowrap;
 }
