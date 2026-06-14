@@ -24,7 +24,7 @@ import {
   LASER_MIN_POINT_DISTANCE,
   LASER_POINT_LIFETIME_MS
 } from "../canvas/liveTableRenderer";
-import { drawMapSource, getSourceHeight, getSourceWidth, resolveMapTransform } from "../canvas/mapRenderer";
+import { drawMapSource, resolveMapTransform } from "../canvas/mapRenderer";
 import {
   drawRuler,
   formatMeasurementDistance,
@@ -61,6 +61,9 @@ import {
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
 const WEATHER_ONLY_FRAME_INTERVAL_MS = 50;
+const LARGE_MAP_CACHE_MAX_EDGE = 4096;
+const LARGE_MAP_CACHE_MAX_PIXELS = 16_000_000;
+const GM_FULL_QUALITY_MAP_SCALE_THRESHOLD = 1.12;
 
 interface SceneCanvasProps {
   campaign: Campaign | null;
@@ -93,10 +96,20 @@ interface SceneCanvasProps {
 
 interface LoadedMap {
   assetId: string;
-  source: CanvasImageSource;
+  originalSource: HTMLImageElement;
+  optimizedSource: CanvasImageSource | null;
+  sourceWidth: number;
+  sourceHeight: number;
+  optimizedScale: number;
   animate: boolean;
   mediaType: "image" | "video";
   ready: boolean;
+}
+
+interface ReadyMapSource {
+  source: CanvasImageSource;
+  width: number;
+  height: number;
 }
 
 type MapLoadStatus = "idle" | "loading" | "ready" | "error";
@@ -345,7 +358,7 @@ export function SceneCanvas({
     mapLoadStatus === "ready" ||
     mapLoadStatus === "error";
 
-  const getCurrentReadyMapSourceForFit = useCallback((): CanvasImageSource | null => {
+  const getCurrentReadyMapSourceForFit = useCallback((): ReadyMapSource | null => {
     if (!mapAsset || !canShowMap) {
       return null;
     }
@@ -370,7 +383,7 @@ export function SceneCanvas({
       }
 
       fittedSceneCameraRef.current = fitSignature;
-      setCamera(getCameraForMapFit(scene, mapSource, viewportWidth, viewportHeight));
+      setCamera(getCameraForMapFit(scene, mapSource.width, mapSource.height, viewportWidth, viewportHeight));
       return true;
     },
     [getCurrentReadyMapSourceForFit, mapAsset, mode, scene]
@@ -659,6 +672,7 @@ export function SceneCanvas({
       return;
     }
 
+    let cancelled = false;
     const imageAssetId = mapAsset.id;
     const imageAssetPath = mapAsset.relativePath;
     const image = new Image();
@@ -666,21 +680,53 @@ export function SceneCanvas({
     setLoadedMap(null);
     setMapLoadStatus("loading");
     image.onload = () => {
-      setLoadedMap({
-        assetId: imageAssetId,
-        source: image,
-        animate: imageAssetPath.toLowerCase().endsWith(".gif"),
-        mediaType: "image",
-        ready: true
-      });
-      setMapLoadStatus("ready");
+      void prepareLoadedImageMap(image, imageAssetPath)
+        .then((preparedMap) => {
+          if (cancelled) {
+            closeCanvasImageSource(preparedMap.optimizedSource);
+            return;
+          }
+          setLoadedMap({
+            assetId: imageAssetId,
+            originalSource: image,
+            optimizedSource: preparedMap.optimizedSource,
+            sourceWidth: image.naturalWidth || image.width,
+            sourceHeight: image.naturalHeight || image.height,
+            optimizedScale: preparedMap.optimizedScale,
+            animate: imageAssetPath.toLowerCase().endsWith(".gif"),
+            mediaType: "image",
+            ready: true
+          });
+          setMapLoadStatus("ready");
+        })
+        .catch(() => {
+          if (cancelled) {
+            return;
+          }
+          setLoadedMap(null);
+          setMapLoadStatus("error");
+        });
     };
     image.onerror = () => {
+      if (cancelled) {
+        return;
+      }
       setLoadedMap(null);
       setMapLoadStatus("error");
     };
     image.src = assetUrl;
+    return () => {
+      cancelled = true;
+    };
   }, [assetUrl, mapAsset?.id, mapAsset?.mediaType, mapAsset?.relativePath]);
+
+  useEffect(() => {
+    return () => {
+      if (loadedMap) {
+        closeCanvasImageSource(loadedMap.optimizedSource);
+      }
+    };
+  }, [loadedMap]);
 
   useEffect(() => {
     if (!isVideoMap) {
@@ -760,7 +806,8 @@ export function SceneCanvas({
 
       const renderCamera = getRenderCamera(camera, playerDisplayScale);
       const activeVideo = isVideoMap ? (videoRefs.current[activeVideoIndex] ?? null) : null;
-      const weatherMapSource = loadedMap?.ready ? loadedMap.source : activeVideo && activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA ? activeVideo : null;
+      const mapDrawSource = loadedMap?.ready ? getMapDrawSource(loadedMap, scene, width, height, renderCamera.zoom, mode) : null;
+      const weatherMapSource = mapDrawSource ?? (activeVideo && activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA ? activeVideo : null);
       const weatherMapReady = !canShowMap || !mapAsset || Boolean(weatherMapSource);
 
       ctx.save();
@@ -771,7 +818,7 @@ export function SceneCanvas({
       if (!isVideoMap && canShowMap && loadedMap?.ready) {
         ctx.globalAlpha = mapLayer?.opacity ?? 1;
         try {
-          drawMapSource(ctx, loadedMap.source, scene, width, height);
+          drawMapSource(ctx, mapDrawSource ?? loadedMap.originalSource, scene, width, height, loadedMap.sourceWidth, loadedMap.sourceHeight);
         } catch {
           // Keep the canvas pass resilient if an image asset is temporarily unavailable.
         }
@@ -2327,9 +2374,66 @@ function getCanvasViewportCenter(element: HTMLCanvasElement, camera: Camera): Po
   };
 }
 
-function getReadyMapSourceForFit(loadedMap: LoadedMap | null, mapAssetId: string, activeVideo: HTMLVideoElement | null, isVideoMap: boolean): CanvasImageSource | null {
+async function prepareLoadedImageMap(image: HTMLImageElement, assetPath: string): Promise<{ optimizedSource: CanvasImageSource | null; optimizedScale: number }> {
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  const isAnimatedImage = assetPath.toLowerCase().endsWith(".gif");
+  if (isAnimatedImage || sourceWidth <= 0 || sourceHeight <= 0 || typeof createImageBitmap !== "function") {
+    return { optimizedSource: null, optimizedScale: 1 };
+  }
+
+  const resizeScale = getLargeMapCacheScale(sourceWidth, sourceHeight);
+  if (resizeScale >= 1) {
+    return { optimizedSource: null, optimizedScale: 1 };
+  }
+
+  const resizeWidth = Math.max(1, Math.round(sourceWidth * resizeScale));
+  const resizeHeight = Math.max(1, Math.round(sourceHeight * resizeScale));
+  const optimizedSource = await createImageBitmap(image, {
+    resizeWidth,
+    resizeHeight,
+    resizeQuality: "high"
+  });
+  return { optimizedSource, optimizedScale: resizeScale };
+}
+
+function getLargeMapCacheScale(width: number, height: number): number {
+  const edgeScale = Math.min(1, LARGE_MAP_CACHE_MAX_EDGE / Math.max(width, height));
+  const pixelScale = Math.min(1, Math.sqrt(LARGE_MAP_CACHE_MAX_PIXELS / Math.max(1, width * height)));
+  return Math.min(edgeScale, pixelScale);
+}
+
+function closeCanvasImageSource(source: CanvasImageSource | null) {
+  if (source && "close" in source && typeof source.close === "function") {
+    source.close();
+  }
+}
+
+function getMapDrawSource(
+  loadedMap: LoadedMap,
+  scene: Scene,
+  viewportWidth: number,
+  viewportHeight: number,
+  cameraZoom: number,
+  mode: "gm" | "player"
+): CanvasImageSource {
+  if (mode === "player" || loadedMap.animate || !loadedMap.optimizedSource) {
+    return loadedMap.originalSource;
+  }
+
+  const transform = resolveMapTransform(scene, loadedMap.sourceWidth, loadedMap.sourceHeight, viewportWidth, viewportHeight);
+  const effectiveMapScale = Math.abs(transform.scale * cameraZoom);
+  if (effectiveMapScale > loadedMap.optimizedScale * GM_FULL_QUALITY_MAP_SCALE_THRESHOLD) {
+    return loadedMap.originalSource;
+  }
+  return loadedMap.optimizedSource;
+}
+
+function getReadyMapSourceForFit(loadedMap: LoadedMap | null, mapAssetId: string, activeVideo: HTMLVideoElement | null, isVideoMap: boolean): ReadyMapSource | null {
   if (!isVideoMap) {
-    return loadedMap?.ready && loadedMap.assetId === mapAssetId ? loadedMap.source : null;
+    return loadedMap?.ready && loadedMap.assetId === mapAssetId
+      ? { source: loadedMap.originalSource, width: loadedMap.sourceWidth, height: loadedMap.sourceHeight }
+      : null;
   }
   if (
     activeVideo?.dataset.mapAssetId === mapAssetId &&
@@ -2337,14 +2441,12 @@ function getReadyMapSourceForFit(loadedMap: LoadedMap | null, mapAssetId: string
     activeVideo.videoWidth > 0 &&
     activeVideo.videoHeight > 0
   ) {
-    return activeVideo;
+    return { source: activeVideo, width: activeVideo.videoWidth, height: activeVideo.videoHeight };
   }
   return null;
 }
 
-function getCameraForMapFit(scene: Scene, source: CanvasImageSource, viewportWidth: number, viewportHeight: number): Camera {
-  const sourceWidth = getSourceWidth(source);
-  const sourceHeight = getSourceHeight(source);
+function getCameraForMapFit(scene: Scene, sourceWidth: number, sourceHeight: number, viewportWidth: number, viewportHeight: number): Camera {
   if (sourceWidth <= 0 || sourceHeight <= 0 || viewportWidth <= 0 || viewportHeight <= 0) {
     return { x: 0, y: 0, zoom: 1 };
   }
