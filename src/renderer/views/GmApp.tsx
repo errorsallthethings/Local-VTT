@@ -161,6 +161,7 @@ export function GmApp() {
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [selectedFogShapeId, setSelectedFogShapeId] = useState<string | null>(null);
   const [selectedWeatherMaskId, setSelectedWeatherMaskId] = useState<string | null>(null);
+  const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [mapCalibrationBox, setMapCalibrationBox] = useState<MapCalibrationBox | null>(null);
   const [mapCalibrationBoxPicking, setMapCalibrationBoxPicking] = useState(false);
@@ -503,6 +504,13 @@ export function GmApp() {
     }
     setSelectedWeatherMaskId(null);
   }, [activeScene?.weather.masks, selectedWeatherMaskId]);
+
+  useEffect(() => {
+    if (!selectedDrawingId || activeScene?.drawings.some((drawing) => drawing.id === selectedDrawingId)) {
+      return;
+    }
+    setSelectedDrawingId(null);
+  }, [activeScene?.drawings, selectedDrawingId]);
 
   useEffect(() => {
     if (!selectedFogShapeId) {
@@ -1598,11 +1606,13 @@ export function GmApp() {
             liveTableEvents={liveTableEvents}
             selectedFogShapeId={selectedFogShapeId}
             selectedWeatherMaskId={selectedWeatherMaskId}
+            selectedDrawingId={selectedDrawingId}
             selectedTokenId={selectedTokenId}
             onSceneChange={updateCanvasScene}
             onSelectToken={setSelectedTokenId}
             onSelectFogShape={setSelectedFogShapeId}
             onSelectWeatherMask={setSelectedWeatherMaskId}
+            onSelectDrawing={setSelectedDrawingId}
             onAddTokenToTurnOrder={addSceneTokenToTurnOrder}
             onDropTokenAsset={dropLibraryTokenOnScene}
             onLiveTableEvent={emitLiveTableEvent}
@@ -1654,6 +1664,7 @@ export function GmApp() {
         tokenAssets={tokenAssets}
         selectedFogShapeId={selectedFogShapeId}
         selectedWeatherMaskId={selectedWeatherMaskId}
+        selectedDrawingId={selectedDrawingId}
         selectedTokenId={selectedTokenId}
         workspaceLayout={workspaceLayout}
         onClearActiveFogTool={clearActiveCanvasTools}
@@ -1672,6 +1683,7 @@ export function GmApp() {
         onDeleteMap={setMapAssetToDelete}
         onSelectFogShape={setSelectedFogShapeId}
         onSelectWeatherMask={setSelectedWeatherMaskId}
+        onSelectDrawing={setSelectedDrawingId}
         onSelectToken={setSelectedTokenId}
         onRenameFogShape={openRenameFogShapeDialog}
         onRenameToken={openRenameTokenDialog}

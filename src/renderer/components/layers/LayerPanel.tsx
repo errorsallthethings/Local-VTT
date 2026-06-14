@@ -66,6 +66,7 @@ export function LayerPanel({
   tokenAssets,
   selectedFogShapeId,
   selectedWeatherMaskId,
+  selectedDrawingId,
   selectedTokenId,
   onChange,
   onUpdateGrid,
@@ -78,6 +79,7 @@ export function LayerPanel({
   onDeleteMap,
   onSelectFogShape,
   onSelectWeatherMask,
+  onSelectDrawing,
   onSelectToken,
   onRenameFogShape,
   onRenameToken,
@@ -90,6 +92,7 @@ export function LayerPanel({
   tokenAssets: Map<string, Asset>;
   selectedFogShapeId: string | null;
   selectedWeatherMaskId: string | null;
+  selectedDrawingId: string | null;
   selectedTokenId: string | null;
   onChange: (scene: Scene) => void;
   onUpdateGrid: (patch: Partial<GridSettings>) => void;
@@ -102,6 +105,7 @@ export function LayerPanel({
   onDeleteMap: (asset: Asset) => void;
   onSelectFogShape: (shapeId: string | null) => void;
   onSelectWeatherMask: (maskId: string | null) => void;
+  onSelectDrawing: (drawingId: string | null) => void;
   onSelectToken: (tokenId: string | null) => void;
   onRenameFogShape: (shapeId: string, fallbackName: string) => void;
   onRenameToken: (tokenId: string, fallbackName: string) => void;
@@ -515,11 +519,13 @@ export function LayerPanel({
               {layer.id === "drawing" && isExpanded && (
                 <DrawingList
                   drawings={scene.drawings}
+                  selectedDrawingId={selectedDrawingId}
                   draggedDrawingId={draggedDrawingId}
                   drawingDropTarget={drawingDropTarget}
                   onDraggedDrawingIdChange={setDraggedDrawingId}
                   onDrawingDropTargetChange={setDrawingDropTarget}
                   onMoveDrawing={moveDrawing}
+                  onSelectDrawing={onSelectDrawing}
                   onUpdateDrawings={updateDrawings}
                 />
               )}
@@ -1054,19 +1060,23 @@ function WeatherRangeRow({
 
 function DrawingList({
   drawings,
+  selectedDrawingId,
   draggedDrawingId,
   drawingDropTarget,
   onDraggedDrawingIdChange,
   onDrawingDropTargetChange,
   onMoveDrawing,
+  onSelectDrawing,
   onUpdateDrawings
 }: {
   drawings: DrawingElement[];
+  selectedDrawingId: string | null;
   draggedDrawingId: string | null;
   drawingDropTarget: DrawingDropTarget;
   onDraggedDrawingIdChange: (drawingId: string | null) => void;
   onDrawingDropTargetChange: (target: DrawingDropTarget) => void;
   onMoveDrawing: (sourceDrawingId: string, targetDrawingId: string, placement: DropPlacement) => void;
+  onSelectDrawing: (drawingId: string | null) => void;
   onUpdateDrawings: (drawings: DrawingElement[]) => void;
 }) {
   return (
@@ -1092,12 +1102,14 @@ function DrawingList({
             const isVisibleInGm = drawing.visibleInGm ?? true;
             const isVisibleInPlayer = drawing.visibleInPlayer;
             const label = drawing.name?.trim() || formatDefaultDrawingName(drawing.kind, drawingIndex);
+            const isSelected = selectedDrawingId === drawing.id;
             const dropPlacement = drawingDropTarget?.drawingId === drawing.id && draggedDrawingId !== drawing.id ? drawingDropTarget.placement : null;
             return (
               <div
                 className={[
                   "fog-shape-row",
                   isVisibleInGm || isVisibleInPlayer ? "" : "fog-shape-row-muted",
+                  isSelected ? "fog-shape-row-selected" : "",
                   draggedDrawingId === drawing.id ? "fog-shape-row-dragging" : "",
                   dropPlacement ? `fog-shape-row-drop-${dropPlacement}` : ""
                 ]
@@ -1105,6 +1117,7 @@ function DrawingList({
                   .join(" ")}
                 key={drawing.id}
                 draggable
+                onClick={() => onSelectDrawing(drawing.id)}
                 onDragStart={(event) => {
                   onDraggedDrawingIdChange(drawing.id);
                   event.dataTransfer.setData("application/x-localvtt-drawing-id", drawing.id);

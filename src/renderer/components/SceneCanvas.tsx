@@ -6,6 +6,7 @@ import { getRenderCamera, type Camera } from "../canvas/camera";
 import {
   drawDrawings,
   getDrawingPreviewPoints,
+  getDrawingAtPoint,
   isMeaningfulDrawingPreview,
   shouldAddDrawingPoint,
   type DrawingPreview,
@@ -92,11 +93,13 @@ interface SceneCanvasProps {
   liveTableEvents?: LiveTableEvent[];
   selectedFogShapeId?: string | null;
   selectedWeatherMaskId?: string | null;
+  selectedDrawingId?: string | null;
   selectedTokenId?: string | null;
   onSceneChange?: (scene: Scene, syncScene?: Scene) => void;
   onSelectToken?: (tokenId: string | null) => void;
   onSelectFogShape?: (shapeId: string | null) => void;
   onSelectWeatherMask?: (maskId: string | null) => void;
+  onSelectDrawing?: (drawingId: string | null) => void;
   onAddTokenToTurnOrder?: (tokenId: string) => void;
   onDropTokenAsset?: (asset: Asset, point: Point) => void;
   onLiveTableEvent?: (event: LiveTableEvent) => void;
@@ -201,6 +204,14 @@ type MaskContextMenu =
       y: number;
     };
 
+type DrawingContextMenu = {
+  drawingId: string;
+  label: string;
+  visibleInPlayer: boolean;
+  x: number;
+  y: number;
+};
+
 function parseTokenImageSourceKey(key: string): TokenImageSource[] {
   try {
     const parsed = JSON.parse(key);
@@ -233,11 +244,13 @@ export function SceneCanvas({
   liveTableEvents = [],
   selectedFogShapeId = null,
   selectedWeatherMaskId = null,
+  selectedDrawingId = null,
   selectedTokenId = null,
   onSceneChange,
   onSelectToken,
   onSelectFogShape,
   onSelectWeatherMask,
+  onSelectDrawing,
   onAddTokenToTurnOrder,
   onDropTokenAsset,
   onLiveTableEvent,
@@ -270,6 +283,7 @@ export function SceneCanvas({
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
   const [tokenContextMenu, setTokenContextMenu] = useState<TokenContextMenu | null>(null);
   const [maskContextMenu, setMaskContextMenu] = useState<MaskContextMenu | null>(null);
+  const [drawingContextMenu, setDrawingContextMenu] = useState<DrawingContextMenu | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; camera: Camera } | null>(null);
   const rulerDragRef = useRef<(RulerDrag & { pointerId: number }) | null>(null);
@@ -288,13 +302,14 @@ export function SceneCanvas({
   const playerTokenTweenPositionsRef = useRef<TokenPositionOverrides | null>(null);
 
   useEffect(() => {
-    if (!tokenContextMenu && !maskContextMenu) {
+    if (!tokenContextMenu && !maskContextMenu && !drawingContextMenu) {
       return;
     }
 
     const dismissMenu = () => {
       setTokenContextMenu(null);
       setMaskContextMenu(null);
+      setDrawingContextMenu(null);
     };
     const dismissMenuOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -308,7 +323,7 @@ export function SceneCanvas({
       window.removeEventListener("pointerdown", dismissMenu);
       window.removeEventListener("keydown", dismissMenuOnEscape);
     };
-  }, [maskContextMenu, tokenContextMenu]);
+  }, [drawingContextMenu, maskContextMenu, tokenContextMenu]);
 
   const mapAsset = useMemo(() => {
     if (!campaign || !scene?.mapAssetId) {
@@ -885,7 +900,7 @@ export function SceneCanvas({
       }
 
       if (canShowDrawings) {
-        drawDrawings(ctx, scene, mode, drawingLayer?.opacity ?? 1, mode === "gm" ? drawingPreview : null, renderCamera.zoom);
+        drawDrawings(ctx, scene, mode, drawingLayer?.opacity ?? 1, mode === "gm" ? drawingPreview : null, renderCamera.zoom, selectedDrawingId);
       }
 
       if (mode === "gm" && rulerDrag) {
@@ -970,7 +985,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingLayer?.opacity, drawingOpacity, drawingPreview, drawingStrokeWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingLayer?.opacity, drawingOpacity, drawingPreview, drawingStrokeWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedDrawingId, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1035,6 +1050,7 @@ export function SceneCanvas({
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     setTokenContextMenu(null);
     setMaskContextMenu(null);
+    setDrawingContextMenu(null);
     if (!interactive) {
       return;
     }
@@ -1154,6 +1170,7 @@ export function SceneCanvas({
         onSelectToken?.(token.id);
         onSelectFogShape?.(null);
         onSelectWeatherMask?.(null);
+        onSelectDrawing?.(null);
         const snappedPosition = getSnappedTokenPosition(token.position, token, scene);
         tokenDragRef.current = {
           pointerId: event.pointerId,
@@ -1176,19 +1193,29 @@ export function SceneCanvas({
       }
       onSelectToken?.(null);
       if (!canvasTool && !drawingTool && !fogTool && !weatherMaskTool) {
+        const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, Math.max(8, 8 / getRenderCamera(camera, playerDisplayScale).zoom)) : null;
+        if (drawingHit) {
+          onSelectDrawing?.(drawingHit.id);
+          onSelectFogShape?.(null);
+          onSelectWeatherMask?.(null);
+          return;
+        }
         const maskHit = getMaskHitAtPoint(scene, point);
         if (maskHit?.kind === "weather") {
           onSelectWeatherMask?.(maskHit.mask.id);
           onSelectFogShape?.(null);
+          onSelectDrawing?.(null);
           return;
         }
         if (maskHit?.kind === "fog") {
           onSelectFogShape?.(maskHit.shape.id);
           onSelectWeatherMask?.(null);
+          onSelectDrawing?.(null);
           return;
         }
         onSelectFogShape?.(null);
         onSelectWeatherMask?.(null);
+        onSelectDrawing?.(null);
       }
     }
     dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, camera };
@@ -1557,6 +1584,7 @@ export function SceneCanvas({
           onSelectToken?.(token.id);
           onSelectFogShape?.(null);
           onSelectWeatherMask?.(null);
+          onSelectDrawing?.(null);
           setTokenContextMenu({
             tokenId: token.id,
             tokenName: token.name || "Token",
@@ -1566,11 +1594,30 @@ export function SceneCanvas({
           return;
         }
         if (!canvasTool && !drawingTool && !fogTool && !weatherMaskTool) {
+          const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, Math.max(8, 8 / getRenderCamera(camera, playerDisplayScale).zoom)) : null;
+          if (drawingHit) {
+            const frameRect = frameRef.current?.getBoundingClientRect();
+            const drawingIndex = scene.drawings.findIndex((drawing) => drawing.id === drawingHit.id);
+            event.preventDefault();
+            onSelectToken?.(null);
+            onSelectFogShape?.(null);
+            onSelectWeatherMask?.(null);
+            onSelectDrawing?.(drawingHit.id);
+            setDrawingContextMenu({
+              drawingId: drawingHit.id,
+              label: drawingHit.name?.trim() || formatDefaultDrawingName(drawingHit.kind, Math.max(0, drawingIndex)),
+              visibleInPlayer: drawingHit.visibleInPlayer,
+              x: frameRect ? event.clientX - frameRect.left : event.clientX,
+              y: frameRect ? event.clientY - frameRect.top : event.clientY
+            });
+            return;
+          }
           const maskHit = getMaskHitAtPoint(scene, point);
           if (maskHit) {
             const frameRect = frameRef.current?.getBoundingClientRect();
             event.preventDefault();
             onSelectToken?.(null);
+            onSelectDrawing?.(null);
             if (maskHit.kind === "weather") {
               onSelectWeatherMask?.(maskHit.mask.id);
               onSelectFogShape?.(null);
@@ -1969,6 +2016,54 @@ export function SceneCanvas({
             {maskContextMenu.kind === "fog"
               ? `${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} "${maskContextMenu.label}" on Player View`
               : `${maskContextMenu.visible ? "Disable" : "Enable"} "${maskContextMenu.label}"`}
+          </button>
+        </div>
+      )}
+      {mode === "gm" && drawingContextMenu && (
+        <div
+          className="canvas-token-context-menu"
+          style={{ left: drawingContextMenu.x, top: drawingContextMenu.y }}
+          role="menu"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              if (!scene || !onSceneChange) {
+                setDrawingContextMenu(null);
+                return;
+              }
+              onSceneChange({
+                ...scene,
+                drawings: scene.drawings.map((drawing) =>
+                  drawing.id === drawingContextMenu.drawingId ? { ...drawing, visibleInPlayer: !drawingContextMenu.visibleInPlayer } : drawing
+                ),
+                updatedAt: new Date().toISOString()
+              });
+              setDrawingContextMenu(null);
+            }}
+          >
+            {`${drawingContextMenu.visibleInPlayer ? "Hide" : "Show"} "${drawingContextMenu.label}" on Player View`}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              if (!scene || !onSceneChange) {
+                setDrawingContextMenu(null);
+                return;
+              }
+              onSceneChange({
+                ...scene,
+                drawings: scene.drawings.filter((drawing) => drawing.id !== drawingContextMenu.drawingId),
+                updatedAt: new Date().toISOString()
+              });
+              onSelectDrawing?.(null);
+              setDrawingContextMenu(null);
+            }}
+          >
+            {`Delete "${drawingContextMenu.label}"`}
           </button>
         </div>
       )}

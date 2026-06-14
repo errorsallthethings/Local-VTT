@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getDrawingPreviewPoints,
+  getDrawingAtPoint,
   isMeaningfulDrawingPreview,
   shouldAddDrawingPoint,
   type DrawingPreview
@@ -73,5 +74,28 @@ describe("drawing renderer helpers", () => {
 
     expect(isMeaningfulDrawingPreview(preview)).toBe(false);
     expect(isMeaningfulDrawingPreview({ ...preview, current: { x: 20, y: 10 } })).toBe(true);
+  });
+});
+
+describe("drawing hit testing", () => {
+  it("finds the topmost drawing near a point", () => {
+    expect(
+      getDrawingAtPoint(
+        [
+          { id: "line", kind: "line", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }], color: "#fff", opacity: 1, strokeWidth: 4, visibleInPlayer: true },
+          { id: "circle", kind: "circle", points: [{ x: 50, y: 50 }, { x: 75, y: 50 }], color: "#fff", opacity: 1, strokeWidth: 4, visibleInPlayer: true }
+        ],
+        { x: 52, y: 50 }
+      )?.id
+    ).toBe("circle");
+  });
+
+  it("ignores drawings hidden in the GM view", () => {
+    expect(
+      getDrawingAtPoint(
+        [{ id: "hidden", kind: "rectangle", points: [{ x: 0, y: 0 }, { x: 100, y: 100 }], color: "#fff", opacity: 1, strokeWidth: 4, visibleInGm: false, visibleInPlayer: true }],
+        { x: 50, y: 50 }
+      )
+    ).toBeNull();
   });
 });

@@ -21,7 +21,8 @@ export function drawDrawings(
   mode: "gm" | "player",
   layerOpacity = 1,
   preview: DrawingPreview | null = null,
-  zoom = 1
+  zoom = 1,
+  selectedDrawingId: string | null = null
 ) {
   if (layerOpacity <= 0) {
     return;
@@ -33,6 +34,9 @@ export function drawDrawings(
   for (const drawing of scene.drawings) {
     if (!isDrawingVisible(drawing, mode)) {
       continue;
+    }
+    if (mode === "gm" && drawing.id === selectedDrawingId) {
+      drawDrawingSelection(ctx, drawing, zoom);
     }
     drawDrawingElement(ctx, drawing, scene, layerOpacity, zoom);
   }
@@ -81,6 +85,51 @@ export function shouldAddDrawingPoint(previous: Point | undefined, current: Poin
   return !previous || distanceBetweenPoints(previous, current) >= DRAWING_POINT_MIN_DISTANCE;
 }
 
+function drawDrawingSelection(ctx: CanvasRenderingContext2D, drawing: DrawingElement, zoom: number) {
+  const points = drawing.points;
+  if (points.length < 2) {
+    return;
+  }
+  ctx.save();
+  ctx.strokeStyle = "#7aa2f7";
+  ctx.lineWidth = Math.max(2, 3 / Math.max(0.1, zoom));
+  ctx.setLineDash([8 / Math.max(0.1, zoom), 5 / Math.max(0.1, zoom)]);
+  if (drawing.kind === "circle") {
+    const [start, end] = points;
+    ctx.beginPath();
+    ctx.arc(start.x, start.y, distanceBetweenPoints(start, end), 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (drawing.kind === "rectangle") {
+    const [start, end] = points;
+    ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
+  } else if (drawing.kind === "cone") {
+    const triangle = getConeTriangle(points);
+    if (triangle) {
+      ctx.beginPath();
+      ctx.moveTo(triangle[0].x, triangle[0].y);
+      ctx.lineTo(triangle[1].x, triangle[1].y);
+      ctx.lineTo(triangle[2].x, triangle[2].y);
+      ctx.closePath();
+      ctx.stroke();
+    }
+  } else {
+    drawPath(ctx, points);
+  }
+  ctx.restore();
+}
+
+export function getDrawingAtPoint(drawings: DrawingElement[], point: Point, hitRadius = 8): DrawingElement | null {
+  for (const drawing of [...drawings].reverse()) {
+    if (!isDrawingVisible(drawing, "gm")) {
+      continue;
+    }
+    if (isPointNearDrawing(drawing, point, hitRadius)) {
+      return drawing;
+    }
+  }
+  return null;
+}
+
 function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingElement, scene: Scene, layerOpacity: number, zoom: number) {
   const points = drawing.points;
   if (points.length === 0) {
@@ -106,6 +155,32 @@ function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingEleme
   }
   drawTemplateLabel(ctx, drawing, scene, zoom);
   ctx.restore();
+}
+
+function isPointNearDrawing(drawing: DrawingElement, point: Point, hitRadius: number): boolean {
+  const points = drawing.points;
+  if (points.length < 2) {
+    return false;
+  }
+  if (drawing.kind === "circle") {
+    const radius = distanceBetweenPoints(points[0], points[1]);
+    return Math.abs(distanceBetweenPoints(points[0], point) - radius) <= hitRadius || distanceBetweenPoints(points[0], point) <= radius;
+  }
+  if (drawing.kind === "rectangle") {
+    const minX = Math.min(points[0].x, points[1].x) - hitRadius;
+    const maxX = Math.max(points[0].x, points[1].x) + hitRadius;
+    const minY = Math.min(points[0].y, points[1].y) - hitRadius;
+    const maxY = Math.max(points[0].y, points[1].y) + hitRadius;
+    return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
+  }
+  if (drawing.kind === "cone") {
+    const triangle = getConeTriangle(points);
+    return triangle ? isPointInTriangle(point, triangle[0], triangle[1], triangle[2]) : false;
+  }
+  return points.some((candidate, index) => {
+    const next = points[index + 1];
+    return next ? distanceToSegment(point, candidate, next) <= hitRadius : false;
+  });
 }
 
 function drawLine(ctx: CanvasRenderingContext2D, points: Point[]) {
@@ -156,24 +231,14 @@ function drawCone(ctx: CanvasRenderingContext2D, points: Point[], drawing: Drawi
   if (points.length < 2) {
     return;
   }
-  const [start, end] = points;
-  const distance = distanceBetweenPoints(start, end);
-  if (distance <= 0) {
+  const triangle = getConeTriangle(points);
+  if (!triangle) {
     return;
   }
-  const angle = Math.atan2(end.y - start.y, end.x - start.x);
-  const halfAngle = Math.PI / 6;
-  const left = {
-    x: start.x + Math.cos(angle - halfAngle) * distance,
-    y: start.y + Math.sin(angle - halfAngle) * distance
-  };
-  const right = {
-    x: start.x + Math.cos(angle + halfAngle) * distance,
-    y: start.y + Math.sin(angle + halfAngle) * distance
-  };
+  const [origin, left, right] = triangle;
 
   ctx.beginPath();
-  ctx.moveTo(start.x, start.y);
+  ctx.moveTo(origin.x, origin.y);
   ctx.lineTo(left.x, left.y);
   ctx.lineTo(right.x, right.y);
   ctx.closePath();
@@ -192,6 +257,54 @@ function fillCurrentTemplatePath(ctx: CanvasRenderingContext2D, drawing: Drawing
   ctx.globalAlpha = Math.max(0, Math.min(0.22, drawing.opacity * 0.18));
   ctx.fill();
   ctx.restore();
+}
+
+function getConeTriangle(points: Point[]): [Point, Point, Point] | null {
+  if (points.length < 2) {
+    return null;
+  }
+  const [start, end] = points;
+  const distance = distanceBetweenPoints(start, end);
+  if (distance <= 0) {
+    return null;
+  }
+  const angle = Math.atan2(end.y - start.y, end.x - start.x);
+  const halfAngle = Math.PI / 6;
+  return [
+    start,
+    {
+      x: start.x + Math.cos(angle - halfAngle) * distance,
+      y: start.y + Math.sin(angle - halfAngle) * distance
+    },
+    {
+      x: start.x + Math.cos(angle + halfAngle) * distance,
+      y: start.y + Math.sin(angle + halfAngle) * distance
+    }
+  ];
+}
+
+function isPointInTriangle(point: Point, a: Point, b: Point, c: Point): boolean {
+  const area = triangleArea(a, b, c);
+  const area1 = triangleArea(point, b, c);
+  const area2 = triangleArea(a, point, c);
+  const area3 = triangleArea(a, b, point);
+  return Math.abs(area - (area1 + area2 + area3)) <= 0.5;
+}
+
+function triangleArea(a: Point, b: Point, c: Point): number {
+  return Math.abs((a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y)) / 2);
+}
+
+function distanceToSegment(point: Point, start: Point, end: Point): number {
+  const lengthSquared = (end.x - start.x) ** 2 + (end.y - start.y) ** 2;
+  if (lengthSquared === 0) {
+    return distanceBetweenPoints(point, start);
+  }
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * (end.x - start.x) + (point.y - start.y) * (end.y - start.y)) / lengthSquared));
+  return distanceBetweenPoints(point, {
+    x: start.x + t * (end.x - start.x),
+    y: start.y + t * (end.y - start.y)
+  });
 }
 
 function drawTemplateLabel(ctx: CanvasRenderingContext2D, drawing: DrawingElement, scene: Scene, zoom: number) {
