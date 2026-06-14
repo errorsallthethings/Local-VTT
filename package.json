@@ -1,6 +1,6 @@
 {
   "name": "localvtt",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "description": "Local-first tabletop battle map display tool for in-person RPG sessions.",
   "author": "Local VTT contributors",

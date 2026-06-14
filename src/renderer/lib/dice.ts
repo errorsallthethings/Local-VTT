@@ -1,8 +1,14 @@
-import type { LiveTableEvent } from "../../shared/localvtt";
+import type { DiceDisplayMode, DiceSettings, LiveTableEvent } from "../../shared/localvtt";
 
 export type DiceType = Extract<LiveTableEvent, { type: "dice" }>["die"];
 export type DiceVisualRoll = NonNullable<Extract<LiveTableEvent, { type: "dice" }>["dice"]>[number];
 export type DiceRollTone = "critical" | "fumble" | "max" | "normal";
+export type EffectiveDiceDisplayModes = {
+  gmDisplayMode: DiceDisplayMode;
+  playerDisplayMode: DiceDisplayMode;
+  gmPanelAdvanced: boolean;
+  playerPanelAdvanced: boolean;
+};
 
 export const DICE_TYPES: DiceType[] = ["coin", "d4", "d6", "d8", "d10", "d00", "d12", "d20"];
 export const DICE_EVENT_DURATION_MS = 5200;
@@ -11,6 +17,31 @@ export const MAX_COMPOSER_DICE = 12;
 const MAX_INLINE_BREAKDOWN_DICE = 6;
 const MAX_COMPACT_BREAKDOWN_DICE = 6;
 const DICE_EXPRESSION_ERROR = "Use dice like d20, d20a, d20d, 4d6kh3, 4d6dl1, 2d6+3, d20+d4+5, or d%.";
+
+export function getEffectiveDiceDisplayModes(settings: Pick<DiceSettings, "gmDisplayMode" | "playerDisplayMode" | "sceneRollEnabled" | "sceneRollTarget" | "gmPanelAdvanced" | "playerPanelAdvanced">): EffectiveDiceDisplayModes {
+  if (settings.sceneRollEnabled) {
+    if (settings.sceneRollTarget === "player") {
+      return {
+        gmDisplayMode: "scene-result",
+        playerDisplayMode: "scene",
+        gmPanelAdvanced: false,
+        playerPanelAdvanced: settings.playerPanelAdvanced
+      };
+    }
+    return {
+      gmDisplayMode: "scene",
+      playerDisplayMode: "hidden",
+      gmPanelAdvanced: settings.gmPanelAdvanced,
+      playerPanelAdvanced: settings.playerPanelAdvanced
+    };
+  }
+  return {
+    gmDisplayMode: settings.gmDisplayMode === "panel" || settings.gmDisplayMode === "hidden" ? settings.gmDisplayMode : "results",
+    playerDisplayMode: settings.playerDisplayMode === "panel" || settings.playerDisplayMode === "hidden" ? settings.playerDisplayMode : "results",
+    gmPanelAdvanced: settings.gmPanelAdvanced,
+    playerPanelAdvanced: settings.playerPanelAdvanced
+  };
+}
 
 export function rollDie(die: DiceType, random = Math.random): { result: number; label: string } {
   if (die === "coin") {

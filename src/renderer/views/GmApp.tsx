@@ -26,7 +26,6 @@ import type {
   CampaignSceneEntry,
   CampaignSceneFolder,
   DisplayCalibration,
-  DiceDisplayMode,
   DiceSettings,
   LiveTableEvent,
   Point,
@@ -48,7 +47,7 @@ import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { moveSceneFolder } from "../lib/campaignActions";
-import { DICE_HISTORY_DURATION_MS, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
+import { DICE_HISTORY_DURATION_MS, getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import {
   RECENT_CAMPAIGNS_STORAGE_KEY,
   addRecentCampaign,
@@ -278,34 +277,9 @@ export function GmApp() {
     return removeListener;
   }, [updateDiceRollHistory]);
 
-  const getEffectiveDiceDisplayModes = (): { gmDisplayMode: DiceDisplayMode; playerDisplayMode: DiceDisplayMode; gmPanelAdvanced: boolean; playerPanelAdvanced: boolean } => {
-    if (diceSettings.sceneRollEnabled) {
-      if (diceSettings.sceneRollTarget === "player") {
-        return {
-          gmDisplayMode: "scene-result",
-          playerDisplayMode: "scene",
-          gmPanelAdvanced: false,
-          playerPanelAdvanced: diceSettings.playerPanelAdvanced
-        };
-      }
-      return {
-        gmDisplayMode: "scene",
-        playerDisplayMode: "hidden",
-        gmPanelAdvanced: diceSettings.gmPanelAdvanced,
-        playerPanelAdvanced: diceSettings.playerPanelAdvanced
-      };
-    }
-    return {
-      gmDisplayMode: diceSettings.gmDisplayMode === "panel" || diceSettings.gmDisplayMode === "hidden" ? diceSettings.gmDisplayMode : "results",
-      playerDisplayMode: diceSettings.playerDisplayMode === "panel" || diceSettings.playerDisplayMode === "hidden" ? diceSettings.playerDisplayMode : "results",
-      gmPanelAdvanced: diceSettings.gmPanelAdvanced,
-      playerPanelAdvanced: diceSettings.playerPanelAdvanced
-    };
-  };
-
   const rollTableDie = (die: DiceType) => {
     const roll = rollDiceEvent(die);
-    const diceDisplayModes = getEffectiveDiceDisplayModes();
+    const diceDisplayModes = getEffectiveDiceDisplayModes(diceSettings);
     setError(null);
     emitLiveTableEvent({
       ...roll,
@@ -331,7 +305,7 @@ export function GmApp() {
     try {
       const roll = rollDiceExpression(expression);
       const trimmedLabel = rollLabel?.trim();
-      const diceDisplayModes = getEffectiveDiceDisplayModes();
+      const diceDisplayModes = getEffectiveDiceDisplayModes(diceSettings);
       setError(null);
       emitLiveTableEvent({
         ...roll,
