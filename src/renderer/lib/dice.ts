@@ -199,10 +199,11 @@ export function getDiceVisualTotal(dice: DiceVisualRoll[]): number {
 
 export function getDiceRollTone(event: Extract<LiveTableEvent, { type: "dice" }>): DiceRollTone {
   const dice = getEventDice(event).filter((die) => die.kept !== false);
-  if (dice.some((die) => die.die === "d20" && die.result === 20)) {
+  const countedD20Roll = getCountedD20Roll(dice);
+  if (countedD20Roll?.result === 20) {
     return "critical";
   }
-  if (dice.some((die) => die.die === "d20" && die.result === 1)) {
+  if (countedD20Roll?.result === 1) {
     return "fumble";
   }
   if (event.die === "coin") {
@@ -211,10 +212,12 @@ export function getDiceRollTone(event: Extract<LiveTableEvent, { type: "dice" }>
   if (event.die === "d00") {
     return getEventPercentileTotal(event) === 100 ? "max" : "normal";
   }
-  if (dice.some((die) => die.result === getDieMaxResult(die.die))) {
-    return "max";
-  }
   return "normal";
+}
+
+function getCountedD20Roll(dice: DiceVisualRoll[]): DiceVisualRoll | null {
+  const d20Rolls = dice.filter((die) => die.die === "d20");
+  return d20Rolls.length === 1 ? d20Rolls[0] : null;
 }
 
 export function getPercentileTotal(tensLabel: string, onesLabel: string): number {
@@ -419,10 +422,6 @@ export function getDieSides(die: DiceType): number {
     return 20;
   }
   return 10;
-}
-
-function getDieMaxResult(die: DiceType): number {
-  return die === "d00" ? 90 : getDieSides(die);
 }
 
 export function formatDieLabel(die: DiceType): string {

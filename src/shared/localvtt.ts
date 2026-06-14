@@ -504,7 +504,7 @@ export interface DiceSettings {
 }
 
 export const DEFAULT_DICE_SETTINGS: DiceSettings = {
-  gmDisplayMode: "results",
+  gmDisplayMode: "panel",
   playerDisplayMode: "hidden",
   sceneRollEnabled: false,
   sceneRollTarget: "gm",

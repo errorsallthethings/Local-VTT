@@ -296,7 +296,7 @@ export function GmApp() {
       };
     }
     return {
-      gmDisplayMode: diceSettings.gmDisplayMode === "panel" ? "panel" : "results",
+      gmDisplayMode: diceSettings.gmDisplayMode === "panel" || diceSettings.gmDisplayMode === "hidden" ? diceSettings.gmDisplayMode : "results",
       playerDisplayMode: diceSettings.playerDisplayMode === "panel" || diceSettings.playerDisplayMode === "hidden" ? diceSettings.playerDisplayMode : "results",
       gmPanelAdvanced: diceSettings.gmPanelAdvanced,
       playerPanelAdvanced: diceSettings.playerPanelAdvanced

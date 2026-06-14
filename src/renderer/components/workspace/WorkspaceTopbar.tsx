@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CircleHelp, Dices, EllipsisVertical, Eye, Map, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, CircleHelp, Dices, EllipsisVertical, Eye, Map, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
 import type { Asset, Campaign, DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneRollTarget, DiceSceneSize, LiveTableEvent, Scene } from "../../../shared/localvtt";
 import {
   DICE_TYPES,
@@ -34,17 +34,11 @@ type DicePanelDrag = {
 const CUSTOM_DICE_PRESETS_STORAGE_KEY = "localvtt.customDicePresets";
 const DICE_PANEL_REVEAL_DELAY_MS = 2800;
 const DICE_DISPLAY_OPTIONS = [
-  { value: "results", label: "Results only" },
-  { value: "panel", label: "3D panel" }
-] as const satisfies Array<{ value: DiceDisplayMode; label: string }>;
-const PLAYER_DICE_DISPLAY_OPTIONS = [
-  ...DICE_DISPLAY_OPTIONS,
+  { value: "results", label: "Text Result Only" },
+  { value: "panel", label: "3D Panel" },
+  { value: "scene", label: "3D Scene Roll" },
   { value: "hidden", label: "Hidden" }
 ] as const satisfies Array<{ value: DiceDisplayMode; label: string }>;
-const DICE_SCENE_ROLL_TARGET_OPTIONS = [
-  { value: "gm", label: "GM View" },
-  { value: "player", label: "Player View" }
-] as const satisfies Array<{ value: DiceSceneRollTarget; label: string }>;
 const DICE_SCENE_SIZE_OPTIONS = [
   { value: "xs", label: "Extra small" },
   { value: "sm", label: "Small" },
@@ -167,6 +161,7 @@ export function WorkspaceTopbar({
   const [presetFormError, setPresetFormError] = useState<string | null>(null);
   const [dicePanelOpen, setDicePanelOpen] = useState(false);
   const [diceSettingsOpen, setDiceSettingsOpen] = useState(false);
+  const [dicePlacementOpen, setDicePlacementOpen] = useState(false);
   const [diceFormulaHelpOpen, setDiceFormulaHelpOpen] = useState(false);
   const [diceRecentTick, setDiceRecentTick] = useState(0);
   const [dicePanelPosition, setDicePanelPosition] = useState<DicePanelPosition | null>(null);
@@ -194,6 +189,12 @@ export function WorkspaceTopbar({
     const timer = window.setInterval(() => setDiceRecentTick((tick) => tick + 1), 120);
     return () => window.clearInterval(timer);
   }, [diceHistory, diceRecentTick]);
+
+  useEffect(() => {
+    if (!diceSettingsOpen) {
+      setDicePlacementOpen(false);
+    }
+  }, [diceSettingsOpen]);
 
   useEffect(() => {
     if (!dicePanelOpen) {
@@ -297,12 +298,38 @@ export function WorkspaceTopbar({
     }
   };
 
-  const diceDisplaySummary = getDiceDisplaySummary({
-    gmDiceDisplayMode,
-    playerDiceDisplayMode,
-    diceSceneRollEnabled,
-    diceSceneRollTarget
-  });
+  const gmPlacementAvailable = getDicePlacementAvailable(gmDiceDisplayMode, diceSceneRollEnabled);
+  const playerPlacementAvailable = getDicePlacementAvailable(playerDiceDisplayMode, diceSceneRollEnabled);
+  const gmPlacementFacingAvailable = getDicePlacementFacingAvailable(gmDiceDisplayMode, diceSceneRollEnabled);
+  const playerPlacementFacingAvailable = getDicePlacementFacingAvailable(playerDiceDisplayMode, diceSceneRollEnabled);
+  const gmPlacementHelp = getDicePlacementHelp("GM", gmDiceDisplayMode, diceSceneRollEnabled);
+  const playerPlacementHelp = getDicePlacementHelp("Player", playerDiceDisplayMode, diceSceneRollEnabled);
+  const gmDisplaySelectValue = diceSceneRollEnabled ? (diceSceneRollTarget === "gm" ? "scene" : "results") : getDiceDisplaySelectValue(gmDiceDisplayMode);
+  const playerDisplaySelectValue = diceSceneRollEnabled ? (diceSceneRollTarget === "player" ? "scene" : "hidden") : getDiceDisplaySelectValue(playerDiceDisplayMode);
+
+  const changeGmDiceDisplayMode = (mode: DiceDisplayMode) => {
+    if (mode === "scene") {
+      onDiceSceneRollTargetChange("gm");
+      onDiceSceneRollEnabledChange(true);
+      return;
+    }
+    if (diceSceneRollEnabled) {
+      onDiceSceneRollEnabledChange(false);
+    }
+    onGmDiceDisplayModeChange(mode);
+  };
+
+  const changePlayerDiceDisplayMode = (mode: DiceDisplayMode) => {
+    if (mode === "scene") {
+      onDiceSceneRollTargetChange("player");
+      onDiceSceneRollEnabledChange(true);
+      return;
+    }
+    if (diceSceneRollEnabled) {
+      onDiceSceneRollEnabledChange(false);
+    }
+    onPlayerDiceDisplayModeChange(mode);
+  };
 
   const rollPreset = (label: string, formula: string) => {
     setDiceExpression(formula);
@@ -377,10 +404,6 @@ export function WorkspaceTopbar({
               >
                 <div className="dice-popover-title">
                   <strong>Dice</strong>
-                  <div className="dice-display-summary" aria-label={`Dice display settings: GM ${diceDisplaySummary.gm}, Player ${diceDisplaySummary.player}`}>
-                    <span title={`GM Display: ${diceDisplaySummary.gm}`}>GM: {diceDisplaySummary.gm}</span>
-                    <span title={`Player Display: ${diceDisplaySummary.player}`}>Player: {diceDisplaySummary.player}</span>
-                  </div>
                 </div>
                 <div className="dice-popover-header-actions">
                   <button
@@ -404,28 +427,8 @@ export function WorkspaceTopbar({
                       <div className="dice-settings-group">
                         <div className="dice-settings-group-heading">Display</div>
                         <div className="dice-settings-row">
-                          <span>Scene Roll</span>
-                          <label className="fog-operation-switch weather-category-switch dice-placement-switch" title="Roll dice directly on one scene view">
-                            <span>Off</span>
-                            <input type="checkbox" checked={diceSceneRollEnabled} aria-label="Scene roll" onChange={(event) => onDiceSceneRollEnabledChange(event.target.checked)} />
-                            <span>On</span>
-                          </label>
-                        </div>
-                        {diceSceneRollEnabled && (
-                          <div className="dice-settings-row">
-                            <span>Roll Scene On</span>
-                            <select value={diceSceneRollTarget} aria-label="Scene roll target view" onChange={(event) => onDiceSceneRollTargetChange(event.target.value as DiceSceneRollTarget)}>
-                              {DICE_SCENE_ROLL_TARGET_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                        <div className="dice-settings-row">
                           <span>GM Display</span>
-                          <select value={gmDiceDisplayMode === "panel" ? "panel" : "results"} aria-label="GM dice display mode" disabled={diceSceneRollEnabled} onChange={(event) => onGmDiceDisplayModeChange(event.target.value as DiceDisplayMode)}>
+                          <select value={gmDisplaySelectValue} aria-label="GM dice display mode" onChange={(event) => changeGmDiceDisplayMode(event.target.value as DiceDisplayMode)}>
                             {DICE_DISPLAY_OPTIONS.map((option) => (
                               <option key={option.value} value={option.value}>
                                 {option.label}
@@ -436,12 +439,11 @@ export function WorkspaceTopbar({
                         <div className="dice-settings-row">
                           <span>Player Display</span>
                           <select
-                            value={playerDiceDisplayMode === "panel" || playerDiceDisplayMode === "hidden" ? playerDiceDisplayMode : "results"}
+                            value={playerDisplaySelectValue}
                             aria-label="Player dice display mode"
-                            disabled={diceSceneRollEnabled}
-                            onChange={(event) => onPlayerDiceDisplayModeChange(event.target.value as DiceDisplayMode)}
+                            onChange={(event) => changePlayerDiceDisplayMode(event.target.value as DiceDisplayMode)}
                           >
-                            {PLAYER_DICE_DISPLAY_OPTIONS.map((option) => (
+                            {DICE_DISPLAY_OPTIONS.map((option) => (
                               <option key={option.value} value={option.value}>
                                 {option.label}
                               </option>
@@ -452,10 +454,10 @@ export function WorkspaceTopbar({
 
                       {diceSceneRollEnabled && (
                         <div className="dice-settings-group">
-                          <div className="dice-settings-group-heading">Scene Roll</div>
-                          <div className="dice-settings-row">
-                            <span>GM Scene Dice Size</span>
-                            <select value={gmDiceSceneSize} aria-label="GM scene dice size" onChange={(event) => onGmDiceSceneSizeChange(event.target.value as DiceSceneSize)}>
+                          <div className="dice-settings-group-heading">3D Scene Settings</div>
+                          <div className={diceSceneRollTarget === "gm" ? "dice-settings-row" : "dice-settings-row dice-settings-row-disabled"}>
+                            <span>GM Dice Size</span>
+                            <select value={gmDiceSceneSize} disabled={diceSceneRollTarget !== "gm"} aria-label="GM dice size" onChange={(event) => onGmDiceSceneSizeChange(event.target.value as DiceSceneSize)}>
                               {DICE_SCENE_SIZE_OPTIONS.map((option) => (
                                 <option key={option.value} value={option.value}>
                                   {option.label}
@@ -463,9 +465,9 @@ export function WorkspaceTopbar({
                               ))}
                             </select>
                           </div>
-                          <div className="dice-settings-row">
-                            <span>Player Scene Dice Size</span>
-                            <select value={playerDiceSceneSize} aria-label="Player scene dice size" onChange={(event) => onPlayerDiceSceneSizeChange(event.target.value as DiceSceneSize)}>
+                          <div className={diceSceneRollTarget === "player" ? "dice-settings-row" : "dice-settings-row dice-settings-row-disabled"}>
+                            <span>Player Dice Size</span>
+                            <select value={playerDiceSceneSize} disabled={diceSceneRollTarget !== "player"} aria-label="Player dice size" onChange={(event) => onPlayerDiceSceneSizeChange(event.target.value as DiceSceneSize)}>
                               {DICE_SCENE_SIZE_OPTIONS.map((option) => (
                                 <option key={option.value} value={option.value}>
                                   {option.label}
@@ -477,87 +479,96 @@ export function WorkspaceTopbar({
                       )}
 
                       <div className="dice-settings-group">
-                        <div className="dice-settings-group-heading">Placement</div>
-                        <div className="dice-settings-row">
-                          <span>GM Placement</span>
-                          <label className="fog-operation-switch weather-category-switch dice-placement-switch" title="Enable GM Results and 3D panel edge placement">
-                            <span>Off</span>
-                            <input type="checkbox" checked={gmDicePanelAdvanced} aria-label="GM dice panel placement" onChange={(event) => updateGmDicePanelAdvanced(event.target.checked)} />
-                            <span>On</span>
-                          </label>
-                        </div>
-                        {gmDicePanelAdvanced && (
+                        <button type="button" className="dice-settings-group-heading dice-settings-group-toggle" aria-expanded={dicePlacementOpen} onClick={() => setDicePlacementOpen((open) => !open)}>
+                          {dicePlacementOpen ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+                          <strong>Advanced Placement</strong>
+                        </button>
+                        {dicePlacementOpen && (
                           <>
                             <div className="dice-settings-row">
-                              <span>GM Panel Edge</span>
-                              <select value={gmDicePanelEdge} aria-label="GM dice panel edge" onChange={(event) => onGmDicePanelEdgeChange(event.target.value as DicePanelEdge)}>
-                                {DICE_PANEL_EDGE_OPTIONS.map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
+                              <span>GM Display Placement</span>
+                              <label className="fog-operation-switch weather-category-switch dice-placement-switch" title={gmPlacementAvailable ? "Enable GM display edge placement" : gmPlacementHelp}>
+                                <span>Off</span>
+                                <input type="checkbox" checked={gmDicePanelAdvanced} disabled={!gmPlacementAvailable} aria-label="GM display placement" onChange={(event) => updateGmDicePanelAdvanced(event.target.checked)} />
+                                <span>On</span>
+                              </label>
                             </div>
+                            <div className="dice-placement-help" role="note">{gmPlacementHelp}</div>
+                            {gmDicePanelAdvanced && (
+                              <>
+                                <div className={gmPlacementAvailable ? "dice-settings-row" : "dice-settings-row dice-settings-row-disabled"}>
+                                  <span>Edge</span>
+                                  <select value={gmDicePanelEdge} disabled={!gmPlacementAvailable} aria-label="GM display edge" onChange={(event) => onGmDicePanelEdgeChange(event.target.value as DicePanelEdge)}>
+                                    {DICE_PANEL_EDGE_OPTIONS.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className={gmPlacementFacingAvailable ? "dice-settings-row" : "dice-settings-row dice-settings-row-disabled"}>
+                                  <span>Facing</span>
+                                  <select value={gmDicePanelFacing} disabled={!gmPlacementFacingAvailable} aria-label="GM display facing" onChange={(event) => onGmDicePanelFacingChange(event.target.value as DicePanelFacing)}>
+                                    {DICE_PANEL_FACING_OPTIONS.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <label className={gmPlacementAvailable ? "dice-settings-row" : "dice-settings-row dice-settings-row-disabled"}>
+                                  <span>Edge Position</span>
+                                  <div className="dice-position-control">
+                                    <input type="range" min="0" max="100" value={Math.round(gmDicePanelPosition * 100)} disabled={!gmPlacementAvailable} aria-label="GM display edge position" onChange={(event) => onGmDicePanelPositionChange(Number(event.target.value) / 100)} />
+                                    <button type="button" className="icon-button dice-position-reset" disabled={!gmPlacementAvailable} title="Reset GM display edge position" aria-label="Reset GM display edge position" onClick={() => onGmDicePanelPositionChange(0.5)}>
+                                      <RotateCcw size={13} aria-hidden="true" />
+                                    </button>
+                                  </div>
+                                </label>
+                              </>
+                            )}
                             <div className="dice-settings-row">
-                              <span>GM Panel Facing</span>
-                              <select value={gmDicePanelFacing} aria-label="GM dice panel facing" onChange={(event) => onGmDicePanelFacingChange(event.target.value as DicePanelFacing)}>
-                                {DICE_PANEL_FACING_OPTIONS.map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
+                              <span>Player Display Placement</span>
+                              <label className="fog-operation-switch weather-category-switch dice-placement-switch" title={playerPlacementAvailable ? "Enable Player display edge placement" : playerPlacementHelp}>
+                                <span>Off</span>
+                                <input type="checkbox" checked={playerDicePanelAdvanced} disabled={!playerPlacementAvailable} aria-label="Player display placement" onChange={(event) => updatePlayerDicePanelAdvanced(event.target.checked)} />
+                                <span>On</span>
+                              </label>
                             </div>
-                            <label className="dice-settings-row">
-                              <span>GM Panel Position</span>
-                              <div className="dice-position-control">
-                                <input type="range" min="0" max="100" value={Math.round(gmDicePanelPosition * 100)} aria-label="GM dice panel position" onChange={(event) => onGmDicePanelPositionChange(Number(event.target.value) / 100)} />
-                                <button type="button" className="icon-button dice-position-reset" title="Reset GM panel position" aria-label="Reset GM panel position" onClick={() => onGmDicePanelPositionChange(0.5)}>
-                                  <RotateCcw size={13} aria-hidden="true" />
-                                </button>
-                              </div>
-                            </label>
-                          </>
-                        )}
-                        <div className="dice-settings-row">
-                          <span>Player Placement</span>
-                          <label className="fog-operation-switch weather-category-switch dice-placement-switch" title="Enable Player Results and 3D panel edge placement">
-                            <span>Off</span>
-                            <input type="checkbox" checked={playerDicePanelAdvanced} aria-label="Player dice panel placement" onChange={(event) => updatePlayerDicePanelAdvanced(event.target.checked)} />
-                            <span>On</span>
-                          </label>
-                        </div>
-                        {playerDicePanelAdvanced && (
-                          <>
-                            <div className="dice-settings-row">
-                              <span>Player Panel Edge</span>
-                              <select value={playerDicePanelEdge} aria-label="Player dice panel edge" onChange={(event) => onPlayerDicePanelEdgeChange(event.target.value as DicePanelEdge)}>
-                                {DICE_PANEL_EDGE_OPTIONS.map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="dice-settings-row">
-                              <span>Player Panel Facing</span>
-                              <select value={playerDicePanelFacing} aria-label="Player dice panel facing" onChange={(event) => onPlayerDicePanelFacingChange(event.target.value as DicePanelFacing)}>
-                                {DICE_PANEL_FACING_OPTIONS.map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <label className="dice-settings-row">
-                              <span>Player Panel Position</span>
-                              <div className="dice-position-control">
-                                <input type="range" min="0" max="100" value={Math.round(playerDicePanelPosition * 100)} aria-label="Player dice panel position" onChange={(event) => onPlayerDicePanelPositionChange(Number(event.target.value) / 100)} />
-                                <button type="button" className="icon-button dice-position-reset" title="Reset Player panel position" aria-label="Reset Player panel position" onClick={() => onPlayerDicePanelPositionChange(0.5)}>
-                                  <RotateCcw size={13} aria-hidden="true" />
-                                </button>
-                              </div>
-                            </label>
+                            <div className="dice-placement-help" role="note">{playerPlacementHelp}</div>
+                            {playerDicePanelAdvanced && (
+                              <>
+                                <div className={playerPlacementAvailable ? "dice-settings-row" : "dice-settings-row dice-settings-row-disabled"}>
+                                  <span>Edge</span>
+                                  <select value={playerDicePanelEdge} disabled={!playerPlacementAvailable} aria-label="Player display edge" onChange={(event) => onPlayerDicePanelEdgeChange(event.target.value as DicePanelEdge)}>
+                                    {DICE_PANEL_EDGE_OPTIONS.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className={playerPlacementFacingAvailable ? "dice-settings-row" : "dice-settings-row dice-settings-row-disabled"}>
+                                  <span>Facing</span>
+                                  <select value={playerDicePanelFacing} disabled={!playerPlacementFacingAvailable} aria-label="Player display facing" onChange={(event) => onPlayerDicePanelFacingChange(event.target.value as DicePanelFacing)}>
+                                    {DICE_PANEL_FACING_OPTIONS.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <label className={playerPlacementAvailable ? "dice-settings-row" : "dice-settings-row dice-settings-row-disabled"}>
+                                  <span>Edge Position</span>
+                                  <div className="dice-position-control">
+                                    <input type="range" min="0" max="100" value={Math.round(playerDicePanelPosition * 100)} disabled={!playerPlacementAvailable} aria-label="Player display edge position" onChange={(event) => onPlayerDicePanelPositionChange(Number(event.target.value) / 100)} />
+                                    <button type="button" className="icon-button dice-position-reset" disabled={!playerPlacementAvailable} title="Reset Player display edge position" aria-label="Reset Player display edge position" onClick={() => onPlayerDicePanelPositionChange(0.5)}>
+                                      <RotateCcw size={13} aria-hidden="true" />
+                                    </button>
+                                  </div>
+                                </label>
+                              </>
+                            )}
                           </>
                         )}
                       </div>
@@ -869,37 +880,29 @@ function clampDicePanelPosition(x: number, y: number, rect?: DOMRect | null): Di
   };
 }
 
-function getDiceDisplaySummary({
-  gmDiceDisplayMode,
-  playerDiceDisplayMode,
-  diceSceneRollEnabled,
-  diceSceneRollTarget
-}: {
-  gmDiceDisplayMode: DiceDisplayMode;
-  playerDiceDisplayMode: DiceDisplayMode;
-  diceSceneRollEnabled: boolean;
-  diceSceneRollTarget: DiceSceneRollTarget;
-}): { gm: string; player: string } {
-  if (diceSceneRollEnabled) {
-    return diceSceneRollTarget === "player" ? { gm: "Results", player: "Scene" } : { gm: "Scene", player: "Hidden" };
-  }
-  return {
-    gm: getDiceDisplayLabel(gmDiceDisplayMode),
-    player: getDiceDisplayLabel(playerDiceDisplayMode)
-  };
+function getDiceDisplaySelectValue(mode: DiceDisplayMode): DiceDisplayMode {
+  return mode === "panel" || mode === "hidden" || mode === "scene" ? mode : "results";
 }
 
-function getDiceDisplayLabel(mode: DiceDisplayMode): string {
-  if (mode === "panel") {
-    return "3D Panel";
+function getDicePlacementAvailable(mode: DiceDisplayMode, sceneRollEnabled: boolean): boolean {
+  return !sceneRollEnabled && mode !== "hidden" && mode !== "scene" && mode !== "scene-result";
+}
+
+function getDicePlacementFacingAvailable(mode: DiceDisplayMode, sceneRollEnabled: boolean): boolean {
+  return getDicePlacementAvailable(mode, sceneRollEnabled) && mode === "results";
+}
+
+function getDicePlacementHelp(viewLabel: "GM" | "Player", mode: DiceDisplayMode, sceneRollEnabled: boolean): string {
+  if (sceneRollEnabled) {
+    return "3D Scene Roll is always centered on the selected scene view, so display placement is ignored.";
   }
   if (mode === "hidden") {
-    return "Hidden";
+    return `${viewLabel} display is hidden, so placement is ignored.`;
   }
-  if (mode === "scene" || mode === "scene-result") {
-    return "Scene";
+  if (mode === "panel") {
+    return "3D Panel uses Edge and Edge Position. Facing is only used by Text Result Only.";
   }
-  return "Results";
+  return "Text Result Only uses Edge, Facing, and Edge Position. Turn placement off to keep it centered.";
 }
 
 function loadCustomDicePresets(): CustomDicePreset[] {

@@ -402,11 +402,33 @@ describe("dice helpers", () => {
     expect(
       getDiceRollTone({
         ...rollDiceExpression("d8", () => 0.999),
-        id: "max",
+        id: "single-max",
         type: "dice",
         createdAt: 1
       })
-    ).toBe("max");
+    ).toBe("normal");
+    expect(
+      getDiceRollTone({
+        ...rollDiceExpression("2d8", (() => {
+          const values = [0.999, 0];
+          return () => values.shift() ?? 0;
+        })()),
+        id: "multi-max",
+        type: "dice",
+        createdAt: 1
+      })
+    ).toBe("normal");
+    expect(
+      getDiceRollTone({
+        ...rollDiceExpression("2d20", (() => {
+          const values = [0.999, 0];
+          return () => values.shift() ?? 0;
+        })()),
+        id: "multi-d20-max",
+        type: "dice",
+        createdAt: 1
+      })
+    ).toBe("normal");
     expect(
       getDiceRollTone({
         ...rollDiceEvent("d00", (() => {

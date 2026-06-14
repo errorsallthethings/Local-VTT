@@ -144,6 +144,15 @@
   animation: none;
 }
 
+.dice-roll-card-panel-3d {
+  width: 380px;
+  height: 380px;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .dice-roll-card-pool-md {
   height: 232px;
 }
@@ -182,6 +191,15 @@
   box-shadow:
     var(--shadow-panel),
     0 0 24px rgb(125 211 252 / 0.18);
+}
+
+.dice-roll-card.dice-roll-card-panel-3d {
+  width: 380px;
+  height: 380px;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .dice-roll-canvas {
@@ -293,6 +311,11 @@
   animation: dice-roll-result-ring-in 420ms ease-out 60ms both;
 }
 
+.dice-roll-result-ring-panel {
+  width: min(92%, 350px);
+  min-width: 0;
+}
+
 .dice-roll-result-ring::before,
 .dice-roll-result-ring::after {
   position: absolute;
@@ -340,6 +363,25 @@
   text-shadow: 0 2px 8px rgb(0 0 0 / 0.65);
   transform: translate(-50%, -50%) rotate(var(--dice-ring-angle)) translateY(calc(-1 * var(--dice-ring-radius))) rotate(180deg);
   transform-origin: center;
+}
+
+.dice-roll-result-ring-panel .dice-roll-result-ring-orbit span {
+  --dice-ring-radius: 146px;
+  min-width: 2.1ch;
+  padding: 4px 7px;
+  font-size: 24px;
+}
+
+.dice-roll-result-ring-panel::before {
+  inset: 10%;
+  box-shadow:
+    0 0 0 1px rgb(122 162 247 / 0.16),
+    0 0 18px rgb(122 162 247 / 0.22),
+    inset 0 0 18px rgb(8 12 18 / 0.34);
+}
+
+.dice-roll-result-ring-panel::after {
+  inset: 25%;
 }
 
 .dice-roll-result-ring-core {
@@ -399,13 +441,14 @@
 
 .dice-roll-result-ring .dice-roll-result-underline::after {
   position: absolute;
-  right: 0.08em;
   bottom: -0.12em;
-  left: 0.08em;
+  left: 50%;
+  width: 0.66em;
   height: 0.08em;
   border-radius: var(--radius-pill);
   background: currentColor;
   content: "";
+  transform: translateX(-50%);
 }
 
 .dice-roll-result-dismiss {
