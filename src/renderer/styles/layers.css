@@ -184,6 +184,13 @@
   color: #8f9bad;
 }
 
+.drawing-text-icon {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .token-row-thumbnail {
   display: grid;
   place-items: center;

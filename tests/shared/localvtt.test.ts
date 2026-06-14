@@ -151,6 +151,7 @@ it("normalizeScene applies canonical core layer names and order", () => {
     "GM",
     "Fog of War",
     "Weather",
+    "Drawings",
     "Foreground",
     "Tokens",
     "Objects",
@@ -162,12 +163,71 @@ it("normalizeScene applies canonical core layer names and order", () => {
     "gm",
     "fog",
     "weather",
+    "drawing",
     "foreground",
     "token",
     "object",
     "lighting",
     "grid",
     "map"
+  ]);
+});
+
+it("normalizeScene backfills drawing defaults", () => {
+  const scene = createDefaultScene("Drawings");
+  scene.drawings = [
+    {
+      id: "",
+      kind: "bad" as never,
+      points: [{ x: 10, y: 20 }, { x: Number.NaN, y: 30 }],
+      color: "nope",
+      opacity: 8,
+      strokeWidth: -2,
+      visibleInPlayer: undefined as never
+    },
+    {
+      id: "",
+      name: "  Spell Area  ",
+      kind: "circle",
+      points: [],
+      color: "#00ff00",
+      opacity: 0.5,
+      strokeWidth: 12,
+      fill: "#ff0000",
+      visibleInGm: false,
+      visibleInPlayer: false
+    }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.drawings).toEqual([
+    {
+      id: "drawing-1",
+      name: "Freehand 1",
+      kind: "freehand",
+      points: [{ x: 10, y: 20 }],
+      text: undefined,
+      color: "#f6d365",
+      opacity: 1,
+      strokeWidth: 1,
+      fill: undefined,
+      visibleInGm: true,
+      visibleInPlayer: true
+    },
+    {
+      id: "drawing-2",
+      name: "Spell Area",
+      kind: "circle",
+      points: [],
+      text: undefined,
+      color: "#00ff00",
+      opacity: 0.5,
+      strokeWidth: 12,
+      fill: "#ff0000",
+      visibleInGm: false,
+      visibleInPlayer: false
+    }
   ]);
 });
 
@@ -527,7 +587,7 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   expect(projection.playerDisplay.pixelsPerInch).toBe(120);
   expect(
     projection.scene.layers.map((layer) => layer.id),
-  ).toEqual(["fog", "weather", "foreground", "object", "lighting", "grid", "map"]);
+  ).toEqual(["fog", "weather", "drawing", "foreground", "object", "lighting", "grid", "map"]);
   expect(
     projection.scene.tokens.map((token) => token.id),
   ).toEqual(["token-1"]);

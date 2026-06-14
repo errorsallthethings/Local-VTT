@@ -79,6 +79,7 @@ export interface Layer {
   kind:
     | "gm"
     | "fog"
+    | "drawing"
     | "grid"
     | "weather"
     | "token"
@@ -254,6 +255,7 @@ export interface LightSource {
 
 export interface DrawingElement {
   id: string;
+  name?: string;
   kind: DrawingKind;
   points: Point[];
   text?: string;
@@ -261,6 +263,7 @@ export interface DrawingElement {
   opacity: number;
   strokeWidth: number;
   fill?: string;
+  visibleInGm?: boolean;
   visibleInPlayer: boolean;
 }
 
@@ -952,6 +955,7 @@ export const DEFAULT_LAYERS: Layer[] = [
   { id: "gm", name: "GM", kind: "gm", order: 90, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
   { id: "fog", name: "Fog of War", kind: "fog", order: 80, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
   { id: "weather", name: "Weather", kind: "weather", order: 70, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
+  { id: "drawing", name: "Drawings", kind: "drawing", order: 65, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
   { id: "foreground", name: "Foreground", kind: "foreground", order: 60, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
   { id: "token", name: "Tokens", kind: "token", order: 50, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
   { id: "object", name: "Objects", kind: "object", order: 40, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
@@ -1218,7 +1222,7 @@ export function normalizeScene(scene: Scene): Scene {
     tokenMovementPath: normalizeTokenMovementPath(scene.tokenMovementPath),
     walls: scene.walls ?? [],
     lights: scene.lights ?? [],
-    drawings: scene.drawings ?? [],
+    drawings: normalizeDrawings(scene.drawings),
     overlays: scene.overlays ?? [],
     turnOrder: normalizeTurnOrder(scene.turnOrder),
     videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(scene.videoPlayback ?? {}) },
@@ -1456,6 +1460,63 @@ export function formatDefaultFogShapeName(operation: FogShape["operation"], kind
   const operationLabel = operation === "reveal" ? "Reveal" : "Hide";
   const kindLabel = kind[0].toUpperCase() + kind.slice(1);
   return `${operationLabel} ${kindLabel} ${index + 1}`;
+}
+
+function normalizeDrawings(drawings?: DrawingElement[]): DrawingElement[] {
+  if (!Array.isArray(drawings)) {
+    return [];
+  }
+  const usedIds = new Set<string>();
+  return drawings.filter(isRecord).map((drawing, index) => {
+    const kind = normalizeDrawingKind(drawing.kind);
+    return {
+      id: getUniqueDrawingId(drawing.id, index, usedIds),
+      name: typeof drawing.name === "string" && drawing.name.trim() ? drawing.name.trim() : formatDefaultDrawingName(kind, index),
+      kind,
+      points: Array.isArray(drawing.points) ? drawing.points.filter(isPoint) : [],
+      text: typeof drawing.text === "string" ? drawing.text : undefined,
+      color: normalizeColor(drawing.color, "#f6d365"),
+      opacity: clampNumber(drawing.opacity, 0, 1, 1),
+      strokeWidth: clampNumber(drawing.strokeWidth, 1, 96, 4),
+      fill: typeof drawing.fill === "string" ? normalizeColor(drawing.fill, "transparent") : undefined,
+      visibleInGm: typeof drawing.visibleInGm === "boolean" ? drawing.visibleInGm : true,
+      visibleInPlayer: typeof drawing.visibleInPlayer === "boolean" ? drawing.visibleInPlayer : true
+    };
+  });
+}
+
+function getUniqueDrawingId(id: unknown, index: number, usedIds: Set<string>): string {
+  const rawId = typeof id === "string" ? id.trim() : "";
+  const baseId = rawId || `drawing-${index + 1}`;
+  let candidateId = baseId;
+  let suffix = 2;
+  while (usedIds.has(candidateId)) {
+    candidateId = `${baseId}-${suffix}`;
+    suffix += 1;
+  }
+  usedIds.add(candidateId);
+  return candidateId;
+}
+
+function normalizeDrawingKind(kind: unknown): DrawingKind {
+  return kind === "freehand" ||
+    kind === "line" ||
+    kind === "rectangle" ||
+    kind === "circle" ||
+    kind === "cone" ||
+    kind === "text" ||
+    kind === "ping" ||
+    kind === "laser"
+    ? kind
+    : "freehand";
+}
+
+export function formatDefaultDrawingName(kind: DrawingKind, index: number): string {
+  const kindLabel = kind
+    .split("-")
+    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+  return `${kindLabel} ${index + 1}`;
 }
 
 function normalizeTokenMovementPath(path?: TokenMovementPath): TokenMovementPath | undefined {
@@ -1698,7 +1759,7 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
       layers: normalizedScene.layers.filter((layer) => layer.visibleInPlayer),
       tokens: normalizedScene.tokens.filter((token) => token.visibleInPlayer),
       walls: [],
-      drawings: normalizedScene.drawings.filter((drawing) => drawing.visibleInPlayer),
+      drawings: normalizedScene.drawings.filter((drawing) => drawing.visibleInPlayer && playerLayerIds.has("drawing")),
       overlays: normalizedScene.overlays.filter((overlay) => overlay.visibleInPlayer && playerLayerIds.has(overlay.layerId)),
       notes: ""
     },

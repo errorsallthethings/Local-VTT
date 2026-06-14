@@ -11,10 +11,12 @@ import {
   Eye,
   EyeOff,
   Grid3X3,
+  GripVertical,
   Import,
   Image,
   Layers,
   Lightbulb,
+  Paintbrush,
   Pentagon,
   RotateCcw,
   Shield,
@@ -28,6 +30,8 @@ import {
 } from "lucide-react";
 import type {
   Asset,
+  DrawingElement,
+  DrawingKind,
   FogSettings,
   GridSettings,
   GridType,
@@ -38,7 +42,7 @@ import type {
   WeatherSettings,
   WeatherTuningSettings
 } from "../../../shared/localvtt";
-import { DEFAULT_GRID, DEFAULT_MAP_TRANSFORM, DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultFogShapeName, type Token } from "../../../shared/localvtt";
+import { DEFAULT_GRID, DEFAULT_MAP_TRANSFORM, DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultDrawingName, formatDefaultFogShapeName, type Token } from "../../../shared/localvtt";
 import { getSnappedTokenPosition } from "../../canvas/tokenGeometry";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
 import {
@@ -54,6 +58,7 @@ import { FogShapeList, type FogShapeDropTarget } from "./FogShapeList";
 import { TokenList } from "./TokenList";
 
 type WeatherTuningKey = keyof WeatherTuningSettings;
+type DrawingDropTarget = { drawingId: string; placement: DropPlacement } | null;
 
 export function LayerPanel({
   scene,
@@ -114,6 +119,8 @@ export function LayerPanel({
   const [settingsLayerIds, setSettingsLayerIds] = useState<Set<string>>(() => new Set());
   const [draggedFogShapeId, setDraggedFogShapeId] = useState<string | null>(null);
   const [fogShapeDropTarget, setFogShapeDropTarget] = useState<FogShapeDropTarget>(null);
+  const [draggedDrawingId, setDraggedDrawingId] = useState<string | null>(null);
+  const [drawingDropTarget, setDrawingDropTarget] = useState<DrawingDropTarget>(null);
   const [expandedWeatherCategory, setExpandedWeatherCategory] = useState<ActiveWeatherCategory | null>(null);
   const [fogPlayerDefaultHelpOpen, setFogPlayerDefaultHelpOpen] = useState(false);
 
@@ -187,6 +194,18 @@ export function LayerPanel({
     }));
     const shapes = reorderByDropTarget(namedShapes, (shape) => shape.id, sourceShapeId, targetShapeId, placement);
     onUpdateFog({ shapes });
+  };
+
+  const updateDrawings = (drawings: DrawingElement[]) => {
+    onChange({ ...scene, drawings, updatedAt: new Date().toISOString() });
+  };
+
+  const moveDrawing = (sourceDrawingId: string, targetDrawingId: string, placement: DropPlacement) => {
+    if (sourceDrawingId === targetDrawingId) {
+      return;
+    }
+    const drawings = reorderByDropTarget(scene.drawings, (drawing) => drawing.id, sourceDrawingId, targetDrawingId, placement);
+    updateDrawings(drawings);
   };
 
   const updateTokens = (tokens: Token[]) => {
@@ -491,6 +510,17 @@ export function LayerPanel({
                   onSelectFogShape={onSelectFogShape}
                   onRenameFogShape={onRenameFogShape}
                   onUpdateFog={onUpdateFog}
+                />
+              )}
+              {layer.id === "drawing" && isExpanded && (
+                <DrawingList
+                  drawings={scene.drawings}
+                  draggedDrawingId={draggedDrawingId}
+                  drawingDropTarget={drawingDropTarget}
+                  onDraggedDrawingIdChange={setDraggedDrawingId}
+                  onDrawingDropTargetChange={setDrawingDropTarget}
+                  onMoveDrawing={moveDrawing}
+                  onUpdateDrawings={updateDrawings}
                 />
               )}
               {layer.id === "weather" && areSettingsExpanded && (
@@ -1020,6 +1050,151 @@ function WeatherRangeRow({
   );
 }
 
+function DrawingList({
+  drawings,
+  draggedDrawingId,
+  drawingDropTarget,
+  onDraggedDrawingIdChange,
+  onDrawingDropTargetChange,
+  onMoveDrawing,
+  onUpdateDrawings
+}: {
+  drawings: DrawingElement[];
+  draggedDrawingId: string | null;
+  drawingDropTarget: DrawingDropTarget;
+  onDraggedDrawingIdChange: (drawingId: string | null) => void;
+  onDrawingDropTargetChange: (target: DrawingDropTarget) => void;
+  onMoveDrawing: (sourceDrawingId: string, targetDrawingId: string, placement: DropPlacement) => void;
+  onUpdateDrawings: (drawings: DrawingElement[]) => void;
+}) {
+  return (
+    <div className="layer-detail-controls fog-shape-list" onClick={(event) => event.stopPropagation()}>
+      <div className="fog-shape-list-header">
+        <span>Drawing Items</span>
+      </div>
+      {drawings.length > 0 ? (
+        <>
+          <div className="fog-shape-column-header" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span title="GM View">
+              <Crown size={13} />
+            </span>
+            <span title="Player View">
+              <User size={13} />
+            </span>
+            <span />
+          </div>
+          {drawings.map((drawing, drawingIndex) => {
+            const isVisibleInGm = drawing.visibleInGm ?? true;
+            const isVisibleInPlayer = drawing.visibleInPlayer;
+            const label = drawing.name?.trim() || formatDefaultDrawingName(drawing.kind, drawingIndex);
+            const dropPlacement = drawingDropTarget?.drawingId === drawing.id && draggedDrawingId !== drawing.id ? drawingDropTarget.placement : null;
+            return (
+              <div
+                className={[
+                  "fog-shape-row",
+                  isVisibleInGm || isVisibleInPlayer ? "" : "fog-shape-row-muted",
+                  draggedDrawingId === drawing.id ? "fog-shape-row-dragging" : "",
+                  dropPlacement ? `fog-shape-row-drop-${dropPlacement}` : ""
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                key={drawing.id}
+                draggable
+                onDragStart={(event) => {
+                  onDraggedDrawingIdChange(drawing.id);
+                  event.dataTransfer.setData("application/x-localvtt-drawing-id", drawing.id);
+                  event.dataTransfer.setData("text/plain", drawing.id);
+                  event.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(event) => {
+                  if (!draggedDrawingId && !event.dataTransfer.types.includes("application/x-localvtt-drawing-id")) {
+                    return;
+                  }
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  if (draggedDrawingId !== drawing.id) {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    onDrawingDropTargetChange({
+                      drawingId: drawing.id,
+                      placement: event.clientY > rect.top + rect.height / 2 ? "after" : "before"
+                    });
+                  }
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const sourceDrawingId = event.dataTransfer.getData("application/x-localvtt-drawing-id") || event.dataTransfer.getData("text/plain") || draggedDrawingId;
+                  const placement = drawingDropTarget?.drawingId === drawing.id ? drawingDropTarget.placement : "before";
+                  if (sourceDrawingId) {
+                    onMoveDrawing(sourceDrawingId, drawing.id, placement);
+                  }
+                  onDraggedDrawingIdChange(null);
+                  onDrawingDropTargetChange(null);
+                }}
+                onDragEnd={() => {
+                  if (draggedDrawingId && drawingDropTarget) {
+                    onMoveDrawing(draggedDrawingId, drawingDropTarget.drawingId, drawingDropTarget.placement);
+                  }
+                  onDraggedDrawingIdChange(null);
+                  onDrawingDropTargetChange(null);
+                }}
+              >
+                <GripVertical className="fog-shape-drag-handle" size={14} aria-hidden="true" />
+                <span className="fog-shape-kind-icon" title={`${drawing.kind} drawing`} aria-hidden="true">
+                  {getDrawingIcon(drawing.kind)}
+                </span>
+                <span className="fog-shape-name" title={label}>
+                  {label}
+                </span>
+                <button
+                  className={isVisibleInGm ? "icon-button fog-shape-action-button fog-shape-action-active" : "icon-button fog-shape-action-button"}
+                  aria-label={isVisibleInGm ? `Hide ${label} in GM View` : `Show ${label} in GM View`}
+                  title={isVisibleInGm ? "Hide in GM View" : "Show in GM View"}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onUpdateDrawings(drawings.map((candidate) => (candidate.id === drawing.id ? { ...candidate, visibleInGm: !isVisibleInGm } : candidate)));
+                  }}
+                >
+                  {isVisibleInGm ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
+                </button>
+                <button
+                  className={isVisibleInPlayer ? "icon-button fog-shape-action-button fog-shape-action-active" : "icon-button fog-shape-action-button"}
+                  aria-label={isVisibleInPlayer ? `Hide ${label} in Player View` : `Show ${label} in Player View`}
+                  title={isVisibleInPlayer ? "Hide in Player View" : "Show in Player View"}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onUpdateDrawings(drawings.map((candidate) => (candidate.id === drawing.id ? { ...candidate, visibleInPlayer: !isVisibleInPlayer } : candidate)));
+                  }}
+                >
+                  {isVisibleInPlayer ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
+                </button>
+                <button
+                  className="icon-button fog-shape-action-button danger"
+                  aria-label={`Delete ${label}`}
+                  title="Delete drawing"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onUpdateDrawings(drawings.filter((candidate) => candidate.id !== drawing.id));
+                  }}
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                </button>
+              </div>
+            );
+          })}
+        </>
+      ) : (
+        <div className="layer-empty-state">
+          <strong>No Drawing Items</strong>
+          <span>Drawing tools will add freehand strokes, lines, shapes, and templates here.</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function formatPercent(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
@@ -1276,6 +1451,8 @@ function getLayerIcon(layer: Layer) {
       return <CloudFog size={16} />;
     case "weather":
       return <CloudSun size={16} />;
+    case "drawing":
+      return <Paintbrush size={16} />;
     case "token":
       return <UsersRound size={16} />;
     case "foreground":
@@ -1301,6 +1478,9 @@ function getLayerItemCount(layerId: Layer["id"], scene: Scene): number | null {
   if (layerId === "weather") {
     return scene.weather.masks.length;
   }
+  if (layerId === "drawing") {
+    return scene.drawings.length;
+  }
   return null;
 }
 
@@ -1317,6 +1497,33 @@ function getReservedLayerGuidance(layer: Layer): string | null {
     default:
       return null;
   }
+}
+
+function getDrawingIcon(kind: DrawingKind) {
+  if (kind === "rectangle") {
+    return <Square size={13} />;
+  }
+  if (kind === "circle") {
+    return <Circle size={13} />;
+  }
+  if (kind === "cone") {
+    return <Pentagon size={13} />;
+  }
+  if (kind === "text") {
+    return <TypeIcon />;
+  }
+  if (kind === "line" || kind === "laser") {
+    return <SquareDashed size={13} />;
+  }
+  return <Paintbrush size={13} />;
+}
+
+function TypeIcon() {
+  return (
+    <span className="drawing-text-icon" aria-hidden="true">
+      T
+    </span>
+  );
 }
 
 function getFitModeHelp(fitMode: MapTransform["fitMode"]): string {
