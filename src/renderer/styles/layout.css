@@ -11,7 +11,7 @@
   flex-direction: column;
   gap: 12px;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   border-color: var(--color-border-subtle);
   background: var(--color-bg-panel-muted);
   padding: 14px;
@@ -25,7 +25,6 @@
   min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding-top: 36px;
 }
 
 .sidebar {
@@ -75,11 +74,11 @@
 
 .panel-collapse-button {
   position: absolute;
-  top: 14px;
-  z-index: 7;
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
+  top: 12px;
+  z-index: 8;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
   border-color: transparent;
   background: transparent;
   color: #8f9bad;
@@ -97,11 +96,11 @@
 }
 
 .sidebar-collapse-button {
-  right: -1px;
+  right: -20px;
 }
 
 .inspector-collapse-button {
-  left: -1px;
+  left: -20px;
 }
 
 .panel-resize-handle {
@@ -165,6 +164,20 @@
   font-size: 24px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.app-brand {
+  min-height: 34px;
+  border-bottom: 1px solid var(--color-border-muted);
+  padding-bottom: 10px;
+}
+
+.app-brand h1 {
+  font-size: 21px;
+}
+
+.app-about-button {
+  flex: 0 0 auto;
 }
 
 .campaign-title-row {

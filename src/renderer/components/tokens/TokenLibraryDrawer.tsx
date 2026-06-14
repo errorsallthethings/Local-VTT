@@ -123,18 +123,18 @@ export function TokenLibraryDrawer({
           <GripHorizontal size={15} aria-hidden="true" />
         </button>
       )}
+      <button
+        className="icon-button token-library-toggle"
+        aria-label={expanded ? "Collapse token library" : "Expand token library"}
+        title={expanded ? "Collapse token library" : "Expand token library"}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggleExpanded();
+        }}
+      >
+        {expanded ? <PanelBottomClose size={16} aria-hidden="true" /> : <PanelBottomOpen size={16} aria-hidden="true" />}
+      </button>
       <div className="token-library-header">
-        <button
-          className="icon-button token-library-toggle"
-          aria-label={expanded ? "Collapse token library" : "Expand token library"}
-          title={expanded ? "Collapse token library" : "Expand token library"}
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleExpanded();
-          }}
-        >
-          {expanded ? <PanelBottomClose size={16} aria-hidden="true" /> : <PanelBottomOpen size={16} aria-hidden="true" />}
-        </button>
         <div className="token-library-title">
           <strong>Scene Tools</strong>
         </div>
