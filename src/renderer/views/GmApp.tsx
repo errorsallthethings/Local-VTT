@@ -37,6 +37,7 @@ import { SceneCanvas } from "../components/SceneCanvas";
 import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type CanvasTool, type FogOperation, type WeatherMaskTool } from "../components/tools/ToolsMenu";
+import type { DrawingTool } from "../canvas/drawingRenderer";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
@@ -141,9 +142,13 @@ export function GmApp() {
   const [playerDisplayDialogOpen, setPlayerDisplayDialogOpen] = useState(false);
   const [mapCalibrationAssistantOpen, setMapCalibrationAssistantOpen] = useState(false);
   const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasTool | null>(null);
+  const [activeDrawingTool, setActiveDrawingTool] = useState<DrawingTool | null>(null);
   const [activeFogTool, setActiveFogTool] = useState<FogTool | null>(null);
   const [activeWeatherMaskTool, setActiveWeatherMaskTool] = useState<WeatherMaskTool | null>(null);
   const [fogOperation, setFogOperation] = useState<FogOperation>("reveal");
+  const [drawingColor, setDrawingColor] = useState("#ff0000");
+  const [drawingOpacity, setDrawingOpacity] = useState(1);
+  const [drawingStrokeWidth, setDrawingStrokeWidth] = useState(6);
   const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
   const [newFolderName, setNewFolderName] = useState("New Folder");
@@ -223,6 +228,7 @@ export function GmApp() {
 
   const clearActiveCanvasTools = () => {
     setActiveCanvasTool(null);
+    setActiveDrawingTool(null);
     setActiveFogTool(null);
     setActiveWeatherMaskTool(null);
   };
@@ -658,6 +664,17 @@ export function GmApp() {
         ...activeScene.weather,
         masks: activeScene.weather.masks.slice(0, -1)
       },
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const undoDrawing = () => {
+    if (!activeScene || activeScene.drawings.length === 0) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      drawings: activeScene.drawings.slice(0, -1),
       updatedAt: new Date().toISOString()
     });
   };
@@ -1519,11 +1536,16 @@ export function GmApp() {
               activeCanvasTool={activeCanvasTool}
               activeFogTool={activeFogTool}
               activeWeatherMaskTool={activeWeatherMaskTool}
+              activeDrawingTool={activeDrawingTool}
               fogOperation={fogOperation}
               brushSize={activeScene.fog.brushSize}
+              drawingColor={drawingColor}
+              drawingOpacity={drawingOpacity}
+              drawingStrokeWidth={drawingStrokeWidth}
               pingSize={activeScene.tableTools.pingSize}
               pingColor={activeScene.tableTools.pingColor}
               fogShapeCount={activeScene.fog.shapes.length}
+              drawingCount={activeScene.drawings.length}
               weatherMaskCount={activeScene.weather.masks.length}
               weatherToolsEnabled={
                 activeScene.weather.enabled &&
@@ -1532,8 +1554,12 @@ export function GmApp() {
               onCanvasToolChange={setActiveCanvasTool}
               onFogToolChange={setActiveFogTool}
               onWeatherMaskToolChange={setActiveWeatherMaskTool}
+              onDrawingToolChange={setActiveDrawingTool}
               onFogOperationChange={setFogOperation}
               onBrushSizeChange={(brushSize) => updateFog({ brushSize })}
+              onDrawingColorChange={setDrawingColor}
+              onDrawingOpacityChange={setDrawingOpacity}
+              onDrawingStrokeWidthChange={setDrawingStrokeWidth}
               onPingSizeChange={(pingSize) =>
                 updateScene({
                   ...activeScene,
@@ -1549,6 +1575,7 @@ export function GmApp() {
                 })
               }
               onUndoFogShape={undoFogShape}
+              onUndoDrawing={undoDrawing}
               onUndoWeatherMask={undoWeatherMask}
               onRequestClearFog={() => setConfirmClearFogOpen(true)}
             />
@@ -1558,6 +1585,10 @@ export function GmApp() {
             scene={activeScene}
             mode="gm"
             canvasTool={activeCanvasTool}
+            drawingTool={activeDrawingTool}
+            drawingColor={drawingColor}
+            drawingOpacity={drawingOpacity}
+            drawingStrokeWidth={drawingStrokeWidth}
             fogTool={activeFogTool}
             weatherMaskTool={activeWeatherMaskTool}
             liveTableEvents={liveTableEvents}

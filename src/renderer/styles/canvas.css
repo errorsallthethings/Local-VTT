@@ -41,6 +41,7 @@
 .scene-canvas.scene-canvas-tool-circle,
 .scene-canvas.scene-canvas-tool-rectangle,
 .scene-canvas.scene-canvas-tool-polygon,
+.scene-canvas.scene-canvas-tool-line,
 .scene-canvas.scene-canvas-tool-ruler,
 .scene-canvas.scene-canvas-tool-ping,
 .scene-canvas.scene-canvas-tool-laser {
@@ -51,6 +52,7 @@
 .scene-canvas.scene-canvas-tool-circle:active,
 .scene-canvas.scene-canvas-tool-rectangle:active,
 .scene-canvas.scene-canvas-tool-polygon:active,
+.scene-canvas.scene-canvas-tool-line:active,
 .scene-canvas.scene-canvas-tool-ruler:active,
 .scene-canvas.scene-canvas-tool-ping:active,
 .scene-canvas.scene-canvas-tool-laser:active {

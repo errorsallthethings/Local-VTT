@@ -1,4 +1,5 @@
 import type { FogTool } from "../canvas/fogRenderer";
+import type { DrawingTool } from "../canvas/drawingRenderer";
 
 export const FOG_GRID_SNAP_HINT = "Ctrl/Cmd snaps to grid corners.";
 export const RULER_GRID_SNAP_HINT = "Ctrl/Cmd snaps to square or hex centers.";
@@ -42,6 +43,23 @@ export function getRulerHelpLines(): string[] {
     RULER_GRID_SNAP_HINT,
     "Shift adds a waypoint to the current path.",
     RULER_CLEAR_HINT
+  ];
+}
+
+export function getDrawingToolLabel(drawingTool: DrawingTool): string {
+  return drawingTool === "line" ? "Drawing Line" : "Freehand Drawing";
+}
+
+export function getDrawingToolHint(drawingTool: DrawingTool): string {
+  return drawingTool === "line" ? "Left-drag to draw a straight line." : "Left-drag to sketch on the scene.";
+}
+
+export function getDrawingHelpLines(): string[] {
+  return [
+    "Freehand: left-drag to sketch a path on the scene.",
+    "Line: left-drag to place a straight stroke.",
+    "Drawings are saved as sub-layers under the Drawing layer.",
+    "Use the Drawing layer list to reorder, hide, show, or remove individual drawings."
   ];
 }
 

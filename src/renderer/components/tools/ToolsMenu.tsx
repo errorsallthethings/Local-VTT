@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Circle, CloudFog, CloudSun, HelpCircle, LineSquiggle, Paintbrush, Pentagon, Ruler, Square, Table2, Target, Trash2, Undo2 } from "lucide-react";
+import type { DrawingTool } from "../../canvas/drawingRenderer";
 import type { FogTool } from "../../canvas/fogRenderer";
-import { getFogHelpLines, getRulerHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
+import { getDrawingHelpLines, getFogHelpLines, getRulerHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
 
 export type FogOperation = "reveal" | "hide";
@@ -9,25 +10,50 @@ export type CanvasTool = "ruler" | "ping" | "laser";
 export type WeatherMaskTool = "rectangle" | "circle" | "polygon";
 type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
 
+const DRAWING_THICKNESS_PRESETS = [
+  { label: "Extra Thin", value: 2 },
+  { label: "Thin", value: 4 },
+  { label: "Medium", value: 6 },
+  { label: "Thick", value: 10 },
+  { label: "Extra Thick", value: 16 }
+];
+
+const DRAWING_OPACITY_PRESETS = [
+  { label: "Faint", value: 0.25 },
+  { label: "Soft", value: 0.5 },
+  { label: "Bold", value: 0.75 },
+  { label: "Solid", value: 1 }
+];
+
 interface ToolsMenuProps {
   activeCanvasTool: CanvasTool | null;
   activeFogTool: FogTool | null;
   activeWeatherMaskTool: WeatherMaskTool | null;
+  activeDrawingTool: DrawingTool | null;
   fogOperation: FogOperation;
   brushSize: number;
+  drawingColor: string;
+  drawingOpacity: number;
+  drawingStrokeWidth: number;
   pingSize: number;
   pingColor: string;
   fogShapeCount: number;
+  drawingCount: number;
   weatherMaskCount: number;
   weatherToolsEnabled: boolean;
   onCanvasToolChange: (tool: CanvasTool | null) => void;
   onFogToolChange: (tool: FogTool | null) => void;
   onWeatherMaskToolChange: (tool: WeatherMaskTool | null) => void;
+  onDrawingToolChange: (tool: DrawingTool | null) => void;
   onFogOperationChange: (operation: FogOperation) => void;
   onBrushSizeChange: (brushSize: number) => void;
+  onDrawingColorChange: (color: string) => void;
+  onDrawingOpacityChange: (opacity: number) => void;
+  onDrawingStrokeWidthChange: (strokeWidth: number) => void;
   onPingSizeChange: (pingSize: number) => void;
   onPingColorChange: (pingColor: string) => void;
   onUndoFogShape: () => void;
+  onUndoDrawing: () => void;
   onUndoWeatherMask: () => void;
   onRequestClearFog: () => void;
 }
@@ -36,47 +62,72 @@ export function ToolsMenu({
   activeCanvasTool,
   activeFogTool,
   activeWeatherMaskTool,
+  activeDrawingTool,
   fogOperation,
   brushSize,
+  drawingColor,
+  drawingOpacity,
+  drawingStrokeWidth,
   pingSize,
   pingColor,
   fogShapeCount,
+  drawingCount,
   weatherMaskCount,
   weatherToolsEnabled,
   onCanvasToolChange,
   onFogToolChange,
   onWeatherMaskToolChange,
+  onDrawingToolChange,
   onFogOperationChange,
   onBrushSizeChange,
+  onDrawingColorChange,
+  onDrawingOpacityChange,
+  onDrawingStrokeWidthChange,
   onPingSizeChange,
   onPingColorChange,
   onUndoFogShape,
+  onUndoDrawing,
   onUndoWeatherMask,
   onRequestClearFog
 }: ToolsMenuProps) {
   const [fogMenuOpen, setFogMenuOpen] = useState(false);
+  const [drawingMenuOpen, setDrawingMenuOpen] = useState(false);
+  const [drawingThicknessCustomOpen, setDrawingThicknessCustomOpen] = useState(false);
+  const [drawingOpacityCustomOpen, setDrawingOpacityCustomOpen] = useState(false);
   const [tableMenuOpen, setTableMenuOpen] = useState(false);
   const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
-  const [helpTopic, setHelpTopic] = useState<"fog" | "ruler" | "weather" | null>(null);
+  const [helpTopic, setHelpTopic] = useState<"drawing" | "fog" | "ruler" | "weather" | null>(null);
   const activeFogShape = getActiveFogShape(activeFogTool);
 
   useEffect(() => {
     if (activeFogTool) {
       setFogMenuOpen(true);
+      setDrawingMenuOpen(false);
     }
   }, [activeFogTool]);
 
   useEffect(() => {
     if (activeCanvasTool) {
       setFogMenuOpen(false);
+      setDrawingMenuOpen(false);
       setWeatherMenuOpen(false);
       setTableMenuOpen(true);
     }
   }, [activeCanvasTool]);
 
   useEffect(() => {
+    if (activeDrawingTool) {
+      setFogMenuOpen(false);
+      setDrawingMenuOpen(true);
+      setWeatherMenuOpen(false);
+      setTableMenuOpen(false);
+    }
+  }, [activeDrawingTool]);
+
+  useEffect(() => {
     if (activeWeatherMaskTool) {
       setFogMenuOpen(false);
+      setDrawingMenuOpen(false);
       setTableMenuOpen(false);
       setWeatherMenuOpen(true);
     }
@@ -93,22 +144,32 @@ export function ToolsMenu({
     if (
       (helpTopic === "fog" && !fogMenuOpen) ||
       (helpTopic === "weather" && !weatherMenuOpen) ||
+      (helpTopic === "drawing" && !drawingMenuOpen) ||
       (helpTopic === "ruler" && (!tableMenuOpen || activeCanvasTool !== "ruler"))
     ) {
       setHelpTopic(null);
     }
-  }, [activeCanvasTool, fogMenuOpen, helpTopic, tableMenuOpen, weatherMenuOpen]);
+  }, [activeCanvasTool, drawingMenuOpen, fogMenuOpen, helpTopic, tableMenuOpen, weatherMenuOpen]);
 
   const setFogToolShape = (shape: FogToolShape) => {
     const nextTool = createFogTool(fogOperation, shape);
     onCanvasToolChange(null);
+    onDrawingToolChange(null);
     onWeatherMaskToolChange(null);
     onFogToolChange(activeFogTool === nextTool ? null : nextTool);
+  };
+
+  const setDrawingTool = (tool: DrawingTool) => {
+    onCanvasToolChange(null);
+    onFogToolChange(null);
+    onWeatherMaskToolChange(null);
+    onDrawingToolChange(activeDrawingTool === tool ? null : tool);
   };
 
   const setWeatherMaskTool = (tool: WeatherMaskTool) => {
     onCanvasToolChange(null);
     onFogToolChange(null);
+    onDrawingToolChange(null);
     onWeatherMaskToolChange(activeWeatherMaskTool === tool ? null : tool);
   };
 
@@ -131,7 +192,9 @@ export function ToolsMenu({
             setFogMenuOpen(nextOpen);
             if (nextOpen) {
               onCanvasToolChange(null);
+              onDrawingToolChange(null);
               onWeatherMaskToolChange(null);
+              setDrawingMenuOpen(false);
               setTableMenuOpen(false);
               setWeatherMenuOpen(false);
             }
@@ -142,6 +205,28 @@ export function ToolsMenu({
           }}
         >
           <CloudFog size={18} aria-hidden="true" />
+        </button>
+        <button
+          className={drawingMenuOpen ? "tool-circle-button tool-active" : "tool-circle-button"}
+          aria-label={drawingMenuOpen ? "Close drawing tools" : "Open drawing tools"}
+          title={drawingMenuOpen ? "Close Drawing Tools" : "Drawing Tools"}
+          onClick={() => {
+            const nextOpen = !drawingMenuOpen;
+            setDrawingMenuOpen(nextOpen);
+            if (nextOpen) {
+              setFogMenuOpen(false);
+              setTableMenuOpen(false);
+              setWeatherMenuOpen(false);
+              onCanvasToolChange(null);
+              onFogToolChange(null);
+              onWeatherMaskToolChange(null);
+            } else {
+              onDrawingToolChange(null);
+              setHelpTopic(null);
+            }
+          }}
+        >
+          <Paintbrush size={18} aria-hidden="true" />
         </button>
         <button
           className={weatherMenuOpen ? "tool-circle-button tool-active" : "tool-circle-button"}
@@ -156,9 +241,11 @@ export function ToolsMenu({
             setWeatherMenuOpen(nextOpen);
             if (nextOpen) {
               setFogMenuOpen(false);
+              setDrawingMenuOpen(false);
               setTableMenuOpen(false);
               onCanvasToolChange(null);
               onFogToolChange(null);
+              onDrawingToolChange(null);
             } else {
               onWeatherMaskToolChange(null);
             }
@@ -175,8 +262,10 @@ export function ToolsMenu({
             setTableMenuOpen(nextOpen);
             if (nextOpen) {
               setFogMenuOpen(false);
+              setDrawingMenuOpen(false);
               setWeatherMenuOpen(false);
               onFogToolChange(null);
+              onDrawingToolChange(null);
               onWeatherMaskToolChange(null);
             } else {
               onCanvasToolChange(null);
@@ -260,19 +349,146 @@ export function ToolsMenu({
           </label>
           {activeFogShape === "brush" && (
             <div className="tools-brush-size">
-              <input
-                aria-label="Brush diameter"
-                title="Brush diameter"
-                type="range"
-                min={8}
-                max={400}
-                step={4}
-                value={brushSize}
-                onChange={(event) => onBrushSizeChange(Number(event.target.value))}
-              />
-              <span>{brushSize}px</span>
+              <label className="tools-strip-field">
+                <span>Brush Size</span>
+                <input
+                  aria-label="Brush diameter"
+                  title="Brush diameter"
+                  type="range"
+                  min={8}
+                  max={400}
+                  step={4}
+                  value={brushSize}
+                  onChange={(event) => onBrushSizeChange(Number(event.target.value))}
+                />
+              </label>
+              <span className="tools-strip-value">{brushSize}px</span>
             </div>
           )}
+        </div>
+      )}
+      {drawingMenuOpen && (
+        <div className="tools-flyout tools-drawing-flyout" aria-label="Drawing Tools">
+          <button
+            className={activeDrawingTool === "freehand" ? "tool-circle-button tool-active" : "tool-circle-button"}
+            aria-label="Freehand Drawing"
+            title="Freehand Drawing"
+            onClick={() => setDrawingTool("freehand")}
+          >
+            <Paintbrush size={17} aria-hidden="true" />
+          </button>
+          <button
+            className={activeDrawingTool === "line" ? "tool-circle-button tool-active" : "tool-circle-button"}
+            aria-label="Drawing Line"
+            title="Drawing Line"
+            onClick={() => setDrawingTool("line")}
+          >
+            <LineSquiggle size={17} aria-hidden="true" />
+          </button>
+          <button
+            className="tool-circle-button"
+            aria-label="Undo Last Drawing"
+            title="Undo Last Drawing"
+            disabled={drawingCount === 0}
+            onClick={onUndoDrawing}
+          >
+            <Undo2 size={17} aria-hidden="true" />
+          </button>
+          <button
+            className={helpTopic === "drawing" ? "tool-circle-button tool-help-trigger tool-active" : "tool-circle-button tool-help-trigger"}
+            aria-label="Drawing tools help"
+            title="Drawing tools help"
+            aria-expanded={helpTopic === "drawing"}
+            onClick={() => setHelpTopic((topic) => (topic === "drawing" ? null : "drawing"))}
+          >
+            <HelpCircle size={17} aria-hidden="true" />
+          </button>
+          <div className="tools-drawing-settings">
+            <label className="tools-strip-field tools-strip-color-field">
+              <span>Color</span>
+              <ColorInput className="tools-drawing-color" value={drawingColor} aria-label="Drawing color" title="Drawing color" onChange={onDrawingColorChange} />
+            </label>
+            <div className="tools-strip-select-field tools-strip-thickness-control">
+              <strong>Thickness</strong>
+              <div>
+                <select
+                  aria-label="Drawing thickness"
+                  title="Drawing thickness"
+                  value={getPresetSelectValue(DRAWING_THICKNESS_PRESETS, drawingStrokeWidth, drawingThicknessCustomOpen)}
+                  onChange={(event) => {
+                    if (event.target.value === "custom") {
+                      setDrawingThicknessCustomOpen(true);
+                      return;
+                    }
+                    setDrawingThicknessCustomOpen(false);
+                    onDrawingStrokeWidthChange(Number(event.target.value));
+                  }}
+                >
+                  {DRAWING_THICKNESS_PRESETS.map((preset) => (
+                    <option key={preset.label} value={preset.value}>
+                      {preset.label}
+                    </option>
+                  ))}
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+            </div>
+            <div className="tools-strip-select-field tools-strip-opacity-control">
+              <strong>Opacity</strong>
+              <div>
+                <select
+                  aria-label="Drawing opacity"
+                  title="Drawing opacity"
+                  value={getPresetSelectValue(DRAWING_OPACITY_PRESETS, drawingOpacity, drawingOpacityCustomOpen)}
+                  onChange={(event) => {
+                    if (event.target.value === "custom") {
+                      setDrawingOpacityCustomOpen(true);
+                      return;
+                    }
+                    setDrawingOpacityCustomOpen(false);
+                    onDrawingOpacityChange(Number(event.target.value));
+                  }}
+                >
+                  {DRAWING_OPACITY_PRESETS.map((preset) => (
+                    <option key={preset.label} value={preset.value}>
+                      {preset.label}
+                    </option>
+                  ))}
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+            </div>
+            {(drawingThicknessCustomOpen || !hasPresetValue(DRAWING_THICKNESS_PRESETS, drawingStrokeWidth)) && (
+              <div className="tools-strip-advanced-slider tools-strip-thickness-slider">
+                <input
+                  aria-label="Fine tune drawing thickness"
+                  title="Fine tune drawing thickness"
+                  type="range"
+                  min={1}
+                  max={48}
+                  step={1}
+                  value={drawingStrokeWidth}
+                  onChange={(event) => onDrawingStrokeWidthChange(Number(event.target.value))}
+                />
+                <span aria-label={`Drawing thickness ${drawingStrokeWidth} pixels`}>{drawingStrokeWidth}px</span>
+              </div>
+            )}
+            {(drawingOpacityCustomOpen || !hasPresetValue(DRAWING_OPACITY_PRESETS, drawingOpacity)) && (
+              <div className="tools-strip-advanced-slider tools-strip-opacity-slider">
+                <input
+                  aria-label="Fine tune drawing opacity"
+                  title="Fine tune drawing opacity"
+                  type="range"
+                  min={0.15}
+                  max={1}
+                  step={0.05}
+                  value={drawingOpacity}
+                  onChange={(event) => onDrawingOpacityChange(Number(event.target.value))}
+                />
+                <span aria-label={`Drawing opacity ${Math.round(drawingOpacity * 100)} percent`}>{Math.round(drawingOpacity * 100)}%</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
       {weatherMenuOpen && (
@@ -329,6 +545,8 @@ export function ToolsMenu({
             title="Ruler"
             onClick={() => {
               onFogToolChange(null);
+              onDrawingToolChange(null);
+              onWeatherMaskToolChange(null);
               setHelpTopic(null);
               onCanvasToolChange(activeCanvasTool === "ruler" ? null : "ruler");
             }}
@@ -341,6 +559,8 @@ export function ToolsMenu({
             title="Ping"
             onClick={() => {
               onFogToolChange(null);
+              onDrawingToolChange(null);
+              onWeatherMaskToolChange(null);
               setHelpTopic(null);
               onCanvasToolChange(activeCanvasTool === "ping" ? null : "ping");
             }}
@@ -353,6 +573,8 @@ export function ToolsMenu({
             title="Laser Pointer"
             onClick={() => {
               onFogToolChange(null);
+              onDrawingToolChange(null);
+              onWeatherMaskToolChange(null);
               setHelpTopic(null);
               onCanvasToolChange(activeCanvasTool === "laser" ? null : "laser");
             }}
@@ -392,7 +614,18 @@ export function ToolsMenu({
   );
 }
 
-function ToolHelpCard({ topic }: { topic: "fog" | "ruler" | "weather" }) {
+function ToolHelpCard({ topic }: { topic: "drawing" | "fog" | "ruler" | "weather" }) {
+  if (topic === "drawing") {
+    return (
+      <div className="tools-help-card" role="dialog" aria-label="Drawing tools help">
+        <strong>Drawing Tools</strong>
+        {getDrawingHelpLines().map((line) => (
+          <span key={line}>{line}</span>
+        ))}
+      </div>
+    );
+  }
+
   if (topic === "fog") {
     return (
       <div className="tools-help-card" role="dialog" aria-label="Fog tools help">
@@ -427,6 +660,18 @@ function ToolHelpCard({ topic }: { topic: "fog" | "ruler" | "weather" }) {
 
 function createFogTool(operation: FogOperation, shape: FogToolShape): FogTool {
   return `${operation}-${shape}` as FogTool;
+}
+
+function hasPresetValue(presets: { value: number }[], value: number): boolean {
+  return presets.some((preset) => Math.abs(preset.value - value) < 0.001);
+}
+
+function getPresetSelectValue(presets: { value: number }[], value: number, customOpen: boolean): string {
+  if (customOpen) {
+    return "custom";
+  }
+  const preset = presets.find((candidate) => Math.abs(candidate.value - value) < 0.001);
+  return preset ? String(preset.value) : "custom";
 }
 
 function getActiveFogShape(tool: FogTool | null): FogToolShape | null {

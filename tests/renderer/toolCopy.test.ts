@@ -3,6 +3,9 @@ import {
   FOG_GRID_SNAP_HINT,
   RULER_CLEAR_HINT,
   RULER_GRID_SNAP_HINT,
+  getDrawingHelpLines,
+  getDrawingToolHint,
+  getDrawingToolLabel,
   getFogHelpLines,
   getFogToolHint,
   getFogToolLabel,
@@ -28,5 +31,12 @@ describe("tool copy helpers", () => {
     expect(getFogHelpLines()).toContain(`${FOG_GRID_SNAP_HINT} Escape cancels active drawing.`);
     expect(getRulerHelpLines()).toContain(RULER_GRID_SNAP_HINT);
     expect(getRulerHelpLines()).toContain(RULER_CLEAR_HINT);
+  });
+
+  it("describes drawing tools", () => {
+    expect(getDrawingToolLabel("freehand")).toBe("Freehand Drawing");
+    expect(getDrawingToolLabel("line")).toBe("Drawing Line");
+    expect(getDrawingToolHint("line")).toContain("straight line");
+    expect(getDrawingHelpLines()).toContain("Drawings are saved as sub-layers under the Drawing layer.");
   });
 });

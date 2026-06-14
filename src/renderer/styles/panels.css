@@ -9,10 +9,12 @@
 
 .panel.grow {
   flex: 1;
+  min-height: 0;
 }
 
 .scene-panel {
   align-content: start;
+  min-height: 0;
   overflow: auto;
 }
 

@@ -265,7 +265,8 @@
 .token-library-content-split {
   display: grid;
   grid-template-columns: minmax(260px, var(--scene-tools-token-width, 62%)) 12px minmax(270px, 1fr);
-  align-items: start;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
   column-gap: 0;
   row-gap: 12px;
 }
@@ -277,9 +278,15 @@
 }
 
 .token-library-side-panel {
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border-left: 1px solid var(--color-border-muted);
   padding-left: 12px;
+}
+
+.token-library-side-panel > * {
+  min-height: 0;
 }
 
 .scene-tools-split-handle {

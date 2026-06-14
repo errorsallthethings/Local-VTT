@@ -242,7 +242,7 @@
   text-transform: uppercase;
 }
 
-.layer-row label,
+.layer-row > label,
 .check {
   display: flex;
   align-items: center;

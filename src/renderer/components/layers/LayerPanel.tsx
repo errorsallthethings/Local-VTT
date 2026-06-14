@@ -853,15 +853,17 @@ export function LayerPanel({
                 <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
                   {mapAsset ? (
                     <>
-                      <div className="map-asset-summary">
-                        <span title={mapAsset.name}>{mapAsset.name}</span>
-                        <small>{mapAsset.mediaType}</small>
+                      <div className="map-asset-header">
+                        <div className="map-asset-summary">
+                          <span title={mapAsset.name}>{mapAsset.name}</span>
+                          <small>{mapAsset.mediaType}</small>
+                        </div>
+                        <button className="icon-button danger" aria-label="Delete map asset" title="Delete map asset" onClick={() => onDeleteMap(mapAsset)}>
+                          <Trash2 size={15} aria-hidden="true" />
+                        </button>
                       </div>
-                      <button className="icon-button danger" aria-label="Delete map asset" title="Delete map asset" onClick={() => onDeleteMap(mapAsset)}>
-                        <Trash2 size={15} aria-hidden="true" />
-                      </button>
-                      <label className="stacked-control">
-                        Fit mode
+                      <label className="setting-row map-fit-mode-row">
+                        <span>Fit Mode</span>
                         <select value={scene.mapTransform.fitMode} onChange={(event) => onUpdateMapTransform({ fitMode: event.target.value as MapTransform["fitMode"] })}>
                           <option value="manual">Manual</option>
                           <option value="contain">Fit contain</option>
