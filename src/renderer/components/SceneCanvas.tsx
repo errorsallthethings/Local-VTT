@@ -225,7 +225,7 @@ export function SceneCanvas({
   drawingTool = null,
   drawingColor = "#ff0000",
   drawingOpacity = 1,
-  drawingStrokeWidth = 24,
+  drawingStrokeWidth = 80,
   fogTool = null,
   weatherMaskTool = null,
   liveTableEvents = [],
@@ -485,6 +485,7 @@ export function SceneCanvas({
   useEffect(() => {
     drawingPreviewRef.current = null;
     setDrawingPreview(null);
+    setBrushHoverPoint(null);
     setSnapPoint(null);
   }, [drawingTool, scene?.id]);
 
@@ -915,6 +916,9 @@ export function SceneCanvas({
       if (mode === "gm" && brushHoverPoint && fogTool?.includes("brush") && !fogPreview) {
         drawBrushHoverPreview(ctx, brushHoverPoint, Math.max(4, scene.fog.brushSize / 2), renderCamera, getFogOperationForTool(fogTool));
       }
+      if (mode === "gm" && brushHoverPoint && drawingTool === "freehand" && !drawingPreview) {
+        drawDrawingBrushHoverPreview(ctx, brushHoverPoint, Math.max(4, drawingStrokeWidth / 2), renderCamera, drawingColor, drawingOpacity);
+      }
       if (mode === "gm" && snapPoint && fogTool) {
         drawSnapMarker(ctx, snapPoint, renderCamera, getFogOperationForTool(fogTool));
       }
@@ -961,7 +965,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingLayer?.opacity, drawingPreview, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingLayer?.opacity, drawingOpacity, drawingPreview, drawingStrokeWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1029,7 +1033,14 @@ export function SceneCanvas({
     if (!interactive) {
       return;
     }
-    if (event.button === 2 && polygonDraftRef.current) {
+    if (event.button !== 0) {
+      if (event.button === 2 && (polygonDraftRef.current || weatherPolygonDraftRef.current)) {
+        return;
+      }
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, camera };
+      setIsPanning(true);
       return;
     }
     if (mode === "gm" && canvasTool === "ping" && scene && event.button === 0) {
@@ -1294,23 +1305,27 @@ export function SceneCanvas({
       return;
     }
 
+    const drag = dragRef.current;
+    if (drag?.pointerId === event.pointerId) {
+      autoFitCameraRef.current = false;
+      setCamera({
+        ...drag.camera,
+        x: drag.camera.x + event.clientX - drag.x,
+        y: drag.camera.y + event.clientY - drag.y
+      });
+      return;
+    }
+
     if (mode === "gm" && fogTool?.includes("brush") && scene) {
       setBrushHoverPoint(getToolPoint(event));
       return;
     }
-
-    updateSnapPoint(event);
-
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) {
+    if (mode === "gm" && drawingTool === "freehand" && scene) {
+      setBrushHoverPoint(eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)));
       return;
     }
-    autoFitCameraRef.current = false;
-    setCamera({
-      ...drag.camera,
-      x: drag.camera.x + event.clientX - drag.x,
-      y: drag.camera.y + event.clientY - drag.y
-    });
+
+    updateSnapPoint(event);
   };
 
   const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1496,6 +1511,9 @@ export function SceneCanvas({
   const onContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const activeRulerDrag = rulerDragRef.current;
     const tokenDrag = tokenDragRef.current;
+    if (canvasTool || drawingTool || fogTool || weatherMaskTool) {
+      event.preventDefault();
+    }
     if (tokenDrag) {
       event.preventDefault();
       if (tokenDrag.waypoints.length === 0) {
@@ -2719,6 +2737,21 @@ function drawBrushHoverPreview(ctx: CanvasRenderingContext2D, point: Point, radi
   ctx.scale(camera.zoom, camera.zoom);
   ctx.globalCompositeOperation = "source-over";
   ctx.strokeStyle = operation === "reveal" ? "#8ee6a8" : "#ff9b9b";
+  ctx.lineWidth = Math.max(1.5, 2 / camera.zoom);
+  ctx.setLineDash([8 / camera.zoom, 5 / camera.zoom]);
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawDrawingBrushHoverPreview(ctx: CanvasRenderingContext2D, point: Point, radius: number, camera: Camera, color: string, opacity: number) {
+  ctx.save();
+  ctx.translate(camera.x, camera.y);
+  ctx.scale(camera.zoom, camera.zoom);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = Math.max(0.35, Math.min(1, opacity));
   ctx.lineWidth = Math.max(1.5, 2 / camera.zoom);
   ctx.setLineDash([8 / camera.zoom, 5 / camera.zoom]);
   ctx.beginPath();

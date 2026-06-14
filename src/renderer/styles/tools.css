@@ -6,11 +6,15 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .tools-menu-stack {
   display: grid;
   gap: 8px;
+  pointer-events: auto;
 }
 
 .tool-circle-button {
@@ -64,6 +68,7 @@
   background: var(--color-bg-tool);
   box-shadow: var(--shadow-panel);
   padding: 4px 8px;
+  pointer-events: auto;
 }
 
 .tools-weather-flyout {
@@ -100,6 +105,7 @@
   padding: 10px 12px;
   font-size: 12px;
   line-height: 1.35;
+  pointer-events: auto;
 }
 
 .tools-help-card strong {
@@ -118,8 +124,8 @@
   top: calc(100% + 8px);
   left: 0;
   display: grid;
-  grid-template-columns: 62px auto;
-  align-items: end;
+  grid-template-columns: 104px;
+  align-items: start;
   gap: 7px;
   border: 1px solid var(--color-border-muted);
   border-radius: var(--radius-control);
@@ -301,6 +307,10 @@
 
 .tools-strip-thickness-slider {
   left: 57px;
+}
+
+.tools-fog-brush-slider {
+  left: 9px;
 }
 
 .tools-strip-opacity-slider {

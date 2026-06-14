@@ -10,12 +10,12 @@ export type CanvasTool = "ruler" | "ping" | "laser";
 export type WeatherMaskTool = "rectangle" | "circle" | "polygon";
 type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
 
-const DRAWING_THICKNESS_PRESETS = [
-  { label: "Extra Thin", value: 6 },
-  { label: "Thin", value: 12 },
-  { label: "Medium", value: 24 },
-  { label: "Thick", value: 36 },
-  { label: "Extra Thick", value: 48 }
+const BRUSH_SIZE_PRESETS = [
+  { label: "Extra Thin", value: 20 },
+  { label: "Thin", value: 40 },
+  { label: "Medium", value: 80 },
+  { label: "Thick", value: 160 },
+  { label: "Extra Thick", value: 240 }
 ];
 
 const DRAWING_OPACITY_PRESETS = [
@@ -92,6 +92,7 @@ export function ToolsMenu({
 }: ToolsMenuProps) {
   const [fogMenuOpen, setFogMenuOpen] = useState(false);
   const [drawingMenuOpen, setDrawingMenuOpen] = useState(false);
+  const [fogBrushCustomOpen, setFogBrushCustomOpen] = useState(false);
   const [drawingThicknessCustomOpen, setDrawingThicknessCustomOpen] = useState(false);
   const [drawingOpacityCustomOpen, setDrawingOpacityCustomOpen] = useState(false);
   const [tableMenuOpen, setTableMenuOpen] = useState(false);
@@ -349,20 +350,46 @@ export function ToolsMenu({
           </label>
           {activeFogShape === "brush" && (
             <div className="tools-brush-size">
-              <label className="tools-strip-field">
-                <span>Brush Size</span>
-                <input
-                  aria-label="Brush diameter"
-                  title="Brush diameter"
-                  type="range"
-                  min={8}
-                  max={400}
-                  step={4}
-                  value={brushSize}
-                  onChange={(event) => onBrushSizeChange(Number(event.target.value))}
-                />
-              </label>
-              <span className="tools-strip-value">{brushSize}px</span>
+              <div className="tools-strip-select-field">
+                <strong>Brush Size</strong>
+                <div>
+                  <select
+                    aria-label="Fog brush size"
+                    title="Fog brush size"
+                    value={getPresetSelectValue(BRUSH_SIZE_PRESETS, brushSize, fogBrushCustomOpen)}
+                    onChange={(event) => {
+                      if (event.target.value === "custom") {
+                        setFogBrushCustomOpen(true);
+                        return;
+                      }
+                      setFogBrushCustomOpen(false);
+                      onBrushSizeChange(Number(event.target.value));
+                    }}
+                  >
+                    {BRUSH_SIZE_PRESETS.map((preset) => (
+                      <option key={preset.label} value={preset.value}>
+                        {preset.label}
+                      </option>
+                    ))}
+                    <option value="custom">Custom</option>
+                  </select>
+                </div>
+              </div>
+              {(fogBrushCustomOpen || !hasPresetValue(BRUSH_SIZE_PRESETS, brushSize)) && (
+                <div className="tools-strip-advanced-slider tools-fog-brush-slider">
+                  <input
+                    aria-label="Fine tune fog brush size"
+                    title="Fine tune fog brush size"
+                    type="range"
+                    min={8}
+                    max={400}
+                    step={4}
+                    value={brushSize}
+                    onChange={(event) => onBrushSizeChange(Number(event.target.value))}
+                  />
+                  <span aria-label={`Fog brush size ${brushSize} pixels`}>{brushSize}px</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -414,7 +441,7 @@ export function ToolsMenu({
                 <select
                   aria-label="Drawing thickness"
                   title="Drawing thickness"
-                  value={getPresetSelectValue(DRAWING_THICKNESS_PRESETS, drawingStrokeWidth, drawingThicknessCustomOpen)}
+                  value={getPresetSelectValue(BRUSH_SIZE_PRESETS, drawingStrokeWidth, drawingThicknessCustomOpen)}
                   onChange={(event) => {
                     if (event.target.value === "custom") {
                       setDrawingThicknessCustomOpen(true);
@@ -424,7 +451,7 @@ export function ToolsMenu({
                     onDrawingStrokeWidthChange(Number(event.target.value));
                   }}
                 >
-                  {DRAWING_THICKNESS_PRESETS.map((preset) => (
+                  {BRUSH_SIZE_PRESETS.map((preset) => (
                     <option key={preset.label} value={preset.value}>
                       {preset.label}
                     </option>
@@ -458,15 +485,15 @@ export function ToolsMenu({
                 </select>
               </div>
             </div>
-            {(drawingThicknessCustomOpen || !hasPresetValue(DRAWING_THICKNESS_PRESETS, drawingStrokeWidth)) && (
+            {(drawingThicknessCustomOpen || !hasPresetValue(BRUSH_SIZE_PRESETS, drawingStrokeWidth)) && (
               <div className="tools-strip-advanced-slider tools-strip-thickness-slider">
                 <input
                   aria-label="Fine tune drawing thickness"
                   title="Fine tune drawing thickness"
                   type="range"
-                  min={1}
-                  max={48}
-                  step={1}
+                  min={8}
+                  max={400}
+                  step={4}
                   value={drawingStrokeWidth}
                   onChange={(event) => onDrawingStrokeWidthChange(Number(event.target.value))}
                 />
