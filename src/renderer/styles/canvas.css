@@ -227,14 +227,20 @@
 
 .dice-roll-card-scene .dice-roll-result {
   right: auto;
-  bottom: 28px;
+  bottom: 34px;
   left: 50%;
-  width: min(340px, calc(100% - 36px));
+  width: min(460px, calc(100% - 48px));
+  min-height: 82px;
+  padding: 12px 16px;
   transform: translateX(-50%);
 }
 
 .dice-roll-card-scene .dice-roll-result strong {
-  font-size: 34px;
+  font-size: clamp(42px, 7vw, 86px);
+}
+
+.dice-roll-card-scene .dice-roll-result span {
+  font-size: clamp(13px, 1.6vw, 20px);
 }
 
 .dice-roll-card-result-only .dice-roll-result strong {
@@ -271,6 +277,137 @@
   line-height: 1;
 }
 
+.dice-roll-result-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: min(48vmin, 460px);
+  min-width: 260px;
+  aspect-ratio: 1;
+  color: var(--color-text-strong);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.86);
+  animation: dice-roll-result-ring-in 420ms ease-out 60ms both;
+}
+
+.dice-roll-result-ring::before,
+.dice-roll-result-ring::after {
+  position: absolute;
+  inset: 8%;
+  border: 2px solid rgb(255 255 255 / 0.18);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px rgb(122 162 247 / 0.18),
+    0 0 28px rgb(122 162 247 / 0.28),
+    inset 0 0 32px rgb(8 12 18 / 0.52);
+  content: "";
+}
+
+.dice-roll-result-ring::after {
+  inset: 18%;
+  border-style: dashed;
+  border-color: rgb(255 255 255 / 0.14);
+  box-shadow: inset 0 0 18px rgb(255 255 255 / 0.06);
+  animation: dice-roll-result-ring-counter-spin 8s linear infinite;
+}
+
+.dice-roll-result-ring-orbit {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  animation: dice-roll-result-ring-spin 11s linear infinite;
+}
+
+.dice-roll-result-ring-orbit span {
+  --dice-ring-radius: min(21vmin, 202px);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  min-width: 2.4ch;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: var(--radius-pill);
+  background: rgb(8 12 18 / 0.64);
+  color: var(--color-text-strong);
+  padding: 5px 8px;
+  font-size: clamp(18px, 3.2vmin, 34px);
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 2px 8px rgb(0 0 0 / 0.65);
+  transform: translate(-50%, -50%) rotate(var(--dice-ring-angle)) translateY(calc(-1 * var(--dice-ring-radius))) rotate(180deg);
+  transform-origin: center;
+}
+
+.dice-roll-result-ring-core {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto auto;
+  align-content: center;
+  place-items: center;
+  gap: 4px;
+  width: 50%;
+  aspect-ratio: 1;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 38%, rgb(255 255 255 / 0.13), transparent 34%),
+    rgb(8 12 18 / 0.8);
+  box-shadow:
+    0 16px 36px rgb(0 0 0 / 0.36),
+    inset 0 0 22px rgb(122 162 247 / 0.12);
+  padding: 16px;
+  text-align: center;
+}
+
+.dice-roll-result-ring-core span {
+  max-width: 92%;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: clamp(13px, 1.8vmin, 20px);
+  font-weight: 900;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dice-roll-result-ring-core strong {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-text-strong);
+  font-size: clamp(44px, 8vmin, 86px);
+  font-weight: 950;
+  line-height: 0.95;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dice-roll-result-ring-core-long strong {
+  font-size: clamp(24px, 4.45vmin, 48px);
+  letter-spacing: 0;
+}
+
+.dice-roll-result-ring .dice-roll-result-underline {
+  position: relative;
+  text-decoration: none;
+}
+
+.dice-roll-result-ring .dice-roll-result-underline::after {
+  position: absolute;
+  right: 0.08em;
+  bottom: -0.12em;
+  left: 0.08em;
+  height: 0.08em;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  content: "";
+}
+
 .dice-roll-result-dismiss {
   pointer-events: auto;
   height: 26px;
@@ -301,7 +438,20 @@
   background: rgb(20 83 45 / 0.62);
 }
 
+.dice-roll-tone-critical .dice-roll-result-ring::before,
+.dice-roll-tone-critical .dice-roll-result-ring::after,
+.dice-roll-tone-critical .dice-roll-result-ring-core,
+.dice-roll-tone-critical .dice-roll-result-ring-orbit span {
+  border-color: rgb(74 222 128 / 0.54);
+  background: rgb(20 83 45 / 0.62);
+}
+
 .dice-roll-tone-critical .dice-roll-result strong {
+  color: #bbf7d0;
+}
+
+.dice-roll-tone-critical .dice-roll-result-ring strong,
+.dice-roll-tone-critical .dice-roll-result-ring-orbit span {
   color: #bbf7d0;
 }
 
@@ -310,7 +460,20 @@
   background: rgb(127 29 29 / 0.58);
 }
 
+.dice-roll-tone-fumble .dice-roll-result-ring::before,
+.dice-roll-tone-fumble .dice-roll-result-ring::after,
+.dice-roll-tone-fumble .dice-roll-result-ring-core,
+.dice-roll-tone-fumble .dice-roll-result-ring-orbit span {
+  border-color: rgb(248 113 113 / 0.58);
+  background: rgb(127 29 29 / 0.58);
+}
+
 .dice-roll-tone-fumble .dice-roll-result strong {
+  color: #fecaca;
+}
+
+.dice-roll-tone-fumble .dice-roll-result-ring strong,
+.dice-roll-tone-fumble .dice-roll-result-ring-orbit span {
   color: #fecaca;
 }
 
@@ -319,7 +482,20 @@
   background: rgb(12 74 110 / 0.5);
 }
 
+.dice-roll-tone-max .dice-roll-result-ring::before,
+.dice-roll-tone-max .dice-roll-result-ring::after,
+.dice-roll-tone-max .dice-roll-result-ring-core,
+.dice-roll-tone-max .dice-roll-result-ring-orbit span {
+  border-color: rgb(125 211 252 / 0.5);
+  background: rgb(12 74 110 / 0.5);
+}
+
 .dice-roll-tone-max .dice-roll-result strong {
+  color: #bae6fd;
+}
+
+.dice-roll-tone-max .dice-roll-result-ring strong,
+.dice-roll-tone-max .dice-roll-result-ring-orbit span {
   color: #bae6fd;
 }
 
@@ -342,6 +518,30 @@
   to {
     opacity: 1;
     transform: translateY(0) scale(1) var(--dice-card-facing-rotation);
+  }
+}
+
+@keyframes dice-roll-result-ring-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.78);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes dice-roll-result-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dice-roll-result-ring-counter-spin {
+  to {
+    transform: rotate(-360deg);
   }
 }
 
