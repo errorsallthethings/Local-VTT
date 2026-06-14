@@ -8,6 +8,7 @@ import type {
   SquareCropRect,
   TokenPresentationDefaults
 } from "../../shared/localvtt";
+import { useState, type ReactNode } from "react";
 import { ColorPickerField } from "../components/controls/ColorPickerField";
 import { ConfirmDialog } from "../components/modals/ConfirmDialog";
 import { NameDialog } from "../components/modals/NameDialog";
@@ -196,6 +197,8 @@ export function GmDialogs({
 }) {
   const sceneDeleteDetail = sceneToDelete ? getSceneDeleteDetail(sceneToDelete, dirtySceneIds, playerSceneId) : null;
   const folderDeleteDetail = folderToDelete && campaign ? getFolderDeleteDetail(folderToDelete, campaign, dirtySceneIds, playerSceneId) : null;
+  const [playerDisplayFooterActions, setPlayerDisplayFooterActions] = useState<ReactNode | null>(null);
+  const [mapCalibrationFooterActions, setMapCalibrationFooterActions] = useState<ReactNode | null>(null);
 
   return (
     <>
@@ -336,19 +339,20 @@ export function GmDialogs({
       )}
 
       {playerDisplayDialogOpen && campaign && activeScene && (
-        <SettingsModal onClose={onCancelPlayerDisplayDialog}>
+        <SettingsModal footerStart={playerDisplayFooterActions} onClose={onCancelPlayerDisplayDialog}>
           <PlayerDisplayScalePanel
             scene={activeScene}
             calibration={campaign.playerDisplay}
             displays={displays}
             onApply={onUpdatePlayerDisplay}
             onRefreshDisplays={onRefreshDisplays}
+            onFooterActionsChange={setPlayerDisplayFooterActions}
           />
         </SettingsModal>
       )}
 
       {mapCalibrationAssistantOpen && campaign && activeScene && (
-        <SettingsModal onClose={onCancelMapCalibrationAssistant}>
+        <SettingsModal footerStart={mapCalibrationFooterActions} onClose={onCancelMapCalibrationAssistant}>
           <MapCalibrationAssistant
             scene={activeScene}
             mapAsset={mapAsset}
@@ -357,6 +361,7 @@ export function GmDialogs({
             onApply={onApplyMapCalibration}
             onStartBoxCapture={onStartMapCalibrationBoxCapture}
             onOpenPlayerViewSetup={onOpenPlayerViewSetupFromAssistant}
+            onFooterActionsChange={setMapCalibrationFooterActions}
           />
         </SettingsModal>
       )}

@@ -52,7 +52,11 @@
 }
 
 .inline-help {
+  border: 1px solid transparent;
+  border-radius: var(--radius-compact);
+  background: rgb(122 162 247 / 0.07);
   color: var(--color-text-muted);
+  padding: 9px 10px;
   font-size: 12px;
   line-height: 1.4;
 }
@@ -133,9 +137,9 @@
 .measurement-help-panel {
   display: grid;
   gap: 6px;
-  border: 1px solid var(--color-border);
+  border: 1px solid transparent;
   border-radius: var(--radius-compact);
-  background: rgb(12 18 26 / 0.72);
+  background: rgb(122 162 247 / 0.07);
   color: var(--color-text-soft);
   padding: 9px 10px;
   font-size: 12px;

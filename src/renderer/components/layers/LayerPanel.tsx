@@ -4,6 +4,7 @@ import {
   ArrowUp,
   Box,
   Circle,
+  CircleHelp,
   CloudFog,
   CloudSun,
   Crown,
@@ -114,6 +115,7 @@ export function LayerPanel({
   const [draggedFogShapeId, setDraggedFogShapeId] = useState<string | null>(null);
   const [fogShapeDropTarget, setFogShapeDropTarget] = useState<FogShapeDropTarget>(null);
   const [expandedWeatherCategory, setExpandedWeatherCategory] = useState<ActiveWeatherCategory | null>(null);
+  const [fogPlayerDefaultHelpOpen, setFogPlayerDefaultHelpOpen] = useState(false);
 
   const updateLayer = (layerId: string, patch: Partial<Layer>) => {
     const nextGrid =
@@ -444,7 +446,18 @@ export function LayerPanel({
                     <ColorSettingRow label="Color" value={scene.fog.color} onOpen={onOpenFogColor} />
                   </div>
                   <div className="setting-row fog-new-shape-row">
-                    <span>New Shapes</span>
+                    <span className="fog-default-label">
+                      New Shapes
+                      <button
+                        type="button"
+                        className="icon-button measurement-help-button"
+                        aria-label="New Shapes Help"
+                        title="New Shapes Help"
+                        onClick={() => setFogPlayerDefaultHelpOpen((open) => !open)}
+                      >
+                        <CircleHelp size={15} aria-hidden="true" />
+                      </button>
+                    </span>
                     <div className="fog-new-shape-control">
                       <label className="fog-operation-switch fog-new-shape-switch" title="Player View default for newly drawn fog shapes">
                         <span>Reveal</span>
@@ -456,9 +469,13 @@ export function LayerPanel({
                         />
                         <span>Hidden</span>
                       </label>
-                      <small>Sets the Player View default for newly drawn fog shapes.</small>
                     </div>
                   </div>
+                  {fogPlayerDefaultHelpOpen && (
+                    <div className="settings-help-panel layer-settings-help-panel" role="note">
+                      <p>Sets the Player View default for newly drawn fog shapes.</p>
+                    </div>
+                  )}
                   <div className="inline-help">Fog drawing tools are available from the floating Tools Menu in the GM canvas.</div>
                 </div>
               )}
@@ -594,6 +611,7 @@ export function LayerPanel({
                     )}
                   </div>
                   )}
+                  <div className="control-divider" />
                   <div className="inline-help">Weather renders on both GM View and Player View when the layer is visible. Keep drift centered for no directional movement.</div>
                 </div>
               )}

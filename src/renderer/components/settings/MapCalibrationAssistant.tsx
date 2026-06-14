@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Asset, DisplayCalibration, GridSettings, MapTransform, Scene } from "../../../shared/localvtt";
+import { CollapsibleSettingsSection, SettingsField, SettingsReadout } from "./SettingsSection";
 
 export interface MapCalibrationBox {
   x: number;
@@ -25,11 +26,16 @@ interface MapCalibrationAssistantProps {
   onApply: (draft: MapCalibrationDraft) => void;
   onStartBoxCapture: () => void;
   onOpenPlayerViewSetup: () => void;
+  onFooterActionsChange?: (actions: ReactNode | null) => void;
 }
 
-export function MapCalibrationAssistant({ scene, mapAsset, calibration, calibrationBox, onApply, onStartBoxCapture, onOpenPlayerViewSetup }: MapCalibrationAssistantProps) {
+export function MapCalibrationAssistant({ scene, mapAsset, calibration, calibrationBox, onApply, onStartBoxCapture, onOpenPlayerViewSetup, onFooterActionsChange }: MapCalibrationAssistantProps) {
   const canAlignGridToMap = mapAsset?.mediaType === "image" && scene.grid.type !== "gridless";
   const [draft, setDraft] = useState<MapCalibrationDraft>(() => getDraftFromScene(scene, canAlignGridToMap));
+  const [playerViewOpen, setPlayerViewOpen] = useState(false);
+  const [mapGridOpen, setMapGridOpen] = useState(false);
+  const [methodOpen, setMethodOpen] = useState(false);
+  const [helpTopic, setHelpTopic] = useState<string | null>(null);
 
   useEffect(() => {
     setDraft(getDraftFromScene(scene, canAlignGridToMap));
@@ -49,6 +55,29 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, calibrat
     draft.mapGridRows !== scene.grid.mapGridRows ||
     draft.alignGridToMap ||
     hasBoxCalibration;
+  const applyDraft = useCallback(() => onApply(draft), [draft, onApply]);
+  const resetDraft = useCallback(() => setDraft(getDraftFromScene(scene, canAlignGridToMap)), [canAlignGridToMap, scene]);
+  const footerActions = useMemo(
+    () => (
+      <>
+        <button type="button" disabled={!hasDraftChanges} onClick={applyDraft}>
+          Apply Calibration
+        </button>
+        <button type="button" disabled={!hasDraftChanges} onClick={resetDraft}>
+          Reset
+        </button>
+      </>
+    ),
+    [applyDraft, hasDraftChanges, resetDraft]
+  );
+
+  useEffect(() => {
+    if (!onFooterActionsChange) {
+      return;
+    }
+    onFooterActionsChange(footerActions);
+    return () => onFooterActionsChange(null);
+  }, [footerActions, onFooterActionsChange]);
 
   return (
     <section className="panel calibration-assistant">
@@ -57,130 +86,143 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, calibrat
         Choose how Local VTT should line up the scene grid with the map image. Advanced map fit controls stay in the Map layer.
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-heading">
-          <strong>Player View</strong>
-          <span>Reference</span>
-        </div>
-        <div className="calibration-readout">
-          Display: {calibration.selectedDisplayLabel ?? "None"}{calibration.openPlayerViewFullscreen ? ", fullscreen" : ""}
-          <br />
-          Physical scale: {calibration.physicalScaleEnabled ? `${calibration.pixelsPerInch} PPI, ${calibration.inchesPerGridCell} in/cell` : "Off"}
-        </div>
+      <CollapsibleSettingsSection title="Player View" meta="Reference" open={playerViewOpen} onToggle={() => setPlayerViewOpen((open) => !open)}>
+        <SettingsReadout label="Player View Status">
+          <div className="calibration-readout">
+            Display: {calibration.selectedDisplayLabel ?? "None"}{calibration.openPlayerViewFullscreen ? ", fullscreen" : ""}
+            <br />
+            Physical Scale: {calibration.physicalScaleEnabled ? `${calibration.pixelsPerInch} PPI, ${calibration.inchesPerGridCell} in/cell` : "Off"}
+          </div>
+        </SettingsReadout>
         <button type="button" onClick={onOpenPlayerViewSetup}>
           Open Player View Setup
         </button>
-      </div>
+      </CollapsibleSettingsSection>
 
       <div className="control-divider" />
 
-      <div className="settings-section">
-        <div className="settings-section-heading">
-          <strong>Map Grid Size</strong>
-          <span>Whole map</span>
-        </div>
-        <div className="panel-subgrid">
-          <label>
-            Columns
-            <input
-              type="number"
-              min={1}
-              value={draft.mapGridColumns}
-              onChange={(event) => setDraft({ ...draft, mapGridColumns: Math.max(1, Number(event.target.value)) })}
-            />
-          </label>
-          <label>
-            Rows
-            <input
-              type="number"
-              min={1}
-              value={draft.mapGridRows}
-              onChange={(event) => setDraft({ ...draft, mapGridRows: Math.max(1, Number(event.target.value)) })}
-            />
-          </label>
-        </div>
-        <div className="calibration-readout">
-          Preview footprint: {preview.width}px x {preview.height}px at {formatNumber(scene.grid.sizePx)}px per cell.
-          <br />
-          Player View target cell: {getPlayerTargetCell(calibration)}.
-        </div>
-      </div>
+      <CollapsibleSettingsSection title="Map Grid Size" meta="Whole Map" open={mapGridOpen} onToggle={() => setMapGridOpen((open) => !open)}>
+        <SettingsField
+          label="Map Grid"
+          help="Enter how many grid columns and rows the full map image represents. This does not change the imported image itself."
+          helpId="map-grid"
+          openHelpId={helpTopic}
+          onToggleHelp={setHelpTopic}
+        >
+          <div className="settings-paired-inputs">
+            <label>
+              <span>Columns</span>
+              <input
+                type="number"
+                min={1}
+                value={draft.mapGridColumns}
+                onChange={(event) => setDraft({ ...draft, mapGridColumns: Math.max(1, Number(event.target.value)) })}
+              />
+            </label>
+            <label>
+              <span>Rows</span>
+              <input
+                type="number"
+                min={1}
+                value={draft.mapGridRows}
+                onChange={(event) => setDraft({ ...draft, mapGridRows: Math.max(1, Number(event.target.value)) })}
+              />
+            </label>
+          </div>
+        </SettingsField>
+        <SettingsReadout label="Grid Preview">
+          <div className="calibration-readout">
+            Preview Footprint: {preview.width}px x {preview.height}px at {formatNumber(scene.grid.sizePx)}px per cell.
+            <br />
+            Player View Target Cell: {getPlayerTargetCell(calibration)}.
+          </div>
+        </SettingsReadout>
+      </CollapsibleSettingsSection>
 
       <div className="control-divider" />
 
-      <div className="settings-section">
-        <div className="settings-section-heading">
-          <strong>Calibration Method</strong>
-          <span>{draft.alignGridToMap ? "Full image" : "Drawn area"}</span>
-        </div>
-        {canAlignGridToMap && (
-          <label className="calibration-method-option">
-            <input
-              type="radio"
-              checked={draft.alignGridToMap}
-              onChange={() => setDraft({ ...draft, alignGridToMap: true, fitMode: "manual" })}
-            />
-            <span>
-              <strong>Use full image dimensions</strong>
-              <small>Best when the map image is exactly cropped to its grid.</small>
-            </span>
-          </label>
-        )}
-        <label className="calibration-method-option">
-          <input
-            type="radio"
-            checked={!draft.alignGridToMap}
-            onChange={() => setDraft({ ...draft, alignGridToMap: false, fitMode: "manual" })}
-          />
-          <span>
-            <strong>Match a drawn grid area</strong>
-            <small>Best when the map already has a printed grid or needs fine alignment.</small>
-          </span>
-        </label>
+      <CollapsibleSettingsSection title="Calibration Method" meta={draft.alignGridToMap ? "Full Image" : "Drawn Area"} open={methodOpen} onToggle={() => setMethodOpen((open) => !open)}>
+        <SettingsField
+          label="Method"
+          help="Use full image dimensions when the map is cropped exactly to its printed grid. Use a drawn area when the map has borders, labels, or needs fine alignment."
+          helpId="calibration-method"
+          openHelpId={helpTopic}
+          onToggleHelp={setHelpTopic}
+        >
+          <div className="calibration-method-group">
+            {canAlignGridToMap && (
+              <label className="calibration-method-option">
+                <input
+                  type="radio"
+                  checked={draft.alignGridToMap}
+                  onChange={() => setDraft({ ...draft, alignGridToMap: true, fitMode: "manual" })}
+                />
+                <span>
+                  <strong>Use Full Image Dimensions</strong>
+                  <small>Best when the map image is exactly cropped to its grid.</small>
+                </span>
+              </label>
+            )}
+            <label className="calibration-method-option">
+              <input
+                type="radio"
+                checked={!draft.alignGridToMap}
+                onChange={() => setDraft({ ...draft, alignGridToMap: false, fitMode: "manual" })}
+              />
+              <span>
+                <strong>Match Drawn Grid Area</strong>
+                <small>Best when the map already has a printed grid or needs fine alignment.</small>
+              </span>
+            </label>
+          </div>
+        </SettingsField>
         {!draft.alignGridToMap && (
           <button type="button" onClick={onStartBoxCapture}>
-            Draw area on map
+            Draw Area On Map
           </button>
         )}
         {calibrationBox ? (
           <>
-            <div className="panel-subgrid">
-              <label>
-                Columns in area
-                <input
-                  type="number"
-                  min={1}
-                  value={draft.boxColumns}
-                  onChange={(event) => setDraft({ ...draft, boxColumns: Math.max(1, Number(event.target.value)) })}
-                />
-              </label>
-              <label>
-                Rows in area
-                <input
-                  type="number"
-                  min={1}
-                  value={draft.boxRows}
-                  onChange={(event) => setDraft({ ...draft, boxRows: Math.max(1, Number(event.target.value)) })}
-                />
-              </label>
-            </div>
-            <div className="calibration-readout">
-              Apply will calculate grid cell size from the drawn area and align grid offsets to its top-left corner.
-            </div>
+            <SettingsField
+              label="Drawn Area"
+              help="Enter how many printed grid columns and rows are inside the drawn square on the map."
+              helpId="drawn-area"
+              openHelpId={helpTopic}
+              onToggleHelp={setHelpTopic}
+            >
+              <div className="settings-paired-inputs">
+                <label>
+                  <span>Columns</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={draft.boxColumns}
+                    onChange={(event) => setDraft({ ...draft, boxColumns: Math.max(1, Number(event.target.value)) })}
+                  />
+                </label>
+                <label>
+                  <span>Rows</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={draft.boxRows}
+                    onChange={(event) => setDraft({ ...draft, boxRows: Math.max(1, Number(event.target.value)) })}
+                  />
+                </label>
+              </div>
+            </SettingsField>
+            <SettingsReadout label="Drawn Area Preview">
+              <div className="calibration-readout">
+                Apply will calculate grid cell size from the drawn area and align grid offsets to its top-left corner.
+              </div>
+            </SettingsReadout>
           </>
         ) : !draft.alignGridToMap ? (
-          <div className="calibration-readout">Drag over one printed square, or over a larger block such as 5 x 5 squares for better accuracy.</div>
+          <SettingsReadout label="Drawn Area">
+            <div className="calibration-readout">Drag over one printed square, or over a larger block such as 5 x 5 squares for better accuracy.</div>
+          </SettingsReadout>
         ) : null}
-      </div>
-
-      <div className="button-row">
-        <button type="button" disabled={!hasDraftChanges} onClick={() => onApply(draft)}>
-          Apply calibration
-        </button>
-        <button type="button" disabled={!hasDraftChanges} onClick={() => setDraft(getDraftFromScene(scene, canAlignGridToMap))}>
-          Reset
-        </button>
-      </div>
+      </CollapsibleSettingsSection>
     </section>
   );
 }

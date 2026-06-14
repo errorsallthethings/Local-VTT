@@ -60,6 +60,7 @@ import {
 } from "../lib/toolCopy";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
+const WEATHER_ONLY_FRAME_INTERVAL_MS = 50;
 
 interface SceneCanvasProps {
   campaign: Campaign | null;
@@ -843,10 +844,24 @@ export function SceneCanvas({
     };
 
     let animationFrame = 0;
-    const drawCurrentFrame = () => {
-      const rect = canvas.getBoundingClientRect();
-      drawScene(context, rect.width, rect.height);
-      if (loadedMap?.animate || playerTokenTweenPositionsRef.current || hasActiveLiveTableEvents(liveTableEvents) || shouldAnimateWeather(scene, Boolean(canShowWeather))) {
+    let lastWeatherOnlyFrameAt = 0;
+    const drawCurrentFrame = (timestamp: number) => {
+      const mapAnimating = Boolean(loadedMap?.animate);
+      const tokenAnimating = Boolean(playerTokenTweenPositionsRef.current);
+      const tableEventsAnimating = hasActiveLiveTableEvents(liveTableEvents);
+      const weatherAnimating = shouldAnimateWeather(scene, Boolean(canShowWeather));
+      const hasFullRateAnimation = mapAnimating || tokenAnimating || tableEventsAnimating;
+      const shouldDrawFrame = !weatherAnimating || hasFullRateAnimation || timestamp - lastWeatherOnlyFrameAt >= WEATHER_ONLY_FRAME_INTERVAL_MS;
+
+      if (shouldDrawFrame) {
+        const rect = canvas.getBoundingClientRect();
+        drawScene(context, rect.width, rect.height);
+        if (weatherAnimating && !hasFullRateAnimation) {
+          lastWeatherOnlyFrameAt = timestamp;
+        }
+      }
+
+      if (mapAnimating || tokenAnimating || tableEventsAnimating || weatherAnimating) {
         animationFrame = window.requestAnimationFrame(drawCurrentFrame);
       }
     };

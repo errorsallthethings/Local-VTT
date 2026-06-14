@@ -120,9 +120,9 @@
   display: grid;
   gap: 3px;
   min-width: 0;
-  border: 1px dashed #344053;
+  border: 1px solid transparent;
   border-radius: var(--radius-control);
-  background: rgb(17 24 32 / 0.55);
+  background: rgb(122 162 247 / 0.07);
   padding: 9px 10px;
   color: var(--color-text-muted);
   font-size: 12px;
@@ -387,9 +387,9 @@
   grid-column: 1 / -1;
   display: grid;
   gap: 4px;
-  border: 1px solid var(--color-border-muted);
+  border: 1px solid transparent;
   border-radius: var(--radius-control);
-  background: rgb(18 24 33 / 0.82);
+  background: rgb(122 162 247 / 0.07);
   color: var(--color-text-soft);
   padding: 8px;
   font-size: 11px;
@@ -432,14 +432,21 @@
   min-width: 0;
 }
 
+.fog-default-label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 4px;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
 .fog-new-shape-switch {
   grid-template-columns: auto 44px auto;
 }
 
-.fog-new-shape-control small {
-  color: #8f9bad;
-  font-size: 11px;
-  line-height: 1.35;
+.layer-settings-help-panel {
+  margin-left: 102px;
 }
 
 .import-map-next-step {
