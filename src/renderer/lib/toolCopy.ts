@@ -47,17 +47,40 @@ export function getRulerHelpLines(): string[] {
 }
 
 export function getDrawingToolLabel(drawingTool: DrawingTool): string {
-  return drawingTool === "line" ? "Drawing Line" : "Freehand Drawing";
+  switch (drawingTool) {
+    case "line":
+      return "Drawing Line";
+    case "circle":
+      return "Radius Template";
+    case "rectangle":
+      return "Square Template";
+    case "cone":
+      return "Cone Template";
+    default:
+      return "Freehand Drawing";
+  }
 }
 
 export function getDrawingToolHint(drawingTool: DrawingTool): string {
-  return drawingTool === "line" ? "Left-drag to draw a straight line." : "Left-drag to sketch on the scene.";
+  switch (drawingTool) {
+    case "line":
+      return "Left-drag to draw a straight line.";
+    case "circle":
+      return "Left-drag from center to set radius. Ctrl/Cmd snaps.";
+    case "rectangle":
+      return "Left-drag to place a square area. Ctrl/Cmd snaps.";
+    case "cone":
+      return "Left-drag from origin to aim a cone. Ctrl/Cmd snaps.";
+    default:
+      return "Left-drag to sketch on the scene.";
+  }
 }
 
 export function getDrawingHelpLines(): string[] {
   return [
     "Freehand: left-drag to sketch a path on the scene.",
     "Line: left-drag to place a straight stroke.",
+    "Templates: use radius, square, and cone tools for quick spell areas. Ctrl/Cmd snaps to grid centers.",
     "Drawings are saved as sub-layers under the Drawing layer.",
     "Use the Drawing layer list to reorder, hide, show, or remove individual drawings."
   ];

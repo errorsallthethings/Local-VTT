@@ -192,7 +192,7 @@ it("normalizeScene backfills drawing defaults", () => {
       points: [],
       color: "#00ff00",
       opacity: 0.5,
-      strokeWidth: 12,
+      strokeWidth: 240,
       fill: "#ff0000",
       visibleInGm: false,
       visibleInPlayer: false
@@ -223,7 +223,7 @@ it("normalizeScene backfills drawing defaults", () => {
       text: undefined,
       color: "#00ff00",
       opacity: 0.5,
-      strokeWidth: 12,
+      strokeWidth: 240,
       fill: "#ff0000",
       visibleInGm: false,
       visibleInPlayer: false

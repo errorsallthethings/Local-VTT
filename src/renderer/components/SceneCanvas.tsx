@@ -883,7 +883,7 @@ export function SceneCanvas({
       }
 
       if (canShowDrawings) {
-        drawDrawings(ctx, scene, mode, drawingLayer?.opacity ?? 1, mode === "gm" ? drawingPreview : null);
+        drawDrawings(ctx, scene, mode, drawingLayer?.opacity ?? 1, mode === "gm" ? drawingPreview : null, renderCamera.zoom);
       }
 
       if (mode === "gm" && rulerDrag) {
@@ -921,6 +921,9 @@ export function SceneCanvas({
       }
       if (mode === "gm" && snapPoint && fogTool) {
         drawSnapMarker(ctx, snapPoint, renderCamera, getFogOperationForTool(fogTool));
+      }
+      if (mode === "gm" && snapPoint && drawingTool && drawingTool !== "freehand") {
+        drawSnapMarker(ctx, snapPoint, renderCamera, "reveal");
       }
       if (mode === "gm" && (onMapCalibrationBox || mapCalibrationBox)) {
         drawMapCalibrationBox(ctx, getVisibleMapCalibrationBox(mapCalibrationDrag, mapCalibrationDraftBox ?? mapCalibrationBox), renderCamera);
@@ -1091,7 +1094,7 @@ export function SceneCanvas({
       return;
     }
     if (mode === "gm" && drawingTool && scene && onSceneChange && event.button === 0) {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const point = getDrawingToolPoint(event, drawingTool);
       const preview = {
         pointerId: event.pointerId,
         kind: drawingTool,
@@ -1238,12 +1241,13 @@ export function SceneCanvas({
     }
 
     if (drawingDrag?.pointerId === event.pointerId) {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const point = getDrawingToolPoint(event, drawingDrag.kind);
+      const current = drawingDrag.kind === "rectangle" ? constrainSquarePoint(drawingDrag.points[0], point) : point;
       const nextPoints =
-        drawingDrag.kind === "freehand" && shouldAddDrawingPoint(drawingDrag.points[drawingDrag.points.length - 1], point)
-          ? [...drawingDrag.points, point]
+        drawingDrag.kind === "freehand" && shouldAddDrawingPoint(drawingDrag.points[drawingDrag.points.length - 1], current)
+          ? [...drawingDrag.points, current]
           : drawingDrag.points;
-      const nextDrawingDrag = { ...drawingDrag, current: point, points: nextPoints };
+      const nextDrawingDrag = { ...drawingDrag, current, points: nextPoints };
       drawingPreviewRef.current = nextDrawingDrag;
       setDrawingPreview(nextDrawingDrag);
       return;
@@ -1670,12 +1674,24 @@ export function SceneCanvas({
     return getRulerSnapPoint(point, scene) ?? point;
   };
 
+  const getDrawingToolPoint = (event: React.PointerEvent<HTMLCanvasElement>, tool: DrawingTool): Point => {
+    const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+    if (!scene || tool === "freehand" || !isSnapModifier(event)) {
+      setSnapPoint(null);
+      return point;
+    }
+    const snappedPoint = getRulerSnapPoint(point, scene) ?? point;
+    setSnapPoint(snappedPoint);
+    return snappedPoint;
+  };
+
   const updateSnapPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!scene || !fogTool || !isSnapModifier(event)) {
+    if (!scene || (!fogTool && !drawingTool) || !isSnapModifier(event)) {
       setSnapPoint(null);
       return;
     }
-    setSnapPoint(getFogSnapPoint(eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)), scene));
+    const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+    setSnapPoint(fogTool ? getFogSnapPoint(point, scene) : getRulerSnapPoint(point, scene));
   };
 
   const commitPolygonDraft = () => {
@@ -2675,6 +2691,15 @@ function getCanvasInteractionClass({
   }
   if (drawingTool === "line") {
     return "scene-canvas-tool-line";
+  }
+  if (drawingTool === "circle") {
+    return "scene-canvas-tool-circle";
+  }
+  if (drawingTool === "rectangle") {
+    return "scene-canvas-tool-rectangle";
+  }
+  if (drawingTool === "cone") {
+    return "scene-canvas-tool-polygon";
   }
   if (weatherMaskTool === "circle") {
     return "scene-canvas-tool-circle";

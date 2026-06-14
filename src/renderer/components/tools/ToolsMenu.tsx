@@ -413,6 +413,30 @@ export function ToolsMenu({
             <LineSquiggle size={17} aria-hidden="true" />
           </button>
           <button
+            className={activeDrawingTool === "circle" ? "tool-circle-button tool-active" : "tool-circle-button"}
+            aria-label="Radius Template"
+            title="Radius Template"
+            onClick={() => setDrawingTool("circle")}
+          >
+            <Circle size={17} aria-hidden="true" />
+          </button>
+          <button
+            className={activeDrawingTool === "rectangle" ? "tool-circle-button tool-active" : "tool-circle-button"}
+            aria-label="Square Template"
+            title="Square Template"
+            onClick={() => setDrawingTool("rectangle")}
+          >
+            <Square size={17} aria-hidden="true" />
+          </button>
+          <button
+            className={activeDrawingTool === "cone" ? "tool-circle-button tool-active" : "tool-circle-button"}
+            aria-label="Cone Template"
+            title="Cone Template"
+            onClick={() => setDrawingTool("cone")}
+          >
+            <Pentagon size={17} aria-hidden="true" />
+          </button>
+          <button
             className="tool-circle-button"
             aria-label="Undo Last Drawing"
             title="Undo Last Drawing"

@@ -1477,7 +1477,7 @@ function normalizeDrawings(drawings?: DrawingElement[]): DrawingElement[] {
       text: typeof drawing.text === "string" ? drawing.text : undefined,
       color: normalizeColor(drawing.color, "#f6d365"),
       opacity: clampNumber(drawing.opacity, 0, 1, 1),
-      strokeWidth: clampNumber(drawing.strokeWidth, 1, 96, 4),
+      strokeWidth: clampNumber(drawing.strokeWidth, 1, 400, 4),
       fill: typeof drawing.fill === "string" ? normalizeColor(drawing.fill, "transparent") : undefined,
       visibleInGm: typeof drawing.visibleInGm === "boolean" ? drawing.visibleInGm : true,
       visibleInPlayer: typeof drawing.visibleInPlayer === "boolean" ? drawing.visibleInPlayer : true
