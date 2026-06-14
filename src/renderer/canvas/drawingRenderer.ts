@@ -3,7 +3,17 @@ import { formatMeasurementDistance, getStraightLineMeasurementDistance } from ".
 
 export const DRAWING_POINT_MIN_DISTANCE = 3;
 
-export type DrawingTool = "freehand" | "line" | "rectangle" | "circle" | "cone";
+export type DrawingTool =
+  | "freehand"
+  | "line"
+  | "rectangle"
+  | "circle"
+  | "triangle"
+  | "polygon"
+  | "template-line"
+  | "template-rectangle"
+  | "template-circle"
+  | "template-cone";
 
 export type DrawingPreview = {
   pointerId: number;
@@ -46,7 +56,7 @@ export function drawDrawings(
       {
         id: "preview",
         name: "Preview",
-        kind: preview.kind,
+        kind: getDrawingKindForTool(preview.kind),
         points: getDrawingPreviewPoints(preview),
         color: preview.color,
         opacity: preview.opacity,
@@ -63,7 +73,7 @@ export function drawDrawings(
 }
 
 export function getDrawingPreviewPoints(preview: DrawingPreview): Point[] {
-  if (preview.kind === "line" || preview.kind === "rectangle" || preview.kind === "circle" || preview.kind === "cone") {
+  if (isTwoPointDrawingTool(preview.kind)) {
     return [preview.points[0], preview.current].filter(Boolean);
   }
   const lastPoint = preview.points[preview.points.length - 1];
@@ -148,6 +158,10 @@ function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingEleme
     drawRectangle(ctx, points, drawing);
   } else if (drawing.kind === "circle") {
     drawCircle(ctx, points, drawing);
+  } else if (drawing.kind === "triangle") {
+    drawTriangle(ctx, points, drawing);
+  } else if (drawing.kind === "polygon") {
+    drawPolygonShape(ctx, points, drawing);
   } else if (drawing.kind === "cone") {
     drawCone(ctx, points, drawing);
   } else {
@@ -176,6 +190,13 @@ function isPointNearDrawing(drawing: DrawingElement, point: Point, hitRadius: nu
   if (drawing.kind === "cone") {
     const triangle = getConeTriangle(points);
     return triangle ? isPointInTriangle(point, triangle[0], triangle[1], triangle[2]) : false;
+  }
+  if (drawing.kind === "triangle") {
+    const triangle = getTriangle(points);
+    return triangle ? isPointInTriangle(point, triangle[0], triangle[1], triangle[2]) : false;
+  }
+  if (drawing.kind === "polygon") {
+    return isPointInPolygon(point, points);
   }
   return points.some((candidate, index) => {
     const next = points[index + 1];
@@ -246,6 +267,35 @@ function drawCone(ctx: CanvasRenderingContext2D, points: Point[], drawing: Drawi
   ctx.stroke();
 }
 
+function drawTriangle(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement) {
+  const triangle = getTriangle(points);
+  if (!triangle) {
+    return;
+  }
+  ctx.beginPath();
+  ctx.moveTo(triangle[0].x, triangle[0].y);
+  ctx.lineTo(triangle[1].x, triangle[1].y);
+  ctx.lineTo(triangle[2].x, triangle[2].y);
+  ctx.closePath();
+  fillCurrentTemplatePath(ctx, drawing);
+  ctx.stroke();
+}
+
+function drawPolygonShape(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement) {
+  if (points.length < 3) {
+    drawPath(ctx, points);
+    return;
+  }
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (const point of points.slice(1)) {
+    ctx.lineTo(point.x, point.y);
+  }
+  ctx.closePath();
+  fillCurrentTemplatePath(ctx, drawing);
+  ctx.stroke();
+}
+
 function fillTemplateShape(ctx: CanvasRenderingContext2D, drawing: DrawingElement, tracePath: () => void) {
   ctx.beginPath();
   tracePath();
@@ -283,12 +333,48 @@ function getConeTriangle(points: Point[]): [Point, Point, Point] | null {
   ];
 }
 
+function getTriangle(points: Point[]): [Point, Point, Point] | null {
+  if (points.length < 2) {
+    return null;
+  }
+  const [start, end] = points;
+  const midpoint = {
+    x: (start.x + end.x) / 2,
+    y: (start.y + end.y) / 2
+  };
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  return [
+    start,
+    end,
+    {
+      x: midpoint.x - dy * 0.866,
+      y: midpoint.y + dx * 0.866
+    }
+  ];
+}
+
 function isPointInTriangle(point: Point, a: Point, b: Point, c: Point): boolean {
   const area = triangleArea(a, b, c);
   const area1 = triangleArea(point, b, c);
   const area2 = triangleArea(a, point, c);
   const area3 = triangleArea(a, b, point);
   return Math.abs(area - (area1 + area2 + area3)) <= 0.5;
+}
+
+function isPointInPolygon(point: Point, polygon: Point[]): boolean {
+  if (polygon.length < 3) {
+    return false;
+  }
+  let inside = false;
+  for (let index = 0, previousIndex = polygon.length - 1; index < polygon.length; previousIndex = index, index += 1) {
+    const current = polygon[index];
+    const previous = polygon[previousIndex];
+    if ((current.y > point.y) !== (previous.y > point.y) && point.x < ((previous.x - current.x) * (point.y - current.y)) / (previous.y - current.y) + current.x) {
+      inside = !inside;
+    }
+  }
+  return inside;
 }
 
 function triangleArea(a: Point, b: Point, c: Point): number {
@@ -308,6 +394,9 @@ function distanceToSegment(point: Point, start: Point, end: Point): number {
 }
 
 function drawTemplateLabel(ctx: CanvasRenderingContext2D, drawing: DrawingElement, scene: Scene, zoom: number) {
+  if (drawing.measurementLabelVisible === false) {
+    return;
+  }
   if (drawing.kind !== "line" && drawing.kind !== "rectangle" && drawing.kind !== "circle" && drawing.kind !== "cone") {
     return;
   }
@@ -407,4 +496,24 @@ function getPathDistance(points: Point[]): number {
 
 function distanceBetweenPoints(a: Point, b: Point): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function isTwoPointDrawingTool(tool: DrawingTool): boolean {
+  return tool !== "freehand" && tool !== "polygon";
+}
+
+function getDrawingKindForTool(tool: DrawingTool): DrawingElement["kind"] {
+  if (tool === "template-line") {
+    return "line";
+  }
+  if (tool === "template-rectangle") {
+    return "rectangle";
+  }
+  if (tool === "template-circle") {
+    return "circle";
+  }
+  if (tool === "template-cone") {
+    return "cone";
+  }
+  return tool;
 }

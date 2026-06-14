@@ -3,7 +3,7 @@ export type AssetMediaType = "image" | "video";
 export type GridType = "square" | "hex" | "gridless";
 export type MeasurementUnit = "feet" | "meters" | "miles";
 export type WallType = "wall" | "door" | "window" | "terrain";
-export type DrawingKind = "freehand" | "line" | "rectangle" | "circle" | "cone" | "text" | "ping" | "laser";
+export type DrawingKind = "freehand" | "line" | "rectangle" | "circle" | "triangle" | "polygon" | "cone" | "text" | "ping" | "laser";
 export type TokenSizePreset = "tiny" | "medium" | "large" | "huge" | "gargantuan" | "custom";
 export type TokenMask = "none" | "circle" | "square";
 export type TokenBorderStyle = "none" | "solid" | "dashed" | "dotted" | "double-line" | "embossed" | "inner-shadow" | "glow";
@@ -263,6 +263,7 @@ export interface DrawingElement {
   opacity: number;
   strokeWidth: number;
   fill?: string;
+  measurementLabelVisible?: boolean;
   visibleInGm?: boolean;
   visibleInPlayer: boolean;
 }
@@ -1479,6 +1480,7 @@ function normalizeDrawings(drawings?: DrawingElement[]): DrawingElement[] {
       opacity: clampNumber(drawing.opacity, 0, 1, 1),
       strokeWidth: clampNumber(drawing.strokeWidth, 1, 400, 4),
       fill: typeof drawing.fill === "string" ? normalizeColor(drawing.fill, "transparent") : undefined,
+      measurementLabelVisible: typeof drawing.measurementLabelVisible === "boolean" ? drawing.measurementLabelVisible : undefined,
       visibleInGm: typeof drawing.visibleInGm === "boolean" ? drawing.visibleInGm : true,
       visibleInPlayer: typeof drawing.visibleInPlayer === "boolean" ? drawing.visibleInPlayer : true
     };
@@ -1503,6 +1505,8 @@ function normalizeDrawingKind(kind: unknown): DrawingKind {
     kind === "line" ||
     kind === "rectangle" ||
     kind === "circle" ||
+    kind === "triangle" ||
+    kind === "polygon" ||
     kind === "cone" ||
     kind === "text" ||
     kind === "ping" ||

@@ -103,6 +103,7 @@ interface WorkspaceTopbarProps {
   onRollDie: (die: DiceType) => void;
   onRollExpression: (expression: string, rollLabel?: string) => string | null;
   onClearDiceRolls: () => void;
+  dicePanelOpenRequest?: number;
 }
 
 export function WorkspaceTopbar({
@@ -150,7 +151,8 @@ export function WorkspaceTopbar({
   onPlayerDicePanelAdvancedChange,
   onRollDie,
   onRollExpression,
-  onClearDiceRolls
+  onClearDiceRolls,
+  dicePanelOpenRequest = 0
 }: WorkspaceTopbarProps) {
   const [diceExpression, setDiceExpression] = useState("1d20");
   const [diceExpressionError, setDiceExpressionError] = useState<string | null>(null);
@@ -181,6 +183,12 @@ export function WorkspaceTopbar({
   useEffect(() => {
     window.localStorage.setItem(CUSTOM_DICE_PRESETS_STORAGE_KEY, JSON.stringify(customDicePresets));
   }, [customDicePresets]);
+
+  useEffect(() => {
+    if (dicePanelOpenRequest > 0) {
+      setDicePanelOpen(true);
+    }
+  }, [dicePanelOpenRequest]);
 
   useEffect(() => {
     if (!diceHistory.some(isPendingRecentDiceRoll)) {

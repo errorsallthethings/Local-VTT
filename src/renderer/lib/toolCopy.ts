@@ -49,15 +49,25 @@ export function getRulerHelpLines(): string[] {
 export function getDrawingToolLabel(drawingTool: DrawingTool): string {
   switch (drawingTool) {
     case "line":
-      return "Drawing Line";
+      return "Line";
     case "circle":
-      return "Radius Template";
+      return "Circle";
     case "rectangle":
+      return "Square";
+    case "triangle":
+      return "Triangle";
+    case "polygon":
+      return "Polygon";
+    case "template-line":
+      return "Line Template";
+    case "template-circle":
+      return "Radius Template";
+    case "template-rectangle":
       return "Square Template";
-    case "cone":
+    case "template-cone":
       return "Cone Template";
     default:
-      return "Freehand Drawing";
+      return "Brush";
   }
 }
 
@@ -66,10 +76,20 @@ export function getDrawingToolHint(drawingTool: DrawingTool): string {
     case "line":
       return "Left-drag to draw a straight line.";
     case "circle":
-      return "Left-drag from center to set radius. Ctrl/Cmd snaps.";
+      return "Left-drag from center to draw a circle.";
     case "rectangle":
+      return "Left-drag to draw a square. Ctrl/Cmd snaps.";
+    case "triangle":
+      return "Left-drag to draw a triangle.";
+    case "polygon":
+      return "Left-drag to sketch a closed polygon.";
+    case "template-line":
+      return "Left-drag to place a measured line. Ctrl/Cmd snaps.";
+    case "template-circle":
+      return "Left-drag from center to set radius. Ctrl/Cmd snaps.";
+    case "template-rectangle":
       return "Left-drag to place a square area. Ctrl/Cmd snaps.";
-    case "cone":
+    case "template-cone":
       return "Left-drag from origin to aim a cone. Ctrl/Cmd snaps.";
     default:
       return "Left-drag to sketch on the scene.";
@@ -78,9 +98,10 @@ export function getDrawingToolHint(drawingTool: DrawingTool): string {
 
 export function getDrawingHelpLines(): string[] {
   return [
-    "Freehand: left-drag to sketch a path on the scene.",
+    "Brush: left-drag to sketch a path on the scene.",
     "Line: left-drag to place a straight stroke.",
-    "Templates: use radius, square, and cone tools for quick spell areas. Ctrl/Cmd snaps to grid centers.",
+    "Shapes: use square, circle, triangle, and polygon tools for non-measured drawings.",
+    "Templates: use line, radius, square, and cone tools for quick measured spell areas. Ctrl/Cmd snaps to grid centers.",
     "Drawings are saved as sub-layers under the Drawing layer.",
     "Use the Drawing layer list to reorder, hide, show, or remove individual drawings."
   ];

@@ -34,15 +34,15 @@ describe("tool copy helpers", () => {
   });
 
   it("describes drawing tools", () => {
-    expect(getDrawingToolLabel("freehand")).toBe("Freehand Drawing");
-    expect(getDrawingToolLabel("line")).toBe("Drawing Line");
-    expect(getDrawingToolLabel("circle")).toBe("Radius Template");
-    expect(getDrawingToolLabel("rectangle")).toBe("Square Template");
-    expect(getDrawingToolLabel("cone")).toBe("Cone Template");
+    expect(getDrawingToolLabel("freehand")).toBe("Brush");
+    expect(getDrawingToolLabel("line")).toBe("Line");
+    expect(getDrawingToolLabel("circle")).toBe("Circle");
+    expect(getDrawingToolLabel("rectangle")).toBe("Square");
+    expect(getDrawingToolLabel("template-cone")).toBe("Cone Template");
     expect(getDrawingToolHint("line")).toContain("straight line");
-    expect(getDrawingToolHint("cone")).toContain("aim a cone");
-    expect(getDrawingToolHint("cone")).toContain("Ctrl/Cmd snaps");
-    expect(getDrawingHelpLines()).toContain("Templates: use radius, square, and cone tools for quick spell areas. Ctrl/Cmd snaps to grid centers.");
+    expect(getDrawingToolHint("template-cone")).toContain("aim a cone");
+    expect(getDrawingToolHint("template-cone")).toContain("Ctrl/Cmd snaps");
+    expect(getDrawingHelpLines()).toContain("Templates: use line, radius, square, and cone tools for quick measured spell areas. Ctrl/Cmd snaps to grid centers.");
     expect(getDrawingHelpLines()).toContain("Drawings are saved as sub-layers under the Drawing layer.");
   });
 });

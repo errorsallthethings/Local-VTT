@@ -169,6 +169,7 @@ export function GmApp() {
   const [playerDisplayMode, setPlayerDisplayMode] = useState<PlayerDisplayMode>("scene");
   const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
   const [diceRollHistory, setDiceRollHistory] = useState<DiceRollEvent[]>([]);
+  const [dicePanelOpenRequest, setDicePanelOpenRequest] = useState(0);
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
   const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
@@ -1535,6 +1536,7 @@ export function GmApp() {
           onRollDie={rollTableDie}
           onRollExpression={rollTableExpression}
           onClearDiceRolls={clearDiceRolls}
+          dicePanelOpenRequest={dicePanelOpenRequest}
         />
 
         <div className={error ? "error-banner" : "error-banner error-banner-empty"}>{error}</div>
@@ -1589,6 +1591,8 @@ export function GmApp() {
               onUndoDrawing={undoDrawing}
               onUndoWeatherMask={undoWeatherMask}
               onRequestClearFog={() => setConfirmClearFogOpen(true)}
+              onOpenDicePanel={() => setDicePanelOpenRequest((request) => request + 1)}
+              onOpenTurnOrder={() => setTokenLibraryExpanded(true)}
             />
           )}
           <SceneCanvas
