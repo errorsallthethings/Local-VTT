@@ -36,7 +36,7 @@ import type {
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type FogOperation, type WeatherMaskTool } from "../components/tools/ToolsMenu";
+import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type FogOperation, type MouseBehavior, type WeatherMaskTool } from "../components/tools/ToolsMenu";
 import type { DrawingTool } from "../canvas/drawingRenderer";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -145,10 +145,12 @@ export function GmApp() {
   const [activeDrawingTool, setActiveDrawingTool] = useState<DrawingTool | null>(null);
   const [activeFogTool, setActiveFogTool] = useState<FogTool | null>(null);
   const [activeWeatherMaskTool, setActiveWeatherMaskTool] = useState<WeatherMaskTool | null>(null);
+  const [mouseBehavior, setMouseBehavior] = useState<MouseBehavior>("selector");
+  const [tableToolsVisibleInPlayer, setTableToolsVisibleInPlayer] = useState(true);
   const [fogOperation, setFogOperation] = useState<FogOperation>("reveal");
   const [drawingColor, setDrawingColor] = useState("#ff0000");
   const [drawingOpacity, setDrawingOpacity] = useState(1);
-  const [drawingStrokeWidth, setDrawingStrokeWidth] = useState(80);
+  const [drawingStrokeWidth, setDrawingStrokeWidth] = useState(40);
   const [drawingTemplateSize, setDrawingTemplateSize] = useState<DrawingTemplateSize>("custom");
   const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
@@ -262,7 +264,7 @@ export function GmApp() {
     setDiceRollHistory((history) => [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, MAX_DICE_ROLL_HISTORY));
   }, []);
 
-  const emitLiveTableEvent = (event: LiveTableEvent) => {
+  const emitLiveTableEvent = useCallback((event: LiveTableEvent) => {
     setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
     if (event.type === "dice") {
       updateDiceRollHistory(event);
@@ -270,7 +272,7 @@ export function GmApp() {
       setDiceRollHistory([]);
     }
     void window.localVtt.sendLiveTableEvent(event);
-  };
+  }, [updateDiceRollHistory]);
 
   useEffect(() => {
     const removeListener = window.localVtt.onLiveTableEvent((event) => {
@@ -1548,6 +1550,7 @@ export function GmApp() {
               activeFogTool={activeFogTool}
               activeWeatherMaskTool={activeWeatherMaskTool}
               activeDrawingTool={activeDrawingTool}
+              mouseBehavior={mouseBehavior}
               fogOperation={fogOperation}
               brushSize={activeScene.fog.brushSize}
               drawingColor={drawingColor}
@@ -1556,6 +1559,9 @@ export function GmApp() {
               drawingTemplateSize={drawingTemplateSize}
               pingSize={activeScene.tableTools.pingSize}
               pingColor={activeScene.tableTools.pingColor}
+              laserThickness={activeScene.tableTools.laserThickness}
+              laserColor={activeScene.tableTools.laserColor}
+              tableToolsVisibleInPlayer={tableToolsVisibleInPlayer}
               fogShapeCount={activeScene.fog.shapes.length}
               drawingCount={activeScene.drawings.length}
               weatherMaskCount={activeScene.weather.masks.length}
@@ -1567,6 +1573,7 @@ export function GmApp() {
               onFogToolChange={setActiveFogTool}
               onWeatherMaskToolChange={setActiveWeatherMaskTool}
               onDrawingToolChange={setActiveDrawingTool}
+              onMouseBehaviorChange={setMouseBehavior}
               onFogOperationChange={setFogOperation}
               onBrushSizeChange={(brushSize) => updateFog({ brushSize })}
               onDrawingColorChange={setDrawingColor}
@@ -1587,6 +1594,21 @@ export function GmApp() {
                   updatedAt: new Date().toISOString()
                 })
               }
+              onLaserThicknessChange={(laserThickness) =>
+                updateScene({
+                  ...activeScene,
+                  tableTools: { ...activeScene.tableTools, laserThickness },
+                  updatedAt: new Date().toISOString()
+                })
+              }
+              onLaserColorChange={(laserColor) =>
+                updateScene({
+                  ...activeScene,
+                  tableTools: { ...activeScene.tableTools, laserColor },
+                  updatedAt: new Date().toISOString()
+                })
+              }
+              onTableToolsVisibleInPlayerChange={setTableToolsVisibleInPlayer}
               onUndoFogShape={undoFogShape}
               onUndoDrawing={undoDrawing}
               onUndoWeatherMask={undoWeatherMask}
@@ -1600,6 +1622,7 @@ export function GmApp() {
             scene={activeScene}
             mode="gm"
             canvasTool={activeCanvasTool}
+            mouseBehavior={mouseBehavior}
             drawingTool={activeDrawingTool}
             drawingColor={drawingColor}
             drawingOpacity={drawingOpacity}
@@ -1608,6 +1631,7 @@ export function GmApp() {
             fogTool={activeFogTool}
             weatherMaskTool={activeWeatherMaskTool}
             liveTableEvents={liveTableEvents}
+            tableToolsVisibleInPlayer={tableToolsVisibleInPlayer}
             selectedFogShapeId={selectedFogShapeId}
             selectedWeatherMaskId={selectedWeatherMaskId}
             selectedDrawingId={selectedDrawingId}
@@ -1818,10 +1842,14 @@ function CampaignBusyOverlay({ busyState }: { busyState: CampaignBusyState }) {
 
 const LIVE_TABLE_PING_DURATION_MS = 1600;
 const LIVE_TABLE_LASER_POINT_LIFETIME_MS = 1100;
+const LIVE_TABLE_RULER_DURATION_MS = 8000;
 function mergeLiveTableEvent(events: LiveTableEvent[], event: LiveTableEvent): LiveTableEvent[] {
   const filteredEvents = filterActiveLiveTableEvents(events);
   if (event.type === "dice-clear") {
     return filteredEvents.filter((candidate) => candidate.type !== "dice");
+  }
+  if (event.type === "ruler-clear") {
+    return filteredEvents.filter((candidate) => candidate.type !== "ruler");
   }
   return [event, ...filteredEvents.filter((candidate) => candidate.id !== event.id)];
 }
@@ -1842,6 +1870,10 @@ function filterActiveLiveTableEvents(events: LiveTableEvent[]): LiveTableEvent[]
       const points = event.points.filter((point) => now - point.createdAt <= LIVE_TABLE_LASER_POINT_LIFETIME_MS);
       if (points.length > 0) {
         activeEvents.push({ ...event, points });
+      }
+    } else if (event.type === "ruler") {
+      if (now - event.createdAt <= LIVE_TABLE_RULER_DURATION_MS) {
+        activeEvents.push(event);
       }
     }
   }

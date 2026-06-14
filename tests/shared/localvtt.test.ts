@@ -204,7 +204,7 @@ it("normalizeScene backfills drawing defaults", () => {
   expect(normalized.drawings).toEqual([
     {
       id: "drawing-1",
-      name: "Freehand 1",
+      name: "Brush 1",
       kind: "freehand",
       points: [{ x: 10, y: 20 }],
       text: undefined,
@@ -681,6 +681,8 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, size: 1.5, color: "#ffcc00", createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "laser", type: "laser", points: [{ point: { x: 1, y: 2 }, createdAt: 1 }], createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "ruler", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "ruler-clear", type: "ruler-clear", createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "clear", type: "dice-clear", createdAt: 1 })).toBe(true);
   expect(
     isLiveTableEvent({
@@ -740,9 +742,11 @@ it("runtime validators reject invalid files and accept valid projected state", (
 
 it("normalizeScene normalizes table tool settings", () => {
   expect(normalizeScene({ ...createDefaultScene("Legacy"), tableTools: undefined as never }).tableTools).toEqual(DEFAULT_TABLE_TOOLS);
-  expect(normalizeScene({ ...createDefaultScene("Tools"), tableTools: { pingSize: 9, pingColor: "red" } }).tableTools).toEqual({
+  expect(normalizeScene({ ...createDefaultScene("Tools"), tableTools: { pingSize: 9, pingColor: "red", laserThickness: 100, laserColor: "nope" } }).tableTools).toEqual({
     pingSize: 3,
-    pingColor: DEFAULT_TABLE_TOOLS.pingColor
+    pingColor: DEFAULT_TABLE_TOOLS.pingColor,
+    laserThickness: 80,
+    laserColor: DEFAULT_TABLE_TOOLS.laserColor
   });
 });
 

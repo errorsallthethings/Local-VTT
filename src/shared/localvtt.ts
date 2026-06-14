@@ -292,6 +292,8 @@ export interface VideoPlaybackSettings {
 export interface TableToolSettings {
   pingSize: number;
   pingColor: string;
+  laserThickness: number;
+  laserColor: string;
 }
 
 export interface TurnOrderEntry {
@@ -531,12 +533,30 @@ export type LiveTableEvent =
       point: Point;
       size?: number;
       color?: string;
+      visibleInPlayer?: boolean;
       createdAt: number;
     }
   | {
       id: string;
       type: "laser";
       points: LiveTablePoint[];
+      thickness?: number;
+      color?: string;
+      visibleInPlayer?: boolean;
+      createdAt: number;
+    }
+  | {
+      id: string;
+      type: "ruler";
+      points: Point[];
+      primary: string;
+      secondary?: string;
+      visibleInPlayer?: boolean;
+      createdAt: number;
+    }
+  | {
+      id: string;
+      type: "ruler-clear";
       createdAt: number;
     }
   | {
@@ -631,7 +651,9 @@ export const DEFAULT_VIDEO_PLAYBACK: VideoPlaybackSettings = {
 
 export const DEFAULT_TABLE_TOOLS: TableToolSettings = {
   pingSize: 1,
-  pingColor: "#f6d365"
+  pingColor: "#ffd84d",
+  laserThickness: 20,
+  laserColor: "#ff525e"
 };
 
 export const DEFAULT_TURN_ORDER: TurnOrderSettings = {
@@ -1100,10 +1122,34 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
     return false;
   }
   if (value.type === "ping") {
-    return isPoint(value.point) && (!("size" in value) || (typeof value.size === "number" && Number.isFinite(value.size))) && (!("color" in value) || typeof value.color === "string");
+    return (
+      isPoint(value.point) &&
+      (!("size" in value) || (typeof value.size === "number" && Number.isFinite(value.size))) &&
+      (!("color" in value) || typeof value.color === "string") &&
+      (!("visibleInPlayer" in value) || typeof value.visibleInPlayer === "boolean")
+    );
   }
   if (value.type === "laser") {
-    return Array.isArray(value.points) && value.points.every((entry) => isRecord(entry) && isPoint(entry.point) && typeof entry.createdAt === "number");
+    return (
+      Array.isArray(value.points) &&
+      value.points.every((entry) => isRecord(entry) && isPoint(entry.point) && typeof entry.createdAt === "number") &&
+      (!("thickness" in value) || (typeof value.thickness === "number" && Number.isFinite(value.thickness))) &&
+      (!("color" in value) || typeof value.color === "string") &&
+      (!("visibleInPlayer" in value) || typeof value.visibleInPlayer === "boolean")
+    );
+  }
+  if (value.type === "ruler") {
+    return (
+      Array.isArray(value.points) &&
+      value.points.length >= 2 &&
+      value.points.every(isPoint) &&
+      typeof value.primary === "string" &&
+      (!("secondary" in value) || typeof value.secondary === "string") &&
+      (!("visibleInPlayer" in value) || typeof value.visibleInPlayer === "boolean")
+    );
+  }
+  if (value.type === "ruler-clear") {
+    return true;
   }
   if (value.type === "dice") {
     return (
@@ -1187,7 +1233,9 @@ function normalizeTableTools(settings?: Partial<TableToolSettings>): TableToolSe
     ...DEFAULT_TABLE_TOOLS,
     ...(settings ?? {}),
     pingSize: clampNumber(settings?.pingSize, 0.5, 3, DEFAULT_TABLE_TOOLS.pingSize),
-    pingColor: normalizeColor(settings?.pingColor, DEFAULT_TABLE_TOOLS.pingColor)
+    pingColor: normalizeColor(settings?.pingColor, DEFAULT_TABLE_TOOLS.pingColor),
+    laserThickness: clampNumber(settings?.laserThickness, 4, 80, DEFAULT_TABLE_TOOLS.laserThickness),
+    laserColor: normalizeColor(settings?.laserColor, DEFAULT_TABLE_TOOLS.laserColor)
   };
 }
 
@@ -1516,6 +1564,9 @@ function normalizeDrawingKind(kind: unknown): DrawingKind {
 }
 
 export function formatDefaultDrawingName(kind: DrawingKind, index: number): string {
+  if (kind === "freehand") {
+    return `Brush ${index + 1}`;
+  }
   const kindLabel = kind
     .split("-")
     .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)

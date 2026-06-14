@@ -37,12 +37,12 @@ describe("tool copy helpers", () => {
     expect(getDrawingToolLabel("freehand")).toBe("Brush");
     expect(getDrawingToolLabel("line")).toBe("Line");
     expect(getDrawingToolLabel("circle")).toBe("Circle");
-    expect(getDrawingToolLabel("rectangle")).toBe("Square");
+    expect(getDrawingToolLabel("rectangle")).toBe("Rectangle");
     expect(getDrawingToolLabel("template-cone")).toBe("Cone Template");
     expect(getDrawingToolHint("line")).toContain("straight line");
     expect(getDrawingToolHint("template-cone")).toContain("aim a cone");
     expect(getDrawingToolHint("template-cone")).toContain("Ctrl/Cmd snaps");
-    expect(getDrawingHelpLines()).toContain("Templates: use line, radius, square, and cone tools for quick measured spell areas. Ctrl/Cmd snaps to grid centers.");
+    expect(getDrawingHelpLines()).toContain("Rectangle: left-drag to draw a rectangle; hold Shift for a square.");
     expect(getDrawingHelpLines()).toContain("Drawings are saved as sub-layers under the Drawing layer.");
   });
 });

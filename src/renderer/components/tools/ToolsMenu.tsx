@@ -33,7 +33,7 @@ export type WeatherMaskTool = "rectangle" | "circle" | "polygon";
 export type DrawingTemplateSize = "custom" | 5 | 10 | 15 | 20 | 30 | 60 | 100;
 type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
 type ToolCategory = "mouse" | "drawing" | "templates" | "text" | "table" | "dice" | "turn-order" | "pin" | "mask" | "lighting";
-type MouseMode = "selector" | "grabber";
+export type MouseBehavior = "selector" | "grabber";
 
 const BRUSH_SIZE_PRESETS = [
   { label: "Extra Thin", value: 20 },
@@ -41,6 +41,14 @@ const BRUSH_SIZE_PRESETS = [
   { label: "Medium", value: 80 },
   { label: "Thick", value: 160 },
   { label: "Extra Thick", value: 240 }
+];
+
+const DRAWING_THICKNESS_PRESETS = [
+  { label: "Extra Thin", value: 8 },
+  { label: "Thin", value: 20 },
+  { label: "Medium", value: 40 },
+  { label: "Thick", value: 80 },
+  { label: "Extra Thick", value: 160 }
 ];
 
 const PING_SIZE_PRESETS = [
@@ -51,6 +59,14 @@ const PING_SIZE_PRESETS = [
   { label: "Extra Large", value: 2.25 }
 ];
 
+const LASER_THICKNESS_PRESETS = [
+  { label: "Extra Thin", value: 8 },
+  { label: "Thin", value: 14 },
+  { label: "Medium", value: 20 },
+  { label: "Thick", value: 32 },
+  { label: "Extra Thick", value: 48 }
+];
+
 const DRAWING_OPACITY_PRESETS = [
   { label: "Faint", value: 0.25 },
   { label: "Soft", value: 0.5 },
@@ -59,12 +75,16 @@ const DRAWING_OPACITY_PRESETS = [
 ];
 
 const TEMPLATE_SIZE_PRESETS: DrawingTemplateSize[] = ["custom", 5, 10, 15, 20, 30, 60, 100];
+const DEFAULT_DRAWING_COLOR = "#ff0000";
+const DEFAULT_TEMPLATE_COLOR = "#7dd3fc";
+const DEFAULT_SONAR_COLOR = "#ffd84d";
 
 interface ToolsMenuProps {
   activeCanvasTool: CanvasTool | null;
   activeFogTool: FogTool | null;
   activeWeatherMaskTool: WeatherMaskTool | null;
   activeDrawingTool: DrawingTool | null;
+  mouseBehavior: MouseBehavior;
   fogOperation: FogOperation;
   brushSize: number;
   drawingColor: string;
@@ -73,6 +93,9 @@ interface ToolsMenuProps {
   drawingTemplateSize: DrawingTemplateSize;
   pingSize: number;
   pingColor: string;
+  laserThickness: number;
+  laserColor: string;
+  tableToolsVisibleInPlayer: boolean;
   fogShapeCount: number;
   drawingCount: number;
   weatherMaskCount: number;
@@ -81,6 +104,7 @@ interface ToolsMenuProps {
   onFogToolChange: (tool: FogTool | null) => void;
   onWeatherMaskToolChange: (tool: WeatherMaskTool | null) => void;
   onDrawingToolChange: (tool: DrawingTool | null) => void;
+  onMouseBehaviorChange: (behavior: MouseBehavior) => void;
   onFogOperationChange: (operation: FogOperation) => void;
   onBrushSizeChange: (brushSize: number) => void;
   onDrawingColorChange: (color: string) => void;
@@ -89,6 +113,9 @@ interface ToolsMenuProps {
   onDrawingTemplateSizeChange: (size: DrawingTemplateSize) => void;
   onPingSizeChange: (pingSize: number) => void;
   onPingColorChange: (pingColor: string) => void;
+  onLaserThicknessChange: (laserThickness: number) => void;
+  onLaserColorChange: (laserColor: string) => void;
+  onTableToolsVisibleInPlayerChange: (visible: boolean) => void;
   onUndoFogShape: () => void;
   onUndoDrawing: () => void;
   onUndoWeatherMask: () => void;
@@ -99,7 +126,7 @@ interface ToolsMenuProps {
 
 const TOOL_CATEGORIES: Array<{ id: ToolCategory; label: string; icon: typeof SquareDashedMousePointer; hasPanelTools: boolean }> = [
   { id: "drawing", label: "Drawing Tools", icon: LineSquiggle, hasPanelTools: true },
-  { id: "templates", label: "Templates", icon: Triangle, hasPanelTools: true },
+  { id: "templates", label: "Template Tools", icon: Triangle, hasPanelTools: true },
   { id: "text", label: "Text Tool", icon: Type, hasPanelTools: false },
   { id: "table", label: "Table Tools", icon: Table2, hasPanelTools: true },
   { id: "dice", label: "Dice Bag", icon: Dices, hasPanelTools: false },
@@ -114,6 +141,7 @@ export function ToolsMenu({
   activeFogTool,
   activeWeatherMaskTool,
   activeDrawingTool,
+  mouseBehavior,
   fogOperation,
   brushSize,
   drawingColor,
@@ -122,6 +150,9 @@ export function ToolsMenu({
   drawingTemplateSize,
   pingSize,
   pingColor,
+  laserThickness,
+  laserColor,
+  tableToolsVisibleInPlayer,
   fogShapeCount,
   drawingCount,
   weatherMaskCount,
@@ -130,6 +161,7 @@ export function ToolsMenu({
   onFogToolChange,
   onWeatherMaskToolChange,
   onDrawingToolChange,
+  onMouseBehaviorChange,
   onFogOperationChange,
   onBrushSizeChange,
   onDrawingColorChange,
@@ -138,6 +170,9 @@ export function ToolsMenu({
   onDrawingTemplateSizeChange,
   onPingSizeChange,
   onPingColorChange,
+  onLaserThicknessChange,
+  onLaserColorChange,
+  onTableToolsVisibleInPlayerChange,
   onUndoFogShape,
   onUndoDrawing,
   onUndoWeatherMask,
@@ -146,9 +181,9 @@ export function ToolsMenu({
 }: ToolsMenuProps) {
   const [activeCategory, setActiveCategory] = useState<ToolCategory | null>(null);
   const [toolsExpanded, setToolsExpanded] = useState(true);
-  const [mouseMode, setMouseMode] = useState<MouseMode>("selector");
   const [fogBrushCustomOpen, setFogBrushCustomOpen] = useState(false);
   const [pingSizeCustomOpen, setPingSizeCustomOpen] = useState(false);
+  const [laserThicknessCustomOpen, setLaserThicknessCustomOpen] = useState(false);
   const [drawingThicknessCustomOpen, setDrawingThicknessCustomOpen] = useState(false);
   const [drawingOpacityCustomOpen, setDrawingOpacityCustomOpen] = useState(false);
   const [helpTopic, setHelpTopic] = useState<"drawing" | "mask" | "ruler" | null>(null);
@@ -157,23 +192,23 @@ export function ToolsMenu({
   useEffect(() => {
     if (activeFogTool || activeWeatherMaskTool) {
       setActiveCategory("mask");
-      setMouseMode("selector");
+      onMouseBehaviorChange("selector");
     }
-  }, [activeFogTool, activeWeatherMaskTool]);
+  }, [activeFogTool, activeWeatherMaskTool, onMouseBehaviorChange]);
 
   useEffect(() => {
     if (activeCanvasTool) {
       setActiveCategory("table");
-      setMouseMode("selector");
+      onMouseBehaviorChange("selector");
     }
-  }, [activeCanvasTool]);
+  }, [activeCanvasTool, onMouseBehaviorChange]);
 
   useEffect(() => {
     if (activeDrawingTool) {
       setActiveCategory(isTemplateDrawingTool(activeDrawingTool) ? "templates" : "drawing");
-      setMouseMode("selector");
+      onMouseBehaviorChange("selector");
     }
-  }, [activeDrawingTool]);
+  }, [activeDrawingTool, onMouseBehaviorChange]);
 
   useEffect(() => {
     if (!weatherToolsEnabled) {
@@ -204,6 +239,7 @@ export function ToolsMenu({
       onCanvasToolChange(null);
       onFogToolChange(null);
       onWeatherMaskToolChange(null);
+      onDrawingColorChange(category === "templates" ? DEFAULT_TEMPLATE_COLOR : DEFAULT_DRAWING_COLOR);
     } else if (category === "table") {
       onFogToolChange(null);
       onWeatherMaskToolChange(null);
@@ -214,7 +250,7 @@ export function ToolsMenu({
     } else {
       clearActiveTools();
     }
-    setMouseMode("selector");
+      onMouseBehaviorChange("selector");
   };
 
   const setFogToolShape = (shape: FogToolShape) => {
@@ -223,15 +259,16 @@ export function ToolsMenu({
     onDrawingToolChange(null);
     onWeatherMaskToolChange(null);
     onFogToolChange(activeFogTool === nextTool ? null : nextTool);
-    setMouseMode("selector");
+    onMouseBehaviorChange("selector");
   };
 
   const setDrawingTool = (tool: DrawingTool) => {
     onCanvasToolChange(null);
     onFogToolChange(null);
     onWeatherMaskToolChange(null);
+    onDrawingColorChange(isTemplateDrawingTool(tool) ? DEFAULT_TEMPLATE_COLOR : DEFAULT_DRAWING_COLOR);
     onDrawingToolChange(activeDrawingTool === tool ? null : tool);
-    setMouseMode("selector");
+    onMouseBehaviorChange("selector");
   };
 
   const setWeatherMaskTool = (tool: WeatherMaskTool) => {
@@ -239,7 +276,7 @@ export function ToolsMenu({
     onFogToolChange(null);
     onDrawingToolChange(null);
     onWeatherMaskToolChange(activeWeatherMaskTool === tool ? null : tool);
-    setMouseMode("selector");
+    onMouseBehaviorChange("selector");
   };
 
   const setTableTool = (tool: CanvasTool) => {
@@ -247,8 +284,11 @@ export function ToolsMenu({
     onDrawingToolChange(null);
     onWeatherMaskToolChange(null);
     setHelpTopic(null);
+    if (tool === "ping") {
+      onPingColorChange(DEFAULT_SONAR_COLOR);
+    }
     onCanvasToolChange(activeCanvasTool === tool ? null : tool);
-    setMouseMode("selector");
+    onMouseBehaviorChange("selector");
   };
 
   const setFogToolOperation = (operation: FogOperation) => {
@@ -262,7 +302,7 @@ export function ToolsMenu({
     <div className="tools-menu" aria-label="Tools menu">
       <div className="tools-menu-stack" aria-label="Tool Categories">
         <button
-          className={activeCategory === "mouse" || mouseMode === "selector" ? "tools-category-button tool-active" : "tools-category-button"}
+          className={activeCategory === "mouse" || mouseBehavior === "selector" ? "tools-category-button tool-active" : "tools-category-button"}
           aria-label="Mouse Behavior"
           title="Mouse Behavior"
           type="button"
@@ -298,10 +338,10 @@ export function ToolsMenu({
           {activeCategory === "mouse" && (
             <div className="tools-panel-section">
               <div className="tools-button-row">
-                <ToolButton active={mouseMode === "selector"} label="Selector" onClick={() => { clearActiveTools(); setMouseMode("selector"); }}>
+                <ToolButton active={mouseBehavior === "selector"} label="Selector" onClick={() => { clearActiveTools(); onMouseBehaviorChange("selector"); }}>
                   <SquareDashedMousePointer size={17} aria-hidden="true" />
                 </ToolButton>
-                <ToolButton active={mouseMode === "grabber"} label="Grabber" onClick={() => { clearActiveTools(); setMouseMode("grabber"); }}>
+                <ToolButton active={mouseBehavior === "grabber"} label="Grabber" onClick={() => { clearActiveTools(); onMouseBehaviorChange("grabber"); }}>
                   <Hand size={17} aria-hidden="true" />
                 </ToolButton>
               </div>
@@ -317,7 +357,7 @@ export function ToolsMenu({
                 <ToolButton active={activeDrawingTool === "line"} label="Line" onClick={() => setDrawingTool("line")}>
                   <Minus size={17} aria-hidden="true" />
                 </ToolButton>
-                <ToolButton active={activeDrawingTool === "rectangle"} label="Square" onClick={() => setDrawingTool("rectangle")}>
+                <ToolButton active={activeDrawingTool === "rectangle"} label="Rectangle" onClick={() => setDrawingTool("rectangle")}>
                   <Square size={17} aria-hidden="true" />
                 </ToolButton>
                 <ToolButton active={activeDrawingTool === "circle"} label="Circle" onClick={() => setDrawingTool("circle")}>
@@ -410,60 +450,97 @@ export function ToolsMenu({
               </div>
               <div className="tools-section-divider" />
               <div className="tools-section-label">Visibility</div>
-              <label className="fog-operation-switch tools-operation-switch" title="Show or hide table tool output">
-                <span>Show</span>
-                <input
-                  type="checkbox"
-                  checked={Boolean(activeCanvasTool)}
-                  onChange={(event) => {
-                    if (!event.target.checked) {
-                      onCanvasToolChange(null);
-                    }
-                  }}
-                />
-                <span>Hide</span>
-              </label>
+              <div className="tools-operation-stack">
+                <label className="fog-operation-switch tools-operation-switch" title="Show or hide table tool output">
+                  <span>Show</span>
+                  <input
+                    type="checkbox"
+                    checked={!tableToolsVisibleInPlayer}
+                    onChange={(event) => onTableToolsVisibleInPlayerChange(!event.target.checked)}
+                  />
+                  <span>Hide</span>
+                </label>
+              </div>
               {activeCanvasTool === "ping" && (
                 <div className="tools-section-tools">
                   <div className="tools-section-label">Settings</div>
                   <div className="tools-ping-settings-panel">
-                  <div className="tools-strip-select-field">
-                    <strong>Sonar Size</strong>
-                    <div>
-                      <select
-                        aria-label="Sonar size"
-                        title="Sonar size"
-                        value={getPresetSelectValue(PING_SIZE_PRESETS, pingSize, pingSizeCustomOpen)}
-                        onChange={(event) => {
-                          if (event.target.value === "custom") {
-                            setPingSizeCustomOpen(true);
-                            return;
-                          }
-                          setPingSizeCustomOpen(false);
-                          onPingSizeChange(Number(event.target.value));
-                        }}
-                      >
-                        {PING_SIZE_PRESETS.map((preset) => (
-                          <option key={preset.label} value={preset.value}>{preset.label}</option>
-                        ))}
-                        <option value="custom">Custom</option>
-                      </select>
+                    <label className="tools-strip-field tools-strip-color-field">
+                      <span>Color</span>
+                      <ColorInput className="tools-ping-color" value={pingColor} aria-label="Ping color" title="Ping color" onChange={onPingColorChange} />
+                    </label>
+                    <div className="tools-strip-select-field">
+                      <strong>Size</strong>
+                      <div>
+                        <select
+                          aria-label="Sonar size"
+                          title="Sonar size"
+                          value={getPresetSelectValue(PING_SIZE_PRESETS, pingSize, pingSizeCustomOpen)}
+                          onChange={(event) => {
+                            if (event.target.value === "custom") {
+                              setPingSizeCustomOpen(true);
+                              return;
+                            }
+                            setPingSizeCustomOpen(false);
+                            onPingSizeChange(Number(event.target.value));
+                          }}
+                        >
+                          {PING_SIZE_PRESETS.map((preset) => (
+                            <option key={preset.label} value={preset.value}>{preset.label}</option>
+                          ))}
+                          <option value="custom">Custom</option>
+                        </select>
+                      </div>
                     </div>
-                  </div>
-                  <label className="tools-strip-field tools-strip-color-field">
-                    <span>Color</span>
-                    <ColorInput className="tools-ping-color" value={pingColor} aria-label="Ping color" title="Ping color" onChange={onPingColorChange} />
-                  </label>
-                  {(pingSizeCustomOpen || !hasPresetValue(PING_SIZE_PRESETS, pingSize)) && (
-                    <div className="tools-strip-advanced-slider tools-table-slider">
-                      <input aria-label="Fine tune sonar size" title="Fine tune sonar size" type="range" min={0.5} max={3} step={0.1} value={pingSize} onChange={(event) => onPingSizeChange(Number(event.target.value))} />
-                      <span>{Math.round(pingSize * 100)}%</span>
-                    </div>
-                  )}
+                    {(pingSizeCustomOpen || !hasPresetValue(PING_SIZE_PRESETS, pingSize)) && (
+                      <div className="tools-strip-advanced-slider tools-table-slider">
+                        <input aria-label="Fine tune sonar size" title="Fine tune sonar size" type="range" min={0.5} max={3} step={0.1} value={pingSize} onChange={(event) => onPingSizeChange(Number(event.target.value))} />
+                        <span>{Math.round(pingSize * 100)}%</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
-              {activeCanvasTool === "laser" && <Placeholder message="Laser thickness presets will be wired into the live pointer renderer next." />}
+              {activeCanvasTool === "laser" && (
+                <div className="tools-section-tools">
+                  <div className="tools-section-label">Settings</div>
+                  <div className="tools-ping-settings-panel">
+                    <label className="tools-strip-field tools-strip-color-field">
+                      <span>Color</span>
+                      <ColorInput className="tools-ping-color" value={laserColor} aria-label="Laser color" title="Laser color" onChange={onLaserColorChange} />
+                    </label>
+                    <div className="tools-strip-select-field">
+                      <strong>Thickness</strong>
+                      <div>
+                        <select
+                          aria-label="Laser thickness"
+                          title="Laser thickness"
+                          value={getPresetSelectValue(LASER_THICKNESS_PRESETS, laserThickness, laserThicknessCustomOpen)}
+                          onChange={(event) => {
+                            if (event.target.value === "custom") {
+                              setLaserThicknessCustomOpen(true);
+                              return;
+                            }
+                            setLaserThicknessCustomOpen(false);
+                            onLaserThicknessChange(Number(event.target.value));
+                          }}
+                        >
+                          {LASER_THICKNESS_PRESETS.map((preset) => (
+                            <option key={preset.label} value={preset.value}>{preset.label}</option>
+                          ))}
+                          <option value="custom">Custom</option>
+                        </select>
+                      </div>
+                    </div>
+                    {(laserThicknessCustomOpen || !hasPresetValue(LASER_THICKNESS_PRESETS, laserThickness)) && (
+                      <div className="tools-strip-advanced-slider tools-table-slider">
+                        <input aria-label="Fine tune laser thickness" title="Fine tune laser thickness" type="range" min={4} max={80} step={2} value={laserThickness} onChange={(event) => onLaserThicknessChange(Number(event.target.value))} />
+                        <span>{laserThickness}px</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               {helpTopic === "ruler" && <ToolHelpCard topic="ruler" />}
             </div>
           )}
@@ -492,12 +569,14 @@ export function ToolsMenu({
                   <Undo2 size={17} aria-hidden="true" />
                 </ToolButton>
               </div>
-              <label className="fog-operation-switch tools-operation-switch" title="Reveal or hide fog">
-                <strong className="tools-toggle-label">Visibility</strong>
-                <span>Reveal</span>
-                <input type="checkbox" checked={fogOperation === "hide"} onChange={(event) => setFogToolOperation(event.target.checked ? "hide" : "reveal")} />
-                <span>Hide</span>
-              </label>
+              <div className="tools-operation-stack">
+                <div className="tools-section-label">Visibility</div>
+                <label className="fog-operation-switch tools-operation-switch" title="Reveal or hide fog">
+                  <span>Reveal</span>
+                  <input type="checkbox" checked={fogOperation === "hide"} onChange={(event) => setFogToolOperation(event.target.checked ? "hide" : "reveal")} />
+                  <span>Hide</span>
+                </label>
+              </div>
               {activeFogShape === "brush" && (
                 <div className="tools-brush-size">
                   <div className="tools-strip-select-field">
@@ -620,7 +699,7 @@ function DrawingSettings({
           <select
             aria-label="Drawing thickness"
             title="Drawing thickness"
-            value={getPresetSelectValue(BRUSH_SIZE_PRESETS, drawingStrokeWidth, drawingThicknessCustomOpen)}
+            value={getPresetSelectValue(DRAWING_THICKNESS_PRESETS, drawingStrokeWidth, drawingThicknessCustomOpen)}
             onChange={(event) => {
               if (event.target.value === "custom") {
                 onDrawingThicknessCustomOpenChange(true);
@@ -630,7 +709,7 @@ function DrawingSettings({
               onDrawingStrokeWidthChange(Number(event.target.value));
             }}
           >
-            {BRUSH_SIZE_PRESETS.map((preset) => (
+            {DRAWING_THICKNESS_PRESETS.map((preset) => (
               <option key={preset.label} value={preset.value}>{preset.label}</option>
             ))}
             <option value="custom">Custom</option>
@@ -680,7 +759,7 @@ function DrawingSettings({
           </div>
         </div>
       )}
-      {(drawingThicknessCustomOpen || !hasPresetValue(BRUSH_SIZE_PRESETS, drawingStrokeWidth)) && (
+      {(drawingThicknessCustomOpen || !hasPresetValue(DRAWING_THICKNESS_PRESETS, drawingStrokeWidth)) && (
         <div className="tools-strip-advanced-slider tools-strip-thickness-slider">
           <input aria-label="Fine tune drawing thickness" title="Fine tune drawing thickness" type="range" min={8} max={400} step={4} value={drawingStrokeWidth} onChange={(event) => onDrawingStrokeWidthChange(Number(event.target.value))} />
           <span aria-label={`Drawing thickness ${drawingStrokeWidth} pixels`}>{drawingStrokeWidth}px</span>

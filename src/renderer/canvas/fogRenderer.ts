@@ -96,6 +96,15 @@ export function drawFog(
     drawPolygonDraftOutline(ctx, polygonDraft);
     ctx.restore();
   }
+  if (mode === "gm") {
+    ctx.save();
+    ctx.translate(camera.x, camera.y);
+    ctx.scale(camera.zoom, camera.zoom);
+    for (const shape of fog.shapes.filter((shape) => shape.visibleInGm ?? shape.visible ?? true)) {
+      drawPersistedFogShapeOutline(ctx, shape, camera.zoom);
+    }
+    ctx.restore();
+  }
   if (mode === "gm" && selectedShapeId) {
     const selectedShape = fog.shapes.find((shape) => shape.id === selectedShapeId && (shape.visibleInGm ?? shape.visible ?? true));
     if (selectedShape) {
@@ -106,6 +115,18 @@ export function drawFog(
       ctx.restore();
     }
   }
+}
+
+function drawPersistedFogShapeOutline(ctx: CanvasRenderingContext2D, shape: FogShape, zoom: number) {
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.strokeStyle = shape.operation === "reveal" ? "#8ee6a8" : "#ff9b9b";
+  ctx.globalAlpha = 0.82;
+  ctx.lineWidth = Math.max(1.5, 2 / Math.max(0.1, zoom));
+  ctx.setLineDash([8 / Math.max(0.1, zoom), 5 / Math.max(0.1, zoom)]);
+  traceFogShapePath(ctx, shape);
+  ctx.stroke();
+  ctx.restore();
 }
 
 export function isMeaningfulFogDrag(drag: FogDrag): boolean {
@@ -198,6 +219,32 @@ function fillFogShape(ctx: CanvasRenderingContext2D, shape: FogShape) {
     ctx.beginPath();
     ctx.arc(shape.points[0].x, shape.points[0].y, shape.radius, 0, Math.PI * 2);
     ctx.fill();
+  }
+}
+
+function traceFogShapePath(ctx: CanvasRenderingContext2D, shape: FogShape) {
+  if (shape.kind === "brush" && shape.points.length >= 1) {
+    traceBrushStroke(ctx, shape.points, Math.max(1, shape.radius ?? 24));
+    return;
+  }
+  if (shape.kind === "rectangle" && shape.points.length >= 2) {
+    const rect = pointsToRect(shape.points[0], shape.points[1]);
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.width, rect.height);
+    return;
+  }
+  if (shape.kind === "polygon" && shape.points.length >= 3) {
+    ctx.beginPath();
+    ctx.moveTo(shape.points[0].x, shape.points[0].y);
+    for (const point of shape.points.slice(1)) {
+      ctx.lineTo(point.x, point.y);
+    }
+    ctx.closePath();
+    return;
+  }
+  if (shape.kind === "circle" && shape.points[0] && shape.radius) {
+    ctx.beginPath();
+    ctx.arc(shape.points[0].x, shape.points[0].y, shape.radius, 0, Math.PI * 2);
   }
 }
 

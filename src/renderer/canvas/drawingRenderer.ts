@@ -1,4 +1,4 @@
-import type { DrawingElement, Point, Scene } from "../../shared/localvtt";
+import type { DrawingElement, GridSettings, Point, Scene } from "../../shared/localvtt";
 import { formatMeasurementDistance, getStraightLineMeasurementDistance } from "./measurement";
 
 export const DRAWING_POINT_MIN_DISTANCE = 3;
@@ -23,6 +23,7 @@ export type DrawingPreview = {
   color: string;
   opacity: number;
   strokeWidth: number;
+  measurementLabelVisible?: boolean;
 };
 
 export function drawDrawings(
@@ -61,6 +62,7 @@ export function drawDrawings(
         color: preview.color,
         opacity: preview.opacity,
         strokeWidth: preview.strokeWidth,
+        measurementLabelVisible: preview.measurementLabelVisible,
         visibleInGm: true,
         visibleInPlayer: true
       },
@@ -151,6 +153,10 @@ function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingEleme
   ctx.strokeStyle = drawing.color;
   ctx.fillStyle = drawing.fill ?? drawing.color;
   ctx.lineWidth = drawing.strokeWidth;
+  if (drawing.measurementLabelVisible) {
+    ctx.setLineDash([Math.max(8, drawing.strokeWidth * 1.8), Math.max(6, drawing.strokeWidth * 1.1)]);
+    drawTemplateGridHighlights(ctx, drawing, scene.grid);
+  }
 
   if (drawing.kind === "line") {
     drawLine(ctx, points);
@@ -246,6 +252,12 @@ function drawCircle(ctx: CanvasRenderingContext2D, points: Point[], drawing: Dra
   ctx.arc(start.x, start.y, distanceBetweenPoints(start, end), 0, Math.PI * 2);
   fillCurrentTemplatePath(ctx, drawing);
   ctx.stroke();
+  if (drawing.measurementLabelVisible) {
+    drawCenterPoint(ctx, start, drawing);
+    if (drawing.id === "preview") {
+      drawDashedGuide(ctx, start, end, drawing);
+    }
+  }
 }
 
 function drawCone(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement) {
@@ -265,6 +277,10 @@ function drawCone(ctx: CanvasRenderingContext2D, points: Point[], drawing: Drawi
   ctx.closePath();
   fillCurrentTemplatePath(ctx, drawing);
   ctx.stroke();
+  if (drawing.measurementLabelVisible) {
+    const oppositeCenter = { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2 };
+    drawDashedGuide(ctx, origin, oppositeCenter, drawing);
+  }
 }
 
 function drawTriangle(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement) {
@@ -306,6 +322,29 @@ function fillCurrentTemplatePath(ctx: CanvasRenderingContext2D, drawing: Drawing
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(0.22, drawing.opacity * 0.18));
   ctx.fill();
+  ctx.restore();
+}
+
+function drawCenterPoint(ctx: CanvasRenderingContext2D, point: Point, drawing: DrawingElement) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0.65, Math.min(1, drawing.opacity));
+  ctx.fillStyle = drawing.color;
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, Math.max(3, drawing.strokeWidth * 0.12), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawDashedGuide(ctx: CanvasRenderingContext2D, start: Point, end: Point, drawing: DrawingElement) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0.55, Math.min(0.9, drawing.opacity));
+  ctx.strokeStyle = drawing.color;
+  ctx.lineWidth = Math.max(2, drawing.strokeWidth * 0.18);
+  ctx.setLineDash([10, 7]);
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+  ctx.lineTo(end.x, end.y);
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -407,26 +446,150 @@ function drawTemplateLabel(ctx: CanvasRenderingContext2D, drawing: DrawingElemen
   if (!label) {
     return;
   }
-  const position = getTemplateLabelPosition(drawing);
+  const { position, angle } = getTemplateLabelPosition(drawing);
   const scale = 1 / Math.max(0.1, zoom);
   ctx.save();
   ctx.globalAlpha = 1;
-  ctx.font = `${Math.round(13 * scale)}px Inter, system-ui, sans-serif`;
+  ctx.font = `800 ${Math.round(18 * scale)}px Inter, system-ui, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const metrics = ctx.measureText(label);
-  const paddingX = 12 * scale;
-  const width = metrics.width + paddingX * 2;
-  const height = 36 * scale;
-  ctx.fillStyle = "rgba(11, 17, 24, 0.88)";
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.26)";
-  ctx.lineWidth = Math.max(1, 1.5 * scale);
-  traceRoundedRect(ctx, position.x - width / 2, position.y - height / 2, width, height, 8 * scale);
-  ctx.fill();
-  ctx.stroke();
+  ctx.translate(position.x, position.y);
+  ctx.rotate(angle);
+  ctx.lineWidth = Math.max(3, 5 * scale);
+  ctx.strokeStyle = "rgba(11, 17, 24, 0.82)";
+  ctx.strokeText(label, 0, scale);
   ctx.fillStyle = "#f8fafc";
-  ctx.fillText(label, position.x, position.y + scale);
+  ctx.fillText(label, 0, scale);
   ctx.restore();
+}
+
+function drawTemplateGridHighlights(ctx: CanvasRenderingContext2D, drawing: DrawingElement, grid: GridSettings) {
+  if (grid.type === "gridless" || grid.sizePx <= 0 || drawing.points.length < 2) {
+    return;
+  }
+  const cells = getTemplateGridHighlightCells(drawing, grid);
+  if (cells.length === 0) {
+    return;
+  }
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "rgb(122 162 247 / 0.18)";
+  ctx.strokeStyle = "rgb(255 255 255 / 0.34)";
+  ctx.lineWidth = Math.max(1, grid.lineThickness);
+  for (const center of cells) {
+    if (grid.type === "hex") {
+      tracePointyHex(ctx, center.x, center.y, Math.max(8, grid.sizePx / 2));
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      const size = grid.sizePx;
+      ctx.fillRect(center.x - size / 2, center.y - size / 2, size, size);
+      ctx.strokeRect(center.x - size / 2, center.y - size / 2, size, size);
+    }
+  }
+  ctx.restore();
+}
+
+function getTemplateGridHighlightCells(drawing: DrawingElement, grid: GridSettings): Point[] {
+  const bounds = getDrawingBounds(drawing);
+  if (!bounds) {
+    return [];
+  }
+  const size = grid.sizePx;
+  const columns = {
+    start: Math.floor((bounds.left - grid.offsetX) / size) - 1,
+    end: Math.ceil((bounds.right - grid.offsetX) / size) + 1
+  };
+  const rows = {
+    start: Math.floor((bounds.top - grid.offsetY) / size) - 1,
+    end: Math.ceil((bounds.bottom - grid.offsetY) / size) + 1
+  };
+  const cells: Point[] = [];
+  const maxCells = 2000;
+  for (let row = rows.start; row <= rows.end && cells.length < maxCells; row += 1) {
+    for (let column = columns.start; column <= columns.end && cells.length < maxCells; column += 1) {
+      const center = { x: grid.offsetX + column * size + size / 2, y: grid.offsetY + row * size + size / 2 };
+      if (isPointInsideTemplate(center, drawing, Math.max(8, size * 0.42))) {
+        cells.push(center);
+      }
+    }
+  }
+  return cells;
+}
+
+function getDrawingBounds(drawing: DrawingElement): { left: number; top: number; right: number; bottom: number } | null {
+  const points = getShapePoints(drawing);
+  if (points.length === 0) {
+    return null;
+  }
+  if (drawing.kind === "circle" && drawing.points[0] && drawing.points[1]) {
+    const radius = distanceBetweenPoints(drawing.points[0], drawing.points[1]);
+    return {
+      left: drawing.points[0].x - radius,
+      top: drawing.points[0].y - radius,
+      right: drawing.points[0].x + radius,
+      bottom: drawing.points[0].y + radius
+    };
+  }
+  return {
+    left: Math.min(...points.map((point) => point.x)),
+    top: Math.min(...points.map((point) => point.y)),
+    right: Math.max(...points.map((point) => point.x)),
+    bottom: Math.max(...points.map((point) => point.y))
+  };
+}
+
+function getShapePoints(drawing: DrawingElement): Point[] {
+  if (drawing.kind === "cone") {
+    return getConeTriangle(drawing.points) ?? drawing.points;
+  }
+  if (drawing.kind === "triangle") {
+    return getTriangle(drawing.points) ?? drawing.points;
+  }
+  return drawing.points;
+}
+
+function isPointInsideTemplate(point: Point, drawing: DrawingElement, hitRadius: number): boolean {
+  if (drawing.kind === "line") {
+    return drawing.points[0] && drawing.points[1] ? distanceToSegment(point, drawing.points[0], drawing.points[1]) <= hitRadius : false;
+  }
+  if (drawing.kind === "circle") {
+    const [center, edge] = drawing.points;
+    return center && edge ? distanceBetweenPoints(center, point) <= distanceBetweenPoints(center, edge) : false;
+  }
+  if (drawing.kind === "rectangle") {
+    const [start, end] = drawing.points;
+    if (!start || !end) {
+      return false;
+    }
+    const left = Math.min(start.x, end.x);
+    const right = Math.max(start.x, end.x);
+    const top = Math.min(start.y, end.y);
+    const bottom = Math.max(start.y, end.y);
+    return point.x >= left && point.x <= right && point.y >= top && point.y <= bottom;
+  }
+  if (drawing.kind === "cone") {
+    const triangle = getConeTriangle(drawing.points);
+    return triangle ? isPointInTriangle(point, triangle[0], triangle[1], triangle[2]) : false;
+  }
+  return false;
+}
+
+function tracePointyHex(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
+  ctx.beginPath();
+  for (let index = 0; index < 6; index += 1) {
+    const angle = (Math.PI / 180) * (60 * index - 30);
+    const point = {
+      x: x + Math.cos(angle) * radius,
+      y: y + Math.sin(angle) * radius
+    };
+    if (index === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
+    }
+  }
+  ctx.closePath();
 }
 
 function getTemplateLabel(drawing: DrawingElement, scene: Scene): string | null {
@@ -447,39 +610,50 @@ function getTemplateLabel(drawing: DrawingElement, scene: Scene): string | null 
   return formatMeasurementDistance(distance, scene.grid.measurement, scene.grid.type);
 }
 
-function getTemplateLabelPosition(drawing: DrawingElement): Point {
+function getTemplateLabelPosition(drawing: DrawingElement): { position: Point; angle: number } {
   const [start, end] = drawing.points;
+  const angle = Math.atan2(end.y - start.y, end.x - start.x);
   if (drawing.kind === "circle") {
     return {
-      x: (start.x + end.x) / 2,
-      y: (start.y + end.y) / 2
+      position: {
+        x: start.x,
+        y: start.y - 18
+      },
+      angle: 0
     };
   }
   if (drawing.kind === "rectangle") {
     return {
-      x: (start.x + end.x) / 2,
-      y: Math.min(start.y, end.y) - 16
+      position: {
+        x: (start.x + end.x) / 2,
+        y: (start.y + end.y) / 2
+      },
+      angle: 0
     };
   }
+  if (drawing.kind === "cone") {
+    const triangle = getConeTriangle(drawing.points);
+    if (triangle) {
+      const oppositeCenter = {
+        x: (triangle[1].x + triangle[2].x) / 2,
+        y: (triangle[1].y + triangle[2].y) / 2
+      };
+      return {
+        position: {
+          x: (triangle[0].x + oppositeCenter.x) / 2,
+          y: (triangle[0].y + oppositeCenter.y) / 2
+        },
+        angle
+      };
+    }
+  }
   return {
-    x: (start.x + end.x) / 2,
-    y: (start.y + end.y) / 2
+    position: {
+      x: (start.x + end.x) / 2,
+      y: (start.y + end.y) / 2
+    },
+    angle
   };
-}
-
-function traceRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
-  const safeRadius = Math.min(radius, width / 2, height / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + safeRadius, y);
-  ctx.lineTo(x + width - safeRadius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
-  ctx.lineTo(x + width, y + height - safeRadius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
-  ctx.lineTo(x + safeRadius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
-  ctx.lineTo(x, y + safeRadius);
-  ctx.quadraticCurveTo(x, y, x + safeRadius, y);
-  ctx.closePath();
 }
 
 function isDrawingVisible(drawing: DrawingElement, mode: "gm" | "player"): boolean {

@@ -4,6 +4,7 @@ import type { Camera } from "./camera";
 export const PING_DURATION_MS = 1600;
 export const LASER_POINT_LIFETIME_MS = 1100;
 export const LASER_MIN_POINT_DISTANCE = 8;
+export const RULER_EVENT_LIFETIME_MS = 8000;
 
 export function getActiveLaserPoints(points: LiveTablePoint[], now: number): LiveTablePoint[] {
   return points.filter((point) => now - point.createdAt <= LASER_POINT_LIFETIME_MS);
@@ -16,6 +17,9 @@ export function hasActiveLiveTableEvents(events: LiveTableEvent[], now = Date.no
     }
     if (event.type === "laser") {
       return getActiveLaserPoints(event.points, now).length > 0;
+    }
+    if (event.type === "ruler") {
+      return now - event.createdAt <= RULER_EVENT_LIFETIME_MS;
     }
     return false;
   });
@@ -30,7 +34,9 @@ export function drawLiveTableEvents(ctx: CanvasRenderingContext2D, events: LiveT
     if (event.type === "ping") {
       drawPing(ctx, event.point, Math.max(1, camera.zoom), Math.max(0, Math.min(1, (now - event.createdAt) / PING_DURATION_MS)), event.size, event.color);
     } else if (event.type === "laser") {
-      drawLaserTrail(ctx, event.points, now, Math.max(1, camera.zoom));
+      drawLaserTrail(ctx, event.points, now, Math.max(1, camera.zoom), event.thickness, event.color);
+    } else if (event.type === "ruler") {
+      drawRulerEvent(ctx, event.points, event.primary, event.secondary, Math.max(1, camera.zoom));
     }
   }
   ctx.restore();
@@ -98,11 +104,15 @@ function hexToRgb(value: string): { r: number; g: number; b: number } | null {
   };
 }
 
-function drawLaserTrail(ctx: CanvasRenderingContext2D, points: LiveTablePoint[], now: number, zoom: number) {
+function drawLaserTrail(ctx: CanvasRenderingContext2D, points: LiveTablePoint[], now: number, zoom: number, thickness = 20, color = "#ff525e") {
   const visiblePoints = getActiveLaserPoints(points, now);
   if (visiblePoints.length === 0) {
     return;
   }
+
+  const laserColor = hexToRgb(color) ?? { r: 255, g: 82, b: 94 };
+  const lineBase = Math.max(4, Math.min(80, thickness));
+  const colorWithAlpha = (value: number) => `rgba(${laserColor.r}, ${laserColor.g}, ${laserColor.b}, ${value})`;
 
   ctx.save();
   ctx.lineCap = "round";
@@ -112,8 +122,8 @@ function drawLaserTrail(ctx: CanvasRenderingContext2D, points: LiveTablePoint[],
     const current = visiblePoints[index];
     const age = now - current.createdAt;
     const alpha = Math.max(0, 1 - age / LASER_POINT_LIFETIME_MS);
-    ctx.strokeStyle = `rgba(255, 82, 94, ${0.88 * alpha})`;
-    ctx.lineWidth = Math.max(8 / zoom, (20 * alpha) / zoom);
+    ctx.strokeStyle = colorWithAlpha(0.88 * alpha);
+    ctx.lineWidth = Math.max(4 / zoom, (lineBase * alpha) / zoom);
     ctx.beginPath();
     ctx.moveTo(previous.point.x, previous.point.y);
     ctx.lineTo(current.point.x, current.point.y);
@@ -122,14 +132,45 @@ function drawLaserTrail(ctx: CanvasRenderingContext2D, points: LiveTablePoint[],
 
   const newest = visiblePoints[visiblePoints.length - 1];
   const newestAlpha = Math.max(0, 1 - (now - newest.createdAt) / LASER_POINT_LIFETIME_MS);
-  ctx.shadowColor = `rgba(255, 82, 94, ${0.9 * newestAlpha})`;
+  ctx.shadowColor = colorWithAlpha(0.9 * newestAlpha);
   ctx.shadowBlur = 12 / zoom;
   ctx.fillStyle = `rgba(255, 236, 238, ${0.95 * newestAlpha})`;
-  ctx.strokeStyle = `rgba(255, 82, 94, ${0.9 * newestAlpha})`;
+  ctx.strokeStyle = colorWithAlpha(0.9 * newestAlpha);
   ctx.lineWidth = 4 / zoom;
   ctx.beginPath();
   ctx.arc(newest.point.x, newest.point.y, 12 / zoom, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  ctx.restore();
+}
+
+function drawRulerEvent(ctx: CanvasRenderingContext2D, points: Point[], primary: string, secondary: string | undefined, zoom: number) {
+  if (points.length < 2) {
+    return;
+  }
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "rgba(125, 211, 252, 0.92)";
+  ctx.lineWidth = 4 / zoom;
+  ctx.setLineDash([10 / zoom, 8 / zoom]);
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (const point of points.slice(1)) {
+    ctx.lineTo(point.x, point.y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const last = points[points.length - 1];
+  const label = secondary ? `${primary} / ${secondary}` : primary;
+  ctx.font = `${Math.max(14 / zoom, 12)}px Inter, system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.lineWidth = 5 / zoom;
+  ctx.strokeStyle = "rgba(5, 9, 14, 0.88)";
+  ctx.fillStyle = "#f8fbff";
+  ctx.strokeText(label, last.x, last.y - 12 / zoom);
+  ctx.fillText(label, last.x, last.y - 12 / zoom);
   ctx.restore();
 }

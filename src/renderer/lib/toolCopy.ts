@@ -53,7 +53,7 @@ export function getDrawingToolLabel(drawingTool: DrawingTool): string {
     case "circle":
       return "Circle";
     case "rectangle":
-      return "Square";
+      return "Rectangle";
     case "triangle":
       return "Triangle";
     case "polygon":
@@ -78,11 +78,11 @@ export function getDrawingToolHint(drawingTool: DrawingTool): string {
     case "circle":
       return "Left-drag from center to draw a circle.";
     case "rectangle":
-      return "Left-drag to draw a square. Ctrl/Cmd snaps.";
+      return "Left-drag to draw a rectangle. Hold Shift for a square. Ctrl/Cmd snaps.";
     case "triangle":
       return "Left-drag to draw a triangle.";
     case "polygon":
-      return "Left-drag to sketch a closed polygon.";
+      return "Click to place polygon points. Enter or double-click to finish. Right-click removes the last point.";
     case "template-line":
       return "Left-drag to place a measured line. Ctrl/Cmd snaps.";
     case "template-circle":
@@ -100,8 +100,10 @@ export function getDrawingHelpLines(): string[] {
   return [
     "Brush: left-drag to sketch a path on the scene.",
     "Line: left-drag to place a straight stroke.",
-    "Shapes: use square, circle, triangle, and polygon tools for non-measured drawings.",
-    "Templates: use line, radius, square, and cone tools for quick measured spell areas. Ctrl/Cmd snaps to grid centers.",
+    "Rectangle: left-drag to draw a rectangle; hold Shift for a square.",
+    "Circle: left-drag from the center to set the radius.",
+    "Triangle: left-drag to place a triangular drawing.",
+    "Polygon: click points, Enter or double-click to finish, right-click to remove the last point.",
     "Drawings are saved as sub-layers under the Drawing layer.",
     "Use the Drawing layer list to reorder, hide, show, or remove individual drawings."
   ];

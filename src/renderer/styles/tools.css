@@ -186,6 +186,10 @@
 }
 
 .tools-help-card {
+  position: absolute;
+  top: 34px;
+  left: calc(100% + 8px);
+  z-index: 3;
   display: grid;
   gap: 6px;
   width: min(320px, calc(100vw - 112px));
@@ -211,6 +215,12 @@
   white-space: nowrap;
 }
 
+.tools-operation-stack {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+
 .tools-brush-size {
   display: grid;
   grid-template-columns: 112px;
@@ -228,10 +238,11 @@
 
 .tools-ping-settings-panel {
   display: grid;
-  grid-template-columns: 104px 40px;
+  grid-template-columns: 40px 112px;
   align-items: start;
   gap: 8px;
   width: max-content;
+  max-width: 100%;
 }
 
 .tools-section-tools {
@@ -262,7 +273,7 @@
 }
 
 .tools-drawing-settings-template {
-  grid-template-columns: 40px 112px 104px 104px;
+  grid-template-columns: 40px 112px 104px 116px;
 }
 
 .tools-brush-size input {
@@ -279,7 +290,7 @@
 .tools-strip-field > span {
   color: var(--color-text-muted);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1;
   text-transform: uppercase;
 }
@@ -309,7 +320,7 @@
 
 .tools-strip-select-field > div {
   display: grid;
-  grid-template-columns: 104px;
+  grid-template-columns: minmax(104px, 1fr);
   align-items: center;
   min-width: 0;
 }
@@ -317,13 +328,13 @@
 .tools-strip-select-field strong {
   color: var(--color-text-muted);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1;
   text-transform: uppercase;
 }
 
 .tools-strip-select-field select {
-  width: 104px;
+  width: 100%;
   min-width: 0;
   height: 32px;
   cursor: pointer;
@@ -365,7 +376,8 @@
   padding: 3px;
 }
 
-.tools-drawing-color[type="color"] {
+.tools-drawing-color[type="color"],
+.tools-ping-color[type="color"] {
   appearance: none;
   -webkit-appearance: none;
   display: block;
@@ -385,19 +397,28 @@
   padding: 0 !important;
 }
 
-.tools-drawing-color::-webkit-color-swatch-wrapper {
+.tools-drawing-color::-webkit-color-swatch-wrapper,
+.tools-ping-color::-webkit-color-swatch-wrapper {
   border-radius: 50%;
   padding: 0;
 }
 
-.tools-drawing-color::-webkit-color-swatch {
+.tools-drawing-color::-webkit-color-swatch,
+.tools-ping-color::-webkit-color-swatch {
   border: 0;
   border-radius: 50%;
 }
 
-.tools-drawing-color::-moz-color-swatch {
+.tools-drawing-color::-moz-color-swatch,
+.tools-ping-color::-moz-color-swatch {
   border: 0;
   border-radius: 50%;
+}
+
+.tools-ping-settings-panel .tools-strip-color-field {
+  border-right: 0;
+  min-height: 0;
+  padding-right: 0;
 }
 
 .tools-strip-advanced-slider {
