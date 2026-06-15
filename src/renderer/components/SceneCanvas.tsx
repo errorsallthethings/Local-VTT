@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultDrawingName, formatDefaultFogShapeName } from "../../shared/localvtt";
-import type { Asset, Campaign, DrawingKind, DrawingStrokeStyle, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings, Token, WeatherMask } from "../../shared/localvtt";
+import type { Asset, Campaign, DrawingKind, DrawingStrokeStyle, DrawingTemplateEffect, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings, Token, WeatherMask } from "../../shared/localvtt";
 import { getRenderCamera, type Camera } from "../canvas/camera";
 import {
   drawDrawings,
@@ -96,6 +96,8 @@ interface SceneCanvasProps {
   drawingStrokeStyle?: DrawingStrokeStyle;
   drawingStrokeWidth?: number;
   drawingTemplateSize?: DrawingTemplateSize;
+  drawingTemplateEffect?: DrawingTemplateEffect;
+  drawingTemplateWidth?: number;
   fogBrushSize?: number;
   fogTool?: FogTool | null;
   weatherMaskTool?: WeatherMaskTool | null;
@@ -299,6 +301,8 @@ export function SceneCanvas({
   drawingStrokeStyle = "solid",
   drawingStrokeWidth = 40,
   drawingTemplateSize = "custom",
+  drawingTemplateEffect = "plain",
+  drawingTemplateWidth = 5,
   fogBrushSize,
   fogTool = null,
   weatherMaskTool = null,
@@ -1121,6 +1125,8 @@ export function SceneCanvas({
                 fillOpacity: drawingFillOpacity,
                 strokeStyle: drawingStrokeStyle,
                 strokeWidth: drawingStrokeWidth,
+                templateEffect: "plain",
+                templateWidth: 5,
                 measurementLabelVisible: false
               } satisfies DrawingPreview)
             : null;
@@ -1253,7 +1259,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1436,6 +1442,8 @@ export function SceneCanvas({
         fillOpacity: isTemplateDrawingTool(drawingTool) ? 0 : drawingFillOpacity,
         strokeStyle: isTemplateDrawingTool(drawingTool) ? "dashed" : drawingStrokeStyle,
         strokeWidth: drawingStrokeWidth,
+        templateEffect: isTemplateDrawingTool(drawingTool) ? drawingTemplateEffect : "plain",
+        templateWidth: isTemplateDrawingTool(drawingTool) ? drawingTemplateWidth : 5,
         measurementLabelVisible: isTemplateDrawingTool(drawingTool)
       } satisfies DrawingPreview;
       drawingPreviewRef.current = preview;
@@ -1903,6 +1911,8 @@ export function SceneCanvas({
               fillColor: drawingDrag.fillColor,
               fillOpacity: isTemplateDrawingTool(drawingDrag.kind) ? 0 : (drawingDrag.fillOpacity ?? 0),
               strokeStyle: isTemplateDrawingTool(drawingDrag.kind) ? "dashed" : (drawingDrag.strokeStyle ?? "solid"),
+              templateEffect: isTemplateDrawingTool(drawingDrag.kind) ? (drawingDrag.templateEffect ?? "plain") : "plain",
+              templateWidth: isTemplateDrawingTool(drawingDrag.kind) ? (drawingDrag.templateWidth ?? 5) : 5,
               measurementLabelVisible: isTemplateDrawingTool(drawingDrag.kind) ? true : false,
               visibleInGm: true,
               visibleInPlayer: true
@@ -3592,7 +3602,7 @@ function formatDefaultTemplateDrawingName(tool: DrawingTool, index: number): str
     return `Template Circle ${index + 1}`;
   }
   if (tool === "template-rectangle") {
-    return `Template Square ${index + 1}`;
+    return `Template Cube ${index + 1}`;
   }
   if (tool === "template-cone") {
     return `Template Cone ${index + 1}`;

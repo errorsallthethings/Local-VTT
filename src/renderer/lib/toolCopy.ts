@@ -63,7 +63,7 @@ export function getDrawingToolLabel(drawingTool: DrawingTool): string {
     case "template-circle":
       return "Radius Template";
     case "template-rectangle":
-      return "Square Template";
+      return "Cube Template";
     case "template-cone":
       return "Cone Template";
     default:
@@ -88,7 +88,7 @@ export function getDrawingToolHint(drawingTool: DrawingTool): string {
     case "template-circle":
       return "Left-drag from center to set radius. Ctrl/Cmd snaps.";
     case "template-rectangle":
-      return "Left-drag to place a square area. Ctrl/Cmd snaps.";
+      return "Left-drag to place a cube footprint. Ctrl/Cmd snaps.";
     case "template-cone":
       return "Left-drag from origin to aim a cone. Ctrl/Cmd snaps.";
     default:
@@ -113,7 +113,7 @@ export function getTemplateHelpLines(): string[] {
   return [
     "Line Template: left-drag to place a measured line.",
     "Radius Template: left-drag from the center to set a radius.",
-    "Square Template: left-drag to place a measured square area.",
+    "Cube Template: left-drag to place a measured cube footprint.",
     "Cone Template: left-drag from the origin to aim an area cone.",
     "Templates use dashed strokes and can highlight covered square or hex grid spaces."
   ];

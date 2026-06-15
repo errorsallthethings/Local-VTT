@@ -1,6 +1,7 @@
-import type { DrawingElement, DrawingStrokeStyle, GridSettings, Point, Scene } from "../../shared/localvtt";
+import type { DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, GridSettings, Point, Scene } from "../../shared/localvtt";
 import { formatMeasurementDistance, getStraightLineMeasurementDistance } from "./measurement";
 import { drawSelectionBox } from "./selectionRenderer";
+import { getNearestHexCoordinate, hexAxialToPoint } from "./tokenGeometry";
 
 export const DRAWING_POINT_MIN_DISTANCE = 3;
 
@@ -29,6 +30,8 @@ export type DrawingPreview = {
   fillColor?: string;
   fillOpacity?: number;
   strokeStyle?: DrawingStrokeStyle;
+  templateEffect?: DrawingTemplateEffect;
+  templateWidth?: number;
   measurementLabelVisible?: boolean;
   ellipse?: boolean;
 };
@@ -82,6 +85,8 @@ export function drawDrawings(
         fillColor: preview.fillColor ?? preview.color,
         fillOpacity: preview.fillOpacity ?? 0,
         strokeStyle: preview.strokeStyle ?? "solid",
+        templateEffect: preview.templateEffect,
+        templateWidth: preview.templateWidth,
         measurementLabelVisible: preview.measurementLabelVisible,
         visibleInGm: true,
         visibleInPlayer: true
@@ -164,6 +169,7 @@ function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingEleme
   ctx.lineWidth = drawing.strokeWidth;
   if (drawing.measurementLabelVisible) {
     ctx.setLineDash([Math.max(8, drawing.strokeWidth * 1.8), Math.max(6, drawing.strokeWidth * 1.1)]);
+    applyTemplateEffectStroke(ctx, drawing);
     drawTemplateGridHighlights(ctx, drawing, scene.grid);
   } else {
     applyDrawingStrokeStyle(ctx, drawing.strokeStyle ?? "solid", drawing.strokeWidth);
@@ -389,6 +395,7 @@ function fillTemplateShape(ctx: CanvasRenderingContext2D, drawing: DrawingElemen
 
 function fillCurrentTemplatePath(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
   if (drawing.measurementLabelVisible) {
+    fillTemplateEffectPath(ctx, drawing, layerOpacity);
     return;
   }
   const fillOpacity = drawing.fillOpacity ?? (drawing.fill ? drawing.opacity : 0);
@@ -554,12 +561,88 @@ function drawTemplateLabel(ctx: CanvasRenderingContext2D, drawing: DrawingElemen
   ctx.textBaseline = "middle";
   ctx.translate(position.x, position.y);
   ctx.rotate(angle);
-  ctx.lineWidth = Math.max(3, 5 * scale);
-  ctx.strokeStyle = "rgba(11, 17, 24, 0.82)";
-  ctx.strokeText(label, 0, scale);
+  drawTemplateLabelHalo(ctx, label, scale);
   ctx.fillStyle = "#f8fafc";
   ctx.fillText(label, 0, scale);
   ctx.restore();
+}
+
+function fillTemplateEffectPath(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
+  const effect = getTemplateEffectStyle(drawing.templateEffect ?? "plain");
+  if (effect.fillOpacity <= 0) {
+    return;
+  }
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, effect.fillOpacity * layerOpacity));
+  ctx.fillStyle = effect.fill;
+  ctx.shadowBlur = 0;
+  ctx.fill();
+  ctx.restore();
+}
+
+function applyTemplateEffectStroke(ctx: CanvasRenderingContext2D, drawing: DrawingElement) {
+  const effect = getTemplateEffectStyle(drawing.templateEffect ?? "plain");
+  ctx.strokeStyle = effect.stroke;
+  ctx.shadowBlur = 0;
+  if (effect.dash) {
+    ctx.setLineDash(effect.dash.map((value) => Math.max(2, value * Math.max(1, drawing.strokeWidth / 40))));
+  }
+}
+
+function getTemplateEffectStyle(effect: DrawingTemplateEffect): { stroke: string; fill: string; fillOpacity: number; highlightFill: string; highlightStroke: string; dash?: number[] } {
+  switch (effect) {
+    case "acid":
+      return { stroke: "#84cc16", fill: "#bef264", fillOpacity: 0.18, highlightFill: "rgb(132 204 22 / 0.2)", highlightStroke: "rgb(217 249 157 / 0.34)", dash: [12, 8, 3, 8] };
+    case "arcane":
+      return { stroke: "#a78bfa", fill: "#7c3aed", fillOpacity: 0.16, highlightFill: "rgb(124 58 237 / 0.2)", highlightStroke: "rgb(221 214 254 / 0.36)", dash: [10, 7] };
+    case "cold":
+      return { stroke: "#67e8f9", fill: "#cffafe", fillOpacity: 0.15, highlightFill: "rgb(207 250 254 / 0.18)", highlightStroke: "rgb(165 243 252 / 0.38)", dash: [16, 6] };
+    case "darkness":
+      return { stroke: "#64748b", fill: "#020617", fillOpacity: 0.34, highlightFill: "rgb(15 23 42 / 0.34)", highlightStroke: "rgb(148 163 184 / 0.38)", dash: [7, 7] };
+    case "fire":
+      return { stroke: "#f97316", fill: "#facc15", fillOpacity: 0.2, highlightFill: "rgb(250 204 21 / 0.2)", highlightStroke: "rgb(254 215 170 / 0.38)", dash: [18, 7, 5, 7] };
+    case "fog":
+      return { stroke: "#cbd5e1", fill: "#e2e8f0", fillOpacity: 0.2, highlightFill: "rgb(226 232 240 / 0.22)", highlightStroke: "rgb(248 250 252 / 0.32)", dash: [5, 10] };
+    case "lightning":
+      return { stroke: "#fde047", fill: "#38bdf8", fillOpacity: 0.13, highlightFill: "rgb(56 189 248 / 0.18)", highlightStroke: "rgb(254 240 138 / 0.45)", dash: [20, 4, 3, 4] };
+    case "nature":
+      return { stroke: "#22c55e", fill: "#4ade80", fillOpacity: 0.16, highlightFill: "rgb(74 222 128 / 0.18)", highlightStroke: "rgb(187 247 208 / 0.34)", dash: [6, 5, 2, 5] };
+    case "poison":
+      return { stroke: "#a3e635", fill: "#365314", fillOpacity: 0.24, highlightFill: "rgb(54 83 20 / 0.28)", highlightStroke: "rgb(217 249 157 / 0.34)", dash: [9, 9] };
+    case "psychic":
+      return { stroke: "#f0abfc", fill: "#c026d3", fillOpacity: 0.15, highlightFill: "rgb(192 38 211 / 0.18)", highlightStroke: "rgb(245 208 254 / 0.38)", dash: [3, 7, 14, 7] };
+    case "radiant":
+      return { stroke: "#fef08a", fill: "#fef3c7", fillOpacity: 0.18, highlightFill: "rgb(254 243 199 / 0.2)", highlightStroke: "rgb(254 240 138 / 0.45)", dash: [14, 5] };
+    case "storm":
+      return { stroke: "#60a5fa", fill: "#1e3a8a", fillOpacity: 0.2, highlightFill: "rgb(30 58 138 / 0.24)", highlightStroke: "rgb(147 197 253 / 0.38)", dash: [11, 5, 3, 5] };
+    case "thunder":
+      return { stroke: "#c084fc", fill: "#4c1d95", fillOpacity: 0.14, highlightFill: "rgb(76 29 149 / 0.18)", highlightStroke: "rgb(216 180 254 / 0.38)", dash: [22, 5] };
+    case "water":
+      return { stroke: "#38bdf8", fill: "#0ea5e9", fillOpacity: 0.16, highlightFill: "rgb(14 165 233 / 0.18)", highlightStroke: "rgb(186 230 253 / 0.36)", dash: [12, 5] };
+    case "plain":
+    default:
+      return { stroke: "#7dd3fc", fill: "#7dd3fc", fillOpacity: 0.08, highlightFill: "rgb(122 162 247 / 0.18)", highlightStroke: "rgb(255 255 255 / 0.34)" };
+  }
+}
+
+function drawTemplateLabelHalo(ctx: CanvasRenderingContext2D, label: string, scale: number) {
+  const offset = Math.max(1.5, 2.5 * scale);
+  ctx.fillStyle = "rgba(11, 17, 24, 0.86)";
+  for (const point of [
+    { x: -offset, y: -offset },
+    { x: 0, y: -offset },
+    { x: offset, y: -offset },
+    { x: offset, y: 0 },
+    { x: offset, y: offset },
+    { x: 0, y: offset },
+    { x: -offset, y: offset },
+    { x: -offset, y: 0 }
+  ]) {
+    ctx.fillText(label, point.x, scale + point.y);
+  }
+  ctx.lineWidth = Math.max(2, 3 * scale);
+  ctx.strokeStyle = "rgba(11, 17, 24, 0.9)";
+  ctx.strokeText(label, 0, scale);
 }
 
 function drawTemplateGridHighlights(ctx: CanvasRenderingContext2D, drawing: DrawingElement, grid: GridSettings) {
@@ -572,8 +655,10 @@ function drawTemplateGridHighlights(ctx: CanvasRenderingContext2D, drawing: Draw
   }
   ctx.save();
   ctx.setLineDash([]);
-  ctx.fillStyle = "rgb(122 162 247 / 0.18)";
-  ctx.strokeStyle = "rgb(255 255 255 / 0.34)";
+  ctx.shadowBlur = 0;
+  const effect = getTemplateEffectStyle(drawing.templateEffect ?? "plain");
+  ctx.fillStyle = effect.highlightFill;
+  ctx.strokeStyle = effect.highlightStroke;
   ctx.lineWidth = Math.max(1, grid.lineThickness);
   for (const center of cells) {
     if (grid.type === "hex") {
@@ -594,6 +679,9 @@ function getTemplateGridHighlightCells(drawing: DrawingElement, grid: GridSettin
   if (!bounds) {
     return [];
   }
+  if (grid.type === "hex") {
+    return getTemplateHexHighlightCells(drawing, grid, bounds);
+  }
   const size = grid.sizePx;
   const columns = {
     start: Math.floor((bounds.left - grid.offsetX) / size) - 1,
@@ -608,7 +696,82 @@ function getTemplateGridHighlightCells(drawing: DrawingElement, grid: GridSettin
   for (let row = rows.start; row <= rows.end && cells.length < maxCells; row += 1) {
     for (let column = columns.start; column <= columns.end && cells.length < maxCells; column += 1) {
       const center = { x: grid.offsetX + column * size + size / 2, y: grid.offsetY + row * size + size / 2 };
-      if (isPointInsideTemplate(center, drawing, Math.max(8, size * 0.42))) {
+      if (isSquareGridCellInsideTemplate(center, drawing, grid)) {
+        cells.push(center);
+      }
+    }
+  }
+  return cells;
+}
+
+function isSquareGridCellInsideTemplate(center: Point, drawing: DrawingElement, grid: GridSettings): boolean {
+  const halfSize = grid.sizePx / 2;
+  const rect = {
+    left: center.x - halfSize,
+    top: center.y - halfSize,
+    right: center.x + halfSize,
+    bottom: center.y + halfSize
+  };
+
+  if (drawing.kind === "line") {
+    const [start, end] = drawing.points;
+    return start && end ? distanceToSegment(center, start, end) <= getTemplateWidthPixels(drawing, grid) / 2 + 0.0001 : false;
+  }
+  if (drawing.kind === "circle") {
+    const [origin, edge] = drawing.points;
+    return origin && edge ? doesRectIntersectCircle(rect, origin, distanceBetweenPoints(origin, edge)) : false;
+  }
+  if (drawing.kind === "rectangle") {
+    const [start, end] = drawing.points;
+    if (!start || !end) {
+      return false;
+    }
+    return doRectsIntersect(rect, {
+      left: Math.min(start.x, end.x),
+      top: Math.min(start.y, end.y),
+      right: Math.max(start.x, end.x),
+      bottom: Math.max(start.y, end.y)
+    });
+  }
+  if (drawing.kind === "cone") {
+    const triangle = getConeTriangle(drawing.points);
+    return triangle ? doesRectIntersectPolygon(rect, triangle) : false;
+  }
+  return isPointInsideTemplate(center, drawing, Math.max(8, grid.sizePx * 0.42));
+}
+
+function getTemplateHexHighlightCells(
+  drawing: DrawingElement,
+  grid: GridSettings,
+  bounds: { left: number; top: number; right: number; bottom: number }
+): Point[] {
+  const cornerCoords = [
+    getNearestHexCoordinate({ x: bounds.left, y: bounds.top }, grid),
+    getNearestHexCoordinate({ x: bounds.right, y: bounds.top }, grid),
+    getNearestHexCoordinate({ x: bounds.left, y: bounds.bottom }, grid),
+    getNearestHexCoordinate({ x: bounds.right, y: bounds.bottom }, grid)
+  ];
+  const padding = 3;
+  const qRange = {
+    start: Math.min(...cornerCoords.map((coord) => coord.q)) - padding,
+    end: Math.max(...cornerCoords.map((coord) => coord.q)) + padding
+  };
+  const rRange = {
+    start: Math.min(...cornerCoords.map((coord) => coord.r)) - padding,
+    end: Math.max(...cornerCoords.map((coord) => coord.r)) + padding
+  };
+  const cells: Point[] = [];
+  const maxCells = 2000;
+  for (let q = qRange.start; q <= qRange.end && cells.length < maxCells; q += 1) {
+    for (let r = rRange.start; r <= rRange.end && cells.length < maxCells; r += 1) {
+      const center = hexAxialToPoint({ q, r }, grid);
+      if (
+        center.x >= bounds.left - grid.sizePx &&
+        center.x <= bounds.right + grid.sizePx &&
+        center.y >= bounds.top - grid.sizePx &&
+        center.y <= bounds.bottom + grid.sizePx &&
+        isPointInsideTemplate(center, drawing, getTemplateHitRadius(drawing, grid))
+      ) {
         cells.push(center);
       }
     }
@@ -696,6 +859,101 @@ function isPointInsideTemplate(point: Point, drawing: DrawingElement, hitRadius:
     return triangle ? isPointInTriangle(point, triangle[0], triangle[1], triangle[2]) : false;
   }
   return false;
+}
+
+function getTemplateHitRadius(drawing: DrawingElement, grid: GridSettings): number {
+  return drawing.kind === "line" ? getTemplateWidthPixels(drawing, grid) / 2 : Math.max(8, grid.sizePx * 0.42);
+}
+
+function getTemplateWidthPixels(drawing: DrawingElement, grid: GridSettings): number {
+  const widthFeet = Math.max(1, drawing.templateWidth ?? 5);
+  const unitsPerCell = Math.max(0.01, grid.measurement.unitsPerGridCell);
+  return (widthFeet / unitsPerCell) * grid.sizePx;
+}
+
+function doesRectIntersectCircle(rect: { left: number; top: number; right: number; bottom: number }, center: Point, radius: number): boolean {
+  const closestX = Math.max(rect.left, Math.min(center.x, rect.right));
+  const closestY = Math.max(rect.top, Math.min(center.y, rect.bottom));
+  return distanceBetweenPoints(center, { x: closestX, y: closestY }) < radius - 0.0001;
+}
+
+function doRectsIntersect(
+  a: { left: number; top: number; right: number; bottom: number },
+  b: { left: number; top: number; right: number; bottom: number }
+): boolean {
+  return a.left < b.right - 0.0001 && a.right > b.left + 0.0001 && a.top < b.bottom - 0.0001 && a.bottom > b.top + 0.0001;
+}
+
+function doesRectIntersectPolygon(rect: { left: number; top: number; right: number; bottom: number }, polygon: Point[]): boolean {
+  return getPolygonArea(clipPolygonToRect(polygon, rect)) > 0.01;
+}
+
+function clipPolygonToRect(polygon: Point[], rect: { left: number; top: number; right: number; bottom: number }): Point[] {
+  return clipPolygonEdge(
+    clipPolygonEdge(
+      clipPolygonEdge(
+        clipPolygonEdge(polygon, (point) => point.x > rect.left, (start, end) => getLineIntersectionWithVertical(start, end, rect.left)),
+        (point) => point.x < rect.right,
+        (start, end) => getLineIntersectionWithVertical(start, end, rect.right)
+      ),
+      (point) => point.y > rect.top,
+      (start, end) => getLineIntersectionWithHorizontal(start, end, rect.top)
+    ),
+    (point) => point.y < rect.bottom,
+    (start, end) => getLineIntersectionWithHorizontal(start, end, rect.bottom)
+  );
+}
+
+function clipPolygonEdge(polygon: Point[], isInside: (point: Point) => boolean, getIntersection: (start: Point, end: Point) => Point): Point[] {
+  if (polygon.length === 0) {
+    return [];
+  }
+  const result: Point[] = [];
+  for (let index = 0; index < polygon.length; index += 1) {
+    const current = polygon[index];
+    const previous = polygon[(index + polygon.length - 1) % polygon.length];
+    const currentInside = isInside(current);
+    const previousInside = isInside(previous);
+    if (currentInside) {
+      if (!previousInside) {
+        result.push(getIntersection(previous, current));
+      }
+      result.push(current);
+    } else if (previousInside) {
+      result.push(getIntersection(previous, current));
+    }
+  }
+  return result;
+}
+
+function getLineIntersectionWithVertical(start: Point, end: Point, x: number): Point {
+  const t = (x - start.x) / getSafeDelta(end.x - start.x);
+  return { x, y: start.y + (end.y - start.y) * t };
+}
+
+function getLineIntersectionWithHorizontal(start: Point, end: Point, y: number): Point {
+  const t = (y - start.y) / getSafeDelta(end.y - start.y);
+  return { x: start.x + (end.x - start.x) * t, y };
+}
+
+function getSafeDelta(delta: number): number {
+  if (Math.abs(delta) >= 0.0001) {
+    return delta;
+  }
+  return delta < 0 ? -0.0001 : 0.0001;
+}
+
+function getPolygonArea(points: Point[]): number {
+  if (points.length < 3) {
+    return 0;
+  }
+  let area = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    area += current.x * next.y - next.x * current.y;
+  }
+  return Math.abs(area) / 2;
 }
 
 function tracePointyHex(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {

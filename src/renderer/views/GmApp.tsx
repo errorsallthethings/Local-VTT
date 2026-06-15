@@ -32,6 +32,7 @@ import type {
   DisplayCalibration,
   DiceSettings,
   DrawingStrokeStyle,
+  DrawingTemplateEffect,
   LiveTableEvent,
   Point,
   Scene,
@@ -41,7 +42,7 @@ import type {
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
+import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
 import type { DrawingTool } from "../canvas/drawingRenderer";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -170,6 +171,8 @@ export function GmApp() {
   const [drawingStrokeStyle, setDrawingStrokeStyle] = useState<DrawingStrokeStyle>("solid");
   const [drawingStrokeWidth, setDrawingStrokeWidth] = useState(40);
   const [drawingTemplateSize, setDrawingTemplateSize] = useState<DrawingTemplateSize>("custom");
+  const [drawingTemplateEffect, setDrawingTemplateEffect] = useState<DrawingTemplateEffect>("plain");
+  const [drawingTemplateWidth, setDrawingTemplateWidth] = useState<DrawingTemplateWidth>(5);
   const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
   const [newFolderName, setNewFolderName] = useState("New Folder");
@@ -1767,6 +1770,8 @@ export function GmApp() {
               drawingStrokeStyle={drawingStrokeStyle}
               drawingStrokeWidth={drawingStrokeWidth}
               drawingTemplateSize={drawingTemplateSize}
+              drawingTemplateEffect={drawingTemplateEffect}
+              drawingTemplateWidth={drawingTemplateWidth}
               pingSize={tableTools.pingSize}
               pingColor={tableTools.pingColor}
               laserThickness={tableTools.laserThickness}
@@ -1798,6 +1803,8 @@ export function GmApp() {
               onDrawingStrokeStyleChange={setDrawingStrokeStyle}
               onDrawingStrokeWidthChange={setDrawingStrokeWidth}
               onDrawingTemplateSizeChange={setDrawingTemplateSize}
+              onDrawingTemplateEffectChange={setDrawingTemplateEffect}
+              onDrawingTemplateWidthChange={setDrawingTemplateWidth}
               onPingSizeChange={(pingSize) => setTableTools((current) => ({ ...current, pingSize }))}
               onPingColorChange={(pingColor) => setTableTools((current) => ({ ...current, pingColor }))}
               onLaserThicknessChange={(laserThickness) => setTableTools((current) => ({ ...current, laserThickness }))}
@@ -1838,6 +1845,8 @@ export function GmApp() {
             drawingStrokeStyle={drawingStrokeStyle}
             drawingStrokeWidth={drawingStrokeWidth}
             drawingTemplateSize={drawingTemplateSize}
+            drawingTemplateEffect={drawingTemplateEffect}
+            drawingTemplateWidth={drawingTemplateWidth}
             fogBrushSize={fogBrushSize}
             fogTool={activeFogTool}
             weatherMaskTool={activeWeatherMaskTool}

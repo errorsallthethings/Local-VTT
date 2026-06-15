@@ -29,7 +29,7 @@ import {
   X
 } from "lucide-react";
 import type { DrawingTool } from "../../canvas/drawingRenderer";
-import type { DrawingStrokeStyle } from "../../../shared/localvtt";
+import type { DrawingStrokeStyle, DrawingTemplateEffect } from "../../../shared/localvtt";
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
@@ -38,6 +38,7 @@ export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";
 export type WeatherMaskTool = "rectangle" | "circle" | "polygon";
 export type DrawingTemplateSize = "custom" | 5 | 10 | 15 | 20 | 30 | 60 | 100;
+export type DrawingTemplateWidth = 5 | 10 | 15 | 20;
 type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
 type ToolCategory = "mouse" | "drawing" | "templates" | "text" | "table" | "dice" | "turn-order" | "pin" | "mask" | "lighting";
 export type MouseBehavior = "selector" | "grabber";
@@ -105,6 +106,24 @@ const DRAWING_STROKE_STYLE_OPTIONS: Array<{ label: string; value: DrawingStrokeS
 ];
 
 const TEMPLATE_SIZE_PRESETS: DrawingTemplateSize[] = ["custom", 5, 10, 15, 20, 30, 60, 100];
+const TEMPLATE_WIDTH_PRESETS: DrawingTemplateWidth[] = [5, 10, 15, 20];
+const TEMPLATE_EFFECT_OPTIONS: Array<{ label: string; value: DrawingTemplateEffect }> = [
+  { label: "Plain", value: "plain" },
+  { label: "Acid", value: "acid" },
+  { label: "Arcane", value: "arcane" },
+  { label: "Cold", value: "cold" },
+  { label: "Darkness", value: "darkness" },
+  { label: "Fire", value: "fire" },
+  { label: "Fog / Smoke", value: "fog" },
+  { label: "Lightning", value: "lightning" },
+  { label: "Nature / Thorns", value: "nature" },
+  { label: "Poison Cloud", value: "poison" },
+  { label: "Psychic", value: "psychic" },
+  { label: "Radiant", value: "radiant" },
+  { label: "Storm", value: "storm" },
+  { label: "Thunder", value: "thunder" },
+  { label: "Water", value: "water" }
+];
 const DEFAULT_DRAWING_COLOR = "#ff0000";
 const DEFAULT_TEMPLATE_COLOR = "#7dd3fc";
 const DEFAULT_SONAR_COLOR = "#ffd84d";
@@ -124,6 +143,8 @@ interface ToolsMenuProps {
   drawingStrokeStyle: DrawingStrokeStyle;
   drawingStrokeWidth: number;
   drawingTemplateSize: DrawingTemplateSize;
+  drawingTemplateEffect: DrawingTemplateEffect;
+  drawingTemplateWidth: DrawingTemplateWidth;
   pingSize: number;
   pingColor: string;
   laserThickness: number;
@@ -152,6 +173,8 @@ interface ToolsMenuProps {
   onDrawingStrokeStyleChange: (strokeStyle: DrawingStrokeStyle) => void;
   onDrawingStrokeWidthChange: (strokeWidth: number) => void;
   onDrawingTemplateSizeChange: (size: DrawingTemplateSize) => void;
+  onDrawingTemplateEffectChange: (effect: DrawingTemplateEffect) => void;
+  onDrawingTemplateWidthChange: (width: DrawingTemplateWidth) => void;
   onPingSizeChange: (pingSize: number) => void;
   onPingColorChange: (pingColor: string) => void;
   onLaserThicknessChange: (laserThickness: number) => void;
@@ -198,6 +221,8 @@ export function ToolsMenu({
   drawingStrokeStyle,
   drawingStrokeWidth,
   drawingTemplateSize,
+  drawingTemplateEffect,
+  drawingTemplateWidth,
   pingSize,
   pingColor,
   laserThickness,
@@ -226,6 +251,8 @@ export function ToolsMenu({
   onDrawingStrokeStyleChange,
   onDrawingStrokeWidthChange,
   onDrawingTemplateSizeChange,
+  onDrawingTemplateEffectChange,
+  onDrawingTemplateWidthChange,
   onPingSizeChange,
   onPingColorChange,
   onLaserThicknessChange,
@@ -517,6 +544,9 @@ export function ToolsMenu({
                   drawingStrokeStyle={drawingStrokeStyle}
                   drawingStrokeWidth={drawingStrokeWidth}
                   drawingTemplateSize={drawingTemplateSize}
+                  drawingTemplateEffect={drawingTemplateEffect}
+                  drawingTemplateWidth={drawingTemplateWidth}
+                  activeDrawingTool={activeDrawingTool}
                   drawingThicknessCustomOpen={drawingThicknessCustomOpen}
                   drawingOpacityCustomOpen={drawingOpacityCustomOpen}
                   showFillSettings={activeDrawingTool !== "freehand" && activeDrawingTool !== "line"}
@@ -528,6 +558,8 @@ export function ToolsMenu({
                   onDrawingStrokeStyleChange={onDrawingStrokeStyleChange}
                   onDrawingStrokeWidthChange={onDrawingStrokeWidthChange}
                   onDrawingTemplateSizeChange={onDrawingTemplateSizeChange}
+                  onDrawingTemplateEffectChange={onDrawingTemplateEffectChange}
+                  onDrawingTemplateWidthChange={onDrawingTemplateWidthChange}
                   onDrawingThicknessCustomOpenChange={setDrawingThicknessCustomOpen}
                   onDrawingOpacityCustomOpenChange={setDrawingOpacityCustomOpen}
                 />
@@ -545,7 +577,7 @@ export function ToolsMenu({
                 <ToolButton active={activeDrawingTool === "template-circle"} label="Radius Template" onClick={() => setDrawingTool("template-circle")}>
                   <Circle size={17} aria-hidden="true" />
                 </ToolButton>
-                <ToolButton active={activeDrawingTool === "template-rectangle"} label="Square Template" onClick={() => setDrawingTool("template-rectangle")}>
+                <ToolButton active={activeDrawingTool === "template-rectangle"} label="Cube Template" onClick={() => setDrawingTool("template-rectangle")}>
                   <Square size={17} aria-hidden="true" />
                 </ToolButton>
                 <ToolButton active={activeDrawingTool === "template-cone"} label="Cone Template" onClick={() => setDrawingTool("template-cone")}>
@@ -567,6 +599,9 @@ export function ToolsMenu({
                   drawingStrokeStyle={drawingStrokeStyle}
                   drawingStrokeWidth={drawingStrokeWidth}
                   drawingTemplateSize={drawingTemplateSize}
+                  drawingTemplateEffect={drawingTemplateEffect}
+                  drawingTemplateWidth={drawingTemplateWidth}
+                  activeDrawingTool={activeDrawingTool}
                   drawingThicknessCustomOpen={drawingThicknessCustomOpen}
                   drawingOpacityCustomOpen={drawingOpacityCustomOpen}
                   showFillSettings={false}
@@ -578,6 +613,8 @@ export function ToolsMenu({
                   onDrawingStrokeStyleChange={onDrawingStrokeStyleChange}
                   onDrawingStrokeWidthChange={onDrawingStrokeWidthChange}
                   onDrawingTemplateSizeChange={onDrawingTemplateSizeChange}
+                  onDrawingTemplateEffectChange={onDrawingTemplateEffectChange}
+                  onDrawingTemplateWidthChange={onDrawingTemplateWidthChange}
                   onDrawingThicknessCustomOpenChange={setDrawingThicknessCustomOpen}
                   onDrawingOpacityCustomOpenChange={setDrawingOpacityCustomOpen}
                 />
@@ -920,6 +957,9 @@ function DrawingSettings({
   drawingStrokeStyle,
   drawingStrokeWidth,
   drawingTemplateSize,
+  drawingTemplateEffect,
+  drawingTemplateWidth,
+  activeDrawingTool,
   drawingThicknessCustomOpen,
   drawingOpacityCustomOpen,
   showFillSettings,
@@ -931,6 +971,8 @@ function DrawingSettings({
   onDrawingStrokeStyleChange,
   onDrawingStrokeWidthChange,
   onDrawingTemplateSizeChange,
+  onDrawingTemplateEffectChange,
+  onDrawingTemplateWidthChange,
   onDrawingThicknessCustomOpenChange,
   onDrawingOpacityCustomOpenChange
 }: {
@@ -941,6 +983,9 @@ function DrawingSettings({
   drawingStrokeStyle: DrawingStrokeStyle;
   drawingStrokeWidth: number;
   drawingTemplateSize: DrawingTemplateSize;
+  drawingTemplateEffect: DrawingTemplateEffect;
+  drawingTemplateWidth: DrawingTemplateWidth;
+  activeDrawingTool: DrawingTool | null;
   drawingThicknessCustomOpen: boolean;
   drawingOpacityCustomOpen: boolean;
   showFillSettings: boolean;
@@ -952,16 +997,34 @@ function DrawingSettings({
   onDrawingStrokeStyleChange: (strokeStyle: DrawingStrokeStyle) => void;
   onDrawingStrokeWidthChange: (strokeWidth: number) => void;
   onDrawingTemplateSizeChange: (size: DrawingTemplateSize) => void;
+  onDrawingTemplateEffectChange: (effect: DrawingTemplateEffect) => void;
+  onDrawingTemplateWidthChange: (width: DrawingTemplateWidth) => void;
   onDrawingThicknessCustomOpenChange: (open: boolean) => void;
   onDrawingOpacityCustomOpenChange: (open: boolean) => void;
 }) {
+  const strokeColorDisabled = templateToolActive && drawingTemplateEffect !== "plain";
   return (
     <div className={templateToolActive ? "tools-drawing-settings tools-drawing-settings-template" : "tools-drawing-settings"}>
+      {templateToolActive && (
+        <div className="tools-drawing-settings-row tools-template-effect-row">
+          <div className="tools-drawing-row-label">Effect</div>
+          <div className="tools-strip-select-field tools-strip-template-effect-control">
+            <strong>Visual</strong>
+            <div>
+              <select aria-label="Template visual effect" title="Template visual effect" value={drawingTemplateEffect} onChange={(event) => onDrawingTemplateEffectChange(event.target.value as DrawingTemplateEffect)}>
+                {TEMPLATE_EFFECT_OPTIONS.map((effect) => (
+                  <option key={effect.value} value={effect.value}>{effect.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="tools-drawing-settings-row tools-drawing-stroke-row">
         <div className="tools-drawing-row-label">Stroke</div>
-        <label className="tools-strip-field tools-strip-color-field">
+        <label className={strokeColorDisabled ? "tools-strip-field tools-strip-color-field tools-field-disabled" : "tools-strip-field tools-strip-color-field"}>
           <span>Color</span>
-          <ColorInput className="tools-drawing-color" value={drawingColor} aria-label="Stroke color" title="Stroke color" onChange={onDrawingColorChange} />
+          <ColorInput className="tools-drawing-color" value={drawingColor} aria-label="Stroke color" title={strokeColorDisabled ? "Stroke color is controlled by the selected effect" : "Stroke color"} disabled={strokeColorDisabled} onChange={onDrawingColorChange} />
         </label>
         <div className="tools-strip-select-field tools-strip-thickness-control">
           <strong>Thickness</strong>
@@ -1048,23 +1111,38 @@ function DrawingSettings({
         </div>
       )}
       {templateToolActive && (
-        <div className="tools-strip-select-field tools-strip-template-size-control">
-          <strong>Size</strong>
-          <div>
-            <select
-              aria-label="Template size"
-              title="Template size"
-              value={String(drawingTemplateSize)}
-              onChange={(event) => {
-                const value = event.target.value;
-                onDrawingTemplateSizeChange(value === "custom" ? "custom" : (Number(value) as DrawingTemplateSize));
-              }}
-            >
-              {TEMPLATE_SIZE_PRESETS.map((size) => (
-                <option key={size} value={size}>{size === "custom" ? "Custom" : `${size} ft`}</option>
-              ))}
-            </select>
+        <div className="tools-drawing-settings-row tools-template-size-row">
+          <div className="tools-drawing-row-label">Size</div>
+          <div className="tools-strip-select-field tools-strip-template-size-control">
+            <strong>Length/Radius</strong>
+            <div>
+              <select
+                aria-label="Template length or radius"
+                title="Template length or radius"
+                value={String(drawingTemplateSize)}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  onDrawingTemplateSizeChange(value === "custom" ? "custom" : (Number(value) as DrawingTemplateSize));
+                }}
+              >
+                {TEMPLATE_SIZE_PRESETS.map((size) => (
+                  <option key={size} value={size}>{size === "custom" ? "Custom" : `${size} ft`}</option>
+                ))}
+              </select>
+            </div>
           </div>
+          {activeDrawingTool === "template-line" && (
+            <div className="tools-strip-select-field tools-strip-template-width-control">
+              <strong>Width</strong>
+              <div>
+                <select aria-label="Template line width" title="Template line width" value={drawingTemplateWidth} onChange={(event) => onDrawingTemplateWidthChange(Number(event.target.value) as DrawingTemplateWidth)}>
+                  {TEMPLATE_WIDTH_PRESETS.map((width) => (
+                    <option key={width} value={width}>{width} ft</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
         </div>
       )}
       {(drawingThicknessCustomOpen || !hasPresetValue(DRAWING_THICKNESS_PRESETS, drawingStrokeWidth)) && (

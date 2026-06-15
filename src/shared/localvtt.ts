@@ -268,12 +268,30 @@ export interface DrawingElement {
   fillColor?: string;
   fillOpacity?: number;
   strokeStyle?: DrawingStrokeStyle;
+  templateEffect?: DrawingTemplateEffect;
+  templateWidth?: number;
   measurementLabelVisible?: boolean;
   visibleInGm?: boolean;
   visibleInPlayer: boolean;
 }
 
 export type DrawingStrokeStyle = "solid" | "dashed" | "dotted" | "dash-dot" | "sketch";
+export type DrawingTemplateEffect =
+  | "plain"
+  | "acid"
+  | "arcane"
+  | "cold"
+  | "darkness"
+  | "fire"
+  | "fog"
+  | "lightning"
+  | "nature"
+  | "poison"
+  | "psychic"
+  | "radiant"
+  | "storm"
+  | "thunder"
+  | "water";
 
 export interface SceneOverlay {
   id: string;
@@ -1545,6 +1563,8 @@ function normalizeDrawings(drawings?: DrawingElement[]): DrawingElement[] {
       fillColor: normalizeColor(drawing.fillColor ?? drawing.fill ?? drawing.color, "#f6d365"),
       fillOpacity: clampNumber(drawing.fillOpacity ?? (typeof drawing.fill === "string" ? drawing.opacity : 0), 0, 1, 0),
       strokeStyle: normalizeDrawingStrokeStyle(drawing.strokeStyle),
+      templateEffect: normalizeDrawingTemplateEffect(drawing.templateEffect),
+      templateWidth: clampNumber(drawing.templateWidth, 1, 100, 5),
       measurementLabelVisible: typeof drawing.measurementLabelVisible === "boolean" ? drawing.measurementLabelVisible : undefined,
       visibleInGm: typeof drawing.visibleInGm === "boolean" ? drawing.visibleInGm : true,
       visibleInPlayer: typeof drawing.visibleInPlayer === "boolean" ? drawing.visibleInPlayer : true
@@ -1554,6 +1574,25 @@ function normalizeDrawings(drawings?: DrawingElement[]): DrawingElement[] {
 
 function normalizeDrawingStrokeStyle(value: unknown): DrawingStrokeStyle {
   return value === "solid" || value === "dashed" || value === "dotted" || value === "dash-dot" || value === "sketch" ? value : "solid";
+}
+
+function normalizeDrawingTemplateEffect(value: unknown): DrawingTemplateEffect {
+  return value === "acid" ||
+    value === "arcane" ||
+    value === "cold" ||
+    value === "darkness" ||
+    value === "fire" ||
+    value === "fog" ||
+    value === "lightning" ||
+    value === "nature" ||
+    value === "poison" ||
+    value === "psychic" ||
+    value === "radiant" ||
+    value === "storm" ||
+    value === "thunder" ||
+    value === "water"
+    ? value
+    : "plain";
 }
 
 function getUniqueDrawingId(id: unknown, index: number, usedIds: Set<string>): string {

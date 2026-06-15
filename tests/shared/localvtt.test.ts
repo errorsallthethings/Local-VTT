@@ -217,6 +217,8 @@ it("normalizeScene backfills drawing defaults", () => {
       fillColor: "#f6d365",
       fillOpacity: 0,
       strokeStyle: "solid",
+      templateEffect: "plain",
+      templateWidth: 5,
       measurementLabelVisible: undefined,
       visibleInGm: true,
       visibleInPlayer: true
@@ -236,6 +238,8 @@ it("normalizeScene backfills drawing defaults", () => {
       fillColor: "#ff0000",
       fillOpacity: 0.5,
       strokeStyle: "solid",
+      templateEffect: "plain",
+      templateWidth: 5,
       measurementLabelVisible: undefined,
       visibleInGm: false,
       visibleInPlayer: false

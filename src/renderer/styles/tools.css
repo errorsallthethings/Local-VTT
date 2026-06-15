@@ -413,6 +413,14 @@
   grid-template-columns: 48px 40px 112px 104px;
 }
 
+.tools-drawing-settings-template .tools-template-effect-row {
+  grid-template-columns: 48px 232px;
+}
+
+.tools-drawing-settings-template .tools-template-size-row {
+  grid-template-columns: 48px 132px 104px;
+}
+
 .tools-drawing-fill-row {
   grid-template-columns: 48px 40px 104px;
   padding-top: 7px;
@@ -467,8 +475,20 @@
 }
 
 .tools-strip-template-size-control {
-  border-left: 1px solid var(--color-border-muted);
-  padding-left: 8px;
+  min-width: 104px;
+}
+
+.tools-strip-template-effect-control {
+  min-width: 0;
+}
+
+.tools-field-disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.tools-field-disabled input {
+  cursor: not-allowed;
 }
 
 .tools-strip-select-field > div {
