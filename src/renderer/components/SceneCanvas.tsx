@@ -1526,7 +1526,7 @@ export function SceneCanvas({
       }
       onSelectToken?.(null);
       if (!canvasTool && !drawingTool && !fogTool && !weatherMaskTool) {
-        if (mouseBehavior === "grabber" && canShowDrawings && selectedDrawingIds.length > 0) {
+        if ((mouseBehavior === "grabber" || mouseBehavior === "selector") && canShowDrawings && selectedDrawingIds.length > 0) {
           const rotateTarget = getDrawingRotationHandleAtPoint(scene.drawings, selectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
           if (rotateTarget) {
             const selectedIdSet = new Set(selectedDrawingIds);
