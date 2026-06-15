@@ -1893,6 +1893,7 @@ export function SceneCanvas({
       if (scene && onSceneChange && isMeaningfulDrawingPreview(drawingDrag)) {
         const drawingPoints = getDrawingPreviewPoints(drawingDrag);
         const kind = drawingDrag.kind === "circle" && drawingPoints.length === 2 ? "circle" : getDrawingKindForTool(drawingDrag.kind);
+        const isTemplate = drawingDrag.measurementLabelVisible === true;
         onSceneChange({
           ...scene,
           drawings: [
@@ -1909,11 +1910,11 @@ export function SceneCanvas({
               strokeWidth: drawingDrag.strokeWidth,
               fill: drawingDrag.fillColor,
               fillColor: drawingDrag.fillColor,
-              fillOpacity: isTemplateDrawingTool(drawingDrag.kind) ? 0 : (drawingDrag.fillOpacity ?? 0),
-              strokeStyle: isTemplateDrawingTool(drawingDrag.kind) ? "dashed" : (drawingDrag.strokeStyle ?? "solid"),
-              templateEffect: isTemplateDrawingTool(drawingDrag.kind) ? (drawingDrag.templateEffect ?? "plain") : "plain",
-              templateWidth: isTemplateDrawingTool(drawingDrag.kind) ? (drawingDrag.templateWidth ?? 5) : 5,
-              measurementLabelVisible: isTemplateDrawingTool(drawingDrag.kind) ? true : false,
+              fillOpacity: isTemplate ? 0 : (drawingDrag.fillOpacity ?? 0),
+              strokeStyle: isTemplate ? "dashed" : (drawingDrag.strokeStyle ?? "solid"),
+              templateEffect: isTemplate ? (drawingDrag.templateEffect ?? "plain") : "plain",
+              templateWidth: isTemplate ? (drawingDrag.templateWidth ?? 5) : 5,
+              measurementLabelVisible: isTemplate,
               visibleInGm: true,
               visibleInPlayer: true
             }

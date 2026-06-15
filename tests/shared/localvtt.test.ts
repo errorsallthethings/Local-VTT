@@ -183,6 +183,8 @@ it("normalizeScene backfills drawing defaults", () => {
       color: "nope",
       opacity: 8,
       strokeWidth: -2,
+      templateEffect: "fire",
+      templateWidth: 20,
       visibleInPlayer: undefined as never
     },
     {
@@ -245,6 +247,43 @@ it("normalizeScene backfills drawing defaults", () => {
       visibleInPlayer: false
     }
   ]);
+});
+
+it("normalizeScene preserves template effect settings", () => {
+  const scene = createDefaultScene("Template Effects");
+  scene.drawings = [
+    {
+      id: "template-fireball",
+      name: "Template Radius 1",
+      kind: "circle",
+      points: [
+        { x: 100, y: 100 },
+        { x: 180, y: 100 }
+      ],
+      color: "#7dd3fc",
+      opacity: 1,
+      strokeColor: "#7dd3fc",
+      strokeOpacity: 1,
+      strokeWidth: 24,
+      fill: "#7dd3fc",
+      fillColor: "#7dd3fc",
+      fillOpacity: 0,
+      strokeStyle: "dashed",
+      templateEffect: "fire",
+      templateWidth: 10,
+      measurementLabelVisible: true,
+      visibleInGm: true,
+      visibleInPlayer: true
+    }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.drawings[0]).toMatchObject({
+    templateEffect: "fire",
+    templateWidth: 10,
+    measurementLabelVisible: true
+  });
 });
 
 it("duplicateScene copies scene settings while assigning new runtime ids", () => {

@@ -1548,6 +1548,7 @@ function normalizeDrawings(drawings?: DrawingElement[]): DrawingElement[] {
   const usedIds = new Set<string>();
   return drawings.filter(isRecord).map((drawing, index) => {
     const kind = normalizeDrawingKind(drawing.kind);
+    const isTemplateDrawing = drawing.measurementLabelVisible === true;
     return {
       id: getUniqueDrawingId(drawing.id, index, usedIds),
       name: typeof drawing.name === "string" && drawing.name.trim() ? drawing.name.trim() : formatDefaultDrawingName(kind, index),
@@ -1563,8 +1564,8 @@ function normalizeDrawings(drawings?: DrawingElement[]): DrawingElement[] {
       fillColor: normalizeColor(drawing.fillColor ?? drawing.fill ?? drawing.color, "#f6d365"),
       fillOpacity: clampNumber(drawing.fillOpacity ?? (typeof drawing.fill === "string" ? drawing.opacity : 0), 0, 1, 0),
       strokeStyle: normalizeDrawingStrokeStyle(drawing.strokeStyle),
-      templateEffect: normalizeDrawingTemplateEffect(drawing.templateEffect),
-      templateWidth: clampNumber(drawing.templateWidth, 1, 100, 5),
+      templateEffect: isTemplateDrawing ? normalizeDrawingTemplateEffect(drawing.templateEffect) : "plain",
+      templateWidth: isTemplateDrawing ? clampNumber(drawing.templateWidth, 1, 100, 5) : 5,
       measurementLabelVisible: typeof drawing.measurementLabelVisible === "boolean" ? drawing.measurementLabelVisible : undefined,
       visibleInGm: typeof drawing.visibleInGm === "boolean" ? drawing.visibleInGm : true,
       visibleInPlayer: typeof drawing.visibleInPlayer === "boolean" ? drawing.visibleInPlayer : true
