@@ -1174,10 +1174,13 @@ export function SceneCanvas({
       if (mode === "gm" && brushHoverPoint && drawingTool === "freehand" && !drawingPreview) {
         drawDrawingBrushHoverPreview(ctx, brushHoverPoint, Math.max(4, drawingStrokeWidth / 2), renderCamera, drawingColor, drawingOpacity);
       }
-      if (mode === "gm" && snapPoint && fogTool) {
+      if (mode === "gm" && snapPoint && fogTool && !fogTool.includes("brush")) {
         drawSnapMarker(ctx, snapPoint, renderCamera, getFogOperationForTool(fogTool));
       }
       if (mode === "gm" && snapPoint && drawingTool && drawingTool !== "freehand") {
+        drawSnapMarker(ctx, snapPoint, renderCamera, "reveal");
+      }
+      if (mode === "gm" && snapPoint && weatherMaskTool) {
         drawSnapMarker(ctx, snapPoint, renderCamera, "reveal");
       }
       if (mode === "gm" && (onMapCalibrationBox || mapCalibrationBox)) {
@@ -1440,7 +1443,7 @@ export function SceneCanvas({
       return;
     }
     if (mode === "gm" && fogTool && scene && onSceneChange && event.button === 0) {
-      const point = getToolPoint(event);
+      const point = getToolPoint(event, !fogTool.includes("brush"));
       if (isPolygonTool(fogTool)) {
         updatePolygonDraft(fogTool, point);
         return;
@@ -1802,7 +1805,7 @@ export function SceneCanvas({
 
     const fogDrag = fogDragRef.current;
     if (fogDrag?.pointerId === event.pointerId) {
-      const point = getToolPoint(event);
+      const point = getToolPoint(event, fogDrag.kind !== "brush");
       const current = fogDrag.kind === "rectangle" && event.shiftKey ? constrainSquarePoint(fogDrag.start, point) : point;
       const nextPoints =
         fogDrag.kind === "brush" && shouldAddBrushPoint(fogDrag.points[fogDrag.points.length - 1], current, fogDrag.radius ?? 1)
@@ -1851,7 +1854,7 @@ export function SceneCanvas({
     }
 
     if (mode === "gm" && fogTool?.includes("brush") && scene) {
-      setBrushHoverPoint(getToolPoint(event));
+      setBrushHoverPoint(getToolPoint(event, false));
       return;
     }
     if (mode === "gm" && drawingTool === "freehand" && scene) {
@@ -2342,9 +2345,9 @@ export function SceneCanvas({
     drawingPolygonDraftRef.current = nextDraft;
   };
 
-  const getToolPoint = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
+  const getToolPoint = (event: React.PointerEvent<HTMLCanvasElement>, snapEnabled = true): Point => {
     const worldPoint = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-    const snappedPoint = scene && isSnapModifier(event) ? getFogSnapPoint(worldPoint, scene) : null;
+    const snappedPoint = scene && snapEnabled && isSnapModifier(event) ? getNearestSceneSnapPoint(worldPoint, scene) : null;
     setSnapPoint(snappedPoint);
     return snappedPoint ?? worldPoint;
   };
@@ -2363,18 +2366,21 @@ export function SceneCanvas({
       setSnapPoint(null);
       return point;
     }
-    const snappedPoint = getRulerSnapPoint(point, scene) ?? point;
+    const snappedPoint = getNearestSceneSnapPoint(point, scene) ?? point;
     setSnapPoint(snappedPoint);
     return snappedPoint;
   };
 
   const updateSnapPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!scene || (!fogTool && !drawingTool) || !isSnapModifier(event)) {
+    const canSnapDrawing = drawingTool && drawingTool !== "freehand";
+    const canSnapFog = fogTool && !fogTool.includes("brush");
+    const canSnapWeather = Boolean(weatherMaskTool);
+    if (!scene || (!canSnapFog && !canSnapDrawing && !canSnapWeather) || !isSnapModifier(event)) {
       setSnapPoint(null);
       return;
     }
     const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-    setSnapPoint(fogTool ? getFogSnapPoint(point, scene) : getRulerSnapPoint(point, scene));
+    setSnapPoint(getNearestSceneSnapPoint(point, scene));
   };
 
   const commitPolygonDraft = () => {
@@ -3413,14 +3419,21 @@ function getRulerSnapPoint(point: Point, scene: Scene): Point | null {
   return getNearestGridCellCenter(point, scene.grid);
 }
 
-function getFogSnapPoint(point: Point, scene: Scene): Point | null {
+function getNearestSceneSnapPoint(point: Point, scene: Scene): Point | null {
   if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
     return null;
   }
-  if (scene.grid.type === "hex") {
-    return getNearestHexVertex(point, scene.grid);
-  }
-  return getNearestGridPoint(point, scene.grid);
+  const candidates =
+    scene.grid.type === "hex"
+      ? [getNearestHexCenter(point, scene.grid), getNearestHexVertex(point, scene.grid)]
+      : [getNearestGridCellCenter(point, scene.grid), getNearestGridPoint(point, scene.grid)].filter((candidate): candidate is Point => Boolean(candidate));
+
+  return candidates.reduce<Point | null>((nearest, candidate) => {
+    if (!nearest) {
+      return candidate;
+    }
+    return distanceBetween(candidate, point) < distanceBetween(nearest, point) ? candidate : nearest;
+  }, null);
 }
 
 function getCanvasInteractionClass({
