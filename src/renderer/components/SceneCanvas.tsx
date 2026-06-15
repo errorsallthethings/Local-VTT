@@ -113,7 +113,7 @@ interface SceneCanvasProps {
   onSelectFogShape?: (shapeId: string | null) => void;
   onSelectWeatherMask?: (maskId: string | null) => void;
   onSelectDrawing?: (drawingId: string | null) => void;
-  onSelectSceneItems?: (selection: { tokenIds?: string[]; drawingIds?: string[]; fogShapeIds?: string[]; weatherMaskIds?: string[] }) => void;
+  onSelectSceneItems?: (selection: { tokenIds?: string[]; drawingIds?: string[]; fogShapeIds?: string[]; weatherMaskIds?: string[]; mode?: SelectionMode }) => void;
   onAddTokenToTurnOrder?: (tokenId: string) => void;
   onDropTokenAsset?: (asset: Asset, point: Point) => void;
   onLiveTableEvent?: (event: LiveTableEvent) => void;
@@ -172,10 +172,13 @@ type WeatherPolygonDraft = {
   current?: Point;
 };
 
+type SelectionMode = "replace" | "add" | "subtract";
+
 type SelectionDrag = {
   pointerId: number;
   start: Point;
   current: Point;
+  mode: SelectionMode;
 };
 
 type DrawingPolygonDraft = {
@@ -1240,7 +1243,7 @@ export function SceneCanvas({
     const fogShapeIds = selectorSelectionFilters.fogMasks
       ? currentScene.fog.shapes.filter((candidate) => (candidate.visibleInGm ?? candidate.visible ?? true) && isFogShapeInSelectionRect(candidate, rect)).map((shape) => shape.id)
       : [];
-    onSelectSceneItems?.({ tokenIds, drawingIds, fogShapeIds, weatherMaskIds });
+    onSelectSceneItems?.({ tokenIds, drawingIds, fogShapeIds, weatherMaskIds, mode: drag.mode });
   };
 
   const onWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
@@ -1399,6 +1402,14 @@ export function SceneCanvas({
       setWeatherMaskPreview(maskDrag);
       return;
     }
+    if (mode === "gm" && mouseBehavior === "selector" && scene && !canvasTool && !drawingTool && !fogTool && !weatherMaskTool && event.button === 0 && (event.shiftKey || event.ctrlKey || event.metaKey)) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const selectionMode: SelectionMode = event.ctrlKey || event.metaKey ? "subtract" : "add";
+      const nextSelectionDrag = { pointerId: event.pointerId, start: point, current: point, mode: selectionMode };
+      selectionDragRef.current = nextSelectionDrag;
+      setSelectionDrag(nextSelectionDrag);
+      return;
+    }
     if (mode === "gm" && scene && onSceneChange && event.button === 0) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const token = canShowTokens ? getTokenAtPoint(scene.tokens, point) : null;
@@ -1458,7 +1469,8 @@ export function SceneCanvas({
     }
     if (mode === "gm" && mouseBehavior === "selector" && scene && !canvasTool && !drawingTool && !fogTool && !weatherMaskTool && event.button === 0) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const nextSelectionDrag = { pointerId: event.pointerId, start: point, current: point };
+      const selectionMode: SelectionMode = event.ctrlKey || event.metaKey ? "subtract" : event.shiftKey ? "add" : "replace";
+      const nextSelectionDrag = { pointerId: event.pointerId, start: point, current: point, mode: selectionMode };
       selectionDragRef.current = nextSelectionDrag;
       setSelectionDrag(nextSelectionDrag);
       return;

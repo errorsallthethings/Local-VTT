@@ -108,6 +108,7 @@ const DEFAULT_SELECTOR_SELECTION_FILTERS: SelectorSelectionFilters = {
   weatherMasks: false,
   drawings: true
 };
+type SceneSelectionMode = "replace" | "add" | "subtract";
 
 export function GmApp() {
   const workspace = useCampaignWorkspace();
@@ -281,17 +282,19 @@ export function GmApp() {
     tokenIds = [],
     drawingIds = [],
     fogShapeIds = [],
-    weatherMaskIds = []
+    weatherMaskIds = [],
+    mode = "replace"
   }: {
     tokenIds?: string[];
     drawingIds?: string[];
     fogShapeIds?: string[];
     weatherMaskIds?: string[];
+    mode?: SceneSelectionMode;
   }) => {
-    selectTokens(tokenIds);
-    selectDrawings(drawingIds);
-    selectFogShapes(fogShapeIds);
-    selectWeatherMasks(weatherMaskIds);
+    selectTokens(applySceneSelectionMode(selectedTokenIds, tokenIds, mode));
+    selectDrawings(applySceneSelectionMode(selectedDrawingIds, drawingIds, mode));
+    selectFogShapes(applySceneSelectionMode(selectedFogShapeIds, fogShapeIds, mode));
+    selectWeatherMasks(applySceneSelectionMode(selectedWeatherMaskIds, weatherMaskIds, mode));
   };
 
   const clearActiveCanvasTools = () => {
@@ -2055,6 +2058,17 @@ function clampTurnOrderModalPosition(x: number, y: number, bounds: DOMRect): { x
     x: Math.min(Math.max(margin, x), Math.max(margin, window.innerWidth - bounds.width - margin)),
     y: Math.min(Math.max(margin, y), Math.max(margin, window.innerHeight - bounds.height - margin))
   };
+}
+
+function applySceneSelectionMode(currentIds: string[], nextIds: string[], mode: SceneSelectionMode): string[] {
+  if (mode === "add") {
+    return [...currentIds, ...nextIds.filter((id) => !currentIds.includes(id))];
+  }
+  if (mode === "subtract") {
+    const removedIds = new Set(nextIds);
+    return currentIds.filter((id) => !removedIds.has(id));
+  }
+  return nextIds;
 }
 
 const LIVE_TABLE_PING_DURATION_MS = 1600;
