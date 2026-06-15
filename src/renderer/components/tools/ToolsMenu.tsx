@@ -45,6 +45,14 @@ export type SelectorSelectionFilters = {
   drawings: boolean;
 };
 
+export type SelectorSelectionCounts = {
+  tokens: number;
+  templates: number;
+  fogMasks: number;
+  weatherMasks: number;
+  drawings: number;
+};
+
 const BRUSH_SIZE_PRESETS = [
   { label: "Extra Thin", value: 20 },
   { label: "Thin", value: 40 },
@@ -125,6 +133,7 @@ interface ToolsMenuProps {
   dicePanelOpen: boolean;
   turnOrderModalOpen: boolean;
   selectorSelectionFilters: SelectorSelectionFilters;
+  selectorSelectionCounts: SelectorSelectionCounts;
   onCanvasToolChange: (tool: CanvasTool | null) => void;
   onFogToolChange: (tool: FogTool | null) => void;
   onWeatherMaskToolChange: (tool: WeatherMaskTool | null) => void;
@@ -194,6 +203,7 @@ export function ToolsMenu({
   dicePanelOpen,
   turnOrderModalOpen,
   selectorSelectionFilters,
+  selectorSelectionCounts,
   onCanvasToolChange,
   onFogToolChange,
   onWeatherMaskToolChange,
@@ -442,6 +452,7 @@ export function ToolsMenu({
               </div>
               {mouseBehavior === "selector" && (
                 <>
+                  <SelectorSelectionSummary counts={selectorSelectionCounts} />
                   <div className="tools-section-divider" />
                   <SettingsToggle open={selectorSettingsOpen} label="Selector Settings" onToggle={() => setSelectorSettingsOpen((open) => !open)} />
                   {selectorSettingsOpen && (
@@ -826,6 +837,35 @@ function SelectorFilterCheckbox({ label, checked, onChange }: { label: string; c
       <span>{label}</span>
     </label>
   );
+}
+
+function SelectorSelectionSummary({ counts }: { counts: SelectorSelectionCounts }) {
+  const total = counts.tokens + counts.templates + counts.fogMasks + counts.weatherMasks + counts.drawings;
+  return (
+    <div className="tools-selector-summary" aria-live="polite">
+      <strong>Selected</strong>
+      <span>{total > 0 ? formatSelectorSelectionSummary(counts) : "None"}</span>
+    </div>
+  );
+}
+
+function formatSelectorSelectionSummary(counts: SelectorSelectionCounts): string {
+  return [
+    formatSelectorSelectionPart(counts.tokens, "Token"),
+    formatSelectorSelectionPart(counts.templates, "Template"),
+    formatSelectorSelectionPart(counts.drawings, "Drawing"),
+    formatSelectorSelectionPart(counts.fogMasks, "Fog Mask"),
+    formatSelectorSelectionPart(counts.weatherMasks, "Weather Mask")
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function formatSelectorSelectionPart(count: number, label: string): string | null {
+  if (count <= 0) {
+    return null;
+  }
+  return `${count} ${label}${count === 1 ? "" : "s"}`;
 }
 
 function DrawingSettings({

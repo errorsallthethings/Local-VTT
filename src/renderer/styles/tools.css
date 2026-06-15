@@ -272,6 +272,31 @@
   gap: 7px 10px;
 }
 
+.tools-selector-summary {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-control);
+  background: rgb(15 23 32 / 0.54);
+  color: var(--color-text-soft);
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 8px 10px;
+}
+
+.tools-selector-summary strong {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.tools-selector-summary span {
+  color: var(--color-text);
+  font-weight: 750;
+}
+
 .tools-selector-filter {
   display: inline-flex;
   align-items: center;

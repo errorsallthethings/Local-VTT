@@ -41,7 +41,7 @@ import type {
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type FogOperation, type MouseBehavior, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
+import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
 import type { DrawingTool } from "../canvas/drawingRenderer";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -221,6 +221,17 @@ export function GmApp() {
   const tokenAssets = useMemo(() => new Map((campaign?.assets ?? []).filter((asset) => asset.kind === "token").map((asset) => [asset.id, asset])), [campaign?.assets]);
   const tokenLibraryAssets = useMemo(() => [...tokenAssets.values()], [tokenAssets]);
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
+  const selectorSelectionCounts = useMemo<SelectorSelectionCounts>(() => {
+    const selectedDrawingIdSet = new Set(selectedDrawingIds);
+    const selectedDrawings = activeScene?.drawings.filter((drawing) => selectedDrawingIdSet.has(drawing.id)) ?? [];
+    return {
+      tokens: selectedTokenIds.length,
+      templates: selectedDrawings.filter((drawing) => drawing.measurementLabelVisible).length,
+      drawings: selectedDrawings.filter((drawing) => !drawing.measurementLabelVisible).length,
+      fogMasks: selectedFogShapeIds.length,
+      weatherMasks: selectedWeatherMaskIds.length
+    };
+  }, [activeScene?.drawings, selectedDrawingIds, selectedFogShapeIds.length, selectedTokenIds.length, selectedWeatherMaskIds.length]);
   const [diceSettingsPreference, setDiceSettingsPreference] = useState<DiceSettings>(() => loadDiceSettingsPreference());
   const diceSettings = useMemo<DiceSettings>(() => ({ ...DEFAULT_DICE_SETTINGS, ...(campaign?.diceSettings ?? diceSettingsPreference) }), [campaign?.diceSettings, diceSettingsPreference]);
   const diceSettingsDraftRef = useRef<DiceSettings>(diceSettings);
@@ -1664,6 +1675,7 @@ export function GmApp() {
               dicePanelOpen={dicePanelOpen}
               turnOrderModalOpen={turnOrderModalOpen}
               selectorSelectionFilters={selectorSelectionFilters}
+              selectorSelectionCounts={selectorSelectionCounts}
               onCanvasToolChange={setActiveCanvasTool}
               onFogToolChange={setActiveFogTool}
               onWeatherMaskToolChange={setActiveWeatherMaskTool}
