@@ -14,7 +14,7 @@ import {
   getTokenHexFootprintCenters,
   getVisibleTokens
 } from "./tokenGeometry";
-import { drawSelectionBox } from "./selectionRenderer";
+import { drawSelectionBox, drawSelectionEllipse } from "./selectionRenderer";
 
 export type TokenDragPreview = {
   tokenId: string;
@@ -480,6 +480,10 @@ function traceTokenInsetPath(ctx: CanvasRenderingContext2D, x: number, y: number
   ctx.rect(x + safeInset, y + safeInset, Math.max(1, width - safeInset * 2), Math.max(1, height - safeInset * 2));
 }
 
-function drawTokenSelectionOutline(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, _mask: Token["mask"], zoom: number) {
+function drawTokenSelectionOutline(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, mask: Token["mask"], zoom: number) {
+  if (mask === "circle") {
+    drawSelectionEllipse(ctx, { x, y, width, height }, zoom, 8);
+    return;
+  }
   drawSelectionBox(ctx, { x, y, width, height }, zoom, 8);
 }

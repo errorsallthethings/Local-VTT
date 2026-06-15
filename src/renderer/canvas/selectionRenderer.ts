@@ -8,13 +8,15 @@ export function strokeSelectionPath(ctx: CanvasRenderingContext2D, zoom = 1) {
   ctx.save();
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
-  ctx.setLineDash([]);
-  ctx.strokeStyle = SELECTION_OUTER_STROKE;
-  ctx.lineWidth = Math.max(4, 6 / scale);
-  ctx.stroke();
   ctx.strokeStyle = SELECTION_INNER_STROKE;
-  ctx.lineWidth = Math.max(2, 2.5 / scale);
-  ctx.setLineDash([8 / scale, 5 / scale]);
+  ctx.lineWidth = Math.max(1.25, 1.6 / scale);
+  const screenDashLength = Math.max(5, Math.min(11, 6.5 * scale));
+  const screenGapLength = Math.max(5, Math.min(11, 6 * scale));
+  const dashLength = screenDashLength / scale;
+  const gapLength = screenGapLength / scale;
+  const dashCycle = dashLength + gapLength;
+  ctx.setLineDash([dashLength, gapLength]);
+  ctx.lineDashOffset = -((performance.now() / 70) % dashCycle);
   ctx.stroke();
   ctx.restore();
 }
@@ -36,8 +38,6 @@ export function drawSelectionBox(
   const width = bounds.width + inset * 2;
   const height = bounds.height + inset * 2;
   ctx.save();
-  applySelectionFill(ctx);
-  ctx.fillRect(x, y, width, height);
   ctx.beginPath();
   ctx.rect(x, y, width, height);
   strokeSelectionPath(ctx, zoom);
@@ -45,13 +45,34 @@ export function drawSelectionBox(
   ctx.restore();
 }
 
+export function drawSelectionEllipse(
+  ctx: CanvasRenderingContext2D,
+  bounds: { x: number; y: number; width: number; height: number },
+  zoom = 1,
+  padding = 8
+) {
+  const scale = Math.max(0.1, zoom);
+  const inset = padding / scale;
+  const x = bounds.x - inset;
+  const y = bounds.y - inset;
+  const width = bounds.width + inset * 2;
+  const height = bounds.height + inset * 2;
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(x + width / 2, y + height / 2, width / 2, height / 2, 0, 0, Math.PI * 2);
+  strokeSelectionPath(ctx, zoom);
+  ctx.restore();
+}
+
 function drawSelectionCorners(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, zoom: number) {
   const scale = Math.max(0.1, zoom);
-  const length = Math.max(10, 18 / scale);
+  const screenLength = Math.max(12, Math.min(28, 18 * scale));
+  const screenLineWidth = Math.max(2, Math.min(4, 2.5 * scale));
   ctx.save();
   ctx.setLineDash([]);
   ctx.strokeStyle = SELECTION_CORNER_STROKE;
-  ctx.lineWidth = Math.max(2, 2.5 / scale);
+  ctx.lineWidth = screenLineWidth / scale;
+  const length = screenLength / scale;
   const corners = [
     [x, y, 1, 1],
     [x + width, y, -1, 1],

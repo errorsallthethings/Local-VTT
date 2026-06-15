@@ -1156,7 +1156,17 @@ export function SceneCanvas({
       const tokenAnimating = Boolean(playerTokenTweenPositionsRef.current);
       const tableEventsAnimating = hasActiveLiveTableEvents(liveTableEvents);
       const weatherAnimating = shouldAnimateWeather(scene, Boolean(canShowWeather));
-      const hasFullRateAnimation = mapAnimating || tokenAnimating || tableEventsAnimating;
+      const selectionAnimating =
+        mode === "gm" &&
+        (Boolean(selectedDrawingId) ||
+          selectedDrawingIds.length > 0 ||
+          Boolean(selectedFogShapeId) ||
+          selectedFogShapeIds.length > 0 ||
+          Boolean(selectedTokenId) ||
+          selectedTokenIds.length > 0 ||
+          Boolean(selectedWeatherMaskId) ||
+          selectedWeatherMaskIds.length > 0);
+      const hasFullRateAnimation = mapAnimating || tokenAnimating || tableEventsAnimating || selectionAnimating;
       const shouldDrawFrame = !weatherAnimating || hasFullRateAnimation || timestamp - lastWeatherOnlyFrameAt >= WEATHER_ONLY_FRAME_INTERVAL_MS;
 
       if (shouldDrawFrame) {
@@ -1167,13 +1177,23 @@ export function SceneCanvas({
         }
       }
 
-      if (mapAnimating || tokenAnimating || tableEventsAnimating || weatherAnimating) {
+      if (mapAnimating || tokenAnimating || tableEventsAnimating || weatherAnimating || selectionAnimating) {
         animationFrame = window.requestAnimationFrame(drawCurrentFrame);
       }
     };
 
     resize();
-    if (loadedMap?.animate || playerTokenTweenPositionsRef.current || hasActiveLiveTableEvents(liveTableEvents) || shouldAnimateWeather(scene, Boolean(canShowWeather))) {
+    const selectionAnimating =
+      mode === "gm" &&
+      (Boolean(selectedDrawingId) ||
+        selectedDrawingIds.length > 0 ||
+        Boolean(selectedFogShapeId) ||
+        selectedFogShapeIds.length > 0 ||
+        Boolean(selectedTokenId) ||
+        selectedTokenIds.length > 0 ||
+        Boolean(selectedWeatherMaskId) ||
+        selectedWeatherMaskIds.length > 0);
+    if (loadedMap?.animate || playerTokenTweenPositionsRef.current || hasActiveLiveTableEvents(liveTableEvents) || shouldAnimateWeather(scene, Boolean(canShowWeather)) || selectionAnimating) {
       animationFrame = window.requestAnimationFrame(drawCurrentFrame);
     }
     const observer = new ResizeObserver(resize);
