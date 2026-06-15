@@ -548,7 +548,7 @@ function getTemplateGridHighlightCells(drawing: DrawingElement, grid: GridSettin
   return cells;
 }
 
-function getDrawingBounds(drawing: DrawingElement): { left: number; top: number; right: number; bottom: number } | null {
+export function getDrawingBounds(drawing: DrawingElement): { left: number; top: number; right: number; bottom: number } | null {
   const points = getShapePoints(drawing);
   if (points.length === 0) {
     return null;

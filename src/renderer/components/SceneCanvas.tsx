@@ -5,6 +5,7 @@ import type { Asset, Campaign, DrawingKind, DrawingStrokeStyle, LiveTableEvent, 
 import { getRenderCamera, type Camera } from "../canvas/camera";
 import {
   drawDrawings,
+  getDrawingBounds,
   getDrawingPreviewPoints,
   getDrawingAtPoint,
   isMeaningfulDrawingPreview,
@@ -161,6 +162,15 @@ type DrawingDragState = {
   pointerId: number;
   drawingId: string;
   start: Point;
+  groupStartPoints: DrawingPointOverrides;
+};
+
+type DrawingResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
+
+type DrawingResizeState = {
+  pointerId: number;
+  handle: DrawingResizeHandle;
+  bounds: { left: number; top: number; right: number; bottom: number };
   groupStartPoints: DrawingPointOverrides;
 };
 
@@ -351,6 +361,7 @@ export function SceneCanvas({
   const releasedRulerTimeoutRef = useRef<number | null>(null);
   const tokenDragRef = useRef<TokenDragState | null>(null);
   const drawingDragRef = useRef<DrawingDragState | null>(null);
+  const drawingResizeRef = useRef<DrawingResizeState | null>(null);
   const laserDragRef = useRef<LaserDragState | null>(null);
   const fogDragRef = useRef<FogDrag | null>(null);
   const drawingPreviewRef = useRef<DrawingPreview | null>(null);
@@ -1164,6 +1175,9 @@ export function SceneCanvas({
       if (mode === "gm" && selectionDrag) {
         drawSelectionMarquee(ctx, selectionDrag, renderCamera);
       }
+      if (mode === "gm" && canShowDrawings && !drawingDragPreview && selectedDrawingIds.length > 0) {
+        drawDrawingResizeHandles(ctx, scene.drawings, selectedDrawingIds, renderCamera);
+      }
       const visibleLiveTableEvents = mode === "gm" ? liveTableEvents.filter((event) => event.type !== "ruler") : liveTableEvents;
       if (visibleLiveTableEvents.length > 0) {
         drawLiveTableEvents(ctx, visibleLiveTableEvents, renderCamera, scene.grid);
@@ -1253,6 +1267,7 @@ export function SceneCanvas({
 
   const cancelDrawingDrag = () => {
     drawingDragRef.current = null;
+    drawingResizeRef.current = null;
     setDrawingDragPreview(null);
   };
 
@@ -1501,6 +1516,25 @@ export function SceneCanvas({
       }
       onSelectToken?.(null);
       if (!canvasTool && !drawingTool && !fogTool && !weatherMaskTool) {
+        if (mouseBehavior === "grabber" && canShowDrawings && selectedDrawingIds.length > 0) {
+          const resizeTarget = getDrawingResizeHandleAtPoint(scene.drawings, selectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
+          if (resizeTarget) {
+            const selectedIdSet = new Set(selectedDrawingIds);
+            const groupStartPoints = new Map(
+              scene.drawings
+                .filter((candidate) => selectedIdSet.has(candidate.id) && !candidate.measurementLabelVisible)
+                .map((candidate) => [candidate.id, candidate.points.map((candidatePoint) => ({ ...candidatePoint }))])
+            );
+            drawingResizeRef.current = {
+              pointerId: event.pointerId,
+              handle: resizeTarget.handle,
+              bounds: resizeTarget.bounds,
+              groupStartPoints
+            };
+            setDrawingDragPreview(groupStartPoints);
+            return;
+          }
+        }
         const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, Math.max(8, 8 / getRenderCamera(camera, playerDisplayScale).zoom)) : null;
         if (drawingHit) {
           const selectedDrawingIdSet = new Set(selectedDrawingIds);
@@ -1564,6 +1598,7 @@ export function SceneCanvas({
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const tokenDrag = tokenDragRef.current;
     const drawingDragValue = drawingDragRef.current;
+    const drawingResizeValue = drawingResizeRef.current;
     const laserDrag = laserDragRef.current;
     const drawingDrag = drawingPreviewRef.current;
     const rulerDragValue = rulerDragRef.current;
@@ -1633,6 +1668,19 @@ export function SceneCanvas({
       const nextDrawingDrag = { ...drawingDrag, current, points: nextPoints };
       drawingPreviewRef.current = nextDrawingDrag;
       setDrawingPreview(nextDrawingDrag);
+      return;
+    }
+
+    if (drawingResizeValue?.pointerId === event.pointerId) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      setDrawingDragPreview(
+        new Map(
+          [...drawingResizeValue.groupStartPoints.entries()].map(([drawingId, points]) => [
+            drawingId,
+            resizeDrawingPoints(points, drawingResizeValue.bounds, drawingResizeValue.handle, point, event.shiftKey)
+          ])
+        )
+      );
       return;
     }
 
@@ -1889,6 +1937,23 @@ export function SceneCanvas({
         });
       }
       drawingDragRef.current = null;
+      setDrawingDragPreview(null);
+      return;
+    }
+
+    if (drawingResizeRef.current?.pointerId === event.pointerId) {
+      const resizedPoints = drawingDragPreview;
+      if (scene && onSceneChange && resizedPoints) {
+        onSceneChange({
+          ...scene,
+          drawings: scene.drawings.map((drawing) => {
+            const points = resizedPoints.get(drawing.id);
+            return points ? { ...drawing, points } : drawing;
+          }),
+          updatedAt: new Date().toISOString()
+        });
+      }
+      drawingResizeRef.current = null;
       setDrawingDragPreview(null);
       return;
     }
@@ -3473,6 +3538,104 @@ function drawSelectionMarquee(ctx: CanvasRenderingContext2D, drag: SelectionDrag
   ctx.fillRect(x, y, width, height);
   ctx.strokeRect(x, y, width, height);
   ctx.restore();
+}
+
+function drawDrawingResizeHandles(ctx: CanvasRenderingContext2D, drawings: Scene["drawings"], selectedDrawingIds: string[], camera: Camera) {
+  const bounds = getSelectedResizableDrawingBounds(drawings, selectedDrawingIds);
+  if (!bounds) {
+    return;
+  }
+  const handles = getDrawingResizeHandles(bounds);
+  ctx.save();
+  const scale = window.devicePixelRatio || 1;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.fillStyle = "#f6d365";
+  ctx.strokeStyle = "#05070a";
+  ctx.lineWidth = 2;
+  for (const handle of handles) {
+    const x = handle.point.x * camera.zoom + camera.x;
+    const y = handle.point.y * camera.zoom + camera.y;
+    ctx.beginPath();
+    ctx.rect(x - 4, y - 4, 8, 8);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function getDrawingResizeHandleAtPoint(drawings: Scene["drawings"], selectedDrawingIds: string[], point: Point, camera: Camera): { handle: DrawingResizeHandle; bounds: { left: number; top: number; right: number; bottom: number } } | null {
+  const bounds = getSelectedResizableDrawingBounds(drawings, selectedDrawingIds);
+  if (!bounds) {
+    return null;
+  }
+  const hitRadius = Math.max(8, 8 / Math.max(0.1, camera.zoom));
+  for (const handle of getDrawingResizeHandles(bounds)) {
+    if (distanceBetween(handle.point, point) <= hitRadius) {
+      return { handle: handle.handle, bounds };
+    }
+  }
+  return null;
+}
+
+function getSelectedResizableDrawingBounds(drawings: Scene["drawings"], selectedDrawingIds: string[]): { left: number; top: number; right: number; bottom: number } | null {
+  const selectedIds = new Set(selectedDrawingIds);
+  const bounds = drawings
+    .filter((drawing) => selectedIds.has(drawing.id) && !drawing.measurementLabelVisible)
+    .map((drawing) => getDrawingBounds(drawing))
+    .filter((drawingBounds): drawingBounds is { left: number; top: number; right: number; bottom: number } => Boolean(drawingBounds));
+  if (bounds.length === 0) {
+    return null;
+  }
+  return {
+    left: Math.min(...bounds.map((drawingBounds) => drawingBounds.left)),
+    top: Math.min(...bounds.map((drawingBounds) => drawingBounds.top)),
+    right: Math.max(...bounds.map((drawingBounds) => drawingBounds.right)),
+    bottom: Math.max(...bounds.map((drawingBounds) => drawingBounds.bottom))
+  };
+}
+
+function getDrawingResizeHandles(bounds: { left: number; top: number; right: number; bottom: number }): Array<{ handle: DrawingResizeHandle; point: Point }> {
+  const centerX = (bounds.left + bounds.right) / 2;
+  const centerY = (bounds.top + bounds.bottom) / 2;
+  return [
+    { handle: "nw", point: { x: bounds.left, y: bounds.top } },
+    { handle: "n", point: { x: centerX, y: bounds.top } },
+    { handle: "ne", point: { x: bounds.right, y: bounds.top } },
+    { handle: "e", point: { x: bounds.right, y: centerY } },
+    { handle: "se", point: { x: bounds.right, y: bounds.bottom } },
+    { handle: "s", point: { x: centerX, y: bounds.bottom } },
+    { handle: "sw", point: { x: bounds.left, y: bounds.bottom } },
+    { handle: "w", point: { x: bounds.left, y: centerY } }
+  ];
+}
+
+function resizeDrawingPoints(points: Point[], bounds: { left: number; top: number; right: number; bottom: number }, handle: DrawingResizeHandle, current: Point, aspectLocked: boolean): Point[] {
+  const anchorX = handle.includes("w") ? bounds.right : handle.includes("e") ? bounds.left : (bounds.left + bounds.right) / 2;
+  const anchorY = handle.includes("n") ? bounds.bottom : handle.includes("s") ? bounds.top : (bounds.top + bounds.bottom) / 2;
+  const originalWidth = Math.max(1, bounds.right - bounds.left);
+  const originalHeight = Math.max(1, bounds.bottom - bounds.top);
+  let scaleX = handle === "n" || handle === "s" ? 1 : (current.x - anchorX) / ((handle.includes("w") ? bounds.left : bounds.right) - anchorX || 1);
+  let scaleY = handle === "e" || handle === "w" ? 1 : (current.y - anchorY) / ((handle.includes("n") ? bounds.top : bounds.bottom) - anchorY || 1);
+
+  if (aspectLocked && handle.length === 2) {
+    const magnitude = Math.max(Math.abs(scaleX), Math.abs(scaleY));
+    scaleX = Math.sign(scaleX || 1) * magnitude;
+    scaleY = Math.sign(scaleY || 1) * magnitude;
+  }
+
+  const minScaleX = 12 / originalWidth;
+  const minScaleY = 12 / originalHeight;
+  if (Math.abs(scaleX) < minScaleX) {
+    scaleX = Math.sign(scaleX || 1) * minScaleX;
+  }
+  if (Math.abs(scaleY) < minScaleY) {
+    scaleY = Math.sign(scaleY || 1) * minScaleY;
+  }
+
+  return points.map((point) => ({
+    x: anchorX + (point.x - anchorX) * scaleX,
+    y: anchorY + (point.y - anchorY) * scaleY
+  }));
 }
 
 function pointsToSelectionRect(start: Point, end: Point) {
