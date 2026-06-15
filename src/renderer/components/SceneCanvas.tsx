@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { DEFAULT_VIDEO_PLAYBACK, formatDefaultDrawingName, formatDefaultFogShapeName } from "../../shared/localvtt";
-import type { Asset, Campaign, DrawingKind, LiveTableEvent, LiveTablePoint, Point, Scene, Token, WeatherMask } from "../../shared/localvtt";
+import type { Asset, Campaign, DrawingKind, DrawingStrokeStyle, LiveTableEvent, LiveTablePoint, Point, Scene, Token, WeatherMask } from "../../shared/localvtt";
 import { getRenderCamera, type Camera } from "../canvas/camera";
 import {
   drawDrawings,
@@ -87,6 +87,9 @@ interface SceneCanvasProps {
   drawingTool?: DrawingTool | null;
   drawingColor?: string;
   drawingOpacity?: number;
+  drawingFillColor?: string;
+  drawingFillOpacity?: number;
+  drawingStrokeStyle?: DrawingStrokeStyle;
   drawingStrokeWidth?: number;
   drawingTemplateSize?: DrawingTemplateSize;
   fogTool?: FogTool | null;
@@ -251,6 +254,9 @@ export function SceneCanvas({
   drawingTool = null,
   drawingColor = "#ff0000",
   drawingOpacity = 1,
+  drawingFillColor = "#ff0000",
+  drawingFillOpacity = 0,
+  drawingStrokeStyle = "solid",
   drawingStrokeWidth = 40,
   drawingTemplateSize = "custom",
   fogTool = null,
@@ -994,6 +1000,11 @@ export function SceneCanvas({
                 current: drawingPolygonDraft.current ?? drawingPolygonDraft.points[drawingPolygonDraft.points.length - 1],
                 color: drawingColor,
                 opacity: drawingOpacity,
+                strokeColor: drawingColor,
+                strokeOpacity: drawingOpacity,
+                fillColor: drawingFillColor,
+                fillOpacity: drawingFillOpacity,
+                strokeStyle: drawingStrokeStyle,
                 strokeWidth: drawingStrokeWidth,
                 measurementLabelVisible: false
               } satisfies DrawingPreview)
@@ -1089,7 +1100,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedDrawingId, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, selectionDrag, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedDrawingId, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, selectionDrag, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1265,6 +1276,11 @@ export function SceneCanvas({
         current: point,
         color: drawingColor,
         opacity: drawingOpacity,
+        strokeColor: drawingColor,
+        strokeOpacity: drawingOpacity,
+        fillColor: drawingFillColor,
+        fillOpacity: isTemplateDrawingTool(drawingTool) ? 0 : drawingFillOpacity,
+        strokeStyle: isTemplateDrawingTool(drawingTool) ? "dashed" : drawingStrokeStyle,
         strokeWidth: drawingStrokeWidth,
         measurementLabelVisible: isTemplateDrawingTool(drawingTool)
       } satisfies DrawingPreview;
@@ -1565,7 +1581,13 @@ export function SceneCanvas({
               points: getDrawingPreviewPoints(drawingDrag),
               color: drawingDrag.color,
               opacity: drawingDrag.opacity,
+              strokeColor: drawingDrag.strokeColor ?? drawingDrag.color,
+              strokeOpacity: drawingDrag.strokeOpacity ?? drawingDrag.opacity,
               strokeWidth: drawingDrag.strokeWidth,
+              fill: drawingDrag.fillColor,
+              fillColor: drawingDrag.fillColor,
+              fillOpacity: isTemplateDrawingTool(drawingDrag.kind) ? 0 : (drawingDrag.fillOpacity ?? 0),
+              strokeStyle: isTemplateDrawingTool(drawingDrag.kind) ? "dashed" : (drawingDrag.strokeStyle ?? "solid"),
               measurementLabelVisible: isTemplateDrawingTool(drawingDrag.kind) ? true : false,
               visibleInGm: true,
               visibleInPlayer: true
@@ -2000,6 +2022,11 @@ export function SceneCanvas({
           points: draft.points,
           color: drawingColor,
           opacity: drawingOpacity,
+          strokeColor: drawingColor,
+          strokeOpacity: drawingOpacity,
+          fillColor: drawingFillColor,
+          fillOpacity: drawingFillOpacity,
+          strokeStyle: drawingStrokeStyle,
           strokeWidth: drawingStrokeWidth,
           measurementLabelVisible: false,
           visibleInGm: true,

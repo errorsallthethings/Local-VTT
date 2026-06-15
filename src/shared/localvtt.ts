@@ -261,12 +261,19 @@ export interface DrawingElement {
   text?: string;
   color: string;
   opacity: number;
+  strokeColor?: string;
+  strokeOpacity?: number;
   strokeWidth: number;
   fill?: string;
+  fillColor?: string;
+  fillOpacity?: number;
+  strokeStyle?: DrawingStrokeStyle;
   measurementLabelVisible?: boolean;
   visibleInGm?: boolean;
   visibleInPlayer: boolean;
 }
+
+export type DrawingStrokeStyle = "solid" | "dashed" | "dotted" | "dash-dot" | "sketch";
 
 export interface SceneOverlay {
   id: string;
@@ -1526,13 +1533,22 @@ function normalizeDrawings(drawings?: DrawingElement[]): DrawingElement[] {
       text: typeof drawing.text === "string" ? drawing.text : undefined,
       color: normalizeColor(drawing.color, "#f6d365"),
       opacity: clampNumber(drawing.opacity, 0, 1, 1),
+      strokeColor: normalizeColor(drawing.strokeColor ?? drawing.color, "#f6d365"),
+      strokeOpacity: clampNumber(drawing.strokeOpacity ?? drawing.opacity, 0, 1, 1),
       strokeWidth: clampNumber(drawing.strokeWidth, 1, 400, 4),
       fill: typeof drawing.fill === "string" ? normalizeColor(drawing.fill, "transparent") : undefined,
+      fillColor: normalizeColor(drawing.fillColor ?? drawing.fill ?? drawing.color, "#f6d365"),
+      fillOpacity: clampNumber(drawing.fillOpacity ?? (typeof drawing.fill === "string" ? drawing.opacity : 0), 0, 1, 0),
+      strokeStyle: normalizeDrawingStrokeStyle(drawing.strokeStyle),
       measurementLabelVisible: typeof drawing.measurementLabelVisible === "boolean" ? drawing.measurementLabelVisible : undefined,
       visibleInGm: typeof drawing.visibleInGm === "boolean" ? drawing.visibleInGm : true,
       visibleInPlayer: typeof drawing.visibleInPlayer === "boolean" ? drawing.visibleInPlayer : true
     };
   });
+}
+
+function normalizeDrawingStrokeStyle(value: unknown): DrawingStrokeStyle {
+  return value === "solid" || value === "dashed" || value === "dotted" || value === "dash-dot" || value === "sketch" ? value : "solid";
 }
 
 function getUniqueDrawingId(id: unknown, index: number, usedIds: Set<string>): string {

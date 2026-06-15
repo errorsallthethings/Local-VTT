@@ -1,4 +1,4 @@
-import type { DrawingElement, GridSettings, Point, Scene } from "../../shared/localvtt";
+import type { DrawingElement, DrawingStrokeStyle, GridSettings, Point, Scene } from "../../shared/localvtt";
 import { formatMeasurementDistance, getStraightLineMeasurementDistance } from "./measurement";
 
 export const DRAWING_POINT_MIN_DISTANCE = 3;
@@ -22,7 +22,12 @@ export type DrawingPreview = {
   current: Point;
   color: string;
   opacity: number;
+  strokeColor?: string;
+  strokeOpacity?: number;
   strokeWidth: number;
+  fillColor?: string;
+  fillOpacity?: number;
+  strokeStyle?: DrawingStrokeStyle;
   measurementLabelVisible?: boolean;
 };
 
@@ -61,7 +66,12 @@ export function drawDrawings(
         points: getDrawingPreviewPoints(preview),
         color: preview.color,
         opacity: preview.opacity,
+        strokeColor: preview.strokeColor ?? preview.color,
+        strokeOpacity: preview.strokeOpacity ?? preview.opacity,
         strokeWidth: preview.strokeWidth,
+        fillColor: preview.fillColor ?? preview.color,
+        fillOpacity: preview.fillOpacity ?? 0,
+        strokeStyle: preview.strokeStyle ?? "solid",
         measurementLabelVisible: preview.measurementLabelVisible,
         visibleInGm: true,
         visibleInPlayer: true
@@ -149,27 +159,30 @@ function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingEleme
   }
 
   ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, drawing.opacity * layerOpacity));
-  ctx.strokeStyle = drawing.color;
-  ctx.fillStyle = drawing.fill ?? drawing.color;
+  const strokeOpacity = drawing.strokeOpacity ?? drawing.opacity;
+  ctx.globalAlpha = Math.max(0, Math.min(1, strokeOpacity * layerOpacity));
+  ctx.strokeStyle = drawing.strokeColor ?? drawing.color;
+  ctx.fillStyle = drawing.fillColor ?? drawing.fill ?? drawing.color;
   ctx.lineWidth = drawing.strokeWidth;
   if (drawing.measurementLabelVisible) {
     ctx.setLineDash([Math.max(8, drawing.strokeWidth * 1.8), Math.max(6, drawing.strokeWidth * 1.1)]);
     drawTemplateGridHighlights(ctx, drawing, scene.grid);
+  } else {
+    applyDrawingStrokeStyle(ctx, drawing.strokeStyle ?? "solid", drawing.strokeWidth);
   }
 
   if (drawing.kind === "line") {
     drawLine(ctx, points);
   } else if (drawing.kind === "rectangle") {
-    drawRectangle(ctx, points, drawing);
+    drawRectangle(ctx, points, drawing, layerOpacity);
   } else if (drawing.kind === "circle") {
-    drawCircle(ctx, points, drawing);
+    drawCircle(ctx, points, drawing, layerOpacity);
   } else if (drawing.kind === "triangle") {
-    drawTriangle(ctx, points, drawing);
+    drawTriangle(ctx, points, drawing, layerOpacity);
   } else if (drawing.kind === "polygon") {
-    drawPolygonShape(ctx, points, drawing);
+    drawPolygonShape(ctx, points, drawing, layerOpacity);
   } else if (drawing.kind === "cone") {
-    drawCone(ctx, points, drawing);
+    drawCone(ctx, points, drawing, layerOpacity);
   } else {
     drawPath(ctx, points);
   }
@@ -232,25 +245,25 @@ function drawPath(ctx: CanvasRenderingContext2D, points: Point[]) {
   ctx.stroke();
 }
 
-function drawRectangle(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement) {
+function drawRectangle(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement, layerOpacity: number) {
   if (points.length < 2) {
     return;
   }
   const [start, end] = points;
-  fillTemplateShape(ctx, drawing, () => {
+  fillTemplateShape(ctx, drawing, layerOpacity, () => {
     ctx.rect(start.x, start.y, end.x - start.x, end.y - start.y);
   });
   ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
 }
 
-function drawCircle(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement) {
+function drawCircle(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement, layerOpacity: number) {
   if (points.length < 2) {
     return;
   }
   const [start, end] = points;
   ctx.beginPath();
   ctx.arc(start.x, start.y, distanceBetweenPoints(start, end), 0, Math.PI * 2);
-  fillCurrentTemplatePath(ctx, drawing);
+  fillCurrentTemplatePath(ctx, drawing, layerOpacity);
   ctx.stroke();
   if (drawing.measurementLabelVisible) {
     drawCenterPoint(ctx, start, drawing);
@@ -260,7 +273,7 @@ function drawCircle(ctx: CanvasRenderingContext2D, points: Point[], drawing: Dra
   }
 }
 
-function drawCone(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement) {
+function drawCone(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement, layerOpacity: number) {
   if (points.length < 2) {
     return;
   }
@@ -275,7 +288,7 @@ function drawCone(ctx: CanvasRenderingContext2D, points: Point[], drawing: Drawi
   ctx.lineTo(left.x, left.y);
   ctx.lineTo(right.x, right.y);
   ctx.closePath();
-  fillCurrentTemplatePath(ctx, drawing);
+  fillCurrentTemplatePath(ctx, drawing, layerOpacity);
   ctx.stroke();
   if (drawing.measurementLabelVisible) {
     const oppositeCenter = { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2 };
@@ -283,7 +296,7 @@ function drawCone(ctx: CanvasRenderingContext2D, points: Point[], drawing: Drawi
   }
 }
 
-function drawTriangle(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement) {
+function drawTriangle(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement, layerOpacity: number) {
   const triangle = getTriangle(points);
   if (!triangle) {
     return;
@@ -293,11 +306,11 @@ function drawTriangle(ctx: CanvasRenderingContext2D, points: Point[], drawing: D
   ctx.lineTo(triangle[1].x, triangle[1].y);
   ctx.lineTo(triangle[2].x, triangle[2].y);
   ctx.closePath();
-  fillCurrentTemplatePath(ctx, drawing);
+  fillCurrentTemplatePath(ctx, drawing, layerOpacity);
   ctx.stroke();
 }
 
-function drawPolygonShape(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement) {
+function drawPolygonShape(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement, layerOpacity: number) {
   if (points.length < 3) {
     drawPath(ctx, points);
     return;
@@ -308,19 +321,26 @@ function drawPolygonShape(ctx: CanvasRenderingContext2D, points: Point[], drawin
     ctx.lineTo(point.x, point.y);
   }
   ctx.closePath();
-  fillCurrentTemplatePath(ctx, drawing);
+  fillCurrentTemplatePath(ctx, drawing, layerOpacity);
   ctx.stroke();
 }
 
-function fillTemplateShape(ctx: CanvasRenderingContext2D, drawing: DrawingElement, tracePath: () => void) {
+function fillTemplateShape(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number, tracePath: () => void) {
   ctx.beginPath();
   tracePath();
-  fillCurrentTemplatePath(ctx, drawing);
+  fillCurrentTemplatePath(ctx, drawing, layerOpacity);
 }
 
-function fillCurrentTemplatePath(ctx: CanvasRenderingContext2D, drawing: DrawingElement) {
+function fillCurrentTemplatePath(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
+  if (drawing.measurementLabelVisible) {
+    return;
+  }
+  const fillOpacity = drawing.fillOpacity ?? (drawing.fill ? drawing.opacity : 0);
+  if (fillOpacity <= 0) {
+    return;
+  }
   ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(0.22, drawing.opacity * 0.18));
+  ctx.globalAlpha = Math.max(0, Math.min(1, fillOpacity * layerOpacity));
   ctx.fill();
   ctx.restore();
 }
@@ -328,7 +348,7 @@ function fillCurrentTemplatePath(ctx: CanvasRenderingContext2D, drawing: Drawing
 function drawCenterPoint(ctx: CanvasRenderingContext2D, point: Point, drawing: DrawingElement) {
   ctx.save();
   ctx.globalAlpha = Math.max(0.65, Math.min(1, drawing.opacity));
-  ctx.fillStyle = drawing.color;
+  ctx.fillStyle = drawing.strokeColor ?? drawing.color;
   ctx.beginPath();
   ctx.arc(point.x, point.y, Math.max(3, drawing.strokeWidth * 0.12), 0, Math.PI * 2);
   ctx.fill();
@@ -338,7 +358,7 @@ function drawCenterPoint(ctx: CanvasRenderingContext2D, point: Point, drawing: D
 function drawDashedGuide(ctx: CanvasRenderingContext2D, start: Point, end: Point, drawing: DrawingElement) {
   ctx.save();
   ctx.globalAlpha = Math.max(0.55, Math.min(0.9, drawing.opacity));
-  ctx.strokeStyle = drawing.color;
+  ctx.strokeStyle = drawing.strokeColor ?? drawing.color;
   ctx.lineWidth = Math.max(2, drawing.strokeWidth * 0.18);
   ctx.setLineDash([10, 7]);
   ctx.beginPath();
@@ -346,6 +366,26 @@ function drawDashedGuide(ctx: CanvasRenderingContext2D, start: Point, end: Point
   ctx.lineTo(end.x, end.y);
   ctx.stroke();
   ctx.restore();
+}
+
+function applyDrawingStrokeStyle(ctx: CanvasRenderingContext2D, style: DrawingStrokeStyle, strokeWidth: number) {
+  if (style === "dashed") {
+    ctx.setLineDash([Math.max(8, strokeWidth * 1.8), Math.max(6, strokeWidth * 1.1)]);
+    return;
+  }
+  if (style === "dotted") {
+    ctx.setLineDash([Math.max(1, strokeWidth * 0.12), Math.max(6, strokeWidth * 1.1)]);
+    return;
+  }
+  if (style === "dash-dot") {
+    ctx.setLineDash([Math.max(10, strokeWidth * 1.8), Math.max(5, strokeWidth * 0.8), Math.max(1, strokeWidth * 0.18), Math.max(5, strokeWidth * 0.8)]);
+    return;
+  }
+  if (style === "sketch") {
+    ctx.setLineDash([Math.max(12, strokeWidth * 2.1), Math.max(3, strokeWidth * 0.45), Math.max(4, strokeWidth * 0.7), Math.max(3, strokeWidth * 0.55)]);
+    return;
+  }
+  ctx.setLineDash([]);
 }
 
 function getConeTriangle(points: Point[]): [Point, Point, Point] | null {

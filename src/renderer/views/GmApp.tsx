@@ -27,6 +27,7 @@ import type {
   CampaignSceneFolder,
   DisplayCalibration,
   DiceSettings,
+  DrawingStrokeStyle,
   LiveTableEvent,
   Point,
   Scene,
@@ -150,6 +151,9 @@ export function GmApp() {
   const [fogOperation, setFogOperation] = useState<FogOperation>("reveal");
   const [drawingColor, setDrawingColor] = useState("#ff0000");
   const [drawingOpacity, setDrawingOpacity] = useState(1);
+  const [drawingFillColor, setDrawingFillColor] = useState("#ff0000");
+  const [drawingFillOpacity, setDrawingFillOpacity] = useState(0);
+  const [drawingStrokeStyle, setDrawingStrokeStyle] = useState<DrawingStrokeStyle>("solid");
   const [drawingStrokeWidth, setDrawingStrokeWidth] = useState(40);
   const [drawingTemplateSize, setDrawingTemplateSize] = useState<DrawingTemplateSize>("custom");
   const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
@@ -1555,6 +1559,9 @@ export function GmApp() {
               brushSize={activeScene.fog.brushSize}
               drawingColor={drawingColor}
               drawingOpacity={drawingOpacity}
+              drawingFillColor={drawingFillColor}
+              drawingFillOpacity={drawingFillOpacity}
+              drawingStrokeStyle={drawingStrokeStyle}
               drawingStrokeWidth={drawingStrokeWidth}
               drawingTemplateSize={drawingTemplateSize}
               pingSize={activeScene.tableTools.pingSize}
@@ -1578,6 +1585,9 @@ export function GmApp() {
               onBrushSizeChange={(brushSize) => updateFog({ brushSize })}
               onDrawingColorChange={setDrawingColor}
               onDrawingOpacityChange={setDrawingOpacity}
+              onDrawingFillColorChange={setDrawingFillColor}
+              onDrawingFillOpacityChange={setDrawingFillOpacity}
+              onDrawingStrokeStyleChange={setDrawingStrokeStyle}
               onDrawingStrokeWidthChange={setDrawingStrokeWidth}
               onDrawingTemplateSizeChange={setDrawingTemplateSize}
               onPingSizeChange={(pingSize) =>
@@ -1626,6 +1636,9 @@ export function GmApp() {
             drawingTool={activeDrawingTool}
             drawingColor={drawingColor}
             drawingOpacity={drawingOpacity}
+            drawingFillColor={drawingFillColor}
+            drawingFillOpacity={drawingFillOpacity}
+            drawingStrokeStyle={drawingStrokeStyle}
             drawingStrokeWidth={drawingStrokeWidth}
             drawingTemplateSize={drawingTemplateSize}
             fogTool={activeFogTool}

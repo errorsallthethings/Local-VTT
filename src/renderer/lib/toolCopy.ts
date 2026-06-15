@@ -109,6 +109,25 @@ export function getDrawingHelpLines(): string[] {
   ];
 }
 
+export function getTemplateHelpLines(): string[] {
+  return [
+    "Line Template: left-drag to place a measured line.",
+    "Radius Template: left-drag from the center to set a radius.",
+    "Square Template: left-drag to place a measured square area.",
+    "Cone Template: left-drag from the origin to aim an area cone.",
+    "Templates use dashed strokes and can highlight covered square or hex grid spaces."
+  ];
+}
+
+export function getTableHelpLines(): string[] {
+  return [
+    "Ruler: left-drag to measure distance. Shift adds a waypoint.",
+    "Sonar: click the scene to send a visible ping.",
+    "Laser Pointer: left-drag to point or trace attention on the scene.",
+    "The Show/Hide setting controls whether table tool output is shared to Player View."
+  ];
+}
+
 export function getWeatherHelpLines(): string[] {
   return [
     "Weather masks exclude weather from interiors or covered spaces.",

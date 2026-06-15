@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  ChevronDown,
+  ChevronRight,
   Circle,
   CloudFog,
   Dices,
@@ -23,8 +25,9 @@ import {
   Undo2
 } from "lucide-react";
 import type { DrawingTool } from "../../canvas/drawingRenderer";
+import type { DrawingStrokeStyle } from "../../../shared/localvtt";
 import type { FogTool } from "../../canvas/fogRenderer";
-import { getDrawingHelpLines, getFogHelpLines, getRulerHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
+import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
 
 export type FogOperation = "reveal" | "hide";
@@ -74,6 +77,14 @@ const DRAWING_OPACITY_PRESETS = [
   { label: "Solid", value: 1 }
 ];
 
+const DRAWING_STROKE_STYLE_OPTIONS: Array<{ label: string; value: DrawingStrokeStyle }> = [
+  { label: "Solid - continuous", value: "solid" },
+  { label: "Dashed - long breaks", value: "dashed" },
+  { label: "Dotted - round dots", value: "dotted" },
+  { label: "Dash Dot - mixed", value: "dash-dot" },
+  { label: "Sketch - uneven", value: "sketch" }
+];
+
 const TEMPLATE_SIZE_PRESETS: DrawingTemplateSize[] = ["custom", 5, 10, 15, 20, 30, 60, 100];
 const DEFAULT_DRAWING_COLOR = "#ff0000";
 const DEFAULT_TEMPLATE_COLOR = "#7dd3fc";
@@ -89,6 +100,9 @@ interface ToolsMenuProps {
   brushSize: number;
   drawingColor: string;
   drawingOpacity: number;
+  drawingFillColor: string;
+  drawingFillOpacity: number;
+  drawingStrokeStyle: DrawingStrokeStyle;
   drawingStrokeWidth: number;
   drawingTemplateSize: DrawingTemplateSize;
   pingSize: number;
@@ -109,6 +123,9 @@ interface ToolsMenuProps {
   onBrushSizeChange: (brushSize: number) => void;
   onDrawingColorChange: (color: string) => void;
   onDrawingOpacityChange: (opacity: number) => void;
+  onDrawingFillColorChange: (color: string) => void;
+  onDrawingFillOpacityChange: (opacity: number) => void;
+  onDrawingStrokeStyleChange: (strokeStyle: DrawingStrokeStyle) => void;
   onDrawingStrokeWidthChange: (strokeWidth: number) => void;
   onDrawingTemplateSizeChange: (size: DrawingTemplateSize) => void;
   onPingSizeChange: (pingSize: number) => void;
@@ -146,6 +163,9 @@ export function ToolsMenu({
   brushSize,
   drawingColor,
   drawingOpacity,
+  drawingFillColor,
+  drawingFillOpacity,
+  drawingStrokeStyle,
   drawingStrokeWidth,
   drawingTemplateSize,
   pingSize,
@@ -166,6 +186,9 @@ export function ToolsMenu({
   onBrushSizeChange,
   onDrawingColorChange,
   onDrawingOpacityChange,
+  onDrawingFillColorChange,
+  onDrawingFillOpacityChange,
+  onDrawingStrokeStyleChange,
   onDrawingStrokeWidthChange,
   onDrawingTemplateSizeChange,
   onPingSizeChange,
@@ -186,7 +209,11 @@ export function ToolsMenu({
   const [laserThicknessCustomOpen, setLaserThicknessCustomOpen] = useState(false);
   const [drawingThicknessCustomOpen, setDrawingThicknessCustomOpen] = useState(false);
   const [drawingOpacityCustomOpen, setDrawingOpacityCustomOpen] = useState(false);
-  const [helpTopic, setHelpTopic] = useState<"drawing" | "mask" | "ruler" | null>(null);
+  const [helpTopic, setHelpTopic] = useState<"drawing" | "templates" | "mask" | "table" | null>(null);
+  const [drawingSettingsOpen, setDrawingSettingsOpen] = useState(true);
+  const [templateSettingsOpen, setTemplateSettingsOpen] = useState(true);
+  const [tableSettingsOpen, setTableSettingsOpen] = useState(true);
+  const [maskSettingsOpen, setMaskSettingsOpen] = useState(true);
   const activeFogShape = getActiveFogShape(activeFogTool);
 
   useEffect(() => {
@@ -225,7 +252,13 @@ export function ToolsMenu({
   };
 
   const openCategory = (category: ToolCategory) => {
-    setActiveCategory((current) => (current === category ? null : category));
+    if (activeCategory === category) {
+      setActiveCategory(null);
+      clearActiveTools();
+      return;
+    }
+
+    setActiveCategory(category);
     setHelpTopic(null);
     if (category === "dice") {
       onOpenDicePanel();
@@ -250,7 +283,7 @@ export function ToolsMenu({
     } else {
       clearActiveTools();
     }
-      onMouseBehaviorChange("selector");
+    onMouseBehaviorChange("selector");
   };
 
   const setFogToolShape = (shape: FogToolShape) => {
@@ -375,27 +408,37 @@ export function ToolsMenu({
                 </ToolButton>
               </div>
               <div className="tools-section-divider" />
-              <div className="tools-section-label">Settings</div>
-              <DrawingSettings
-                drawingColor={drawingColor}
-                drawingOpacity={drawingOpacity}
-                drawingStrokeWidth={drawingStrokeWidth}
-                drawingTemplateSize={drawingTemplateSize}
-                drawingThicknessCustomOpen={drawingThicknessCustomOpen}
-                drawingOpacityCustomOpen={drawingOpacityCustomOpen}
-                templateToolActive={false}
-                onDrawingColorChange={onDrawingColorChange}
-                onDrawingOpacityChange={onDrawingOpacityChange}
-                onDrawingStrokeWidthChange={onDrawingStrokeWidthChange}
-                onDrawingTemplateSizeChange={onDrawingTemplateSizeChange}
-                onDrawingThicknessCustomOpenChange={setDrawingThicknessCustomOpen}
-                onDrawingOpacityCustomOpenChange={setDrawingOpacityCustomOpen}
-              />
+              <SettingsToggle open={drawingSettingsOpen} label="Settings" onToggle={() => setDrawingSettingsOpen((open) => !open)} />
+              {drawingSettingsOpen && (
+                <DrawingSettings
+                  drawingColor={drawingColor}
+                  drawingOpacity={drawingOpacity}
+                  drawingFillColor={drawingFillColor}
+                  drawingFillOpacity={drawingFillOpacity}
+                  drawingStrokeStyle={drawingStrokeStyle}
+                  drawingStrokeWidth={drawingStrokeWidth}
+                  drawingTemplateSize={drawingTemplateSize}
+                  drawingThicknessCustomOpen={drawingThicknessCustomOpen}
+                  drawingOpacityCustomOpen={drawingOpacityCustomOpen}
+                  showFillSettings={activeDrawingTool !== "freehand" && activeDrawingTool !== "line"}
+                  templateToolActive={false}
+                  onDrawingColorChange={onDrawingColorChange}
+                  onDrawingOpacityChange={onDrawingOpacityChange}
+                  onDrawingFillColorChange={onDrawingFillColorChange}
+                  onDrawingFillOpacityChange={onDrawingFillOpacityChange}
+                  onDrawingStrokeStyleChange={onDrawingStrokeStyleChange}
+                  onDrawingStrokeWidthChange={onDrawingStrokeWidthChange}
+                  onDrawingTemplateSizeChange={onDrawingTemplateSizeChange}
+                  onDrawingThicknessCustomOpenChange={setDrawingThicknessCustomOpen}
+                  onDrawingOpacityCustomOpenChange={setDrawingOpacityCustomOpen}
+                />
+              )}
               {helpTopic === "drawing" && <ToolHelpCard topic="drawing" />}
             </div>
           )}
           {activeCategory === "templates" && (
             <div className="tools-panel-section">
+              <HelpButton active={helpTopic === "templates"} label="Template tools help" onClick={() => setHelpTopic((topic) => (topic === "templates" ? null : "templates"))} />
               <div className="tools-button-row">
                 <ToolButton active={activeDrawingTool === "template-line"} label="Line Template" onClick={() => setDrawingTool("template-line")}>
                   <Minus size={17} aria-hidden="true" />
@@ -415,28 +458,38 @@ export function ToolsMenu({
                 </ToolButton>
               </div>
               <div className="tools-section-divider" />
-              <div className="tools-section-label">Settings</div>
-              <DrawingSettings
-                drawingColor={drawingColor}
-                drawingOpacity={drawingOpacity}
-                drawingStrokeWidth={drawingStrokeWidth}
-                drawingTemplateSize={drawingTemplateSize}
-                drawingThicknessCustomOpen={drawingThicknessCustomOpen}
-                drawingOpacityCustomOpen={drawingOpacityCustomOpen}
-                templateToolActive
-                onDrawingColorChange={onDrawingColorChange}
-                onDrawingOpacityChange={onDrawingOpacityChange}
-                onDrawingStrokeWidthChange={onDrawingStrokeWidthChange}
-                onDrawingTemplateSizeChange={onDrawingTemplateSizeChange}
-                onDrawingThicknessCustomOpenChange={setDrawingThicknessCustomOpen}
-                onDrawingOpacityCustomOpenChange={setDrawingOpacityCustomOpen}
-              />
+              <SettingsToggle open={templateSettingsOpen} label="Settings" onToggle={() => setTemplateSettingsOpen((open) => !open)} />
+              {templateSettingsOpen && (
+                <DrawingSettings
+                  drawingColor={drawingColor}
+                  drawingOpacity={drawingOpacity}
+                  drawingFillColor={drawingFillColor}
+                  drawingFillOpacity={drawingFillOpacity}
+                  drawingStrokeStyle={drawingStrokeStyle}
+                  drawingStrokeWidth={drawingStrokeWidth}
+                  drawingTemplateSize={drawingTemplateSize}
+                  drawingThicknessCustomOpen={drawingThicknessCustomOpen}
+                  drawingOpacityCustomOpen={drawingOpacityCustomOpen}
+                  showFillSettings={false}
+                  templateToolActive
+                  onDrawingColorChange={onDrawingColorChange}
+                  onDrawingOpacityChange={onDrawingOpacityChange}
+                  onDrawingFillColorChange={onDrawingFillColorChange}
+                  onDrawingFillOpacityChange={onDrawingFillOpacityChange}
+                  onDrawingStrokeStyleChange={onDrawingStrokeStyleChange}
+                  onDrawingStrokeWidthChange={onDrawingStrokeWidthChange}
+                  onDrawingTemplateSizeChange={onDrawingTemplateSizeChange}
+                  onDrawingThicknessCustomOpenChange={setDrawingThicknessCustomOpen}
+                  onDrawingOpacityCustomOpenChange={setDrawingOpacityCustomOpen}
+                />
+              )}
+              {helpTopic === "templates" && <ToolHelpCard topic="templates" />}
             </div>
           )}
           {activeCategory === "text" && <Placeholder message="Text tools will be added here." />}
           {activeCategory === "table" && (
             <div className="tools-panel-section">
-              <HelpButton active={helpTopic === "ruler"} label="Table tools help" disabled={activeCanvasTool !== "ruler"} onClick={() => setHelpTopic((topic) => (topic === "ruler" ? null : "ruler"))} />
+              <HelpButton active={helpTopic === "table"} label="Table tools help" onClick={() => setHelpTopic((topic) => (topic === "table" ? null : "table"))} />
               <div className="tools-button-row">
                 <ToolButton active={activeCanvasTool === "ruler"} label="Ruler" onClick={() => setTableTool("ruler")}>
                   <Ruler size={17} aria-hidden="true" />
@@ -449,21 +502,25 @@ export function ToolsMenu({
                 </ToolButton>
               </div>
               <div className="tools-section-divider" />
-              <div className="tools-section-label">Visibility</div>
-              <div className="tools-operation-stack">
-                <label className="fog-operation-switch tools-operation-switch" title="Show or hide table tool output">
-                  <span>Show</span>
-                  <input
-                    type="checkbox"
-                    checked={!tableToolsVisibleInPlayer}
-                    onChange={(event) => onTableToolsVisibleInPlayerChange(!event.target.checked)}
-                  />
-                  <span>Hide</span>
-                </label>
-              </div>
-              {activeCanvasTool === "ping" && (
+              <SettingsToggle open={tableSettingsOpen} label="Settings" onToggle={() => setTableSettingsOpen((open) => !open)} />
+              {tableSettingsOpen && (
+                <>
+                  <div className="tools-section-label">Visibility</div>
+                  <div className="tools-operation-stack">
+                    <label className="fog-operation-switch tools-operation-switch" title="Show or hide table tool output">
+                      <span>Show</span>
+                      <input
+                        type="checkbox"
+                        checked={!tableToolsVisibleInPlayer}
+                        onChange={(event) => onTableToolsVisibleInPlayerChange(!event.target.checked)}
+                      />
+                      <span>Hide</span>
+                    </label>
+                  </div>
+                </>
+              )}
+              {tableSettingsOpen && activeCanvasTool === "ping" && (
                 <div className="tools-section-tools">
-                  <div className="tools-section-label">Settings</div>
                   <div className="tools-ping-settings-panel">
                     <label className="tools-strip-field tools-strip-color-field">
                       <span>Color</span>
@@ -501,9 +558,8 @@ export function ToolsMenu({
                   </div>
                 </div>
               )}
-              {activeCanvasTool === "laser" && (
+              {tableSettingsOpen && activeCanvasTool === "laser" && (
                 <div className="tools-section-tools">
-                  <div className="tools-section-label">Settings</div>
                   <div className="tools-ping-settings-panel">
                     <label className="tools-strip-field tools-strip-color-field">
                       <span>Color</span>
@@ -541,7 +597,7 @@ export function ToolsMenu({
                   </div>
                 </div>
               )}
-              {helpTopic === "ruler" && <ToolHelpCard topic="ruler" />}
+              {helpTopic === "table" && <ToolHelpCard topic="table" />}
             </div>
           )}
           {activeCategory === "dice" && <Placeholder message="Dice Bag opens the current Dice panel." />}
@@ -570,14 +626,19 @@ export function ToolsMenu({
                 </ToolButton>
               </div>
               <div className="tools-operation-stack">
-                <div className="tools-section-label">Visibility</div>
-                <label className="fog-operation-switch tools-operation-switch" title="Reveal or hide fog">
-                  <span>Reveal</span>
-                  <input type="checkbox" checked={fogOperation === "hide"} onChange={(event) => setFogToolOperation(event.target.checked ? "hide" : "reveal")} />
-                  <span>Hide</span>
-                </label>
+                <SettingsToggle open={maskSettingsOpen} label="Settings" onToggle={() => setMaskSettingsOpen((open) => !open)} />
+                {maskSettingsOpen && (
+                  <>
+                    <div className="tools-section-label">Visibility</div>
+                    <label className="fog-operation-switch tools-operation-switch" title="Reveal or hide fog">
+                      <span>Reveal</span>
+                      <input type="checkbox" checked={fogOperation === "hide"} onChange={(event) => setFogToolOperation(event.target.checked ? "hide" : "reveal")} />
+                      <span>Hide</span>
+                    </label>
+                  </>
+                )}
               </div>
-              {activeFogShape === "brush" && (
+              {maskSettingsOpen && activeFogShape === "brush" && (
                 <div className="tools-brush-size">
                   <div className="tools-strip-select-field">
                     <strong>Brush Size</strong>
@@ -658,16 +719,32 @@ function HelpButton({ active, disabled = false, label, onClick }: { active: bool
   );
 }
 
+function SettingsToggle({ open, label, onToggle }: { open: boolean; label: string; onToggle: () => void }) {
+  return (
+    <button className="tools-settings-toggle" type="button" aria-expanded={open} onClick={onToggle}>
+      {open ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+      <strong>{label}</strong>
+    </button>
+  );
+}
+
 function DrawingSettings({
   drawingColor,
   drawingOpacity,
+  drawingFillColor,
+  drawingFillOpacity,
+  drawingStrokeStyle,
   drawingStrokeWidth,
   drawingTemplateSize,
   drawingThicknessCustomOpen,
   drawingOpacityCustomOpen,
+  showFillSettings,
   templateToolActive,
   onDrawingColorChange,
   onDrawingOpacityChange,
+  onDrawingFillColorChange,
+  onDrawingFillOpacityChange,
+  onDrawingStrokeStyleChange,
   onDrawingStrokeWidthChange,
   onDrawingTemplateSizeChange,
   onDrawingThicknessCustomOpenChange,
@@ -675,13 +752,20 @@ function DrawingSettings({
 }: {
   drawingColor: string;
   drawingOpacity: number;
+  drawingFillColor: string;
+  drawingFillOpacity: number;
+  drawingStrokeStyle: DrawingStrokeStyle;
   drawingStrokeWidth: number;
   drawingTemplateSize: DrawingTemplateSize;
   drawingThicknessCustomOpen: boolean;
   drawingOpacityCustomOpen: boolean;
+  showFillSettings: boolean;
   templateToolActive: boolean;
   onDrawingColorChange: (color: string) => void;
   onDrawingOpacityChange: (opacity: number) => void;
+  onDrawingFillColorChange: (color: string) => void;
+  onDrawingFillOpacityChange: (opacity: number) => void;
+  onDrawingStrokeStyleChange: (strokeStyle: DrawingStrokeStyle) => void;
   onDrawingStrokeWidthChange: (strokeWidth: number) => void;
   onDrawingTemplateSizeChange: (size: DrawingTemplateSize) => void;
   onDrawingThicknessCustomOpenChange: (open: boolean) => void;
@@ -689,56 +773,96 @@ function DrawingSettings({
 }) {
   return (
     <div className={templateToolActive ? "tools-drawing-settings tools-drawing-settings-template" : "tools-drawing-settings"}>
-      <label className="tools-strip-field tools-strip-color-field">
-        <span>Color</span>
-        <ColorInput className="tools-drawing-color" value={drawingColor} aria-label="Drawing color" title="Drawing color" onChange={onDrawingColorChange} />
-      </label>
-      <div className="tools-strip-select-field tools-strip-thickness-control">
-        <strong>Thickness</strong>
-        <div>
-          <select
-            aria-label="Drawing thickness"
-            title="Drawing thickness"
-            value={getPresetSelectValue(DRAWING_THICKNESS_PRESETS, drawingStrokeWidth, drawingThicknessCustomOpen)}
-            onChange={(event) => {
-              if (event.target.value === "custom") {
-                onDrawingThicknessCustomOpenChange(true);
-                return;
-              }
-              onDrawingThicknessCustomOpenChange(false);
-              onDrawingStrokeWidthChange(Number(event.target.value));
-            }}
-          >
-            {DRAWING_THICKNESS_PRESETS.map((preset) => (
-              <option key={preset.label} value={preset.value}>{preset.label}</option>
-            ))}
-            <option value="custom">Custom</option>
-          </select>
+      <div className="tools-drawing-settings-row tools-drawing-stroke-row">
+        <div className="tools-drawing-row-label">Stroke</div>
+        <label className="tools-strip-field tools-strip-color-field">
+          <span>Color</span>
+          <ColorInput className="tools-drawing-color" value={drawingColor} aria-label="Stroke color" title="Stroke color" onChange={onDrawingColorChange} />
+        </label>
+        <div className="tools-strip-select-field tools-strip-thickness-control">
+          <strong>Thickness</strong>
+          <div>
+            <select
+              aria-label="Drawing thickness"
+              title="Drawing thickness"
+              value={getPresetSelectValue(DRAWING_THICKNESS_PRESETS, drawingStrokeWidth, drawingThicknessCustomOpen)}
+              onChange={(event) => {
+                if (event.target.value === "custom") {
+                  onDrawingThicknessCustomOpenChange(true);
+                  return;
+                }
+                onDrawingThicknessCustomOpenChange(false);
+                onDrawingStrokeWidthChange(Number(event.target.value));
+              }}
+            >
+              {DRAWING_THICKNESS_PRESETS.map((preset) => (
+                <option key={preset.label} value={preset.value}>{preset.label}</option>
+              ))}
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+        </div>
+        {!templateToolActive && (
+          <div className="tools-strip-select-field tools-strip-style-control">
+            <strong>Type</strong>
+            <div>
+              <select aria-label="Drawing stroke type" title="Drawing stroke type" value={drawingStrokeStyle} onChange={(event) => onDrawingStrokeStyleChange(event.target.value as DrawingStrokeStyle)}>
+                {DRAWING_STROKE_STYLE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+        <div className="tools-strip-select-field tools-strip-opacity-control">
+          <strong>Opacity</strong>
+          <div>
+            <select
+              aria-label="Drawing opacity"
+              title="Drawing opacity"
+              value={getPresetSelectValue(DRAWING_OPACITY_PRESETS, drawingOpacity, drawingOpacityCustomOpen)}
+              onChange={(event) => {
+                if (event.target.value === "custom") {
+                  onDrawingOpacityCustomOpenChange(true);
+                  return;
+                }
+                onDrawingOpacityCustomOpenChange(false);
+                onDrawingOpacityChange(Number(event.target.value));
+              }}
+            >
+              {DRAWING_OPACITY_PRESETS.map((preset) => (
+                <option key={preset.label} value={preset.value}>{preset.label}</option>
+              ))}
+              <option value="custom">Custom</option>
+            </select>
+          </div>
         </div>
       </div>
-      <div className="tools-strip-select-field tools-strip-opacity-control">
-        <strong>Opacity</strong>
-        <div>
-          <select
-            aria-label="Drawing opacity"
-            title="Drawing opacity"
-            value={getPresetSelectValue(DRAWING_OPACITY_PRESETS, drawingOpacity, drawingOpacityCustomOpen)}
-            onChange={(event) => {
-              if (event.target.value === "custom") {
-                onDrawingOpacityCustomOpenChange(true);
-                return;
-              }
-              onDrawingOpacityCustomOpenChange(false);
-              onDrawingOpacityChange(Number(event.target.value));
-            }}
-          >
-            {DRAWING_OPACITY_PRESETS.map((preset) => (
-              <option key={preset.label} value={preset.value}>{preset.label}</option>
-            ))}
-            <option value="custom">Custom</option>
-          </select>
+      {showFillSettings && (
+        <div className="tools-drawing-settings-row tools-drawing-fill-row">
+          <div className="tools-drawing-row-label">Fill</div>
+          <label className="tools-strip-field tools-strip-color-field">
+            <span>Color</span>
+            <ColorInput className="tools-drawing-color" value={drawingFillColor} aria-label="Fill color" title="Fill color" onChange={onDrawingFillColorChange} />
+          </label>
+          <div className="tools-strip-select-field tools-strip-fill-opacity-control">
+            <strong>Opacity</strong>
+            <div>
+              <select
+                aria-label="Drawing fill opacity"
+                title="Drawing fill opacity"
+                value={drawingFillOpacity === 0 ? "0" : getPresetSelectValue(DRAWING_OPACITY_PRESETS, drawingFillOpacity, false)}
+                onChange={(event) => onDrawingFillOpacityChange(Number(event.target.value))}
+              >
+                <option value={0}>None</option>
+                {DRAWING_OPACITY_PRESETS.map((preset) => (
+                  <option key={preset.label} value={preset.value}>{preset.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
       {templateToolActive && (
         <div className="tools-strip-select-field tools-strip-template-size-control">
           <strong>Size</strong>
@@ -779,12 +903,25 @@ function Placeholder({ message }: { message: string }) {
   return <div className="tools-placeholder">{message}</div>;
 }
 
-function ToolHelpCard({ topic }: { topic: "drawing" | "mask" | "ruler" }) {
+function ToolHelpCard({ topic }: { topic: "drawing" | "templates" | "mask" | "table" }) {
   if (topic === "drawing") {
     return (
       <div className="tools-help-card" role="dialog" aria-label="Drawing tools help">
         <strong>Drawing Tools</strong>
-        {getDrawingHelpLines().map((line) => <span key={line}>{line}</span>)}
+        <ul>
+          {getDrawingHelpLines().map((line) => <li key={line}>{line}</li>)}
+        </ul>
+      </div>
+    );
+  }
+
+  if (topic === "templates") {
+    return (
+      <div className="tools-help-card" role="dialog" aria-label="Template tools help">
+        <strong>Template Tools</strong>
+        <ul>
+          {getTemplateHelpLines().map((line) => <li key={line}>{line}</li>)}
+        </ul>
       </div>
     );
   }
@@ -793,15 +930,19 @@ function ToolHelpCard({ topic }: { topic: "drawing" | "mask" | "ruler" }) {
     return (
       <div className="tools-help-card" role="dialog" aria-label="Mask tools help">
         <strong>Mask Tools</strong>
-        {[...getFogHelpLines(), ...getWeatherHelpLines()].map((line) => <span key={line}>{line}</span>)}
+        <ul>
+          {[...getFogHelpLines(), ...getWeatherHelpLines()].map((line) => <li key={line}>{line}</li>)}
+        </ul>
       </div>
     );
   }
 
   return (
-    <div className="tools-help-card" role="dialog" aria-label="Ruler help">
-      <strong>Ruler</strong>
-      {getRulerHelpLines().map((line) => <span key={line}>{line}</span>)}
+    <div className="tools-help-card" role="dialog" aria-label="Table tools help">
+      <strong>Table Tools</strong>
+      <ul>
+        {getTableHelpLines().map((line) => <li key={line}>{line}</li>)}
+      </ul>
     </div>
   );
 }
