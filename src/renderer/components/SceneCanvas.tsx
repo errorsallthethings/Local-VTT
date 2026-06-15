@@ -1400,24 +1400,26 @@ export function SceneCanvas({
         onSelectFogShape?.(null);
         onSelectWeatherMask?.(null);
         onSelectDrawing?.(null);
-        const snappedPosition = getSnappedTokenPosition(token.position, token, scene);
-        tokenDragRef.current = {
-          pointerId: event.pointerId,
-          tokenId: token.id,
-          startPosition: token.position,
-          waypoints: [],
-          offset: {
-            x: point.x - token.position.x,
-            y: point.y - token.position.y
-          }
-        };
-        setTokenDragPreview({
-          tokenId: token.id,
-          startPosition: token.position,
-          currentPosition: token.position,
-          snappedPosition,
-          waypoints: []
-        });
+        if (mouseBehavior === "grabber") {
+          const snappedPosition = getSnappedTokenPosition(token.position, token, scene);
+          tokenDragRef.current = {
+            pointerId: event.pointerId,
+            tokenId: token.id,
+            startPosition: token.position,
+            waypoints: [],
+            offset: {
+              x: point.x - token.position.x,
+              y: point.y - token.position.y
+            }
+          };
+          setTokenDragPreview({
+            tokenId: token.id,
+            startPosition: token.position,
+            currentPosition: token.position,
+            snappedPosition,
+            waypoints: []
+          });
+        }
         return;
       }
       onSelectToken?.(null);
@@ -2223,7 +2225,7 @@ export function SceneCanvas({
         ))}
       <canvas
         ref={canvasRef}
-        className={`scene-canvas ${getCanvasInteractionClass({ canvasTool, drawingTool, fogTool, weatherMaskTool, isPanning, tokenDragPreview })}`}
+        className={`scene-canvas ${getCanvasInteractionClass({ canvasTool, mouseBehavior, drawingTool, fogTool, weatherMaskTool, isPanning, tokenDragPreview })}`}
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -3087,6 +3089,7 @@ function getFogSnapPoint(point: Point, scene: Scene): Point | null {
 
 function getCanvasInteractionClass({
   canvasTool,
+  mouseBehavior,
   drawingTool,
   fogTool,
   weatherMaskTool,
@@ -3094,6 +3097,7 @@ function getCanvasInteractionClass({
   tokenDragPreview
 }: {
   canvasTool: "ruler" | "ping" | "laser" | null;
+  mouseBehavior: MouseBehavior;
   drawingTool: DrawingTool | null;
   fogTool: FogTool | null;
   weatherMaskTool: WeatherMaskTool | null;
@@ -3142,19 +3146,22 @@ function getCanvasInteractionClass({
   if (weatherMaskTool === "polygon") {
     return "scene-canvas-tool-polygon";
   }
-  if (!fogTool) {
-    return "";
-  }
-  if (fogTool.includes("brush")) {
+  if (fogTool?.includes("brush")) {
     return "scene-canvas-tool-brush";
   }
-  if (fogTool.includes("polygon")) {
+  if (fogTool?.includes("polygon")) {
     return "scene-canvas-tool-polygon";
   }
-  if (fogTool.includes("circle")) {
+  if (fogTool?.includes("circle")) {
     return "scene-canvas-tool-circle";
   }
-  return "scene-canvas-tool-rectangle";
+  if (fogTool) {
+    return "scene-canvas-tool-rectangle";
+  }
+  if (mouseBehavior === "grabber") {
+    return "scene-canvas-grabber";
+  }
+  return "";
 }
 
 function getDrawingTemplateCurrentPoint(start: Point, current: Point, tool: DrawingTool, scene: Scene | null, templateSize: DrawingTemplateSize): Point {

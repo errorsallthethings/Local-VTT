@@ -1706,7 +1706,7 @@ export function GmApp() {
         )}
 
         <footer className="statusbar">
-          <span>Mouse wheel zooms. Drag pans. Scene data uses world/map coordinates.</span>
+          <span>Mouse wheel zooms. Grabber left-drags the scene. Middle/right drag pans. Scene data uses world/map coordinates.</span>
           <span>
             Save status: {formatSaveStatus({ dirtySceneCount: dirtyCount, campaignDirty, saveState })}
           </span>

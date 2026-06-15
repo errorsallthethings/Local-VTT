@@ -37,6 +37,14 @@
   cursor: default;
 }
 
+.scene-canvas.scene-canvas-grabber {
+  cursor: grab;
+}
+
+.scene-canvas.scene-canvas-grabber:active {
+  cursor: grabbing;
+}
+
 .scene-canvas.scene-canvas-tool-brush,
 .scene-canvas.scene-canvas-tool-circle,
 .scene-canvas.scene-canvas-tool-rectangle,
