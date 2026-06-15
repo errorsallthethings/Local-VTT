@@ -302,7 +302,7 @@ function filterActiveLiveTableEvents(events: LiveTableEvent[]): LiveTableEvent[]
         activeEvents.push({ ...event, points });
       }
     } else if (event.type === "ruler") {
-      if (now - event.createdAt <= LIVE_TABLE_RULER_DURATION_MS) {
+      if (now <= (event.expiresAt ?? event.createdAt + LIVE_TABLE_RULER_DURATION_MS)) {
         activeEvents.push(event);
       }
     }

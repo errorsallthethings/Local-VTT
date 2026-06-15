@@ -694,6 +694,7 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, size: 1.5, color: "#ffcc00", createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "laser", type: "laser", points: [{ point: { x: 1, y: 2 }, createdAt: 1 }], createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ruler", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "ruler-release", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", createdAt: 1, expiresAt: 2501 })).toBe(true);
   expect(isLiveTableEvent({ id: "ruler-clear", type: "ruler-clear", createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "clear", type: "dice-clear", createdAt: 1 })).toBe(true);
   expect(
@@ -758,8 +759,10 @@ it("normalizeScene normalizes table tool settings", () => {
     pingSize: 3,
     pingColor: DEFAULT_TABLE_TOOLS.pingColor,
     laserThickness: 80,
-    laserColor: DEFAULT_TABLE_TOOLS.laserColor
+    laserColor: DEFAULT_TABLE_TOOLS.laserColor,
+    rulerLinger: DEFAULT_TABLE_TOOLS.rulerLinger
   });
+  expect(normalizeScene({ ...createDefaultScene("No Linger"), tableTools: { ...DEFAULT_TABLE_TOOLS, rulerLinger: false } }).tableTools.rulerLinger).toBe(false);
 });
 
 it("default creators return isolated nested collections", () => {

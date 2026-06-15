@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LiveTableEvent, LiveTablePoint } from "../../src/shared/localvtt";
-import { getActiveLaserPoints, hasActiveLiveTableEvents, LASER_POINT_LIFETIME_MS, PING_DURATION_MS } from "../../src/renderer/canvas/liveTableRenderer";
+import { getActiveLaserPoints, hasActiveLiveTableEvents, LASER_POINT_LIFETIME_MS, PING_DURATION_MS, RULER_RELEASE_LINGER_MS } from "../../src/renderer/canvas/liveTableRenderer";
 
 describe("liveTableRenderer", () => {
   it("keeps ping events active until their duration expires", () => {
@@ -61,5 +61,25 @@ describe("liveTableRenderer", () => {
     };
 
     expect(hasActiveLiveTableEvents([expiredLaser], now)).toBe(false);
+  });
+
+  it("uses explicit expiry for released ruler events", () => {
+    const now = 10_000;
+    const activeRuler: LiveTableEvent = {
+      id: "ruler-active",
+      type: "ruler",
+      points: [{ x: 0, y: 0 }, { x: 5, y: 5 }],
+      primary: "5 ft",
+      createdAt: now - 5_000,
+      expiresAt: now
+    };
+    const expiredRuler: LiveTableEvent = {
+      ...activeRuler,
+      id: "ruler-expired",
+      expiresAt: now - RULER_RELEASE_LINGER_MS - 1
+    };
+
+    expect(hasActiveLiveTableEvents([activeRuler], now)).toBe(true);
+    expect(hasActiveLiveTableEvents([expiredRuler], now)).toBe(false);
   });
 });

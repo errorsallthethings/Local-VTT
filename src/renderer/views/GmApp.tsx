@@ -9,8 +9,10 @@ import {
 } from "react";
 import {
   DEFAULT_DICE_SETTINGS,
+  DEFAULT_FOG,
   DEFAULT_MAP_TRANSFORM,
   PLAYER_INDICATOR_THEMES,
+  DEFAULT_TABLE_TOOLS,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
@@ -148,7 +150,9 @@ export function GmApp() {
   const [activeWeatherMaskTool, setActiveWeatherMaskTool] = useState<WeatherMaskTool | null>(null);
   const [mouseBehavior, setMouseBehavior] = useState<MouseBehavior>("selector");
   const [tableToolsVisibleInPlayer, setTableToolsVisibleInPlayer] = useState(true);
+  const [tableTools, setTableTools] = useState(() => ({ ...DEFAULT_TABLE_TOOLS }));
   const [fogOperation, setFogOperation] = useState<FogOperation>("reveal");
+  const [fogBrushSize, setFogBrushSize] = useState(DEFAULT_FOG.brushSize);
   const [drawingColor, setDrawingColor] = useState("#ff0000");
   const [drawingOpacity, setDrawingOpacity] = useState(1);
   const [drawingFillColor, setDrawingFillColor] = useState("#ff0000");
@@ -1556,7 +1560,7 @@ export function GmApp() {
               activeDrawingTool={activeDrawingTool}
               mouseBehavior={mouseBehavior}
               fogOperation={fogOperation}
-              brushSize={activeScene.fog.brushSize}
+              brushSize={fogBrushSize}
               drawingColor={drawingColor}
               drawingOpacity={drawingOpacity}
               drawingFillColor={drawingFillColor}
@@ -1564,10 +1568,11 @@ export function GmApp() {
               drawingStrokeStyle={drawingStrokeStyle}
               drawingStrokeWidth={drawingStrokeWidth}
               drawingTemplateSize={drawingTemplateSize}
-              pingSize={activeScene.tableTools.pingSize}
-              pingColor={activeScene.tableTools.pingColor}
-              laserThickness={activeScene.tableTools.laserThickness}
-              laserColor={activeScene.tableTools.laserColor}
+              pingSize={tableTools.pingSize}
+              pingColor={tableTools.pingColor}
+              laserThickness={tableTools.laserThickness}
+              laserColor={tableTools.laserColor}
+              rulerLinger={tableTools.rulerLinger}
               tableToolsVisibleInPlayer={tableToolsVisibleInPlayer}
               fogShapeCount={activeScene.fog.shapes.length}
               drawingCount={activeScene.drawings.length}
@@ -1582,7 +1587,7 @@ export function GmApp() {
               onDrawingToolChange={setActiveDrawingTool}
               onMouseBehaviorChange={setMouseBehavior}
               onFogOperationChange={setFogOperation}
-              onBrushSizeChange={(brushSize) => updateFog({ brushSize })}
+              onBrushSizeChange={setFogBrushSize}
               onDrawingColorChange={setDrawingColor}
               onDrawingOpacityChange={setDrawingOpacity}
               onDrawingFillColorChange={setDrawingFillColor}
@@ -1590,34 +1595,11 @@ export function GmApp() {
               onDrawingStrokeStyleChange={setDrawingStrokeStyle}
               onDrawingStrokeWidthChange={setDrawingStrokeWidth}
               onDrawingTemplateSizeChange={setDrawingTemplateSize}
-              onPingSizeChange={(pingSize) =>
-                updateScene({
-                  ...activeScene,
-                  tableTools: { ...activeScene.tableTools, pingSize },
-                  updatedAt: new Date().toISOString()
-                })
-              }
-              onPingColorChange={(pingColor) =>
-                updateScene({
-                  ...activeScene,
-                  tableTools: { ...activeScene.tableTools, pingColor },
-                  updatedAt: new Date().toISOString()
-                })
-              }
-              onLaserThicknessChange={(laserThickness) =>
-                updateScene({
-                  ...activeScene,
-                  tableTools: { ...activeScene.tableTools, laserThickness },
-                  updatedAt: new Date().toISOString()
-                })
-              }
-              onLaserColorChange={(laserColor) =>
-                updateScene({
-                  ...activeScene,
-                  tableTools: { ...activeScene.tableTools, laserColor },
-                  updatedAt: new Date().toISOString()
-                })
-              }
+              onPingSizeChange={(pingSize) => setTableTools((current) => ({ ...current, pingSize }))}
+              onPingColorChange={(pingColor) => setTableTools((current) => ({ ...current, pingColor }))}
+              onLaserThicknessChange={(laserThickness) => setTableTools((current) => ({ ...current, laserThickness }))}
+              onLaserColorChange={(laserColor) => setTableTools((current) => ({ ...current, laserColor }))}
+              onRulerLingerChange={(rulerLinger) => setTableTools((current) => ({ ...current, rulerLinger }))}
               onTableToolsVisibleInPlayerChange={setTableToolsVisibleInPlayer}
               onUndoFogShape={undoFogShape}
               onUndoDrawing={undoDrawing}
@@ -1641,9 +1623,11 @@ export function GmApp() {
             drawingStrokeStyle={drawingStrokeStyle}
             drawingStrokeWidth={drawingStrokeWidth}
             drawingTemplateSize={drawingTemplateSize}
+            fogBrushSize={fogBrushSize}
             fogTool={activeFogTool}
             weatherMaskTool={activeWeatherMaskTool}
             liveTableEvents={liveTableEvents}
+            tableTools={tableTools}
             tableToolsVisibleInPlayer={tableToolsVisibleInPlayer}
             selectedFogShapeId={selectedFogShapeId}
             selectedWeatherMaskId={selectedWeatherMaskId}
@@ -1885,7 +1869,7 @@ function filterActiveLiveTableEvents(events: LiveTableEvent[]): LiveTableEvent[]
         activeEvents.push({ ...event, points });
       }
     } else if (event.type === "ruler") {
-      if (now - event.createdAt <= LIVE_TABLE_RULER_DURATION_MS) {
+      if (now <= (event.expiresAt ?? event.createdAt + LIVE_TABLE_RULER_DURATION_MS)) {
         activeEvents.push(event);
       }
     }

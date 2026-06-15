@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
-import { DEFAULT_VIDEO_PLAYBACK, formatDefaultDrawingName, formatDefaultFogShapeName } from "../../shared/localvtt";
-import type { Asset, Campaign, DrawingKind, DrawingStrokeStyle, LiveTableEvent, LiveTablePoint, Point, Scene, Token, WeatherMask } from "../../shared/localvtt";
+import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultDrawingName, formatDefaultFogShapeName } from "../../shared/localvtt";
+import type { Asset, Campaign, DrawingKind, DrawingStrokeStyle, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings, Token, WeatherMask } from "../../shared/localvtt";
 import { getRenderCamera, type Camera } from "../canvas/camera";
 import {
   drawDrawings,
@@ -31,7 +31,8 @@ import {
   drawLiveTableEvents,
   hasActiveLiveTableEvents,
   LASER_MIN_POINT_DISTANCE,
-  LASER_POINT_LIFETIME_MS
+  LASER_POINT_LIFETIME_MS,
+  RULER_RELEASE_LINGER_MS
 } from "../canvas/liveTableRenderer";
 import { drawMapSource, resolveMapTransform } from "../canvas/mapRenderer";
 import {
@@ -92,9 +93,11 @@ interface SceneCanvasProps {
   drawingStrokeStyle?: DrawingStrokeStyle;
   drawingStrokeWidth?: number;
   drawingTemplateSize?: DrawingTemplateSize;
+  fogBrushSize?: number;
   fogTool?: FogTool | null;
   weatherMaskTool?: WeatherMaskTool | null;
   liveTableEvents?: LiveTableEvent[];
+  tableTools?: TableToolSettings;
   tableToolsVisibleInPlayer?: boolean;
   selectedFogShapeId?: string | null;
   selectedWeatherMaskId?: string | null;
@@ -259,9 +262,11 @@ export function SceneCanvas({
   drawingStrokeStyle = "solid",
   drawingStrokeWidth = 40,
   drawingTemplateSize = "custom",
+  fogBrushSize,
   fogTool = null,
   weatherMaskTool = null,
   liveTableEvents = [],
+  tableTools,
   tableToolsVisibleInPlayer = true,
   selectedFogShapeId = null,
   selectedWeatherMaskId = null,
@@ -294,6 +299,7 @@ export function SceneCanvas({
   const [drawingPreview, setDrawingPreview] = useState<DrawingPreview | null>(null);
   const [weatherMaskPreview, setWeatherMaskPreview] = useState<WeatherMaskDrag | null>(null);
   const [rulerDrag, setRulerDrag] = useState<RulerDrag | null>(null);
+  const [releasedRulerDrag, setReleasedRulerDrag] = useState<RulerDrag | null>(null);
   const [tokenDragPreview, setTokenDragPreview] = useState<TokenDragPreview | null>(null);
   const [playerTokenTweenPositions, setPlayerTokenTweenPositions] = useState<TokenPositionOverrides | null>(null);
   const [polygonDraft, setPolygonDraft] = useState<FogPolygonDraft | null>(null);
@@ -310,6 +316,7 @@ export function SceneCanvas({
   const [isPanning, setIsPanning] = useState(false);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; camera: Camera } | null>(null);
   const rulerDragRef = useRef<(RulerDrag & { pointerId: number }) | null>(null);
+  const releasedRulerTimeoutRef = useRef<number | null>(null);
   const tokenDragRef = useRef<TokenDragState | null>(null);
   const laserDragRef = useRef<LaserDragState | null>(null);
   const fogDragRef = useRef<FogDrag | null>(null);
@@ -325,6 +332,8 @@ export function SceneCanvas({
   const autoFitCameraRef = useRef(true);
   // Player View tween state is mirrored in a ref so requestAnimationFrame can draw without stale React closures.
   const playerTokenTweenPositionsRef = useRef<TokenPositionOverrides | null>(null);
+  const activeTableTools = tableTools ?? scene?.tableTools ?? DEFAULT_TABLE_TOOLS;
+  const activeFogBrushSize = fogBrushSize ?? scene?.fog.brushSize ?? 80;
 
   const emitRulerEvent = useCallback((nextRulerDrag: RulerDrag) => {
     if (!scene) {
@@ -343,14 +352,60 @@ export function SceneCanvas({
   }, [onLiveTableEvent, scene, tableToolsVisibleInPlayer]);
 
   const cancelRulerDrag = useCallback(() => {
+    if (releasedRulerTimeoutRef.current !== null) {
+      window.clearTimeout(releasedRulerTimeoutRef.current);
+      releasedRulerTimeoutRef.current = null;
+    }
     rulerDragRef.current = null;
     setRulerDrag(null);
+    setReleasedRulerDrag(null);
     onLiveTableEvent?.({
       id: "ruler-clear",
       type: "ruler-clear",
       createdAt: Date.now()
     });
   }, [onLiveTableEvent]);
+
+  const finishRulerDrag = useCallback(() => {
+    const activeRulerDrag = rulerDragRef.current;
+    if (!activeRulerDrag || !scene) {
+      return;
+    }
+    if (!activeTableTools.rulerLinger) {
+      cancelRulerDrag();
+      return;
+    }
+    const label = getRulerLabel(activeRulerDrag, scene);
+    const now = Date.now();
+    if (releasedRulerTimeoutRef.current !== null) {
+      window.clearTimeout(releasedRulerTimeoutRef.current);
+    }
+    rulerDragRef.current = null;
+    setRulerDrag(null);
+    setReleasedRulerDrag(activeRulerDrag);
+    releasedRulerTimeoutRef.current = window.setTimeout(() => {
+      setReleasedRulerDrag(null);
+      releasedRulerTimeoutRef.current = null;
+    }, RULER_RELEASE_LINGER_MS);
+    onLiveTableEvent?.({
+      id: "ruler-live",
+      type: "ruler",
+      points: getRulerPathPoints(activeRulerDrag),
+      primary: label.primary,
+      secondary: label.secondary,
+      visibleInPlayer: tableToolsVisibleInPlayer,
+      createdAt: now,
+      expiresAt: now + RULER_RELEASE_LINGER_MS
+    });
+  }, [activeTableTools.rulerLinger, cancelRulerDrag, onLiveTableEvent, scene, tableToolsVisibleInPlayer]);
+
+  useEffect(() => {
+    return () => {
+      if (releasedRulerTimeoutRef.current !== null) {
+        window.clearTimeout(releasedRulerTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!tokenContextMenu && !maskContextMenu && !drawingContextMenu) {
@@ -573,6 +628,11 @@ export function SceneCanvas({
       });
     }
     setRulerDrag(null);
+    if (releasedRulerTimeoutRef.current !== null) {
+      window.clearTimeout(releasedRulerTimeoutRef.current);
+      releasedRulerTimeoutRef.current = null;
+    }
+    setReleasedRulerDrag(null);
     rulerDragRef.current = null;
     laserDragRef.current = null;
   }, [canvasTool, onLiveTableEvent, scene?.id]);
@@ -1012,8 +1072,9 @@ export function SceneCanvas({
         drawDrawings(ctx, scene, mode, drawingLayer?.opacity ?? 1, mode === "gm" ? (drawingPreview ?? drawingPolygonPreview) : null, renderCamera.zoom, selectedDrawingId);
       }
 
-      if (mode === "gm" && rulerDrag) {
-        drawRuler(ctx, rulerDrag, getRulerLabel(rulerDrag, scene), scene.grid, renderCamera.zoom);
+      const visibleGmRuler = rulerDrag ?? releasedRulerDrag;
+      if (mode === "gm" && visibleGmRuler) {
+        drawRuler(ctx, visibleGmRuler, getRulerLabel(visibleGmRuler, scene), scene.grid, renderCamera.zoom);
       }
 
       ctx.restore();
@@ -1043,7 +1104,7 @@ export function SceneCanvas({
         }
       }
       if (mode === "gm" && brushHoverPoint && fogTool?.includes("brush") && !fogPreview) {
-        drawBrushHoverPreview(ctx, brushHoverPoint, Math.max(4, scene.fog.brushSize / 2), renderCamera, getFogOperationForTool(fogTool));
+        drawBrushHoverPreview(ctx, brushHoverPoint, Math.max(4, activeFogBrushSize / 2), renderCamera, getFogOperationForTool(fogTool));
       }
       if (mode === "gm" && brushHoverPoint && drawingTool === "freehand" && !drawingPreview) {
         drawDrawingBrushHoverPreview(ctx, brushHoverPoint, Math.max(4, drawingStrokeWidth / 2), renderCamera, drawingColor, drawingOpacity);
@@ -1060,8 +1121,9 @@ export function SceneCanvas({
       if (mode === "gm" && selectionDrag) {
         drawSelectionMarquee(ctx, selectionDrag, renderCamera);
       }
-      if (liveTableEvents.length > 0) {
-        drawLiveTableEvents(ctx, liveTableEvents, renderCamera);
+      const visibleLiveTableEvents = mode === "gm" ? liveTableEvents.filter((event) => event.type !== "ruler") : liveTableEvents;
+      if (visibleLiveTableEvents.length > 0) {
+        drawLiveTableEvents(ctx, visibleLiveTableEvents, renderCamera, scene.grid);
       }
     };
 
@@ -1100,7 +1162,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedDrawingId, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, selectionDrag, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, selectionDrag, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1242,6 +1304,11 @@ export function SceneCanvas({
     if (mode === "gm" && canvasTool === "ruler" && scene && event.button === 0) {
       const point = getRulerPoint(event);
       const nextRulerDrag = { pointerId: event.pointerId, start: point, current: point, waypoints: [] };
+      if (releasedRulerTimeoutRef.current !== null) {
+        window.clearTimeout(releasedRulerTimeoutRef.current);
+        releasedRulerTimeoutRef.current = null;
+      }
+      setReleasedRulerDrag(null);
       rulerDragRef.current = nextRulerDrag;
       setRulerDrag(nextRulerDrag);
       emitRulerEvent(nextRulerDrag);
@@ -1255,8 +1322,8 @@ export function SceneCanvas({
         type: "laser",
         createdAt: now,
         points: [{ point, createdAt: now }],
-        thickness: scene.tableTools.laserThickness,
-        color: scene.tableTools.laserColor,
+        thickness: activeTableTools.laserThickness,
+        color: activeTableTools.laserColor,
         visibleInPlayer: tableToolsVisibleInPlayer
       } satisfies LiveTableEvent;
       laserDragRef.current = { pointerId: event.pointerId, eventId: laserEvent.id, points: laserEvent.points };
@@ -1300,7 +1367,7 @@ export function SceneCanvas({
         start: point,
         current: point,
         points: [point],
-        radius: fogTool.includes("brush") ? Math.max(4, scene.fog.brushSize / 2) : undefined,
+        radius: fogTool.includes("brush") ? Math.max(4, activeFogBrushSize / 2) : undefined,
         operation: getFogOperationForTool(fogTool)
       } satisfies FogDrag;
       fogDragRef.current = fogDrag;
@@ -1431,8 +1498,8 @@ export function SceneCanvas({
           type: "laser",
           createdAt: laserDrag.points[0]?.createdAt ?? Date.now(),
           points: nextPoints,
-          thickness: scene?.tableTools.laserThickness,
-          color: scene?.tableTools.laserColor,
+          thickness: activeTableTools.laserThickness,
+          color: activeTableTools.laserColor,
           visibleInPlayer: tableToolsVisibleInPlayer
         });
       }
@@ -1660,7 +1727,7 @@ export function SceneCanvas({
     }
 
     if (rulerDragRef.current?.pointerId === event.pointerId) {
-      cancelRulerDrag();
+      finishRulerDrag();
       return;
     }
 
@@ -1721,8 +1788,8 @@ export function SceneCanvas({
       id: crypto.randomUUID(),
       type: "ping",
       point: clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale)),
-      size: scene?.tableTools.pingSize,
-      color: scene?.tableTools.pingColor,
+      size: activeTableTools.pingSize,
+      color: activeTableTools.pingColor,
       visibleInPlayer: tableToolsVisibleInPlayer,
       createdAt: Date.now()
     });
@@ -2170,7 +2237,7 @@ export function SceneCanvas({
         onDrop={onDrop}
       />
       {mode === "gm" && fogTool && (
-        <FogToolStatusStrip fogTool={fogTool} polygonPointCount={polygonDraft?.points.length ?? 0} brushSize={scene?.fog.brushSize ?? 0} />
+        <FogToolStatusStrip fogTool={fogTool} polygonPointCount={polygonDraft?.points.length ?? 0} brushSize={activeFogBrushSize} />
       )}
       {mode === "gm" && drawingTool && <DrawingToolStatusStrip drawingTool={drawingTool} drawingTemplateSize={drawingTemplateSize} />}
       {mode === "gm" && onMapCalibrationBox && <MapCalibrationStatusStrip />}

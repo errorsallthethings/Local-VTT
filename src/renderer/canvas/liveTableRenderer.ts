@@ -1,10 +1,13 @@
 import type { LiveTableEvent, LiveTablePoint, Point } from "../../shared/localvtt";
+import type { GridSettings } from "../../shared/localvtt";
 import type { Camera } from "./camera";
+import { drawRuler, type RulerDrag, type RulerLabel } from "./measurement";
 
 export const PING_DURATION_MS = 1600;
 export const LASER_POINT_LIFETIME_MS = 1100;
 export const LASER_MIN_POINT_DISTANCE = 8;
 export const RULER_EVENT_LIFETIME_MS = 8000;
+export const RULER_RELEASE_LINGER_MS = 2500;
 
 export function getActiveLaserPoints(points: LiveTablePoint[], now: number): LiveTablePoint[] {
   return points.filter((point) => now - point.createdAt <= LASER_POINT_LIFETIME_MS);
@@ -19,13 +22,13 @@ export function hasActiveLiveTableEvents(events: LiveTableEvent[], now = Date.no
       return getActiveLaserPoints(event.points, now).length > 0;
     }
     if (event.type === "ruler") {
-      return now - event.createdAt <= RULER_EVENT_LIFETIME_MS;
+      return now <= (event.expiresAt ?? event.createdAt + RULER_EVENT_LIFETIME_MS);
     }
     return false;
   });
 }
 
-export function drawLiveTableEvents(ctx: CanvasRenderingContext2D, events: LiveTableEvent[], camera: Camera) {
+export function drawLiveTableEvents(ctx: CanvasRenderingContext2D, events: LiveTableEvent[], camera: Camera, grid?: GridSettings) {
   const now = Date.now();
   ctx.save();
   ctx.translate(camera.x, camera.y);
@@ -36,7 +39,7 @@ export function drawLiveTableEvents(ctx: CanvasRenderingContext2D, events: LiveT
     } else if (event.type === "laser") {
       drawLaserTrail(ctx, event.points, now, Math.max(1, camera.zoom), event.thickness, event.color);
     } else if (event.type === "ruler") {
-      drawRulerEvent(ctx, event.points, event.primary, event.secondary, Math.max(1, camera.zoom));
+      drawRulerEvent(ctx, event.points, { primary: event.primary, secondary: event.secondary }, camera.zoom, grid);
     }
   }
   ctx.restore();
@@ -144,8 +147,12 @@ function drawLaserTrail(ctx: CanvasRenderingContext2D, points: LiveTablePoint[],
   ctx.restore();
 }
 
-function drawRulerEvent(ctx: CanvasRenderingContext2D, points: Point[], primary: string, secondary: string | undefined, zoom: number) {
+function drawRulerEvent(ctx: CanvasRenderingContext2D, points: Point[], label: RulerLabel, zoom: number, grid?: GridSettings) {
   if (points.length < 2) {
+    return;
+  }
+  if (grid) {
+    drawRuler(ctx, getRulerDragFromPoints(points), label, grid, zoom);
     return;
   }
   ctx.save();
@@ -163,14 +170,22 @@ function drawRulerEvent(ctx: CanvasRenderingContext2D, points: Point[], primary:
   ctx.setLineDash([]);
 
   const last = points[points.length - 1];
-  const label = secondary ? `${primary} / ${secondary}` : primary;
+  const fallbackLabel = label.secondary ? `${label.primary} / ${label.secondary}` : label.primary;
   ctx.font = `${Math.max(14 / zoom, 12)}px Inter, system-ui, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "bottom";
   ctx.lineWidth = 5 / zoom;
   ctx.strokeStyle = "rgba(5, 9, 14, 0.88)";
   ctx.fillStyle = "#f8fbff";
-  ctx.strokeText(label, last.x, last.y - 12 / zoom);
-  ctx.fillText(label, last.x, last.y - 12 / zoom);
+  ctx.strokeText(fallbackLabel, last.x, last.y - 12 / zoom);
+  ctx.fillText(fallbackLabel, last.x, last.y - 12 / zoom);
   ctx.restore();
+}
+
+function getRulerDragFromPoints(points: Point[]): RulerDrag {
+  return {
+    start: points[0],
+    current: points[points.length - 1],
+    waypoints: points.slice(1, -1)
+  };
 }

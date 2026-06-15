@@ -98,8 +98,17 @@
 
 .tools-category-button.tool-active,
 .tool-circle-button.tool-active {
-  background: rgb(122 162 247 / 0.16);
-  color: var(--color-text-strong);
+  background: rgb(122 162 247 / 0.22);
+  color: var(--color-accent-strong);
+  box-shadow:
+    inset 0 0 0 1px rgb(122 162 247 / 0.34),
+    0 0 12px rgb(122 162 247 / 0.2);
+}
+
+.tools-category-button.tool-active > svg,
+.tool-circle-button.tool-active > svg {
+  color: var(--color-accent-strong);
+  filter: drop-shadow(0 0 5px rgb(122 162 247 / 0.45));
 }
 
 .tools-category-button:focus-visible,
@@ -345,7 +354,7 @@
 
 .tools-strip-field {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -359,9 +368,10 @@
 
 .tools-strip-color-field {
   border-right: 1px solid var(--color-border-muted);
-  justify-items: start;
+  justify-items: center;
   min-height: 46px;
   padding-right: 8px;
+  text-align: center;
 }
 
 .tools-strip-select-field {

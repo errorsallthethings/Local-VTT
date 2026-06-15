@@ -301,6 +301,7 @@ export interface TableToolSettings {
   pingColor: string;
   laserThickness: number;
   laserColor: string;
+  rulerLinger: boolean;
 }
 
 export interface TurnOrderEntry {
@@ -560,6 +561,7 @@ export type LiveTableEvent =
       secondary?: string;
       visibleInPlayer?: boolean;
       createdAt: number;
+      expiresAt?: number;
     }
   | {
       id: string;
@@ -660,7 +662,8 @@ export const DEFAULT_TABLE_TOOLS: TableToolSettings = {
   pingSize: 1,
   pingColor: "#ffd84d",
   laserThickness: 20,
-  laserColor: "#ff525e"
+  laserColor: "#ff525e",
+  rulerLinger: false
 };
 
 export const DEFAULT_TURN_ORDER: TurnOrderSettings = {
@@ -1152,7 +1155,8 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
       value.points.every(isPoint) &&
       typeof value.primary === "string" &&
       (!("secondary" in value) || typeof value.secondary === "string") &&
-      (!("visibleInPlayer" in value) || typeof value.visibleInPlayer === "boolean")
+      (!("visibleInPlayer" in value) || typeof value.visibleInPlayer === "boolean") &&
+      (!("expiresAt" in value) || (typeof value.expiresAt === "number" && Number.isFinite(value.expiresAt)))
     );
   }
   if (value.type === "ruler-clear") {
@@ -1242,7 +1246,8 @@ function normalizeTableTools(settings?: Partial<TableToolSettings>): TableToolSe
     pingSize: clampNumber(settings?.pingSize, 0.5, 3, DEFAULT_TABLE_TOOLS.pingSize),
     pingColor: normalizeColor(settings?.pingColor, DEFAULT_TABLE_TOOLS.pingColor),
     laserThickness: clampNumber(settings?.laserThickness, 4, 80, DEFAULT_TABLE_TOOLS.laserThickness),
-    laserColor: normalizeColor(settings?.laserColor, DEFAULT_TABLE_TOOLS.laserColor)
+    laserColor: normalizeColor(settings?.laserColor, DEFAULT_TABLE_TOOLS.laserColor),
+    rulerLinger: typeof settings?.rulerLinger === "boolean" ? settings.rulerLinger : DEFAULT_TABLE_TOOLS.rulerLinger
   };
 }
 

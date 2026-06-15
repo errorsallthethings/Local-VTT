@@ -109,6 +109,7 @@ interface ToolsMenuProps {
   pingColor: string;
   laserThickness: number;
   laserColor: string;
+  rulerLinger: boolean;
   tableToolsVisibleInPlayer: boolean;
   fogShapeCount: number;
   drawingCount: number;
@@ -132,6 +133,7 @@ interface ToolsMenuProps {
   onPingColorChange: (pingColor: string) => void;
   onLaserThicknessChange: (laserThickness: number) => void;
   onLaserColorChange: (laserColor: string) => void;
+  onRulerLingerChange: (linger: boolean) => void;
   onTableToolsVisibleInPlayerChange: (visible: boolean) => void;
   onUndoFogShape: () => void;
   onUndoDrawing: () => void;
@@ -172,6 +174,7 @@ export function ToolsMenu({
   pingColor,
   laserThickness,
   laserColor,
+  rulerLinger,
   tableToolsVisibleInPlayer,
   fogShapeCount,
   drawingCount,
@@ -195,6 +198,7 @@ export function ToolsMenu({
   onPingColorChange,
   onLaserThicknessChange,
   onLaserColorChange,
+  onRulerLingerChange,
   onTableToolsVisibleInPlayerChange,
   onUndoFogShape,
   onUndoDrawing,
@@ -210,10 +214,10 @@ export function ToolsMenu({
   const [drawingThicknessCustomOpen, setDrawingThicknessCustomOpen] = useState(false);
   const [drawingOpacityCustomOpen, setDrawingOpacityCustomOpen] = useState(false);
   const [helpTopic, setHelpTopic] = useState<"drawing" | "templates" | "mask" | "table" | null>(null);
-  const [drawingSettingsOpen, setDrawingSettingsOpen] = useState(true);
-  const [templateSettingsOpen, setTemplateSettingsOpen] = useState(true);
-  const [tableSettingsOpen, setTableSettingsOpen] = useState(true);
-  const [maskSettingsOpen, setMaskSettingsOpen] = useState(true);
+  const [drawingSettingsOpen, setDrawingSettingsOpen] = useState(false);
+  const [templateSettingsOpen, setTemplateSettingsOpen] = useState(false);
+  const [tableSettingsOpen, setTableSettingsOpen] = useState(false);
+  const [maskSettingsOpen, setMaskSettingsOpen] = useState(false);
   const activeFogShape = getActiveFogShape(activeFogTool);
 
   useEffect(() => {
@@ -331,15 +335,47 @@ export function ToolsMenu({
     }
   };
 
+  const toggleMouseCategory = () => {
+    if (activeCategory === "mouse") {
+      setActiveCategory(null);
+      setHelpTopic(null);
+      return;
+    }
+    if (activeCategory) {
+      clearActiveTools();
+    }
+    setActiveCategory("mouse");
+    setHelpTopic(null);
+  };
+
+  const isCategoryActive = (category: ToolCategory): boolean => {
+    if (activeCategory === category) {
+      return true;
+    }
+    if (category === "drawing") {
+      return Boolean(activeDrawingTool && !isTemplateDrawingTool(activeDrawingTool));
+    }
+    if (category === "templates") {
+      return isTemplateDrawingTool(activeDrawingTool);
+    }
+    if (category === "table") {
+      return Boolean(activeCanvasTool);
+    }
+    if (category === "mask") {
+      return Boolean(activeFogTool || activeWeatherMaskTool);
+    }
+    return false;
+  };
+
   return (
     <div className="tools-menu" aria-label="Tools menu">
       <div className="tools-menu-stack" aria-label="Tool Categories">
         <button
-          className={activeCategory === "mouse" || mouseBehavior === "selector" ? "tools-category-button tool-active" : "tools-category-button"}
+          className={activeCategory === "mouse" ? "tools-category-button tool-active" : "tools-category-button"}
           aria-label="Mouse Behavior"
           title="Mouse Behavior"
           type="button"
-          onClick={() => setActiveCategory((current) => (current === "mouse" ? null : "mouse"))}
+          onClick={toggleMouseCategory}
         >
           <MousePointer2 size={18} aria-hidden="true" />
           <span className="tools-category-more" aria-hidden="true" />
@@ -353,7 +389,7 @@ export function ToolsMenu({
             return (
               <button
                 key={category.id}
-                className={activeCategory === category.id ? "tools-category-button tool-active" : "tools-category-button"}
+                className={isCategoryActive(category.id) ? "tools-category-button tool-active" : "tools-category-button"}
                 aria-label={category.label}
                 title={category.label}
                 type="button"
@@ -517,6 +553,22 @@ export function ToolsMenu({
                       <span>Hide</span>
                     </label>
                   </div>
+                  {activeCanvasTool === "ruler" && (
+                    <>
+                      <div className="tools-section-label">Ruler Release</div>
+                      <div className="tools-operation-stack">
+                        <label className="fog-operation-switch tools-operation-switch" title="Keep or clear the ruler after releasing the mouse">
+                          <span>Linger</span>
+                          <input
+                            type="checkbox"
+                            checked={!rulerLinger}
+                            onChange={(event) => onRulerLingerChange(!event.target.checked)}
+                          />
+                          <span>No Linger</span>
+                        </label>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
               {tableSettingsOpen && activeCanvasTool === "ping" && (
