@@ -77,6 +77,33 @@
   cursor: move;
 }
 
+.scene-canvas.scene-canvas-transform-rotate,
+.scene-canvas.scene-canvas-transform-rotate:active {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8' stroke='%23ffffff' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M3 3v5h5' stroke='%23ffffff' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8' stroke='%23111827' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M3 3v5h5' stroke='%23111827' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 10 10,
+    alias;
+}
+
+.scene-canvas.scene-canvas-transform-resize-x,
+.scene-canvas.scene-canvas-transform-resize-x:active {
+  cursor: ew-resize;
+}
+
+.scene-canvas.scene-canvas-transform-resize-y,
+.scene-canvas.scene-canvas-transform-resize-y:active {
+  cursor: ns-resize;
+}
+
+.scene-canvas.scene-canvas-transform-resize-nwse,
+.scene-canvas.scene-canvas-transform-resize-nwse:active {
+  cursor: nwse-resize;
+}
+
+.scene-canvas.scene-canvas-transform-resize-nesw,
+.scene-canvas.scene-canvas-transform-resize-nesw:active {
+  cursor: nesw-resize;
+}
+
 .dice-roll-overlay {
   position: absolute;
   top: 18px;

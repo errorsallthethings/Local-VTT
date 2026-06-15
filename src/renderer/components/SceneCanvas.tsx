@@ -166,6 +166,7 @@ type DrawingDragState = {
 };
 
 type DrawingResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
+type DrawingTransformHover = DrawingResizeHandle | "rotate" | null;
 
 type DrawingResizeState = {
   pointerId: number;
@@ -356,6 +357,7 @@ export function SceneCanvas({
   const [weatherPolygonDraft, setWeatherPolygonDraft] = useState<WeatherPolygonDraft | null>(null);
   const [mapCalibrationDrag, setMapCalibrationDrag] = useState<MapCalibrationDrag | null>(null);
   const [selectionDrag, setSelectionDrag] = useState<SelectionDrag | null>(null);
+  const [drawingTransformHover, setDrawingTransformHover] = useState<DrawingTransformHover>(null);
   const [mapCalibrationDraftBox, setMapCalibrationDraftBox] = useState<MapCalibrationBox | null>(null);
   const [brushHoverPoint, setBrushHoverPoint] = useState<Point | null>(null);
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
@@ -1857,6 +1859,7 @@ export function SceneCanvas({
       return;
     }
 
+    updateDrawingTransformHover(event);
     updateSnapPoint(event);
   };
 
@@ -2090,6 +2093,7 @@ export function SceneCanvas({
   const onPointerLeave = () => {
     setSnapPoint(null);
     setBrushHoverPoint(null);
+    setDrawingTransformHover(null);
   };
 
   const emitPing = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -2286,6 +2290,31 @@ export function SceneCanvas({
       return;
     }
     onDropTokenAsset?.(asset, clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale)));
+  };
+
+  const updateDrawingTransformHover = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (
+      mode !== "gm" ||
+      !scene ||
+      !canShowDrawings ||
+      drawingDragPreview ||
+      canvasTool ||
+      drawingTool ||
+      fogTool ||
+      weatherMaskTool ||
+      selectedDrawingIds.length === 0
+    ) {
+      setDrawingTransformHover(null);
+      return;
+    }
+    const cameraState = getRenderCamera(camera, playerDisplayScale);
+    const point = eventToWorldPoint(event, cameraState);
+    if (getDrawingRotationHandleAtPoint(scene.drawings, selectedDrawingIds, point, cameraState)) {
+      setDrawingTransformHover("rotate");
+      return;
+    }
+    const resizeTarget = getDrawingResizeHandleAtPoint(scene.drawings, selectedDrawingIds, point, cameraState);
+    setDrawingTransformHover(resizeTarget?.handle ?? null);
   };
 
   const updatePolygonDraft = (tool: FogTool, point: Point) => {
@@ -2532,7 +2561,7 @@ export function SceneCanvas({
         ))}
       <canvas
         ref={canvasRef}
-        className={`scene-canvas ${getCanvasInteractionClass({ canvasTool, mouseBehavior, drawingTool, fogTool, weatherMaskTool, isPanning, tokenDragPreview })}`}
+        className={`scene-canvas ${getCanvasInteractionClass({ canvasTool, mouseBehavior, drawingTool, fogTool, weatherMaskTool, isPanning, tokenDragPreview, drawingTransformHover })}`}
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -3401,7 +3430,8 @@ function getCanvasInteractionClass({
   fogTool,
   weatherMaskTool,
   isPanning,
-  tokenDragPreview
+  tokenDragPreview,
+  drawingTransformHover
 }: {
   canvasTool: "ruler" | "ping" | "laser" | null;
   mouseBehavior: MouseBehavior;
@@ -3410,12 +3440,28 @@ function getCanvasInteractionClass({
   weatherMaskTool: WeatherMaskTool | null;
   isPanning: boolean;
   tokenDragPreview: TokenDragPreview | null;
+  drawingTransformHover: DrawingTransformHover;
 }): string {
   if (isPanning) {
     return "scene-canvas-panning";
   }
   if (tokenDragPreview) {
     return "scene-canvas-token-dragging";
+  }
+  if (drawingTransformHover === "rotate") {
+    return "scene-canvas-transform-rotate";
+  }
+  if (drawingTransformHover === "n" || drawingTransformHover === "s") {
+    return "scene-canvas-transform-resize-y";
+  }
+  if (drawingTransformHover === "e" || drawingTransformHover === "w") {
+    return "scene-canvas-transform-resize-x";
+  }
+  if (drawingTransformHover === "nw" || drawingTransformHover === "se") {
+    return "scene-canvas-transform-resize-nwse";
+  }
+  if (drawingTransformHover === "ne" || drawingTransformHover === "sw") {
+    return "scene-canvas-transform-resize-nesw";
   }
   if (canvasTool === "ruler") {
     return "scene-canvas-tool-ruler";
