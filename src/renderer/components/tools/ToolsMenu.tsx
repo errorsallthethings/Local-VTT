@@ -666,8 +666,6 @@ export function ToolsMenu({
               {helpTopic === "table" && <ToolHelpCard topic="table" />}
             </div>
           )}
-          {activeCategory === "dice" && <Placeholder message="Dice Bag opens the current Dice panel." />}
-          {activeCategory === "turn-order" && <Placeholder message="Turn Order opens in the lower drawer for now." />}
           {activeCategory === "pin" && <Placeholder message="Pin tools will be added here." />}
           {activeCategory === "mask" && (
             <div className="tools-panel-section">

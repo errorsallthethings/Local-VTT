@@ -232,7 +232,7 @@ export function GmSidebar({
                 <span>Player View</span>
                 <p>Use Player View for the table display, hold screen, blackout, map calibration, and scene sharing.</p>
                 <span>Dice</span>
-                <p>The Dice panel supports quick dice, custom presets, formulas, text results, 3D panels, and 3D scene rolls.</p>
+                <p>The Dice Bag supports quick dice, custom presets, formulas, text results, 3D panels, and 3D scene rolls.</p>
               </div>
             </div>
             <div className="button-row modal-actions">

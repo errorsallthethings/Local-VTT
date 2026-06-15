@@ -99,6 +99,7 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 ### Dice And Turn Order
 
 - Dice rolls support standard polyhedral dice, coin flips, percentile rolls, arithmetic modifiers, advantage/disadvantage, quick dice buttons, and custom presets.
+- The Tools menu opens the Dice Bag and Turn Order as draggable modals for live-session workflows.
 - Dice display settings are campaign-specific and can independently show or hide GM View and Player View results.
 - Dice results can render as text-only results, a 3D Panel, or a 3D Scene Roll with physics and delayed result reveal.
 - Recent dice roll history is capped and keeps delayed 3D/scene roll results in sync with the final visible result.
@@ -361,8 +362,8 @@ Before packaging or sharing a build, run through these workflows:
 - Confirm token presentation and movement sync to Player View.
 - Use the Token Library to import, rename, search, sort, set defaults, add, drag/drop, and delete tokens with usage warnings.
 - Use Table Tools: ruler on square, hex, and gridless scenes; ping by clicking after changing size/color; laser pointer by dragging.
-- Build, clear, rebuild, play, pause, and advance a turn order; confirm Player View indicators update correctly.
-- Roll dice with quick dice, formulas with modifiers, custom presets, GM/Player Hidden display modes, 3D Panel, and 3D Scene Roll.
+- Open the Turn Order modal from Tools; build, clear, rebuild, play, pause, collapse, drag, and advance a turn order; confirm Player View indicators update correctly.
+- Open the Dice Bag from Tools; roll dice with quick dice, formulas with modifiers, custom presets, GM/Player Hidden display modes, 3D Panel, and 3D Scene Roll.
 - Close with unsaved scene changes, campaign-only changes, and both; confirm Save preserves changes and Close Without Saving discards them.
 - Confirm common failure messages are actionable, including missing recent campaigns, missing assets, and disconnected Player View displays.
 - Run `npm run check` and `npm run build`.
