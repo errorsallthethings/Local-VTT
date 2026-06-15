@@ -200,7 +200,7 @@ export function TurnOrderPanel({
 
       <div className="turn-order-heading">
         <div>
-          <strong>Turn Order</strong>
+          <strong>Turn Order List</strong>
           <span>{turnOrder ? `${turnOrder.entries.length} entries` : "Select a scene"}</span>
         </div>
       </div>

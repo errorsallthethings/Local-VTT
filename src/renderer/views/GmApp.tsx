@@ -181,9 +181,10 @@ export function GmApp() {
   const [playerDisplayMode, setPlayerDisplayMode] = useState<PlayerDisplayMode>("scene");
   const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
   const [diceRollHistory, setDiceRollHistory] = useState<DiceRollEvent[]>([]);
-  const [dicePanelOpenRequest, setDicePanelOpenRequest] = useState(0);
+  const [dicePanelOpen, setDicePanelOpen] = useState(false);
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
   const [turnOrderModalOpen, setTurnOrderModalOpen] = useState(false);
+  const [turnOrderModalCollapsed, setTurnOrderModalCollapsed] = useState(false);
   const [turnOrderModalPosition, setTurnOrderModalPosition] = useState<{ x: number; y: number } | null>(null);
   const [turnOrderSettingsOpen, setTurnOrderSettingsOpen] = useState(false);
   const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
@@ -1551,7 +1552,8 @@ export function GmApp() {
           onRollDie={rollTableDie}
           onRollExpression={rollTableExpression}
           onClearDiceRolls={clearDiceRolls}
-          dicePanelOpenRequest={dicePanelOpenRequest}
+          dicePanelOpen={dicePanelOpen}
+          onDicePanelOpenChange={setDicePanelOpen}
         />
 
         <div className={error ? "error-banner" : "error-banner error-banner-empty"}>{error}</div>
@@ -1586,6 +1588,8 @@ export function GmApp() {
                 activeScene.weather.enabled &&
                 (activeScene.weather.effects.rain.enabled || activeScene.weather.effects.fog.enabled || activeScene.weather.effects.snow.enabled || activeScene.weather.effects.sand.enabled)
               }
+              dicePanelOpen={dicePanelOpen}
+              turnOrderModalOpen={turnOrderModalOpen}
               onCanvasToolChange={setActiveCanvasTool}
               onFogToolChange={setActiveFogTool}
               onWeatherMaskToolChange={setActiveWeatherMaskTool}
@@ -1610,8 +1614,15 @@ export function GmApp() {
               onUndoDrawing={undoDrawing}
               onUndoWeatherMask={undoWeatherMask}
               onRequestClearFog={() => setConfirmClearFogOpen(true)}
-              onOpenDicePanel={() => setDicePanelOpenRequest((request) => request + 1)}
-              onOpenTurnOrder={() => setTurnOrderModalOpen(true)}
+              onToggleDicePanel={() => setDicePanelOpen((open) => !open)}
+              onToggleTurnOrder={() =>
+                setTurnOrderModalOpen((open) => {
+                  if (!open) {
+                    setTurnOrderModalCollapsed(false);
+                  }
+                  return !open;
+                })
+              }
             />
           )}
           <SceneCanvas
@@ -1675,7 +1686,9 @@ export function GmApp() {
             position={turnOrderModalPosition}
             settingsOpen={turnOrderSettingsOpen}
             settingsDisabled={!activeScene}
+            collapsed={turnOrderModalCollapsed}
             onToggleSettings={() => setTurnOrderSettingsOpen((open) => !open)}
+            onToggleCollapsed={() => setTurnOrderModalCollapsed((collapsed) => !collapsed)}
             onPositionChange={setTurnOrderModalPosition}
             onClose={() => setTurnOrderModalOpen(false)}
           >
@@ -1859,7 +1872,9 @@ function TurnOrderModal({
   position,
   settingsOpen,
   settingsDisabled,
+  collapsed,
   onToggleSettings,
+  onToggleCollapsed,
   onPositionChange,
   onClose
 }: {
@@ -1867,7 +1882,9 @@ function TurnOrderModal({
   position: { x: number; y: number } | null;
   settingsOpen: boolean;
   settingsDisabled: boolean;
+  collapsed: boolean;
   onToggleSettings: () => void;
+  onToggleCollapsed: () => void;
   onPositionChange: (position: { x: number; y: number }) => void;
   onClose: () => void;
 }) {
@@ -1906,19 +1923,28 @@ function TurnOrderModal({
   };
 
   return (
-    <section ref={modalRef} className={position ? "turn-order-modal turn-order-modal-positioned" : "turn-order-modal"} style={style} aria-label="Turn Order">
+    <section
+      ref={modalRef}
+      className={[
+        position ? "turn-order-modal turn-order-modal-positioned" : "turn-order-modal",
+        collapsed ? "turn-order-modal-collapsed" : ""
+      ].filter(Boolean).join(" ")}
+      style={style}
+      aria-label="Turn Order"
+    >
       <div
         className="turn-order-modal-header"
         onPointerDown={startDrag}
         onPointerMove={drag}
         onPointerUp={stopDrag}
         onPointerCancel={stopDrag}
+        onDoubleClick={onToggleCollapsed}
       >
         <div className="turn-order-modal-title">
           <GripVertical size={15} aria-hidden="true" />
           <strong>Turn Order</strong>
         </div>
-        <div className="turn-order-modal-actions" onPointerDown={(event) => event.stopPropagation()}>
+        <div className="turn-order-modal-actions" onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
           <button
             className={settingsOpen ? "icon-button dice-panel-icon-active" : "icon-button"}
             type="button"
@@ -1935,7 +1961,7 @@ function TurnOrderModal({
           </button>
         </div>
       </div>
-      <div className="turn-order-modal-body">{children}</div>
+      {!collapsed && <div className="turn-order-modal-body">{children}</div>}
     </section>
   );
 }

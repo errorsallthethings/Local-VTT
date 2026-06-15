@@ -35,27 +35,6 @@
   height: 38px;
 }
 
-.dice-toolbar-block {
-  position: relative;
-}
-
-.dice-toolbar-trigger {
-  flex-wrap: nowrap;
-}
-
-.dice-panel-trigger {
-  height: 38px;
-  min-width: 82px;
-  gap: 6px;
-  justify-content: center;
-}
-
-.dice-panel-trigger-active {
-  border-color: var(--color-accent);
-  background: rgb(122 162 247 / 0.18);
-  color: var(--color-text-strong);
-}
-
 .dice-popover {
   position: absolute;
   top: calc(100% + 8px);
@@ -68,12 +47,26 @@
   border-radius: var(--radius-panel);
   background: rgb(12 18 26 / 0.98);
   box-shadow: var(--shadow-panel);
-  padding: 8px;
 }
 
 .dice-popover-dragged {
   position: fixed;
   right: auto;
+}
+
+.dice-popover-floating {
+  position: fixed;
+  top: 86px;
+  right: 24px;
+}
+
+.dice-popover-collapsed {
+  max-height: none;
+  overflow: hidden;
+}
+
+.dice-popover-collapsed .dice-popover-header {
+  border-bottom: 0;
 }
 
 .dice-popover-header {
@@ -83,8 +76,7 @@
   gap: 8px;
   border-bottom: 1px solid var(--color-border-subtle);
   cursor: grab;
-  margin-bottom: 7px;
-  padding: 0 0 7px;
+  padding: 8px 8px 7px 10px;
   touch-action: none;
   user-select: none;
 }
@@ -128,6 +120,7 @@
 .dice-panel-body {
   display: grid;
   gap: 8px;
+  padding: 8px;
 }
 
 .dice-panel-section {
@@ -148,6 +141,9 @@
   justify-content: space-between;
   min-height: 24px;
   gap: 8px;
+}
+
+.dice-section-heading strong {
   color: var(--color-text-muted);
   font-size: 10px;
   font-weight: 900;
@@ -574,6 +570,14 @@
   font-weight: 900;
   line-height: 1;
   text-transform: uppercase;
+}
+
+.dice-roll-feed-heading strong {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  text-transform: inherit;
 }
 
 .dice-roll-feed-actions {

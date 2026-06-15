@@ -115,6 +115,8 @@ interface ToolsMenuProps {
   drawingCount: number;
   weatherMaskCount: number;
   weatherToolsEnabled: boolean;
+  dicePanelOpen: boolean;
+  turnOrderModalOpen: boolean;
   onCanvasToolChange: (tool: CanvasTool | null) => void;
   onFogToolChange: (tool: FogTool | null) => void;
   onWeatherMaskToolChange: (tool: WeatherMaskTool | null) => void;
@@ -139,8 +141,8 @@ interface ToolsMenuProps {
   onUndoDrawing: () => void;
   onUndoWeatherMask: () => void;
   onRequestClearFog: () => void;
-  onOpenDicePanel: () => void;
-  onOpenTurnOrder: () => void;
+  onToggleDicePanel: () => void;
+  onToggleTurnOrder: () => void;
 }
 
 const TOOL_CATEGORIES: Array<{ id: ToolCategory; label: string; icon: typeof SquareDashedMousePointer; hasPanelTools: boolean }> = [
@@ -180,6 +182,8 @@ export function ToolsMenu({
   drawingCount,
   weatherMaskCount,
   weatherToolsEnabled,
+  dicePanelOpen,
+  turnOrderModalOpen,
   onCanvasToolChange,
   onFogToolChange,
   onWeatherMaskToolChange,
@@ -203,8 +207,8 @@ export function ToolsMenu({
   onUndoFogShape,
   onUndoDrawing,
   onUndoWeatherMask,
-  onOpenDicePanel,
-  onOpenTurnOrder
+  onToggleDicePanel,
+  onToggleTurnOrder
 }: ToolsMenuProps) {
   const [activeCategory, setActiveCategory] = useState<ToolCategory | null>(null);
   const [toolsExpanded, setToolsExpanded] = useState(true);
@@ -267,13 +271,13 @@ export function ToolsMenu({
     if (category === "dice") {
       clearActiveTools();
       setActiveCategory(null);
-      onOpenDicePanel();
+      onToggleDicePanel();
       return;
     }
     if (category === "turn-order") {
       clearActiveTools();
       setActiveCategory(null);
-      onOpenTurnOrder();
+      onToggleTurnOrder();
       return;
     }
     if (category === "drawing" || category === "templates") {
@@ -367,6 +371,12 @@ export function ToolsMenu({
     }
     if (category === "mask") {
       return Boolean(activeFogTool || activeWeatherMaskTool);
+    }
+    if (category === "dice") {
+      return dicePanelOpen;
+    }
+    if (category === "turn-order") {
+      return turnOrderModalOpen;
     }
     return false;
   };

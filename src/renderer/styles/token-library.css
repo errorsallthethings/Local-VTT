@@ -688,6 +688,16 @@
   bottom: auto;
 }
 
+.turn-order-modal-collapsed {
+  grid-template-rows: auto;
+  height: auto;
+  min-height: 0;
+}
+
+.turn-order-modal-collapsed .turn-order-modal-header {
+  border-bottom: 0;
+}
+
 .turn-order-modal-header {
   display: flex;
   align-items: center;
@@ -748,10 +758,10 @@
 }
 
 .turn-order-heading strong {
-  color: var(--color-text-strong);
-  font-size: 12px;
-  font-weight: 850;
-  letter-spacing: 0;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
   text-transform: uppercase;
 }
 
