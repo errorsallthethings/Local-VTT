@@ -265,10 +265,14 @@ export function ToolsMenu({
     setActiveCategory(category);
     setHelpTopic(null);
     if (category === "dice") {
+      clearActiveTools();
+      setActiveCategory(null);
       onOpenDicePanel();
       return;
     }
     if (category === "turn-order") {
+      clearActiveTools();
+      setActiveCategory(null);
       onOpenTurnOrder();
       return;
     }

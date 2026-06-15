@@ -1,12 +1,14 @@
 import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState
 } from "react";
+import { GripVertical, Settings2, X } from "lucide-react";
 import {
   DEFAULT_DICE_SETTINGS,
   DEFAULT_FOG,
@@ -181,6 +183,9 @@ export function GmApp() {
   const [diceRollHistory, setDiceRollHistory] = useState<DiceRollEvent[]>([]);
   const [dicePanelOpenRequest, setDicePanelOpenRequest] = useState(0);
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
+  const [turnOrderModalOpen, setTurnOrderModalOpen] = useState(false);
+  const [turnOrderModalPosition, setTurnOrderModalPosition] = useState<{ x: number; y: number } | null>(null);
+  const [turnOrderSettingsOpen, setTurnOrderSettingsOpen] = useState(false);
   const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
   const [gmCanvasCenter, setGmCanvasCenter] = useState<Point | null>(null);
@@ -1606,7 +1611,7 @@ export function GmApp() {
               onUndoWeatherMask={undoWeatherMask}
               onRequestClearFog={() => setConfirmClearFogOpen(true)}
               onOpenDicePanel={() => setDicePanelOpenRequest((request) => request + 1)}
-              onOpenTurnOrder={() => setTokenLibraryExpanded(true)}
+              onOpenTurnOrder={() => setTurnOrderModalOpen(true)}
             />
           )}
           <SceneCanvas
@@ -1664,16 +1669,28 @@ export function GmApp() {
           onSetTokenDefaults={openTokenDefaultsDialog}
           onRenameToken={openRenameTokenAssetDialog}
           onDeleteToken={(asset) => void openDeleteTokenAssetDialog(asset)}
-          sidePanel={
+        />
+        {turnOrderModalOpen && (
+          <TurnOrderModal
+            position={turnOrderModalPosition}
+            settingsOpen={turnOrderSettingsOpen}
+            settingsDisabled={!activeScene}
+            onToggleSettings={() => setTurnOrderSettingsOpen((open) => !open)}
+            onPositionChange={setTurnOrderModalPosition}
+            onClose={() => setTurnOrderModalOpen(false)}
+          >
             <TurnOrderPanel
               scene={activeScene}
               campaignPlayers={campaign?.players ?? []}
               tokenAssets={tokenAssets}
               canStartTurnOrder={Boolean(activeScene && activeScene.id === playerSceneId && playerDisplayMode === "scene")}
               onChangeScene={updateScene}
+              settingsOpen={turnOrderSettingsOpen}
+              onSettingsOpenChange={setTurnOrderSettingsOpen}
+              settingsControlVisible={false}
             />
-          }
-        />
+          </TurnOrderModal>
+        )}
 
         <footer className="statusbar">
           <span>Mouse wheel zooms. Drag pans. Scene data uses world/map coordinates.</span>
@@ -1835,6 +1852,100 @@ function CampaignBusyOverlay({ busyState }: { busyState: CampaignBusyState }) {
       </div>
     </div>
   );
+}
+
+function TurnOrderModal({
+  children,
+  position,
+  settingsOpen,
+  settingsDisabled,
+  onToggleSettings,
+  onPositionChange,
+  onClose
+}: {
+  children: ReactNode;
+  position: { x: number; y: number } | null;
+  settingsOpen: boolean;
+  settingsDisabled: boolean;
+  onToggleSettings: () => void;
+  onPositionChange: (position: { x: number; y: number }) => void;
+  onClose: () => void;
+}) {
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
+  const style = position ? ({ left: position.x, top: position.y } as CSSProperties) : undefined;
+
+  const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const bounds = modalRef.current?.getBoundingClientRect();
+    if (!bounds) {
+      return;
+    }
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - bounds.left,
+      offsetY: event.clientY - bounds.top
+    };
+    onPositionChange(clampTurnOrderModalPosition(bounds.left, bounds.top, bounds));
+  };
+
+  const drag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const dragState = dragRef.current;
+    const bounds = modalRef.current?.getBoundingClientRect();
+    if (!dragState || dragState.pointerId !== event.pointerId || !bounds) {
+      return;
+    }
+    onPositionChange(clampTurnOrderModalPosition(event.clientX - dragState.offsetX, event.clientY - dragState.offsetY, bounds));
+  };
+
+  const stopDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      dragRef.current = null;
+    }
+  };
+
+  return (
+    <section ref={modalRef} className={position ? "turn-order-modal turn-order-modal-positioned" : "turn-order-modal"} style={style} aria-label="Turn Order">
+      <div
+        className="turn-order-modal-header"
+        onPointerDown={startDrag}
+        onPointerMove={drag}
+        onPointerUp={stopDrag}
+        onPointerCancel={stopDrag}
+      >
+        <div className="turn-order-modal-title">
+          <GripVertical size={15} aria-hidden="true" />
+          <strong>Turn Order</strong>
+        </div>
+        <div className="turn-order-modal-actions" onPointerDown={(event) => event.stopPropagation()}>
+          <button
+            className={settingsOpen ? "icon-button dice-panel-icon-active" : "icon-button"}
+            type="button"
+            aria-label="Turn order settings"
+            title="Turn order settings"
+            aria-expanded={settingsOpen}
+            disabled={settingsDisabled}
+            onClick={onToggleSettings}
+          >
+            <Settings2 size={15} aria-hidden="true" />
+          </button>
+          <button className="icon-button" type="button" aria-label="Close turn order" title="Close turn order" onClick={onClose}>
+            <X size={15} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+      <div className="turn-order-modal-body">{children}</div>
+    </section>
+  );
+}
+
+function clampTurnOrderModalPosition(x: number, y: number, bounds: DOMRect): { x: number; y: number } {
+  const margin = 12;
+  return {
+    x: Math.min(Math.max(margin, x), Math.max(margin, window.innerWidth - bounds.width - margin)),
+    y: Math.min(Math.max(margin, y), Math.max(margin, window.innerHeight - bounds.height - margin))
+  };
 }
 
 const LIVE_TABLE_PING_DURATION_MS = 1600;

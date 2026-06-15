@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, CircleHelp, Dices, EllipsisVertical, Eye, Map, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, CircleHelp, Dices, EllipsisVertical, Eye, GripVertical, Map, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
 import type { Asset, Campaign, DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneRollTarget, DiceSceneSize, LiveTableEvent, Scene } from "../../../shared/localvtt";
 import {
   DICE_TYPES,
@@ -411,9 +411,10 @@ export function WorkspaceTopbar({
                 onPointerCancel={endDicePanelDrag}
               >
                 <div className="dice-popover-title">
+                  <GripVertical size={15} aria-hidden="true" />
                   <strong>Dice</strong>
                 </div>
-                <div className="dice-popover-header-actions">
+                <div className="dice-popover-header-actions" onPointerDown={(event) => event.stopPropagation()}>
                   <button
                     className={diceSettingsOpen ? "icon-button dice-panel-icon-active" : "icon-button"}
                     aria-label="Dice rendering settings"

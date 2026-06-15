@@ -26,15 +26,36 @@ interface TurnOrderPanelProps {
   tokenAssets: Map<string, Asset>;
   canStartTurnOrder: boolean;
   onChangeScene: (scene: Scene) => void;
+  settingsOpen?: boolean;
+  onSettingsOpenChange?: (open: boolean) => void;
+  settingsControlVisible?: boolean;
 }
 
-export function TurnOrderPanel({ scene, campaignPlayers, tokenAssets, canStartTurnOrder, onChangeScene }: TurnOrderPanelProps) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
+export function TurnOrderPanel({
+  scene,
+  campaignPlayers,
+  tokenAssets,
+  canStartTurnOrder,
+  onChangeScene,
+  settingsOpen: controlledSettingsOpen,
+  onSettingsOpenChange,
+  settingsControlVisible = true
+}: TurnOrderPanelProps) {
+  const [localSettingsOpen, setLocalSettingsOpen] = useState(false);
   const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ entryId: string; placement: "before" | "after" } | null>(null);
   const turnOrder = scene?.turnOrder;
   const currentEntryId = turnOrder?.currentEntryId;
   const playersToAddCount = scene ? campaignPlayers.filter((player) => !scene.turnOrder.entries.some((entry) => entry.playerId === player.id)).length : 0;
+  const settingsOpen = controlledSettingsOpen ?? localSettingsOpen;
+  const setSettingsOpen = (open: boolean | ((current: boolean) => boolean)) => {
+    const nextOpen = typeof open === "function" ? open(settingsOpen) : open;
+    if (onSettingsOpenChange) {
+      onSettingsOpenChange(nextOpen);
+    } else {
+      setLocalSettingsOpen(nextOpen);
+    }
+  };
 
   const updateScene = (nextScene: Scene) => onChangeScene(nextScene);
   const updateTurnOrder = (patch: Partial<TurnOrderSettings>) => {
@@ -94,54 +115,6 @@ export function TurnOrderPanel({ scene, campaignPlayers, tokenAssets, canStartTu
         addAssetEntry(asset);
       }}
     >
-      <div className="turn-order-heading">
-        <div>
-          <strong>Turn Order</strong>
-          <span>{turnOrder ? `${turnOrder.entries.length} entries` : "Select a scene"}</span>
-        </div>
-      </div>
-
-      <div className="turn-order-toolbar">
-        <div className="turn-order-controls">
-          <button
-            disabled={!scene || !turnOrder || turnOrder.entries.length === 0 || (!turnOrder.active && !canStartTurnOrder)}
-            title={turnOrder?.active ? "Stop turn order" : canStartTurnOrder ? "Start turn order" : "Send this scene to Player View before starting turn order"}
-            onClick={() => scene && updateScene(turnOrder?.active ? stopTurnOrder(scene) : startTurnOrder(scene))}
-          >
-            {turnOrder?.active ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
-          </button>
-          <button disabled={!scene || !turnOrder?.active || turnOrder.entries.length === 0} title="Previous turn" onClick={() => scene && updateScene(advanceTurnOrder(scene, "previous"))}>
-            <SkipBack size={14} aria-hidden="true" />
-          </button>
-          <button disabled={!scene || !turnOrder?.active || turnOrder.entries.length === 0} title="Next turn" onClick={() => scene && updateScene(advanceTurnOrder(scene, "next"))}>
-            <SkipForward size={14} aria-hidden="true" />
-          </button>
-          <button disabled={!scene || !turnOrder} title="Turn order display settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>
-            <Settings2 size={14} aria-hidden="true" />
-          </button>
-        </div>
-
-        <div className="turn-order-actions">
-          <button disabled={!scene} title="Add manual entry" aria-label="Add manual entry" onClick={addManualEntry}>
-            <Plus size={14} aria-hidden="true" />
-          </button>
-          <button
-            disabled={!scene || campaignPlayers.length === 0 || playersToAddCount === 0}
-            title={campaignPlayers.length === 0 ? "Add campaign players first" : playersToAddCount === 0 ? "All campaign players are already in turn order" : "Add campaign players"}
-            aria-label="Add campaign players"
-            onClick={() => scene && updateScene(addPlayersToTurnOrder(scene, campaignPlayers))}
-          >
-            <UserRoundPlus size={14} aria-hidden="true" />
-          </button>
-          <button disabled={!scene || !turnOrder || turnOrder.entries.length === 0} title="Roll initiative for non-player entries" aria-label="Roll initiative for non-player entries" onClick={() => scene && updateScene(rollInitiativeForNonPlayers(scene))}>
-            <Dice5 size={14} aria-hidden="true" />
-          </button>
-          <button disabled={!scene || !turnOrder || turnOrder.entries.length === 0} title="Sort by initiative" aria-label="Sort by initiative" onClick={() => scene && updateScene(sortTurnOrderByInitiative(scene))}>
-            <ListPlus size={14} aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-
       {scene && turnOrder && settingsOpen && (
         <div className="turn-order-settings-panel" aria-label="Player View turn order display settings">
           <div className="turn-order-settings-group">
@@ -224,6 +197,56 @@ export function TurnOrderPanel({ scene, campaignPlayers, tokenAssets, canStartTu
           </div>
         </div>
       )}
+
+      <div className="turn-order-heading">
+        <div>
+          <strong>Turn Order</strong>
+          <span>{turnOrder ? `${turnOrder.entries.length} entries` : "Select a scene"}</span>
+        </div>
+      </div>
+
+      <div className="turn-order-toolbar">
+        <div className="turn-order-controls">
+          <button
+            disabled={!scene || !turnOrder || turnOrder.entries.length === 0 || (!turnOrder.active && !canStartTurnOrder)}
+            title={turnOrder?.active ? "Stop turn order" : canStartTurnOrder ? "Start turn order" : "Send this scene to Player View before starting turn order"}
+            onClick={() => scene && updateScene(turnOrder?.active ? stopTurnOrder(scene) : startTurnOrder(scene))}
+          >
+            {turnOrder?.active ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
+          </button>
+          <button disabled={!scene || !turnOrder?.active || turnOrder.entries.length === 0} title="Previous turn" onClick={() => scene && updateScene(advanceTurnOrder(scene, "previous"))}>
+            <SkipBack size={14} aria-hidden="true" />
+          </button>
+          <button disabled={!scene || !turnOrder?.active || turnOrder.entries.length === 0} title="Next turn" onClick={() => scene && updateScene(advanceTurnOrder(scene, "next"))}>
+            <SkipForward size={14} aria-hidden="true" />
+          </button>
+          {settingsControlVisible && (
+            <button disabled={!scene || !turnOrder} title="Turn order display settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>
+              <Settings2 size={14} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+
+        <div className="turn-order-actions">
+          <button disabled={!scene} title="Add manual entry" aria-label="Add manual entry" onClick={addManualEntry}>
+            <Plus size={14} aria-hidden="true" />
+          </button>
+          <button
+            disabled={!scene || campaignPlayers.length === 0 || playersToAddCount === 0}
+            title={campaignPlayers.length === 0 ? "Add campaign players first" : playersToAddCount === 0 ? "All campaign players are already in turn order" : "Add campaign players"}
+            aria-label="Add campaign players"
+            onClick={() => scene && updateScene(addPlayersToTurnOrder(scene, campaignPlayers))}
+          >
+            <UserRoundPlus size={14} aria-hidden="true" />
+          </button>
+          <button disabled={!scene || !turnOrder || turnOrder.entries.length === 0} title="Roll initiative for non-player entries" aria-label="Roll initiative for non-player entries" onClick={() => scene && updateScene(rollInitiativeForNonPlayers(scene))}>
+            <Dice5 size={14} aria-hidden="true" />
+          </button>
+          <button disabled={!scene || !turnOrder || turnOrder.entries.length === 0} title="Sort by initiative" aria-label="Sort by initiative" onClick={() => scene && updateScene(sortTurnOrderByInitiative(scene))}>
+            <ListPlus size={14} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
 
       {!scene ? (
         <div className="turn-order-empty">Select a scene to build a turn order.</div>
