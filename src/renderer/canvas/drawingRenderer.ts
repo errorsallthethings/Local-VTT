@@ -32,6 +32,8 @@ export type DrawingPreview = {
   measurementLabelVisible?: boolean;
 };
 
+export type DrawingPointOverrides = Map<string, Point[]>;
+
 export function drawDrawings(
   ctx: CanvasRenderingContext2D,
   scene: Scene,
@@ -39,7 +41,8 @@ export function drawDrawings(
   layerOpacity = 1,
   preview: DrawingPreview | null = null,
   zoom = 1,
-  selectedDrawingId: string | string[] | null = null
+  selectedDrawingId: string | string[] | null = null,
+  drawingPointOverrides: DrawingPointOverrides | null = null
 ) {
   if (layerOpacity <= 0) {
     return;
@@ -53,9 +56,11 @@ export function drawDrawings(
     if (!isDrawingVisible(drawing, mode)) {
       continue;
     }
-    drawDrawingElement(ctx, drawing, scene, layerOpacity, zoom);
+    const overridePoints = mode === "gm" ? drawingPointOverrides?.get(drawing.id) : null;
+    const renderDrawing = overridePoints ? { ...drawing, points: overridePoints } : drawing;
+    drawDrawingElement(ctx, renderDrawing, scene, layerOpacity, zoom);
     if (mode === "gm" && selectedDrawingIds.has(drawing.id)) {
-      drawDrawingSelection(ctx, drawing, zoom);
+      drawDrawingSelection(ctx, renderDrawing, zoom);
     }
   }
   if (preview) {

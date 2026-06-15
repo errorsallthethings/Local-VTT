@@ -9,6 +9,7 @@ import {
   getDrawingAtPoint,
   isMeaningfulDrawingPreview,
   shouldAddDrawingPoint,
+  type DrawingPointOverrides,
   type DrawingPreview,
   type DrawingTool
 } from "../canvas/drawingRenderer";
@@ -154,6 +155,13 @@ type TokenDragState = {
   startPosition: Point;
   waypoints: Point[];
   groupStartPositions: Map<string, Point>;
+};
+
+type DrawingDragState = {
+  pointerId: number;
+  drawingId: string;
+  start: Point;
+  groupStartPoints: DrawingPointOverrides;
 };
 
 type LaserDragState = {
@@ -324,6 +332,7 @@ export function SceneCanvas({
   const [rulerDrag, setRulerDrag] = useState<RulerDrag | null>(null);
   const [releasedRulerDrag, setReleasedRulerDrag] = useState<RulerDrag | null>(null);
   const [tokenDragPreview, setTokenDragPreview] = useState<TokenDragPreview | null>(null);
+  const [drawingDragPreview, setDrawingDragPreview] = useState<DrawingPointOverrides | null>(null);
   const [playerTokenTweenPositions, setPlayerTokenTweenPositions] = useState<TokenPositionOverrides | null>(null);
   const [polygonDraft, setPolygonDraft] = useState<FogPolygonDraft | null>(null);
   const [drawingPolygonDraft, setDrawingPolygonDraft] = useState<DrawingPolygonDraft | null>(null);
@@ -341,6 +350,7 @@ export function SceneCanvas({
   const rulerDragRef = useRef<(RulerDrag & { pointerId: number }) | null>(null);
   const releasedRulerTimeoutRef = useRef<number | null>(null);
   const tokenDragRef = useRef<TokenDragState | null>(null);
+  const drawingDragRef = useRef<DrawingDragState | null>(null);
   const laserDragRef = useRef<LaserDragState | null>(null);
   const fogDragRef = useRef<FogDrag | null>(null);
   const drawingPreviewRef = useRef<DrawingPreview | null>(null);
@@ -807,7 +817,7 @@ export function SceneCanvas({
   }, [weatherPolygonDraft, scene]);
 
   useEffect(() => {
-    if (mode !== "gm" || (!tokenDragPreview && !rulerDrag && !fogPreview && !drawingPreview)) {
+    if (mode !== "gm" || (!tokenDragPreview && !drawingDragPreview && !rulerDrag && !fogPreview && !drawingPreview)) {
       return;
     }
 
@@ -817,6 +827,7 @@ export function SceneCanvas({
       }
       event.preventDefault();
       cancelTokenDrag();
+      cancelDrawingDrag();
       cancelRulerDrag();
       cancelFogDrag();
       cancelDrawingPreview();
@@ -824,7 +835,7 @@ export function SceneCanvas({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelRulerDrag, drawingPreview, fogPreview, mode, rulerDrag, tokenDragPreview]);
+  }, [cancelRulerDrag, drawingDragPreview, drawingPreview, fogPreview, mode, rulerDrag, tokenDragPreview]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !tokenDragPreview) {
@@ -1092,7 +1103,16 @@ export function SceneCanvas({
                 measurementLabelVisible: false
               } satisfies DrawingPreview)
             : null;
-        drawDrawings(ctx, scene, mode, drawingLayer?.opacity ?? 1, mode === "gm" ? (drawingPreview ?? drawingPolygonPreview) : null, renderCamera.zoom, selectedDrawingIds.length > 0 ? selectedDrawingIds : selectedDrawingId);
+        drawDrawings(
+          ctx,
+          scene,
+          mode,
+          drawingLayer?.opacity ?? 1,
+          mode === "gm" ? (drawingPreview ?? drawingPolygonPreview) : null,
+          renderCamera.zoom,
+          selectedDrawingIds.length > 0 ? selectedDrawingIds : selectedDrawingId,
+          drawingDragPreview
+        );
       }
 
       const visibleGmRuler = rulerDrag ?? releasedRulerDrag;
@@ -1205,7 +1225,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1229,6 +1249,11 @@ export function SceneCanvas({
   const cancelTokenDrag = () => {
     tokenDragRef.current = null;
     setTokenDragPreview(null);
+  };
+
+  const cancelDrawingDrag = () => {
+    drawingDragRef.current = null;
+    setDrawingDragPreview(null);
   };
 
   const cancelFogDrag = () => {
@@ -1478,10 +1503,29 @@ export function SceneCanvas({
       if (!canvasTool && !drawingTool && !fogTool && !weatherMaskTool) {
         const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, Math.max(8, 8 / getRenderCamera(camera, playerDisplayScale).zoom)) : null;
         if (drawingHit) {
+          const selectedDrawingIdSet = new Set(selectedDrawingIds);
+          const shouldDragSelectedGroup = mouseBehavior === "grabber" && selectedDrawingIdSet.has(drawingHit.id) && selectedDrawingIds.length > 1;
+          const groupDrawingIds = shouldDragSelectedGroup ? selectedDrawingIds : [drawingHit.id];
+          const groupStartPoints = new Map(
+            scene.drawings
+              .filter((candidate) => groupDrawingIds.includes(candidate.id))
+              .map((candidate) => [candidate.id, candidate.points.map((candidatePoint) => ({ ...candidatePoint }))])
+          );
           onSelectToken?.(null);
-          onSelectDrawing?.(drawingHit.id);
+          if (!shouldDragSelectedGroup) {
+            onSelectDrawing?.(drawingHit.id);
+          }
           onSelectFogShape?.(null);
           onSelectWeatherMask?.(null);
+          if (mouseBehavior === "grabber") {
+            drawingDragRef.current = {
+              pointerId: event.pointerId,
+              drawingId: drawingHit.id,
+              start: point,
+              groupStartPoints
+            };
+            setDrawingDragPreview(groupStartPoints);
+          }
           return;
         }
         const maskHit = getMaskHitAtPoint(scene, point);
@@ -1519,6 +1563,7 @@ export function SceneCanvas({
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const tokenDrag = tokenDragRef.current;
+    const drawingDragValue = drawingDragRef.current;
     const laserDrag = laserDragRef.current;
     const drawingDrag = drawingPreviewRef.current;
     const rulerDragValue = rulerDragRef.current;
@@ -1588,6 +1633,26 @@ export function SceneCanvas({
       const nextDrawingDrag = { ...drawingDrag, current, points: nextPoints };
       drawingPreviewRef.current = nextDrawingDrag;
       setDrawingPreview(nextDrawingDrag);
+      return;
+    }
+
+    if (drawingDragValue?.pointerId === event.pointerId) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const delta = {
+        x: point.x - drawingDragValue.start.x,
+        y: point.y - drawingDragValue.start.y
+      };
+      setDrawingDragPreview(
+        new Map(
+          [...drawingDragValue.groupStartPoints.entries()].map(([drawingId, points]) => [
+            drawingId,
+            points.map((candidatePoint) => ({
+              x: candidatePoint.x + delta.x,
+              y: candidatePoint.y + delta.y
+            }))
+          ])
+        )
+      );
       return;
     }
 
@@ -1808,6 +1873,23 @@ export function SceneCanvas({
       if (scene) {
         selectFromMarquee(scene, completedSelection);
       }
+      return;
+    }
+
+    if (drawingDragRef.current?.pointerId === event.pointerId) {
+      const movedPoints = drawingDragPreview;
+      if (scene && onSceneChange && movedPoints) {
+        onSceneChange({
+          ...scene,
+          drawings: scene.drawings.map((drawing) => {
+            const points = movedPoints.get(drawing.id);
+            return points ? { ...drawing, points } : drawing;
+          }),
+          updatedAt: new Date().toISOString()
+        });
+      }
+      drawingDragRef.current = null;
+      setDrawingDragPreview(null);
       return;
     }
 
