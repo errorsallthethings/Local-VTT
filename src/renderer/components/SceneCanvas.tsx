@@ -1478,6 +1478,7 @@ export function SceneCanvas({
       if (!canvasTool && !drawingTool && !fogTool && !weatherMaskTool) {
         const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, Math.max(8, 8 / getRenderCamera(camera, playerDisplayScale).zoom)) : null;
         if (drawingHit) {
+          onSelectToken?.(null);
           onSelectDrawing?.(drawingHit.id);
           onSelectFogShape?.(null);
           onSelectWeatherMask?.(null);
