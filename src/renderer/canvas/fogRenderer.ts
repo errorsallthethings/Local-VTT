@@ -1,5 +1,6 @@
 import type { FogShape, Point, Scene } from "../../shared/localvtt";
 import type { Camera } from "./camera";
+import { drawSelectionBox } from "./selectionRenderer";
 
 export type FogTool =
   | "reveal-rectangle"
@@ -111,7 +112,7 @@ export function drawFog(
       ctx.save();
       ctx.translate(camera.x, camera.y);
       ctx.scale(camera.zoom, camera.zoom);
-      drawFogShapeSelection(ctx, selectedShape);
+      drawFogShapeSelection(ctx, selectedShape, camera.zoom);
       ctx.restore();
     }
   }
@@ -303,23 +304,14 @@ function drawPolygonDraftOutline(ctx: CanvasRenderingContext2D, draft: FogPolygo
   ctx.restore();
 }
 
-function drawFogShapeSelection(ctx: CanvasRenderingContext2D, shape: FogShape) {
+function drawFogShapeSelection(ctx: CanvasRenderingContext2D, shape: FogShape, zoom: number) {
   const bounds = getFogShapeBounds(shape);
   if (!bounds) {
     return;
   }
 
   const padding = Math.max(8, (shape.kind === "brush" ? shape.radius ?? 24 : 0) + 8);
-  ctx.save();
-  ctx.globalCompositeOperation = "source-over";
-  ctx.strokeStyle = "#f6d365";
-  ctx.lineWidth = 2;
-  ctx.setLineDash([7, 5]);
-  ctx.strokeRect(bounds.x - padding, bounds.y - padding, bounds.width + padding * 2, bounds.height + padding * 2);
-  ctx.setLineDash([]);
-  ctx.fillStyle = "rgb(246 211 101 / 0.12)";
-  ctx.fillRect(bounds.x - padding, bounds.y - padding, bounds.width + padding * 2, bounds.height + padding * 2);
-  ctx.restore();
+  drawSelectionBox(ctx, bounds, zoom, padding);
 }
 
 function getFogShapeBounds(shape: FogShape) {

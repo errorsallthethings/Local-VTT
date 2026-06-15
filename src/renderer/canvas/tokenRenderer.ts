@@ -14,6 +14,7 @@ import {
   getTokenHexFootprintCenters,
   getVisibleTokens
 } from "./tokenGeometry";
+import { drawSelectionBox } from "./selectionRenderer";
 
 export type TokenDragPreview = {
   tokenId: string;
@@ -32,7 +33,8 @@ export function drawTokens(
   mode: "gm" | "player",
   selectedTokenId: string | string[] | null,
   tokenDragPreview: TokenDragPreview | null,
-  tokenPositionOverrides: TokenPositionOverrides | null = null
+  tokenPositionOverrides: TokenPositionOverrides | null = null,
+  zoom = 1
 ) {
   const selectedTokenIds = new Set(Array.isArray(selectedTokenId) ? selectedTokenId : selectedTokenId ? [selectedTokenId] : []);
   for (const token of getVisibleTokens(scene, mode)) {
@@ -58,11 +60,11 @@ export function drawTokens(
     const image = loadedImages.get(token.assetId);
     const selected = selectedTokenIds.has(token.id);
     if (!image) {
-      drawTokenPlaceholder(ctx, renderToken, selected);
+      drawTokenPlaceholder(ctx, renderToken, selected, zoom);
       ctx.restore();
       continue;
     }
-    drawToken(ctx, renderToken, image, selected && mode === "gm");
+    drawToken(ctx, renderToken, image, selected && mode === "gm", zoom);
     ctx.restore();
   }
 }
@@ -280,7 +282,7 @@ function hexToRgbAlpha(hex: string, alpha: number): string {
   return `rgb(${red} ${green} ${blue} / ${alpha})`;
 }
 
-function drawToken(ctx: CanvasRenderingContext2D, token: Token, image: HTMLImageElement, selected: boolean) {
+function drawToken(ctx: CanvasRenderingContext2D, token: Token, image: HTMLImageElement, selected: boolean, zoom: number) {
   const mask = token.mask ?? DEFAULT_TOKEN_MASK;
   const borderStyle = token.borderStyle ?? DEFAULT_TOKEN_BORDER_STYLE;
   const borderColor = token.borderColor ?? DEFAULT_TOKEN_BORDER_COLOR;
@@ -297,7 +299,7 @@ function drawToken(ctx: CanvasRenderingContext2D, token: Token, image: HTMLImage
 
   drawTokenBorder(ctx, x, y, width, height, mask, borderStyle, borderColor, borderWidth, glowColor);
   if (selected) {
-    drawTokenSelectionOutline(ctx, x, y, width, height, mask);
+    drawTokenSelectionOutline(ctx, x, y, width, height, mask, zoom);
   }
 }
 
@@ -323,7 +325,7 @@ function drawCroppedImage(ctx: CanvasRenderingContext2D, image: HTMLImageElement
   ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, x, y, width, height);
 }
 
-function drawTokenPlaceholder(ctx: CanvasRenderingContext2D, token: Token, selected: boolean) {
+function drawTokenPlaceholder(ctx: CanvasRenderingContext2D, token: Token, selected: boolean, zoom: number) {
   const { x, y } = token.position;
   const { width, height } = token.size;
   ctx.save();
@@ -344,7 +346,7 @@ function drawTokenPlaceholder(ctx: CanvasRenderingContext2D, token: Token, selec
     token.glowColor ?? token.borderColor ?? DEFAULT_TOKEN_BORDER_COLOR
   );
   if (selected) {
-    drawTokenSelectionOutline(ctx, x, y, width, height, token.mask ?? DEFAULT_TOKEN_MASK);
+    drawTokenSelectionOutline(ctx, x, y, width, height, token.mask ?? DEFAULT_TOKEN_MASK, zoom);
   }
 }
 
@@ -478,14 +480,6 @@ function traceTokenInsetPath(ctx: CanvasRenderingContext2D, x: number, y: number
   ctx.rect(x + safeInset, y + safeInset, Math.max(1, width - safeInset * 2), Math.max(1, height - safeInset * 2));
 }
 
-function drawTokenSelectionOutline(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, mask: Token["mask"]) {
-  const offset = 6;
-  ctx.save();
-  applyTokenMask(ctx, x - offset, y - offset, width + offset * 2, height + offset * 2, mask);
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = "#f6d365";
-  ctx.shadowColor = "#f6d365";
-  ctx.shadowBlur = 12;
-  ctx.stroke();
-  ctx.restore();
+function drawTokenSelectionOutline(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, _mask: Token["mask"], zoom: number) {
+  drawSelectionBox(ctx, { x, y, width, height }, zoom, 8);
 }

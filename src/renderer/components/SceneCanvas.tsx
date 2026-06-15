@@ -46,6 +46,7 @@ import {
   type RulerLabel
 } from "../canvas/measurement";
 import { getPointAlongPath } from "../canvas/movementPath";
+import { drawSelectionBox } from "../canvas/selectionRenderer";
 import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex, getSnappedTokenPosition, getTokenAtPoint, isPointInsideFogShape } from "../canvas/tokenGeometry";
 import {
   getTokenMovementPath,
@@ -1068,7 +1069,7 @@ export function SceneCanvas({
       }
 
       if (canShowTokens) {
-        drawTokens(ctx, scene, loadedTokenImages, mode, selectedTokenIds.length > 0 ? selectedTokenIds : selectedTokenId, tokenDragPreview, playerTokenTweenPositionsRef.current);
+        drawTokens(ctx, scene, loadedTokenImages, mode, selectedTokenIds.length > 0 ? selectedTokenIds : selectedTokenId, tokenDragPreview, playerTokenTweenPositionsRef.current, renderCamera.zoom);
       }
 
       if (canShowDrawings) {
@@ -3499,7 +3500,15 @@ function drawWeatherPolygonDraft(ctx: CanvasRenderingContext2D, draft: WeatherPo
 }
 
 function drawWeatherMaskSelection(ctx: CanvasRenderingContext2D, mask: WeatherMask, camera: Camera) {
-  drawWeatherMaskShape(ctx, mask, camera, { fill: true, selected: true });
+  const bounds = getWeatherMaskBounds(mask);
+  if (!bounds) {
+    return;
+  }
+  ctx.save();
+  ctx.translate(camera.x, camera.y);
+  ctx.scale(camera.zoom, camera.zoom);
+  drawSelectionBox(ctx, bounds, camera.zoom, 10);
+  ctx.restore();
 }
 
 function drawWeatherMaskOutlines(ctx: CanvasRenderingContext2D, masks: WeatherMask[], camera: Camera) {
@@ -3515,11 +3524,20 @@ function drawWeatherMaskShape(ctx: CanvasRenderingContext2D, mask: WeatherMask, 
   ctx.save();
   ctx.translate(camera.x, camera.y);
   ctx.scale(camera.zoom, camera.zoom);
-  ctx.strokeStyle = "#8bc6ff";
-  ctx.fillStyle = options.selected || options.fill ? "rgb(139 198 255 / 0.16)" : "transparent";
   ctx.globalAlpha = options.selected ? 1 : 0.78;
-  ctx.lineWidth = Math.max(1.75, (options.selected ? 2.5 : 2) / camera.zoom);
-  ctx.setLineDash([9 / camera.zoom, 5 / camera.zoom]);
+  if (options.selected) {
+    const bounds = getWeatherMaskBounds(mask);
+    if (bounds) {
+      drawSelectionBox(ctx, bounds, camera.zoom, 10);
+    }
+    ctx.restore();
+    return;
+  } else {
+    ctx.strokeStyle = "#8bc6ff";
+    ctx.fillStyle = options.fill ? "rgb(139 198 255 / 0.16)" : "transparent";
+    ctx.lineWidth = Math.max(1.75, 2 / camera.zoom);
+    ctx.setLineDash([9 / camera.zoom, 5 / camera.zoom]);
+  }
   if (mask.kind === "circle" && mask.points[0] && mask.radius) {
     ctx.beginPath();
     ctx.arc(mask.points[0].x, mask.points[0].y, mask.radius, 0, Math.PI * 2);
@@ -3549,6 +3567,40 @@ function drawWeatherMaskShape(ctx: CanvasRenderingContext2D, mask: WeatherMask, 
     ctx.stroke();
   }
   ctx.restore();
+}
+
+function getWeatherMaskBounds(mask: WeatherMask): { x: number; y: number; width: number; height: number } | null {
+  if (mask.kind === "circle" && mask.points[0] && mask.radius) {
+    return {
+      x: mask.points[0].x - mask.radius,
+      y: mask.points[0].y - mask.radius,
+      width: mask.radius * 2,
+      height: mask.radius * 2
+    };
+  }
+  if (mask.kind === "rectangle" && mask.points.length >= 2) {
+    return {
+      x: Math.min(mask.points[0].x, mask.points[1].x),
+      y: Math.min(mask.points[0].y, mask.points[1].y),
+      width: Math.max(1, Math.abs(mask.points[1].x - mask.points[0].x)),
+      height: Math.max(1, Math.abs(mask.points[1].y - mask.points[0].y))
+    };
+  }
+  if (mask.points.length === 0) {
+    return null;
+  }
+  const xs = mask.points.map((point) => point.x);
+  const ys = mask.points.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(1, maxX - minX),
+    height: Math.max(1, maxY - minY)
+  };
 }
 
 function isMeaningfulWeatherMaskDrag(drag: WeatherMaskDrag): boolean {

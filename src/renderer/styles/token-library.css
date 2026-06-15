@@ -390,10 +390,11 @@
 
 .token-library-item-selected {
   border-color: var(--color-accent);
-  background: #1d2a3e;
+  background: #233653;
   box-shadow:
-    inset 3px 0 0 rgb(122 162 247 / 0.72),
-    0 0 0 1px rgb(122 162 247 / 0.22);
+    inset 5px 0 0 #f7fbff,
+    inset 8px 0 0 var(--color-accent),
+    0 0 0 2px rgb(122 162 247 / 0.5);
 }
 
 .token-library-view-list .token-library-item {

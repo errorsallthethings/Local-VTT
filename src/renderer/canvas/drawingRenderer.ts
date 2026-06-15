@@ -1,5 +1,6 @@
 import type { DrawingElement, DrawingStrokeStyle, GridSettings, Point, Scene } from "../../shared/localvtt";
 import { formatMeasurementDistance, getStraightLineMeasurementDistance } from "./measurement";
+import { drawSelectionBox } from "./selectionRenderer";
 
 export const DRAWING_POINT_MIN_DISTANCE = 3;
 
@@ -52,10 +53,10 @@ export function drawDrawings(
     if (!isDrawingVisible(drawing, mode)) {
       continue;
     }
+    drawDrawingElement(ctx, drawing, scene, layerOpacity, zoom);
     if (mode === "gm" && selectedDrawingIds.has(drawing.id)) {
       drawDrawingSelection(ctx, drawing, zoom);
     }
-    drawDrawingElement(ctx, drawing, scene, layerOpacity, zoom);
   }
   if (preview) {
     drawDrawingElement(
@@ -109,36 +110,16 @@ export function shouldAddDrawingPoint(previous: Point | undefined, current: Poin
 }
 
 function drawDrawingSelection(ctx: CanvasRenderingContext2D, drawing: DrawingElement, zoom: number) {
-  const points = drawing.points;
-  if (points.length < 2) {
+  const bounds = getDrawingBounds(drawing);
+  if (!bounds) {
     return;
   }
-  ctx.save();
-  ctx.strokeStyle = "#7aa2f7";
-  ctx.lineWidth = Math.max(2, 3 / Math.max(0.1, zoom));
-  ctx.setLineDash([8 / Math.max(0.1, zoom), 5 / Math.max(0.1, zoom)]);
-  if (drawing.kind === "circle") {
-    const [start, end] = points;
-    ctx.beginPath();
-    ctx.arc(start.x, start.y, distanceBetweenPoints(start, end), 0, Math.PI * 2);
-    ctx.stroke();
-  } else if (drawing.kind === "rectangle") {
-    const [start, end] = points;
-    ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
-  } else if (drawing.kind === "cone") {
-    const triangle = getConeTriangle(points);
-    if (triangle) {
-      ctx.beginPath();
-      ctx.moveTo(triangle[0].x, triangle[0].y);
-      ctx.lineTo(triangle[1].x, triangle[1].y);
-      ctx.lineTo(triangle[2].x, triangle[2].y);
-      ctx.closePath();
-      ctx.stroke();
-    }
-  } else {
-    drawPath(ctx, points);
-  }
-  ctx.restore();
+  drawSelectionBox(
+    ctx,
+    { x: bounds.left, y: bounds.top, width: Math.max(1, bounds.right - bounds.left), height: Math.max(1, bounds.bottom - bounds.top) },
+    zoom,
+    10
+  );
 }
 
 export function getDrawingAtPoint(drawings: DrawingElement[], point: Point, hitRadius = 8): DrawingElement | null {
@@ -238,12 +219,16 @@ function drawPath(ctx: CanvasRenderingContext2D, points: Point[]) {
   if (points.length < 2) {
     return;
   }
+  tracePath(ctx, points);
+  ctx.stroke();
+}
+
+function tracePath(ctx: CanvasRenderingContext2D, points: Point[]) {
   ctx.beginPath();
   ctx.moveTo(points[0].x, points[0].y);
   for (const point of points.slice(1)) {
     ctx.lineTo(point.x, point.y);
   }
-  ctx.stroke();
 }
 
 function drawRectangle(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement, layerOpacity: number) {
