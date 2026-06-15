@@ -153,6 +153,7 @@ type TokenDragState = {
   offset: Point;
   startPosition: Point;
   waypoints: Point[];
+  groupStartPositions: Map<string, Point>;
 };
 
 type LaserDragState = {
@@ -1435,7 +1436,17 @@ export function SceneCanvas({
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const token = canShowTokens ? getTokenAtPoint(scene.tokens, point) : null;
       if (token) {
-        onSelectToken?.(token.id);
+        const selectedTokenIdSet = new Set(selectedTokenIds);
+        const shouldDragSelectedGroup = mouseBehavior === "grabber" && selectedTokenIdSet.has(token.id) && selectedTokenIds.length > 1;
+        const groupTokenIds = shouldDragSelectedGroup ? selectedTokenIds : [token.id];
+        const groupStartPositions = new Map(
+          scene.tokens
+            .filter((candidate) => groupTokenIds.includes(candidate.id))
+            .map((candidate) => [candidate.id, candidate.position])
+        );
+        if (!shouldDragSelectedGroup) {
+          onSelectToken?.(token.id);
+        }
         onSelectFogShape?.(null);
         onSelectWeatherMask?.(null);
         onSelectDrawing?.(null);
@@ -1446,6 +1457,7 @@ export function SceneCanvas({
             tokenId: token.id,
             startPosition: token.position,
             waypoints: [],
+            groupStartPositions,
             offset: {
               x: point.x - token.position.x,
               y: point.y - token.position.y
@@ -1456,7 +1468,8 @@ export function SceneCanvas({
             startPosition: token.position,
             currentPosition: token.position,
             snappedPosition,
-            waypoints: []
+            waypoints: [],
+            tokenPositions: groupStartPositions
           });
         }
         return;
@@ -1589,12 +1602,26 @@ export function SceneCanvas({
         y: point.y - tokenDrag.offset.y
       };
       const snappedPosition = getSnappedTokenPosition(currentPosition, token, scene);
+      const currentDelta = {
+        x: currentPosition.x - tokenDrag.startPosition.x,
+        y: currentPosition.y - tokenDrag.startPosition.y
+      };
+      const tokenPositions = new Map(
+        [...tokenDrag.groupStartPositions.entries()].map(([tokenId, startPosition]) => [
+          tokenId,
+          {
+            x: startPosition.x + currentDelta.x,
+            y: startPosition.y + currentDelta.y
+          }
+        ])
+      );
       setTokenDragPreview({
         tokenId: token.id,
         startPosition: tokenDrag.startPosition,
         currentPosition,
         snappedPosition,
-        waypoints: tokenDrag.waypoints
+        waypoints: tokenDrag.waypoints,
+        tokenPositions
       });
       return;
     }
@@ -1797,9 +1824,25 @@ export function SceneCanvas({
       const token = scene?.tokens.find((candidate) => candidate.id === tokenDrag.tokenId);
       if (scene && token && onSceneChange) {
         const finalPosition = tokenDragPreview?.tokenId === token.id ? tokenDragPreview.snappedPosition : getSnappedTokenPosition(token.position, token, scene);
+        const snappedDelta = {
+          x: finalPosition.x - tokenDrag.startPosition.x,
+          y: finalPosition.y - tokenDrag.startPosition.y
+        };
         const nextScene = {
           ...scene,
-          tokens: scene.tokens.map((candidate) => (candidate.id === token.id ? { ...candidate, position: finalPosition } : candidate)),
+          tokens: scene.tokens.map((candidate) => {
+            const groupStartPosition = tokenDrag.groupStartPositions.get(candidate.id);
+            if (!groupStartPosition) {
+              return candidate;
+            }
+            return {
+              ...candidate,
+              position: {
+                x: groupStartPosition.x + snappedDelta.x,
+                y: groupStartPosition.y + snappedDelta.y
+              }
+            };
+          }),
           updatedAt: new Date().toISOString()
         };
         const tokenMovementPath = getTokenMovementPath(tokenDrag.startPosition, tokenDrag.waypoints, finalPosition);

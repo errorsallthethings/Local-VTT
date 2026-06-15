@@ -308,6 +308,114 @@ export function GmApp() {
     selectWeatherMasks(applySceneSelectionMode(selectedWeatherMaskIds, weatherMaskIds, mode));
   };
 
+  const clearSceneSelection = () => {
+    selectTokens([]);
+    selectDrawings([]);
+    selectFogShapes([]);
+    selectWeatherMasks([]);
+  };
+
+  useEffect(() => {
+    setSelectedTokenIds([]);
+    setSelectedTokenId(null);
+    setSelectedDrawingIds([]);
+    setSelectedDrawingId(null);
+    setSelectedFogShapeIds([]);
+    setSelectedFogShapeId(null);
+    setSelectedWeatherMaskIds([]);
+    setSelectedWeatherMaskId(null);
+  }, [activeScene?.id]);
+
+  useEffect(() => {
+    if (!activeScene) {
+      setSelectedTokenIds([]);
+      setSelectedTokenId(null);
+      setSelectedDrawingIds([]);
+      setSelectedDrawingId(null);
+      setSelectedFogShapeIds([]);
+      setSelectedFogShapeId(null);
+      setSelectedWeatherMaskIds([]);
+      setSelectedWeatherMaskId(null);
+      return;
+    }
+    const tokenIds = new Set(activeScene.tokens.map((token) => token.id));
+    const drawingIds = new Set(activeScene.drawings.map((drawing) => drawing.id));
+    const fogShapeIds = new Set(activeScene.fog.shapes.map((shape) => shape.id));
+    const weatherMaskIds = new Set(activeScene.weather.masks.map((mask) => mask.id));
+    const nextTokenIds = selectedTokenIds.filter((id) => tokenIds.has(id));
+    const nextDrawingIds = selectedDrawingIds.filter((id) => drawingIds.has(id));
+    const nextFogShapeIds = selectedFogShapeIds.filter((id) => fogShapeIds.has(id));
+    const nextWeatherMaskIds = selectedWeatherMaskIds.filter((id) => weatherMaskIds.has(id));
+    if (
+      nextTokenIds.length !== selectedTokenIds.length ||
+      nextDrawingIds.length !== selectedDrawingIds.length ||
+      nextFogShapeIds.length !== selectedFogShapeIds.length ||
+      nextWeatherMaskIds.length !== selectedWeatherMaskIds.length
+    ) {
+      setSelectedTokenIds(nextTokenIds);
+      setSelectedTokenId(nextTokenIds[0] ?? null);
+      setSelectedDrawingIds(nextDrawingIds);
+      setSelectedDrawingId(nextDrawingIds[0] ?? null);
+      setSelectedFogShapeIds(nextFogShapeIds);
+      setSelectedFogShapeId(nextFogShapeIds[0] ?? null);
+      setSelectedWeatherMaskIds(nextWeatherMaskIds);
+      setSelectedWeatherMaskId(nextWeatherMaskIds[0] ?? null);
+    }
+  }, [activeScene, selectedDrawingIds, selectedFogShapeIds, selectedTokenIds, selectedWeatherMaskIds]);
+
+  const updateSelectedPlayerVisibility = (visibleInPlayer: boolean) => {
+    if (!activeScene) {
+      return;
+    }
+    const selectedTokenIdSet = new Set(selectedTokenIds);
+    const selectedDrawingIdSet = new Set(selectedDrawingIds);
+    const selectedFogShapeIdSet = new Set(selectedFogShapeIds);
+    const selectedWeatherMaskIdSet = new Set(selectedWeatherMaskIds);
+    updateScene({
+      ...activeScene,
+      updatedAt: new Date().toISOString(),
+      tokens: activeScene.tokens.map((token) => (selectedTokenIdSet.has(token.id) ? { ...token, visibleInPlayer } : token)),
+      drawings: activeScene.drawings.map((drawing) => (selectedDrawingIdSet.has(drawing.id) ? { ...drawing, visibleInPlayer } : drawing)),
+      fog: {
+        ...activeScene.fog,
+        shapes: activeScene.fog.shapes.map((shape) =>
+          selectedFogShapeIdSet.has(shape.id)
+            ? { ...shape, visibleInPlayer, visible: (shape.visibleInGm ?? shape.visible ?? true) || visibleInPlayer }
+            : shape
+        )
+      },
+      weather: {
+        ...activeScene.weather,
+        masks: activeScene.weather.masks.map((mask) => (selectedWeatherMaskIdSet.has(mask.id) ? { ...mask, visibleInPlayer } : mask))
+      }
+    });
+  };
+
+  const deleteSelectedSceneItems = () => {
+    if (!activeScene) {
+      return;
+    }
+    const selectedTokenIdSet = new Set(selectedTokenIds);
+    const selectedDrawingIdSet = new Set(selectedDrawingIds);
+    const selectedFogShapeIdSet = new Set(selectedFogShapeIds);
+    const selectedWeatherMaskIdSet = new Set(selectedWeatherMaskIds);
+    updateScene({
+      ...activeScene,
+      updatedAt: new Date().toISOString(),
+      tokens: activeScene.tokens.filter((token) => !selectedTokenIdSet.has(token.id)),
+      drawings: activeScene.drawings.filter((drawing) => !selectedDrawingIdSet.has(drawing.id)),
+      fog: {
+        ...activeScene.fog,
+        shapes: activeScene.fog.shapes.filter((shape) => !selectedFogShapeIdSet.has(shape.id))
+      },
+      weather: {
+        ...activeScene.weather,
+        masks: activeScene.weather.masks.filter((mask) => !selectedWeatherMaskIdSet.has(mask.id))
+      }
+    });
+    clearSceneSelection();
+  };
+
   const clearActiveCanvasTools = () => {
     setActiveCanvasTool(null);
     setActiveDrawingTool(null);
@@ -1710,6 +1818,10 @@ export function GmApp() {
                   return !open;
                 })
               }
+              onShowSelectedOnPlayerView={() => updateSelectedPlayerVisibility(true)}
+              onHideSelectedOnPlayerView={() => updateSelectedPlayerVisibility(false)}
+              onDeleteSelected={deleteSelectedSceneItems}
+              onClearSelection={clearSceneSelection}
             />
           )}
           <SceneCanvas

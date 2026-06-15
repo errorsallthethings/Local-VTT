@@ -5,6 +5,8 @@ import {
   Circle,
   CloudFog,
   Dices,
+  Eye,
+  EyeOff,
   Hand,
   HelpCircle,
   Lightbulb,
@@ -20,9 +22,11 @@ import {
   SquareDashedMousePointer,
   Table2,
   Target,
+  Trash2,
   Triangle,
   Type,
-  Undo2
+  Undo2,
+  X
 } from "lucide-react";
 import type { DrawingTool } from "../../canvas/drawingRenderer";
 import type { DrawingStrokeStyle } from "../../../shared/localvtt";
@@ -161,6 +165,10 @@ interface ToolsMenuProps {
   onToggleDicePanel: () => void;
   onToggleTurnOrder: () => void;
   onSelectorSelectionFiltersChange: (filters: SelectorSelectionFilters) => void;
+  onShowSelectedOnPlayerView: () => void;
+  onHideSelectedOnPlayerView: () => void;
+  onDeleteSelected: () => void;
+  onClearSelection: () => void;
 }
 
 const TOOL_CATEGORIES: Array<{ id: ToolCategory; label: string; icon: typeof SquareDashedMousePointer; hasPanelTools: boolean }> = [
@@ -229,7 +237,11 @@ export function ToolsMenu({
   onUndoWeatherMask,
   onToggleDicePanel,
   onToggleTurnOrder,
-  onSelectorSelectionFiltersChange
+  onSelectorSelectionFiltersChange,
+  onShowSelectedOnPlayerView,
+  onHideSelectedOnPlayerView,
+  onDeleteSelected,
+  onClearSelection
 }: ToolsMenuProps) {
   const [activeCategory, setActiveCategory] = useState<ToolCategory | null>(null);
   const [toolsExpanded, setToolsExpanded] = useState(true);
@@ -453,6 +465,13 @@ export function ToolsMenu({
               {mouseBehavior === "selector" && (
                 <>
                   <SelectorSelectionSummary counts={selectorSelectionCounts} />
+                  <SelectorSelectionActions
+                    counts={selectorSelectionCounts}
+                    onShowSelectedOnPlayerView={onShowSelectedOnPlayerView}
+                    onHideSelectedOnPlayerView={onHideSelectedOnPlayerView}
+                    onDeleteSelected={onDeleteSelected}
+                    onClearSelection={onClearSelection}
+                  />
                   <div className="tools-section-divider" />
                   <SettingsToggle open={selectorSettingsOpen} label="Selector Settings" onToggle={() => setSelectorSettingsOpen((open) => !open)} />
                   {selectorSettingsOpen && (
@@ -845,6 +864,39 @@ function SelectorSelectionSummary({ counts }: { counts: SelectorSelectionCounts 
     <div className="tools-selector-summary" aria-live="polite">
       <strong>Selected</strong>
       <span>{total > 0 ? formatSelectorSelectionSummary(counts) : "None"}</span>
+    </div>
+  );
+}
+
+function SelectorSelectionActions({
+  counts,
+  onShowSelectedOnPlayerView,
+  onHideSelectedOnPlayerView,
+  onDeleteSelected,
+  onClearSelection
+}: {
+  counts: SelectorSelectionCounts;
+  onShowSelectedOnPlayerView: () => void;
+  onHideSelectedOnPlayerView: () => void;
+  onDeleteSelected: () => void;
+  onClearSelection: () => void;
+}) {
+  const total = counts.tokens + counts.templates + counts.fogMasks + counts.weatherMasks + counts.drawings;
+  const disabled = total === 0;
+  return (
+    <div className="tools-selector-actions" aria-label="Selected item actions">
+      <button type="button" className="tools-selector-action" title="Show selected on Player View" aria-label="Show selected on Player View" disabled={disabled} onClick={onShowSelectedOnPlayerView}>
+        <Eye size={15} aria-hidden="true" />
+      </button>
+      <button type="button" className="tools-selector-action" title="Hide selected from Player View" aria-label="Hide selected from Player View" disabled={disabled} onClick={onHideSelectedOnPlayerView}>
+        <EyeOff size={15} aria-hidden="true" />
+      </button>
+      <button type="button" className="tools-selector-action" title="Delete selected" aria-label="Delete selected" disabled={disabled} onClick={onDeleteSelected}>
+        <Trash2 size={15} aria-hidden="true" />
+      </button>
+      <button type="button" className="tools-selector-action" title="Clear selection" aria-label="Clear selection" disabled={disabled} onClick={onClearSelection}>
+        <X size={15} aria-hidden="true" />
+      </button>
     </div>
   );
 }

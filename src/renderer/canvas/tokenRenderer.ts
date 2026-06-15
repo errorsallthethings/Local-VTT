@@ -22,6 +22,7 @@ export type TokenDragPreview = {
   currentPosition: Point;
   snappedPosition: Point;
   waypoints: Point[];
+  tokenPositions?: TokenPositionOverrides;
 };
 
 export type TokenPositionOverrides = Map<string, Point>;
@@ -41,10 +42,13 @@ export function drawTokens(
     if (!token.assetId) {
       continue;
     }
+    const previewPosition = mode === "gm" ? tokenDragPreview?.tokenPositions?.get(token.id) : null;
     const overridePosition = tokenPositionOverrides?.get(token.id);
     const renderToken =
-      mode === "gm" && tokenDragPreview?.tokenId === token.id
-        ? { ...token, position: tokenDragPreview.currentPosition }
+      previewPosition
+        ? { ...token, position: previewPosition }
+        : mode === "gm" && tokenDragPreview?.tokenId === token.id
+          ? { ...token, position: tokenDragPreview.currentPosition }
         : overridePosition
           ? { ...token, position: overridePosition }
           : token;
