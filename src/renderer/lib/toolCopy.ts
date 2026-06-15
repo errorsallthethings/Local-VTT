@@ -51,7 +51,7 @@ export function getDrawingToolLabel(drawingTool: DrawingTool): string {
     case "line":
       return "Line";
     case "circle":
-      return "Circle";
+      return "Ellipse";
     case "rectangle":
       return "Rectangle";
     case "triangle":
@@ -76,7 +76,7 @@ export function getDrawingToolHint(drawingTool: DrawingTool): string {
     case "line":
       return "Left-drag to draw a straight line.";
     case "circle":
-      return "Left-drag from center to draw a circle.";
+      return "Left-drag from center to draw an ellipse. Hold Shift for a circle.";
     case "rectangle":
       return "Left-drag to draw a rectangle. Hold Shift for a square. Ctrl/Cmd snaps.";
     case "triangle":
@@ -101,7 +101,7 @@ export function getDrawingHelpLines(): string[] {
     "Brush: left-drag to sketch a path on the scene.",
     "Line: left-drag to place a straight stroke.",
     "Rectangle: left-drag to draw a rectangle; hold Shift for a square.",
-    "Circle: left-drag from the center to set the radius.",
+    "Ellipse: left-drag from the center to set width and height; hold Shift for a circle.",
     "Triangle: left-drag to place a triangular drawing.",
     "Polygon: click points, Enter or double-click to finish, right-click to remove the last point.",
     "Drawings are saved as sub-layers under the Drawing layer.",

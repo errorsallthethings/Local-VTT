@@ -3,7 +3,7 @@ export type AssetMediaType = "image" | "video";
 export type GridType = "square" | "hex" | "gridless";
 export type MeasurementUnit = "feet" | "meters" | "miles";
 export type WallType = "wall" | "door" | "window" | "terrain";
-export type DrawingKind = "freehand" | "line" | "rectangle" | "circle" | "triangle" | "polygon" | "cone" | "text" | "ping" | "laser";
+export type DrawingKind = "freehand" | "line" | "rectangle" | "circle" | "ellipse" | "triangle" | "polygon" | "cone" | "text" | "ping" | "laser";
 export type TokenSizePreset = "tiny" | "medium" | "large" | "huge" | "gargantuan" | "custom";
 export type TokenMask = "none" | "circle" | "square";
 export type TokenBorderStyle = "none" | "solid" | "dashed" | "dotted" | "double-line" | "embossed" | "inner-shadow" | "glow";
@@ -1574,6 +1574,7 @@ function normalizeDrawingKind(kind: unknown): DrawingKind {
     kind === "line" ||
     kind === "rectangle" ||
     kind === "circle" ||
+    kind === "ellipse" ||
     kind === "triangle" ||
     kind === "polygon" ||
     kind === "cone" ||

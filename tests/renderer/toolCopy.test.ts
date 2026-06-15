@@ -36,13 +36,15 @@ describe("tool copy helpers", () => {
   it("describes drawing tools", () => {
     expect(getDrawingToolLabel("freehand")).toBe("Brush");
     expect(getDrawingToolLabel("line")).toBe("Line");
-    expect(getDrawingToolLabel("circle")).toBe("Circle");
+    expect(getDrawingToolLabel("circle")).toBe("Ellipse");
     expect(getDrawingToolLabel("rectangle")).toBe("Rectangle");
     expect(getDrawingToolLabel("template-cone")).toBe("Cone Template");
     expect(getDrawingToolHint("line")).toContain("straight line");
+    expect(getDrawingToolHint("circle")).toContain("Hold Shift for a circle");
     expect(getDrawingToolHint("template-cone")).toContain("aim a cone");
     expect(getDrawingToolHint("template-cone")).toContain("Ctrl/Cmd snaps");
     expect(getDrawingHelpLines()).toContain("Rectangle: left-drag to draw a rectangle; hold Shift for a square.");
+    expect(getDrawingHelpLines()).toContain("Ellipse: left-drag from the center to set width and height; hold Shift for a circle.");
     expect(getDrawingHelpLines()).toContain("Drawings are saved as sub-layers under the Drawing layer.");
   });
 });

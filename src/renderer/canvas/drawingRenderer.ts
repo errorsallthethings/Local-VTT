@@ -164,6 +164,8 @@ function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingEleme
     drawRectangle(ctx, points, drawing, layerOpacity);
   } else if (drawing.kind === "circle") {
     drawCircle(ctx, points, drawing, layerOpacity);
+  } else if (drawing.kind === "ellipse") {
+    drawEllipse(ctx, points, drawing, layerOpacity);
   } else if (drawing.kind === "triangle") {
     drawTriangle(ctx, points, drawing, layerOpacity);
   } else if (drawing.kind === "polygon") {
@@ -185,6 +187,9 @@ function isPointNearDrawing(drawing: DrawingElement, point: Point, hitRadius: nu
   if (drawing.kind === "circle") {
     const radius = distanceBetweenPoints(points[0], points[1]);
     return Math.abs(distanceBetweenPoints(points[0], point) - radius) <= hitRadius || distanceBetweenPoints(points[0], point) <= radius;
+  }
+  if (drawing.kind === "ellipse") {
+    return isPointNearEllipse(drawing, point, hitRadius);
   }
   if (drawing.kind === "rectangle") {
     const minX = Math.min(points[0].x, points[1].x) - hitRadius;
@@ -208,6 +213,20 @@ function isPointNearDrawing(drawing: DrawingElement, point: Point, hitRadius: nu
     const next = points[index + 1];
     return next ? distanceToSegment(point, candidate, next) <= hitRadius : false;
   });
+}
+
+function isPointNearEllipse(drawing: DrawingElement, point: Point, hitRadius: number): boolean {
+  const [center, edge] = drawing.points;
+  if (!center || !edge) {
+    return false;
+  }
+  const radiusX = Math.max(0.5, Math.abs(edge.x - center.x));
+  const radiusY = Math.max(0.5, Math.abs(edge.y - center.y));
+  const normalizedX = (point.x - center.x) / radiusX;
+  const normalizedY = (point.y - center.y) / radiusY;
+  const normalizedDistance = normalizedX ** 2 + normalizedY ** 2;
+  const tolerance = Math.max(hitRadius / radiusX, hitRadius / radiusY);
+  return normalizedDistance <= 1 || Math.abs(normalizedDistance - 1) <= tolerance;
 }
 
 function drawLine(ctx: CanvasRenderingContext2D, points: Point[]) {
@@ -285,6 +304,19 @@ function drawCone(ctx: CanvasRenderingContext2D, points: Point[], drawing: Drawi
     const oppositeCenter = { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2 };
     drawDashedGuide(ctx, origin, oppositeCenter, drawing);
   }
+}
+
+function drawEllipse(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement, layerOpacity: number) {
+  if (points.length < 2) {
+    return;
+  }
+  const [center, edge] = points;
+  const radiusX = Math.max(0.5, Math.abs(edge.x - center.x));
+  const radiusY = Math.max(0.5, Math.abs(edge.y - center.y));
+  ctx.beginPath();
+  ctx.ellipse(center.x, center.y, radiusX, radiusY, 0, 0, Math.PI * 2);
+  fillCurrentTemplatePath(ctx, drawing, layerOpacity);
+  ctx.stroke();
 }
 
 function drawTriangle(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement, layerOpacity: number) {
@@ -404,6 +436,9 @@ function getConeTriangle(points: Point[]): [Point, Point, Point] | null {
 }
 
 function getTriangle(points: Point[]): [Point, Point, Point] | null {
+  if (points.length >= 3) {
+    return [points[0], points[1], points[2]];
+  }
   if (points.length < 2) {
     return null;
   }
@@ -553,13 +588,14 @@ export function getDrawingBounds(drawing: DrawingElement): { left: number; top: 
   if (points.length === 0) {
     return null;
   }
-  if (drawing.kind === "circle" && drawing.points[0] && drawing.points[1]) {
-    const radius = distanceBetweenPoints(drawing.points[0], drawing.points[1]);
+  if ((drawing.kind === "circle" || drawing.kind === "ellipse") && drawing.points[0] && drawing.points[1]) {
+    const radiusX = drawing.kind === "ellipse" ? Math.abs(drawing.points[1].x - drawing.points[0].x) : distanceBetweenPoints(drawing.points[0], drawing.points[1]);
+    const radiusY = drawing.kind === "ellipse" ? Math.abs(drawing.points[1].y - drawing.points[0].y) : radiusX;
     return {
-      left: drawing.points[0].x - radius,
-      top: drawing.points[0].y - radius,
-      right: drawing.points[0].x + radius,
-      bottom: drawing.points[0].y + radius
+      left: drawing.points[0].x - radiusX,
+      top: drawing.points[0].y - radiusY,
+      right: drawing.points[0].x + radiusX,
+      bottom: drawing.points[0].y + radiusY
     };
   }
   return {
@@ -719,6 +755,9 @@ function getDrawingKindForTool(tool: DrawingTool): DrawingElement["kind"] {
   }
   if (tool === "template-cone") {
     return "cone";
+  }
+  if (tool === "circle") {
+    return "ellipse";
   }
   return tool;
 }

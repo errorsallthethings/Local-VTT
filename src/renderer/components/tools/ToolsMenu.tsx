@@ -261,23 +261,20 @@ export function ToolsMenu({
   useEffect(() => {
     if (activeFogTool || activeWeatherMaskTool) {
       setActiveCategory("mask");
-      onMouseBehaviorChange("selector");
     }
-  }, [activeFogTool, activeWeatherMaskTool, onMouseBehaviorChange]);
+  }, [activeFogTool, activeWeatherMaskTool]);
 
   useEffect(() => {
     if (activeCanvasTool) {
       setActiveCategory("table");
-      onMouseBehaviorChange("selector");
     }
-  }, [activeCanvasTool, onMouseBehaviorChange]);
+  }, [activeCanvasTool]);
 
   useEffect(() => {
     if (activeDrawingTool) {
       setActiveCategory(isTemplateDrawingTool(activeDrawingTool) ? "templates" : "drawing");
-      onMouseBehaviorChange("selector");
     }
-  }, [activeDrawingTool, onMouseBehaviorChange]);
+  }, [activeDrawingTool]);
 
   useEffect(() => {
     if (!weatherToolsEnabled) {
@@ -329,7 +326,6 @@ export function ToolsMenu({
     } else {
       clearActiveTools();
     }
-    onMouseBehaviorChange("selector");
   };
 
   const setFogToolShape = (shape: FogToolShape) => {
@@ -338,7 +334,6 @@ export function ToolsMenu({
     onDrawingToolChange(null);
     onWeatherMaskToolChange(null);
     onFogToolChange(activeFogTool === nextTool ? null : nextTool);
-    onMouseBehaviorChange("selector");
   };
 
   const setDrawingTool = (tool: DrawingTool) => {
@@ -347,7 +342,6 @@ export function ToolsMenu({
     onWeatherMaskToolChange(null);
     onDrawingColorChange(isTemplateDrawingTool(tool) ? DEFAULT_TEMPLATE_COLOR : DEFAULT_DRAWING_COLOR);
     onDrawingToolChange(activeDrawingTool === tool ? null : tool);
-    onMouseBehaviorChange("selector");
   };
 
   const setWeatherMaskTool = (tool: WeatherMaskTool) => {
@@ -355,7 +349,6 @@ export function ToolsMenu({
     onFogToolChange(null);
     onDrawingToolChange(null);
     onWeatherMaskToolChange(activeWeatherMaskTool === tool ? null : tool);
-    onMouseBehaviorChange("selector");
   };
 
   const setTableTool = (tool: CanvasTool) => {
@@ -367,7 +360,6 @@ export function ToolsMenu({
       onPingColorChange(DEFAULT_SONAR_COLOR);
     }
     onCanvasToolChange(activeCanvasTool === tool ? null : tool);
-    onMouseBehaviorChange("selector");
   };
 
   const setFogToolOperation = (operation: FogOperation) => {
@@ -500,7 +492,7 @@ export function ToolsMenu({
                 <ToolButton active={activeDrawingTool === "rectangle"} label="Rectangle" onClick={() => setDrawingTool("rectangle")}>
                   <Square size={17} aria-hidden="true" />
                 </ToolButton>
-                <ToolButton active={activeDrawingTool === "circle"} label="Circle" onClick={() => setDrawingTool("circle")}>
+                <ToolButton active={activeDrawingTool === "circle"} label="Ellipse" onClick={() => setDrawingTool("circle")}>
                   <Circle size={17} aria-hidden="true" />
                 </ToolButton>
                 <ToolButton active={activeDrawingTool === "triangle"} label="Triangle" onClick={() => setDrawingTool("triangle")}>
