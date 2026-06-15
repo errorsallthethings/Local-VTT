@@ -174,6 +174,13 @@ type DrawingResizeState = {
   groupStartPoints: DrawingPointOverrides;
 };
 
+type DrawingRotateState = {
+  pointerId: number;
+  center: Point;
+  startAngle: number;
+  groupStartPoints: DrawingPointOverrides;
+};
+
 type LaserDragState = {
   pointerId: number;
   eventId: string;
@@ -362,6 +369,7 @@ export function SceneCanvas({
   const tokenDragRef = useRef<TokenDragState | null>(null);
   const drawingDragRef = useRef<DrawingDragState | null>(null);
   const drawingResizeRef = useRef<DrawingResizeState | null>(null);
+  const drawingRotateRef = useRef<DrawingRotateState | null>(null);
   const laserDragRef = useRef<LaserDragState | null>(null);
   const fogDragRef = useRef<FogDrag | null>(null);
   const drawingPreviewRef = useRef<DrawingPreview | null>(null);
@@ -1122,7 +1130,8 @@ export function SceneCanvas({
           mode === "gm" ? (drawingPreview ?? drawingPolygonPreview) : null,
           renderCamera.zoom,
           selectedDrawingIds.length > 0 ? selectedDrawingIds : selectedDrawingId,
-          drawingDragPreview
+          drawingDragPreview,
+          drawingRotateRef.current ? drawingRotateRef.current.groupStartPoints : drawingDragPreview
         );
       }
 
@@ -1268,6 +1277,7 @@ export function SceneCanvas({
   const cancelDrawingDrag = () => {
     drawingDragRef.current = null;
     drawingResizeRef.current = null;
+    drawingRotateRef.current = null;
     setDrawingDragPreview(null);
   };
 
@@ -1517,6 +1527,23 @@ export function SceneCanvas({
       onSelectToken?.(null);
       if (!canvasTool && !drawingTool && !fogTool && !weatherMaskTool) {
         if (mouseBehavior === "grabber" && canShowDrawings && selectedDrawingIds.length > 0) {
+          const rotateTarget = getDrawingRotationHandleAtPoint(scene.drawings, selectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
+          if (rotateTarget) {
+            const selectedIdSet = new Set(selectedDrawingIds);
+            const groupStartPoints = new Map(
+              scene.drawings
+                .filter((candidate) => selectedIdSet.has(candidate.id) && !candidate.measurementLabelVisible)
+                .map((candidate) => [candidate.id, candidate.points.map((candidatePoint) => ({ ...candidatePoint }))])
+            );
+            drawingRotateRef.current = {
+              pointerId: event.pointerId,
+              center: rotateTarget.center,
+              startAngle: Math.atan2(point.y - rotateTarget.center.y, point.x - rotateTarget.center.x),
+              groupStartPoints
+            };
+            setDrawingDragPreview(groupStartPoints);
+            return;
+          }
           const resizeTarget = getDrawingResizeHandleAtPoint(scene.drawings, selectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
           if (resizeTarget) {
             const selectedIdSet = new Set(selectedDrawingIds);
@@ -1599,6 +1626,7 @@ export function SceneCanvas({
     const tokenDrag = tokenDragRef.current;
     const drawingDragValue = drawingDragRef.current;
     const drawingResizeValue = drawingResizeRef.current;
+    const drawingRotateValue = drawingRotateRef.current;
     const laserDrag = laserDragRef.current;
     const drawingDrag = drawingPreviewRef.current;
     const rulerDragValue = rulerDragRef.current;
@@ -1661,11 +1689,12 @@ export function SceneCanvas({
       const point = getDrawingToolPoint(event, drawingDrag.kind);
       const templateCurrent = getDrawingTemplateCurrentPoint(drawingDrag.points[0], point, drawingDrag.kind, scene, drawingTemplateSize);
       const current = (drawingDrag.kind === "rectangle" || drawingDrag.kind === "circle") && event.shiftKey ? constrainSquarePoint(drawingDrag.points[0], templateCurrent) : templateCurrent;
+      const ellipse = drawingDrag.kind === "circle" && !event.shiftKey;
       const nextPoints =
         drawingDrag.kind === "freehand" && shouldAddDrawingPoint(drawingDrag.points[drawingDrag.points.length - 1], current)
           ? [...drawingDrag.points, current]
           : drawingDrag.points;
-      const nextDrawingDrag = { ...drawingDrag, current, points: nextPoints };
+      const nextDrawingDrag = { ...drawingDrag, current, points: nextPoints, ellipse };
       drawingPreviewRef.current = nextDrawingDrag;
       setDrawingPreview(nextDrawingDrag);
       return;
@@ -1682,6 +1711,28 @@ export function SceneCanvas({
                   [
                     drawingId,
                     resizeDrawingPoints({ ...drawing, points }, drawingResizeValue.bounds, drawingResizeValue.handle, point, event.shiftKey)
+                  ] as const
+                ]
+              : [];
+          })
+        )
+      );
+      return;
+    }
+
+    if (drawingRotateValue?.pointerId === event.pointerId) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const currentAngle = Math.atan2(point.y - drawingRotateValue.center.y, point.x - drawingRotateValue.center.x);
+      const angle = currentAngle - drawingRotateValue.startAngle;
+      setDrawingDragPreview(
+        new Map(
+          [...drawingRotateValue.groupStartPoints.entries()].flatMap(([drawingId, points]) => {
+            const drawing = scene?.drawings.find((candidate) => candidate.id === drawingId);
+            return drawing
+              ? [
+                  [
+                    drawingId,
+                    rotateDrawingPoints({ ...drawing, points }, drawingRotateValue.center, angle)
                   ] as const
                 ]
               : [];
@@ -1826,7 +1877,8 @@ export function SceneCanvas({
       drawingPreviewRef.current = null;
       setDrawingPreview(null);
       if (scene && onSceneChange && isMeaningfulDrawingPreview(drawingDrag)) {
-        const kind = getDrawingKindForTool(drawingDrag.kind);
+        const drawingPoints = getDrawingPreviewPoints(drawingDrag);
+        const kind = drawingDrag.kind === "circle" && drawingPoints.length === 2 ? "circle" : getDrawingKindForTool(drawingDrag.kind);
         onSceneChange({
           ...scene,
           drawings: [
@@ -1835,7 +1887,7 @@ export function SceneCanvas({
               id: crypto.randomUUID(),
               name: isTemplateDrawingTool(drawingDrag.kind) ? formatDefaultTemplateDrawingName(drawingDrag.kind, scene.drawings.length) : formatDefaultDrawingName(kind, scene.drawings.length),
               kind,
-              points: getDrawingPreviewPoints(drawingDrag),
+              points: drawingPoints,
               color: drawingDrag.color,
               opacity: drawingDrag.opacity,
               strokeColor: drawingDrag.strokeColor ?? drawingDrag.color,
@@ -1961,6 +2013,23 @@ export function SceneCanvas({
         });
       }
       drawingResizeRef.current = null;
+      setDrawingDragPreview(null);
+      return;
+    }
+
+    if (drawingRotateRef.current?.pointerId === event.pointerId) {
+      const rotatedPoints = drawingDragPreview;
+      if (scene && onSceneChange && rotatedPoints) {
+        onSceneChange({
+          ...scene,
+          drawings: scene.drawings.map((drawing) => {
+            const points = rotatedPoints.get(drawing.id);
+            return points ? { ...drawing, points } : drawing;
+          }),
+          updatedAt: new Date().toISOString()
+        });
+      }
+      drawingRotateRef.current = null;
       setDrawingDragPreview(null);
       return;
     }
@@ -3556,12 +3625,27 @@ function drawDrawingResizeHandles(ctx: CanvasRenderingContext2D, drawings: Scene
     return;
   }
   const handles = getDrawingResizeHandles(bounds);
+  const rotationHandle = getDrawingRotationHandle(bounds, camera);
   ctx.save();
   const scale = window.devicePixelRatio || 1;
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  const centerX = ((bounds.left + bounds.right) / 2) * camera.zoom + camera.x;
+  const topY = bounds.top * camera.zoom + camera.y;
+  const rotationX = rotationHandle.x * camera.zoom + camera.x;
+  const rotationY = rotationHandle.y * camera.zoom + camera.y;
+  ctx.strokeStyle = "#f6d365";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(centerX, topY);
+  ctx.lineTo(rotationX, rotationY);
+  ctx.stroke();
   ctx.fillStyle = "#f6d365";
   ctx.strokeStyle = "#05070a";
   ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(rotationX, rotationY, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
   for (const handle of handles) {
     const x = handle.point.x * camera.zoom + camera.x;
     const y = handle.point.y * camera.zoom + camera.y;
@@ -3571,6 +3655,25 @@ function drawDrawingResizeHandles(ctx: CanvasRenderingContext2D, drawings: Scene
     ctx.stroke();
   }
   ctx.restore();
+}
+
+function getDrawingRotationHandleAtPoint(drawings: Scene["drawings"], selectedDrawingIds: string[], point: Point, camera: Camera): { bounds: { left: number; top: number; right: number; bottom: number }; center: Point } | null {
+  const bounds = getSelectedResizableDrawingBounds(drawings, selectedDrawingIds);
+  if (!bounds) {
+    return null;
+  }
+  const handlePoint = getDrawingRotationHandle(bounds, camera);
+  const hitRadius = Math.max(9, 9 / Math.max(0.1, camera.zoom));
+  if (distanceBetween(handlePoint, point) > hitRadius) {
+    return null;
+  }
+  return {
+    bounds,
+    center: {
+      x: (bounds.left + bounds.right) / 2,
+      y: (bounds.top + bounds.bottom) / 2
+    }
+  };
 }
 
 function getDrawingResizeHandleAtPoint(drawings: Scene["drawings"], selectedDrawingIds: string[], point: Point, camera: Camera): { handle: DrawingResizeHandle; bounds: { left: number; top: number; right: number; bottom: number } } | null {
@@ -3585,6 +3688,13 @@ function getDrawingResizeHandleAtPoint(drawings: Scene["drawings"], selectedDraw
     }
   }
   return null;
+}
+
+function getDrawingRotationHandle(bounds: { left: number; top: number; right: number; bottom: number }, camera: Camera): Point {
+  return {
+    x: (bounds.left + bounds.right) / 2,
+    y: bounds.top - 30 / Math.max(0.1, camera.zoom)
+  };
 }
 
 function getSelectedResizableDrawingBounds(drawings: Scene["drawings"], selectedDrawingIds: string[]): { left: number; top: number; right: number; bottom: number } | null {
@@ -3674,8 +3784,8 @@ function resizeCenterLockedDrawingPoints(drawing: Scene["drawings"][number], han
   }
 
   if (drawing.kind === "ellipse" && drawing.points[0] && drawing.points[1]) {
-    const resizedPoints = resizeCenterLockedPoints(drawing.points, bounds, handle, current, aspectLocked);
-    return [center, resizedPoints[1] ?? drawing.points[1]];
+    const resizedPoints = resizeCenterLockedPoints(getEllipseAxisPoints(drawing.points), bounds, handle, current, aspectLocked);
+    return [center, resizedPoints[1] ?? drawing.points[1], resizedPoints[2] ?? { x: center.x, y: drawing.points[1].y }];
   }
 
   if (drawing.kind === "triangle") {
@@ -3707,6 +3817,55 @@ function getTriangleDrawingPoints(points: Point[]): [Point, Point, Point] | null
       x: midpoint.x - dy * 0.866,
       y: midpoint.y + dx * 0.866
     }
+  ];
+}
+
+function rotatePoints(points: Point[], center: Point, angle: number): Point[] {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return points.map((point) => {
+    const x = point.x - center.x;
+    const y = point.y - center.y;
+    return {
+      x: center.x + x * cos - y * sin,
+      y: center.y + x * sin + y * cos
+    };
+  });
+}
+
+function rotateDrawingPoints(drawing: Scene["drawings"][number], center: Point, angle: number): Point[] {
+  if (drawing.kind === "rectangle" && drawing.points.length === 2) {
+    return rotatePoints(getRectangleDrawingPoints(drawing.points), center, angle);
+  }
+  if (drawing.kind === "ellipse" && drawing.points[0] && drawing.points[1]) {
+    return rotatePoints(getEllipseAxisPoints(drawing.points), center, angle);
+  }
+  if (drawing.kind === "triangle") {
+    const trianglePoints = getTriangleDrawingPoints(drawing.points);
+    return trianglePoints ? rotatePoints(trianglePoints, center, angle) : drawing.points;
+  }
+  return rotatePoints(drawing.points, center, angle);
+}
+
+function getRectangleDrawingPoints(points: Point[]): Point[] {
+  const [start, end] = points;
+  return [
+    { x: start.x, y: start.y },
+    { x: end.x, y: start.y },
+    { x: end.x, y: end.y },
+    { x: start.x, y: end.y }
+  ];
+}
+
+function getEllipseAxisPoints(points: Point[]): Point[] {
+  const [center, edge, axis] = points;
+  if (axis) {
+    return [center, edge, axis];
+  }
+  return [
+    center,
+    { x: edge.x, y: center.y },
+    { x: center.x, y: edge.y }
   ];
 }
 

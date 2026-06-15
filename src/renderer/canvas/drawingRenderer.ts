@@ -30,6 +30,7 @@ export type DrawingPreview = {
   fillOpacity?: number;
   strokeStyle?: DrawingStrokeStyle;
   measurementLabelVisible?: boolean;
+  ellipse?: boolean;
 };
 
 export type DrawingPointOverrides = Map<string, Point[]>;
@@ -42,7 +43,8 @@ export function drawDrawings(
   preview: DrawingPreview | null = null,
   zoom = 1,
   selectedDrawingId: string | string[] | null = null,
-  drawingPointOverrides: DrawingPointOverrides | null = null
+  drawingPointOverrides: DrawingPointOverrides | null = null,
+  selectionPointOverrides: DrawingPointOverrides | null = drawingPointOverrides
 ) {
   if (layerOpacity <= 0) {
     return;
@@ -60,7 +62,8 @@ export function drawDrawings(
     const renderDrawing = overridePoints ? { ...drawing, points: overridePoints } : drawing;
     drawDrawingElement(ctx, renderDrawing, scene, layerOpacity, zoom);
     if (mode === "gm" && selectedDrawingIds.has(drawing.id)) {
-      drawDrawingSelection(ctx, renderDrawing, zoom);
+      const selectionOverridePoints = selectionPointOverrides?.get(drawing.id);
+      drawDrawingSelection(ctx, selectionOverridePoints ? { ...drawing, points: selectionOverridePoints } : renderDrawing, zoom);
     }
   }
   if (preview) {
@@ -69,7 +72,7 @@ export function drawDrawings(
       {
         id: "preview",
         name: "Preview",
-        kind: getDrawingKindForTool(preview.kind),
+        kind: preview.kind === "circle" && !preview.ellipse ? "circle" : getDrawingKindForTool(preview.kind),
         points: getDrawingPreviewPoints(preview),
         color: preview.color,
         opacity: preview.opacity,
@@ -92,6 +95,14 @@ export function drawDrawings(
 }
 
 export function getDrawingPreviewPoints(preview: DrawingPreview): Point[] {
+  if (preview.kind === "circle" && preview.ellipse && preview.points[0]) {
+    const [center] = preview.points;
+    return [
+      center,
+      { x: preview.current.x, y: center.y },
+      { x: center.x, y: preview.current.y }
+    ];
+  }
   if (isTwoPointDrawingTool(preview.kind)) {
     return [preview.points[0], preview.current].filter(Boolean);
   }
@@ -192,6 +203,9 @@ function isPointNearDrawing(drawing: DrawingElement, point: Point, hitRadius: nu
     return isPointNearEllipse(drawing, point, hitRadius);
   }
   if (drawing.kind === "rectangle") {
+    if (points.length >= 4) {
+      return isPointInPolygon(point, points);
+    }
     const minX = Math.min(points[0].x, points[1].x) - hitRadius;
     const maxX = Math.max(points[0].x, points[1].x) + hitRadius;
     const minY = Math.min(points[0].y, points[1].y) - hitRadius;
@@ -216,14 +230,21 @@ function isPointNearDrawing(drawing: DrawingElement, point: Point, hitRadius: nu
 }
 
 function isPointNearEllipse(drawing: DrawingElement, point: Point, hitRadius: number): boolean {
-  const [center, edge] = drawing.points;
+  const [center, edge, axis] = drawing.points;
   if (!center || !edge) {
     return false;
   }
-  const radiusX = Math.max(0.5, Math.abs(edge.x - center.x));
-  const radiusY = Math.max(0.5, Math.abs(edge.y - center.y));
-  const normalizedX = (point.x - center.x) / radiusX;
-  const normalizedY = (point.y - center.y) / radiusY;
+  const rotation = Math.atan2(edge.y - center.y, edge.x - center.x);
+  const cos = Math.cos(-rotation);
+  const sin = Math.sin(-rotation);
+  const deltaX = point.x - center.x;
+  const deltaY = point.y - center.y;
+  const localX = deltaX * cos - deltaY * sin;
+  const localY = deltaX * sin + deltaY * cos;
+  const radiusX = Math.max(0.5, Math.hypot(edge.x - center.x, edge.y - center.y));
+  const radiusY = axis ? Math.max(0.5, Math.hypot(axis.x - center.x, axis.y - center.y)) : Math.max(0.5, Math.abs(edge.y - center.y));
+  const normalizedX = localX / radiusX;
+  const normalizedY = localY / radiusY;
   const normalizedDistance = normalizedX ** 2 + normalizedY ** 2;
   const tolerance = Math.max(hitRadius / radiusX, hitRadius / radiusY);
   return normalizedDistance <= 1 || Math.abs(normalizedDistance - 1) <= tolerance;
@@ -257,6 +278,17 @@ function tracePath(ctx: CanvasRenderingContext2D, points: Point[]) {
 
 function drawRectangle(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement, layerOpacity: number) {
   if (points.length < 2) {
+    return;
+  }
+  if (points.length >= 4) {
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    ctx.lineTo(points[1].x, points[1].y);
+    ctx.lineTo(points[2].x, points[2].y);
+    ctx.lineTo(points[3].x, points[3].y);
+    ctx.closePath();
+    fillCurrentTemplatePath(ctx, drawing, layerOpacity);
+    ctx.stroke();
     return;
   }
   const [start, end] = points;
@@ -310,11 +342,12 @@ function drawEllipse(ctx: CanvasRenderingContext2D, points: Point[], drawing: Dr
   if (points.length < 2) {
     return;
   }
-  const [center, edge] = points;
-  const radiusX = Math.max(0.5, Math.abs(edge.x - center.x));
-  const radiusY = Math.max(0.5, Math.abs(edge.y - center.y));
+  const [center, edge, axis] = points;
+  const radiusX = Math.max(0.5, Math.hypot(edge.x - center.x, edge.y - center.y));
+  const radiusY = axis ? Math.max(0.5, Math.hypot(axis.x - center.x, axis.y - center.y)) : Math.max(0.5, Math.abs(edge.y - center.y));
+  const rotation = Math.atan2(edge.y - center.y, edge.x - center.x);
   ctx.beginPath();
-  ctx.ellipse(center.x, center.y, radiusX, radiusY, 0, 0, Math.PI * 2);
+  ctx.ellipse(center.x, center.y, radiusX, radiusY, rotation, 0, Math.PI * 2);
   fillCurrentTemplatePath(ctx, drawing, layerOpacity);
   ctx.stroke();
 }
@@ -588,9 +621,9 @@ export function getDrawingBounds(drawing: DrawingElement): { left: number; top: 
   if (points.length === 0) {
     return null;
   }
-  if ((drawing.kind === "circle" || drawing.kind === "ellipse") && drawing.points[0] && drawing.points[1]) {
-    const radiusX = drawing.kind === "ellipse" ? Math.abs(drawing.points[1].x - drawing.points[0].x) : distanceBetweenPoints(drawing.points[0], drawing.points[1]);
-    const radiusY = drawing.kind === "ellipse" ? Math.abs(drawing.points[1].y - drawing.points[0].y) : radiusX;
+  if (drawing.kind === "circle" && drawing.points[0] && drawing.points[1]) {
+    const radiusX = distanceBetweenPoints(drawing.points[0], drawing.points[1]);
+    const radiusY = radiusX;
     return {
       left: drawing.points[0].x - radiusX,
       top: drawing.points[0].y - radiusY,
@@ -607,6 +640,9 @@ export function getDrawingBounds(drawing: DrawingElement): { left: number; top: 
 }
 
 function getShapePoints(drawing: DrawingElement): Point[] {
+  if (drawing.kind === "ellipse" && drawing.points[0] && drawing.points[1]) {
+    return getEllipseBoundsPoints(drawing.points);
+  }
   if (drawing.kind === "cone") {
     return getConeTriangle(drawing.points) ?? drawing.points;
   }
@@ -614,6 +650,26 @@ function getShapePoints(drawing: DrawingElement): Point[] {
     return getTriangle(drawing.points) ?? drawing.points;
   }
   return drawing.points;
+}
+
+function getEllipseBoundsPoints(points: Point[]): Point[] {
+  const [center, edge, axis] = points;
+  const radiusX = Math.max(0.5, Math.hypot(edge.x - center.x, edge.y - center.y));
+  const radiusY = axis ? Math.max(0.5, Math.hypot(axis.x - center.x, axis.y - center.y)) : Math.max(0.5, Math.abs(edge.y - center.y));
+  const rotation = Math.atan2(edge.y - center.y, edge.x - center.x);
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  const samples: Point[] = [];
+  for (let index = 0; index < 16; index += 1) {
+    const angle = (Math.PI * 2 * index) / 16;
+    const x = Math.cos(angle) * radiusX;
+    const y = Math.sin(angle) * radiusY;
+    samples.push({
+      x: center.x + x * cos - y * sin,
+      y: center.y + x * sin + y * cos
+    });
+  }
+  return samples;
 }
 
 function isPointInsideTemplate(point: Point, drawing: DrawingElement, hitRadius: number): boolean {
