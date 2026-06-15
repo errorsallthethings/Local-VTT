@@ -58,7 +58,7 @@ import { getVideoTransform } from "../canvas/videoMap";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
-import type { DrawingTemplateSize, MouseBehavior, WeatherMaskTool } from "./tools/ToolsMenu";
+import type { DrawingTemplateSize, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools/ToolsMenu";
 import {
   FOG_GRID_SNAP_HINT,
   getDrawingToolHint,
@@ -103,11 +103,17 @@ interface SceneCanvasProps {
   selectedWeatherMaskId?: string | null;
   selectedDrawingId?: string | null;
   selectedTokenId?: string | null;
+  selectedFogShapeIds?: string[];
+  selectedWeatherMaskIds?: string[];
+  selectedDrawingIds?: string[];
+  selectedTokenIds?: string[];
+  selectorSelectionFilters?: SelectorSelectionFilters;
   onSceneChange?: (scene: Scene, syncScene?: Scene) => void;
   onSelectToken?: (tokenId: string | null) => void;
   onSelectFogShape?: (shapeId: string | null) => void;
   onSelectWeatherMask?: (maskId: string | null) => void;
   onSelectDrawing?: (drawingId: string | null) => void;
+  onSelectSceneItems?: (selection: { tokenIds?: string[]; drawingIds?: string[]; fogShapeIds?: string[]; weatherMaskIds?: string[] }) => void;
   onAddTokenToTurnOrder?: (tokenId: string) => void;
   onDropTokenAsset?: (asset: Asset, point: Point) => void;
   onLiveTableEvent?: (event: LiveTableEvent) => void;
@@ -272,11 +278,23 @@ export function SceneCanvas({
   selectedWeatherMaskId = null,
   selectedDrawingId = null,
   selectedTokenId = null,
+  selectedFogShapeIds = [],
+  selectedWeatherMaskIds = [],
+  selectedDrawingIds = [],
+  selectedTokenIds = [],
+  selectorSelectionFilters = {
+    tokens: true,
+    templates: false,
+    fogMasks: false,
+    weatherMasks: false,
+    drawings: true
+  },
   onSceneChange,
   onSelectToken,
   onSelectFogShape,
   onSelectWeatherMask,
   onSelectDrawing,
+  onSelectSceneItems,
   onAddTokenToTurnOrder,
   onDropTokenAsset,
   onLiveTableEvent,
@@ -1047,7 +1065,7 @@ export function SceneCanvas({
       }
 
       if (canShowTokens) {
-        drawTokens(ctx, scene, loadedTokenImages, mode, selectedTokenId, tokenDragPreview, playerTokenTweenPositionsRef.current);
+        drawTokens(ctx, scene, loadedTokenImages, mode, selectedTokenIds.length > 0 ? selectedTokenIds : selectedTokenId, tokenDragPreview, playerTokenTweenPositionsRef.current);
       }
 
       if (canShowDrawings) {
@@ -1069,7 +1087,7 @@ export function SceneCanvas({
                 measurementLabelVisible: false
               } satisfies DrawingPreview)
             : null;
-        drawDrawings(ctx, scene, mode, drawingLayer?.opacity ?? 1, mode === "gm" ? (drawingPreview ?? drawingPolygonPreview) : null, renderCamera.zoom, selectedDrawingId);
+        drawDrawings(ctx, scene, mode, drawingLayer?.opacity ?? 1, mode === "gm" ? (drawingPreview ?? drawingPolygonPreview) : null, renderCamera.zoom, selectedDrawingIds.length > 0 ? selectedDrawingIds : selectedDrawingId);
       }
 
       const visibleGmRuler = rulerDrag ?? releasedRulerDrag;
@@ -1081,7 +1099,7 @@ export function SceneCanvas({
 
       if (canShowFog) {
         // Fog is drawn after world content so hidden/partial modes mask maps, tokens, grid, and ruler consistently.
-        drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, selectedFogShapeId);
+        drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, selectedFogShapeIds.length > 0 ? selectedFogShapeIds : selectedFogShapeId);
       }
       if (canShowWeather) {
         if (weatherMapReady) {
@@ -1097,9 +1115,9 @@ export function SceneCanvas({
       if (mode === "gm" && weatherMaskTool === "polygon" && weatherPolygonDraft) {
         drawWeatherPolygonDraft(ctx, weatherPolygonDraft, renderCamera);
       }
-      if (mode === "gm" && selectedWeatherMaskId) {
-        const selectedWeatherMask = scene.weather.masks.find((mask) => mask.id === selectedWeatherMaskId && (mask.visible ?? true));
-        if (selectedWeatherMask) {
+      if (mode === "gm") {
+        const weatherMaskSelection = selectedWeatherMaskIds.length > 0 ? selectedWeatherMaskIds : selectedWeatherMaskId ? [selectedWeatherMaskId] : [];
+        for (const selectedWeatherMask of scene.weather.masks.filter((mask) => weatherMaskSelection.includes(mask.id) && (mask.visible ?? true))) {
           drawWeatherMaskSelection(ctx, selectedWeatherMask, renderCamera);
         }
       }
@@ -1162,7 +1180,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, selectionDrag, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1203,37 +1221,26 @@ export function SceneCanvas({
     if (rect.width < 4 && rect.height < 4) {
       return;
     }
-    const token = [...currentScene.tokens].reverse().find((candidate) => canShowTokens && isTokenInSelectionRect(candidate, rect));
-    if (token) {
-      onSelectToken?.(token.id);
-      onSelectDrawing?.(null);
-      onSelectWeatherMask?.(null);
-      onSelectFogShape?.(null);
-      return;
-    }
-    const drawing = [...currentScene.drawings].reverse().find((candidate) => canShowDrawings && isDrawingInSelectionRect(candidate, rect));
-    if (drawing) {
-      onSelectDrawing?.(drawing.id);
-      onSelectToken?.(null);
-      onSelectWeatherMask?.(null);
-      onSelectFogShape?.(null);
-      return;
-    }
-    const weatherMask = [...currentScene.weather.masks].reverse().find((candidate) => (candidate.visible ?? true) && isWeatherMaskInSelectionRect(candidate, rect));
-    if (weatherMask) {
-      onSelectWeatherMask?.(weatherMask.id);
-      onSelectToken?.(null);
-      onSelectDrawing?.(null);
-      onSelectFogShape?.(null);
-      return;
-    }
-    const fogShape = [...currentScene.fog.shapes].reverse().find((candidate) => (candidate.visibleInGm ?? candidate.visible ?? true) && isFogShapeInSelectionRect(candidate, rect));
-    if (fogShape) {
-      onSelectFogShape?.(fogShape.id);
-      onSelectToken?.(null);
-      onSelectDrawing?.(null);
-      onSelectWeatherMask?.(null);
-    }
+    const tokenIds = selectorSelectionFilters.tokens
+      ? currentScene.tokens.filter((candidate) => canShowTokens && isTokenInSelectionRect(candidate, rect)).map((token) => token.id)
+      : [];
+    const drawingIds =
+      selectorSelectionFilters.drawings || selectorSelectionFilters.templates
+        ? currentScene.drawings
+            .filter((candidate) => canShowDrawings && isDrawingInSelectionRect(candidate, rect))
+            .filter((drawing) => {
+              const isTemplate = Boolean(drawing.measurementLabelVisible);
+              return isTemplate ? selectorSelectionFilters.templates : selectorSelectionFilters.drawings;
+            })
+            .map((drawing) => drawing.id)
+        : [];
+    const weatherMaskIds = selectorSelectionFilters.weatherMasks
+      ? currentScene.weather.masks.filter((candidate) => (candidate.visible ?? true) && isWeatherMaskInSelectionRect(candidate, rect)).map((mask) => mask.id)
+      : [];
+    const fogShapeIds = selectorSelectionFilters.fogMasks
+      ? currentScene.fog.shapes.filter((candidate) => (candidate.visibleInGm ?? candidate.visible ?? true) && isFogShapeInSelectionRect(candidate, rect)).map((shape) => shape.id)
+      : [];
+    onSelectSceneItems?.({ tokenIds, drawingIds, fogShapeIds, weatherMaskIds });
   };
 
   const onWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {

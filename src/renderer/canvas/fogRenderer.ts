@@ -36,7 +36,7 @@ export function drawFog(
   mode: "gm" | "player",
   preview: FogDrag | null,
   polygonDraft: FogPolygonDraft | null = null,
-  selectedShapeId: string | null = null
+  selectedShapeId: string | string[] | null = null
 ) {
   const fog = scene.fog;
   const opacity = mode === "gm" ? fog.gmOpacity : fog.playerOpacity;
@@ -106,8 +106,8 @@ export function drawFog(
     ctx.restore();
   }
   if (mode === "gm" && selectedShapeId) {
-    const selectedShape = fog.shapes.find((shape) => shape.id === selectedShapeId && (shape.visibleInGm ?? shape.visible ?? true));
-    if (selectedShape) {
+    const selectedShapeIds = new Set(Array.isArray(selectedShapeId) ? selectedShapeId : [selectedShapeId]);
+    for (const selectedShape of fog.shapes.filter((shape) => selectedShapeIds.has(shape.id) && (shape.visibleInGm ?? shape.visible ?? true))) {
       ctx.save();
       ctx.translate(camera.x, camera.y);
       ctx.scale(camera.zoom, camera.zoom);

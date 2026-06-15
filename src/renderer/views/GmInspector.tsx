@@ -12,6 +12,10 @@ export function GmInspector({
   selectedWeatherMaskId,
   selectedDrawingId,
   selectedTokenId,
+  selectedFogShapeIds,
+  selectedWeatherMaskIds,
+  selectedDrawingIds,
+  selectedTokenIds,
   workspaceLayout,
   onClearActiveFogTool,
   onToggleWorkspacePanel,
@@ -44,6 +48,10 @@ export function GmInspector({
   selectedWeatherMaskId: string | null;
   selectedDrawingId: string | null;
   selectedTokenId: string | null;
+  selectedFogShapeIds: string[];
+  selectedWeatherMaskIds: string[];
+  selectedDrawingIds: string[];
+  selectedTokenIds: string[];
   workspaceLayout: WorkspaceLayout;
   onClearActiveFogTool: () => void;
   onToggleWorkspacePanel: (side: "right") => void;
@@ -118,6 +126,10 @@ export function GmInspector({
                 selectedWeatherMaskId={selectedWeatherMaskId}
                 selectedDrawingId={selectedDrawingId}
                 selectedTokenId={selectedTokenId}
+                selectedFogShapeIds={selectedFogShapeIds}
+                selectedWeatherMaskIds={selectedWeatherMaskIds}
+                selectedDrawingIds={selectedDrawingIds}
+                selectedTokenIds={selectedTokenIds}
                 onChange={onChangeScene}
                 onUpdateGrid={onUpdateGrid}
                 onUpdateFog={onUpdateFog}

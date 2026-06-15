@@ -68,6 +68,10 @@ export function LayerPanel({
   selectedWeatherMaskId,
   selectedDrawingId,
   selectedTokenId,
+  selectedFogShapeIds = [],
+  selectedWeatherMaskIds = [],
+  selectedDrawingIds = [],
+  selectedTokenIds = [],
   onChange,
   onUpdateGrid,
   onUpdateFog,
@@ -94,6 +98,10 @@ export function LayerPanel({
   selectedWeatherMaskId: string | null;
   selectedDrawingId: string | null;
   selectedTokenId: string | null;
+  selectedFogShapeIds?: string[];
+  selectedWeatherMaskIds?: string[];
+  selectedDrawingIds?: string[];
+  selectedTokenIds?: string[];
   onChange: (scene: Scene) => void;
   onUpdateGrid: (patch: Partial<GridSettings>) => void;
   onUpdateFog: (patch: Partial<FogSettings>) => void;
@@ -506,6 +514,7 @@ export function LayerPanel({
                 <FogShapeList
                   scene={scene}
                   selectedFogShapeId={selectedFogShapeId}
+                  selectedFogShapeIds={selectedFogShapeIds}
                   draggedFogShapeId={draggedFogShapeId}
                   fogShapeDropTarget={fogShapeDropTarget}
                   onDraggedFogShapeIdChange={setDraggedFogShapeId}
@@ -520,6 +529,7 @@ export function LayerPanel({
                 <DrawingList
                   drawings={scene.drawings}
                   selectedDrawingId={selectedDrawingId}
+                  selectedDrawingIds={selectedDrawingIds}
                   draggedDrawingId={draggedDrawingId}
                   drawingDropTarget={drawingDropTarget}
                   onDraggedDrawingIdChange={setDraggedDrawingId}
@@ -655,6 +665,7 @@ export function LayerPanel({
                 <WeatherMaskList
                   scene={scene}
                   selectedWeatherMaskId={selectedWeatherMaskId}
+                  selectedWeatherMaskIds={selectedWeatherMaskIds}
                   onSelectWeatherMask={onSelectWeatherMask}
                   onUpdateWeather={updateWeather}
                 />
@@ -672,6 +683,7 @@ export function LayerPanel({
                   scene={scene}
                   tokenAssets={tokenAssets}
                   selectedTokenId={selectedTokenId}
+                  selectedTokenIds={selectedTokenIds}
                   onSelectToken={onSelectToken}
                   onRenameToken={onRenameToken}
                   onUpdateToken={updateToken}
@@ -1061,6 +1073,7 @@ function WeatherRangeRow({
 function DrawingList({
   drawings,
   selectedDrawingId,
+  selectedDrawingIds = [],
   draggedDrawingId,
   drawingDropTarget,
   onDraggedDrawingIdChange,
@@ -1071,6 +1084,7 @@ function DrawingList({
 }: {
   drawings: DrawingElement[];
   selectedDrawingId: string | null;
+  selectedDrawingIds?: string[];
   draggedDrawingId: string | null;
   drawingDropTarget: DrawingDropTarget;
   onDraggedDrawingIdChange: (drawingId: string | null) => void;
@@ -1079,6 +1093,7 @@ function DrawingList({
   onSelectDrawing: (drawingId: string | null) => void;
   onUpdateDrawings: (drawings: DrawingElement[]) => void;
 }) {
+  const selectedIds = new Set(selectedDrawingIds.length > 0 ? selectedDrawingIds : selectedDrawingId ? [selectedDrawingId] : []);
   return (
     <div className="layer-detail-controls fog-shape-list" onClick={(event) => event.stopPropagation()}>
       <div className="fog-shape-list-header">
@@ -1102,7 +1117,7 @@ function DrawingList({
             const isVisibleInGm = drawing.visibleInGm ?? true;
             const isVisibleInPlayer = drawing.visibleInPlayer;
             const label = drawing.name?.trim() || formatDefaultDrawingName(drawing.kind, drawingIndex);
-            const isSelected = selectedDrawingId === drawing.id;
+            const isSelected = selectedIds.has(drawing.id);
             const dropPlacement = drawingDropTarget?.drawingId === drawing.id && draggedDrawingId !== drawing.id ? drawingDropTarget.placement : null;
             return (
               <div
@@ -1221,14 +1236,17 @@ function formatMultiplier(value: number): string {
 function WeatherMaskList({
   scene,
   selectedWeatherMaskId,
+  selectedWeatherMaskIds = [],
   onSelectWeatherMask,
   onUpdateWeather
 }: {
   scene: Scene;
   selectedWeatherMaskId: string | null;
+  selectedWeatherMaskIds?: string[];
   onSelectWeatherMask: (maskId: string | null) => void;
   onUpdateWeather: (patch: Partial<WeatherSettings>) => void;
 }) {
+  const selectedIds = new Set(selectedWeatherMaskIds.length > 0 ? selectedWeatherMaskIds : selectedWeatherMaskId ? [selectedWeatherMaskId] : []);
   return (
     <div className="layer-detail-controls weather-mask-list" onClick={(event) => event.stopPropagation()}>
       <div className="fog-shape-list-header">
@@ -1238,7 +1256,7 @@ function WeatherMaskList({
         scene.weather.masks.map((mask) => {
           const label = mask.name?.trim() || "Weather Mask";
           const isVisible = mask.visible ?? true;
-          const isSelected = selectedWeatherMaskId === mask.id;
+          const isSelected = selectedIds.has(mask.id);
           return (
             <div
               className={["fog-shape-row", "weather-mask-row", isVisible ? "" : "fog-shape-row-muted", isSelected ? "fog-shape-row-selected" : ""]

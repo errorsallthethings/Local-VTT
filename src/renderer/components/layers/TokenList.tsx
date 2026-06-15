@@ -14,6 +14,7 @@ export function TokenList({
   scene,
   tokenAssets,
   selectedTokenId,
+  selectedTokenIds = [],
   onSelectToken,
   onRenameToken,
   onUpdateToken,
@@ -23,6 +24,7 @@ export function TokenList({
   scene: Scene;
   tokenAssets: Map<string, Asset>;
   selectedTokenId: string | null;
+  selectedTokenIds?: string[];
   onSelectToken: (tokenId: string | null) => void;
   onRenameToken: (tokenId: string, fallbackName: string) => void;
   onUpdateToken: (tokenId: string, patch: Partial<Token>) => void;
@@ -32,6 +34,7 @@ export function TokenList({
   const [draggedTokenId, setDraggedTokenId] = useState<string | null>(null);
   const [tokenDropTarget, setTokenDropTarget] = useState<TokenDropTarget>(null);
   const [openTokenMenuId, setOpenTokenMenuId] = useState<string | null>(null);
+  const selectedIds = new Set(selectedTokenIds.length > 0 ? selectedTokenIds : selectedTokenId ? [selectedTokenId] : []);
 
   useDismissableMenu({
     enabled: Boolean(openTokenMenuId),
@@ -72,7 +75,7 @@ export function TokenList({
             const asset = token.assetId ? tokenAssets.get(token.assetId) : null;
             const assetName = asset?.name;
             const label = token.name?.trim() || assetName || `Token ${tokenIndex + 1}`;
-            const isSelected = selectedTokenId === token.id;
+            const isSelected = selectedIds.has(token.id);
             const dropPlacement = tokenDropTarget?.tokenId === token.id && draggedTokenId !== token.id ? tokenDropTarget.placement : null;
             const gmVisibilityButtonClass = [
               "icon-button",

@@ -41,7 +41,7 @@ import type {
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type FogOperation, type MouseBehavior, type WeatherMaskTool } from "../components/tools/ToolsMenu";
+import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type FogOperation, type MouseBehavior, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
 import type { DrawingTool } from "../canvas/drawingRenderer";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -101,6 +101,13 @@ type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 
 const MAX_DICE_ROLL_HISTORY = 100;
 const DICE_SETTINGS_PREFERENCES_STORAGE_KEY = "localvtt.diceSettingsPreferences";
+const DEFAULT_SELECTOR_SELECTION_FILTERS: SelectorSelectionFilters = {
+  tokens: true,
+  templates: false,
+  fogMasks: false,
+  weatherMasks: false,
+  drawings: true
+};
 
 export function GmApp() {
   const workspace = useCampaignWorkspace();
@@ -175,6 +182,11 @@ export function GmApp() {
   const [selectedWeatherMaskId, setSelectedWeatherMaskId] = useState<string | null>(null);
   const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+  const [selectedFogShapeIds, setSelectedFogShapeIds] = useState<string[]>([]);
+  const [selectedWeatherMaskIds, setSelectedWeatherMaskIds] = useState<string[]>([]);
+  const [selectedDrawingIds, setSelectedDrawingIds] = useState<string[]>([]);
+  const [selectedTokenIds, setSelectedTokenIds] = useState<string[]>([]);
+  const [selectorSelectionFilters, setSelectorSelectionFilters] = useState<SelectorSelectionFilters>(DEFAULT_SELECTOR_SELECTION_FILTERS);
   const [mapCalibrationBox, setMapCalibrationBox] = useState<MapCalibrationBox | null>(null);
   const [mapCalibrationBoxPicking, setMapCalibrationBoxPicking] = useState(false);
   const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
@@ -243,6 +255,43 @@ export function GmApp() {
 
   const updateCanvasScene = (nextScene: Scene, syncScene: Scene = nextScene) => {
     updateScene(nextScene, campaign, syncScene);
+  };
+
+  const selectTokens = (ids: string[]) => {
+    setSelectedTokenIds(ids);
+    setSelectedTokenId(ids[0] ?? null);
+  };
+
+  const selectDrawings = (ids: string[]) => {
+    setSelectedDrawingIds(ids);
+    setSelectedDrawingId(ids[0] ?? null);
+  };
+
+  const selectFogShapes = (ids: string[]) => {
+    setSelectedFogShapeIds(ids);
+    setSelectedFogShapeId(ids[0] ?? null);
+  };
+
+  const selectWeatherMasks = (ids: string[]) => {
+    setSelectedWeatherMaskIds(ids);
+    setSelectedWeatherMaskId(ids[0] ?? null);
+  };
+
+  const selectSceneItems = ({
+    tokenIds = [],
+    drawingIds = [],
+    fogShapeIds = [],
+    weatherMaskIds = []
+  }: {
+    tokenIds?: string[];
+    drawingIds?: string[];
+    fogShapeIds?: string[];
+    weatherMaskIds?: string[];
+  }) => {
+    selectTokens(tokenIds);
+    selectDrawings(drawingIds);
+    selectFogShapes(fogShapeIds);
+    selectWeatherMasks(weatherMaskIds);
   };
 
   const clearActiveCanvasTools = () => {
@@ -516,6 +565,11 @@ export function GmApp() {
   }, [activeScene?.fog.shapes, selectedFogShapeId]);
 
   useEffect(() => {
+    const validIds = new Set(activeScene?.fog.shapes.map((shape) => shape.id) ?? []);
+    setSelectedFogShapeIds((ids) => ids.filter((id) => validIds.has(id)));
+  }, [activeScene?.fog.shapes]);
+
+  useEffect(() => {
     if (!selectedWeatherMaskId || activeScene?.weather.masks.some((mask) => mask.id === selectedWeatherMaskId)) {
       return;
     }
@@ -523,11 +577,21 @@ export function GmApp() {
   }, [activeScene?.weather.masks, selectedWeatherMaskId]);
 
   useEffect(() => {
+    const validIds = new Set(activeScene?.weather.masks.map((mask) => mask.id) ?? []);
+    setSelectedWeatherMaskIds((ids) => ids.filter((id) => validIds.has(id)));
+  }, [activeScene?.weather.masks]);
+
+  useEffect(() => {
     if (!selectedDrawingId || activeScene?.drawings.some((drawing) => drawing.id === selectedDrawingId)) {
       return;
     }
     setSelectedDrawingId(null);
   }, [activeScene?.drawings, selectedDrawingId]);
+
+  useEffect(() => {
+    const validIds = new Set(activeScene?.drawings.map((drawing) => drawing.id) ?? []);
+    setSelectedDrawingIds((ids) => ids.filter((id) => validIds.has(id)));
+  }, [activeScene?.drawings]);
 
   useEffect(() => {
     if (!selectedFogShapeId) {
@@ -539,6 +603,7 @@ export function GmApp() {
         return;
       }
       setSelectedFogShapeId(null);
+      setSelectedFogShapeIds([]);
     };
     window.addEventListener("mousedown", clearFogShapeSelection);
     return () => window.removeEventListener("mousedown", clearFogShapeSelection);
@@ -550,6 +615,11 @@ export function GmApp() {
     }
     setSelectedTokenId(null);
   }, [activeScene?.tokens, selectedTokenId]);
+
+  useEffect(() => {
+    const validIds = new Set(activeScene?.tokens.map((token) => token.id) ?? []);
+    setSelectedTokenIds((ids) => ids.filter((id) => validIds.has(id)));
+  }, [activeScene?.tokens]);
 
   useEffect(() => {
     if (!playerSceneId || campaign?.scenes.some((scene) => scene.id === playerSceneId)) {
@@ -1590,6 +1660,7 @@ export function GmApp() {
               }
               dicePanelOpen={dicePanelOpen}
               turnOrderModalOpen={turnOrderModalOpen}
+              selectorSelectionFilters={selectorSelectionFilters}
               onCanvasToolChange={setActiveCanvasTool}
               onFogToolChange={setActiveFogTool}
               onWeatherMaskToolChange={setActiveWeatherMaskTool}
@@ -1610,6 +1681,7 @@ export function GmApp() {
               onLaserColorChange={(laserColor) => setTableTools((current) => ({ ...current, laserColor }))}
               onRulerLingerChange={(rulerLinger) => setTableTools((current) => ({ ...current, rulerLinger }))}
               onTableToolsVisibleInPlayerChange={setTableToolsVisibleInPlayer}
+              onSelectorSelectionFiltersChange={setSelectorSelectionFilters}
               onUndoFogShape={undoFogShape}
               onUndoDrawing={undoDrawing}
               onUndoWeatherMask={undoWeatherMask}
@@ -1649,11 +1721,17 @@ export function GmApp() {
             selectedWeatherMaskId={selectedWeatherMaskId}
             selectedDrawingId={selectedDrawingId}
             selectedTokenId={selectedTokenId}
+            selectedFogShapeIds={selectedFogShapeIds}
+            selectedWeatherMaskIds={selectedWeatherMaskIds}
+            selectedDrawingIds={selectedDrawingIds}
+            selectedTokenIds={selectedTokenIds}
+            selectorSelectionFilters={selectorSelectionFilters}
             onSceneChange={updateCanvasScene}
-            onSelectToken={setSelectedTokenId}
-            onSelectFogShape={setSelectedFogShapeId}
-            onSelectWeatherMask={setSelectedWeatherMaskId}
-            onSelectDrawing={setSelectedDrawingId}
+            onSelectToken={(tokenId) => selectTokens(tokenId ? [tokenId] : [])}
+            onSelectFogShape={(shapeId) => selectFogShapes(shapeId ? [shapeId] : [])}
+            onSelectWeatherMask={(maskId) => selectWeatherMasks(maskId ? [maskId] : [])}
+            onSelectDrawing={(drawingId) => selectDrawings(drawingId ? [drawingId] : [])}
+            onSelectSceneItems={selectSceneItems}
             onAddTokenToTurnOrder={addSceneTokenToTurnOrder}
             onDropTokenAsset={dropLibraryTokenOnScene}
             onLiveTableEvent={emitLiveTableEvent}
@@ -1677,6 +1755,7 @@ export function GmApp() {
           onImportToken={() => void importToken("library")}
           onAddToken={addLibraryTokenToScene}
           selectedTokenAssetId={activeScene?.tokens.find((token) => token.id === selectedTokenId)?.assetId}
+          selectedTokenAssetIds={activeScene?.tokens.filter((token) => selectedTokenIds.includes(token.id)).map((token) => token.assetId).filter((assetId): assetId is string => Boolean(assetId))}
           onSetTokenDefaults={openTokenDefaultsDialog}
           onRenameToken={openRenameTokenAssetDialog}
           onDeleteToken={(asset) => void openDeleteTokenAssetDialog(asset)}
@@ -1721,6 +1800,10 @@ export function GmApp() {
         selectedWeatherMaskId={selectedWeatherMaskId}
         selectedDrawingId={selectedDrawingId}
         selectedTokenId={selectedTokenId}
+        selectedFogShapeIds={selectedFogShapeIds}
+        selectedWeatherMaskIds={selectedWeatherMaskIds}
+        selectedDrawingIds={selectedDrawingIds}
+        selectedTokenIds={selectedTokenIds}
         workspaceLayout={workspaceLayout}
         onClearActiveFogTool={clearActiveCanvasTools}
         onToggleWorkspacePanel={toggleWorkspacePanel}
@@ -1736,10 +1819,10 @@ export function GmApp() {
         onImportMap={importMap}
         onImportToken={() => void importToken("scene")}
         onDeleteMap={setMapAssetToDelete}
-        onSelectFogShape={setSelectedFogShapeId}
-        onSelectWeatherMask={setSelectedWeatherMaskId}
-        onSelectDrawing={setSelectedDrawingId}
-        onSelectToken={setSelectedTokenId}
+        onSelectFogShape={(shapeId) => selectSceneItems({ fogShapeIds: shapeId ? [shapeId] : [] })}
+        onSelectWeatherMask={(maskId) => selectSceneItems({ weatherMaskIds: maskId ? [maskId] : [] })}
+        onSelectDrawing={(drawingId) => selectSceneItems({ drawingIds: drawingId ? [drawingId] : [] })}
+        onSelectToken={(tokenId) => selectSceneItems({ tokenIds: tokenId ? [tokenId] : [] })}
         onRenameFogShape={openRenameFogShapeDialog}
         onRenameToken={openRenameTokenDialog}
         onOpenFogColor={() => openSceneColorDialog("fog")}

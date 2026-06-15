@@ -30,10 +30,11 @@ export function drawTokens(
   scene: Scene,
   loadedImages: Map<string, HTMLImageElement>,
   mode: "gm" | "player",
-  selectedTokenId: string | null,
+  selectedTokenId: string | string[] | null,
   tokenDragPreview: TokenDragPreview | null,
   tokenPositionOverrides: TokenPositionOverrides | null = null
 ) {
+  const selectedTokenIds = new Set(Array.isArray(selectedTokenId) ? selectedTokenId : selectedTokenId ? [selectedTokenId] : []);
   for (const token of getVisibleTokens(scene, mode)) {
     if (!token.assetId) {
       continue;
@@ -55,12 +56,13 @@ export function drawTokens(
       drawTokenFootprint(ctx, scene, renderToken, mode);
     }
     const image = loadedImages.get(token.assetId);
+    const selected = selectedTokenIds.has(token.id);
     if (!image) {
-      drawTokenPlaceholder(ctx, renderToken, selectedTokenId === token.id);
+      drawTokenPlaceholder(ctx, renderToken, selected);
       ctx.restore();
       continue;
     }
-    drawToken(ctx, renderToken, image, selectedTokenId === token.id && mode === "gm");
+    drawToken(ctx, renderToken, image, selected && mode === "gm");
     ctx.restore();
   }
 }

@@ -38,6 +38,7 @@ interface TokenLibraryDrawerProps {
   onImportToken: () => void;
   onAddToken: (asset: Asset) => void;
   selectedTokenAssetId?: string;
+  selectedTokenAssetIds?: string[];
   onSetTokenDefaults: (asset: Asset) => void;
   onRenameToken: (asset: Asset) => void;
   onDeleteToken: (asset: Asset) => void;
@@ -55,6 +56,7 @@ export function TokenLibraryDrawer({
   onImportToken,
   onAddToken,
   selectedTokenAssetId,
+  selectedTokenAssetIds = [],
   onSetTokenDefaults,
   onRenameToken,
   onDeleteToken,
@@ -72,6 +74,7 @@ export function TokenLibraryDrawer({
       .filter((asset) => !normalizedQuery || `${asset.name} ${asset.originalFileName}`.toLowerCase().includes(normalizedQuery))
       .sort((a, b) => sortTokenAssets(a, b, sort));
   }, [assets, query, sort]);
+  const selectedAssetIds = new Set(selectedTokenAssetIds.length > 0 ? selectedTokenAssetIds : selectedTokenAssetId ? [selectedTokenAssetId] : []);
   const selectedTokenAsset = selectedTokenAssetId ? (assets.find((asset) => asset.id === selectedTokenAssetId) ?? null) : null;
   useDismissableMenu({
     enabled: Boolean(openTokenMenuId),
@@ -227,7 +230,7 @@ export function TokenLibraryDrawer({
                       key={asset.id}
                       asset={asset}
                       activeSceneName={activeSceneName}
-                      selected={selectedTokenAssetId === asset.id}
+                      selected={selectedAssetIds.has(asset.id)}
                       menuOpen={openTokenMenuId === asset.id}
                       onToggleMenu={() => setOpenTokenMenuId((openId) => (openId === asset.id ? null : asset.id))}
                       onAddToken={onAddToken}

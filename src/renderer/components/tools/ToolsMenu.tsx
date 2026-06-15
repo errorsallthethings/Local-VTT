@@ -37,6 +37,13 @@ export type DrawingTemplateSize = "custom" | 5 | 10 | 15 | 20 | 30 | 60 | 100;
 type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
 type ToolCategory = "mouse" | "drawing" | "templates" | "text" | "table" | "dice" | "turn-order" | "pin" | "mask" | "lighting";
 export type MouseBehavior = "selector" | "grabber";
+export type SelectorSelectionFilters = {
+  tokens: boolean;
+  templates: boolean;
+  fogMasks: boolean;
+  weatherMasks: boolean;
+  drawings: boolean;
+};
 
 const BRUSH_SIZE_PRESETS = [
   { label: "Extra Thin", value: 20 },
@@ -117,6 +124,7 @@ interface ToolsMenuProps {
   weatherToolsEnabled: boolean;
   dicePanelOpen: boolean;
   turnOrderModalOpen: boolean;
+  selectorSelectionFilters: SelectorSelectionFilters;
   onCanvasToolChange: (tool: CanvasTool | null) => void;
   onFogToolChange: (tool: FogTool | null) => void;
   onWeatherMaskToolChange: (tool: WeatherMaskTool | null) => void;
@@ -143,6 +151,7 @@ interface ToolsMenuProps {
   onRequestClearFog: () => void;
   onToggleDicePanel: () => void;
   onToggleTurnOrder: () => void;
+  onSelectorSelectionFiltersChange: (filters: SelectorSelectionFilters) => void;
 }
 
 const TOOL_CATEGORIES: Array<{ id: ToolCategory; label: string; icon: typeof SquareDashedMousePointer; hasPanelTools: boolean }> = [
@@ -184,6 +193,7 @@ export function ToolsMenu({
   weatherToolsEnabled,
   dicePanelOpen,
   turnOrderModalOpen,
+  selectorSelectionFilters,
   onCanvasToolChange,
   onFogToolChange,
   onWeatherMaskToolChange,
@@ -208,7 +218,8 @@ export function ToolsMenu({
   onUndoDrawing,
   onUndoWeatherMask,
   onToggleDicePanel,
-  onToggleTurnOrder
+  onToggleTurnOrder,
+  onSelectorSelectionFiltersChange
 }: ToolsMenuProps) {
   const [activeCategory, setActiveCategory] = useState<ToolCategory | null>(null);
   const [toolsExpanded, setToolsExpanded] = useState(true);
@@ -222,6 +233,7 @@ export function ToolsMenu({
   const [templateSettingsOpen, setTemplateSettingsOpen] = useState(false);
   const [tableSettingsOpen, setTableSettingsOpen] = useState(false);
   const [maskSettingsOpen, setMaskSettingsOpen] = useState(false);
+  const [selectorSettingsOpen, setSelectorSettingsOpen] = useState(false);
   const activeFogShape = getActiveFogShape(activeFogTool);
 
   useEffect(() => {
@@ -428,6 +440,21 @@ export function ToolsMenu({
                   <Hand size={17} aria-hidden="true" />
                 </ToolButton>
               </div>
+              {mouseBehavior === "selector" && (
+                <>
+                  <div className="tools-section-divider" />
+                  <SettingsToggle open={selectorSettingsOpen} label="Selector Settings" onToggle={() => setSelectorSettingsOpen((open) => !open)} />
+                  {selectorSettingsOpen && (
+                    <div className="tools-selector-settings" aria-label="Selector included layers">
+                      <SelectorFilterCheckbox label="Token" checked={selectorSelectionFilters.tokens} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, tokens: checked })} />
+                      <SelectorFilterCheckbox label="Template" checked={selectorSelectionFilters.templates} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, templates: checked })} />
+                      <SelectorFilterCheckbox label="Fog Mask" checked={selectorSelectionFilters.fogMasks} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, fogMasks: checked })} />
+                      <SelectorFilterCheckbox label="Weather Mask" checked={selectorSelectionFilters.weatherMasks} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, weatherMasks: checked })} />
+                      <SelectorFilterCheckbox label="Drawings" checked={selectorSelectionFilters.drawings} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, drawings: checked })} />
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
           {activeCategory === "drawing" && (
@@ -789,6 +816,15 @@ function SettingsToggle({ open, label, onToggle }: { open: boolean; label: strin
       {open ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
       <strong>{label}</strong>
     </button>
+  );
+}
+
+function SelectorFilterCheckbox({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <label className="tools-selector-filter">
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <span>{label}</span>
+    </label>
   );
 }
 

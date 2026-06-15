@@ -38,7 +38,7 @@ export function drawDrawings(
   layerOpacity = 1,
   preview: DrawingPreview | null = null,
   zoom = 1,
-  selectedDrawingId: string | null = null
+  selectedDrawingId: string | string[] | null = null
 ) {
   if (layerOpacity <= 0) {
     return;
@@ -47,11 +47,12 @@ export function drawDrawings(
   ctx.save();
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
+  const selectedDrawingIds = new Set(Array.isArray(selectedDrawingId) ? selectedDrawingId : selectedDrawingId ? [selectedDrawingId] : []);
   for (const drawing of scene.drawings) {
     if (!isDrawingVisible(drawing, mode)) {
       continue;
     }
-    if (mode === "gm" && drawing.id === selectedDrawingId) {
+    if (mode === "gm" && selectedDrawingIds.has(drawing.id)) {
       drawDrawingSelection(ctx, drawing, zoom);
     }
     drawDrawingElement(ctx, drawing, scene, layerOpacity, zoom);

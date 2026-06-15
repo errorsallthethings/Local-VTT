@@ -7,6 +7,7 @@ export type FogShapeDropTarget = { shapeId: string; placement: DropPlacement } |
 export function FogShapeList({
   scene,
   selectedFogShapeId,
+  selectedFogShapeIds = [],
   draggedFogShapeId,
   fogShapeDropTarget,
   onDraggedFogShapeIdChange,
@@ -18,6 +19,7 @@ export function FogShapeList({
 }: {
   scene: Scene;
   selectedFogShapeId: string | null;
+  selectedFogShapeIds?: string[];
   draggedFogShapeId: string | null;
   fogShapeDropTarget: FogShapeDropTarget;
   onDraggedFogShapeIdChange: (shapeId: string | null) => void;
@@ -27,6 +29,7 @@ export function FogShapeList({
   onRenameFogShape: (shapeId: string, fallbackName: string) => void;
   onUpdateFog: (patch: Partial<FogSettings>) => void;
 }) {
+  const selectedIds = new Set(selectedFogShapeIds.length > 0 ? selectedFogShapeIds : selectedFogShapeId ? [selectedFogShapeId] : []);
   return (
     <div className="layer-detail-controls fog-shape-list" onClick={(event) => event.stopPropagation()}>
       <div className="fog-shape-list-header">
@@ -51,7 +54,7 @@ export function FogShapeList({
             const isVisibleInPlayer = shape.visibleInPlayer ?? shape.visible ?? true;
             const fallbackName = formatDefaultFogShapeName(shape.operation, shape.kind, shapeIndex);
             const label = shape.name?.trim() || fallbackName;
-            const isSelected = selectedFogShapeId === shape.id;
+            const isSelected = selectedIds.has(shape.id);
             const dropPlacement = fogShapeDropTarget?.shapeId === shape.id && draggedFogShapeId !== shape.id ? fogShapeDropTarget.placement : null;
             const gmVisibilityButtonClass = [
               "icon-button",
