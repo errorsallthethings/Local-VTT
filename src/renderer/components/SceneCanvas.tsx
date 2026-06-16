@@ -168,6 +168,7 @@ type DrawingDragState = {
   pointerId: number;
   drawingId: string;
   start: Point;
+  snapAnchor: Point;
   groupStartPoints: DrawingPointOverrides;
 };
 
@@ -1199,7 +1200,7 @@ export function SceneCanvas({
       if (mode === "gm" && snapPoint && fogTool && !fogTool.includes("brush")) {
         drawSnapMarker(ctx, snapPoint, renderCamera, getFogOperationForTool(fogTool));
       }
-      if (mode === "gm" && snapPoint && drawingTool && drawingTool !== "freehand") {
+      if (mode === "gm" && snapPoint && ((drawingTool && drawingTool !== "freehand") || (drawingDragPreview && drawingDragRef.current))) {
         drawSnapMarker(ctx, snapPoint, renderCamera, "reveal");
       }
       if (mode === "gm" && snapPoint && weatherMaskTool) {
@@ -1597,6 +1598,13 @@ export function SceneCanvas({
               .filter((candidate) => groupDrawingIds.includes(candidate.id))
               .map((candidate) => [candidate.id, candidate.points.map((candidatePoint) => ({ ...candidatePoint }))])
           );
+          const snapBounds = getDrawingGroupBounds(scene.drawings.filter((candidate) => groupDrawingIds.includes(candidate.id)));
+          const snapAnchor = snapBounds
+            ? {
+                x: (snapBounds.left + snapBounds.right) / 2,
+                y: (snapBounds.top + snapBounds.bottom) / 2
+              }
+            : point;
           onSelectToken?.(null);
           if (!shouldDragSelectedGroup) {
             onSelectDrawing?.(drawingHit.id);
@@ -1608,6 +1616,7 @@ export function SceneCanvas({
               pointerId: event.pointerId,
               drawingId: drawingHit.id,
               start: point,
+              snapAnchor,
               groupStartPoints
             };
             setDrawingDragPreview(groupStartPoints);
@@ -1769,11 +1778,23 @@ export function SceneCanvas({
     }
 
     if (drawingDragValue?.pointerId === event.pointerId) {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const delta = {
-        x: point.x - drawingDragValue.start.x,
-        y: point.y - drawingDragValue.start.y
+      const worldPoint = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const pointerDelta = {
+        x: worldPoint.x - drawingDragValue.start.x,
+        y: worldPoint.y - drawingDragValue.start.y
       };
+      const projectedAnchor = {
+        x: drawingDragValue.snapAnchor.x + pointerDelta.x,
+        y: drawingDragValue.snapAnchor.y + pointerDelta.y
+      };
+      const snappedPoint = scene && isSnapModifier(event) ? getNearestSceneSnapPoint(projectedAnchor, scene) : null;
+      setSnapPoint(snappedPoint);
+      const delta = snappedPoint
+        ? {
+            x: snappedPoint.x - drawingDragValue.snapAnchor.x,
+            y: snappedPoint.y - drawingDragValue.snapAnchor.y
+          }
+        : pointerDelta;
       setDrawingDragPreview(
         new Map(
           [...drawingDragValue.groupStartPoints.entries()].map(([drawingId, points]) => [
@@ -2029,6 +2050,7 @@ export function SceneCanvas({
       }
       drawingDragRef.current = null;
       setDrawingDragPreview(null);
+      setSnapPoint(null);
       return;
     }
 
@@ -4028,6 +4050,19 @@ function getSelectedResizableDrawingBounds(drawings: Scene["drawings"], selected
     .filter((drawing) => selectedIds.has(drawing.id) && !drawing.measurementLabelVisible)
     .map((drawing) => getDrawingBounds(drawing))
     .filter((drawingBounds): drawingBounds is { left: number; top: number; right: number; bottom: number } => Boolean(drawingBounds));
+  if (bounds.length === 0) {
+    return null;
+  }
+  return {
+    left: Math.min(...bounds.map((drawingBounds) => drawingBounds.left)),
+    top: Math.min(...bounds.map((drawingBounds) => drawingBounds.top)),
+    right: Math.max(...bounds.map((drawingBounds) => drawingBounds.right)),
+    bottom: Math.max(...bounds.map((drawingBounds) => drawingBounds.bottom))
+  };
+}
+
+function getDrawingGroupBounds(drawings: Scene["drawings"]): { left: number; top: number; right: number; bottom: number } | null {
+  const bounds = drawings.map((drawing) => getDrawingBounds(drawing)).filter((drawingBounds): drawingBounds is { left: number; top: number; right: number; bottom: number } => Boolean(drawingBounds));
   if (bounds.length === 0) {
     return null;
   }
