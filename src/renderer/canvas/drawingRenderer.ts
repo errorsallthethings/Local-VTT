@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import type { DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, GridSettings, Point, Scene } from "../../shared/localvtt";
 import { formatMeasurementDistance, getStraightLineMeasurementDistance } from "./measurement";
 import { drawSelectionBox } from "./selectionRenderer";
@@ -38,18 +39,18 @@ export type DrawingPreview = {
 
 export type DrawingPointOverrides = Map<string, Point[]>;
 
-type TemplateEffectAsset = {
-  effect: string;
-  image: HTMLImageElement;
-  loaded: boolean;
-  url: string;
+type TemplateEffectRenderable = {
+  id: string;
+  image: CanvasImageSource;
+  naturalHeight: number;
+  naturalWidth: number;
 };
 
 type PlacedTemplateAsset = {
   angle: number;
   alpha: number;
-  asset: TemplateEffectAsset;
   height: number;
+  image: CanvasImageSource;
   width: number;
   x: number;
   y: number;
@@ -62,12 +63,24 @@ type TemplateEffectOverlayCacheEntry = {
   top: number;
 };
 
-const TEMPLATE_EFFECT_ASSET_READY_EVENT = "localvtt-template-effect-assets-ready";
 const TEMPLATE_EFFECT_ASSET_WIDTH_PX = 800;
 const TEMPLATE_EFFECT_OVERLAY_CACHE_LIMIT = 80;
-const templateEffectAssetUrls = import.meta.glob("../assets/template-effects/*/*.svg", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
-const templateEffectAssetCache = createTemplateEffectAssetCache(templateEffectAssetUrls);
 const templateEffectOverlayCache = new Map<string, TemplateEffectOverlayCacheEntry>();
+let acidTemplateRenderables: TemplateEffectRenderable[] | null = null;
+let arcaneTemplateRenderables: TemplateEffectRenderable[] | null = null;
+let coldTemplateRenderables: TemplateEffectRenderable[] | null = null;
+let darknessTemplateRenderables: TemplateEffectRenderable[] | null = null;
+let fireTemplateRenderables: TemplateEffectRenderable[] | null = null;
+let fogTemplateRenderables: TemplateEffectRenderable[] | null = null;
+let lightningTemplateRenderables: TemplateEffectRenderable[] | null = null;
+let natureTemplateRenderables: TemplateEffectRenderable[] | null = null;
+let poisonTemplateRenderables: TemplateEffectRenderable[] | null = null;
+let psychicTemplateRenderables: TemplateEffectRenderable[] | null = null;
+let radiantTemplateRenderables: TemplateEffectRenderable[] | null = null;
+let stormTemplateRenderables: TemplateEffectRenderable[] | null = null;
+let thunderTemplateRenderables: TemplateEffectRenderable[] | null = null;
+let waterTemplateRenderables: TemplateEffectRenderable[] | null = null;
+let webTemplateRenderables: TemplateEffectRenderable[] | null = null;
 
 export function drawDrawings(
   ctx: CanvasRenderingContext2D,
@@ -118,6 +131,7 @@ export function drawDrawings(
         strokeStyle: preview.strokeStyle ?? "solid",
         templateEffect: preview.templateEffect,
         templateWidth: preview.templateWidth,
+        templateFootprintVisible: preview.measurementLabelVisible === true,
         measurementLabelVisible: preview.measurementLabelVisible,
         visibleInGm: true,
         visibleInPlayer: true
@@ -201,9 +215,6 @@ function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingEleme
   if (drawing.measurementLabelVisible) {
     ctx.setLineDash([Math.max(8, drawing.strokeWidth * 1.8), Math.max(6, drawing.strokeWidth * 1.1)]);
     applyTemplateEffectStroke(ctx, drawing);
-    if (drawing.templateFootprintVisible !== false) {
-      drawTemplateGridHighlights(ctx, drawing, scene.grid);
-    }
   } else {
     applyDrawingStrokeStyle(ctx, drawing.strokeStyle ?? "solid", drawing.strokeWidth);
   }
@@ -224,6 +235,9 @@ function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingEleme
     drawCone(ctx, points, drawing, layerOpacity);
   } else {
     drawPath(ctx, points);
+  }
+  if (drawing.measurementLabelVisible && drawing.templateFootprintVisible === true) {
+    drawTemplateGridHighlights(ctx, drawing, scene.grid);
   }
   drawTemplateLabel(ctx, drawing, scene, zoom);
   ctx.restore();
@@ -624,6 +638,9 @@ function drawTemplateLabel(ctx: CanvasRenderingContext2D, drawing: DrawingElemen
 
 function fillTemplateEffectPath(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
   const effect = getTemplateEffectStyle(drawing.templateEffect ?? "plain");
+  if ((drawing.templateEffect === "lightning" || drawing.templateEffect === "cold" || drawing.templateEffect === "poison" || drawing.templateEffect === "acid" || drawing.templateEffect === "arcane" || drawing.templateEffect === "fire" || drawing.templateEffect === "fog" || drawing.templateEffect === "darkness" || drawing.templateEffect === "nature" || drawing.templateEffect === "psychic" || drawing.templateEffect === "radiant" || drawing.templateEffect === "storm" || drawing.templateEffect === "thunder" || drawing.templateEffect === "water") && (drawing.kind === "circle" || drawing.kind === "rectangle" || drawing.kind === "cone")) {
+    drawTemplateInnerGlow(ctx, drawing, layerOpacity);
+  }
   if (effect.fillOpacity <= 0) {
     return;
   }
@@ -632,6 +649,40 @@ function fillTemplateEffectPath(ctx: CanvasRenderingContext2D, drawing: DrawingE
   ctx.fillStyle = effect.fill;
   ctx.shadowBlur = 0;
   ctx.fill();
+  ctx.restore();
+}
+
+function drawTemplateInnerGlow(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
+  const alpha = Math.max(0, Math.min(0.7, layerOpacity * 0.55));
+  if (alpha <= 0) {
+    return;
+  }
+  const cold = drawing.templateEffect === "cold";
+  const acid = drawing.templateEffect === "acid";
+  const arcane = drawing.templateEffect === "arcane";
+  const darkness = drawing.templateEffect === "darkness";
+  const fire = drawing.templateEffect === "fire";
+  const fog = drawing.templateEffect === "fog";
+  const nature = drawing.templateEffect === "nature";
+  const poison = drawing.templateEffect === "poison";
+  const psychic = drawing.templateEffect === "psychic";
+  const radiant = drawing.templateEffect === "radiant";
+  const storm = drawing.templateEffect === "storm";
+  const thunder = drawing.templateEffect === "thunder";
+  const water = drawing.templateEffect === "water";
+  ctx.save();
+  ctx.clip();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = acid ? "#bef264" : poison ? "#a3e635" : cold ? "#f8fafc" : arcane ? "#c4b5fd" : fire ? "#fb923c" : fog ? "#e2e8f0" : darkness ? "#020617" : nature ? "#86efac" : psychic ? "#f0abfc" : radiant ? "#fef3c7" : storm ? "#93c5fd" : thunder ? "#d8b4fe" : water ? "#5eead4" : "#facc15";
+  ctx.shadowColor = acid ? "#d9f99d" : poison ? "#84cc16" : cold ? "#e0f2fe" : arcane ? "#8b5cf6" : fire ? "#f97316" : fog ? "#f8fafc" : darkness ? "#020617" : nature ? "#22c55e" : psychic ? "#db2777" : radiant ? "#facc15" : storm ? "#60a5fa" : thunder ? "#9333ea" : water ? "#14b8a6" : "#fde047";
+  ctx.shadowBlur = acid ? Math.max(26, drawing.strokeWidth * 1.55) : Math.max(18, drawing.strokeWidth * 1.15);
+  ctx.lineWidth = acid ? Math.max(34, drawing.strokeWidth * 3.25) : Math.max(26, drawing.strokeWidth * 2.6);
+  ctx.stroke();
+  ctx.globalAlpha = acid ? Math.min(0.56, alpha * 0.96) : Math.min(0.42, alpha * 0.78);
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = acid ? Math.max(14, drawing.strokeWidth * 1.45) : Math.max(10, drawing.strokeWidth * 1.1);
+  ctx.strokeStyle = acid ? "#f7fee7" : poison ? "#d9f99d" : cold ? "#ffffff" : arcane ? "#ede9fe" : fire ? "#fed7aa" : fog ? "#f8fafc" : darkness ? "#1e293b" : nature ? "#dcfce7" : psychic ? "#fdf4ff" : radiant ? "#fff7ed" : storm ? "#dbeafe" : thunder ? "#f3e8ff" : water ? "#ccfbf1" : "#fef08a";
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -647,33 +698,33 @@ function applyTemplateEffectStroke(ctx: CanvasRenderingContext2D, drawing: Drawi
 function getTemplateEffectStyle(effect: DrawingTemplateEffect): { stroke: string; fill: string; fillOpacity: number; highlightFill: string; highlightStroke: string; dash?: number[] } {
   switch (effect) {
     case "acid":
-      return { stroke: "#84cc16", fill: "#bef264", fillOpacity: 0.18, highlightFill: "rgb(132 204 22 / 0.2)", highlightStroke: "rgb(217 249 157 / 0.34)", dash: [12, 8, 3, 8] };
+      return { stroke: "#84cc16", fill: "#bef264", fillOpacity: 0, highlightFill: "rgb(132 204 22 / 0.2)", highlightStroke: "rgb(217 249 157 / 0.34)", dash: [12, 8, 3, 8] };
     case "arcane":
-      return { stroke: "#a78bfa", fill: "#7c3aed", fillOpacity: 0.16, highlightFill: "rgb(124 58 237 / 0.2)", highlightStroke: "rgb(221 214 254 / 0.36)", dash: [10, 7] };
+      return { stroke: "#a78bfa", fill: "#7c3aed", fillOpacity: 0, highlightFill: "rgb(124 58 237 / 0.2)", highlightStroke: "rgb(221 214 254 / 0.36)", dash: [10, 7] };
     case "cold":
-      return { stroke: "#67e8f9", fill: "#cffafe", fillOpacity: 0.15, highlightFill: "rgb(207 250 254 / 0.18)", highlightStroke: "rgb(165 243 252 / 0.38)", dash: [16, 6] };
+      return { stroke: "#67e8f9", fill: "#f8fafc", fillOpacity: 0, highlightFill: "rgb(207 250 254 / 0.18)", highlightStroke: "rgb(165 243 252 / 0.38)", dash: [16, 6] };
     case "darkness":
-      return { stroke: "#64748b", fill: "#020617", fillOpacity: 0.34, highlightFill: "rgb(15 23 42 / 0.34)", highlightStroke: "rgb(148 163 184 / 0.38)", dash: [7, 7] };
+      return { stroke: "#64748b", fill: "#020617", fillOpacity: 0, highlightFill: "rgb(15 23 42 / 0.34)", highlightStroke: "rgb(148 163 184 / 0.38)", dash: [7, 7] };
     case "fire":
-      return { stroke: "#f97316", fill: "#facc15", fillOpacity: 0.2, highlightFill: "rgb(250 204 21 / 0.2)", highlightStroke: "rgb(254 215 170 / 0.38)", dash: [18, 7, 5, 7] };
+      return { stroke: "#f97316", fill: "#f97316", fillOpacity: 0, highlightFill: "rgb(250 204 21 / 0.2)", highlightStroke: "rgb(254 215 170 / 0.38)", dash: [18, 7, 5, 7] };
     case "fog":
-      return { stroke: "#cbd5e1", fill: "#e2e8f0", fillOpacity: 0.2, highlightFill: "rgb(226 232 240 / 0.22)", highlightStroke: "rgb(248 250 252 / 0.32)", dash: [5, 10] };
+      return { stroke: "#cbd5e1", fill: "#e2e8f0", fillOpacity: 0, highlightFill: "rgb(226 232 240 / 0.22)", highlightStroke: "rgb(248 250 252 / 0.32)", dash: [5, 10] };
     case "lightning":
-      return { stroke: "#fde047", fill: "#38bdf8", fillOpacity: 0.13, highlightFill: "rgb(56 189 248 / 0.18)", highlightStroke: "rgb(254 240 138 / 0.45)", dash: [20, 4, 3, 4] };
+      return { stroke: "#fde047", fill: "#fde047", fillOpacity: 0, highlightFill: "rgb(250 204 21 / 0.18)", highlightStroke: "rgb(254 240 138 / 0.45)", dash: [20, 4, 3, 4] };
     case "nature":
-      return { stroke: "#22c55e", fill: "#4ade80", fillOpacity: 0.16, highlightFill: "rgb(74 222 128 / 0.18)", highlightStroke: "rgb(187 247 208 / 0.34)", dash: [6, 5, 2, 5] };
+      return { stroke: "#22c55e", fill: "#4ade80", fillOpacity: 0, highlightFill: "rgb(74 222 128 / 0.18)", highlightStroke: "rgb(187 247 208 / 0.34)", dash: [6, 5, 2, 5] };
     case "poison":
-      return { stroke: "#a3e635", fill: "#365314", fillOpacity: 0.24, highlightFill: "rgb(54 83 20 / 0.28)", highlightStroke: "rgb(217 249 157 / 0.34)", dash: [9, 9] };
+      return { stroke: "#a3e635", fill: "#a3e635", fillOpacity: 0, highlightFill: "rgb(54 83 20 / 0.28)", highlightStroke: "rgb(217 249 157 / 0.34)", dash: [9, 9] };
     case "psychic":
-      return { stroke: "#f0abfc", fill: "#c026d3", fillOpacity: 0.15, highlightFill: "rgb(192 38 211 / 0.18)", highlightStroke: "rgb(245 208 254 / 0.38)", dash: [3, 7, 14, 7] };
+      return { stroke: "#f0abfc", fill: "#c026d3", fillOpacity: 0, highlightFill: "rgb(192 38 211 / 0.18)", highlightStroke: "rgb(245 208 254 / 0.38)", dash: [3, 7, 14, 7] };
     case "radiant":
-      return { stroke: "#fef08a", fill: "#fef3c7", fillOpacity: 0.18, highlightFill: "rgb(254 243 199 / 0.2)", highlightStroke: "rgb(254 240 138 / 0.45)", dash: [14, 5] };
+      return { stroke: "#facc15", fill: "#fef3c7", fillOpacity: 0, highlightFill: "rgb(254 243 199 / 0.2)", highlightStroke: "rgb(254 240 138 / 0.45)", dash: [14, 5] };
     case "storm":
-      return { stroke: "#60a5fa", fill: "#1e3a8a", fillOpacity: 0.2, highlightFill: "rgb(30 58 138 / 0.24)", highlightStroke: "rgb(147 197 253 / 0.38)", dash: [11, 5, 3, 5] };
+      return { stroke: "#60a5fa", fill: "#1e3a8a", fillOpacity: 0, highlightFill: "rgb(30 58 138 / 0.24)", highlightStroke: "rgb(147 197 253 / 0.38)", dash: [11, 5, 3, 5] };
     case "thunder":
-      return { stroke: "#c084fc", fill: "#4c1d95", fillOpacity: 0.14, highlightFill: "rgb(76 29 149 / 0.18)", highlightStroke: "rgb(216 180 254 / 0.38)", dash: [22, 5] };
+      return { stroke: "#c084fc", fill: "#4c1d95", fillOpacity: 0, highlightFill: "rgb(76 29 149 / 0.18)", highlightStroke: "rgb(216 180 254 / 0.38)", dash: [22, 5] };
     case "water":
-      return { stroke: "#38bdf8", fill: "#0ea5e9", fillOpacity: 0.16, highlightFill: "rgb(14 165 233 / 0.18)", highlightStroke: "rgb(186 230 253 / 0.36)", dash: [12, 5] };
+      return { stroke: "#0891b2", fill: "#0ea5e9", fillOpacity: 0, highlightFill: "rgb(14 165 233 / 0.18)", highlightStroke: "rgb(94 234 212 / 0.36)", dash: [12, 5] };
     case "web":
       return { stroke: "#f8fafc", fill: "#cbd5e1", fillOpacity: 0, highlightFill: "rgb(203 213 225 / 0.2)", highlightStroke: "rgb(248 250 252 / 0.45)", dash: [4, 6, 14, 6] };
     case "plain":
@@ -683,11 +734,12 @@ function getTemplateEffectStyle(effect: DrawingTemplateEffect): { stroke: string
 }
 
 function drawTemplateAssetOverlay(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
-  if (drawing.id === "preview" || drawing.templateEffect !== "web" || (drawing.kind !== "circle" && drawing.kind !== "rectangle" && drawing.kind !== "cone")) {
+  const effect = drawing.templateEffect ?? "plain";
+  if (drawing.id === "preview" || (effect !== "web" && effect !== "poison" && effect !== "acid" && effect !== "arcane" && effect !== "cold" && effect !== "lightning" && effect !== "fire" && effect !== "fog" && effect !== "darkness" && effect !== "nature" && effect !== "psychic" && effect !== "radiant" && effect !== "storm" && effect !== "thunder" && effect !== "water") || (drawing.kind !== "circle" && drawing.kind !== "rectangle" && drawing.kind !== "cone")) {
     return;
   }
-  const assets = templateEffectAssetCache.get("web")?.filter((asset) => asset.loaded && asset.image.naturalWidth > 0 && asset.image.naturalHeight > 0) ?? [];
-  if (assets.length === 0) {
+  const renderables = getTemplateEffectRenderables(effect);
+  if (renderables.length === 0) {
     return;
   }
   const bounds = getDrawingBounds(drawing);
@@ -700,7 +752,7 @@ function drawTemplateAssetOverlay(ctx: CanvasRenderingContext2D, drawing: Drawin
     return;
   }
 
-  const overlay = getTemplateEffectOverlay(drawing, bounds, assets, layerOpacity);
+  const overlay = getTemplateEffectOverlay(drawing, bounds, renderables, layerOpacity);
   if (!overlay) {
     return;
   }
@@ -710,13 +762,13 @@ function drawTemplateAssetOverlay(ctx: CanvasRenderingContext2D, drawing: Drawin
 function getTemplateEffectOverlay(
   drawing: DrawingElement,
   bounds: { left: number; top: number; right: number; bottom: number },
-  assets: TemplateEffectAsset[],
+  renderables: TemplateEffectRenderable[],
   layerOpacity: number
 ): TemplateEffectOverlayCacheEntry | null {
   if (typeof document === "undefined") {
     return null;
   }
-  const cacheKey = getTemplateEffectOverlayCacheKey(drawing, bounds, assets, layerOpacity);
+  const cacheKey = getTemplateEffectOverlayCacheKey(drawing, bounds, renderables, layerOpacity);
   const cached = templateEffectOverlayCache.get(cacheKey);
   if (cached) {
     templateEffectOverlayCache.delete(cacheKey);
@@ -739,7 +791,7 @@ function getTemplateEffectOverlay(
 
   const random = createSeededRandom(hashString(`${drawing.id}:${drawing.kind}:${drawing.templateEffect}:${pointsSeed(drawing.points)}`));
   const placementCount = Math.max(5, Math.min(14, Math.round((width * height) / 42000)));
-  const placements = createTemplateAssetPlacements(drawing, bounds, assets, placementCount, random);
+  const placements = createTemplateAssetPlacements(drawing, bounds, renderables, placementCount, random);
   const bands = 7;
   const innerScale = 0.58;
   overlayCtx.save();
@@ -770,7 +822,7 @@ function getTemplateEffectOverlay(
 function getTemplateEffectOverlayCacheKey(
   drawing: DrawingElement,
   bounds: { left: number; top: number; right: number; bottom: number },
-  assets: TemplateEffectAsset[],
+  renderables: TemplateEffectRenderable[],
   layerOpacity: number
 ): string {
   return [
@@ -787,7 +839,7 @@ function getTemplateEffectOverlayCacheKey(
     Math.round(bounds.right),
     Math.round(bounds.bottom),
     pointsSeed(drawing.points),
-    assets.map((asset) => asset.url).join("|")
+    renderables.map((asset) => asset.id).join("|")
   ].join(":");
 }
 
@@ -801,24 +853,1478 @@ function trimTemplateEffectOverlayCache() {
   }
 }
 
+function getTemplateEffectRenderables(effect: DrawingTemplateEffect): TemplateEffectRenderable[] {
+  if (effect === "web") {
+    return getWebTemplateRenderables();
+  }
+  if (effect === "acid") {
+    return getAcidTemplateRenderables();
+  }
+  if (effect === "arcane") {
+    return getArcaneTemplateRenderables();
+  }
+  if (effect === "cold") {
+    return getColdTemplateRenderables();
+  }
+  if (effect === "darkness") {
+    return getDarknessTemplateRenderables();
+  }
+  if (effect === "fire") {
+    return getFireTemplateRenderables();
+  }
+  if (effect === "fog") {
+    return getFogTemplateRenderables();
+  }
+  if (effect === "lightning") {
+    return getLightningTemplateRenderables();
+  }
+  if (effect === "nature") {
+    return getNatureTemplateRenderables();
+  }
+  if (effect === "poison") {
+    return getPoisonTemplateRenderables();
+  }
+  if (effect === "psychic") {
+    return getPsychicTemplateRenderables();
+  }
+  if (effect === "radiant") {
+    return getRadiantTemplateRenderables();
+  }
+  if (effect === "storm") {
+    return getStormTemplateRenderables();
+  }
+  if (effect === "thunder") {
+    return getThunderTemplateRenderables();
+  }
+  if (effect === "water") {
+    return getWaterTemplateRenderables();
+  }
+  return [];
+}
+
+function getPoisonTemplateRenderables(): TemplateEffectRenderable[] {
+  if (poisonTemplateRenderables) {
+    return poisonTemplateRenderables;
+  }
+  const canvas = createPoisonBubbleImage();
+  poisonTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-poison-bubbles-v1",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return poisonTemplateRenderables;
+}
+
+function getPsychicTemplateRenderables(): TemplateEffectRenderable[] {
+  if (psychicTemplateRenderables) {
+    return psychicTemplateRenderables;
+  }
+  const canvas = createPsychicHazeImage();
+  psychicTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-psychic-haze-v1",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return psychicTemplateRenderables;
+}
+
+function getAcidTemplateRenderables(): TemplateEffectRenderable[] {
+  if (acidTemplateRenderables) {
+    return acidTemplateRenderables;
+  }
+  const canvas = createAcidSpatterImage();
+  acidTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-acid-spatter-v1",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return acidTemplateRenderables;
+}
+
+function getArcaneTemplateRenderables(): TemplateEffectRenderable[] {
+  if (arcaneTemplateRenderables) {
+    return arcaneTemplateRenderables;
+  }
+  const canvas = createArcaneGlyphImage();
+  arcaneTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-arcane-glyphs-v2",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return arcaneTemplateRenderables;
+}
+
+function getColdTemplateRenderables(): TemplateEffectRenderable[] {
+  if (coldTemplateRenderables) {
+    return coldTemplateRenderables;
+  }
+  const canvas = createColdShardImage();
+  coldTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-cold-shards-v1",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return coldTemplateRenderables;
+}
+
+function getDarknessTemplateRenderables(): TemplateEffectRenderable[] {
+  if (darknessTemplateRenderables) {
+    return darknessTemplateRenderables;
+  }
+  const canvas = createDarknessMistImage();
+  darknessTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-darkness-mist-v1",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return darknessTemplateRenderables;
+}
+
+function getLightningTemplateRenderables(): TemplateEffectRenderable[] {
+  if (lightningTemplateRenderables) {
+    return lightningTemplateRenderables;
+  }
+  const canvas = createLightningForkImage();
+  lightningTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-lightning-forks-v1",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return lightningTemplateRenderables;
+}
+
+function getNatureTemplateRenderables(): TemplateEffectRenderable[] {
+  if (natureTemplateRenderables) {
+    return natureTemplateRenderables;
+  }
+  const canvas = createNatureThornImage();
+  natureTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-nature-thorns-v6",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return natureTemplateRenderables;
+}
+
+function getFireTemplateRenderables(): TemplateEffectRenderable[] {
+  if (fireTemplateRenderables) {
+    return fireTemplateRenderables;
+  }
+  const canvas = createFireTongueImage();
+  fireTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-fire-tongues-v1",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return fireTemplateRenderables;
+}
+
+function getFogTemplateRenderables(): TemplateEffectRenderable[] {
+  if (fogTemplateRenderables) {
+    return fogTemplateRenderables;
+  }
+  const canvas = createFogCloudImage();
+  fogTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-fog-clouds-v1",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return fogTemplateRenderables;
+}
+
+function getStormTemplateRenderables(): TemplateEffectRenderable[] {
+  if (stormTemplateRenderables) {
+    return stormTemplateRenderables;
+  }
+  const canvas = createStormCloudImage();
+  stormTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-storm-clouds-v1",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return stormTemplateRenderables;
+}
+
+function getThunderTemplateRenderables(): TemplateEffectRenderable[] {
+  if (thunderTemplateRenderables) {
+    return thunderTemplateRenderables;
+  }
+  const canvas = createThunderWaveImage();
+  thunderTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-thunder-waves-v2",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return thunderTemplateRenderables;
+}
+
+function getRadiantTemplateRenderables(): TemplateEffectRenderable[] {
+  if (radiantTemplateRenderables) {
+    return radiantTemplateRenderables;
+  }
+  const canvas = createRadiantLightImage();
+  radiantTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-radiant-light-v1",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return radiantTemplateRenderables;
+}
+
+function getWaterTemplateRenderables(): TemplateEffectRenderable[] {
+  if (waterTemplateRenderables) {
+    return waterTemplateRenderables;
+  }
+  const canvas = createWaterDropletImage();
+  waterTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-water-ripples-currents-droplets-v3",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return waterTemplateRenderables;
+}
+
+function getWebTemplateRenderables(): TemplateEffectRenderable[] {
+  if (webTemplateRenderables) {
+    return webTemplateRenderables;
+  }
+  const canvas = createWebStrandImage();
+  webTemplateRenderables = canvas
+    ? [
+        {
+          id: "three-web-strands-v2",
+          image: canvas,
+          naturalHeight: canvas.height,
+          naturalWidth: canvas.width
+        }
+      ]
+    : [];
+  return webTemplateRenderables;
+}
+
+function createPoisonBubbleImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0x51f15e);
+    for (let index = 0; index < 58; index += 1) {
+      addPoisonCloudPuff(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.055 + random() * 0.19, random);
+    }
+    for (let index = 0; index < 28; index += 1) {
+      const radius = 0.035 + random() * 0.13;
+      const x = -0.82 + random() * 1.64;
+      const y = -0.82 + random() * 1.64;
+      addPoisonBubble(scene, x, y, radius, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function createPsychicHazeImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0x951c1c);
+    for (let index = 0; index < 16; index += 1) {
+      addPsychicBand(scene, -0.88 + random() * 1.76, -0.88 + random() * 1.76, 0.28 + random() * 0.62, random);
+    }
+    for (let index = 0; index < 18; index += 1) {
+      addPsychicStreak(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.18 + random() * 0.44, random);
+    }
+    for (let index = 0; index < 34; index += 1) {
+      addPsychicSpark(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.01 + random() * 0.03, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function createAcidSpatterImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0xac1d);
+    for (let index = 0; index < 0; index += 1) {
+      addAcidBubble(scene, -0.86 + random() * 1.72, -0.86 + random() * 1.72, 0.035 + random() * 0.11, random);
+    }
+    for (let index = 0; index < 58; index += 1) {
+      addAcidDroplet(scene, -0.92 + random() * 1.84, -0.92 + random() * 1.84, 0.007 + random() * 0.032, random);
+    }
+    for (let index = 0; index < 7; index += 1) {
+      addAcidRing(scene, -0.86 + random() * 1.72, -0.86 + random() * 1.72, 0.045 + random() * 0.12, random);
+    }
+    for (let index = 0; index < 0; index += 1) {
+      addAcidWave(scene, -0.88 + random() * 1.76, -0.88 + random() * 1.76, 0.18 + random() * 0.34, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function createArcaneGlyphImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0xa2ca3e);
+    for (let index = 0; index < 14; index += 1) {
+      addArcaneGlyph(scene, -0.84 + random() * 1.68, -0.84 + random() * 1.68, 0.08 + random() * 0.18, random);
+    }
+    for (let index = 0; index < 24; index += 1) {
+      addArcaneRuneStroke(scene, -0.88 + random() * 1.76, -0.88 + random() * 1.76, 0.06 + random() * 0.16, random);
+    }
+    for (let index = 0; index < 30; index += 1) {
+      addArcaneSpark(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.008 + random() * 0.024, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function createColdShardImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0xc01df057);
+    for (let index = 0; index < 34; index += 1) {
+      const x = -0.84 + random() * 1.68;
+      const y = -0.84 + random() * 1.68;
+      const size = 0.04 + random() * 0.16;
+      addColdShard(scene, x, y, size, random);
+    }
+    for (let index = 0; index < 30; index += 1) {
+      const x = -0.82 + random() * 1.64;
+      const y = -0.82 + random() * 1.64;
+      const size = 0.025 + random() * 0.18;
+      addColdStarburst(scene, x, y, size, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function createLightningForkImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0x1e471e);
+    for (let index = 0; index < 15; index += 1) {
+      const start = { x: -0.88 + random() * 1.76, y: -0.88 + random() * 1.76 };
+      const angle = random() * Math.PI * 2;
+      const length = 0.92 + random() * 1.24;
+      const end = {
+        x: Math.max(-0.92, Math.min(0.92, start.x + Math.cos(angle) * length)),
+        y: Math.max(-0.92, Math.min(0.92, start.y + Math.sin(angle) * length))
+      };
+      addLightningBolt(scene, start, end, 6 + Math.floor(random() * 6), 0.28 + random() * 0.5, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function createNatureThornImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0x71a7e);
+    for (let index = 0; index < 18; index += 1) {
+      addNatureVine(scene, -0.88 + random() * 1.76, -0.88 + random() * 1.76, 0.22 + random() * 0.52, random);
+    }
+    for (let index = 0; index < 34; index += 1) {
+      addNatureThorn(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.035 + random() * 0.08, random);
+    }
+    for (let index = 0; index < 26; index += 1) {
+      addNatureLeaf(scene, -0.88 + random() * 1.76, -0.88 + random() * 1.76, 0.035 + random() * 0.09, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function createFireTongueImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0xf17e);
+    for (let index = 0; index < 28; index += 1) {
+      const x = -0.84 + random() * 1.68;
+      const y = -0.84 + random() * 1.68;
+      const size = 0.07 + random() * 0.2;
+      addFireTongue(scene, x, y, size, random);
+    }
+    for (let index = 0; index < 42; index += 1) {
+      const x = -0.9 + random() * 1.8;
+      const y = -0.9 + random() * 1.8;
+      const radius = 0.008 + random() * 0.024;
+      addFireEmber(scene, x, y, radius, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function createFogCloudImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0xf06c10d);
+    for (let index = 0; index < 72; index += 1) {
+      const x = -0.9 + random() * 1.8;
+      const y = -0.9 + random() * 1.8;
+      const radius = 0.045 + random() * 0.17;
+      addFogPuff(scene, x, y, radius, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function createDarknessMistImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0xda2c);
+    for (let index = 0; index < 58; index += 1) {
+      const x = -0.9 + random() * 1.8;
+      const y = -0.9 + random() * 1.8;
+      const radius = 0.05 + random() * 0.2;
+      addDarkMistPuff(scene, x, y, radius, random);
+    }
+    for (let index = 0; index < 22; index += 1) {
+      const x = -0.86 + random() * 1.72;
+      const y = -0.86 + random() * 1.72;
+      addDarknessTendril(scene, x, y, 0.16 + random() * 0.34, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function createStormCloudImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0x570a);
+    for (let index = 0; index < 64; index += 1) {
+      const x = -0.9 + random() * 1.8;
+      const y = -0.9 + random() * 1.8;
+      const radius = 0.045 + random() * 0.18;
+      addStormPuff(scene, x, y, radius, random);
+    }
+    for (let index = 0; index < 16; index += 1) {
+      const start = { x: -0.88 + random() * 1.76, y: -0.88 + random() * 1.76 };
+      const angle = random() * Math.PI * 2;
+      const length = 0.48 + random() * 0.78;
+      const end = {
+        x: Math.max(-0.92, Math.min(0.92, start.x + Math.cos(angle) * length)),
+        y: Math.max(-0.92, Math.min(0.92, start.y + Math.sin(angle) * length))
+      };
+      addLightningBolt(scene, start, end, 4 + Math.floor(random() * 5), 0.16 + random() * 0.32, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function createThunderWaveImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0x7e2d);
+    for (let index = 0; index < 10; index += 1) {
+      addThunderArc(scene, -0.82 + random() * 1.64, -0.82 + random() * 1.64, 0.24 + random() * 0.48, random);
+    }
+    for (let index = 0; index < 14; index += 1) {
+      addThunderWaveLine(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.36 + random() * 0.62, random);
+    }
+    for (let index = 0; index < 18; index += 1) {
+      addThunderTick(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.08 + random() * 0.16, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function createRadiantLightImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0xad1a17);
+    for (let index = 0; index < 18; index += 1) {
+      addRadiantRay(scene, -0.88 + random() * 1.76, -0.88 + random() * 1.76, 0.24 + random() * 0.58, random);
+    }
+    for (let index = 0; index < 14; index += 1) {
+      addRadiantStarburst(scene, -0.84 + random() * 1.68, -0.84 + random() * 1.68, 0.05 + random() * 0.18, random);
+    }
+    for (let index = 0; index < 32; index += 1) {
+      addRadiantSpark(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.008 + random() * 0.026, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function createWaterDropletImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0x0ce4);
+    for (let index = 0; index < 10; index += 1) {
+      addWaterRipple(scene, -0.86 + random() * 1.72, -0.86 + random() * 1.72, 0.38 + random() * 0.62, random);
+    }
+    for (let index = 0; index < 10; index += 1) {
+      addWaterCurrent(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.42 + random() * 0.72, random);
+    }
+    for (let index = 0; index < 16; index += 1) {
+      addWaterDroplet(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.018 + random() * 0.052, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function createWebStrandImage(): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  try {
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    const random = createSeededRandom(0x5a1d);
+    for (let index = 0; index < 5; index += 1) {
+      addWebCluster(scene, -0.76 + random() * 1.52, -0.76 + random() * 1.52, 0.22 + random() * 0.34, random);
+    }
+    for (let index = 0; index < 20; index += 1) {
+      addWebStrayThread(scene, -0.92 + random() * 1.84, -0.92 + random() * 1.84, 0.18 + random() * 0.42, random);
+    }
+    renderer.render(scene, camera);
+    disposeScene(scene);
+    renderer.dispose();
+    return canvas;
+  } catch {
+    return null;
+  }
+}
+
+function addPoisonBubble(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const fill = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 32),
+    new THREE.MeshBasicMaterial({ color: 0x65a30d, transparent: true, opacity: 0.08 + random() * 0.26, depthWrite: false })
+  );
+  fill.position.set(x, y, 0);
+  scene.add(fill);
+
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.9, radius, 36),
+    new THREE.MeshBasicMaterial({ color: 0xd9f99d, transparent: true, opacity: 0.24 + random() * 0.48, side: THREE.DoubleSide, depthWrite: false })
+  );
+  ring.position.set(x, y, 0.01);
+  scene.add(ring);
+
+  const highlight = new THREE.Mesh(
+    new THREE.CircleGeometry(radius * (0.16 + random() * 0.08), 16),
+    new THREE.MeshBasicMaterial({ color: 0xf7fee7, transparent: true, opacity: 0.18 + random() * 0.42, depthWrite: false })
+  );
+  const highlightAngle = -Math.PI * 0.72 + random() * 0.38;
+  highlight.position.set(x + Math.cos(highlightAngle) * radius * 0.38, y + Math.sin(highlightAngle) * radius * 0.38, 0.02);
+  scene.add(highlight);
+}
+
+function addPoisonCloudPuff(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const puff = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 28),
+    new THREE.MeshBasicMaterial({ color: random() > 0.45 ? 0x365314 : 0x65a30d, transparent: true, opacity: 0.055 + random() * 0.15, depthWrite: false })
+  );
+  puff.position.set(x, y, 0.01);
+  puff.scale.set(1 + random() * 0.9, 0.62 + random() * 0.62, 1);
+  puff.rotation.z = random() * Math.PI;
+  scene.add(puff);
+}
+
+function addPsychicBand(scene: THREE.Scene, x: number, y: number, length: number, random: () => number) {
+  const angle = random() * Math.PI * 2;
+  const amplitude = length * (0.07 + random() * 0.12);
+  const colors = [0xf0abfc, 0x67e8f9, 0xf9a8d4, 0xc4b5fd];
+  const color = colors[Math.floor(random() * colors.length) % colors.length];
+  const points: Point[] = [];
+  for (let index = 0; index < 8; index += 1) {
+    const t = index / 7;
+    const wave = Math.sin(t * Math.PI * (1.1 + random() * 1.1)) * amplitude;
+    points.push({
+      x: x + Math.cos(angle) * length * (t - 0.5) + Math.cos(angle + Math.PI / 2) * wave,
+      y: y + Math.sin(angle) * length * (t - 0.5) + Math.sin(angle + Math.PI / 2) * wave
+    });
+  }
+  addPsychicLine(scene, points, color, 0.22 + random() * 0.28, 0.012 + random() * 0.012);
+}
+
+function addPsychicStreak(scene: THREE.Scene, x: number, y: number, length: number, random: () => number) {
+  const angle = random() * Math.PI * 2;
+  const skew = (random() - 0.5) * length * 0.16;
+  const width = length * (0.035 + random() * 0.045);
+  const geometry = new THREE.BufferGeometry();
+  const vertices = new Float32Array([
+    -length * 0.5,
+    -width,
+    0,
+    length * 0.5,
+    -width + skew,
+    0,
+    length * 0.5,
+    width + skew,
+    0,
+    -length * 0.5,
+    width,
+    0
+  ]);
+  geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+  const streak = new THREE.Mesh(
+    geometry,
+    new THREE.MeshBasicMaterial({ color: random() > 0.45 ? 0xf0abfc : 0x22d3ee, transparent: true, opacity: 0.14 + random() * 0.26, side: THREE.DoubleSide, depthWrite: false })
+  );
+  streak.position.set(x, y, 0.03);
+  streak.rotation.z = angle;
+  scene.add(streak);
+}
+
+function addPsychicSpark(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const spark = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 14),
+    new THREE.MeshBasicMaterial({ color: random() > 0.5 ? 0xfdf4ff : 0x67e8f9, transparent: true, opacity: 0.16 + random() * 0.42, depthWrite: false })
+  );
+  spark.position.set(x, y, 0.05);
+  spark.scale.set(1 + random() * 0.8, 0.64 + random() * 0.46, 1);
+  spark.rotation.z = random() * Math.PI;
+  scene.add(spark);
+}
+
+function addPsychicLine(scene: THREE.Scene, points: Point[], color: number, opacity: number, thickness: number) {
+  const drawOffsets = [{ x: 0, y: 0 }, { x: thickness, y: 0 }, { x: -thickness, y: 0 }, { x: 0, y: thickness }, { x: 0, y: -thickness }];
+  for (const offset of drawOffsets) {
+    const geometry = new THREE.BufferGeometry().setFromPoints(points.map((point) => new THREE.Vector3(point.x + offset.x, point.y + offset.y, 0.04)));
+    const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity: Math.max(0.08, Math.min(0.62, opacity / 1.5)) });
+    scene.add(new THREE.Line(geometry, material));
+  }
+}
+
+function addAcidBubble(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(radius * (0.86 + random() * 0.06), radius, 28),
+    new THREE.MeshBasicMaterial({ color: random() > 0.35 ? 0xd9f99d : 0xfacc15, transparent: true, opacity: 0.34 + random() * 0.42, side: THREE.DoubleSide, depthWrite: false })
+  );
+  ring.position.set(x, y, 0.03);
+  scene.add(ring);
+  addAcidDroplet(scene, x + (random() - 0.5) * radius * 0.6, y + (random() - 0.5) * radius * 0.6, radius * (0.18 + random() * 0.18), random);
+}
+
+function addAcidDroplet(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const droplet = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 14),
+    new THREE.MeshBasicMaterial({ color: random() > 0.5 ? 0xa3e635 : 0xfde047, transparent: true, opacity: 0.18 + random() * 0.58, depthWrite: false })
+  );
+  droplet.position.set(x, y, 0.04);
+  droplet.scale.set(1 + random() * 0.75, 0.72 + random() * 0.42, 1);
+  droplet.rotation.z = random() * Math.PI;
+  scene.add(droplet);
+}
+
+function addAcidRing(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.94, radius, 34),
+    new THREE.MeshBasicMaterial({ color: 0xbef264, transparent: true, opacity: 0.16 + random() * 0.3, side: THREE.DoubleSide, depthWrite: false })
+  );
+  ring.position.set(x, y, 0.02);
+  ring.scale.set(1 + random() * 0.5, 0.72 + random() * 0.32, 1);
+  ring.rotation.z = random() * Math.PI;
+  scene.add(ring);
+}
+
+function addAcidWave(scene: THREE.Scene, x: number, y: number, length: number, random: () => number) {
+  const angle = random() * Math.PI * 2;
+  const amplitude = length * (0.06 + random() * 0.08);
+  const points: Point[] = [];
+  for (let index = 0; index < 7; index += 1) {
+    const t = index / 6;
+    const wave = Math.sin(t * Math.PI * (1.5 + random() * 0.8)) * amplitude;
+    points.push({
+      x: x + Math.cos(angle) * length * (t - 0.5) + Math.cos(angle + Math.PI / 2) * wave,
+      y: y + Math.sin(angle) * length * (t - 0.5) + Math.sin(angle + Math.PI / 2) * wave
+    });
+  }
+  addLightningLine(scene, points, random() > 0.45 ? 0xbef264 : 0xfde047, 0.16 + random() * 0.28, 0.004 + random() * 0.005);
+}
+
+function addArcaneGlyph(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const group = new THREE.Group();
+  const color = random() > 0.4 ? 0xc4b5fd : 0x818cf8;
+  const opacity = 0.3 + random() * 0.36;
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.92, radius, 42, 1, random() * Math.PI * 2, Math.PI * (0.72 + random() * 0.72)),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false })
+  );
+  group.add(ring);
+  const inner = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.45, radius * 0.49, 32, 1, random() * Math.PI * 2, Math.PI * (0.38 + random() * 0.58)),
+    new THREE.MeshBasicMaterial({ color: 0xede9fe, transparent: true, opacity: opacity * 0.7, side: THREE.DoubleSide, depthWrite: false })
+  );
+  group.add(inner);
+  const spokeCount = 2 + Math.floor(random() * 3);
+  for (let index = 0; index < spokeCount; index += 1) {
+    const angle = random() * Math.PI * 2;
+    const start = { x: Math.cos(angle) * radius * 0.22, y: Math.sin(angle) * radius * 0.22 };
+    const end = { x: Math.cos(angle) * radius * (0.66 + random() * 0.18), y: Math.sin(angle) * radius * (0.66 + random() * 0.18) };
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(start.x, start.y, 0.04), new THREE.Vector3(end.x, end.y, 0.04)]),
+      new THREE.LineBasicMaterial({ color: 0xddd6fe, transparent: true, opacity: opacity * 0.8 })
+    );
+    group.add(line);
+  }
+  group.position.set(x, y, 0.03);
+  group.rotation.z = random() * Math.PI * 2;
+  scene.add(group);
+}
+
+function addArcaneRuneStroke(scene: THREE.Scene, x: number, y: number, length: number, random: () => number) {
+  const angle = random() * Math.PI * 2;
+  const branchAngle = angle + (random() > 0.5 ? 1 : -1) * (0.7 + random() * 0.6);
+  const center = new THREE.Vector3(x, y, 0.04);
+  const half = length * 0.5;
+  const points = [
+    new THREE.Vector3(center.x - Math.cos(angle) * half, center.y - Math.sin(angle) * half, 0.04),
+    new THREE.Vector3(center.x + Math.cos(angle) * half, center.y + Math.sin(angle) * half, 0.04)
+  ];
+  const material = new THREE.LineBasicMaterial({ color: random() > 0.45 ? 0xa78bfa : 0xe879f9, transparent: true, opacity: 0.3 + random() * 0.46 });
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material));
+  if (random() > 0.32) {
+    const branchLength = length * (0.28 + random() * 0.34);
+    const branchStart = points[random() > 0.5 ? 0 : 1];
+    const branchEnd = new THREE.Vector3(branchStart.x + Math.cos(branchAngle) * branchLength, branchStart.y + Math.sin(branchAngle) * branchLength, 0.04);
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([branchStart, branchEnd]), material.clone()));
+  }
+}
+
+function addArcaneSpark(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const spark = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 12),
+    new THREE.MeshBasicMaterial({ color: random() > 0.5 ? 0xede9fe : 0xc084fc, transparent: true, opacity: 0.28 + random() * 0.5, depthWrite: false })
+  );
+  spark.position.set(x, y, 0.05);
+  spark.scale.set(1 + random() * 0.8, 0.68 + random() * 0.42, 1);
+  spark.rotation.z = random() * Math.PI;
+  scene.add(spark);
+}
+
+function addColdShard(scene: THREE.Scene, x: number, y: number, size: number, random: () => number) {
+  const length = size * (1.4 + random() * 1.2);
+  const width = size * (0.18 + random() * 0.26);
+  const geometry = new THREE.BufferGeometry();
+  const vertices = new Float32Array([
+    0,
+    length * 0.5,
+    0,
+    -width,
+    -length * 0.14,
+    0,
+    0,
+    -length * 0.5,
+    0,
+    width,
+    -length * 0.08,
+    0
+  ]);
+  geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+  const material = new THREE.MeshBasicMaterial({ color: random() > 0.42 ? 0xa5f3fc : 0xf0f9ff, transparent: true, opacity: 0.18 + random() * 0.34, side: THREE.DoubleSide, depthWrite: false });
+  const shard = new THREE.Mesh(geometry, material);
+  shard.position.set(x, y, 0);
+  shard.rotation.z = random() * Math.PI * 2;
+  scene.add(shard);
+}
+
+function addColdStarburst(scene: THREE.Scene, x: number, y: number, size: number, random: () => number) {
+  const material = new THREE.LineBasicMaterial({ color: random() > 0.35 ? 0xe0f2fe : 0x67e8f9, transparent: true, opacity: 0.08 + random() * 0.56 });
+  const rayCount = 4 + Math.floor(random() * 4);
+  const rotation = random() * Math.PI;
+  for (let index = 0; index < rayCount; index += 1) {
+    const angle = rotation + (Math.PI * index) / rayCount;
+    const length = size * (0.72 + random() * 0.72);
+    const points = [
+      new THREE.Vector3(Math.cos(angle) * -length * 0.5, Math.sin(angle) * -length * 0.5, 0.03),
+      new THREE.Vector3(Math.cos(angle) * length * 0.5, Math.sin(angle) * length * 0.5, 0.03)
+    ];
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material.clone());
+    line.position.set(x, y, 0);
+    scene.add(line);
+  }
+}
+
+function addFireTongue(scene: THREE.Scene, x: number, y: number, size: number, random: () => number) {
+  const height = size * (1.35 + random() * 1.15);
+  const width = size * (0.32 + random() * 0.36);
+  const curve = (random() - 0.5) * width * 1.15;
+  const geometry = new THREE.ShapeGeometry(
+    new THREE.Shape()
+      .moveTo(0, height * 0.58)
+      .bezierCurveTo(width + curve, height * 0.18, width * 0.45, -height * 0.34, 0, -height * 0.58)
+      .bezierCurveTo(-width * 0.5 + curve, -height * 0.18, -width - curve, height * 0.18, 0, height * 0.58)
+  );
+  const material = new THREE.MeshBasicMaterial({ color: random() > 0.45 ? 0xf97316 : 0xfacc15, transparent: true, opacity: 0.16 + random() * 0.42, side: THREE.DoubleSide, depthWrite: false });
+  const flame = new THREE.Mesh(geometry, material);
+  flame.position.set(x, y, 0);
+  flame.rotation.z = random() * Math.PI * 2;
+  scene.add(flame);
+}
+
+function addFireEmber(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const ember = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 14),
+    new THREE.MeshBasicMaterial({ color: random() > 0.38 ? 0xfef08a : 0xfb923c, transparent: true, opacity: 0.18 + random() * 0.52, depthWrite: false })
+  );
+  ember.position.set(x, y, 0.04);
+  scene.add(ember);
+}
+
+function addFogPuff(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const puff = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 28),
+    new THREE.MeshBasicMaterial({ color: random() > 0.55 ? 0xf8fafc : 0xcbd5e1, transparent: true, opacity: 0.035 + random() * 0.115, depthWrite: false })
+  );
+  puff.position.set(x, y, 0.02);
+  puff.scale.set(1 + random() * 0.9, 0.62 + random() * 0.62, 1);
+  puff.rotation.z = random() * Math.PI;
+  scene.add(puff);
+}
+
+function addDarkMistPuff(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const puff = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 28),
+    new THREE.MeshBasicMaterial({ color: random() > 0.45 ? 0x020617 : 0x1e293b, transparent: true, opacity: 0.08 + random() * 0.22, depthWrite: false })
+  );
+  puff.position.set(x, y, 0.02);
+  puff.scale.set(1 + random() * 1.05, 0.54 + random() * 0.72, 1);
+  puff.rotation.z = random() * Math.PI;
+  scene.add(puff);
+}
+
+function addDarknessTendril(scene: THREE.Scene, x: number, y: number, length: number, random: () => number) {
+  const angle = random() * Math.PI * 2;
+  const points: Point[] = [];
+  for (let index = 0; index < 5; index += 1) {
+    const t = index / 4;
+    const curl = Math.sin(t * Math.PI * 1.4 + random()) * length * 0.14;
+    points.push({
+      x: x + Math.cos(angle) * length * (t - 0.5) + Math.cos(angle + Math.PI / 2) * curl,
+      y: y + Math.sin(angle) * length * (t - 0.5) + Math.sin(angle + Math.PI / 2) * curl
+    });
+  }
+  addLightningLine(scene, points, 0x0f172a, 0.16 + random() * 0.28, 0.01 + random() * 0.012);
+}
+
+function addStormPuff(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const puff = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 28),
+    new THREE.MeshBasicMaterial({ color: random() > 0.5 ? 0x1e3a8a : 0x64748b, transparent: true, opacity: 0.055 + random() * 0.16, depthWrite: false })
+  );
+  puff.position.set(x, y, 0.02);
+  puff.scale.set(1 + random() * 0.9, 0.58 + random() * 0.72, 1);
+  puff.rotation.z = random() * Math.PI;
+  scene.add(puff);
+}
+
+function addThunderArc(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const arcCount = 2 + Math.floor(random() * 2);
+  for (let index = 0; index < arcCount; index += 1) {
+    const arcRadius = radius * (0.72 + index * 0.36 + random() * 0.08);
+    const arc = new THREE.Mesh(
+      new THREE.RingGeometry(arcRadius * 0.94, arcRadius, 54, 1, random() * Math.PI * 2, Math.PI * (0.38 + random() * 0.55)),
+      new THREE.MeshBasicMaterial({ color: random() > 0.42 ? 0xd8b4fe : 0xc084fc, transparent: true, opacity: 0.16 + random() * 0.3, side: THREE.DoubleSide, depthWrite: false })
+    );
+    arc.position.set(x, y, 0.03 + index * 0.002);
+    arc.scale.set(1 + random() * 0.45, 0.7 + random() * 0.32, 1);
+    arc.rotation.z = random() * Math.PI;
+    scene.add(arc);
+  }
+}
+
+function addThunderWaveLine(scene: THREE.Scene, x: number, y: number, length: number, random: () => number) {
+  const angle = random() * Math.PI * 2;
+  const amplitude = length * (0.025 + random() * 0.045);
+  const points: Point[] = [];
+  for (let index = 0; index < 8; index += 1) {
+    const t = index / 7;
+    const wave = Math.sin(t * Math.PI * (1.8 + random() * 1.2)) * amplitude;
+    points.push({
+      x: x + Math.cos(angle) * length * (t - 0.5) + Math.cos(angle + Math.PI / 2) * wave,
+      y: y + Math.sin(angle) * length * (t - 0.5) + Math.sin(angle + Math.PI / 2) * wave
+    });
+  }
+  addLightningLine(scene, points, random() > 0.45 ? 0xc084fc : 0xf3e8ff, 0.18 + random() * 0.28, 0.004 + random() * 0.004);
+}
+
+function addThunderTick(scene: THREE.Scene, x: number, y: number, length: number, random: () => number) {
+  const angle = random() * Math.PI * 2;
+  const points = [
+    new THREE.Vector3(x - Math.cos(angle) * length * 0.5, y - Math.sin(angle) * length * 0.5, 0.04),
+    new THREE.Vector3(x + Math.cos(angle) * length * 0.5, y + Math.sin(angle) * length * 0.5, 0.04)
+  ];
+  scene.add(
+    new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(points),
+      new THREE.LineBasicMaterial({ color: random() > 0.5 ? 0xf3e8ff : 0xd8b4fe, transparent: true, opacity: 0.16 + random() * 0.42 })
+    )
+  );
+}
+
+function addLightningBolt(scene: THREE.Scene, start: Point, end: Point, segments: number, opacity: number, random: () => number) {
+  const points = getJaggedBoltPoints(start, end, segments, 0.08 + random() * 0.07, random);
+  addLightningLine(scene, points, 0xfacc15, opacity, 0.012);
+  addLightningLine(scene, points, 0xfef08a, opacity * 0.78, 0.006);
+  addLightningLine(scene, points, 0xeab308, opacity * 0.42, 0.018);
+  for (let index = 1; index < points.length - 1; index += 1) {
+    if (random() < 0.72) {
+      const current = points[index];
+      const previous = points[index - 1];
+      const angle = Math.atan2(current.y - previous.y, current.x - previous.x) + (random() > 0.5 ? 1 : -1) * (0.72 + random() * 0.7);
+      const length = distanceBetweenPoints(start, end) * (0.22 + random() * 0.34);
+      const branchEnd = {
+        x: Math.max(-0.96, Math.min(0.96, current.x + Math.cos(angle) * length)),
+        y: Math.max(-0.96, Math.min(0.96, current.y + Math.sin(angle) * length))
+      };
+      addLightningLine(scene, getJaggedBoltPoints(current, branchEnd, 2 + Math.floor(random() * 3), 0.035 + random() * 0.04, random), 0xfef08a, opacity * (0.46 + random() * 0.24), 0.006);
+    }
+  }
+}
+
+function addNatureVine(scene: THREE.Scene, x: number, y: number, length: number, random: () => number) {
+  const angle = random() * Math.PI * 2;
+  const amplitude = length * (0.08 + random() * 0.12);
+  const points: Point[] = [];
+  for (let index = 0; index < 7; index += 1) {
+    const t = index / 6;
+    const curl = Math.sin(t * Math.PI * (1.2 + random() * 0.9)) * amplitude;
+    points.push({
+      x: x + Math.cos(angle) * length * (t - 0.5) + Math.cos(angle + Math.PI / 2) * curl,
+      y: y + Math.sin(angle) * length * (t - 0.5) + Math.sin(angle + Math.PI / 2) * curl
+    });
+  }
+  addNatureVineLine(scene, points, 0x16a34a, 0.76 + random() * 0.18, 0.012 + random() * 0.008);
+}
+
+function addNatureVineLine(scene: THREE.Scene, points: Point[], color: number, opacity: number, thickness: number) {
+  const drawOffsets = [{ x: 0, y: 0 }, { x: thickness, y: 0 }, { x: -thickness, y: 0 }, { x: 0, y: thickness }, { x: 0, y: -thickness }];
+  for (const offset of drawOffsets) {
+    const geometry = new THREE.BufferGeometry().setFromPoints(points.map((point) => new THREE.Vector3(point.x + offset.x, point.y + offset.y, 0.04)));
+    const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity: Math.max(0.16, Math.min(0.94, opacity)) });
+    scene.add(new THREE.Line(geometry, material));
+  }
+}
+
+function addNatureThorn(scene: THREE.Scene, x: number, y: number, size: number, random: () => number) {
+  const height = size * (1.25 + random() * 0.95);
+  const width = size * (0.28 + random() * 0.22);
+  const geometry = new THREE.BufferGeometry();
+  const vertices = new Float32Array([0, height * 0.62, 0, -width, -height * 0.38, 0, width, -height * 0.38, 0]);
+  geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  geometry.setIndex([0, 1, 2]);
+  const thorn = new THREE.Mesh(
+    geometry,
+    new THREE.MeshBasicMaterial({ color: random() > 0.42 ? 0x92400e : 0x78350f, transparent: true, opacity: 0.42 + random() * 0.38, side: THREE.DoubleSide, depthWrite: false })
+  );
+  thorn.position.set(x, y, 0.04);
+  thorn.rotation.z = random() * Math.PI * 2;
+  scene.add(thorn);
+}
+
+function addNatureLeaf(scene: THREE.Scene, x: number, y: number, size: number, random: () => number) {
+  const shape = new THREE.Shape()
+    .moveTo(0, size)
+    .bezierCurveTo(size * 0.72, size * 0.48, size * 0.78, -size * 0.42, 0, -size)
+    .bezierCurveTo(-size * 0.78, -size * 0.42, -size * 0.72, size * 0.48, 0, size);
+  const leaf = new THREE.Mesh(
+    new THREE.ShapeGeometry(shape),
+    new THREE.MeshBasicMaterial({ color: random() > 0.45 ? 0x4ade80 : 0x22c55e, transparent: true, opacity: 0.18 + random() * 0.34, side: THREE.DoubleSide, depthWrite: false })
+  );
+  leaf.position.set(x, y, 0.03);
+  leaf.rotation.z = random() * Math.PI * 2;
+  leaf.scale.set(1 + random() * 0.55, 0.72 + random() * 0.32, 1);
+  scene.add(leaf);
+}
+
+function addRadiantRay(scene: THREE.Scene, x: number, y: number, length: number, random: () => number) {
+  const width = length * (0.04 + random() * 0.055);
+  const geometry = new THREE.BufferGeometry();
+  const vertices = new Float32Array([0, length * 0.52, 0, -width, -length * 0.38, 0, width, -length * 0.38, 0]);
+  geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  geometry.setIndex([0, 1, 2]);
+  const ray = new THREE.Mesh(
+    geometry,
+    new THREE.MeshBasicMaterial({ color: random() > 0.38 ? 0xfef3c7 : 0xfacc15, transparent: true, opacity: 0.08 + random() * 0.18, side: THREE.DoubleSide, depthWrite: false })
+  );
+  ray.position.set(x, y, 0.02);
+  ray.rotation.z = random() * Math.PI * 2;
+  scene.add(ray);
+}
+
+function addRadiantStarburst(scene: THREE.Scene, x: number, y: number, size: number, random: () => number) {
+  const material = new THREE.LineBasicMaterial({ color: random() > 0.35 ? 0xfff7ed : 0xfef08a, transparent: true, opacity: 0.18 + random() * 0.42 });
+  const rayCount = 4 + Math.floor(random() * 4);
+  const rotation = random() * Math.PI;
+  for (let index = 0; index < rayCount; index += 1) {
+    const angle = rotation + (Math.PI * index) / rayCount;
+    const length = size * (0.72 + random() * 0.9);
+    const points = [
+      new THREE.Vector3(Math.cos(angle) * -length * 0.5, Math.sin(angle) * -length * 0.5, 0.04),
+      new THREE.Vector3(Math.cos(angle) * length * 0.5, Math.sin(angle) * length * 0.5, 0.04)
+    ];
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material.clone());
+    line.position.set(x, y, 0);
+    scene.add(line);
+  }
+}
+
+function addRadiantSpark(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const spark = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 14),
+    new THREE.MeshBasicMaterial({ color: random() > 0.45 ? 0xfffbeb : 0xfde047, transparent: true, opacity: 0.18 + random() * 0.48, depthWrite: false })
+  );
+  spark.position.set(x, y, 0.05);
+  spark.scale.set(1 + random() * 0.7, 0.7 + random() * 0.42, 1);
+  spark.rotation.z = random() * Math.PI;
+  scene.add(spark);
+}
+
+function addWaterRipple(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const ringCount = 2 + Math.floor(random() * 2);
+  for (let index = 0; index < ringCount; index += 1) {
+    const ringRadius = radius * (0.34 + index * 0.64 + random() * 0.08);
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(ringRadius * 0.95, ringRadius, 44),
+      new THREE.MeshBasicMaterial({ color: random() > 0.35 ? 0x7dd3fc : 0xbae6fd, transparent: true, opacity: 0.08 + random() * 0.18, side: THREE.DoubleSide, depthWrite: false })
+    );
+    ring.position.set(x, y, 0.03 + index * 0.002);
+    ring.scale.set(1 + random() * 0.42, 0.5 + random() * 0.34, 1);
+    ring.rotation.z = random() * Math.PI;
+    scene.add(ring);
+  }
+}
+
+function addWaterCurrent(scene: THREE.Scene, x: number, y: number, length: number, random: () => number) {
+  const angle = random() * Math.PI * 2;
+  const amplitude = length * (0.018 + random() * 0.034);
+  const points: Point[] = [];
+  for (let index = 0; index < 8; index += 1) {
+    const t = index / 7;
+    const wave = Math.sin(t * Math.PI * (1.35 + random() * 1.2)) * amplitude;
+    points.push({
+      x: x + Math.cos(angle) * length * (t - 0.5) + Math.cos(angle + Math.PI / 2) * wave,
+      y: y + Math.sin(angle) * length * (t - 0.5) + Math.sin(angle + Math.PI / 2) * wave
+    });
+  }
+  addLightningLine(scene, points, random() > 0.45 ? 0x38bdf8 : 0xbae6fd, 0.06 + random() * 0.16, 0.002 + random() * 0.003);
+}
+
+function addWaterDroplet(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const droplet = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 16),
+    new THREE.MeshBasicMaterial({ color: random() > 0.42 ? 0x38bdf8 : 0xe0f2fe, transparent: true, opacity: 0.16 + random() * 0.38, depthWrite: false })
+  );
+  droplet.position.set(x, y, 0.04);
+  droplet.scale.set(1 + random() * 0.6, 0.7 + random() * 0.38, 1);
+  droplet.rotation.z = random() * Math.PI;
+  scene.add(droplet);
+}
+
+function addWebCluster(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
+  const hub = { x: x + (random() - 0.5) * radius * 0.35, y: y + (random() - 0.5) * radius * 0.35 };
+  const spokeCount = 9 + Math.floor(random() * 5);
+  const spokes: Point[][] = [];
+  const rotation = random() * Math.PI * 2;
+  for (let index = 0; index < spokeCount; index += 1) {
+    const angle = rotation + (Math.PI * 2 * index) / spokeCount + (random() - 0.5) * 0.32;
+    const length = radius * (0.74 + random() * 0.48);
+    const end = {
+      x: hub.x + Math.cos(angle) * length,
+      y: hub.y + Math.sin(angle) * length
+    };
+    spokes.push([hub, end]);
+    addWebThread(scene, [hub, end], 0.38 + random() * 0.32);
+  }
+
+  const ringCount = 3 + Math.floor(random() * 3);
+  for (let ringIndex = 0; ringIndex < ringCount; ringIndex += 1) {
+    const t = 0.22 + ringIndex * (0.64 / ringCount) + random() * 0.035;
+    for (let spokeIndex = 0; spokeIndex < spokes.length; spokeIndex += 1) {
+      if (random() < 0.18) {
+        continue;
+      }
+      const current = interpolatePoint(spokes[spokeIndex][0], spokes[spokeIndex][1], t + (random() - 0.5) * 0.025);
+      const nextSpoke = spokes[(spokeIndex + 1) % spokes.length];
+      const next = interpolatePoint(nextSpoke[0], nextSpoke[1], t + (random() - 0.5) * 0.04);
+      const mid = {
+        x: (current.x + next.x) / 2 + (hub.x - (current.x + next.x) / 2) * (0.08 + random() * 0.08),
+        y: (current.y + next.y) / 2 + (hub.y - (current.y + next.y) / 2) * (0.08 + random() * 0.08)
+      };
+      addWebThread(scene, [current, mid, next], 0.32 + random() * 0.28);
+    }
+  }
+}
+
+function addWebStrayThread(scene: THREE.Scene, x: number, y: number, length: number, random: () => number) {
+  const angle = random() * Math.PI * 2;
+  const bend = (random() - 0.5) * length * 0.18;
+  const start = { x: x - Math.cos(angle) * length * 0.5, y: y - Math.sin(angle) * length * 0.5 };
+  const end = { x: x + Math.cos(angle) * length * 0.5, y: y + Math.sin(angle) * length * 0.5 };
+  const mid = {
+    x: x + Math.cos(angle + Math.PI / 2) * bend,
+    y: y + Math.sin(angle + Math.PI / 2) * bend
+  };
+  addWebThread(scene, [start, mid, end], 0.26 + random() * 0.26);
+}
+
+function addWebThread(scene: THREE.Scene, points: Point[], opacity: number) {
+  const geometry = new THREE.BufferGeometry().setFromPoints(points.map((point) => new THREE.Vector3(point.x, point.y, 0.04)));
+  const material = new THREE.LineBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: Math.max(0.18, Math.min(0.76, opacity)) });
+  scene.add(new THREE.Line(geometry, material));
+}
+
+function interpolatePoint(start: Point, end: Point, t: number): Point {
+  return {
+    x: start.x + (end.x - start.x) * t,
+    y: start.y + (end.y - start.y) * t
+  };
+}
+
+function getJaggedBoltPoints(start: Point, end: Point, segments: number, jitter: number, random: () => number): Point[] {
+  const angle = Math.atan2(end.y - start.y, end.x - start.x) + Math.PI / 2;
+  const points: Point[] = [];
+  for (let index = 0; index <= segments; index += 1) {
+    const t = index / segments;
+    const offset = index === 0 || index === segments ? 0 : (random() - 0.5) * jitter;
+    points.push({
+      x: start.x + (end.x - start.x) * t + Math.cos(angle) * offset,
+      y: start.y + (end.y - start.y) * t + Math.sin(angle) * offset
+    });
+  }
+  return points;
+}
+
+function addLightningLine(scene: THREE.Scene, points: Point[], color: number, opacity: number, thickness = 0) {
+  const drawOffsets = thickness > 0 ? [{ x: 0, y: 0 }, { x: thickness, y: 0 }, { x: -thickness, y: 0 }, { x: 0, y: thickness }, { x: 0, y: -thickness }] : [{ x: 0, y: 0 }];
+  for (const offset of drawOffsets) {
+    const geometry = new THREE.BufferGeometry().setFromPoints(points.map((point) => new THREE.Vector3(point.x + offset.x, point.y + offset.y, 0.04)));
+    const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity: Math.max(0.05, Math.min(0.88, opacity / Math.sqrt(drawOffsets.length))) });
+    scene.add(new THREE.Line(geometry, material));
+  }
+}
+
+function disposeScene(scene: THREE.Scene) {
+  scene.traverse((object) => {
+    if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
+      object.geometry.dispose();
+      if (Array.isArray(object.material)) {
+        for (const material of object.material) {
+          material.dispose();
+        }
+      } else {
+        object.material.dispose();
+      }
+    }
+  });
+}
+
 function createTemplateAssetPlacements(
   drawing: DrawingElement,
   bounds: { left: number; top: number; right: number; bottom: number },
-  assets: TemplateEffectAsset[],
+  renderables: TemplateEffectRenderable[],
   count: number,
   random: () => number
 ): PlacedTemplateAsset[] {
   const placements: PlacedTemplateAsset[] = [];
   for (let index = 0; index < count; index += 1) {
-    const asset = assets[Math.floor(random() * assets.length) % assets.length];
+    const asset = renderables[Math.floor(random() * renderables.length) % renderables.length];
     const point = getTemplateEdgeBandPoint(drawing, bounds, index, count, random);
     const targetWidth = TEMPLATE_EFFECT_ASSET_WIDTH_PX * (0.78 + random() * 0.5);
-    const aspect = asset.image.naturalHeight > 0 ? asset.image.naturalWidth / asset.image.naturalHeight : 1;
+    const aspect = asset.naturalHeight > 0 ? asset.naturalWidth / asset.naturalHeight : 1;
     placements.push({
       angle: (random() - 0.5) * Math.PI * 1.85,
       alpha: 0.58 + random() * 0.32,
-      asset,
       height: targetWidth / Math.max(0.2, aspect),
+      image: asset.image,
       width: targetWidth,
       x: point.x,
       y: point.y
@@ -877,7 +2383,7 @@ function drawPlacedTemplateAsset(ctx: CanvasRenderingContext2D, placement: Place
   ctx.translate(placement.x, placement.y);
   ctx.rotate(placement.angle);
   ctx.globalAlpha *= placement.alpha;
-  ctx.drawImage(placement.asset.image, -placement.width / 2, -placement.height / 2, placement.width, placement.height);
+  ctx.drawImage(placement.image, -placement.width / 2, -placement.height / 2, placement.width, placement.height);
   ctx.restore();
 }
 
@@ -941,40 +2447,6 @@ function traceClosedPath(ctx: CanvasRenderingContext2D, points: Point[]) {
   ctx.closePath();
 }
 
-function createTemplateEffectAssetCache(urls: Record<string, string>): Map<string, TemplateEffectAsset[]> {
-  const cache = new Map<string, TemplateEffectAsset[]>();
-  if (typeof Image === "undefined") {
-    return cache;
-  }
-  for (const [path, url] of Object.entries(urls).sort(([left], [right]) => left.localeCompare(right))) {
-    const effect = getTemplateEffectNameFromPath(path);
-    if (!effect) {
-      continue;
-    }
-    const image = new Image();
-    const asset: TemplateEffectAsset = { effect, image, loaded: false, url };
-    image.onload = () => {
-      asset.loaded = true;
-      templateEffectOverlayCache.clear();
-      window.dispatchEvent(new Event(TEMPLATE_EFFECT_ASSET_READY_EVENT));
-    };
-    image.src = url;
-    if (image.complete && image.naturalWidth > 0) {
-      asset.loaded = true;
-    }
-    const assets = cache.get(effect) ?? [];
-    assets.push(asset);
-    cache.set(effect, assets);
-  }
-  return cache;
-}
-
-function getTemplateEffectNameFromPath(path: string): string | null {
-  const normalized = path.replaceAll("\\", "/");
-  const match = normalized.match(/template-effects\/([^/]+)\/[^/]+\.svg$/);
-  return match?.[1] ?? null;
-}
-
 function pointsSeed(points: Point[]): string {
   return points.map((point) => `${Math.round(point.x * 10)},${Math.round(point.y * 10)}`).join("|");
 }
@@ -994,11 +2466,6 @@ function createSeededRandom(seed: number): () => number {
     state = Math.imul(1664525, state) + 1013904223;
     return (state >>> 0) / 4294967296;
   };
-}
-
-export function addTemplateEffectAssetLoadListener(listener: () => void): () => void {
-  window.addEventListener(TEMPLATE_EFFECT_ASSET_READY_EVENT, listener);
-  return () => window.removeEventListener(TEMPLATE_EFFECT_ASSET_READY_EVENT, listener);
 }
 
 function drawTemplateLabelHalo(ctx: CanvasRenderingContext2D, label: string, scale: number) {
@@ -1030,12 +2497,11 @@ function drawTemplateGridHighlights(ctx: CanvasRenderingContext2D, drawing: Draw
     return;
   }
   ctx.save();
-  ctx.setLineDash([]);
+  ctx.setLineDash([5, 4]);
   ctx.shadowBlur = 0;
-  const effect = getTemplateEffectStyle(drawing.templateEffect ?? "plain");
-  ctx.fillStyle = effect.highlightFill;
-  ctx.strokeStyle = effect.highlightStroke;
-  ctx.lineWidth = Math.max(1, grid.lineThickness);
+  ctx.fillStyle = "rgba(239, 68, 68, 0)";
+  ctx.strokeStyle = "#ff0000";
+  ctx.lineWidth = Math.max(5, Math.min(8, grid.lineThickness * 4));
   for (const center of cells) {
     if (grid.type === "hex") {
       tracePointyHex(ctx, center.x, center.y, Math.max(8, grid.sizePx / 2));

@@ -303,7 +303,7 @@ it("normalizeScene preserves template effect settings", () => {
     measurementLabelVisible: true
   });
   expect(normalized.drawings[1]).toMatchObject({
-    templateFootprintVisible: true,
+    templateFootprintVisible: false,
     measurementLabelVisible: true
   });
 });

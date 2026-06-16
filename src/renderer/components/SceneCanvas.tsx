@@ -4,7 +4,6 @@ import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultDrawingName, 
 import type { Asset, Campaign, DrawingElement, DrawingKind, DrawingStrokeStyle, DrawingTemplateEffect, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings, Token, WeatherMask } from "../../shared/localvtt";
 import { getRenderCamera, type Camera } from "../canvas/camera";
 import {
-  addTemplateEffectAssetLoadListener,
   drawDrawings,
   getDrawingBounds,
   getDrawingPreviewPoints,
@@ -360,7 +359,6 @@ export function SceneCanvas({
   const [releasedRulerDrag, setReleasedRulerDrag] = useState<RulerDrag | null>(null);
   const [tokenDragPreview, setTokenDragPreview] = useState<TokenDragPreview | null>(null);
   const [drawingDragPreview, setDrawingDragPreview] = useState<DrawingPointOverrides | null>(null);
-  const [templateEffectAssetLoadTick, setTemplateEffectAssetLoadTick] = useState(0);
   const [playerTokenTweenPositions, setPlayerTokenTweenPositions] = useState<TokenPositionOverrides | null>(null);
   const [polygonDraft, setPolygonDraft] = useState<FogPolygonDraft | null>(null);
   const [drawingPolygonDraft, setDrawingPolygonDraft] = useState<DrawingPolygonDraft | null>(null);
@@ -1048,10 +1046,6 @@ export function SceneCanvas({
   }, [tokenImageSourceKey]);
 
   useEffect(() => {
-    return addTemplateEffectAssetLoadListener(() => setTemplateEffectAssetLoadTick((tick) => tick + 1));
-  }, []);
-
-  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !scene) {
       return;
@@ -1277,7 +1271,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, snapPoint, templateEffectAssetLoadTick, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1930,7 +1924,7 @@ export function SceneCanvas({
               strokeStyle: isTemplate ? "dashed" : (drawingDrag.strokeStyle ?? "solid"),
               templateEffect: isTemplate ? (drawingDrag.templateEffect ?? "plain") : "plain",
               templateWidth: isTemplate ? (drawingDrag.templateWidth ?? 5) : 5,
-              templateFootprintVisible: isTemplate ? true : undefined,
+              templateFootprintVisible: isTemplate ? false : undefined,
               measurementLabelVisible: isTemplate,
               visibleInGm: true,
               visibleInPlayer: true
@@ -2233,7 +2227,7 @@ export function SceneCanvas({
               drawingId: drawingHit.id,
               label: drawingHit.name?.trim() || formatDefaultDrawingName(drawingHit.kind, Math.max(0, drawingIndex)),
               isTemplate: drawingHit.measurementLabelVisible === true,
-              templateFootprintVisible: drawingHit.templateFootprintVisible !== false,
+              templateFootprintVisible: drawingHit.templateFootprintVisible === true,
               visibleInPlayer: drawingHit.visibleInPlayer,
               x: frameRect ? event.clientX - frameRect.left : event.clientX,
               y: frameRect ? event.clientY - frameRect.top : event.clientY
