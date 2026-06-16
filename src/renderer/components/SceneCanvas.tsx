@@ -60,6 +60,7 @@ import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenP
 import { getVideoTransform } from "../canvas/videoMap";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
+import { duplicateDrawingElement } from "../lib/drawingDefaults";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
 import { duplicateToken } from "../lib/tokenDefaults";
 import { TokenSettings } from "./layers/TokenSettings";
@@ -2924,12 +2925,7 @@ export function SceneCanvas({
                 setDrawingContextMenu(null);
                 return;
               }
-              const duplicatedDrawing: DrawingElement = {
-                ...sourceDrawing,
-                id: crypto.randomUUID(),
-                name: getDuplicateDrawingName(sourceDrawing.name?.trim() || drawingContextMenu.label, scene.drawings),
-                points: sourceDrawing.points.map((point) => ({ x: point.x + 24, y: point.y + 24 }))
-              };
+              const duplicatedDrawing = duplicateDrawingElement(sourceDrawing, scene.drawings, crypto.randomUUID(), drawingContextMenu.label);
               onSceneChange({
                 ...scene,
                 drawings: [...scene.drawings, duplicatedDrawing],
@@ -3878,18 +3874,6 @@ function getTemplateEffectNamePart(effect: DrawingTemplateEffect): string {
     web: "Web"
   };
   return ` - ${labels[effect]}`;
-}
-
-function getDuplicateDrawingName(sourceName: string, drawings: DrawingElement[]): string {
-  const baseName = sourceName.replace(/\sCopy(?:\s\d+)?$/i, "").trim() || "Drawing";
-  const existingNames = new Set(drawings.map((drawing) => (drawing.name ?? "").trim().toLowerCase()));
-  let candidate = `${baseName} Copy`;
-  let index = 2;
-  while (existingNames.has(candidate.toLowerCase())) {
-    candidate = `${baseName} Copy ${index}`;
-    index += 1;
-  }
-  return candidate;
 }
 
 function isSnapModifier(event: React.PointerEvent<HTMLCanvasElement>): boolean {
