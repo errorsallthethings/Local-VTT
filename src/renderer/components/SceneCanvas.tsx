@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Copy, Eye, EyeOff, ListPlus, Trash2 } from "lucide-react";
+import { ArrowRight, Copy, ListPlus, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultDrawingName, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingKind, DrawingStrokeStyle, DrawingTemplateEffect, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings, Token, WeatherMask } from "../../shared/localvtt";
 import { getRenderCamera, type Camera } from "../canvas/camera";
@@ -2776,66 +2776,70 @@ export function SceneCanvas({
       })()}
       {mode === "gm" && maskContextMenu && (
         <div
-          className="scene-menu canvas-context-menu"
+          className="token-settings-menu canvas-context-menu"
           style={{ left: maskContextMenu.x, top: maskContextMenu.y }}
           role="menu"
           onPointerDown={(event) => event.stopPropagation()}
         >
           <div className="canvas-context-menu-title" title={maskContextMenu.label}>{maskContextMenu.label}</div>
           <div className="control-divider" />
-          <button
-            type="button"
-            role="menuitem"
-            title={
-              maskContextMenu.kind === "fog"
-                ? `${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`
-                : `${maskContextMenu.visible ? "Hide" : "Show"} ${maskContextMenu.label}`
-            }
-            aria-label={
-              maskContextMenu.kind === "fog"
-                ? `${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`
-                : `${maskContextMenu.visible ? "Hide" : "Show"} ${maskContextMenu.label}`
-            }
-            onClick={() => {
-              if (!scene || !onSceneChange) {
-                setMaskContextMenu(null);
-                return;
-              }
-              if (maskContextMenu.kind === "fog") {
-                onSceneChange({
-                  ...scene,
-                  fog: {
-                    ...scene.fog,
-                    shapes: scene.fog.shapes.map((shape) =>
-                      shape.id === maskContextMenu.shapeId
-                        ? { ...shape, visibleInPlayer: !maskContextMenu.visibleInPlayer, visible: (shape.visibleInGm ?? shape.visible ?? true) || !maskContextMenu.visibleInPlayer }
-                        : shape
-                    )
-                  },
-                  updatedAt: new Date().toISOString()
-                });
-              } else {
-                onSceneChange({
-                  ...scene,
-                  weather: {
-                    ...scene.weather,
-                    masks: scene.weather.masks.map((mask) => (mask.id === maskContextMenu.maskId ? { ...mask, visible: !maskContextMenu.visible } : mask))
-                  },
-                  updatedAt: new Date().toISOString()
-                });
-              }
-              setMaskContextMenu(null);
-            }}
-          >
-            {maskContextMenu.kind === "fog" ? (
-              maskContextMenu.visibleInPlayer ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />
-            ) : maskContextMenu.visible ? (
-              <EyeOff size={14} aria-hidden="true" />
-            ) : (
-              <Eye size={14} aria-hidden="true" />
-            )}
-            <span>{maskContextMenu.kind === "fog" ? `${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} on Player View` : `${maskContextMenu.visible ? "Hide" : "Show"} Mask`}</span>
-          </button>
+          <div className="settings-grid">
+            <label className="setting-row">
+              <span>{maskContextMenu.kind === "fog" ? "Player View" : "Mask"}</span>
+              <label
+                className="fog-operation-switch"
+                title={
+                  maskContextMenu.kind === "fog"
+                    ? `${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`
+                    : `${maskContextMenu.visible ? "Hide" : "Show"} ${maskContextMenu.label}`
+                }
+              >
+                <span>Show</span>
+                <input
+                  aria-label={
+                    maskContextMenu.kind === "fog"
+                      ? `${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`
+                      : `${maskContextMenu.visible ? "Hide" : "Show"} ${maskContextMenu.label}`
+                  }
+                  type="checkbox"
+                  checked={maskContextMenu.kind === "fog" ? !maskContextMenu.visibleInPlayer : !maskContextMenu.visible}
+                  onChange={(event) => {
+                    if (!scene || !onSceneChange) {
+                      setMaskContextMenu(null);
+                      return;
+                    }
+                    if (maskContextMenu.kind === "fog") {
+                      const nextVisibleInPlayer = !event.target.checked;
+                      onSceneChange({
+                        ...scene,
+                        fog: {
+                          ...scene.fog,
+                          shapes: scene.fog.shapes.map((shape) =>
+                            shape.id === maskContextMenu.shapeId
+                              ? { ...shape, visibleInPlayer: nextVisibleInPlayer, visible: (shape.visibleInGm ?? shape.visible ?? true) || nextVisibleInPlayer }
+                              : shape
+                          )
+                        },
+                        updatedAt: new Date().toISOString()
+                      });
+                    } else {
+                      const nextVisible = !event.target.checked;
+                      onSceneChange({
+                        ...scene,
+                        weather: {
+                          ...scene.weather,
+                          masks: scene.weather.masks.map((mask) => (mask.id === maskContextMenu.maskId ? { ...mask, visible: nextVisible } : mask))
+                        },
+                        updatedAt: new Date().toISOString()
+                      });
+                    }
+                    setMaskContextMenu(null);
+                  }}
+                />
+                <span>Hide</span>
+              </label>
+            </label>
+          </div>
         </div>
       )}
       {mode === "gm" && drawingContextMenu && (
