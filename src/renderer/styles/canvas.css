@@ -45,6 +45,11 @@
   cursor: grabbing;
 }
 
+.scene-canvas.scene-canvas-item-hover,
+.scene-canvas.scene-canvas-item-hover:active {
+  cursor: pointer;
+}
+
 .scene-canvas.scene-canvas-tool-brush,
 .scene-canvas.scene-canvas-tool-circle,
 .scene-canvas.scene-canvas-tool-rectangle,

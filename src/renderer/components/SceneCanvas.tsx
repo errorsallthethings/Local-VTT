@@ -372,6 +372,7 @@ export function SceneCanvas({
   const [mapCalibrationDrag, setMapCalibrationDrag] = useState<MapCalibrationDrag | null>(null);
   const [selectionDrag, setSelectionDrag] = useState<SelectionDrag | null>(null);
   const [drawingTransformHover, setDrawingTransformHover] = useState<DrawingTransformHover>(null);
+  const [sceneItemHover, setSceneItemHover] = useState(false);
   const [mapCalibrationDraftBox, setMapCalibrationDraftBox] = useState<MapCalibrationBox | null>(null);
   const [brushHoverPoint, setBrushHoverPoint] = useState<Point | null>(null);
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
@@ -685,6 +686,7 @@ export function SceneCanvas({
     setWeatherPolygonDraft(null);
     setBrushHoverPoint(null);
     setSnapPoint(null);
+    setSceneItemHover(false);
   }, [fogTool, onTemplatePreviewChange, scene?.id]);
 
   useEffect(() => {
@@ -1906,6 +1908,7 @@ export function SceneCanvas({
     }
 
     updateDrawingTransformHover(event);
+    updateSceneItemHover(event);
     updateSnapPoint(event);
   };
 
@@ -2146,6 +2149,7 @@ export function SceneCanvas({
     setSnapPoint(null);
     setBrushHoverPoint(null);
     setDrawingTransformHover(null);
+    setSceneItemHover(false);
   };
 
   const emitPing = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -2369,6 +2373,37 @@ export function SceneCanvas({
     }
     const resizeTarget = getDrawingResizeHandleAtPoint(scene.drawings, selectedDrawingIds, point, cameraState);
     setDrawingTransformHover(resizeTarget?.handle ?? null);
+  };
+
+  const updateSceneItemHover = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (
+      mode !== "gm" ||
+      !scene ||
+      drawingDragPreview ||
+      canvasTool ||
+      drawingTool ||
+      fogTool ||
+      weatherMaskTool ||
+      selectionDragRef.current
+    ) {
+      setSceneItemHover(false);
+      return;
+    }
+    const cameraState = getRenderCamera(camera, playerDisplayScale);
+    const point = eventToWorldPoint(event, cameraState);
+    const tokenHit = canShowTokens ? getTokenAtPoint(scene.tokens, point) : null;
+    if (tokenHit) {
+      setSceneItemHover(true);
+      return;
+    }
+    const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, Math.max(8, 8 / cameraState.zoom), scene.grid) : null;
+    if (drawingHit) {
+      setSceneItemHover(true);
+      return;
+    }
+    const maskHit = getMaskHitAtPoint(scene, point);
+    const hasVisibleMaskHit = Boolean((maskHit?.kind === "weather" && canShowWeather) || (maskHit?.kind === "fog" && canShowFog));
+    setSceneItemHover(hasVisibleMaskHit);
   };
 
   const updatePolygonDraft = (tool: FogTool, point: Point) => {
@@ -2618,7 +2653,7 @@ export function SceneCanvas({
         ))}
       <canvas
         ref={canvasRef}
-        className={`scene-canvas ${getCanvasInteractionClass({ canvasTool, mouseBehavior, drawingTool, fogTool, weatherMaskTool, isPanning, tokenDragPreview, drawingTransformHover })}`}
+        className={`scene-canvas ${getCanvasInteractionClass({ canvasTool, mouseBehavior, drawingTool, fogTool, weatherMaskTool, isPanning, tokenDragPreview, drawingTransformHover, sceneItemHover })}`}
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -3667,7 +3702,8 @@ function getCanvasInteractionClass({
   weatherMaskTool,
   isPanning,
   tokenDragPreview,
-  drawingTransformHover
+  drawingTransformHover,
+  sceneItemHover
 }: {
   canvasTool: "ruler" | "ping" | "laser" | null;
   mouseBehavior: MouseBehavior;
@@ -3677,6 +3713,7 @@ function getCanvasInteractionClass({
   isPanning: boolean;
   tokenDragPreview: TokenDragPreview | null;
   drawingTransformHover: DrawingTransformHover;
+  sceneItemHover: boolean;
 }): string {
   if (isPanning) {
     return "scene-canvas-panning";
@@ -3746,6 +3783,9 @@ function getCanvasInteractionClass({
   }
   if (fogTool) {
     return "scene-canvas-tool-rectangle";
+  }
+  if (sceneItemHover) {
+    return "scene-canvas-item-hover";
   }
   if (mouseBehavior === "grabber") {
     return "scene-canvas-grabber";
