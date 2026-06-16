@@ -221,6 +221,7 @@ it("normalizeScene backfills drawing defaults", () => {
       strokeStyle: "solid",
       templateEffect: "plain",
       templateWidth: 5,
+      templateFootprintVisible: undefined,
       measurementLabelVisible: undefined,
       visibleInGm: true,
       visibleInPlayer: true
@@ -242,6 +243,7 @@ it("normalizeScene backfills drawing defaults", () => {
       strokeStyle: "solid",
       templateEffect: "plain",
       templateWidth: 5,
+      templateFootprintVisible: undefined,
       measurementLabelVisible: undefined,
       visibleInGm: false,
       visibleInPlayer: false
@@ -271,8 +273,23 @@ it("normalizeScene preserves template effect settings", () => {
       strokeStyle: "dashed",
       templateEffect: "fire",
       templateWidth: 10,
+      templateFootprintVisible: false,
       measurementLabelVisible: true,
       visibleInGm: true,
+      visibleInPlayer: true
+    },
+    {
+      id: "template-legacy",
+      name: "Template Cone 1",
+      kind: "cone",
+      points: [
+        { x: 200, y: 200 },
+        { x: 300, y: 200 }
+      ],
+      color: "#7dd3fc",
+      opacity: 1,
+      strokeWidth: 24,
+      measurementLabelVisible: true,
       visibleInPlayer: true
     }
   ];
@@ -282,6 +299,11 @@ it("normalizeScene preserves template effect settings", () => {
   expect(normalized.drawings[0]).toMatchObject({
     templateEffect: "fire",
     templateWidth: 10,
+    templateFootprintVisible: false,
+    measurementLabelVisible: true
+  });
+  expect(normalized.drawings[1]).toMatchObject({
+    templateFootprintVisible: true,
     measurementLabelVisible: true
   });
 });

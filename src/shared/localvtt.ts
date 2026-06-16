@@ -270,6 +270,7 @@ export interface DrawingElement {
   strokeStyle?: DrawingStrokeStyle;
   templateEffect?: DrawingTemplateEffect;
   templateWidth?: number;
+  templateFootprintVisible?: boolean;
   measurementLabelVisible?: boolean;
   visibleInGm?: boolean;
   visibleInPlayer: boolean;
@@ -1567,6 +1568,7 @@ function normalizeDrawings(drawings?: DrawingElement[]): DrawingElement[] {
       strokeStyle: normalizeDrawingStrokeStyle(drawing.strokeStyle),
       templateEffect: isTemplateDrawing ? normalizeDrawingTemplateEffect(drawing.templateEffect) : "plain",
       templateWidth: isTemplateDrawing ? clampNumber(drawing.templateWidth, 1, 100, 5) : 5,
+      templateFootprintVisible: isTemplateDrawing ? drawing.templateFootprintVisible !== false : undefined,
       measurementLabelVisible: typeof drawing.measurementLabelVisible === "boolean" ? drawing.measurementLabelVisible : undefined,
       visibleInGm: typeof drawing.visibleInGm === "boolean" ? drawing.visibleInGm : true,
       visibleInPlayer: typeof drawing.visibleInPlayer === "boolean" ? drawing.visibleInPlayer : true

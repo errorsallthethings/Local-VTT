@@ -267,6 +267,8 @@ type MaskContextMenu =
 type DrawingContextMenu = {
   drawingId: string;
   label: string;
+  isTemplate: boolean;
+  templateFootprintVisible: boolean;
   visibleInPlayer: boolean;
   x: number;
   y: number;
@@ -1928,6 +1930,7 @@ export function SceneCanvas({
               strokeStyle: isTemplate ? "dashed" : (drawingDrag.strokeStyle ?? "solid"),
               templateEffect: isTemplate ? (drawingDrag.templateEffect ?? "plain") : "plain",
               templateWidth: isTemplate ? (drawingDrag.templateWidth ?? 5) : 5,
+              templateFootprintVisible: isTemplate ? true : undefined,
               measurementLabelVisible: isTemplate,
               visibleInGm: true,
               visibleInPlayer: true
@@ -2229,6 +2232,8 @@ export function SceneCanvas({
             setDrawingContextMenu({
               drawingId: drawingHit.id,
               label: drawingHit.name?.trim() || formatDefaultDrawingName(drawingHit.kind, Math.max(0, drawingIndex)),
+              isTemplate: drawingHit.measurementLabelVisible === true,
+              templateFootprintVisible: drawingHit.templateFootprintVisible !== false,
               visibleInPlayer: drawingHit.visibleInPlayer,
               x: frameRect ? event.clientX - frameRect.left : event.clientX,
               y: frameRect ? event.clientY - frameRect.top : event.clientY
@@ -2724,6 +2729,28 @@ export function SceneCanvas({
           role="menu"
           onPointerDown={(event) => event.stopPropagation()}
         >
+          {drawingContextMenu.isTemplate && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                if (!scene || !onSceneChange) {
+                  setDrawingContextMenu(null);
+                  return;
+                }
+                onSceneChange({
+                  ...scene,
+                  drawings: scene.drawings.map((drawing) =>
+                    drawing.id === drawingContextMenu.drawingId ? { ...drawing, templateFootprintVisible: !drawingContextMenu.templateFootprintVisible } : drawing
+                  ),
+                  updatedAt: new Date().toISOString()
+                });
+                setDrawingContextMenu(null);
+              }}
+            >
+              {`${drawingContextMenu.templateFootprintVisible ? "Hide" : "Show"} "${drawingContextMenu.label}" grid footprint`}
+            </button>
+          )}
           <button
             type="button"
             role="menuitem"
@@ -3606,6 +3633,7 @@ function getTemplatePreviewDrawing(preview: DrawingPreview): DrawingElement | nu
     strokeStyle: "dashed",
     templateEffect: "plain",
     templateWidth: preview.templateWidth ?? 5,
+    templateFootprintVisible: true,
     measurementLabelVisible: true,
     visibleInGm: false,
     visibleInPlayer: true

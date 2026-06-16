@@ -55,10 +55,19 @@ type PlacedTemplateAsset = {
   y: number;
 };
 
+type TemplateEffectOverlayCacheEntry = {
+  canvas: HTMLCanvasElement;
+  key: string;
+  left: number;
+  top: number;
+};
+
 const TEMPLATE_EFFECT_ASSET_READY_EVENT = "localvtt-template-effect-assets-ready";
-const TEMPLATE_EFFECT_ASSET_WIDTH_PX = 700;
+const TEMPLATE_EFFECT_ASSET_WIDTH_PX = 800;
+const TEMPLATE_EFFECT_OVERLAY_CACHE_LIMIT = 80;
 const templateEffectAssetUrls = import.meta.glob("../assets/template-effects/*/*.svg", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
 const templateEffectAssetCache = createTemplateEffectAssetCache(templateEffectAssetUrls);
+const templateEffectOverlayCache = new Map<string, TemplateEffectOverlayCacheEntry>();
 
 export function drawDrawings(
   ctx: CanvasRenderingContext2D,
@@ -192,7 +201,9 @@ function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingEleme
   if (drawing.measurementLabelVisible) {
     ctx.setLineDash([Math.max(8, drawing.strokeWidth * 1.8), Math.max(6, drawing.strokeWidth * 1.1)]);
     applyTemplateEffectStroke(ctx, drawing);
-    drawTemplateGridHighlights(ctx, drawing, scene.grid);
+    if (drawing.templateFootprintVisible !== false) {
+      drawTemplateGridHighlights(ctx, drawing, scene.grid);
+    }
   } else {
     applyDrawingStrokeStyle(ctx, drawing.strokeStyle ?? "solid", drawing.strokeWidth);
   }
@@ -689,28 +700,105 @@ function drawTemplateAssetOverlay(ctx: CanvasRenderingContext2D, drawing: Drawin
     return;
   }
 
+  const overlay = getTemplateEffectOverlay(drawing, bounds, assets, layerOpacity);
+  if (!overlay) {
+    return;
+  }
+  ctx.drawImage(overlay.canvas, overlay.left, overlay.top);
+}
+
+function getTemplateEffectOverlay(
+  drawing: DrawingElement,
+  bounds: { left: number; top: number; right: number; bottom: number },
+  assets: TemplateEffectAsset[],
+  layerOpacity: number
+): TemplateEffectOverlayCacheEntry | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const cacheKey = getTemplateEffectOverlayCacheKey(drawing, bounds, assets, layerOpacity);
+  const cached = templateEffectOverlayCache.get(cacheKey);
+  if (cached) {
+    templateEffectOverlayCache.delete(cacheKey);
+    templateEffectOverlayCache.set(cacheKey, cached);
+    return cached;
+  }
+
+  const width = Math.ceil(bounds.right - bounds.left);
+  const height = Math.ceil(bounds.bottom - bounds.top);
+  if (width <= 0 || height <= 0) {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const overlayCtx = canvas.getContext("2d");
+  if (!overlayCtx) {
+    return null;
+  }
+
   const random = createSeededRandom(hashString(`${drawing.id}:${drawing.kind}:${drawing.templateEffect}:${pointsSeed(drawing.points)}`));
   const placementCount = Math.max(5, Math.min(14, Math.round((width * height) / 42000)));
   const placements = createTemplateAssetPlacements(drawing, bounds, assets, placementCount, random);
   const bands = 7;
   const innerScale = 0.58;
-  ctx.save();
+  overlayCtx.save();
+  overlayCtx.translate(-bounds.left, -bounds.top);
   for (let bandIndex = 0; bandIndex < bands; bandIndex += 1) {
     const outerScale = 1 - ((1 - innerScale) * bandIndex) / bands;
     const bandInnerScale = 1 - ((1 - innerScale) * (bandIndex + 1)) / bands;
     const fade = 1 - bandIndex / bands;
-    ctx.save();
-    ctx.beginPath();
-    traceTemplatePath(ctx, drawing, outerScale);
-    traceTemplatePath(ctx, drawing, bandInnerScale);
-    ctx.clip("evenodd");
-    ctx.globalAlpha = Math.max(0.04, Math.min(0.86, layerOpacity * fade * fade));
+    overlayCtx.save();
+    overlayCtx.beginPath();
+    traceTemplatePath(overlayCtx, drawing, outerScale);
+    traceTemplatePath(overlayCtx, drawing, bandInnerScale);
+    overlayCtx.clip("evenodd");
+    overlayCtx.globalAlpha = Math.max(0.04, Math.min(0.86, layerOpacity * fade * fade));
     for (const placement of placements) {
-      drawPlacedTemplateAsset(ctx, placement);
+      drawPlacedTemplateAsset(overlayCtx, placement);
     }
-    ctx.restore();
+    overlayCtx.restore();
   }
-  ctx.restore();
+  overlayCtx.restore();
+
+  const entry = { canvas, key: cacheKey, left: bounds.left, top: bounds.top };
+  templateEffectOverlayCache.set(cacheKey, entry);
+  trimTemplateEffectOverlayCache();
+  return entry;
+}
+
+function getTemplateEffectOverlayCacheKey(
+  drawing: DrawingElement,
+  bounds: { left: number; top: number; right: number; bottom: number },
+  assets: TemplateEffectAsset[],
+  layerOpacity: number
+): string {
+  return [
+    drawing.id,
+    drawing.kind,
+    drawing.templateEffect ?? "plain",
+    drawing.strokeColor ?? drawing.color,
+    drawing.opacity,
+    drawing.strokeWidth,
+    drawing.templateWidth ?? 5,
+    Math.round(layerOpacity * 1000),
+    Math.round(bounds.left),
+    Math.round(bounds.top),
+    Math.round(bounds.right),
+    Math.round(bounds.bottom),
+    pointsSeed(drawing.points),
+    assets.map((asset) => asset.url).join("|")
+  ].join(":");
+}
+
+function trimTemplateEffectOverlayCache() {
+  while (templateEffectOverlayCache.size > TEMPLATE_EFFECT_OVERLAY_CACHE_LIMIT) {
+    const oldestKey = templateEffectOverlayCache.keys().next().value;
+    if (!oldestKey) {
+      return;
+    }
+    templateEffectOverlayCache.delete(oldestKey);
+  }
 }
 
 function createTemplateAssetPlacements(
@@ -867,6 +955,7 @@ function createTemplateEffectAssetCache(urls: Record<string, string>): Map<strin
     const asset: TemplateEffectAsset = { effect, image, loaded: false, url };
     image.onload = () => {
       asset.loaded = true;
+      templateEffectOverlayCache.clear();
       window.dispatchEvent(new Event(TEMPLATE_EFFECT_ASSET_READY_EVENT));
     };
     image.src = url;
