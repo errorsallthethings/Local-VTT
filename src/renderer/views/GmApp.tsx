@@ -31,6 +31,7 @@ import type {
   CampaignSceneFolder,
   DisplayCalibration,
   DiceSettings,
+  DrawingElement,
   DrawingStrokeStyle,
   DrawingTemplateEffect,
   LiveTableEvent,
@@ -102,6 +103,7 @@ type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 
 const MAX_DICE_ROLL_HISTORY = 100;
 const DICE_SETTINGS_PREFERENCES_STORAGE_KEY = "localvtt.diceSettingsPreferences";
+const PLAYER_TEMPLATE_PREVIEW_ID = "template-preview";
 const DEFAULT_SELECTOR_SELECTION_FILTERS: SelectorSelectionFilters = {
   tokens: true,
   templates: false,
@@ -173,6 +175,8 @@ export function GmApp() {
   const [drawingTemplateSize, setDrawingTemplateSize] = useState<DrawingTemplateSize>("custom");
   const [drawingTemplateEffect, setDrawingTemplateEffect] = useState<DrawingTemplateEffect>("plain");
   const [drawingTemplateWidth, setDrawingTemplateWidth] = useState<DrawingTemplateWidth>(5);
+  const [templatePreviewVisibleInPlayer, setTemplatePreviewVisibleInPlayer] = useState(false);
+  const [playerTemplatePreviewDrawing, setPlayerTemplatePreviewDrawing] = useState<DrawingElement | null>(null);
   const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
   const [newFolderName, setNewFolderName] = useState("New Folder");
@@ -213,6 +217,7 @@ export function GmApp() {
   );
   const [busyState, setBusyState] = useState<CampaignBusyState | null>(null);
   const skipNextPlayerSceneAutoSyncRef = useRef(false);
+  const playerTemplatePreviewPublishedRef = useRef(false);
 
   const mapAsset = useMemo(() => {
     if (!campaign || !activeScene?.mapAssetId) {
@@ -260,6 +265,7 @@ export function GmApp() {
   useEffect(() => {
     setMapCalibrationBox(null);
     setMapCalibrationBoxPicking(false);
+    setPlayerTemplatePreviewDrawing(null);
   }, [activeScene?.id]);
 
   const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
@@ -784,6 +790,25 @@ export function GmApp() {
     }
     void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
   }, [activeScene, campaign, playerDisplayMode, playerSceneId, playersPanelOpen]);
+
+  useEffect(() => {
+    if (!campaign || !activeScene || activeScene.id !== playerSceneId || playerDisplayMode !== "scene") {
+      playerTemplatePreviewPublishedRef.current = false;
+      return;
+    }
+    const previewDrawing = templatePreviewVisibleInPlayer ? playerTemplatePreviewDrawing : null;
+    if (!previewDrawing && !playerTemplatePreviewPublishedRef.current) {
+      return;
+    }
+    const previewScene = previewDrawing
+      ? {
+          ...activeScene,
+          drawings: [...activeScene.drawings.filter((drawing) => drawing.id !== PLAYER_TEMPLATE_PREVIEW_ID), previewDrawing]
+        }
+      : activeScene;
+    playerTemplatePreviewPublishedRef.current = Boolean(previewDrawing);
+    void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(campaign, previewScene, { showPlayerSeatIndicators: playersPanelOpen }));
+  }, [activeScene, campaign, playerDisplayMode, playerSceneId, playerTemplatePreviewDrawing, playersPanelOpen, templatePreviewVisibleInPlayer]);
 
   useEffect(() => {
     window.localStorage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(workspaceLayout));
@@ -1772,6 +1797,7 @@ export function GmApp() {
               drawingTemplateSize={drawingTemplateSize}
               drawingTemplateEffect={drawingTemplateEffect}
               drawingTemplateWidth={drawingTemplateWidth}
+              templatePreviewVisibleInPlayer={templatePreviewVisibleInPlayer}
               pingSize={tableTools.pingSize}
               pingColor={tableTools.pingColor}
               laserThickness={tableTools.laserThickness}
@@ -1805,6 +1831,7 @@ export function GmApp() {
               onDrawingTemplateSizeChange={setDrawingTemplateSize}
               onDrawingTemplateEffectChange={setDrawingTemplateEffect}
               onDrawingTemplateWidthChange={setDrawingTemplateWidth}
+              onTemplatePreviewVisibleInPlayerChange={setTemplatePreviewVisibleInPlayer}
               onPingSizeChange={(pingSize) => setTableTools((current) => ({ ...current, pingSize }))}
               onPingColorChange={(pingColor) => setTableTools((current) => ({ ...current, pingColor }))}
               onLaserThicknessChange={(laserThickness) => setTableTools((current) => ({ ...current, laserThickness }))}
@@ -1872,6 +1899,7 @@ export function GmApp() {
             onDropTokenAsset={dropLibraryTokenOnScene}
             onLiveTableEvent={emitLiveTableEvent}
             onDiceRollResolved={updateDiceRollHistory}
+            onTemplatePreviewChange={setPlayerTemplatePreviewDrawing}
             onViewportCenterChange={setGmCanvasCenter}
             mapCalibrationBox={mapCalibrationBox}
             onMapCalibrationBox={mapCalibrationBoxPicking ? captureMapCalibrationBox : undefined}

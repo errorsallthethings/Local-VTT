@@ -291,7 +291,8 @@ export type DrawingTemplateEffect =
   | "radiant"
   | "storm"
   | "thunder"
-  | "water";
+  | "water"
+  | "web";
 
 export interface SceneOverlay {
   id: string;
@@ -1591,7 +1592,8 @@ function normalizeDrawingTemplateEffect(value: unknown): DrawingTemplateEffect {
     value === "radiant" ||
     value === "storm" ||
     value === "thunder" ||
-    value === "water"
+    value === "water" ||
+    value === "web"
     ? value
     : "plain";
 }

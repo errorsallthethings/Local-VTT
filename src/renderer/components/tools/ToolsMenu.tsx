@@ -122,7 +122,8 @@ const TEMPLATE_EFFECT_OPTIONS: Array<{ label: string; value: DrawingTemplateEffe
   { label: "Radiant", value: "radiant" },
   { label: "Storm", value: "storm" },
   { label: "Thunder", value: "thunder" },
-  { label: "Water", value: "water" }
+  { label: "Water", value: "water" },
+  { label: "Web", value: "web" }
 ];
 const DEFAULT_DRAWING_COLOR = "#ff0000";
 const DEFAULT_TEMPLATE_COLOR = "#7dd3fc";
@@ -145,6 +146,7 @@ interface ToolsMenuProps {
   drawingTemplateSize: DrawingTemplateSize;
   drawingTemplateEffect: DrawingTemplateEffect;
   drawingTemplateWidth: DrawingTemplateWidth;
+  templatePreviewVisibleInPlayer: boolean;
   pingSize: number;
   pingColor: string;
   laserThickness: number;
@@ -175,6 +177,7 @@ interface ToolsMenuProps {
   onDrawingTemplateSizeChange: (size: DrawingTemplateSize) => void;
   onDrawingTemplateEffectChange: (effect: DrawingTemplateEffect) => void;
   onDrawingTemplateWidthChange: (width: DrawingTemplateWidth) => void;
+  onTemplatePreviewVisibleInPlayerChange: (visible: boolean) => void;
   onPingSizeChange: (pingSize: number) => void;
   onPingColorChange: (pingColor: string) => void;
   onLaserThicknessChange: (laserThickness: number) => void;
@@ -223,6 +226,7 @@ export function ToolsMenu({
   drawingTemplateSize,
   drawingTemplateEffect,
   drawingTemplateWidth,
+  templatePreviewVisibleInPlayer,
   pingSize,
   pingColor,
   laserThickness,
@@ -253,6 +257,7 @@ export function ToolsMenu({
   onDrawingTemplateSizeChange,
   onDrawingTemplateEffectChange,
   onDrawingTemplateWidthChange,
+  onTemplatePreviewVisibleInPlayerChange,
   onPingSizeChange,
   onPingColorChange,
   onLaserThicknessChange,
@@ -601,6 +606,7 @@ export function ToolsMenu({
                   drawingTemplateSize={drawingTemplateSize}
                   drawingTemplateEffect={drawingTemplateEffect}
                   drawingTemplateWidth={drawingTemplateWidth}
+                  templatePreviewVisibleInPlayer={templatePreviewVisibleInPlayer}
                   activeDrawingTool={activeDrawingTool}
                   drawingThicknessCustomOpen={drawingThicknessCustomOpen}
                   drawingOpacityCustomOpen={drawingOpacityCustomOpen}
@@ -615,6 +621,7 @@ export function ToolsMenu({
                   onDrawingTemplateSizeChange={onDrawingTemplateSizeChange}
                   onDrawingTemplateEffectChange={onDrawingTemplateEffectChange}
                   onDrawingTemplateWidthChange={onDrawingTemplateWidthChange}
+                  onTemplatePreviewVisibleInPlayerChange={onTemplatePreviewVisibleInPlayerChange}
                   onDrawingThicknessCustomOpenChange={setDrawingThicknessCustomOpen}
                   onDrawingOpacityCustomOpenChange={setDrawingOpacityCustomOpen}
                 />
@@ -959,6 +966,7 @@ function DrawingSettings({
   drawingTemplateSize,
   drawingTemplateEffect,
   drawingTemplateWidth,
+  templatePreviewVisibleInPlayer = false,
   activeDrawingTool,
   drawingThicknessCustomOpen,
   drawingOpacityCustomOpen,
@@ -973,6 +981,7 @@ function DrawingSettings({
   onDrawingTemplateSizeChange,
   onDrawingTemplateEffectChange,
   onDrawingTemplateWidthChange,
+  onTemplatePreviewVisibleInPlayerChange,
   onDrawingThicknessCustomOpenChange,
   onDrawingOpacityCustomOpenChange
 }: {
@@ -985,6 +994,7 @@ function DrawingSettings({
   drawingTemplateSize: DrawingTemplateSize;
   drawingTemplateEffect: DrawingTemplateEffect;
   drawingTemplateWidth: DrawingTemplateWidth;
+  templatePreviewVisibleInPlayer?: boolean;
   activeDrawingTool: DrawingTool | null;
   drawingThicknessCustomOpen: boolean;
   drawingOpacityCustomOpen: boolean;
@@ -999,6 +1009,7 @@ function DrawingSettings({
   onDrawingTemplateSizeChange: (size: DrawingTemplateSize) => void;
   onDrawingTemplateEffectChange: (effect: DrawingTemplateEffect) => void;
   onDrawingTemplateWidthChange: (width: DrawingTemplateWidth) => void;
+  onTemplatePreviewVisibleInPlayerChange?: (visible: boolean) => void;
   onDrawingThicknessCustomOpenChange: (open: boolean) => void;
   onDrawingOpacityCustomOpenChange: (open: boolean) => void;
 }) {
@@ -1143,6 +1154,12 @@ function DrawingSettings({
               </div>
             </div>
           )}
+        </div>
+      )}
+      {templateToolActive && onTemplatePreviewVisibleInPlayerChange && (
+        <div className="tools-drawing-settings-row tools-template-player-preview-row">
+          <div className="tools-drawing-row-label">Player</div>
+          <SelectorFilterCheckbox label="Live Preview" checked={templatePreviewVisibleInPlayer} onChange={onTemplatePreviewVisibleInPlayerChange} />
         </div>
       )}
       {(drawingThicknessCustomOpen || !hasPresetValue(DRAWING_THICKNESS_PRESETS, drawingStrokeWidth)) && (

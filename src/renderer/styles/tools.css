@@ -421,6 +421,10 @@
   grid-template-columns: 48px 132px 104px;
 }
 
+.tools-drawing-settings-template .tools-template-player-preview-row {
+  grid-template-columns: 48px 150px;
+}
+
 .tools-drawing-fill-row {
   grid-template-columns: 48px 40px 104px;
   padding-top: 7px;

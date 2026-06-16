@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  getTemplateLabel,
+  getConeTriangle,
   getDrawingPreviewPoints,
   getDrawingAtPoint,
   isMeaningfulDrawingPreview,
   shouldAddDrawingPoint,
   type DrawingPreview
 } from "../../src/renderer/canvas/drawingRenderer";
+import { createDefaultScene } from "../../src/shared/localvtt";
 
 describe("drawing renderer helpers", () => {
   it("keeps line previews to start and current points", () => {
@@ -74,6 +77,61 @@ describe("drawing renderer helpers", () => {
 
     expect(isMeaningfulDrawingPreview(preview)).toBe(false);
     expect(isMeaningfulDrawingPreview({ ...preview, current: { x: 20, y: 10 } })).toBe(true);
+  });
+
+  it("labels cube templates by side length instead of diagonal distance", () => {
+    const scene = createDefaultScene("Templates");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 100;
+    scene.grid.measurement = { unit: "feet", unitsPerGridCell: 5, distanceMode: "euclidean" };
+
+    expect(
+      getTemplateLabel(
+        {
+          id: "cube",
+          kind: "rectangle",
+          points: [{ x: 0, y: 0 }, { x: 200, y: 200 }],
+          color: "#7dd3fc",
+          opacity: 1,
+          strokeWidth: 16,
+          measurementLabelVisible: true,
+          visibleInPlayer: true
+        },
+        scene
+      )
+    ).toBe("10 feet square");
+  });
+
+  it("keeps line, radius, and cone template labels measured from origin to edge", () => {
+    const scene = createDefaultScene("Templates");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 100;
+    scene.grid.measurement = { unit: "feet", unitsPerGridCell: 5, distanceMode: "euclidean" };
+    const base = {
+      id: "template",
+      points: [{ x: 0, y: 0 }, { x: 300, y: 400 }],
+      color: "#7dd3fc",
+      opacity: 1,
+      strokeWidth: 16,
+      measurementLabelVisible: true,
+      visibleInPlayer: true
+    } as const;
+
+    expect(getTemplateLabel({ ...base, kind: "line" }, scene)).toBe("25 feet");
+    expect(getTemplateLabel({ ...base, kind: "circle" }, scene)).toBe("25 feet radius");
+    expect(getTemplateLabel({ ...base, kind: "cone" }, scene)).toBe("25 feet cone");
+  });
+
+  it("uses the dragged point as the cone template far-edge center", () => {
+    const triangle = getConeTriangle([
+      { x: 0, y: 0 },
+      { x: 200, y: 0 }
+    ]);
+
+    expect(triangle).not.toBeNull();
+    const [, left, right] = triangle!;
+    expect({ x: (left.x + right.x) / 2, y: (left.y + right.y) / 2 }).toEqual({ x: 200, y: 0 });
+    expect(Math.hypot(left.x - right.x, left.y - right.y)).toBe(200);
   });
 });
 

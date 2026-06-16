@@ -38,6 +38,27 @@ export type DrawingPreview = {
 
 export type DrawingPointOverrides = Map<string, Point[]>;
 
+type TemplateEffectAsset = {
+  effect: string;
+  image: HTMLImageElement;
+  loaded: boolean;
+  url: string;
+};
+
+type PlacedTemplateAsset = {
+  angle: number;
+  alpha: number;
+  asset: TemplateEffectAsset;
+  height: number;
+  width: number;
+  x: number;
+  y: number;
+};
+
+const TEMPLATE_EFFECT_ASSET_READY_EVENT = "localvtt-template-effect-assets-ready";
+const templateEffectAssetUrls = import.meta.glob("../assets/template-effects/*/*.svg", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
+const templateEffectAssetCache = createTemplateEffectAssetCache(templateEffectAssetUrls);
+
 export function drawDrawings(
   ctx: CanvasRenderingContext2D,
   scene: Scene,
@@ -295,12 +316,22 @@ function drawRectangle(ctx: CanvasRenderingContext2D, points: Point[], drawing: 
     ctx.closePath();
     fillCurrentTemplatePath(ctx, drawing, layerOpacity);
     ctx.stroke();
+    drawTemplateAssetOverlay(ctx, drawing, layerOpacity);
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    ctx.lineTo(points[1].x, points[1].y);
+    ctx.lineTo(points[2].x, points[2].y);
+    ctx.lineTo(points[3].x, points[3].y);
+    ctx.closePath();
+    ctx.stroke();
     return;
   }
   const [start, end] = points;
   fillTemplateShape(ctx, drawing, layerOpacity, () => {
     ctx.rect(start.x, start.y, end.x - start.x, end.y - start.y);
   });
+  ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
+  drawTemplateAssetOverlay(ctx, drawing, layerOpacity);
   ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
 }
 
@@ -312,6 +343,10 @@ function drawCircle(ctx: CanvasRenderingContext2D, points: Point[], drawing: Dra
   ctx.beginPath();
   ctx.arc(start.x, start.y, distanceBetweenPoints(start, end), 0, Math.PI * 2);
   fillCurrentTemplatePath(ctx, drawing, layerOpacity);
+  ctx.stroke();
+  drawTemplateAssetOverlay(ctx, drawing, layerOpacity);
+  ctx.beginPath();
+  ctx.arc(start.x, start.y, distanceBetweenPoints(start, end), 0, Math.PI * 2);
   ctx.stroke();
   if (drawing.measurementLabelVisible) {
     drawCenterPoint(ctx, start, drawing);
@@ -337,6 +372,13 @@ function drawCone(ctx: CanvasRenderingContext2D, points: Point[], drawing: Drawi
   ctx.lineTo(right.x, right.y);
   ctx.closePath();
   fillCurrentTemplatePath(ctx, drawing, layerOpacity);
+  ctx.stroke();
+  drawTemplateAssetOverlay(ctx, drawing, layerOpacity);
+  ctx.beginPath();
+  ctx.moveTo(origin.x, origin.y);
+  ctx.lineTo(left.x, left.y);
+  ctx.lineTo(right.x, right.y);
+  ctx.closePath();
   ctx.stroke();
   if (drawing.measurementLabelVisible) {
     const oppositeCenter = { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2 };
@@ -451,7 +493,7 @@ function applyDrawingStrokeStyle(ctx: CanvasRenderingContext2D, style: DrawingSt
   ctx.setLineDash([]);
 }
 
-function getConeTriangle(points: Point[]): [Point, Point, Point] | null {
+export function getConeTriangle(points: Point[]): [Point, Point, Point] | null {
   if (points.length < 2) {
     return null;
   }
@@ -461,16 +503,17 @@ function getConeTriangle(points: Point[]): [Point, Point, Point] | null {
     return null;
   }
   const angle = Math.atan2(end.y - start.y, end.x - start.x);
-  const halfAngle = Math.PI / 6;
+  const perpendicularAngle = angle + Math.PI / 2;
+  const halfWidth = distance / 2;
   return [
     start,
     {
-      x: start.x + Math.cos(angle - halfAngle) * distance,
-      y: start.y + Math.sin(angle - halfAngle) * distance
+      x: end.x + Math.cos(perpendicularAngle) * halfWidth,
+      y: end.y + Math.sin(perpendicularAngle) * halfWidth
     },
     {
-      x: start.x + Math.cos(angle + halfAngle) * distance,
-      y: start.y + Math.sin(angle + halfAngle) * distance
+      x: end.x - Math.cos(perpendicularAngle) * halfWidth,
+      y: end.y - Math.sin(perpendicularAngle) * halfWidth
     }
   ];
 }
@@ -619,10 +662,256 @@ function getTemplateEffectStyle(effect: DrawingTemplateEffect): { stroke: string
       return { stroke: "#c084fc", fill: "#4c1d95", fillOpacity: 0.14, highlightFill: "rgb(76 29 149 / 0.18)", highlightStroke: "rgb(216 180 254 / 0.38)", dash: [22, 5] };
     case "water":
       return { stroke: "#38bdf8", fill: "#0ea5e9", fillOpacity: 0.16, highlightFill: "rgb(14 165 233 / 0.18)", highlightStroke: "rgb(186 230 253 / 0.36)", dash: [12, 5] };
+    case "web":
+      return { stroke: "#f8fafc", fill: "#cbd5e1", fillOpacity: 0, highlightFill: "rgb(203 213 225 / 0.2)", highlightStroke: "rgb(248 250 252 / 0.45)", dash: [4, 6, 14, 6] };
     case "plain":
     default:
       return { stroke: "#7dd3fc", fill: "#7dd3fc", fillOpacity: 0.08, highlightFill: "rgb(122 162 247 / 0.18)", highlightStroke: "rgb(255 255 255 / 0.34)" };
   }
+}
+
+function drawTemplateAssetOverlay(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
+  if (drawing.id === "preview" || drawing.templateEffect !== "web" || (drawing.kind !== "circle" && drawing.kind !== "rectangle" && drawing.kind !== "cone")) {
+    return;
+  }
+  const assets = templateEffectAssetCache.get("web")?.filter((asset) => asset.loaded && asset.image.naturalWidth > 0 && asset.image.naturalHeight > 0) ?? [];
+  if (assets.length === 0) {
+    return;
+  }
+  const bounds = getDrawingBounds(drawing);
+  if (!bounds) {
+    return;
+  }
+  const width = bounds.right - bounds.left;
+  const height = bounds.bottom - bounds.top;
+  if (width <= 0 || height <= 0) {
+    return;
+  }
+
+  const random = createSeededRandom(hashString(`${drawing.id}:${drawing.kind}:${drawing.templateEffect}:${pointsSeed(drawing.points)}`));
+  const placementCount = Math.max(5, Math.min(14, Math.round((width * height) / 42000)));
+  const placements = createTemplateAssetPlacements(drawing, bounds, assets, placementCount, random);
+  const bands = 7;
+  const innerScale = 0.58;
+  ctx.save();
+  for (let bandIndex = 0; bandIndex < bands; bandIndex += 1) {
+    const outerScale = 1 - ((1 - innerScale) * bandIndex) / bands;
+    const bandInnerScale = 1 - ((1 - innerScale) * (bandIndex + 1)) / bands;
+    const fade = 1 - bandIndex / bands;
+    ctx.save();
+    ctx.beginPath();
+    traceTemplatePath(ctx, drawing, outerScale);
+    traceTemplatePath(ctx, drawing, bandInnerScale);
+    ctx.clip("evenodd");
+    ctx.globalAlpha = Math.max(0.04, Math.min(0.86, layerOpacity * fade * fade));
+    for (const placement of placements) {
+      drawPlacedTemplateAsset(ctx, placement);
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function createTemplateAssetPlacements(
+  drawing: DrawingElement,
+  bounds: { left: number; top: number; right: number; bottom: number },
+  assets: TemplateEffectAsset[],
+  count: number,
+  random: () => number
+): PlacedTemplateAsset[] {
+  const width = bounds.right - bounds.left;
+  const height = bounds.bottom - bounds.top;
+  const baseSize = Math.max(width, height);
+  const placements: PlacedTemplateAsset[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const asset = assets[Math.floor(random() * assets.length) % assets.length];
+    const point = getTemplateEdgeBandPoint(drawing, bounds, index, count, random);
+    const targetWidth = baseSize * (0.34 + random() * 0.34);
+    const aspect = asset.image.naturalHeight > 0 ? asset.image.naturalWidth / asset.image.naturalHeight : 1;
+    placements.push({
+      angle: (random() - 0.5) * Math.PI * 1.85,
+      alpha: 0.58 + random() * 0.32,
+      asset,
+      height: targetWidth / Math.max(0.2, aspect),
+      width: targetWidth,
+      x: point.x,
+      y: point.y
+    });
+  }
+  return placements;
+}
+
+function getTemplateEdgeBandPoint(
+  drawing: DrawingElement,
+  bounds: { left: number; top: number; right: number; bottom: number },
+  index: number,
+  count: number,
+  random: () => number
+): Point {
+  if (drawing.kind === "circle") {
+    const [center, edge] = drawing.points;
+    if (center && edge) {
+      const radius = distanceBetweenPoints(center, edge);
+      const angle = (Math.PI * 2 * (index + random() * 0.7)) / count;
+      const distance = radius * (0.68 + random() * 0.25);
+      return { x: center.x + Math.cos(angle) * distance, y: center.y + Math.sin(angle) * distance };
+    }
+  }
+
+  const polygon = drawing.kind === "cone" ? getConeTriangle(drawing.points) : drawing.kind === "rectangle" ? (drawing.points.length >= 4 ? drawing.points.slice(0, 4) : getRectanglePathPoints(drawing.points)) : null;
+  if (polygon && polygon.length >= 3) {
+    return getPolygonEdgeBandPoint(polygon, index, count, random);
+  }
+
+  return {
+    x: bounds.left + random() * (bounds.right - bounds.left),
+    y: bounds.top + random() * (bounds.bottom - bounds.top)
+  };
+}
+
+function getPolygonEdgeBandPoint(points: Point[], index: number, count: number, random: () => number): Point {
+  const center = {
+    x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
+    y: points.reduce((sum, point) => sum + point.y, 0) / points.length
+  };
+  const edgeIndex = index % points.length;
+  const start = points[edgeIndex];
+  const end = points[(edgeIndex + 1) % points.length];
+  const t = ((Math.floor(index / points.length) + random() * 0.85) / Math.max(1, Math.ceil(count / points.length))) % 1;
+  const edgePoint = { x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t };
+  const inset = 0.08 + random() * 0.24;
+  return {
+    x: edgePoint.x + (center.x - edgePoint.x) * inset,
+    y: edgePoint.y + (center.y - edgePoint.y) * inset
+  };
+}
+
+function drawPlacedTemplateAsset(ctx: CanvasRenderingContext2D, placement: PlacedTemplateAsset) {
+  ctx.save();
+  ctx.translate(placement.x, placement.y);
+  ctx.rotate(placement.angle);
+  ctx.globalAlpha *= placement.alpha;
+  ctx.drawImage(placement.asset.image, -placement.width / 2, -placement.height / 2, placement.width, placement.height);
+  ctx.restore();
+}
+
+function traceTemplatePath(ctx: CanvasRenderingContext2D, drawing: DrawingElement, scale: number) {
+  if (drawing.kind === "circle") {
+    const [center, edge] = drawing.points;
+    if (!center || !edge) {
+      return;
+    }
+    ctx.arc(center.x, center.y, distanceBetweenPoints(center, edge) * scale, 0, Math.PI * 2);
+    return;
+  }
+  if (drawing.kind === "rectangle") {
+    const points = drawing.points.length >= 4 ? drawing.points.slice(0, 4) : getRectanglePathPoints(drawing.points);
+    traceClosedPath(ctx, scalePointsToCenter(points, scale));
+    return;
+  }
+  if (drawing.kind === "cone") {
+    const triangle = getConeTriangle(drawing.points);
+    if (triangle) {
+      traceClosedPath(ctx, scalePointsToCenter(triangle, scale));
+    }
+  }
+}
+
+function getRectanglePathPoints(points: Point[]): Point[] {
+  const [start, end] = points;
+  if (!start || !end) {
+    return [];
+  }
+  return [
+    { x: start.x, y: start.y },
+    { x: end.x, y: start.y },
+    { x: end.x, y: end.y },
+    { x: start.x, y: end.y }
+  ];
+}
+
+function scalePointsToCenter(points: Point[], scale: number): Point[] {
+  if (points.length === 0) {
+    return [];
+  }
+  const center = {
+    x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
+    y: points.reduce((sum, point) => sum + point.y, 0) / points.length
+  };
+  return points.map((point) => ({
+    x: center.x + (point.x - center.x) * scale,
+    y: center.y + (point.y - center.y) * scale
+  }));
+}
+
+function traceClosedPath(ctx: CanvasRenderingContext2D, points: Point[]) {
+  if (points.length === 0) {
+    return;
+  }
+  ctx.moveTo(points[0].x, points[0].y);
+  for (const point of points.slice(1)) {
+    ctx.lineTo(point.x, point.y);
+  }
+  ctx.closePath();
+}
+
+function createTemplateEffectAssetCache(urls: Record<string, string>): Map<string, TemplateEffectAsset[]> {
+  const cache = new Map<string, TemplateEffectAsset[]>();
+  if (typeof Image === "undefined") {
+    return cache;
+  }
+  for (const [path, url] of Object.entries(urls).sort(([left], [right]) => left.localeCompare(right))) {
+    const effect = getTemplateEffectNameFromPath(path);
+    if (!effect) {
+      continue;
+    }
+    const image = new Image();
+    const asset: TemplateEffectAsset = { effect, image, loaded: false, url };
+    image.onload = () => {
+      asset.loaded = true;
+      window.dispatchEvent(new Event(TEMPLATE_EFFECT_ASSET_READY_EVENT));
+    };
+    image.src = url;
+    if (image.complete && image.naturalWidth > 0) {
+      asset.loaded = true;
+    }
+    const assets = cache.get(effect) ?? [];
+    assets.push(asset);
+    cache.set(effect, assets);
+  }
+  return cache;
+}
+
+function getTemplateEffectNameFromPath(path: string): string | null {
+  const normalized = path.replaceAll("\\", "/");
+  const match = normalized.match(/template-effects\/([^/]+)\/[^/]+\.svg$/);
+  return match?.[1] ?? null;
+}
+
+function pointsSeed(points: Point[]): string {
+  return points.map((point) => `${Math.round(point.x * 10)},${Math.round(point.y * 10)}`).join("|");
+}
+
+function hashString(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function createSeededRandom(seed: number): () => number {
+  let state = seed || 1;
+  return () => {
+    state = Math.imul(1664525, state) + 1013904223;
+    return (state >>> 0) / 4294967296;
+  };
+}
+
+export function addTemplateEffectAssetLoadListener(listener: () => void): () => void {
+  window.addEventListener(TEMPLATE_EFFECT_ASSET_READY_EVENT, listener);
+  return () => window.removeEventListener(TEMPLATE_EFFECT_ASSET_READY_EVENT, listener);
 }
 
 function drawTemplateLabelHalo(ctx: CanvasRenderingContext2D, label: string, scale: number) {
@@ -973,14 +1262,15 @@ function tracePointyHex(ctx: CanvasRenderingContext2D, x: number, y: number, rad
   ctx.closePath();
 }
 
-function getTemplateLabel(drawing: DrawingElement, scene: Scene): string | null {
+export function getTemplateLabel(drawing: DrawingElement, scene: Scene): string | null {
   const [start, end] = drawing.points;
   if (!start || !end) {
     return null;
   }
   const distance = getStraightLineMeasurementDistance(start, end, scene.grid);
   if (drawing.kind === "rectangle") {
-    return `${formatMeasurementDistance(distance, scene.grid.measurement, scene.grid.type)} square`;
+    const squareSideDistance = getTemplateRectangleSideDistance(start, end, scene);
+    return `${formatMeasurementDistance(squareSideDistance, scene.grid.measurement, scene.grid.type)} square`;
   }
   if (drawing.kind === "circle") {
     return `${formatMeasurementDistance(distance, scene.grid.measurement, scene.grid.type)} radius`;
@@ -989,6 +1279,14 @@ function getTemplateLabel(drawing: DrawingElement, scene: Scene): string | null 
     return `${formatMeasurementDistance(distance, scene.grid.measurement, scene.grid.type)} cone`;
   }
   return formatMeasurementDistance(distance, scene.grid.measurement, scene.grid.type);
+}
+
+function getTemplateRectangleSideDistance(start: Point, end: Point, scene: Scene): number {
+  const sideLengthPx = Math.max(Math.abs(end.x - start.x), Math.abs(end.y - start.y));
+  if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
+    return sideLengthPx;
+  }
+  return (sideLengthPx / scene.grid.sizePx) * scene.grid.measurement.unitsPerGridCell;
 }
 
 function getTemplateLabelPosition(drawing: DrawingElement): { position: Point; angle: number } {
