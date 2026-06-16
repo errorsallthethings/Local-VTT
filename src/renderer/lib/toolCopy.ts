@@ -1,7 +1,7 @@
 import type { FogTool } from "../canvas/fogRenderer";
 import type { DrawingTool } from "../canvas/drawingRenderer";
 
-export const FOG_GRID_SNAP_HINT = "Ctrl/Cmd snaps to the nearest grid center or corner.";
+export const FOG_GRID_SNAP_HINT = "Ctrl/Cmd snaps to the nearest grid center, corner, or edge midpoint.";
 export const RULER_GRID_SNAP_HINT = "Ctrl/Cmd snaps to square or hex centers.";
 export const SHIFT_WAYPOINT_HINT = "Shift adds a waypoint.";
 export const RULER_CLEAR_HINT = "Right-click removes last waypoint. Escape clears.";

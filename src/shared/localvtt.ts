@@ -1567,7 +1567,7 @@ function normalizeDrawings(drawings?: DrawingElement[]): DrawingElement[] {
       fillOpacity: clampNumber(drawing.fillOpacity ?? (typeof drawing.fill === "string" ? drawing.opacity : 0), 0, 1, 0),
       strokeStyle: normalizeDrawingStrokeStyle(drawing.strokeStyle),
       templateEffect: isTemplateDrawing ? normalizeDrawingTemplateEffect(drawing.templateEffect) : "plain",
-      templateWidth: isTemplateDrawing ? clampNumber(drawing.templateWidth, 1, 100, 5) : 5,
+      templateWidth: isTemplateDrawing ? clampNumber(drawing.templateWidth, 0, 100, 5) : 5,
       templateFootprintVisible: isTemplateDrawing ? drawing.templateFootprintVisible === true : undefined,
       measurementLabelVisible: typeof drawing.measurementLabelVisible === "boolean" ? drawing.measurementLabelVisible : undefined,
       visibleInGm: typeof drawing.visibleInGm === "boolean" ? drawing.visibleInGm : true,

@@ -9,7 +9,7 @@ import {
   normalizeBrushPoints,
   shouldAddBrushPoint
 } from "../../src/renderer/canvas/fogRenderer";
-import { getNearestGridPoint } from "../../src/renderer/canvas/gridMath";
+import { getNearestGridPoint, getNearestSquareGridSnapPoint } from "../../src/renderer/canvas/gridMath";
 import { resolveMapTransform } from "../../src/renderer/canvas/mapRenderer";
 import { createDefaultScene } from "../../src/shared/localvtt";
 
@@ -48,6 +48,30 @@ it("getNearestGridPoint returns null for gridless or invalid grids", () => {
   const grid = createDefaultScene("Gridless").grid;
   expect(getNearestGridPoint({ x: 10, y: 10 }, grid)).toBeNull();
   expect(getNearestGridPoint({ x: 10, y: 10 }, { ...grid, type: "square", sizePx: 0 })).toBeNull();
+});
+
+it("getNearestSquareGridSnapPoint includes square centers, corners, and edge midpoints", () => {
+  const grid = {
+    type: "square",
+    sizePx: 50,
+    offsetX: 10,
+    offsetY: 20,
+    mapGridColumns: 44,
+    mapGridRows: 25,
+    color: "#fff",
+    opacity: 1,
+    lineThickness: 1,
+    showOnGm: true,
+    showOnPlayer: true,
+    measurement: { unit: "feet", unitsPerGridCell: 5, distanceMode: "euclidean" }
+  } as const;
+
+  expect(getNearestSquareGridSnapPoint({ x: 34, y: 44 }, grid)).toEqual({ x: 35, y: 45 });
+  expect(getNearestSquareGridSnapPoint({ x: 11, y: 21 }, grid)).toEqual({ x: 10, y: 20 });
+  expect(getNearestSquareGridSnapPoint({ x: 35, y: 19 }, grid)).toEqual({ x: 35, y: 20 });
+  expect(getNearestSquareGridSnapPoint({ x: 60, y: 46 }, grid)).toEqual({ x: 60, y: 45 });
+  expect(getNearestSquareGridSnapPoint({ x: 36, y: 70 }, grid)).toEqual({ x: 35, y: 70 });
+  expect(getNearestSquareGridSnapPoint({ x: 9, y: 44 }, grid)).toEqual({ x: 10, y: 45 });
 });
 
 it("resolveMapTransform centers contain, cover, and actual-size fit modes", () => {

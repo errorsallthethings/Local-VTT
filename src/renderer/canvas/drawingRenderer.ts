@@ -107,7 +107,7 @@ export function drawDrawings(
     }
     const overridePoints = mode === "gm" ? drawingPointOverrides?.get(drawing.id) : null;
     const renderDrawing = overridePoints ? { ...drawing, points: overridePoints } : drawing;
-    drawDrawingElement(ctx, renderDrawing, scene, layerOpacity, zoom);
+    drawDrawingElement(ctx, renderDrawing, scene, layerOpacity, selectedDrawingIds.has(drawing.id) || drawing.id === "template-preview");
     if (mode === "gm" && selectedDrawingIds.has(drawing.id)) {
       const selectionOverridePoints = selectionPointOverrides?.get(drawing.id);
       drawDrawingSelection(ctx, selectionOverridePoints ? { ...drawing, points: selectionOverridePoints } : renderDrawing, zoom);
@@ -138,7 +138,7 @@ export function drawDrawings(
       },
       scene,
       layerOpacity,
-      zoom
+      true
     );
   }
   ctx.restore();
@@ -200,7 +200,7 @@ export function getDrawingAtPoint(drawings: DrawingElement[], point: Point, hitR
   return null;
 }
 
-function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingElement, scene: Scene, layerOpacity: number, zoom: number) {
+function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingElement, scene: Scene, layerOpacity: number, showTemplateLabel: boolean) {
   const points = drawing.points;
   if (points.length === 0) {
     return;
@@ -220,7 +220,7 @@ function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingEleme
   }
 
   if (drawing.kind === "line") {
-    drawLine(ctx, points);
+    drawLine(ctx, points, drawing, scene.grid, layerOpacity, showTemplateLabel);
   } else if (drawing.kind === "rectangle") {
     drawRectangle(ctx, points, drawing, layerOpacity);
   } else if (drawing.kind === "circle") {
@@ -239,7 +239,9 @@ function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingEleme
   if (drawing.measurementLabelVisible && drawing.templateFootprintVisible === true) {
     drawTemplateGridHighlights(ctx, drawing, scene.grid);
   }
-  drawTemplateLabel(ctx, drawing, scene, zoom);
+  if (showTemplateLabel) {
+    drawTemplateLabel(ctx, drawing, scene);
+  }
   ctx.restore();
 }
 
@@ -303,14 +305,38 @@ function isPointNearEllipse(drawing: DrawingElement, point: Point, hitRadius: nu
   return normalizedDistance <= 1 || Math.abs(normalizedDistance - 1) <= tolerance;
 }
 
-function drawLine(ctx: CanvasRenderingContext2D, points: Point[]) {
+function drawLine(ctx: CanvasRenderingContext2D, points: Point[], drawing: DrawingElement, grid: GridSettings, layerOpacity: number, showCenterGuide: boolean) {
   if (points.length < 2) {
     return;
   }
+  if (drawing.measurementLabelVisible) {
+    const corridor = getLineTemplateCorridorPoints(drawing, 1, grid);
+    if (!corridor) {
+      drawLinePath(ctx, points);
+      ctx.stroke();
+      return;
+    }
+    ctx.beginPath();
+    traceClosedPath(ctx, corridor);
+    fillCurrentTemplatePath(ctx, drawing, layerOpacity);
+    ctx.stroke();
+    drawTemplateAssetOverlay(ctx, drawing, layerOpacity, grid);
+    ctx.beginPath();
+    traceClosedPath(ctx, corridor);
+    ctx.stroke();
+    if (showCenterGuide) {
+      drawDashedGuide(ctx, points[0], points[1], drawing);
+    }
+    return;
+  }
+  drawLinePath(ctx, points);
+  ctx.stroke();
+}
+
+function drawLinePath(ctx: CanvasRenderingContext2D, points: Point[]) {
   ctx.beginPath();
   ctx.moveTo(points[0].x, points[0].y);
   ctx.lineTo(points[1].x, points[1].y);
-  ctx.stroke();
 }
 
 function drawPath(ctx: CanvasRenderingContext2D, points: Point[]) {
@@ -607,7 +633,7 @@ function distanceToSegment(point: Point, start: Point, end: Point): number {
   });
 }
 
-function drawTemplateLabel(ctx: CanvasRenderingContext2D, drawing: DrawingElement, scene: Scene, zoom: number) {
+function drawTemplateLabel(ctx: CanvasRenderingContext2D, drawing: DrawingElement, scene: Scene) {
   if (drawing.measurementLabelVisible === false) {
     return;
   }
@@ -622,10 +648,10 @@ function drawTemplateLabel(ctx: CanvasRenderingContext2D, drawing: DrawingElemen
     return;
   }
   const { position, angle } = getTemplateLabelPosition(drawing);
-  const scale = 1 / Math.max(0.1, zoom);
+  const scale = 1;
   ctx.save();
   ctx.globalAlpha = 1;
-  ctx.font = `800 ${Math.round(18 * scale)}px Inter, system-ui, sans-serif`;
+  ctx.font = `800 ${Math.round(48 * scale)}px Inter, system-ui, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.translate(position.x, position.y);
@@ -734,16 +760,16 @@ function getTemplateEffectStyle(effect: DrawingTemplateEffect): { stroke: string
   }
 }
 
-function drawTemplateAssetOverlay(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
+function drawTemplateAssetOverlay(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number, grid?: GridSettings) {
   const effect = drawing.templateEffect ?? "plain";
-  if (drawing.id === "preview" || (effect !== "web" && effect !== "poison" && effect !== "acid" && effect !== "arcane" && effect !== "cold" && effect !== "lightning" && effect !== "fire" && effect !== "fog" && effect !== "darkness" && effect !== "nature" && effect !== "psychic" && effect !== "radiant" && effect !== "storm" && effect !== "thunder" && effect !== "water") || (drawing.kind !== "circle" && drawing.kind !== "rectangle" && drawing.kind !== "cone")) {
+  if (drawing.id === "preview" || (effect !== "web" && effect !== "poison" && effect !== "acid" && effect !== "arcane" && effect !== "cold" && effect !== "lightning" && effect !== "fire" && effect !== "fog" && effect !== "darkness" && effect !== "nature" && effect !== "psychic" && effect !== "radiant" && effect !== "storm" && effect !== "thunder" && effect !== "water") || (drawing.kind !== "line" && drawing.kind !== "circle" && drawing.kind !== "rectangle" && drawing.kind !== "cone")) {
     return;
   }
   const renderables = getTemplateEffectRenderables(effect);
   if (renderables.length === 0) {
     return;
   }
-  const bounds = getDrawingBounds(drawing);
+  const bounds = getTemplateEffectBounds(drawing, grid);
   if (!bounds) {
     return;
   }
@@ -753,7 +779,7 @@ function drawTemplateAssetOverlay(ctx: CanvasRenderingContext2D, drawing: Drawin
     return;
   }
 
-  const overlay = getTemplateEffectOverlay(drawing, bounds, renderables, layerOpacity);
+  const overlay = getTemplateEffectOverlay(drawing, bounds, renderables, layerOpacity, grid);
   if (!overlay) {
     return;
   }
@@ -764,12 +790,13 @@ function getTemplateEffectOverlay(
   drawing: DrawingElement,
   bounds: { left: number; top: number; right: number; bottom: number },
   renderables: TemplateEffectRenderable[],
-  layerOpacity: number
+  layerOpacity: number,
+  grid?: GridSettings
 ): TemplateEffectOverlayCacheEntry | null {
   if (typeof document === "undefined") {
     return null;
   }
-  const cacheKey = getTemplateEffectOverlayCacheKey(drawing, bounds, renderables, layerOpacity);
+  const cacheKey = getTemplateEffectOverlayCacheKey(drawing, bounds, renderables, layerOpacity, grid);
   const cached = templateEffectOverlayCache.get(cacheKey);
   if (cached) {
     templateEffectOverlayCache.delete(cacheKey);
@@ -792,7 +819,7 @@ function getTemplateEffectOverlay(
 
   const random = createSeededRandom(hashString(`${drawing.id}:${drawing.kind}:${drawing.templateEffect}:${pointsSeed(drawing.points)}`));
   const placementCount = Math.max(5, Math.min(14, Math.round((width * height) / 42000)));
-  const placements = createTemplateAssetPlacements(drawing, bounds, renderables, placementCount, random);
+  const placements = createTemplateAssetPlacements(drawing, bounds, renderables, placementCount, random, grid);
   const bands = 7;
   const innerScale = 0.58;
   overlayCtx.save();
@@ -803,8 +830,8 @@ function getTemplateEffectOverlay(
     const fade = 1 - bandIndex / bands;
     overlayCtx.save();
     overlayCtx.beginPath();
-    traceTemplatePath(overlayCtx, drawing, outerScale);
-    traceTemplatePath(overlayCtx, drawing, bandInnerScale);
+    traceTemplateEffectPath(overlayCtx, drawing, outerScale, grid);
+    traceTemplateEffectPath(overlayCtx, drawing, bandInnerScale, grid);
     overlayCtx.clip("evenodd");
     overlayCtx.globalAlpha = Math.max(0.04, Math.min(0.86, layerOpacity * fade * fade));
     for (const placement of placements) {
@@ -824,8 +851,10 @@ function getTemplateEffectOverlayCacheKey(
   drawing: DrawingElement,
   bounds: { left: number; top: number; right: number; bottom: number },
   renderables: TemplateEffectRenderable[],
-  layerOpacity: number
+  layerOpacity: number,
+  grid?: GridSettings
 ): string {
+  const lineWidthPx = drawing.kind === "line" ? getLineTemplateEffectWidthPixels(drawing, grid) : 0;
   return [
     drawing.id,
     drawing.kind,
@@ -834,6 +863,7 @@ function getTemplateEffectOverlayCacheKey(
     drawing.opacity,
     drawing.strokeWidth,
     drawing.templateWidth ?? 5,
+    Math.round(lineWidthPx * 10),
     Math.round(layerOpacity * 1000),
     Math.round(bounds.left),
     Math.round(bounds.top),
@@ -852,6 +882,34 @@ function trimTemplateEffectOverlayCache() {
     }
     templateEffectOverlayCache.delete(oldestKey);
   }
+}
+
+function getTemplateEffectBounds(drawing: DrawingElement, grid?: GridSettings): { left: number; top: number; right: number; bottom: number } | null {
+  const bounds = getDrawingBounds(drawing);
+  if (!bounds) {
+    return null;
+  }
+  if (drawing.kind !== "line") {
+    return bounds;
+  }
+  const padding = getLineTemplateEffectWidthPixels(drawing, grid) / 2 + TEMPLATE_EFFECT_RENDERABLE_WIDTH_PX * 0.08;
+  return {
+    left: bounds.left - padding,
+    top: bounds.top - padding,
+    right: bounds.right + padding,
+    bottom: bounds.bottom + padding
+  };
+}
+
+function getLineTemplateEffectWidthPixels(drawing: DrawingElement, grid?: GridSettings): number {
+  const widthFeet = drawing.templateWidth ?? 5;
+  if (widthFeet <= 0) {
+    return 0;
+  }
+  if (grid && grid.type !== "gridless" && grid.sizePx > 0 && grid.measurement.unitsPerGridCell > 0) {
+    return (widthFeet / grid.measurement.unitsPerGridCell) * grid.sizePx;
+  }
+  return Math.max(drawing.strokeWidth * 1.8, widthFeet * 10);
 }
 
 function getTemplateEffectRenderables(effect: DrawingTemplateEffect): TemplateEffectRenderable[] {
@@ -2313,16 +2371,17 @@ function createTemplateAssetPlacements(
   bounds: { left: number; top: number; right: number; bottom: number },
   renderables: TemplateEffectRenderable[],
   count: number,
-  random: () => number
+  random: () => number,
+  grid?: GridSettings
 ): PlacedTemplateAsset[] {
   const placements: PlacedTemplateAsset[] = [];
   for (let index = 0; index < count; index += 1) {
     const asset = renderables[Math.floor(random() * renderables.length) % renderables.length];
-    const point = getTemplateEdgeBandPoint(drawing, bounds, index, count, random);
+    const point = getTemplateEdgeBandPoint(drawing, bounds, index, count, random, grid);
     const targetWidth = TEMPLATE_EFFECT_RENDERABLE_WIDTH_PX * (0.78 + random() * 0.5);
     const aspect = asset.naturalHeight > 0 ? asset.naturalWidth / asset.naturalHeight : 1;
     placements.push({
-      angle: (random() - 0.5) * Math.PI * 1.85,
+      angle: getTemplateEffectPlacementAngle(drawing, random),
       alpha: 0.58 + random() * 0.32,
       height: targetWidth / Math.max(0.2, aspect),
       image: asset.image,
@@ -2339,8 +2398,24 @@ function getTemplateEdgeBandPoint(
   bounds: { left: number; top: number; right: number; bottom: number },
   index: number,
   count: number,
-  random: () => number
+  random: () => number,
+  grid?: GridSettings
 ): Point {
+  if (drawing.kind === "line") {
+    const [start, end] = drawing.points;
+    if (start && end) {
+      const length = distanceBetweenPoints(start, end);
+      if (length > 0.001) {
+        const t = (index + random() * 0.8) / Math.max(1, count);
+        const corridorWidth = getLineTemplateEffectWidthPixels(drawing, grid);
+        const normal = { x: -(end.y - start.y) / length, y: (end.x - start.x) / length };
+        const center = { x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t };
+        const offset = (random() - 0.5) * corridorWidth * 0.72;
+        return { x: center.x + normal.x * offset, y: center.y + normal.y * offset };
+      }
+    }
+  }
+
   if (drawing.kind === "circle") {
     const [center, edge] = drawing.points;
     if (center && edge) {
@@ -2360,6 +2435,16 @@ function getTemplateEdgeBandPoint(
     x: bounds.left + random() * (bounds.right - bounds.left),
     y: bounds.top + random() * (bounds.bottom - bounds.top)
   };
+}
+
+function getTemplateEffectPlacementAngle(drawing: DrawingElement, random: () => number): number {
+  if (drawing.kind === "line") {
+    const [start, end] = drawing.points;
+    if (start && end) {
+      return Math.atan2(end.y - start.y, end.x - start.x) + (random() - 0.5) * 0.55;
+    }
+  }
+  return (random() - 0.5) * Math.PI * 1.85;
 }
 
 function getPolygonEdgeBandPoint(points: Point[], index: number, count: number, random: () => number): Point {
@@ -2388,7 +2473,11 @@ function drawPlacedTemplateAsset(ctx: CanvasRenderingContext2D, placement: Place
   ctx.restore();
 }
 
-function traceTemplatePath(ctx: CanvasRenderingContext2D, drawing: DrawingElement, scale: number) {
+function traceTemplateEffectPath(ctx: CanvasRenderingContext2D, drawing: DrawingElement, scale: number, grid?: GridSettings) {
+  if (drawing.kind === "line") {
+    traceLineTemplateCorridor(ctx, drawing, scale, grid);
+    return;
+  }
   if (drawing.kind === "circle") {
     const [center, edge] = drawing.points;
     if (!center || !edge) {
@@ -2408,6 +2497,36 @@ function traceTemplatePath(ctx: CanvasRenderingContext2D, drawing: DrawingElemen
       traceClosedPath(ctx, scalePointsToCenter(triangle, scale));
     }
   }
+}
+
+function traceLineTemplateCorridor(ctx: CanvasRenderingContext2D, drawing: DrawingElement, scale: number, grid?: GridSettings) {
+  const points = getLineTemplateCorridorPoints(drawing, scale, grid);
+  if (!points) {
+    return;
+  }
+  traceClosedPath(ctx, points);
+}
+
+function getLineTemplateCorridorPoints(drawing: DrawingElement, scale = 1, grid?: GridSettings): Point[] | null {
+  const [start, end] = drawing.points;
+  if (!start || !end) {
+    return null;
+  }
+  const length = distanceBetweenPoints(start, end);
+  if (length <= 0.001) {
+    return null;
+  }
+  const halfWidth = (getLineTemplateEffectWidthPixels(drawing, grid) / 2) * scale;
+  if (halfWidth <= 0) {
+    return null;
+  }
+  const normal = { x: (-(end.y - start.y) / length) * halfWidth, y: ((end.x - start.x) / length) * halfWidth };
+  return [
+    { x: start.x + normal.x, y: start.y + normal.y },
+    { x: end.x + normal.x, y: end.y + normal.y },
+    { x: end.x - normal.x, y: end.y - normal.y },
+    { x: start.x - normal.x, y: start.y - normal.y }
+  ];
 }
 
 function getRectanglePathPoints(points: Point[]): Point[] {
@@ -2558,7 +2677,14 @@ function isSquareGridCellInsideTemplate(center: Point, drawing: DrawingElement, 
 
   if (drawing.kind === "line") {
     const [start, end] = drawing.points;
-    return start && end ? distanceToSegment(center, start, end) <= getTemplateWidthPixels(drawing, grid) / 2 + 0.0001 : false;
+    if (!start || !end) {
+      return false;
+    }
+    const corridor = getLineTemplateCorridorPoints(drawing, 1, grid);
+    if (corridor) {
+      return doesRectIntersectPolygon(rect, corridor);
+    }
+    return distanceToSegment(center, start, end) <= 0.0001;
   }
   if (drawing.kind === "circle") {
     const [origin, edge] = drawing.points;
@@ -2623,7 +2749,7 @@ function getTemplateHexHighlightCells(
 }
 
 export function getDrawingBounds(drawing: DrawingElement): { left: number; top: number; right: number; bottom: number } | null {
-  const points = getShapePoints(drawing);
+  const points = drawing.measurementLabelVisible && drawing.kind === "line" ? (getLineTemplateCorridorPoints(drawing) ?? drawing.points) : getShapePoints(drawing);
   if (points.length === 0) {
     return null;
   }
@@ -2709,7 +2835,7 @@ function getTemplateHitRadius(drawing: DrawingElement, grid: GridSettings): numb
 }
 
 function getTemplateWidthPixels(drawing: DrawingElement, grid: GridSettings): number {
-  const widthFeet = Math.max(1, drawing.templateWidth ?? 5);
+  const widthFeet = Math.max(0, drawing.templateWidth ?? 5);
   const unitsPerCell = Math.max(0.01, grid.measurement.unitsPerGridCell);
   return (widthFeet / unitsPerCell) * grid.sizePx;
 }

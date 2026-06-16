@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Copy, Eye, EyeOff, ListPlus, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultDrawingName, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingKind, DrawingStrokeStyle, DrawingTemplateEffect, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings, Token, WeatherMask } from "../../shared/localvtt";
 import { getRenderCamera, type Camera } from "../canvas/camera";
@@ -28,7 +28,7 @@ import {
   type FogTool
 } from "../canvas/fogRenderer";
 import { drawHexGrid, drawSquareGrid } from "../canvas/gridRenderer";
-import { getNearestGridPoint } from "../canvas/gridMath";
+import { getNearestSquareGridSnapPoint } from "../canvas/gridMath";
 import {
   drawLiveTableEvents,
   hasActiveLiveTableEvents,
@@ -61,6 +61,8 @@ import { getVideoTransform } from "../canvas/videoMap";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
+import { duplicateToken } from "../lib/tokenDefaults";
+import { TokenSettings } from "./layers/TokenSettings";
 import type { DrawingTemplateSize, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools/ToolsMenu";
 import {
   FOG_GRID_SNAP_HINT,
@@ -125,6 +127,7 @@ interface SceneCanvasProps {
   onDiceRollResolved?: (event: Extract<LiveTableEvent, { type: "dice" }>) => void;
   onTemplatePreviewChange?: (drawing: DrawingElement | null) => void;
   onViewportCenterChange?: (point: Point) => void;
+  onOpenTokenColor?: (tokenId: string, value: string, kind: "border" | "glow") => void;
   mapCalibrationBox?: MapCalibrationBox | null;
   onMapCalibrationBox?: (box: MapCalibrationBox) => void;
   onMapCalibrationCancel?: () => void;
@@ -339,6 +342,7 @@ export function SceneCanvas({
   onDiceRollResolved,
   onTemplatePreviewChange,
   onViewportCenterChange,
+  onOpenTokenColor,
   mapCalibrationBox = null,
   onMapCalibrationBox,
   onMapCalibrationCancel,
@@ -2650,35 +2654,126 @@ export function SceneCanvas({
       {mode === "player" && scene && <TurnOrderPlayerBar scene={scene} campaign={campaign} />}
       {mode === "player" && scene && showPlayerSeatIndicators && <PlayerSeatIndicators campaign={campaign} />}
       {mode === "player" && scene && <PlayerTurnStatusIndicators scene={scene} campaign={campaign} />}
-      {mode === "gm" && tokenContextMenu && (
-        <div
-          className="canvas-token-context-menu"
-          style={{ left: tokenContextMenu.x, top: tokenContextMenu.y }}
-          role="menu"
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              onAddTokenToTurnOrder?.(tokenContextMenu.tokenId);
-              setTokenContextMenu(null);
-            }}
+      {mode === "gm" && tokenContextMenu && scene && (() => {
+        const token = scene.tokens.find((candidate) => candidate.id === tokenContextMenu.tokenId);
+        if (!token) {
+          return null;
+        }
+        return (
+          <div
+            className="token-settings-menu canvas-context-menu"
+            style={{ left: tokenContextMenu.x, top: tokenContextMenu.y }}
+            role="menu"
+            onPointerDown={(event) => event.stopPropagation()}
           >
-            Add "{tokenContextMenu.tokenName}" to Turn Order
-          </button>
-        </div>
-      )}
+            <div className="canvas-context-menu-title" title={tokenContextMenu.tokenName}>{tokenContextMenu.tokenName}</div>
+            <div className="control-divider" />
+            <TokenSettings
+              token={token}
+              gridSize={scene.grid.sizePx}
+              gridType={scene.grid.type}
+              onUpdateToken={(patch) => {
+                if (!onSceneChange) {
+                  return;
+                }
+                onSceneChange({
+                  ...scene,
+                  tokens: scene.tokens.map((candidate) => (candidate.id === token.id ? { ...candidate, ...patch } : candidate)),
+                  updatedAt: new Date().toISOString()
+                });
+              }}
+              onOpenTokenColor={(tokenId, value, kind) => {
+                onOpenTokenColor?.(tokenId, value, kind);
+                setTokenContextMenu(null);
+              }}
+            />
+            <div className="control-divider" />
+            <button
+              type="button"
+              className="token-menu-action"
+              role="menuitem"
+              title={`Add ${tokenContextMenu.tokenName} to Turn Order`}
+              aria-label={`Add ${tokenContextMenu.tokenName} to Turn Order`}
+              onClick={() => {
+                onAddTokenToTurnOrder?.(tokenContextMenu.tokenId);
+                setTokenContextMenu(null);
+              }}
+            >
+              <ListPlus size={14} aria-hidden="true" />
+              <span>Add to Turn Order</span>
+            </button>
+            <button
+              type="button"
+              className="token-menu-action"
+              role="menuitem"
+              title={`Duplicate ${tokenContextMenu.tokenName}`}
+              aria-label={`Duplicate ${tokenContextMenu.tokenName}`}
+              onClick={() => {
+                if (!onSceneChange) {
+                  setTokenContextMenu(null);
+                  return;
+                }
+                const duplicateTokenId = crypto.randomUUID();
+                onSceneChange({
+                  ...scene,
+                  tokens: duplicateToken(scene.tokens, token.id, duplicateTokenId),
+                  updatedAt: new Date().toISOString()
+                });
+                onSelectToken?.(duplicateTokenId);
+                setTokenContextMenu(null);
+              }}
+            >
+              <Copy size={14} aria-hidden="true" />
+              <span>Duplicate</span>
+            </button>
+            <button
+              type="button"
+              className="token-menu-action token-menu-delete"
+              role="menuitem"
+              title={`Delete ${tokenContextMenu.tokenName}`}
+              aria-label={`Delete ${tokenContextMenu.tokenName}`}
+              onClick={() => {
+                if (!onSceneChange) {
+                  setTokenContextMenu(null);
+                  return;
+                }
+                onSceneChange({
+                  ...scene,
+                  tokens: scene.tokens.filter((candidate) => candidate.id !== token.id),
+                  updatedAt: new Date().toISOString()
+                });
+                onSelectToken?.(null);
+                setTokenContextMenu(null);
+              }}
+            >
+              <Trash2 size={14} aria-hidden="true" />
+              <span>Delete</span>
+            </button>
+          </div>
+        );
+      })()}
       {mode === "gm" && maskContextMenu && (
         <div
-          className="canvas-token-context-menu"
+          className="scene-menu canvas-context-menu"
           style={{ left: maskContextMenu.x, top: maskContextMenu.y }}
           role="menu"
           onPointerDown={(event) => event.stopPropagation()}
         >
+          <div className="canvas-context-menu-title" title={maskContextMenu.label}>{maskContextMenu.label}</div>
+          <div className="control-divider" />
           <button
             type="button"
             role="menuitem"
+            title={
+              maskContextMenu.kind === "fog"
+                ? `${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`
+                : `${maskContextMenu.visible ? "Hide" : "Show"} ${maskContextMenu.label}`
+            }
+            aria-label={
+              maskContextMenu.kind === "fog"
+                ? `${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`
+                : `${maskContextMenu.visible ? "Hide" : "Show"} ${maskContextMenu.label}`
+            }
             onClick={() => {
               if (!scene || !onSceneChange) {
                 setMaskContextMenu(null);
@@ -2710,64 +2805,89 @@ export function SceneCanvas({
               setMaskContextMenu(null);
             }}
           >
-            {maskContextMenu.kind === "fog"
-              ? `${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} "${maskContextMenu.label}" on Player View`
-              : `${maskContextMenu.visible ? "Disable" : "Enable"} "${maskContextMenu.label}"`}
+            {maskContextMenu.kind === "fog" ? (
+              maskContextMenu.visibleInPlayer ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />
+            ) : maskContextMenu.visible ? (
+              <EyeOff size={14} aria-hidden="true" />
+            ) : (
+              <Eye size={14} aria-hidden="true" />
+            )}
+            <span>{maskContextMenu.kind === "fog" ? `${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} on Player View` : `${maskContextMenu.visible ? "Hide" : "Show"} Mask`}</span>
           </button>
         </div>
       )}
       {mode === "gm" && drawingContextMenu && (
         <div
-          className="canvas-token-context-menu"
+          className="token-settings-menu canvas-context-menu"
           style={{ left: drawingContextMenu.x, top: drawingContextMenu.y }}
           role="menu"
           onPointerDown={(event) => event.stopPropagation()}
         >
-          {drawingContextMenu.isTemplate && (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                if (!scene || !onSceneChange) {
-                  setDrawingContextMenu(null);
-                  return;
-                }
-                onSceneChange({
-                  ...scene,
-                  drawings: scene.drawings.map((drawing) =>
-                    drawing.id === drawingContextMenu.drawingId ? { ...drawing, templateFootprintVisible: !drawingContextMenu.templateFootprintVisible } : drawing
-                  ),
-                  updatedAt: new Date().toISOString()
-                });
-                setDrawingContextMenu(null);
-              }}
-            >
-              {`${drawingContextMenu.templateFootprintVisible ? "Hide" : "Show"} "${drawingContextMenu.label}" grid footprint`}
-            </button>
-          )}
+          <div className="canvas-context-menu-title" title={drawingContextMenu.label}>{drawingContextMenu.label}</div>
+          <div className="control-divider" />
+          <div className="settings-grid">
+            {drawingContextMenu.isTemplate && (
+              <label className="setting-row">
+                <span>Footprint</span>
+                <label className="fog-operation-switch" title={`${drawingContextMenu.templateFootprintVisible ? "Hide" : "Show"} ${drawingContextMenu.label} grid footprint`}>
+                  <span>Show</span>
+                  <input
+                    aria-label={`${drawingContextMenu.templateFootprintVisible ? "Hide" : "Show"} ${drawingContextMenu.label} grid footprint`}
+                    type="checkbox"
+                    checked={!drawingContextMenu.templateFootprintVisible}
+                    onChange={(event) => {
+                      if (!scene || !onSceneChange) {
+                        setDrawingContextMenu(null);
+                        return;
+                      }
+                      onSceneChange({
+                        ...scene,
+                        drawings: scene.drawings.map((drawing) =>
+                          drawing.id === drawingContextMenu.drawingId ? { ...drawing, templateFootprintVisible: !event.target.checked } : drawing
+                        ),
+                        updatedAt: new Date().toISOString()
+                      });
+                      setDrawingContextMenu(null);
+                    }}
+                  />
+                  <span>Hide</span>
+                </label>
+              </label>
+            )}
+            <label className="setting-row">
+              <span>Player View</span>
+              <label className="fog-operation-switch" title={`${drawingContextMenu.visibleInPlayer ? "Hide" : "Show"} ${drawingContextMenu.label} on Player View`}>
+                <span>Show</span>
+                <input
+                  aria-label={`${drawingContextMenu.visibleInPlayer ? "Hide" : "Show"} ${drawingContextMenu.label} on Player View`}
+                  type="checkbox"
+                  checked={!drawingContextMenu.visibleInPlayer}
+                  onChange={(event) => {
+                    if (!scene || !onSceneChange) {
+                      setDrawingContextMenu(null);
+                      return;
+                    }
+                    onSceneChange({
+                      ...scene,
+                      drawings: scene.drawings.map((drawing) =>
+                        drawing.id === drawingContextMenu.drawingId ? { ...drawing, visibleInPlayer: !event.target.checked } : drawing
+                      ),
+                      updatedAt: new Date().toISOString()
+                    });
+                    setDrawingContextMenu(null);
+                  }}
+                />
+                <span>Hide</span>
+              </label>
+            </label>
+          </div>
+          <div className="control-divider" />
           <button
             type="button"
             role="menuitem"
-            onClick={() => {
-              if (!scene || !onSceneChange) {
-                setDrawingContextMenu(null);
-                return;
-              }
-              onSceneChange({
-                ...scene,
-                drawings: scene.drawings.map((drawing) =>
-                  drawing.id === drawingContextMenu.drawingId ? { ...drawing, visibleInPlayer: !drawingContextMenu.visibleInPlayer } : drawing
-                ),
-                updatedAt: new Date().toISOString()
-              });
-              setDrawingContextMenu(null);
-            }}
-          >
-            {`${drawingContextMenu.visibleInPlayer ? "Hide" : "Show"} "${drawingContextMenu.label}" on Player View`}
-          </button>
-          <button
-            type="button"
-            role="menuitem"
+            className="token-menu-action"
+            title={`Duplicate ${drawingContextMenu.label}`}
+            aria-label={`Duplicate ${drawingContextMenu.label}`}
             onClick={() => {
               if (!scene || !onSceneChange) {
                 setDrawingContextMenu(null);
@@ -2793,11 +2913,15 @@ export function SceneCanvas({
               setDrawingContextMenu(null);
             }}
           >
-            {`Duplicate "${drawingContextMenu.label}"`}
+            <Copy size={14} aria-hidden="true" />
+            <span>Duplicate</span>
           </button>
           <button
             type="button"
             role="menuitem"
+            className="token-menu-action token-menu-delete"
+            title={`Delete ${drawingContextMenu.label}`}
+            aria-label={`Delete ${drawingContextMenu.label}`}
             onClick={() => {
               if (!scene || !onSceneChange) {
                 setDrawingContextMenu(null);
@@ -2812,7 +2936,8 @@ export function SceneCanvas({
               setDrawingContextMenu(null);
             }}
           >
-            {`Delete "${drawingContextMenu.label}"`}
+            <Trash2 size={14} aria-hidden="true" />
+            <span>Delete</span>
           </button>
         </div>
       )}
@@ -3502,7 +3627,7 @@ function getNearestSceneSnapPoint(point: Point, scene: Scene): Point | null {
   const candidates =
     scene.grid.type === "hex"
       ? [getNearestHexCenter(point, scene.grid), getNearestHexVertex(point, scene.grid)]
-      : [getNearestGridCellCenter(point, scene.grid), getNearestGridPoint(point, scene.grid)].filter((candidate): candidate is Point => Boolean(candidate));
+      : [getNearestSquareGridSnapPoint(point, scene.grid)].filter((candidate): candidate is Point => Boolean(candidate));
 
   return candidates.reduce<Point | null>((nearest, candidate) => {
     if (!nearest) {

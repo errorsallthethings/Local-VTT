@@ -1901,6 +1901,7 @@ export function GmApp() {
             onDiceRollResolved={updateDiceRollHistory}
             onTemplatePreviewChange={setPlayerTemplatePreviewDrawing}
             onViewportCenterChange={setGmCanvasCenter}
+            onOpenTokenColor={openTokenColorDialog}
             mapCalibrationBox={mapCalibrationBox}
             onMapCalibrationBox={mapCalibrationBoxPicking ? captureMapCalibrationBox : undefined}
             onMapCalibrationCancel={mapCalibrationBoxPicking ? cancelMapCalibrationBoxCapture : undefined}

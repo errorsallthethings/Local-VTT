@@ -38,7 +38,7 @@ export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";
 export type WeatherMaskTool = "rectangle" | "circle" | "polygon";
 export type DrawingTemplateSize = "custom" | 5 | 10 | 15 | 20 | 30 | 60 | 100;
-export type DrawingTemplateWidth = 5 | 10 | 15 | 20;
+export type DrawingTemplateWidth = 0 | 5 | 10 | 15 | 20;
 type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
 type ToolCategory = "mouse" | "drawing" | "templates" | "text" | "table" | "dice" | "turn-order" | "pin" | "mask" | "lighting";
 export type MouseBehavior = "selector" | "grabber";
@@ -74,6 +74,14 @@ const DRAWING_THICKNESS_PRESETS = [
   { label: "Extra Thick", value: 160 }
 ];
 
+const TEMPLATE_THICKNESS_PRESETS = [
+  { label: "Extra Thin", value: 4 },
+  { label: "Thin", value: 8 },
+  { label: "Medium", value: 16 },
+  { label: "Thick", value: 32 },
+  { label: "Extra Thick", value: 64 }
+];
+
 const PING_SIZE_PRESETS = [
   { label: "Extra Small", value: 0.65 },
   { label: "Small", value: 0.85 },
@@ -106,7 +114,13 @@ const DRAWING_STROKE_STYLE_OPTIONS: Array<{ label: string; value: DrawingStrokeS
 ];
 
 const TEMPLATE_SIZE_PRESETS: DrawingTemplateSize[] = ["custom", 5, 10, 15, 20, 30, 60, 100];
-const TEMPLATE_WIDTH_PRESETS: DrawingTemplateWidth[] = [5, 10, 15, 20];
+const TEMPLATE_WIDTH_PRESETS: Array<{ label: string; value: DrawingTemplateWidth }> = [
+  { label: "Line Only", value: 0 },
+  { label: "5 ft", value: 5 },
+  { label: "10 ft", value: 10 },
+  { label: "15 ft", value: 15 },
+  { label: "20 ft", value: 20 }
+];
 const TEMPLATE_EFFECT_OPTIONS: Array<{ label: string; value: DrawingTemplateEffect }> = [
   { label: "Plain", value: "plain" },
   { label: "Acid", value: "acid" },
@@ -348,6 +362,9 @@ export function ToolsMenu({
       onFogToolChange(null);
       onWeatherMaskToolChange(null);
       onDrawingColorChange(category === "templates" ? DEFAULT_TEMPLATE_COLOR : DEFAULT_DRAWING_COLOR);
+      if (category === "templates" && drawingStrokeWidth === 40) {
+        onDrawingStrokeWidthChange(8);
+      }
     } else if (category === "table") {
       onFogToolChange(null);
       onWeatherMaskToolChange(null);
@@ -369,10 +386,15 @@ export function ToolsMenu({
   };
 
   const setDrawingTool = (tool: DrawingTool) => {
+    const activatingTemplateTool = isTemplateDrawingTool(tool) && activeDrawingTool !== tool;
+    const enteringTemplateTools = activatingTemplateTool && !isTemplateDrawingTool(activeDrawingTool);
     onCanvasToolChange(null);
     onFogToolChange(null);
     onWeatherMaskToolChange(null);
     onDrawingColorChange(isTemplateDrawingTool(tool) ? DEFAULT_TEMPLATE_COLOR : DEFAULT_DRAWING_COLOR);
+    if (enteringTemplateTools && drawingStrokeWidth === 40) {
+      onDrawingStrokeWidthChange(8);
+    }
     onDrawingToolChange(activeDrawingTool === tool ? null : tool);
   };
 
@@ -1014,6 +1036,9 @@ function DrawingSettings({
   onDrawingOpacityCustomOpenChange: (open: boolean) => void;
 }) {
   const strokeColorDisabled = templateToolActive && drawingTemplateEffect !== "plain";
+  const thicknessPresets = templateToolActive ? TEMPLATE_THICKNESS_PRESETS : DRAWING_THICKNESS_PRESETS;
+  const thicknessInputLabel = templateToolActive ? "Template thickness" : "Drawing thickness";
+  const thicknessMin = templateToolActive ? 4 : 8;
   return (
     <div className={templateToolActive ? "tools-drawing-settings tools-drawing-settings-template" : "tools-drawing-settings"}>
       {templateToolActive && (
@@ -1041,9 +1066,9 @@ function DrawingSettings({
           <strong>Thickness</strong>
           <div>
             <select
-              aria-label="Drawing thickness"
-              title="Drawing thickness"
-              value={getPresetSelectValue(DRAWING_THICKNESS_PRESETS, drawingStrokeWidth, drawingThicknessCustomOpen)}
+              aria-label={thicknessInputLabel}
+              title={thicknessInputLabel}
+              value={getPresetSelectValue(thicknessPresets, drawingStrokeWidth, drawingThicknessCustomOpen)}
               onChange={(event) => {
                 if (event.target.value === "custom") {
                   onDrawingThicknessCustomOpenChange(true);
@@ -1053,7 +1078,7 @@ function DrawingSettings({
                 onDrawingStrokeWidthChange(Number(event.target.value));
               }}
             >
-              {DRAWING_THICKNESS_PRESETS.map((preset) => (
+              {thicknessPresets.map((preset) => (
                 <option key={preset.label} value={preset.value}>{preset.label}</option>
               ))}
               <option value="custom">Custom</option>
@@ -1148,7 +1173,7 @@ function DrawingSettings({
               <div>
                 <select aria-label="Template line width" title="Template line width" value={drawingTemplateWidth} onChange={(event) => onDrawingTemplateWidthChange(Number(event.target.value) as DrawingTemplateWidth)}>
                   {TEMPLATE_WIDTH_PRESETS.map((width) => (
-                    <option key={width} value={width}>{width} ft</option>
+                    <option key={width.value} value={width.value}>{width.label}</option>
                   ))}
                 </select>
               </div>
@@ -1162,10 +1187,10 @@ function DrawingSettings({
           <SelectorFilterCheckbox label="Live Preview" checked={templatePreviewVisibleInPlayer} onChange={onTemplatePreviewVisibleInPlayerChange} />
         </div>
       )}
-      {(drawingThicknessCustomOpen || !hasPresetValue(DRAWING_THICKNESS_PRESETS, drawingStrokeWidth)) && (
+      {(drawingThicknessCustomOpen || !hasPresetValue(thicknessPresets, drawingStrokeWidth)) && (
         <div className="tools-strip-advanced-slider tools-strip-thickness-slider">
-          <input aria-label="Fine tune drawing thickness" title="Fine tune drawing thickness" type="range" min={8} max={400} step={4} value={drawingStrokeWidth} onChange={(event) => onDrawingStrokeWidthChange(Number(event.target.value))} />
-          <span aria-label={`Drawing thickness ${drawingStrokeWidth} pixels`}>{drawingStrokeWidth}px</span>
+          <input aria-label={`Fine tune ${templateToolActive ? "template" : "drawing"} thickness`} title={`Fine tune ${templateToolActive ? "template" : "drawing"} thickness`} type="range" min={thicknessMin} max={400} step={4} value={drawingStrokeWidth} onChange={(event) => onDrawingStrokeWidthChange(Number(event.target.value))} />
+          <span aria-label={`${thicknessInputLabel} ${drawingStrokeWidth} pixels`}>{drawingStrokeWidth}px</span>
         </div>
       )}
       {(drawingOpacityCustomOpen || !hasPresetValue(DRAWING_OPACITY_PRESETS, drawingOpacity)) && (
