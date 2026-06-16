@@ -63,7 +63,7 @@ type TemplateEffectOverlayCacheEntry = {
   top: number;
 };
 
-const TEMPLATE_EFFECT_ASSET_WIDTH_PX = 800;
+const TEMPLATE_EFFECT_RENDERABLE_WIDTH_PX = 800;
 const TEMPLATE_EFFECT_OVERLAY_CACHE_LIMIT = 80;
 const templateEffectOverlayCache = new Map<string, TemplateEffectOverlayCacheEntry>();
 let acidTemplateRenderables: TemplateEffectRenderable[] | null = null;
@@ -638,7 +638,7 @@ function drawTemplateLabel(ctx: CanvasRenderingContext2D, drawing: DrawingElemen
 
 function fillTemplateEffectPath(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
   const effect = getTemplateEffectStyle(drawing.templateEffect ?? "plain");
-  if ((drawing.templateEffect === "lightning" || drawing.templateEffect === "cold" || drawing.templateEffect === "poison" || drawing.templateEffect === "acid" || drawing.templateEffect === "arcane" || drawing.templateEffect === "fire" || drawing.templateEffect === "fog" || drawing.templateEffect === "darkness" || drawing.templateEffect === "nature" || drawing.templateEffect === "psychic" || drawing.templateEffect === "radiant" || drawing.templateEffect === "storm" || drawing.templateEffect === "thunder" || drawing.templateEffect === "water") && (drawing.kind === "circle" || drawing.kind === "rectangle" || drawing.kind === "cone")) {
+  if ((drawing.templateEffect === "lightning" || drawing.templateEffect === "cold" || drawing.templateEffect === "poison" || drawing.templateEffect === "acid" || drawing.templateEffect === "arcane" || drawing.templateEffect === "fire" || drawing.templateEffect === "fog" || drawing.templateEffect === "darkness" || drawing.templateEffect === "nature" || drawing.templateEffect === "psychic" || drawing.templateEffect === "radiant" || drawing.templateEffect === "storm" || drawing.templateEffect === "thunder" || drawing.templateEffect === "water" || drawing.templateEffect === "web") && (drawing.kind === "circle" || drawing.kind === "rectangle" || drawing.kind === "cone")) {
     drawTemplateInnerGlow(ctx, drawing, layerOpacity);
   }
   if (effect.fillOpacity <= 0) {
@@ -670,18 +670,19 @@ function drawTemplateInnerGlow(ctx: CanvasRenderingContext2D, drawing: DrawingEl
   const storm = drawing.templateEffect === "storm";
   const thunder = drawing.templateEffect === "thunder";
   const water = drawing.templateEffect === "water";
+  const web = drawing.templateEffect === "web";
   ctx.save();
   ctx.clip();
   ctx.globalAlpha = alpha;
-  ctx.strokeStyle = acid ? "#bef264" : poison ? "#a3e635" : cold ? "#f8fafc" : arcane ? "#c4b5fd" : fire ? "#fb923c" : fog ? "#e2e8f0" : darkness ? "#020617" : nature ? "#86efac" : psychic ? "#f0abfc" : radiant ? "#fef3c7" : storm ? "#93c5fd" : thunder ? "#d8b4fe" : water ? "#5eead4" : "#facc15";
-  ctx.shadowColor = acid ? "#d9f99d" : poison ? "#84cc16" : cold ? "#e0f2fe" : arcane ? "#8b5cf6" : fire ? "#f97316" : fog ? "#f8fafc" : darkness ? "#020617" : nature ? "#22c55e" : psychic ? "#db2777" : radiant ? "#facc15" : storm ? "#60a5fa" : thunder ? "#9333ea" : water ? "#14b8a6" : "#fde047";
+  ctx.strokeStyle = acid ? "#bef264" : poison ? "#a3e635" : cold ? "#f8fafc" : arcane ? "#c4b5fd" : fire ? "#fb923c" : fog ? "#e2e8f0" : darkness ? "#020617" : nature ? "#86efac" : psychic ? "#f0abfc" : radiant ? "#fef3c7" : storm ? "#93c5fd" : thunder ? "#d8b4fe" : water ? "#5eead4" : web ? "#f8fafc" : "#facc15";
+  ctx.shadowColor = acid ? "#d9f99d" : poison ? "#84cc16" : cold ? "#e0f2fe" : arcane ? "#8b5cf6" : fire ? "#f97316" : fog ? "#f8fafc" : darkness ? "#020617" : nature ? "#22c55e" : psychic ? "#db2777" : radiant ? "#facc15" : storm ? "#60a5fa" : thunder ? "#9333ea" : water ? "#14b8a6" : web ? "#e2e8f0" : "#fde047";
   ctx.shadowBlur = acid ? Math.max(26, drawing.strokeWidth * 1.55) : Math.max(18, drawing.strokeWidth * 1.15);
   ctx.lineWidth = acid ? Math.max(34, drawing.strokeWidth * 3.25) : Math.max(26, drawing.strokeWidth * 2.6);
   ctx.stroke();
   ctx.globalAlpha = acid ? Math.min(0.56, alpha * 0.96) : Math.min(0.42, alpha * 0.78);
   ctx.shadowBlur = 0;
   ctx.lineWidth = acid ? Math.max(14, drawing.strokeWidth * 1.45) : Math.max(10, drawing.strokeWidth * 1.1);
-  ctx.strokeStyle = acid ? "#f7fee7" : poison ? "#d9f99d" : cold ? "#ffffff" : arcane ? "#ede9fe" : fire ? "#fed7aa" : fog ? "#f8fafc" : darkness ? "#1e293b" : nature ? "#dcfce7" : psychic ? "#fdf4ff" : radiant ? "#fff7ed" : storm ? "#dbeafe" : thunder ? "#f3e8ff" : water ? "#ccfbf1" : "#fef08a";
+  ctx.strokeStyle = acid ? "#f7fee7" : poison ? "#d9f99d" : cold ? "#ffffff" : arcane ? "#ede9fe" : fire ? "#fed7aa" : fog ? "#f8fafc" : darkness ? "#1e293b" : nature ? "#dcfce7" : psychic ? "#fdf4ff" : radiant ? "#fff7ed" : storm ? "#dbeafe" : thunder ? "#f3e8ff" : water ? "#ccfbf1" : web ? "#ffffff" : "#fef08a";
   ctx.stroke();
   ctx.restore();
 }
@@ -946,7 +947,7 @@ function getAcidTemplateRenderables(): TemplateEffectRenderable[] {
   acidTemplateRenderables = canvas
     ? [
         {
-          id: "three-acid-spatter-v1",
+          id: "three-acid-spatter-v2",
           image: canvas,
           naturalHeight: canvas.height,
           naturalWidth: canvas.width
@@ -1253,7 +1254,7 @@ function createAcidSpatterImage(): HTMLCanvasElement | null {
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
     camera.position.z = 5;
     const random = createSeededRandom(0xac1d);
-    for (let index = 0; index < 0; index += 1) {
+    for (let index = 0; index < 6; index += 1) {
       addAcidBubble(scene, -0.86 + random() * 1.72, -0.86 + random() * 1.72, 0.035 + random() * 0.11, random);
     }
     for (let index = 0; index < 58; index += 1) {
@@ -1262,7 +1263,7 @@ function createAcidSpatterImage(): HTMLCanvasElement | null {
     for (let index = 0; index < 7; index += 1) {
       addAcidRing(scene, -0.86 + random() * 1.72, -0.86 + random() * 1.72, 0.045 + random() * 0.12, random);
     }
-    for (let index = 0; index < 0; index += 1) {
+    for (let index = 0; index < 10; index += 1) {
       addAcidWave(scene, -0.88 + random() * 1.76, -0.88 + random() * 1.76, 0.18 + random() * 0.34, random);
     }
     renderer.render(scene, camera);
@@ -2318,7 +2319,7 @@ function createTemplateAssetPlacements(
   for (let index = 0; index < count; index += 1) {
     const asset = renderables[Math.floor(random() * renderables.length) % renderables.length];
     const point = getTemplateEdgeBandPoint(drawing, bounds, index, count, random);
-    const targetWidth = TEMPLATE_EFFECT_ASSET_WIDTH_PX * (0.78 + random() * 0.5);
+    const targetWidth = TEMPLATE_EFFECT_RENDERABLE_WIDTH_PX * (0.78 + random() * 0.5);
     const aspect = asset.naturalHeight > 0 ? asset.naturalWidth / asset.naturalHeight : 1;
     placements.push({
       angle: (random() - 0.5) * Math.PI * 1.85,
