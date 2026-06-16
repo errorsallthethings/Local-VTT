@@ -158,4 +158,25 @@ describe("drawing hit testing", () => {
       )
     ).toBeNull();
   });
+
+  it("selects line templates across their grid-measured corridor width", () => {
+    const scene = createDefaultScene("Line template");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 100;
+    scene.grid.measurement = { unit: "feet", unitsPerGridCell: 5, distanceMode: "euclidean" };
+    const lineTemplate = {
+      id: "line-template",
+      kind: "line",
+      points: [{ x: 0, y: 0 }, { x: 200, y: 0 }],
+      color: "#7dd3fc",
+      opacity: 1,
+      strokeWidth: 8,
+      templateWidth: 5,
+      measurementLabelVisible: true,
+      visibleInPlayer: true
+    } as const;
+
+    expect(getDrawingAtPoint([lineTemplate], { x: 100, y: 49 }, 8, scene.grid)?.id).toBe("line-template");
+    expect(getDrawingAtPoint([lineTemplate], { x: 100, y: 60 }, 8, scene.grid)).toBeNull();
+  });
 });

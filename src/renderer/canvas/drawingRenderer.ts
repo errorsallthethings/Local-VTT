@@ -110,7 +110,7 @@ export function drawDrawings(
     drawDrawingElement(ctx, renderDrawing, scene, layerOpacity, selectedDrawingIds.has(drawing.id) || drawing.id === "template-preview");
     if (mode === "gm" && selectedDrawingIds.has(drawing.id)) {
       const selectionOverridePoints = selectionPointOverrides?.get(drawing.id);
-      drawDrawingSelection(ctx, selectionOverridePoints ? { ...drawing, points: selectionOverridePoints } : renderDrawing, zoom);
+      drawDrawingSelection(ctx, selectionOverridePoints ? { ...drawing, points: selectionOverridePoints } : renderDrawing, scene.grid, zoom);
     }
   }
   if (preview) {
@@ -175,8 +175,8 @@ export function shouldAddDrawingPoint(previous: Point | undefined, current: Poin
   return !previous || distanceBetweenPoints(previous, current) >= DRAWING_POINT_MIN_DISTANCE;
 }
 
-function drawDrawingSelection(ctx: CanvasRenderingContext2D, drawing: DrawingElement, zoom: number) {
-  const bounds = getDrawingBounds(drawing);
+function drawDrawingSelection(ctx: CanvasRenderingContext2D, drawing: DrawingElement, grid: GridSettings, zoom: number) {
+  const bounds = getDrawingBounds(drawing, grid);
   if (!bounds) {
     return;
   }
@@ -188,12 +188,12 @@ function drawDrawingSelection(ctx: CanvasRenderingContext2D, drawing: DrawingEle
   );
 }
 
-export function getDrawingAtPoint(drawings: DrawingElement[], point: Point, hitRadius = 8): DrawingElement | null {
+export function getDrawingAtPoint(drawings: DrawingElement[], point: Point, hitRadius = 8, grid?: GridSettings): DrawingElement | null {
   for (const drawing of [...drawings].reverse()) {
     if (!isDrawingVisible(drawing, "gm")) {
       continue;
     }
-    if (isPointNearDrawing(drawing, point, hitRadius)) {
+    if (isPointNearDrawing(drawing, point, hitRadius, grid)) {
       return drawing;
     }
   }
@@ -245,7 +245,7 @@ function drawDrawingElement(ctx: CanvasRenderingContext2D, drawing: DrawingEleme
   ctx.restore();
 }
 
-function isPointNearDrawing(drawing: DrawingElement, point: Point, hitRadius: number): boolean {
+function isPointNearDrawing(drawing: DrawingElement, point: Point, hitRadius: number, grid?: GridSettings): boolean {
   const points = drawing.points;
   if (points.length < 2) {
     return false;
@@ -277,6 +277,12 @@ function isPointNearDrawing(drawing: DrawingElement, point: Point, hitRadius: nu
   }
   if (drawing.kind === "polygon") {
     return isPointInPolygon(point, points);
+  }
+  if (drawing.measurementLabelVisible && drawing.kind === "line") {
+    const corridor = getLineTemplateCorridorPoints(drawing, 1, grid);
+    if (corridor) {
+      return isPointInPolygon(point, corridor);
+    }
   }
   return points.some((candidate, index) => {
     const next = points[index + 1];
@@ -885,7 +891,7 @@ function trimTemplateEffectOverlayCache() {
 }
 
 function getTemplateEffectBounds(drawing: DrawingElement, grid?: GridSettings): { left: number; top: number; right: number; bottom: number } | null {
-  const bounds = getDrawingBounds(drawing);
+  const bounds = getDrawingBounds(drawing, grid);
   if (!bounds) {
     return null;
   }
@@ -2748,8 +2754,8 @@ function getTemplateHexHighlightCells(
   return cells;
 }
 
-export function getDrawingBounds(drawing: DrawingElement): { left: number; top: number; right: number; bottom: number } | null {
-  const points = drawing.measurementLabelVisible && drawing.kind === "line" ? (getLineTemplateCorridorPoints(drawing) ?? drawing.points) : getShapePoints(drawing);
+export function getDrawingBounds(drawing: DrawingElement, grid?: GridSettings): { left: number; top: number; right: number; bottom: number } | null {
+  const points = drawing.measurementLabelVisible && drawing.kind === "line" ? (getLineTemplateCorridorPoints(drawing, 1, grid) ?? drawing.points) : getShapePoints(drawing);
   if (points.length === 0) {
     return null;
   }
