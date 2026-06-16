@@ -73,7 +73,7 @@ type TemplateEffectTuning = {
 
 const TEMPLATE_EFFECT_RENDERABLE_WIDTH_PX = 800;
 const TEMPLATE_EFFECT_OVERLAY_CACHE_LIMIT = 80;
-const TEMPLATE_EFFECT_TUNING_VERSION = 1;
+const TEMPLATE_EFFECT_TUNING_VERSION = 2;
 const DEFAULT_TEMPLATE_EFFECT_TUNING: TemplateEffectTuning = {
   density: 1,
   maxPlacements: 14,
@@ -857,6 +857,22 @@ function getTemplateEffectOverlay(
   const innerScale = 0.58;
   overlayCtx.save();
   overlayCtx.translate(-bounds.left, -bounds.top);
+  if (drawing.kind === "line") {
+    overlayCtx.save();
+    overlayCtx.beginPath();
+    traceTemplateEffectPath(overlayCtx, drawing, 1, grid);
+    overlayCtx.clip();
+    overlayCtx.globalAlpha = Math.max(0.08, Math.min(0.9, layerOpacity * tuning.opacity));
+    for (const placement of placements) {
+      drawPlacedTemplateAsset(overlayCtx, placement);
+    }
+    overlayCtx.restore();
+    overlayCtx.restore();
+    const entry = { canvas, key: cacheKey, left: bounds.left, top: bounds.top };
+    templateEffectOverlayCache.set(cacheKey, entry);
+    trimTemplateEffectOverlayCache();
+    return entry;
+  }
   for (let bandIndex = 0; bandIndex < bands; bandIndex += 1) {
     const outerScale = 1 - ((1 - innerScale) * bandIndex) / bands;
     const bandInnerScale = 1 - ((1 - innerScale) * (bandIndex + 1)) / bands;
@@ -938,7 +954,7 @@ function getTemplateEffectBounds(drawing: DrawingElement, grid?: GridSettings): 
 function getLineTemplateEffectWidthPixels(drawing: DrawingElement, grid?: GridSettings): number {
   const widthFeet = drawing.templateWidth ?? 5;
   if (widthFeet <= 0) {
-    return 0;
+    return Math.max(12, drawing.strokeWidth * 2.5);
   }
   if (grid && grid.type !== "gridless" && grid.sizePx > 0 && grid.measurement.unitsPerGridCell > 0) {
     return (widthFeet / grid.measurement.unitsPerGridCell) * grid.sizePx;
