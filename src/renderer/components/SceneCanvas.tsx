@@ -1910,7 +1910,7 @@ export function SceneCanvas({
             ...scene.drawings,
             {
               id: crypto.randomUUID(),
-              name: isTemplateDrawingTool(drawingDrag.kind) ? formatDefaultTemplateDrawingName(drawingDrag.kind, scene.drawings.length) : formatDefaultDrawingName(kind, scene.drawings.length),
+              name: isTemplateDrawingTool(drawingDrag.kind) ? formatDefaultTemplateDrawingName(drawingDrag.kind, scene.drawings.length, drawingDrag.templateEffect ?? "plain") : formatDefaultDrawingName(kind, scene.drawings.length),
               kind,
               points: drawingPoints,
               color: drawingDrag.color,
@@ -2764,6 +2764,36 @@ export function SceneCanvas({
             }}
           >
             {`${drawingContextMenu.visibleInPlayer ? "Hide" : "Show"} "${drawingContextMenu.label}" on Player View`}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              if (!scene || !onSceneChange) {
+                setDrawingContextMenu(null);
+                return;
+              }
+              const sourceDrawing = scene.drawings.find((drawing) => drawing.id === drawingContextMenu.drawingId);
+              if (!sourceDrawing) {
+                setDrawingContextMenu(null);
+                return;
+              }
+              const duplicatedDrawing: DrawingElement = {
+                ...sourceDrawing,
+                id: crypto.randomUUID(),
+                name: getDuplicateDrawingName(sourceDrawing.name?.trim() || drawingContextMenu.label, scene.drawings),
+                points: sourceDrawing.points.map((point) => ({ x: point.x + 24, y: point.y + 24 }))
+              };
+              onSceneChange({
+                ...scene,
+                drawings: [...scene.drawings, duplicatedDrawing],
+                updatedAt: new Date().toISOString()
+              });
+              onSelectDrawing?.(duplicatedDrawing.id);
+              setDrawingContextMenu(null);
+            }}
+          >
+            {`Duplicate "${drawingContextMenu.label}"`}
           </button>
           <button
             type="button"
@@ -3657,20 +3687,58 @@ function getDrawingKindForTool(tool: DrawingTool): DrawingKind {
   return tool;
 }
 
-function formatDefaultTemplateDrawingName(tool: DrawingTool, index: number): string {
+function formatDefaultTemplateDrawingName(tool: DrawingTool, index: number, effect: DrawingTemplateEffect = "plain"): string {
+  const effectLabel = getTemplateEffectNamePart(effect);
   if (tool === "template-line") {
-    return `Template Line ${index + 1}`;
+    return `Template Line${effectLabel} ${index + 1}`;
   }
   if (tool === "template-circle") {
-    return `Template Circle ${index + 1}`;
+    return `Template Radius${effectLabel} ${index + 1}`;
   }
   if (tool === "template-rectangle") {
-    return `Template Cube ${index + 1}`;
+    return `Template Cube${effectLabel} ${index + 1}`;
   }
   if (tool === "template-cone") {
-    return `Template Cone ${index + 1}`;
+    return `Template Cone${effectLabel} ${index + 1}`;
   }
   return formatDefaultDrawingName(getDrawingKindForTool(tool), index);
+}
+
+function getTemplateEffectNamePart(effect: DrawingTemplateEffect): string {
+  if (effect === "plain") {
+    return "";
+  }
+  const labels: Record<DrawingTemplateEffect, string> = {
+    acid: "Acid",
+    arcane: "Arcane",
+    cold: "Cold",
+    darkness: "Darkness",
+    fire: "Fire",
+    fog: "Fog",
+    lightning: "Lightning",
+    nature: "Nature",
+    plain: "Plain",
+    poison: "Poison",
+    psychic: "Psychic",
+    radiant: "Radiant",
+    storm: "Storm",
+    thunder: "Thunder",
+    water: "Water",
+    web: "Web"
+  };
+  return ` - ${labels[effect]}`;
+}
+
+function getDuplicateDrawingName(sourceName: string, drawings: DrawingElement[]): string {
+  const baseName = sourceName.replace(/\sCopy(?:\s\d+)?$/i, "").trim() || "Drawing";
+  const existingNames = new Set(drawings.map((drawing) => (drawing.name ?? "").trim().toLowerCase()));
+  let candidate = `${baseName} Copy`;
+  let index = 2;
+  while (existingNames.has(candidate.toLowerCase())) {
+    candidate = `${baseName} Copy ${index}`;
+    index += 1;
+  }
+  return candidate;
 }
 
 function isSnapModifier(event: React.PointerEvent<HTMLCanvasElement>): boolean {
