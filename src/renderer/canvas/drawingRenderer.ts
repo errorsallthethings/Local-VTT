@@ -56,6 +56,7 @@ type PlacedTemplateAsset = {
 };
 
 const TEMPLATE_EFFECT_ASSET_READY_EVENT = "localvtt-template-effect-assets-ready";
+const TEMPLATE_EFFECT_ASSET_WIDTH_PX = 700;
 const templateEffectAssetUrls = import.meta.glob("../assets/template-effects/*/*.svg", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
 const templateEffectAssetCache = createTemplateEffectAssetCache(templateEffectAssetUrls);
 
@@ -719,14 +720,11 @@ function createTemplateAssetPlacements(
   count: number,
   random: () => number
 ): PlacedTemplateAsset[] {
-  const width = bounds.right - bounds.left;
-  const height = bounds.bottom - bounds.top;
-  const baseSize = Math.max(width, height);
   const placements: PlacedTemplateAsset[] = [];
   for (let index = 0; index < count; index += 1) {
     const asset = assets[Math.floor(random() * assets.length) % assets.length];
     const point = getTemplateEdgeBandPoint(drawing, bounds, index, count, random);
-    const targetWidth = baseSize * (0.34 + random() * 0.34);
+    const targetWidth = TEMPLATE_EFFECT_ASSET_WIDTH_PX * (0.78 + random() * 0.5);
     const aspect = asset.image.naturalHeight > 0 ? asset.image.naturalWidth / asset.image.naturalHeight : 1;
     placements.push({
       angle: (random() - 0.5) * Math.PI * 1.85,
