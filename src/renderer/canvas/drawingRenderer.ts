@@ -2958,6 +2958,10 @@ export function getTemplateLabel(drawing: DrawingElement, scene: Scene): string 
   if (drawing.kind === "cone") {
     return `${formatMeasurementDistance(distance, scene.grid.measurement, scene.grid.type)} cone`;
   }
+  if (drawing.kind === "line" && (drawing.templateWidth ?? 5) > 0) {
+    const width = formatMeasurementDistance(drawing.templateWidth ?? 5, scene.grid.measurement, scene.grid.type);
+    return `${formatMeasurementDistance(distance, scene.grid.measurement, scene.grid.type)} x ${width}`;
+  }
   return formatMeasurementDistance(distance, scene.grid.measurement, scene.grid.type);
 }
 

@@ -102,7 +102,7 @@ describe("drawing renderer helpers", () => {
     ).toBe("10 feet square");
   });
 
-  it("keeps line, radius, and cone template labels measured from origin to edge", () => {
+  it("labels line templates with length and width while radius and cone use origin to edge", () => {
     const scene = createDefaultScene("Templates");
     scene.grid.type = "square";
     scene.grid.sizePx = 100;
@@ -117,7 +117,9 @@ describe("drawing renderer helpers", () => {
       visibleInPlayer: true
     } as const;
 
-    expect(getTemplateLabel({ ...base, kind: "line" }, scene)).toBe("25 feet");
+    expect(getTemplateLabel({ ...base, kind: "line" }, scene)).toBe("25 feet x 5 feet");
+    expect(getTemplateLabel({ ...base, kind: "line", templateWidth: 10 }, scene)).toBe("25 feet x 10 feet");
+    expect(getTemplateLabel({ ...base, kind: "line", templateWidth: 0 }, scene)).toBe("25 feet");
     expect(getTemplateLabel({ ...base, kind: "circle" }, scene)).toBe("25 feet radius");
     expect(getTemplateLabel({ ...base, kind: "cone" }, scene)).toBe("25 feet cone");
   });
