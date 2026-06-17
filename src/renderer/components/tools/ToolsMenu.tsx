@@ -18,6 +18,7 @@ import {
   Pentagon,
   Pin,
   Ruler,
+  Sparkles,
   Square,
   SquareDashedMousePointer,
   Table2,
@@ -40,7 +41,7 @@ export type WeatherMaskTool = "rectangle" | "circle" | "polygon";
 export type DrawingTemplateSize = "custom" | 5 | 10 | 15 | 20 | 30 | 60 | 100;
 export type DrawingTemplateWidth = 0 | 5 | 10 | 15 | 20;
 type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
-type ToolCategory = "mouse" | "drawing" | "templates" | "text" | "table" | "dice" | "turn-order" | "pin" | "mask" | "lighting";
+type ToolCategory = "mouse" | "drawing" | "templates" | "text" | "table" | "dice" | "turn-order" | "pin" | "fog" | "effects" | "lighting";
 export type MouseBehavior = "selector" | "grabber";
 export type SelectorSelectionFilters = {
   tokens: boolean;
@@ -219,7 +220,8 @@ const TOOL_CATEGORIES: Array<{ id: ToolCategory; label: string; icon: typeof Squ
   { id: "dice", label: "Dice Bag", icon: Dices, hasPanelTools: false },
   { id: "turn-order", label: "Turn Order", icon: ListOrdered, hasPanelTools: false },
   { id: "pin", label: "Pin Tools", icon: Pin, hasPanelTools: false },
-  { id: "mask", label: "Mask Tools", icon: CloudFog, hasPanelTools: true },
+  { id: "fog", label: "Fog Of War Tools", icon: CloudFog, hasPanelTools: true },
+  { id: "effects", label: "Effects Tools", icon: Sparkles, hasPanelTools: true },
   { id: "lighting", label: "Dynamic Lighting", icon: Lightbulb, hasPanelTools: false }
 ];
 
@@ -296,7 +298,7 @@ export function ToolsMenu({
   const [laserThicknessCustomOpen, setLaserThicknessCustomOpen] = useState(false);
   const [drawingThicknessCustomOpen, setDrawingThicknessCustomOpen] = useState(false);
   const [drawingOpacityCustomOpen, setDrawingOpacityCustomOpen] = useState(false);
-  const [helpTopic, setHelpTopic] = useState<"drawing" | "templates" | "mask" | "table" | null>(null);
+  const [helpTopic, setHelpTopic] = useState<"drawing" | "templates" | "fog" | "effects" | "table" | null>(null);
   const [drawingSettingsOpen, setDrawingSettingsOpen] = useState(false);
   const [templateSettingsOpen, setTemplateSettingsOpen] = useState(false);
   const [tableSettingsOpen, setTableSettingsOpen] = useState(false);
@@ -305,8 +307,11 @@ export function ToolsMenu({
   const activeFogShape = getActiveFogShape(activeFogTool);
 
   useEffect(() => {
-    if (activeFogTool || activeWeatherMaskTool) {
-      setActiveCategory("mask");
+    if (activeFogTool) {
+      setActiveCategory("fog");
+    }
+    if (activeWeatherMaskTool) {
+      setActiveCategory("effects");
     }
   }, [activeFogTool, activeWeatherMaskTool]);
 
@@ -369,8 +374,13 @@ export function ToolsMenu({
       onFogToolChange(null);
       onWeatherMaskToolChange(null);
       onDrawingToolChange(null);
-    } else if (category === "mask") {
+    } else if (category === "fog") {
       onCanvasToolChange(null);
+      onDrawingToolChange(null);
+      onWeatherMaskToolChange(null);
+    } else if (category === "effects") {
+      onCanvasToolChange(null);
+      onFogToolChange(null);
       onDrawingToolChange(null);
     } else {
       clearActiveTools();
@@ -449,8 +459,11 @@ export function ToolsMenu({
     if (category === "table") {
       return Boolean(activeCanvasTool);
     }
-    if (category === "mask") {
-      return Boolean(activeFogTool || activeWeatherMaskTool);
+    if (category === "fog") {
+      return Boolean(activeFogTool);
+    }
+    if (category === "effects") {
+      return Boolean(activeWeatherMaskTool);
     }
     if (category === "dice") {
       return dicePanelOpen;
@@ -525,7 +538,7 @@ export function ToolsMenu({
                       <SelectorFilterCheckbox label="Token" checked={selectorSelectionFilters.tokens} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, tokens: checked })} />
                       <SelectorFilterCheckbox label="Template" checked={selectorSelectionFilters.templates} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, templates: checked })} />
                       <SelectorFilterCheckbox label="Fog Mask" checked={selectorSelectionFilters.fogMasks} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, fogMasks: checked })} />
-                      <SelectorFilterCheckbox label="Weather Mask" checked={selectorSelectionFilters.weatherMasks} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, weatherMasks: checked })} />
+                      <SelectorFilterCheckbox label="Weather Effect Mask" checked={selectorSelectionFilters.weatherMasks} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, weatherMasks: checked })} />
                       <SelectorFilterCheckbox label="Drawings" checked={selectorSelectionFilters.drawings} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, drawings: checked })} />
                     </div>
                   )}
@@ -782,9 +795,9 @@ export function ToolsMenu({
             </div>
           )}
           {activeCategory === "pin" && <Placeholder message="Pin tools will be added here." />}
-          {activeCategory === "mask" && (
+          {activeCategory === "fog" && (
             <div className="tools-panel-section">
-              <HelpButton active={helpTopic === "mask"} label="Mask Tools Help" onClick={() => setHelpTopic((topic) => (topic === "mask" ? null : "mask"))} />
+              <HelpButton active={helpTopic === "fog"} label="Fog Of War Tools Help" onClick={() => setHelpTopic((topic) => (topic === "fog" ? null : "fog"))} />
               <div className="tools-section-label">Fog Of War Masks</div>
               <div className="tools-button-row">
                 <ToolButton active={activeFogShape === "brush"} label="Brush Mask" onClick={() => setFogToolShape("brush")}>
@@ -850,25 +863,44 @@ export function ToolsMenu({
                   )}
                 </div>
               )}
-              <div className="tools-section-divider" />
-              <div className="tools-section-label">Weather Masks</div>
-              {!weatherToolsEnabled && <span className="tools-section-note">Enable a weather effect to use weather masks.</span>}
+              {helpTopic === "fog" && <ToolHelpCard topic="fog" />}
+            </div>
+          )}
+          {activeCategory === "effects" && (
+            <div className="tools-panel-section">
+              <HelpButton active={helpTopic === "effects"} label="Effects Tools Help" onClick={() => setHelpTopic((topic) => (topic === "effects" ? null : "effects"))} />
+              <div className="tools-section-label">Weather Effect Masks</div>
+              {!weatherToolsEnabled && <span className="tools-section-note">Enable a weather effect to use weather effect masks.</span>}
               <div className="tools-button-row">
-                <ToolButton active={activeWeatherMaskTool === "rectangle"} label="Rectangle Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("rectangle")}>
+                <ToolButton active={activeWeatherMaskTool === "rectangle"} label="Rectangle Weather Effect Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("rectangle")}>
                   <Square size={17} aria-hidden="true" />
                 </ToolButton>
-                <ToolButton active={activeWeatherMaskTool === "circle"} label="Circle Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("circle")}>
+                <ToolButton active={activeWeatherMaskTool === "circle"} label="Circle Weather Effect Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("circle")}>
                   <Circle size={17} aria-hidden="true" />
                 </ToolButton>
-                <ToolButton active={activeWeatherMaskTool === "polygon"} label="Polygon Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("polygon")}>
+                <ToolButton active={activeWeatherMaskTool === "polygon"} label="Polygon Weather Effect Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("polygon")}>
                   <Pentagon size={17} aria-hidden="true" />
                 </ToolButton>
                 <span className="tools-vertical-divider" aria-hidden="true" />
-                <ToolButton label="Undo Last Weather Mask" disabled={!weatherToolsEnabled || weatherMaskCount === 0} onClick={onUndoWeatherMask}>
+                <ToolButton label="Undo Last Weather Effect Mask" disabled={!weatherToolsEnabled || weatherMaskCount === 0} onClick={onUndoWeatherMask}>
                   <Undo2 size={17} aria-hidden="true" />
                 </ToolButton>
               </div>
-              {helpTopic === "mask" && <ToolHelpCard topic="mask" />}
+              <div className="tools-section-divider" />
+              <div className="tools-section-label">Environmental Effects</div>
+              <span className="tools-section-note">Shape tools for animated area effects will live here.</span>
+              <div className="tools-button-row">
+                <ToolButton label="Radius Effect" disabled onClick={() => undefined}>
+                  <Circle size={17} aria-hidden="true" />
+                </ToolButton>
+                <ToolButton label="Square Effect" disabled onClick={() => undefined}>
+                  <Square size={17} aria-hidden="true" />
+                </ToolButton>
+                <ToolButton label="Polygon Effect" disabled onClick={() => undefined}>
+                  <Pentagon size={17} aria-hidden="true" />
+                </ToolButton>
+              </div>
+              {helpTopic === "effects" && <ToolHelpCard topic="effects" />}
             </div>
           )}
           {activeCategory === "lighting" && <Placeholder message="Dynamic lighting tools will be added here." />}
@@ -965,7 +997,7 @@ function formatSelectorSelectionSummary(counts: SelectorSelectionCounts): string
     formatSelectorSelectionPart(counts.templates, "Template"),
     formatSelectorSelectionPart(counts.drawings, "Drawing"),
     formatSelectorSelectionPart(counts.fogMasks, "Fog Mask"),
-    formatSelectorSelectionPart(counts.weatherMasks, "Weather Mask")
+    formatSelectorSelectionPart(counts.weatherMasks, "Weather Effect Mask")
   ]
     .filter(Boolean)
     .join(", ");
@@ -1207,7 +1239,7 @@ function Placeholder({ message }: { message: string }) {
   return <div className="tools-placeholder">{message}</div>;
 }
 
-function ToolHelpCard({ topic }: { topic: "drawing" | "templates" | "mask" | "table" }) {
+function ToolHelpCard({ topic }: { topic: "drawing" | "templates" | "fog" | "effects" | "table" }) {
   if (topic === "drawing") {
     return (
       <div className="tools-help-card" role="dialog" aria-label="Drawing tools help">
@@ -1230,12 +1262,23 @@ function ToolHelpCard({ topic }: { topic: "drawing" | "templates" | "mask" | "ta
     );
   }
 
-  if (topic === "mask") {
+  if (topic === "fog") {
     return (
-      <div className="tools-help-card" role="dialog" aria-label="Mask tools help">
-        <strong>Mask Tools</strong>
+      <div className="tools-help-card" role="dialog" aria-label="Fog of War tools help">
+        <strong>Fog Of War Tools</strong>
         <ul>
-          {[...getFogHelpLines(), ...getWeatherHelpLines()].map((line) => <li key={line}>{line}</li>)}
+          {getFogHelpLines().map((line) => <li key={line}>{line}</li>)}
+        </ul>
+      </div>
+    );
+  }
+
+  if (topic === "effects") {
+    return (
+      <div className="tools-help-card" role="dialog" aria-label="Effects tools help">
+        <strong>Effects Tools</strong>
+        <ul>
+          {getWeatherHelpLines().map((line) => <li key={line}>{line}</li>)}
         </ul>
       </div>
     );

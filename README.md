@@ -21,7 +21,7 @@ This version is intentionally not a full campaign-management VTT. Tokens are lig
 - Use live Table Tools for configurable click pings and a fading laser pointer trail.
 - Run turn orders with campaign players, initiative values, Player View turn indicators, and display placement controls.
 - Roll dice from the GM toolbar with formulas, custom presets, recent history, text results, 3D Panels, and scene-based 3D physics rolls.
-- Add configurable rain, snow, fog, and sand weather effects from the Weather layer.
+- Add configurable rain, snow, fog, and sand weather effects from the Effects layer.
 - Store metadata-only backups for campaign and scene JSON before overwrites.
 
 ## Campaign Folder Format
@@ -106,13 +106,13 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Turn orders can be built from campaign players or tokens, sorted by initiative, reset between encounters, and played/paused for Player View display.
 - Player View turn order indicators include configurable sizing, placement, facing, and player status styling.
 
-### Weather Effects
+### Effects Layer
 
-- Weather is configured per scene from the Weather layer.
+- Weather is configured per scene from the Effects layer.
 - Weather effects render as lightweight map-bound canvas overlays and respect GM View and Player View layer visibility.
 - Weather effects currently include rain, snow, fog, and sand patterns.
 - Weather controls include effect, enabled state, intensity, opacity, speed, drift, masks, and advanced pattern tuning.
-- Weather masks can be selected from the GM canvas, highlighted in their layer list, and toggled from a context menu.
+- Weather effect masks can be selected from the GM canvas, highlighted in their layer list, and toggled from a context menu.
 
 ### Fog Of War
 

@@ -150,7 +150,7 @@ it("normalizeScene applies canonical core layer names and order", () => {
   expect(normalized.layers.map((layer) => layer.name)).toEqual([
     "GM",
     "Fog of War",
-    "Weather",
+    "Effects",
     "Drawings",
     "Foreground",
     "Tokens",

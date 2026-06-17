@@ -1978,7 +1978,7 @@ export function SceneCanvas({
               ...scene.weather.masks,
               {
                 id: crypto.randomUUID(),
-                name: `Weather Mask ${scene.weather.masks.length + 1}`,
+                name: `Weather Effect Mask ${scene.weather.masks.length + 1}`,
                 kind: weatherMaskDrag.kind,
                 points: weatherMaskDrag.kind === "circle" ? [weatherMaskDrag.start] : [weatherMaskDrag.start, weatherMaskDrag.current],
                 radius: weatherMaskDrag.kind === "circle" ? distanceBetween(weatherMaskDrag.start, weatherMaskDrag.current) : undefined,
@@ -2277,7 +2277,7 @@ export function SceneCanvas({
               setMaskContextMenu({
                 kind: "weather",
                 maskId: maskHit.mask.id,
-                label: maskHit.mask.name?.trim() || "Weather Mask",
+                label: maskHit.mask.name?.trim() || "Weather Effect Mask",
                 visible: maskHit.mask.visible ?? true,
                 x: frameRect ? event.clientX - frameRect.left : event.clientX,
                 y: frameRect ? event.clientY - frameRect.top : event.clientY
@@ -2549,7 +2549,7 @@ export function SceneCanvas({
           ...scene.weather.masks,
           {
             id: crypto.randomUUID(),
-            name: `Weather Mask ${scene.weather.masks.length + 1}`,
+            name: `Weather Effect Mask ${scene.weather.masks.length + 1}`,
             kind: "polygon",
             points: draft.points,
             visible: true
@@ -3408,7 +3408,7 @@ function MapCalibrationStatusStrip() {
 }
 
 function WeatherMaskStatusStrip({ weatherMaskTool, pointCount }: { weatherMaskTool: WeatherMaskTool; pointCount: number }) {
-  const label = weatherMaskTool === "polygon" ? "Weather Mask Polygon" : weatherMaskTool === "circle" ? "Weather Mask Circle" : "Weather Mask Rectangle";
+  const label = weatherMaskTool === "polygon" ? "Weather Effect Mask Polygon" : weatherMaskTool === "circle" ? "Weather Effect Mask Circle" : "Weather Effect Mask Rectangle";
   const hint =
     weatherMaskTool === "polygon"
       ? `Click to place points.${pointCount >= 3 ? " Enter or double-click finishes." : ""}${pointCount > 0 ? " Right-click removes last point." : ""} Escape cancels.`

@@ -6,7 +6,6 @@ import {
   Circle,
   CircleHelp,
   CloudFog,
-  CloudSun,
   Crown,
   Eye,
   EyeOff,
@@ -658,7 +657,7 @@ export function LayerPanel({
                   </div>
                   )}
                   <div className="control-divider" />
-                  <div className="inline-help">Weather renders on both GM View and Player View when the layer is visible. Keep drift centered for no directional movement.</div>
+                  <div className="inline-help">Effects render on both GM View and Player View when this layer is visible. Keep weather drift centered for no directional movement.</div>
                 </div>
               )}
               {layer.id === "weather" && isExpanded && !areSettingsExpanded && (
@@ -1250,11 +1249,11 @@ function WeatherMaskList({
   return (
     <div className="layer-detail-controls weather-mask-list" onClick={(event) => event.stopPropagation()}>
       <div className="fog-shape-list-header">
-        <span>Weather Masks</span>
+        <span>Weather Effect Masks</span>
       </div>
       {scene.weather.masks.length > 0 ? (
         scene.weather.masks.map((mask) => {
-          const label = mask.name?.trim() || "Weather Mask";
+          const label = mask.name?.trim() || "Weather Effect Mask";
           const isVisible = mask.visible ?? true;
           const isSelected = selectedIds.has(mask.id);
           return (
@@ -1298,7 +1297,7 @@ function WeatherMaskList({
               <button
                 className="icon-button fog-shape-action-button danger"
                 aria-label={`Delete ${label}`}
-                title="Delete weather mask"
+                title="Delete weather effect mask"
                 onClick={(event) => {
                   event.stopPropagation();
                   onUpdateWeather({ masks: scene.weather.masks.filter((candidate) => candidate.id !== mask.id) });
@@ -1314,11 +1313,11 @@ function WeatherMaskList({
         })
       ) : (
         <div className="layer-empty-state">
-          <strong>No Weather Masks</strong>
+          <strong>No Weather Effect Masks</strong>
           <span>
             {scene.weather.enabled && hasEnabledWeatherEffect(scene.weather.effects)
-              ? "Draw masks from Weather Tools to keep weather out of interiors."
-              : "Choose a weather pattern in settings to enable Weather Tools, then draw masks from the canvas."}
+              ? "Draw masks from Effects Tools to keep weather out of interiors."
+              : "Choose a weather pattern in settings to enable weather effect masks, then draw masks from the canvas."}
           </span>
         </div>
       )}
@@ -1483,7 +1482,7 @@ function getLayerIcon(layer: Layer) {
     case "fog":
       return <CloudFog size={16} />;
     case "weather":
-      return <CloudSun size={16} />;
+      return <Sparkles size={16} />;
     case "drawing":
       return <Paintbrush size={16} />;
     case "token":

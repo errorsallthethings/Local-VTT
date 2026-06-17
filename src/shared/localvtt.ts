@@ -1007,7 +1007,7 @@ export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
   { id: "gm", name: "GM", kind: "gm", order: 90, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
   { id: "fog", name: "Fog of War", kind: "fog", order: 80, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
-  { id: "weather", name: "Weather", kind: "weather", order: 70, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
+  { id: "weather", name: "Effects", kind: "weather", order: 70, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
   { id: "drawing", name: "Drawings", kind: "drawing", order: 65, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
   { id: "foreground", name: "Foreground", kind: "foreground", order: 60, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
   { id: "token", name: "Tokens", kind: "token", order: 50, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
@@ -1422,7 +1422,7 @@ function normalizeWeatherMasks(masks?: WeatherMask[]): WeatherMask[] {
       return {
         ...mask,
         id,
-        name: typeof mask.name === "string" && mask.name.trim() ? mask.name : `Weather Mask ${index + 1}`,
+        name: typeof mask.name === "string" && mask.name.trim() ? mask.name : `Weather Effect Mask ${index + 1}`,
         points,
         visible: mask.visible ?? true
       };
