@@ -26,7 +26,7 @@ describe("persistence normalization", () => {
     const normalized = normalizeScene(partialScene);
 
     expect(normalized.grid.measurement.unitsPerGridCell).toBe(5);
-    expect(normalized.layers.map((layer) => layer.id)).toContain("weather");
+    expect(normalized.layers.map((layer) => layer.id)).toContain("effects");
     expect(normalized.tokens).toEqual([]);
     expect(normalized.walls).toEqual([]);
     expect(normalized.lights).toEqual([]);

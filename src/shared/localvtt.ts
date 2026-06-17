@@ -81,7 +81,7 @@ export interface Layer {
     | "fog"
     | "drawing"
     | "grid"
-    | "weather"
+    | "effects"
     | "token"
     | "foreground"
     | "object"
@@ -1007,7 +1007,7 @@ export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
   { id: "gm", name: "GM", kind: "gm", order: 90, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
   { id: "fog", name: "Fog of War", kind: "fog", order: 80, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
-  { id: "weather", name: "Effects", kind: "weather", order: 70, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
+  { id: "effects", name: "Effects", kind: "effects", order: 70, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
   { id: "drawing", name: "Drawings", kind: "drawing", order: 65, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
   { id: "foreground", name: "Foreground", kind: "foreground", order: 60, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
   { id: "token", name: "Tokens", kind: "token", order: 50, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
@@ -1271,6 +1271,28 @@ function normalizeTableTools(settings?: Partial<TableToolSettings>): TableToolSe
   };
 }
 
+function normalizeLayerIdentity(layer: Layer): Layer {
+  if (layer.id === "weather" || (layer.kind as string) === "weather") {
+    return {
+      ...layer,
+      id: "effects",
+      kind: "effects"
+    };
+  }
+  return layer;
+}
+
+function normalizeLayerId(layerId: string): string {
+  return layerId === "weather" ? "effects" : layerId;
+}
+
+function normalizeSceneOverlays(overlays?: SceneOverlay[]): SceneOverlay[] {
+  return (overlays ?? []).map((overlay) => ({
+    ...overlay,
+    layerId: normalizeLayerId(overlay.layerId)
+  }));
+}
+
 function isUnitNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
@@ -1280,7 +1302,8 @@ function isPoint(value: unknown): value is Point {
 }
 
 export function normalizeScene(scene: Scene): Scene {
-  const layerById = new Map((scene.layers ?? []).map((layer) => [layer.id, layer]));
+  const migratedLayers = (scene.layers ?? []).map(normalizeLayerIdentity);
+  const layerById = new Map(migratedLayers.map((layer) => [layer.id, layer]));
   // Default layer names/order are application-owned so old scene files pick up current layer labels safely.
   const normalizedLayers = DEFAULT_LAYERS.map((defaultLayer) => ({
     ...defaultLayer,
@@ -1288,7 +1311,7 @@ export function normalizeScene(scene: Scene): Scene {
     name: defaultLayer.name,
     order: defaultLayer.order
   }));
-  const customLayers = (scene.layers ?? []).filter((layer) => !DEFAULT_LAYERS.some((defaultLayer) => defaultLayer.id === layer.id));
+  const customLayers = migratedLayers.filter((layer) => !DEFAULT_LAYERS.some((defaultLayer) => defaultLayer.id === layer.id));
 
   return {
     ...scene,
@@ -1304,7 +1327,7 @@ export function normalizeScene(scene: Scene): Scene {
     walls: scene.walls ?? [],
     lights: scene.lights ?? [],
     drawings: normalizeDrawings(scene.drawings),
-    overlays: scene.overlays ?? [],
+    overlays: normalizeSceneOverlays(scene.overlays),
     turnOrder: normalizeTurnOrder(scene.turnOrder),
     videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(scene.videoPlayback ?? {}) },
     tableTools: normalizeTableTools(scene.tableTools),

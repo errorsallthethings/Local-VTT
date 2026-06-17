@@ -162,7 +162,7 @@ it("normalizeScene applies canonical core layer names and order", () => {
   expect([...normalized.layers].sort((a, b) => b.order - a.order).map((layer) => layer.id)).toEqual([
     "gm",
     "fog",
-    "weather",
+    "effects",
     "drawing",
     "foreground",
     "token",
@@ -171,6 +171,20 @@ it("normalizeScene applies canonical core layer names and order", () => {
     "grid",
     "map"
   ]);
+});
+
+it("normalizeScene migrates the legacy weather layer id to effects", () => {
+  const scene = createDefaultScene("Legacy Effects Layer");
+  scene.layers = scene.layers.map((layer) => (layer.id === "effects" ? { ...layer, id: "weather", kind: "weather", name: "Weather Legacy" } : layer));
+  scene.overlays = [
+    { id: "overlay", assetId: "asset", layerId: "weather", position: { x: 0, y: 0 }, scale: 1, rotation: 0, opacity: 1, visibleInPlayer: true }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.layers.some((layer) => layer.id === "weather")).toBe(false);
+  expect(normalized.layers.find((layer) => layer.id === "effects")).toMatchObject({ name: "Effects", kind: "effects" });
+  expect(normalized.overlays[0]?.layerId).toBe("effects");
 });
 
 it("normalizeScene backfills drawing defaults", () => {
@@ -649,7 +663,7 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
     { id: "drawing-hidden", kind: "line", points: [], color: "#fff", opacity: 1, strokeWidth: 2, visibleInPlayer: false }
   ];
   scene.overlays = [
-    { id: "overlay-visible", assetId: "overlay", layerId: "weather", position: { x: 0, y: 0 }, scale: 1, rotation: 0, opacity: 1, visibleInPlayer: true },
+    { id: "overlay-visible", assetId: "overlay", layerId: "effects", position: { x: 0, y: 0 }, scale: 1, rotation: 0, opacity: 1, visibleInPlayer: true },
     { id: "overlay-hidden", assetId: "unused", layerId: "gm", position: { x: 0, y: 0 }, scale: 1, rotation: 0, opacity: 1, visibleInPlayer: true }
   ];
   scene.notes = "Secret notes";
@@ -664,7 +678,7 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   expect(projection.playerDisplay.pixelsPerInch).toBe(120);
   expect(
     projection.scene.layers.map((layer) => layer.id),
-  ).toEqual(["fog", "weather", "drawing", "foreground", "object", "lighting", "grid", "map"]);
+  ).toEqual(["fog", "effects", "drawing", "foreground", "object", "lighting", "grid", "map"]);
   expect(
     projection.scene.tokens.map((token) => token.id),
   ).toEqual(["token-1"]);

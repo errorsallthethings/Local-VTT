@@ -260,7 +260,7 @@ type MaskContextMenu =
       y: number;
     }
   | {
-      kind: "weather";
+      kind: "effects";
       maskId: string;
       label: string;
       visible: boolean;
@@ -549,7 +549,9 @@ export function SceneCanvas({
   const gridLayer = scene?.layers.find((layer) => layer.id === "grid");
   const fogLayer = scene?.layers.find((layer) => layer.id === "fog");
   const drawingLayer = scene?.layers.find((layer) => layer.id === "drawing");
-  const weatherLayer = scene?.layers.find((layer) => layer.id === "weather");
+  const weatherLayer =
+    scene?.layers.find((layer) => layer.id === "effects") ??
+    scene?.layers.find((layer) => layer.id === "weather");
   const tokenLayer = scene?.layers.find((layer) => layer.id === "token");
   const canShowMap = mode === "gm" ? mapLayer?.visibleInGm : mapLayer?.visibleInPlayer;
   const canShowGrid = mode === "gm" ? gridLayer?.visibleInGm : gridLayer?.visibleInPlayer;
@@ -2275,7 +2277,7 @@ export function SceneCanvas({
               onSelectWeatherMask?.(maskHit.mask.id);
               onSelectFogShape?.(null);
               setMaskContextMenu({
-                kind: "weather",
+                kind: "effects",
                 maskId: maskHit.mask.id,
                 label: maskHit.mask.name?.trim() || "Weather Effect Mask",
                 visible: maskHit.mask.visible ?? true,

@@ -364,7 +364,7 @@ export function LayerPanel({
             (layer.id === "map" && Boolean(mapAsset)) ||
             layer.id === "grid" ||
             layer.id === "fog" ||
-            layer.id === "weather";
+            isEffectsLayerId(layer.id);
           const hasLayerContents = true;
           const isExpanded = hasLayerContents && expandedLayerIds.has(layer.id);
           const areSettingsExpanded = settingsLayerIds.has(layer.id);
@@ -538,7 +538,7 @@ export function LayerPanel({
                   onUpdateDrawings={updateDrawings}
                 />
               )}
-              {layer.id === "weather" && areSettingsExpanded && (
+              {isEffectsLayerId(layer.id) && areSettingsExpanded && (
                 <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
                   <div className="weather-category-list">
                     {WEATHER_CATEGORY_OPTIONS.map((option) => (
@@ -660,7 +660,7 @@ export function LayerPanel({
                   <div className="inline-help">Effects render on both GM View and Player View when this layer is visible. Keep weather drift centered for no directional movement.</div>
                 </div>
               )}
-              {layer.id === "weather" && isExpanded && !areSettingsExpanded && (
+              {isEffectsLayerId(layer.id) && isExpanded && !areSettingsExpanded && (
                 <WeatherMaskList
                   scene={scene}
                   selectedWeatherMaskId={selectedWeatherMaskId}
@@ -1474,6 +1474,10 @@ function WeatherDirectionDial({
 }
 
 function getLayerIcon(layer: Layer) {
+  if ((layer.kind as string) === "weather") {
+    return <Sparkles size={16} aria-hidden="true" />;
+  }
+
   switch (layer.kind) {
     case "map":
       return <Image size={16} />;
@@ -1481,7 +1485,7 @@ function getLayerIcon(layer: Layer) {
       return <Grid3X3 size={16} />;
     case "fog":
       return <CloudFog size={16} />;
-    case "weather":
+    case "effects":
       return <Sparkles size={16} />;
     case "drawing":
       return <Paintbrush size={16} />;
@@ -1507,13 +1511,17 @@ function getLayerItemCount(layerId: Layer["id"], scene: Scene): number | null {
   if (layerId === "token") {
     return scene.tokens.length;
   }
-  if (layerId === "weather") {
+  if (isEffectsLayerId(layerId)) {
     return scene.weather.masks.length;
   }
   if (layerId === "drawing") {
     return scene.drawings.length;
   }
   return null;
+}
+
+function isEffectsLayerId(layerId: string): boolean {
+  return layerId === "effects" || layerId === "weather";
 }
 
 function getReservedLayerGuidance(layer: Layer): string | null {
