@@ -121,6 +121,21 @@ let waterRuntime: WaterRuntime | null = null;
 let lavaRuntime: WaterRuntime | null = null;
 let smokeRuntime: WaterRuntime | null = null;
 
+function getEffectWorldOrigin(bounds: ScreenBounds, cameraState: { x: number; y: number; zoom: number }) {
+  const zoom = Math.max(cameraState.zoom, 0.01);
+  return {
+    x: (bounds.x - cameraState.x) / zoom,
+    y: (bounds.y - cameraState.y) / zoom
+  };
+}
+
+function updateCameraUniforms(material: THREE.ShaderMaterial, bounds: ScreenBounds, cameraState: { x: number; y: number; zoom: number }) {
+  const origin = getEffectWorldOrigin(bounds, cameraState);
+  material.uniforms.cameraOffset.value.set(cameraState.x, cameraState.y);
+  material.uniforms.cameraZoom.value = cameraState.zoom;
+  material.uniforms.effectOrigin.value.set(origin.x, origin.y);
+}
+
 export function drawEnvironmentWaterEffect(
   ctx: CanvasRenderingContext2D,
   bounds: ScreenBounds,
@@ -150,10 +165,8 @@ export function drawEnvironmentWaterEffect(
   runtime.meshB.material.uniforms.time.value = time * 0.82 + 19.7;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  runtime.meshA.material.uniforms.cameraOffset.value.set(cameraState.x, -cameraState.y);
-  runtime.meshB.material.uniforms.cameraOffset.value.set(cameraState.x, -cameraState.y);
-  runtime.meshA.material.uniforms.cameraZoom.value = cameraState.zoom;
-  runtime.meshB.material.uniforms.cameraZoom.value = cameraState.zoom;
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateWaterMaterialTuning(runtime.meshA.material, tuning);
   updateWaterMaterialTuning(runtime.meshB.material, tuning);
 
@@ -196,10 +209,8 @@ export function drawEnvironmentLavaEffect(
   runtime.meshB.material.uniforms.time.value = time * 0.74 + 9.3;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  runtime.meshA.material.uniforms.cameraOffset.value.set(cameraState.x, -cameraState.y);
-  runtime.meshB.material.uniforms.cameraOffset.value.set(cameraState.x, -cameraState.y);
-  runtime.meshA.material.uniforms.cameraZoom.value = cameraState.zoom;
-  runtime.meshB.material.uniforms.cameraZoom.value = cameraState.zoom;
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateLavaMaterialTuning(runtime.meshA.material, tuning);
   updateLavaMaterialTuning(runtime.meshB.material, tuning);
 
@@ -242,10 +253,8 @@ export function drawEnvironmentSmokeEffect(
   runtime.meshB.material.uniforms.time.value = time * 0.61 + 14.7;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  runtime.meshA.material.uniforms.cameraOffset.value.set(cameraState.x, -cameraState.y);
-  runtime.meshB.material.uniforms.cameraOffset.value.set(cameraState.x, -cameraState.y);
-  runtime.meshA.material.uniforms.cameraZoom.value = cameraState.zoom;
-  runtime.meshB.material.uniforms.cameraZoom.value = cameraState.zoom;
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateSmokeMaterialTuning(runtime.meshA.material, tuning);
   updateSmokeMaterialTuning(runtime.meshB.material, tuning);
 
@@ -434,6 +443,7 @@ function createWaterMaterial(opacity: number): THREE.ShaderMaterial {
       time: { value: 0 },
       resolution: { value: new THREE.Vector2(1, 1) },
       cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
       cameraZoom: { value: 1 },
       opacity: { value: Math.max(opacity, 0.75) }
     },
@@ -466,6 +476,7 @@ function createWaterMaterial(opacity: number): THREE.ShaderMaterial {
       uniform float time;
       uniform vec2 resolution;
       uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
       uniform float cameraZoom;
       uniform float opacity;
       varying vec2 vUv;
@@ -486,8 +497,11 @@ function createWaterMaterial(opacity: number): THREE.ShaderMaterial {
       }
 
       void main() {
-        float zoomFactor = pow(max(cameraZoom, 0.01), zoomScale);
-        vec2 anchoredCoord = gl_FragCoord.xy - cameraOffset * panFollow;
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
         vec2 pixelUv = anchoredCoord / 180.0 * zoomFactor;
         vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
         vec2 perpendicular = vec2(-direction.y, direction.x);
@@ -584,6 +598,7 @@ function createLavaMaterial(opacity: number): THREE.ShaderMaterial {
       time: { value: 0 },
       resolution: { value: new THREE.Vector2(1, 1) },
       cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
       cameraZoom: { value: 1 },
       opacity: { value: opacity }
     },
@@ -612,6 +627,7 @@ function createLavaMaterial(opacity: number): THREE.ShaderMaterial {
       uniform float time;
       uniform vec2 resolution;
       uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
       uniform float cameraZoom;
       uniform float opacity;
       varying vec2 vUv;
@@ -643,8 +659,11 @@ function createLavaMaterial(opacity: number): THREE.ShaderMaterial {
       }
 
       void main() {
-        float zoomFactor = pow(max(cameraZoom, 0.01), zoomScale);
-        vec2 anchoredCoord = gl_FragCoord.xy - cameraOffset * panFollow;
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
         vec2 pixelUv = anchoredCoord / 170.0 * zoomFactor;
         vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
         vec2 perpendicular = vec2(-direction.y, direction.x);
@@ -713,6 +732,7 @@ function createSmokeMaterial(opacity: number): THREE.ShaderMaterial {
       time: { value: 0 },
       resolution: { value: new THREE.Vector2(1, 1) },
       cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
       cameraZoom: { value: 1 },
       opacity: { value: opacity }
     },
@@ -741,6 +761,7 @@ function createSmokeMaterial(opacity: number): THREE.ShaderMaterial {
       uniform float time;
       uniform vec2 resolution;
       uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
       uniform float cameraZoom;
       uniform float opacity;
       varying vec2 vUv;
@@ -772,8 +793,11 @@ function createSmokeMaterial(opacity: number): THREE.ShaderMaterial {
       }
 
       void main() {
-        float zoomFactor = pow(max(cameraZoom, 0.01), zoomScale);
-        vec2 anchoredCoord = gl_FragCoord.xy - cameraOffset * panFollow;
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
         vec2 pixelUv = anchoredCoord / 210.0 * zoomFactor;
         vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
         vec2 perpendicular = vec2(-direction.y, direction.x);

@@ -85,6 +85,7 @@ import {
 } from "../lib/workspaceLayout";
 import {
   GmDialogs,
+  type EnvironmentEffectNameDialog,
   type FogShapeNameDialog,
   type FolderColorDialog,
   type FolderNameDialog,
@@ -142,6 +143,7 @@ export function GmApp() {
   const [sceneDialog, setSceneDialog] = useState<SceneNameDialog | null>(null);
   const [folderDialog, setFolderDialog] = useState<FolderNameDialog | null>(null);
   const [fogShapeDialog, setFogShapeDialog] = useState<FogShapeNameDialog | null>(null);
+  const [environmentEffectDialog, setEnvironmentEffectDialog] = useState<EnvironmentEffectNameDialog | null>(null);
   const [tokenDialog, setTokenDialog] = useState<TokenNameDialog | null>(null);
   const [tokenCropDialog, setTokenCropDialog] = useState<TokenCropDialogState | null>(null);
   const [tokenAssetDialog, setTokenAssetDialog] = useState<TokenAssetNameDialog | null>(null);
@@ -188,6 +190,7 @@ export function GmApp() {
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
   const [newFolderName, setNewFolderName] = useState("New Folder");
   const [newFogShapeName, setNewFogShapeName] = useState("");
+  const [newEnvironmentEffectName, setNewEnvironmentEffectName] = useState("");
   const [newTokenName, setNewTokenName] = useState("");
   const [newTokenBorderColor, setNewTokenBorderColor] = useState(DEFAULT_TOKEN_BORDER_COLOR);
   const [newFolderColor, setNewFolderColor] = useState(DEFAULT_SCENE_FOLDER_COLOR);
@@ -1360,6 +1363,12 @@ export function GmApp() {
     setFogShapeDialog({ shapeId });
   };
 
+  const openRenameEnvironmentEffectDialog = (effectId: string, fallbackName: string) => {
+    const effectName = activeScene?.environment.effects.find((effect) => effect.id === effectId)?.name?.trim();
+    setNewEnvironmentEffectName(effectName || fallbackName);
+    setEnvironmentEffectDialog({ effectId });
+  };
+
   const openRenameTokenDialog = (tokenId: string, fallbackName: string) => {
     const tokenName = activeScene?.tokens.find((token) => token.id === tokenId)?.name?.trim();
     setNewTokenName(tokenName || fallbackName);
@@ -1425,6 +1434,25 @@ export function GmApp() {
       shapes: activeScene.fog.shapes.map((shape) => (shape.id === fogShapeDialog.shapeId ? { ...shape, name } : shape))
     });
     setFogShapeDialog(null);
+  };
+
+  const submitEnvironmentEffectName = () => {
+    if (!activeScene || !environmentEffectDialog) {
+      return;
+    }
+    const name = newEnvironmentEffectName.trim();
+    if (!name) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      environment: {
+        ...activeScene.environment,
+        effects: activeScene.environment.effects.map((effect) => (effect.id === environmentEffectDialog.effectId ? { ...effect, name } : effect))
+      },
+      updatedAt: new Date().toISOString()
+    });
+    setEnvironmentEffectDialog(null);
   };
 
   const submitTokenName = () => {
@@ -2138,6 +2166,7 @@ export function GmApp() {
         onSelectDrawing={(drawingId) => selectSceneItems({ drawingIds: drawingId ? [drawingId] : [] })}
         onSelectToken={(tokenId) => selectSceneItems({ tokenIds: tokenId ? [tokenId] : [] })}
         onRenameFogShape={openRenameFogShapeDialog}
+        onRenameEnvironmentEffect={openRenameEnvironmentEffectDialog}
         onRenameToken={openRenameTokenDialog}
         onOpenFogColor={() => openSceneColorDialog("fog")}
         onOpenGridColor={() => openSceneColorDialog("grid")}
@@ -2163,6 +2192,7 @@ export function GmApp() {
         sceneDialog={sceneDialog}
         folderDialog={folderDialog}
         fogShapeDialog={fogShapeDialog}
+        environmentEffectDialog={environmentEffectDialog}
         tokenDialog={tokenDialog}
         tokenCropDialog={tokenCropDialog}
         tokenAssetDialog={tokenAssetDialog}
@@ -2188,6 +2218,7 @@ export function GmApp() {
         newSceneName={newSceneName}
         newFolderName={newFolderName}
         newFogShapeName={newFogShapeName}
+        newEnvironmentEffectName={newEnvironmentEffectName}
         newTokenName={newTokenName}
         newFolderColor={newFolderColor}
         newTokenBorderColor={newTokenBorderColor}
@@ -2195,6 +2226,7 @@ export function GmApp() {
         onNewSceneNameChange={setNewSceneName}
         onNewFolderNameChange={setNewFolderName}
         onNewFogShapeNameChange={setNewFogShapeName}
+        onNewEnvironmentEffectNameChange={setNewEnvironmentEffectName}
         onNewTokenNameChange={setNewTokenName}
         onNewFolderColorChange={setNewFolderColor}
         onNewTokenBorderColorChange={setNewTokenBorderColor}
@@ -2202,6 +2234,7 @@ export function GmApp() {
         onCancelSceneDialog={() => setSceneDialog(null)}
         onCancelFolderDialog={() => setFolderDialog(null)}
         onCancelFogShapeDialog={() => setFogShapeDialog(null)}
+        onCancelEnvironmentEffectDialog={() => setEnvironmentEffectDialog(null)}
         onCancelTokenDialog={() => setTokenDialog(null)}
         onCancelTokenCropDialog={() => void cancelTokenCrop()}
         onCancelTokenAssetDialog={() => setTokenAssetDialog(null)}
@@ -2220,6 +2253,7 @@ export function GmApp() {
         onSubmitSceneName={() => void submitSceneName()}
         onSubmitFolderName={submitFolderName}
         onSubmitFogShapeName={submitFogShapeName}
+        onSubmitEnvironmentEffectName={submitEnvironmentEffectName}
         onSubmitTokenName={submitTokenName}
         onSubmitTokenCrop={(crop) => void submitTokenCrop(crop)}
         onSubmitTokenAssetName={submitTokenAssetName}

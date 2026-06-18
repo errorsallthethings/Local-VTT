@@ -39,6 +39,7 @@ export function GmInspector({
   onSelectDrawing,
   onSelectToken,
   onRenameFogShape,
+  onRenameEnvironmentEffect,
   onRenameToken,
   onOpenFogColor,
   onOpenGridColor,
@@ -78,6 +79,7 @@ export function GmInspector({
   onSelectDrawing: (drawingId: string | null) => void;
   onSelectToken: (tokenId: string | null) => void;
   onRenameFogShape: (shapeId: string, fallbackName: string) => void;
+  onRenameEnvironmentEffect: (effectId: string, fallbackName: string) => void;
   onRenameToken: (tokenId: string, fallbackName: string) => void;
   onOpenFogColor: () => void;
   onOpenGridColor: () => void;
@@ -153,6 +155,7 @@ export function GmInspector({
                 onSelectDrawing={onSelectDrawing}
                 onSelectToken={onSelectToken}
                 onRenameFogShape={onRenameFogShape}
+                onRenameEnvironmentEffect={onRenameEnvironmentEffect}
                 onRenameToken={onRenameToken}
                 onOpenFogColor={onOpenFogColor}
                 onOpenGridColor={onOpenGridColor}

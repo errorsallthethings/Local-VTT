@@ -92,6 +92,7 @@ export function LayerPanel({
   onSelectDrawing,
   onSelectToken,
   onRenameFogShape,
+  onRenameEnvironmentEffect,
   onRenameToken,
   onOpenFogColor,
   onOpenGridColor,
@@ -125,6 +126,7 @@ export function LayerPanel({
   onSelectDrawing: (drawingId: string | null) => void;
   onSelectToken: (tokenId: string | null) => void;
   onRenameFogShape: (shapeId: string, fallbackName: string) => void;
+  onRenameEnvironmentEffect: (effectId: string, fallbackName: string) => void;
   onRenameToken: (tokenId: string, fallbackName: string) => void;
   onOpenFogColor: () => void;
   onOpenGridColor: () => void;
@@ -688,6 +690,7 @@ export function LayerPanel({
                     selectedEnvironmentEffectId={selectedEnvironmentEffectId}
                     onSelectEnvironmentEffect={onSelectEnvironmentEffect}
                     onEditEnvironmentEffect={onEditEnvironmentEffect}
+                    onRenameEnvironmentEffect={onRenameEnvironmentEffect}
                     onUpdateEnvironment={updateEnvironment}
                   />
                   <WeatherMaskList
@@ -1267,12 +1270,14 @@ function EnvironmentEffectList({
   selectedEnvironmentEffectId,
   onSelectEnvironmentEffect,
   onEditEnvironmentEffect,
+  onRenameEnvironmentEffect,
   onUpdateEnvironment
 }: {
   scene: Scene;
   selectedEnvironmentEffectId: string | null;
   onSelectEnvironmentEffect: (effectId: string | null) => void;
   onEditEnvironmentEffect: (effectId: string) => void;
+  onRenameEnvironmentEffect: (effectId: string, fallbackName: string) => void;
   onUpdateEnvironment: (patch: Partial<Scene["environment"]>) => void;
 }) {
   const [openEffectMenuId, setOpenEffectMenuId] = useState<string | null>(null);
@@ -1313,7 +1318,7 @@ function EnvironmentEffectList({
                 <span className="fog-shape-kind-icon" title={`${effect.kind} environmental effect`} aria-hidden="true">
                   {effect.kind === "circle" ? <Circle size={13} /> : effect.kind === "polygon" ? <Pentagon size={13} /> : <Square size={13} />}
                 </span>
-                <span className="fog-shape-name" title={label}>
+                <span className="fog-shape-name" title={label} onDoubleClick={() => onRenameEnvironmentEffect(effect.id, label)}>
                   {label}
                 </span>
                 <button
