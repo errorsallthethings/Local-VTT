@@ -58,7 +58,14 @@ import {
 } from "../canvas/tokenMovement";
 import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
-import { DEFAULT_WATER_EFFECT_TUNING, drawEnvironmentWaterEffect, type WaterEffectTuning } from "../canvas/environmentEffectsRenderer";
+import {
+  DEFAULT_LAVA_EFFECT_TUNING,
+  DEFAULT_WATER_EFFECT_TUNING,
+  drawEnvironmentLavaEffect,
+  drawEnvironmentWaterEffect,
+  type LavaEffectTuning,
+  type WaterEffectTuning
+} from "../canvas/environmentEffectsRenderer";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { duplicateDrawingElement } from "../lib/drawingDefaults";
@@ -108,6 +115,7 @@ interface SceneCanvasProps {
   environmentEffectTool?: EnvironmentEffectTool | null;
   environmentEffectType?: EnvironmentEffectType;
   waterEffectTuning?: WaterEffectTuning;
+  lavaEffectTuning?: LavaEffectTuning;
   liveTableEvents?: LiveTableEvent[];
   tableTools?: TableToolSettings;
   tableToolsVisibleInPlayer?: boolean;
@@ -215,6 +223,7 @@ type EnvironmentEffectDrag = {
   kind: EnvironmentEffectTool;
   effect: EnvironmentEffectType;
   waterTuning?: WaterEffectTuning;
+  lavaTuning?: LavaEffectTuning;
   start: Point;
   current: Point;
 };
@@ -340,6 +349,7 @@ export function SceneCanvas({
   environmentEffectTool = null,
   environmentEffectType = "water",
   waterEffectTuning,
+  lavaEffectTuning,
   liveTableEvents = [],
   tableTools,
   tableToolsVisibleInPlayer = true,
@@ -1255,7 +1265,7 @@ export function SceneCanvas({
         if (weatherMapReady) {
           drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1, weatherMapSource);
         }
-        drawEnvironmentEffects(ctx, scene.environment.effects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, waterEffectTuning);
+        drawEnvironmentEffects(ctx, scene.environment.effects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, waterEffectTuning, lavaEffectTuning);
       }
       if (mode === "gm") {
         drawWeatherMaskOutlines(ctx, scene.weather.masks, renderCamera);
@@ -1374,7 +1384,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, snapPoint, tokenDragPreview, videoRefs, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, lavaEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, snapPoint, tokenDragPreview, videoRefs, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1609,6 +1619,7 @@ export function SceneCanvas({
         kind: environmentEffectTool,
         effect: environmentEffectType,
         waterTuning: environmentEffectType === "water" ? cloneWaterEffectTuning(waterEffectTuning) : undefined,
+        lavaTuning: environmentEffectType === "lava" ? cloneLavaEffectTuning(lavaEffectTuning) : undefined,
         start: point,
         current: point
       } satisfies EnvironmentEffectDrag;
@@ -2150,6 +2161,7 @@ export function SceneCanvas({
                 kind: environmentEffectDrag.kind,
                 effect: environmentEffectDrag.effect,
                 waterTuning: environmentEffectDrag.effect === "water" ? cloneWaterEffectTuning(environmentEffectDrag.waterTuning ?? waterEffectTuning) : undefined,
+                lavaTuning: environmentEffectDrag.effect === "lava" ? cloneLavaEffectTuning(environmentEffectDrag.lavaTuning ?? lavaEffectTuning) : undefined,
                 points: environmentEffectDrag.kind === "circle" ? [environmentEffectDrag.start] : [environmentEffectDrag.start, environmentEffectDrag.current],
                 radius: environmentEffectDrag.kind === "circle" ? distanceBetween(environmentEffectDrag.start, environmentEffectDrag.current) : undefined,
                 visibleInGm: true,
@@ -2806,6 +2818,7 @@ export function SceneCanvas({
             kind: "polygon",
             effect: environmentEffectType,
             waterTuning: environmentEffectType === "water" ? cloneWaterEffectTuning(waterEffectTuning) : undefined,
+            lavaTuning: environmentEffectType === "lava" ? cloneLavaEffectTuning(lavaEffectTuning) : undefined,
             points: draft.points,
             visibleInGm: true,
             visibleInPlayer: true
@@ -4781,7 +4794,8 @@ function drawEnvironmentEffects(
   mode: "gm" | "player",
   timestamp: number,
   layerOpacity: number,
-  waterEffectTuning?: WaterEffectTuning
+  waterEffectTuning?: WaterEffectTuning,
+  lavaEffectTuning?: LavaEffectTuning
 ) {
   for (const effect of effects) {
     const visible = mode === "gm" ? effect.visibleInGm !== false : effect.visibleInPlayer !== false;
@@ -4792,7 +4806,7 @@ function drawEnvironmentEffects(
     const path = getEnvironmentEffectPath(effect, camera);
     ctx.clip(path);
     if (effect.effect === "lava") {
-      drawLavaEffect(ctx, effect, camera, timestamp, layerOpacity);
+      drawLavaEffect(ctx, effect, camera, timestamp, layerOpacity, lavaEffectTuning);
     } else if (effect.effect === "smoke") {
       drawSmokeEffect(ctx, effect, camera, timestamp, layerOpacity);
     } else {
@@ -4824,38 +4838,18 @@ function cloneWaterEffectTuning(tuning?: WaterEffectTuning): WaterEffectTuning {
   return { ...(tuning ?? DEFAULT_WATER_EFFECT_TUNING) };
 }
 
-function drawLavaEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number) {
+function cloneLavaEffectTuning(tuning?: LavaEffectTuning): LavaEffectTuning {
+  return { ...(tuning ?? DEFAULT_LAVA_EFFECT_TUNING) };
+}
+
+function drawLavaEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, lavaEffectTuning?: LavaEffectTuning) {
   const bounds = getEnvironmentEffectBounds(effect);
   if (!bounds) {
     return;
   }
   const screenBounds = worldRectToScreen(bounds, camera);
-  const time = timestamp / 1000;
-  const gradient = ctx.createRadialGradient(
-    screenBounds.x + screenBounds.width * 0.5,
-    screenBounds.y + screenBounds.height * 0.5,
-    0,
-    screenBounds.x + screenBounds.width * 0.5,
-    screenBounds.y + screenBounds.height * 0.5,
-    Math.max(screenBounds.width, screenBounds.height) * 0.72
-  );
-  gradient.addColorStop(0, `rgba(255, 190, 64, ${0.52 * layerOpacity})`);
-  gradient.addColorStop(0.45, `rgba(235, 82, 31, ${0.44 * layerOpacity})`);
-  gradient.addColorStop(1, `rgba(91, 22, 18, ${0.48 * layerOpacity})`);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(screenBounds.x, screenBounds.y, screenBounds.width, screenBounds.height);
-  ctx.lineCap = "round";
-  for (let index = 0; index < 14; index += 1) {
-    const y = screenBounds.y + screenBounds.height * ((hashNumber(index + 17) + time * 0.035) % 1);
-    const x = screenBounds.x + screenBounds.width * hashNumber(index + 71);
-    const length = screenBounds.width * (0.12 + hashNumber(index + 31) * 0.28);
-    ctx.beginPath();
-    ctx.moveTo(x - length * 0.5, y);
-    ctx.bezierCurveTo(x - length * 0.2, y - 18, x + length * 0.2, y + 18, x + length * 0.5, y);
-    ctx.strokeStyle = `rgba(255, 214, 89, ${0.4 * layerOpacity})`;
-    ctx.lineWidth = Math.max(3, 5 * camera.zoom);
-    ctx.stroke();
-  }
+  const tuning = effect.lavaTuning ? { ...DEFAULT_LAVA_EFFECT_TUNING, ...effect.lavaTuning } : lavaEffectTuning;
+  drawEnvironmentLavaEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawSmokeEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number) {

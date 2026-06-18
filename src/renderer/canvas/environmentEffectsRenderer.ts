@@ -1,5 +1,10 @@
 import * as THREE from "three";
-import { DEFAULT_WATER_EFFECT_TUNING_SETTINGS, type WaterEffectTuningSettings } from "../../shared/localvtt";
+import {
+  DEFAULT_LAVA_EFFECT_TUNING_SETTINGS,
+  DEFAULT_WATER_EFFECT_TUNING_SETTINGS,
+  type LavaEffectTuningSettings,
+  type WaterEffectTuningSettings
+} from "../../shared/localvtt";
 
 export interface ScreenBounds {
   x: number;
@@ -9,8 +14,10 @@ export interface ScreenBounds {
 }
 
 export type WaterEffectTuning = WaterEffectTuningSettings;
+export type LavaEffectTuning = LavaEffectTuningSettings;
 
 export const DEFAULT_WATER_EFFECT_TUNING: WaterEffectTuning = DEFAULT_WATER_EFFECT_TUNING_SETTINGS;
+export const DEFAULT_LAVA_EFFECT_TUNING: LavaEffectTuning = DEFAULT_LAVA_EFFECT_TUNING_SETTINGS;
 
 export const WATER_EFFECT_PRESETS = {
   stream: {
@@ -55,6 +62,26 @@ export const WATER_EFFECT_PRESETS = {
   }
 } as const satisfies Record<string, WaterEffectTuning>;
 
+export const LAVA_EFFECT_PRESETS = {
+  moltenFlow: { ...DEFAULT_LAVA_EFFECT_TUNING },
+  magmaPool: {
+    opacity: 0.86,
+    flowScale: 8.5,
+    speed: 0.18,
+    directionDegrees: 12,
+    distortion: 0.92,
+    crust: 0.62,
+    glow: 0.82,
+    ember: 0.55,
+    panFollow: 1,
+    zoomScale: 0,
+    baseAlpha: 0.48,
+    darkColor: "#210504",
+    lavaColor: "#b71c1c",
+    hotColor: "#ffec99"
+  }
+} as const satisfies Record<string, LavaEffectTuning>;
+
 type WaterRuntime = {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
@@ -67,6 +94,7 @@ type WaterRuntime = {
 };
 
 let waterRuntime: WaterRuntime | null = null;
+let lavaRuntime: WaterRuntime | null = null;
 
 export function drawEnvironmentWaterEffect(
   ctx: CanvasRenderingContext2D,
@@ -103,6 +131,52 @@ export function drawEnvironmentWaterEffect(
   runtime.meshB.material.uniforms.cameraZoom.value = cameraState.zoom;
   updateWaterMaterialTuning(runtime.meshA.material, tuning);
   updateWaterMaterialTuning(runtime.meshB.material, tuning);
+
+  runtime.renderer.setSize(width, height, false);
+  runtime.renderer.setClearColor(0x000000, 0);
+  runtime.renderer.clear();
+  runtime.renderer.render(runtime.scene, runtime.camera);
+
+  ctx.save();
+  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
+  ctx.restore();
+}
+
+export function drawEnvironmentLavaEffect(
+  ctx: CanvasRenderingContext2D,
+  bounds: ScreenBounds,
+  timestamp: number,
+  layerOpacity: number,
+  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
+  tuning: LavaEffectTuning = DEFAULT_LAVA_EFFECT_TUNING
+) {
+  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
+    return;
+  }
+
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
+  const height = ctx.canvas.clientHeight || ctx.canvas.height;
+  const runtime = getLavaRuntime(width, height);
+  if (!runtime) {
+    drawLavaFallback(ctx, bounds, layerOpacity);
+    return;
+  }
+
+  const time = (timestamp - runtime.startedAt) / 1000;
+  positionWaterMesh(runtime.meshA, width, height, 1);
+  positionWaterMesh(runtime.meshB, width, height, 1);
+  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
+  runtime.meshB.material.uniforms.opacity.value = 0;
+  runtime.meshA.material.uniforms.time.value = time;
+  runtime.meshB.material.uniforms.time.value = time * 0.74 + 9.3;
+  runtime.meshA.material.uniforms.resolution.value.set(width, height);
+  runtime.meshB.material.uniforms.resolution.value.set(width, height);
+  runtime.meshA.material.uniforms.cameraOffset.value.set(cameraState.x, -cameraState.y);
+  runtime.meshB.material.uniforms.cameraOffset.value.set(cameraState.x, -cameraState.y);
+  runtime.meshA.material.uniforms.cameraZoom.value = cameraState.zoom;
+  runtime.meshB.material.uniforms.cameraZoom.value = cameraState.zoom;
+  updateLavaMaterialTuning(runtime.meshA.material, tuning);
+  updateLavaMaterialTuning(runtime.meshB.material, tuning);
 
   runtime.renderer.setSize(width, height, false);
   runtime.renderer.setClearColor(0x000000, 0);
@@ -161,6 +235,55 @@ function getWaterRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   return waterRuntime;
+}
+
+function getLavaRuntime(width: number, height: number): WaterRuntime | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!lavaRuntime) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+    camera.position.set(0, 0, 2400);
+    camera.lookAt(0, 0, 0);
+
+    const material = createLavaMaterial(0.9);
+    const materialB = createLavaMaterial(0.35);
+    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    meshA.position.z = 1280;
+    meshB.position.z = 1281;
+    scene.add(meshA, meshB);
+
+    lavaRuntime = {
+      renderer,
+      scene,
+      camera,
+      meshA,
+      meshB,
+      startedAt: Date.now(),
+      width: 0,
+      height: 0
+    };
+  }
+
+  if (lavaRuntime.width !== width || lavaRuntime.height !== height) {
+    lavaRuntime.width = width;
+    lavaRuntime.height = height;
+    lavaRuntime.camera.left = 0;
+    lavaRuntime.camera.right = width;
+    lavaRuntime.camera.top = 0;
+    lavaRuntime.camera.bottom = height;
+    lavaRuntime.camera.near = 0.1;
+    lavaRuntime.camera.far = 5000;
+    lavaRuntime.camera.updateProjectionMatrix();
+  }
+
+  return lavaRuntime;
 }
 
 function createWaterMaterial(opacity: number): THREE.ShaderMaterial {
@@ -317,6 +440,135 @@ function updateWaterMaterialTuning(material: THREE.ShaderMaterial, tuning: Water
   material.uniforms.highlightColor.value.set(tuning.highlightColor);
 }
 
+function createLavaMaterial(opacity: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+    blending: THREE.NormalBlending,
+    uniforms: {
+      flowScale: { value: DEFAULT_LAVA_EFFECT_TUNING.flowScale },
+      speed: { value: DEFAULT_LAVA_EFFECT_TUNING.speed },
+      directionRadians: { value: degreesToRadians(DEFAULT_LAVA_EFFECT_TUNING.directionDegrees) },
+      distortion: { value: DEFAULT_LAVA_EFFECT_TUNING.distortion },
+      crust: { value: DEFAULT_LAVA_EFFECT_TUNING.crust },
+      glow: { value: DEFAULT_LAVA_EFFECT_TUNING.glow },
+      ember: { value: DEFAULT_LAVA_EFFECT_TUNING.ember },
+      panFollow: { value: DEFAULT_LAVA_EFFECT_TUNING.panFollow },
+      zoomScale: { value: DEFAULT_LAVA_EFFECT_TUNING.zoomScale },
+      baseAlpha: { value: DEFAULT_LAVA_EFFECT_TUNING.baseAlpha },
+      darkColor: { value: new THREE.Color(DEFAULT_LAVA_EFFECT_TUNING.darkColor) },
+      lavaColor: { value: new THREE.Color(DEFAULT_LAVA_EFFECT_TUNING.lavaColor) },
+      hotColor: { value: new THREE.Color(DEFAULT_LAVA_EFFECT_TUNING.hotColor) },
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2(1, 1) },
+      cameraOffset: { value: new THREE.Vector2(0, 0) },
+      cameraZoom: { value: 1 },
+      opacity: { value: opacity }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float flowScale;
+      uniform float speed;
+      uniform float directionRadians;
+      uniform float distortion;
+      uniform float crust;
+      uniform float glow;
+      uniform float ember;
+      uniform float panFollow;
+      uniform float zoomScale;
+      uniform float baseAlpha;
+      uniform vec3 darkColor;
+      uniform vec3 lavaColor;
+      uniform vec3 hotColor;
+      uniform float time;
+      uniform vec2 resolution;
+      uniform vec2 cameraOffset;
+      uniform float cameraZoom;
+      uniform float opacity;
+      varying vec2 vUv;
+
+      float randomValue(vec2 value) {
+        return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float valueNoise(vec2 value) {
+        vec2 base = floor(value);
+        vec2 fraction = fract(value);
+        vec2 blend = fraction * fraction * (3.0 - 2.0 * fraction);
+        float a = randomValue(base);
+        float b = randomValue(base + vec2(1.0, 0.0));
+        float c = randomValue(base + vec2(0.0, 1.0));
+        float d = randomValue(base + vec2(1.0, 1.0));
+        return mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y);
+      }
+
+      float fbm(vec2 value) {
+        float total = 0.0;
+        float amplitude = 0.5;
+        for (int i = 0; i < 5; i++) {
+          total += valueNoise(value) * amplitude;
+          value *= 2.04;
+          amplitude *= 0.5;
+        }
+        return total;
+      }
+
+      void main() {
+        float zoomFactor = pow(max(cameraZoom, 0.01), zoomScale);
+        vec2 anchoredCoord = gl_FragCoord.xy - cameraOffset * panFollow;
+        vec2 pixelUv = anchoredCoord / 170.0 * zoomFactor;
+        vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
+        vec2 perpendicular = vec2(-direction.y, direction.x);
+        vec2 uv = vec2(dot(pixelUv, direction), dot(pixelUv, perpendicular));
+        float motion = time * speed;
+        uv.x -= motion * 0.82;
+        uv.y += sin(uv.x * 2.2 + motion * 2.6) * 0.08 * distortion;
+
+        float molten = fbm(uv * flowScale + vec2(motion * 0.7, -motion * 0.18));
+        float rolling = fbm(uv * flowScale * 0.48 - vec2(motion * 0.23, motion * 0.31));
+        float crackNoise = fbm(uv * flowScale * 1.9 + vec2(motion * 0.12, motion * 0.08));
+        float veins = smoothstep(0.54 + crust * 0.2, 0.95, molten + rolling * 0.55);
+        float hot = smoothstep(0.62, 0.98, crackNoise * 0.52 + veins * 0.72);
+        float crustMask = smoothstep(0.18, 0.78, crust - molten * 0.62 + rolling * 0.35);
+        float emberNoise = randomValue(floor(uv * flowScale * 8.0) + floor(time * speed * 4.0));
+        float emberMask = smoothstep(0.96 - ember * 0.22, 1.0, emberNoise) * smoothstep(0.45, 0.9, molten);
+
+        vec3 color = mix(lavaColor, darkColor, crustMask);
+        color = mix(color, lavaColor, veins * (0.45 + glow * 0.35));
+        color = mix(color, hotColor, hot * glow);
+        color = mix(color, hotColor, emberMask * ember);
+        float alpha = (baseAlpha + veins * 0.24 + hot * glow * 0.24 + emberMask * ember * 0.2) * opacity;
+        gl_FragColor = vec4(color, alpha);
+      }
+    `
+  });
+}
+
+function updateLavaMaterialTuning(material: THREE.ShaderMaterial, tuning: LavaEffectTuning) {
+  material.uniforms.flowScale.value = tuning.flowScale;
+  material.uniforms.speed.value = tuning.speed;
+  material.uniforms.directionRadians.value = degreesToRadians(tuning.directionDegrees);
+  material.uniforms.distortion.value = tuning.distortion;
+  material.uniforms.crust.value = tuning.crust;
+  material.uniforms.glow.value = tuning.glow;
+  material.uniforms.ember.value = tuning.ember;
+  material.uniforms.panFollow.value = tuning.panFollow;
+  material.uniforms.zoomScale.value = tuning.zoomScale;
+  material.uniforms.baseAlpha.value = tuning.baseAlpha;
+  material.uniforms.darkColor.value.set(tuning.darkColor);
+  material.uniforms.lavaColor.value.set(tuning.lavaColor);
+  material.uniforms.hotColor.value.set(tuning.hotColor);
+}
+
 function degreesToRadians(degrees: number): number {
   return (degrees * Math.PI) / 180;
 }
@@ -332,6 +584,14 @@ function drawWaterFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, 
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.18;
   ctx.fillStyle = "rgb(0, 145, 190)";
+  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  ctx.restore();
+}
+
+function drawLavaFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.42;
+  ctx.fillStyle = "rgb(216, 67, 21)";
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }

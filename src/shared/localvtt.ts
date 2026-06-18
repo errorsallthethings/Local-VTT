@@ -215,6 +215,40 @@ export const DEFAULT_WATER_EFFECT_TUNING_SETTINGS: WaterEffectTuningSettings = {
   highlightColor: "#ffffff"
 };
 
+export interface LavaEffectTuningSettings {
+  opacity: number;
+  flowScale: number;
+  speed: number;
+  directionDegrees: number;
+  distortion: number;
+  crust: number;
+  glow: number;
+  ember: number;
+  panFollow: number;
+  zoomScale: number;
+  baseAlpha: number;
+  darkColor: string;
+  lavaColor: string;
+  hotColor: string;
+}
+
+export const DEFAULT_LAVA_EFFECT_TUNING_SETTINGS: LavaEffectTuningSettings = {
+  opacity: 0.9,
+  flowScale: 5.2,
+  speed: 0.42,
+  directionDegrees: 270,
+  distortion: 0.55,
+  crust: 0.48,
+  glow: 0.72,
+  ember: 0.38,
+  panFollow: 1,
+  zoomScale: 0,
+  baseAlpha: 0.42,
+  darkColor: "#2a0805",
+  lavaColor: "#d84315",
+  hotColor: "#ffd166"
+};
+
 export interface EnvironmentEffectMask {
   id: string;
   name?: string;
@@ -223,6 +257,7 @@ export interface EnvironmentEffectMask {
   points: Point[];
   radius?: number;
   waterTuning?: WaterEffectTuningSettings;
+  lavaTuning?: LavaEffectTuningSettings;
   visibleInGm?: boolean;
   visibleInPlayer?: boolean;
 }
@@ -1555,6 +1590,7 @@ function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): Env
         effect: effectType,
         points,
         waterTuning: effectType === "water" ? normalizeWaterEffectTuning(effect.waterTuning) : undefined,
+        lavaTuning: effectType === "lava" ? normalizeLavaEffectTuning(effect.lavaTuning) : undefined,
         visibleInGm: effect.visibleInGm ?? true,
         visibleInPlayer: effect.visibleInPlayer ?? true
       };
@@ -1581,6 +1617,25 @@ function normalizeWaterEffectTuning(tuning?: WaterEffectTuningSettings): WaterEf
     deepColor: normalizeColorValue(tuning?.deepColor, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.deepColor),
     waterColor: normalizeColorValue(tuning?.waterColor, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.waterColor),
     highlightColor: normalizeColorValue(tuning?.highlightColor, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.highlightColor)
+  };
+}
+
+function normalizeLavaEffectTuning(tuning?: LavaEffectTuningSettings): LavaEffectTuningSettings {
+  return {
+    opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.opacity),
+    flowScale: clampNumber(tuning?.flowScale, 0.5, 20, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.flowScale),
+    speed: clampNumber(tuning?.speed, 0, 2, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.speed),
+    directionDegrees: clampNumber(tuning?.directionDegrees, 0, 360, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.directionDegrees),
+    distortion: clampNumber(tuning?.distortion, 0, 2, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.distortion),
+    crust: clampNumber(tuning?.crust, 0, 1, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.crust),
+    glow: clampNumber(tuning?.glow, 0, 1, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.glow),
+    ember: clampNumber(tuning?.ember, 0, 1, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.ember),
+    panFollow: clampNumber(tuning?.panFollow, 0, 1, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.panFollow),
+    zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.zoomScale),
+    baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.baseAlpha),
+    darkColor: normalizeColorValue(tuning?.darkColor, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.darkColor),
+    lavaColor: normalizeColorValue(tuning?.lavaColor, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.lavaColor),
+    hotColor: normalizeColorValue(tuning?.hotColor, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.hotColor)
   };
 }
 

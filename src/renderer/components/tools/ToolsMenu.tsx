@@ -35,7 +35,7 @@ import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType }
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
-import { WATER_EFFECT_PRESETS, type WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
+import { LAVA_EFFECT_PRESETS, WATER_EFFECT_PRESETS, type LavaEffectTuning, type WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
 
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";
@@ -155,6 +155,7 @@ interface ToolsMenuProps {
   activeDrawingTool: DrawingTool | null;
   environmentEffectType: EnvironmentEffectType;
   waterEffectTuning: WaterEffectTuning;
+  lavaEffectTuning: LavaEffectTuning;
   mouseBehavior: MouseBehavior;
   fogOperation: FogOperation;
   brushSize: number;
@@ -191,6 +192,8 @@ interface ToolsMenuProps {
   onEnvironmentEffectTypeChange: (effect: EnvironmentEffectType) => void;
   onWaterEffectTuningChange: (tuning: WaterEffectTuning) => void;
   onWaterEffectTuningReset: () => void;
+  onLavaEffectTuningChange: (tuning: LavaEffectTuning) => void;
+  onLavaEffectTuningReset: () => void;
   onMouseBehaviorChange: (behavior: MouseBehavior) => void;
   onFogOperationChange: (operation: FogOperation) => void;
   onBrushSizeChange: (brushSize: number) => void;
@@ -245,6 +248,7 @@ export function ToolsMenu({
   activeDrawingTool,
   environmentEffectType,
   waterEffectTuning,
+  lavaEffectTuning,
   mouseBehavior,
   fogOperation,
   brushSize,
@@ -281,6 +285,8 @@ export function ToolsMenu({
   onEnvironmentEffectTypeChange,
   onWaterEffectTuningChange,
   onWaterEffectTuningReset,
+  onLavaEffectTuningChange,
+  onLavaEffectTuningReset,
   onMouseBehaviorChange,
   onFogOperationChange,
   onBrushSizeChange,
@@ -965,6 +971,28 @@ export function ToolsMenu({
                   </div>
                 </div>
               )}
+              {environmentEffectType === "lava" && (
+                <div className="tools-strip-select-field">
+                  <strong>Preset</strong>
+                  <div>
+                    <select
+                      aria-label="Lava effect preset"
+                      title="Lava effect preset"
+                      value={getLavaPresetSelectValue(lavaEffectTuning)}
+                      onChange={(event) => {
+                        const preset = LAVA_EFFECT_PRESETS[event.target.value as keyof typeof LAVA_EFFECT_PRESETS];
+                        if (preset) {
+                          onLavaEffectTuningChange({ ...preset });
+                        }
+                      }}
+                    >
+                      <option value="custom">Custom</option>
+                      <option value="moltenFlow">Molten Flow</option>
+                      <option value="magmaPool">Magma Pool</option>
+                    </select>
+                  </div>
+                </div>
+              )}
               <div className="tools-button-row">
                 <ToolButton active={activeEnvironmentEffectTool === "circle"} label="Radius Environmental Effect" onClick={() => setEnvironmentEffectTool("circle")}>
                   <Circle size={17} aria-hidden="true" />
@@ -987,6 +1015,16 @@ export function ToolsMenu({
                     tuning={waterEffectTuning}
                     onChange={onWaterEffectTuningChange}
                     onReset={onWaterEffectTuningReset}
+                  />
+                </>
+              )}
+              {environmentEffectType === "lava" && (
+                <>
+                  <div className="tools-section-divider" />
+                  <LavaEffectTuningPanel
+                    tuning={lavaEffectTuning}
+                    onChange={onLavaEffectTuningChange}
+                    onReset={onLavaEffectTuningReset}
                   />
                 </>
               )}
@@ -1083,6 +1121,65 @@ export function WaterEffectTuningPanel({
   );
 }
 
+export function LavaEffectTuningPanel({
+  tuning,
+  title = "Advanced Effects Settings",
+  defaultOpen = false,
+  onChange,
+  onReset
+}: {
+  tuning: LavaEffectTuning;
+  title?: string;
+  defaultOpen?: boolean;
+  onChange: (tuning: LavaEffectTuning) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const update = (patch: Partial<LavaEffectTuning>) => onChange({ ...tuning, ...patch });
+  const readout = JSON.stringify(tuning);
+
+  return (
+    <div className="water-tuning-panel" aria-label="Lava effect tuning">
+      <div className="tools-section-label-row">
+        <SettingsToggle open={open} label={title} onToggle={() => setOpen((current) => !current)} />
+        {open && (
+          <button className="icon-button no-chrome" type="button" title="Reset lava tuning" aria-label="Reset lava tuning" onClick={onReset}>
+            <Undo2 size={15} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      {open && (
+        <>
+          <div className="water-tuning-sliders">
+            <WaterTuningSlider label="Opacity" value={tuning.opacity} min={0} max={1} step={0.01} onChange={(opacity) => update({ opacity })} />
+            <WaterTuningSlider label="Flow Scale" value={tuning.flowScale} min={0.5} max={20} step={0.1} onChange={(flowScale) => update({ flowScale })} />
+            <WaterTuningSlider label="Speed" value={tuning.speed} min={0} max={2} step={0.01} onChange={(speed) => update({ speed })} />
+            <WaterTuningSlider label="Direction" value={tuning.directionDegrees} min={0} max={360} step={1} suffix="deg" onChange={(directionDegrees) => update({ directionDegrees })} />
+            <WaterTuningSlider label="Distortion" value={tuning.distortion} min={0} max={2} step={0.01} onChange={(distortion) => update({ distortion })} />
+            <WaterTuningSlider label="Crust" value={tuning.crust} min={0} max={1} step={0.01} onChange={(crust) => update({ crust })} />
+            <WaterTuningSlider label="Glow" value={tuning.glow} min={0} max={1} step={0.01} onChange={(glow) => update({ glow })} />
+            <WaterTuningSlider label="Ember" value={tuning.ember} min={0} max={1} step={0.01} onChange={(ember) => update({ ember })} />
+            <WaterTuningSlider label="Pan Follow" value={tuning.panFollow} min={0} max={1} step={0.05} onChange={(panFollow) => update({ panFollow })} />
+            <WaterTuningSlider label="Zoom Scale" value={tuning.zoomScale} min={-3} max={3} step={0.05} onChange={(zoomScale) => update({ zoomScale })} />
+            <WaterTuningSlider label="Base Alpha" value={tuning.baseAlpha} min={0} max={1} step={0.01} onChange={(baseAlpha) => update({ baseAlpha })} />
+          </div>
+          <div className="water-tuning-colors">
+            <WaterTuningColor label="Dark" value={tuning.darkColor} onChange={(darkColor) => update({ darkColor })} />
+            <WaterTuningColor label="Lava" value={tuning.lavaColor} onChange={(lavaColor) => update({ lavaColor })} />
+            <WaterTuningColor label="Hot" value={tuning.hotColor} onChange={(hotColor) => update({ hotColor })} />
+          </div>
+          <div className="water-tuning-readout-row">
+            <div className="water-tuning-readout" title={readout}>{readout}</div>
+            <button className="icon-button no-chrome" type="button" title="Copy lava tuning JSON" aria-label="Copy lava tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
+              <Copy size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function WaterTuningSlider({ label, value, min, max, step, suffix = "", onChange }: { label: string; value: number; min: number; max: number; step: number; suffix?: string; onChange: (value: number) => void }) {
   return (
     <label className="water-tuning-slider">
@@ -1115,6 +1212,15 @@ function getWaterPresetSelectValue(tuning: WaterEffectTuning): keyof typeof WATE
   return "custom";
 }
 
+function getLavaPresetSelectValue(tuning: LavaEffectTuning): keyof typeof LAVA_EFFECT_PRESETS | "custom" {
+  for (const [presetName, preset] of Object.entries(LAVA_EFFECT_PRESETS)) {
+    if (isLavaTuningMatch(tuning, preset)) {
+      return presetName as keyof typeof LAVA_EFFECT_PRESETS;
+    }
+  }
+  return "custom";
+}
+
 function isWaterTuningMatch(tuning: WaterEffectTuning, preset: WaterEffectTuning): boolean {
   return (
     tuning.opacity === preset.opacity &&
@@ -1135,6 +1241,25 @@ function isWaterTuningMatch(tuning: WaterEffectTuning, preset: WaterEffectTuning
     tuning.deepColor === preset.deepColor &&
     tuning.waterColor === preset.waterColor &&
     tuning.highlightColor === preset.highlightColor
+  );
+}
+
+function isLavaTuningMatch(tuning: LavaEffectTuning, preset: LavaEffectTuning): boolean {
+  return (
+    tuning.opacity === preset.opacity &&
+    tuning.flowScale === preset.flowScale &&
+    tuning.speed === preset.speed &&
+    tuning.directionDegrees === preset.directionDegrees &&
+    tuning.distortion === preset.distortion &&
+    tuning.crust === preset.crust &&
+    tuning.glow === preset.glow &&
+    tuning.ember === preset.ember &&
+    tuning.panFollow === preset.panFollow &&
+    tuning.zoomScale === preset.zoomScale &&
+    tuning.baseAlpha === preset.baseAlpha &&
+    tuning.darkColor === preset.darkColor &&
+    tuning.lavaColor === preset.lavaColor &&
+    tuning.hotColor === preset.hotColor
   );
 }
 
