@@ -1,4 +1,5 @@
-import { useState, type MouseEvent, type PointerEvent } from "react";
+import { useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowDown,
   ArrowUp,
@@ -15,6 +16,7 @@ import {
   Image,
   Layers,
   Lightbulb,
+  MoreVertical,
   Paintbrush,
   Pentagon,
   RotateCcw,
@@ -43,6 +45,8 @@ import type {
 } from "../../../shared/localvtt";
 import { DEFAULT_GRID, DEFAULT_MAP_TRANSFORM, DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultDrawingName, formatDefaultFogShapeName, type Token } from "../../../shared/localvtt";
 import { getSnappedTokenPosition } from "../../canvas/tokenGeometry";
+import { useDismissableMenu } from "../../hooks/useDismissableMenu";
+import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
 import {
   WEATHER_CATEGORY_OPTIONS,
@@ -65,6 +69,7 @@ export function LayerPanel({
   tokenAssets,
   selectedFogShapeId,
   selectedWeatherMaskId,
+  selectedEnvironmentEffectId,
   selectedDrawingId,
   selectedTokenId,
   selectedFogShapeIds = [],
@@ -82,6 +87,8 @@ export function LayerPanel({
   onDeleteMap,
   onSelectFogShape,
   onSelectWeatherMask,
+  onSelectEnvironmentEffect,
+  onEditEnvironmentEffect,
   onSelectDrawing,
   onSelectToken,
   onRenameFogShape,
@@ -95,6 +102,7 @@ export function LayerPanel({
   tokenAssets: Map<string, Asset>;
   selectedFogShapeId: string | null;
   selectedWeatherMaskId: string | null;
+  selectedEnvironmentEffectId: string | null;
   selectedDrawingId: string | null;
   selectedTokenId: string | null;
   selectedFogShapeIds?: string[];
@@ -112,6 +120,8 @@ export function LayerPanel({
   onDeleteMap: (asset: Asset) => void;
   onSelectFogShape: (shapeId: string | null) => void;
   onSelectWeatherMask: (maskId: string | null) => void;
+  onSelectEnvironmentEffect: (effectId: string | null) => void;
+  onEditEnvironmentEffect: (effectId: string) => void;
   onSelectDrawing: (drawingId: string | null) => void;
   onSelectToken: (tokenId: string | null) => void;
   onRenameFogShape: (shapeId: string, fallbackName: string) => void;
@@ -264,6 +274,17 @@ export function LayerPanel({
         ...nextWeather,
         enabled: hasEnabledEffect,
         effect: getLegacyWeatherEffect(nextWeather)
+      },
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const updateEnvironment = (patch: Partial<Scene["environment"]>) => {
+    onChange({
+      ...scene,
+      environment: {
+        ...scene.environment,
+        ...patch
       },
       updatedAt: new Date().toISOString()
     });
@@ -661,13 +682,22 @@ export function LayerPanel({
                 </div>
               )}
               {isEffectsLayerId(layer.id) && isExpanded && !areSettingsExpanded && (
-                <WeatherMaskList
-                  scene={scene}
-                  selectedWeatherMaskId={selectedWeatherMaskId}
-                  selectedWeatherMaskIds={selectedWeatherMaskIds}
-                  onSelectWeatherMask={onSelectWeatherMask}
-                  onUpdateWeather={updateWeather}
-                />
+                <>
+                  <EnvironmentEffectList
+                    scene={scene}
+                    selectedEnvironmentEffectId={selectedEnvironmentEffectId}
+                    onSelectEnvironmentEffect={onSelectEnvironmentEffect}
+                    onEditEnvironmentEffect={onEditEnvironmentEffect}
+                    onUpdateEnvironment={updateEnvironment}
+                  />
+                  <WeatherMaskList
+                    scene={scene}
+                    selectedWeatherMaskId={selectedWeatherMaskId}
+                    selectedWeatherMaskIds={selectedWeatherMaskIds}
+                    onSelectWeatherMask={onSelectWeatherMask}
+                    onUpdateWeather={updateWeather}
+                  />
+                </>
               )}
               {layer.id === "token" && isExpanded && (
                 <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
@@ -1232,6 +1262,216 @@ function formatMultiplier(value: number): string {
   return `${value.toFixed(2)}x`;
 }
 
+function EnvironmentEffectList({
+  scene,
+  selectedEnvironmentEffectId,
+  onSelectEnvironmentEffect,
+  onEditEnvironmentEffect,
+  onUpdateEnvironment
+}: {
+  scene: Scene;
+  selectedEnvironmentEffectId: string | null;
+  onSelectEnvironmentEffect: (effectId: string | null) => void;
+  onEditEnvironmentEffect: (effectId: string) => void;
+  onUpdateEnvironment: (patch: Partial<Scene["environment"]>) => void;
+}) {
+  const [openEffectMenuId, setOpenEffectMenuId] = useState<string | null>(null);
+
+  useDismissableMenu({
+    enabled: Boolean(openEffectMenuId),
+    menuRootClass: "environment-effect-menu-wrap",
+    onDismiss: () => setOpenEffectMenuId(null)
+  });
+
+  return (
+    <div className="layer-detail-controls weather-mask-list" onClick={(event) => event.stopPropagation()}>
+      <div className="fog-shape-list-header">
+        <span>Environmental Effects</span>
+      </div>
+      {scene.environment.effects.length > 0 ? (
+        scene.environment.effects.map((effect) => {
+          const label = effect.name?.trim() || `${formatEnvironmentEffectLabel(effect.effect)} Effect`;
+          const isVisibleInGm = effect.visibleInGm !== false;
+          const isVisibleInPlayer = effect.visibleInPlayer !== false;
+          const isSelected = selectedEnvironmentEffectId === effect.id;
+          return (
+            <div key={effect.id}>
+              <div
+                className={["fog-shape-row", "weather-mask-row", isVisibleInGm || isVisibleInPlayer ? "" : "fog-shape-row-muted", isSelected ? "fog-shape-row-selected" : ""]
+                  .filter(Boolean)
+                  .join(" ")}
+                role="button"
+                tabIndex={0}
+                onClick={() => onSelectEnvironmentEffect(isSelected ? null : effect.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelectEnvironmentEffect(isSelected ? null : effect.id);
+                  }
+                }}
+              >
+                <span className="fog-shape-kind-icon" title={`${effect.kind} environmental effect`} aria-hidden="true">
+                  {effect.kind === "circle" ? <Circle size={13} /> : effect.kind === "polygon" ? <Pentagon size={13} /> : <Square size={13} />}
+                </span>
+                <span className="fog-shape-name" title={label}>
+                  {label}
+                </span>
+                <button
+                  className={isVisibleInGm ? "icon-button fog-shape-action-button fog-shape-action-active" : "icon-button fog-shape-action-button"}
+                  aria-label={isVisibleInGm ? `Hide ${label} in GM View` : `Show ${label} in GM View`}
+                  title={isVisibleInGm ? "Hide in GM View" : "Show in GM View"}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onUpdateEnvironment({
+                      effects: scene.environment.effects.map((candidate) => (candidate.id === effect.id ? { ...candidate, visibleInGm: !isVisibleInGm } : candidate))
+                    });
+                  }}
+                >
+                  {isVisibleInGm ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
+                </button>
+                <button
+                  className={isVisibleInPlayer ? "icon-button fog-shape-action-button fog-shape-action-active" : "icon-button fog-shape-action-button"}
+                  aria-label={isVisibleInPlayer ? `Hide ${label} in Player View` : `Show ${label} in Player View`}
+                  title={isVisibleInPlayer ? "Hide in Player View" : "Show in Player View"}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onUpdateEnvironment({
+                      effects: scene.environment.effects.map((candidate) => (candidate.id === effect.id ? { ...candidate, visibleInPlayer: !isVisibleInPlayer } : candidate))
+                    });
+                  }}
+                >
+                  {isVisibleInPlayer ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
+                </button>
+                <EnvironmentEffectMenuButton
+                  label={label}
+                  open={openEffectMenuId === effect.id}
+                  onToggle={() => setOpenEffectMenuId((openId) => (openId === effect.id ? null : effect.id))}
+                  onClose={() => setOpenEffectMenuId(null)}
+                  onEdit={() => {
+                    onSelectEnvironmentEffect(effect.id);
+                    onEditEnvironmentEffect(effect.id);
+                  }}
+                  onDelete={() => {
+                    onUpdateEnvironment({ effects: scene.environment.effects.filter((candidate) => candidate.id !== effect.id) });
+                    if (selectedEnvironmentEffectId === effect.id) {
+                      onSelectEnvironmentEffect(null);
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <div className="layer-empty-state">
+          <strong>No Environmental Effects</strong>
+          <span>Draw water, lava, or smoke areas from Effects Tools.</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EnvironmentEffectMenuButton({
+  label,
+  open,
+  onToggle,
+  onClose,
+  onEdit,
+  onDelete
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  return (
+    <div className="environment-effect-menu-wrap">
+      <button
+        ref={buttonRef}
+        className="icon-button fog-shape-action-button"
+        aria-label={`Open ${label} effect menu`}
+        title="Effect options"
+        aria-expanded={open}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggle();
+        }}
+      >
+        <MoreVertical size={14} aria-hidden="true" />
+      </button>
+      {open &&
+        createPortal(
+          <FloatingEnvironmentEffectMenu
+            anchor={buttonRef.current}
+            label={label}
+            onClose={onClose}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />,
+          document.body
+        )}
+    </div>
+  );
+}
+
+function FloatingEnvironmentEffectMenu({
+  anchor,
+  label,
+  onClose,
+  onEdit,
+  onDelete
+}: {
+  anchor: HTMLElement | null;
+  label: string;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { menuRef, position } = useFloatingMenuPosition({
+    open: Boolean(anchor),
+    anchor,
+    fallbackWidth: 196,
+    fallbackHeight: 100
+  });
+
+  return (
+    <div
+      ref={menuRef}
+      className="token-settings-menu token-settings-menu-portal environment-effect-menu-wrap"
+      style={{ top: position.top, left: position.left }}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <button
+        className="token-menu-action"
+        title={`Edit ${label}`}
+        onClick={() => {
+          onEdit();
+          onClose();
+        }}
+      >
+        <Settings2 size={14} aria-hidden="true" />
+        Edit Effect
+      </button>
+      <button
+        className="token-menu-action token-menu-delete"
+        title={`Delete ${label}`}
+        onClick={() => {
+          onDelete();
+          onClose();
+        }}
+      >
+        <Trash2 size={14} aria-hidden="true" />
+        Delete
+      </button>
+    </div>
+  );
+}
+
 function WeatherMaskList({
   scene,
   selectedWeatherMaskId,
@@ -1323,6 +1563,10 @@ function WeatherMaskList({
       )}
     </div>
   );
+}
+
+function formatEnvironmentEffectLabel(effect: Scene["environment"]["effects"][number]["effect"]): string {
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : "Smoke";
 }
 
 function getWeatherEffectSettingsWithCurrent(weather: WeatherSettings): WeatherSettings["effectSettings"] {
@@ -1512,7 +1756,7 @@ function getLayerItemCount(layerId: Layer["id"], scene: Scene): number | null {
     return scene.tokens.length;
   }
   if (isEffectsLayerId(layerId)) {
-    return scene.weather.masks.length;
+    return scene.weather.masks.length + scene.environment.effects.length;
   }
   if (layerId === "drawing") {
     return scene.drawings.length;

@@ -171,6 +171,66 @@ export interface WeatherMask {
   visible?: boolean;
 }
 
+export type EnvironmentEffectType = "water" | "lava" | "smoke";
+
+export interface WaterEffectTuningSettings {
+  opacity: number;
+  bandScale: number;
+  bandWidth: number;
+  speed: number;
+  directionDegrees: number;
+  distortion: number;
+  verticalDistortion: number;
+  distortionVariation: number;
+  bandBreakup: number;
+  bandVariation: number;
+  bandOverlap: number;
+  panFollow: number;
+  zoomScale: number;
+  baseAlpha: number;
+  highlightAlpha: number;
+  deepColor: string;
+  waterColor: string;
+  highlightColor: string;
+}
+
+export const DEFAULT_WATER_EFFECT_TUNING_SETTINGS: WaterEffectTuningSettings = {
+  opacity: 0.92,
+  bandScale: 3.2,
+  bandWidth: 0.16,
+  speed: 0.18,
+  directionDegrees: 270,
+  distortion: 0.04,
+  verticalDistortion: 0.055,
+  distortionVariation: 0.9,
+  bandBreakup: 0.78,
+  bandVariation: 1.35,
+  bandOverlap: 0.42,
+  panFollow: 1,
+  zoomScale: 0,
+  baseAlpha: 0.14,
+  highlightAlpha: 0.58,
+  deepColor: "#002e4d",
+  waterColor: "#008cb8",
+  highlightColor: "#ffffff"
+};
+
+export interface EnvironmentEffectMask {
+  id: string;
+  name?: string;
+  kind: "rectangle" | "polygon" | "circle";
+  effect: EnvironmentEffectType;
+  points: Point[];
+  radius?: number;
+  waterTuning?: WaterEffectTuningSettings;
+  visibleInGm?: boolean;
+  visibleInPlayer?: boolean;
+}
+
+export interface EnvironmentSettings {
+  effects: EnvironmentEffectMask[];
+}
+
 export interface FogShape {
   id: string;
   name?: string;
@@ -418,6 +478,7 @@ export interface Scene {
   mapTransform: MapTransform;
   fog: FogSettings;
   weather: WeatherSettings;
+  environment: EnvironmentSettings;
   tokens: Token[];
   tokenMovementPath?: TokenMovementPath;
   walls: Wall[];
@@ -986,6 +1047,10 @@ export function createDefaultWeather(): WeatherSettings {
   };
 }
 
+export const DEFAULT_ENVIRONMENT: EnvironmentSettings = {
+  effects: []
+};
+
 const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "none",
   "light-rain",
@@ -1002,6 +1067,8 @@ const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "sand",
   "sandstorm"
 ]);
+
+const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke"]);
 
 export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
@@ -1052,6 +1119,7 @@ export function createDefaultScene(name: string): Scene {
     mapTransform: { ...DEFAULT_MAP_TRANSFORM },
     fog: { ...DEFAULT_FOG, shapes: [] },
     weather: createDefaultWeather(),
+    environment: { ...DEFAULT_ENVIRONMENT, effects: [] },
     tokens: [],
     walls: [],
     lights: [],
@@ -1094,6 +1162,10 @@ export function duplicateScene(
     fog: {
       ...duplicated.fog,
       shapes: duplicated.fog.shapes.map((shape) => ({ ...shape, id: createId() }))
+    },
+    environment: {
+      ...duplicated.environment,
+      effects: duplicated.environment.effects.map((effect) => ({ ...effect, id: createId() }))
     },
     tokens,
     walls: duplicated.walls.map((wall) => ({ ...wall, id: createId() })),
@@ -1322,6 +1394,7 @@ export function normalizeScene(scene: Scene): Scene {
     mapTransform: { ...DEFAULT_MAP_TRANSFORM, ...(scene.mapTransform ?? {}) },
     fog: normalizeFog(scene.fog),
     weather: normalizeWeather(scene.weather),
+    environment: normalizeEnvironment(scene.environment),
     tokens: normalizeTokens(scene.tokens),
     tokenMovementPath: normalizeTokenMovementPath(scene.tokenMovementPath),
     walls: scene.walls ?? [],
@@ -1450,6 +1523,73 @@ function normalizeWeatherMasks(masks?: WeatherMask[]): WeatherMask[] {
         visible: mask.visible ?? true
       };
     });
+}
+
+function normalizeEnvironment(environment?: Partial<EnvironmentSettings>): EnvironmentSettings {
+  return {
+    ...DEFAULT_ENVIRONMENT,
+    effects: normalizeEnvironmentEffectMasks(environment?.effects)
+  };
+}
+
+function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): EnvironmentEffectMask[] {
+  const usedIds = new Set<string>();
+  return (effects ?? [])
+    .filter((effect) => effect.kind === "rectangle" || effect.kind === "polygon" || effect.kind === "circle")
+    .map((effect, index) => {
+      const rawId = typeof effect.id === "string" ? effect.id.trim() : "";
+      const baseId = rawId || `environment-effect-${index + 1}`;
+      let id = baseId;
+      let suffix = 2;
+      while (usedIds.has(id)) {
+        id = `${baseId}-${suffix}`;
+        suffix += 1;
+      }
+      usedIds.add(id);
+      const points = effect.kind === "circle" ? effect.points.slice(0, 1) : effect.points;
+      const effectType = ENVIRONMENT_EFFECTS.has(effect.effect) ? effect.effect : "water";
+      return {
+        ...effect,
+        id,
+        name: typeof effect.name === "string" && effect.name.trim() ? effect.name : `${formatEnvironmentEffectName(effectType)} Effect ${index + 1}`,
+        effect: effectType,
+        points,
+        waterTuning: effectType === "water" ? normalizeWaterEffectTuning(effect.waterTuning) : undefined,
+        visibleInGm: effect.visibleInGm ?? true,
+        visibleInPlayer: effect.visibleInPlayer ?? true
+      };
+    });
+}
+
+function normalizeWaterEffectTuning(tuning?: WaterEffectTuningSettings): WaterEffectTuningSettings {
+  return {
+    opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.opacity),
+    bandScale: clampNumber(tuning?.bandScale, 0.5, 20, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.bandScale),
+    bandWidth: clampNumber(tuning?.bandWidth, 0.01, 0.49, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.bandWidth),
+    speed: clampNumber(tuning?.speed, 0, 2, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.speed),
+    directionDegrees: clampNumber(tuning?.directionDegrees, 0, 360, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.directionDegrees),
+    distortion: clampNumber(tuning?.distortion, 0, 2, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.distortion),
+    verticalDistortion: clampNumber(tuning?.verticalDistortion, 0, 2, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.verticalDistortion),
+    distortionVariation: clampNumber(tuning?.distortionVariation, 0, 2, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.distortionVariation),
+    bandBreakup: clampNumber(tuning?.bandBreakup, 0, 1, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.bandBreakup),
+    bandVariation: clampNumber(tuning?.bandVariation, 0, 4, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.bandVariation),
+    bandOverlap: clampNumber(tuning?.bandOverlap, 0, 1, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.bandOverlap),
+    panFollow: clampNumber(tuning?.panFollow, 0, 1, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.panFollow),
+    zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.zoomScale),
+    baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.baseAlpha),
+    highlightAlpha: clampNumber(tuning?.highlightAlpha, 0, 1, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.highlightAlpha),
+    deepColor: normalizeColorValue(tuning?.deepColor, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.deepColor),
+    waterColor: normalizeColorValue(tuning?.waterColor, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.waterColor),
+    highlightColor: normalizeColorValue(tuning?.highlightColor, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.highlightColor)
+  };
+}
+
+function normalizeColorValue(value: unknown, fallback: string): string {
+  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+}
+
+function formatEnvironmentEffectName(effect: EnvironmentEffectType): string {
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : "Smoke";
 }
 
 function normalizeWeatherEffectSettings(settings?: WeatherSettings["effectSettings"]): WeatherSettings["effectSettings"] {

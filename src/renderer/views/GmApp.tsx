@@ -34,6 +34,7 @@ import type {
   DrawingElement,
   DrawingStrokeStyle,
   DrawingTemplateEffect,
+  EnvironmentEffectType,
   LiveTableEvent,
   Point,
   Scene,
@@ -43,7 +44,8 @@ import type {
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
+import { ToolsMenu, WaterEffectTuningPanel, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
+import { DEFAULT_WATER_EFFECT_TUNING, type WaterEffectTuning } from "../canvas/environmentEffectsRenderer";
 import type { DrawingTool } from "../canvas/drawingRenderer";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -161,6 +163,9 @@ export function GmApp() {
   const [activeDrawingTool, setActiveDrawingTool] = useState<DrawingTool | null>(null);
   const [activeFogTool, setActiveFogTool] = useState<FogTool | null>(null);
   const [activeWeatherMaskTool, setActiveWeatherMaskTool] = useState<WeatherMaskTool | null>(null);
+  const [activeEnvironmentEffectTool, setActiveEnvironmentEffectTool] = useState<EnvironmentEffectTool | null>(null);
+  const [environmentEffectType, setEnvironmentEffectType] = useState<EnvironmentEffectType>("water");
+  const [waterEffectTuning, setWaterEffectTuning] = useState<WaterEffectTuning>(DEFAULT_WATER_EFFECT_TUNING);
   const [mouseBehavior, setMouseBehavior] = useState<MouseBehavior>("selector");
   const [tableToolsVisibleInPlayer, setTableToolsVisibleInPlayer] = useState(true);
   const [tableTools, setTableTools] = useState(() => ({ ...DEFAULT_TABLE_TOOLS }));
@@ -188,6 +193,9 @@ export function GmApp() {
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [selectedFogShapeId, setSelectedFogShapeId] = useState<string | null>(null);
   const [selectedWeatherMaskId, setSelectedWeatherMaskId] = useState<string | null>(null);
+  const [selectedEnvironmentEffectId, setSelectedEnvironmentEffectId] = useState<string | null>(null);
+  const [environmentEffectEditorId, setEnvironmentEffectEditorId] = useState<string | null>(null);
+  const [environmentEffectEditorPosition, setEnvironmentEffectEditorPosition] = useState<{ x: number; y: number } | null>(null);
   const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [selectedFogShapeIds, setSelectedFogShapeIds] = useState<string[]>([]);
@@ -218,6 +226,7 @@ export function GmApp() {
   const [busyState, setBusyState] = useState<CampaignBusyState | null>(null);
   const skipNextPlayerSceneAutoSyncRef = useRef(false);
   const playerTemplatePreviewPublishedRef = useRef(false);
+  const playerIdleClearedForNoCampaignRef = useRef(false);
 
   const mapAsset = useMemo(() => {
     if (!campaign || !activeScene?.mapAssetId) {
@@ -257,6 +266,10 @@ export function GmApp() {
       })
     );
   }, [activeScene, campaign?.assets, campaign?.scenes, sceneDrafts]);
+  const environmentEffectEditorEffect = useMemo(
+    () => activeScene?.environment.effects.find((effect) => effect.id === environmentEffectEditorId) ?? null,
+    [activeScene?.environment.effects, environmentEffectEditorId]
+  );
 
   useEffect(() => {
     diceSettingsDraftRef.current = diceSettings;
@@ -298,6 +311,16 @@ export function GmApp() {
     setSelectedWeatherMaskId(ids[0] ?? null);
   };
 
+  const selectEnvironmentEffect = (id: string | null) => {
+    setSelectedEnvironmentEffectId(id);
+    if (id) {
+      selectTokens([]);
+      selectDrawings([]);
+      selectFogShapes([]);
+      selectWeatherMasks([]);
+    }
+  };
+
   const selectSceneItems = ({
     tokenIds = [],
     drawingIds = [],
@@ -315,6 +338,7 @@ export function GmApp() {
     selectDrawings(applySceneSelectionMode(selectedDrawingIds, drawingIds, mode));
     selectFogShapes(applySceneSelectionMode(selectedFogShapeIds, fogShapeIds, mode));
     selectWeatherMasks(applySceneSelectionMode(selectedWeatherMaskIds, weatherMaskIds, mode));
+    setSelectedEnvironmentEffectId(null);
   };
 
   const clearSceneSelection = () => {
@@ -322,6 +346,7 @@ export function GmApp() {
     selectDrawings([]);
     selectFogShapes([]);
     selectWeatherMasks([]);
+    setSelectedEnvironmentEffectId(null);
   };
 
   useEffect(() => {
@@ -333,6 +358,8 @@ export function GmApp() {
     setSelectedFogShapeId(null);
     setSelectedWeatherMaskIds([]);
     setSelectedWeatherMaskId(null);
+    setSelectedEnvironmentEffectId(null);
+    setEnvironmentEffectEditorId(null);
   }, [activeScene?.id]);
 
   useEffect(() => {
@@ -345,6 +372,8 @@ export function GmApp() {
       setSelectedFogShapeId(null);
       setSelectedWeatherMaskIds([]);
       setSelectedWeatherMaskId(null);
+      setSelectedEnvironmentEffectId(null);
+      setEnvironmentEffectEditorId(null);
       return;
     }
     const tokenIds = new Set(activeScene.tokens.map((token) => token.id));
@@ -372,6 +401,34 @@ export function GmApp() {
     }
   }, [activeScene, selectedDrawingIds, selectedFogShapeIds, selectedTokenIds, selectedWeatherMaskIds]);
 
+  useEffect(() => {
+    if (!selectedEnvironmentEffectId || activeScene?.environment.effects.some((effect) => effect.id === selectedEnvironmentEffectId)) {
+      return;
+    }
+    setSelectedEnvironmentEffectId(null);
+  }, [activeScene?.environment.effects, selectedEnvironmentEffectId]);
+
+  useEffect(() => {
+    if (!environmentEffectEditorId || activeScene?.environment.effects.some((effect) => effect.id === environmentEffectEditorId)) {
+      return;
+    }
+    setEnvironmentEffectEditorId(null);
+  }, [activeScene?.environment.effects, environmentEffectEditorId]);
+
+  const updateEnvironmentEffectWaterTuning = (effectId: string, waterTuning: WaterEffectTuning) => {
+    if (!activeScene) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      environment: {
+        ...activeScene.environment,
+        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, waterTuning } : effect))
+      },
+      updatedAt: new Date().toISOString()
+    });
+  };
+
   const updateSelectedPlayerVisibility = (visibleInPlayer: boolean) => {
     if (!activeScene) {
       return;
@@ -396,6 +453,10 @@ export function GmApp() {
       weather: {
         ...activeScene.weather,
         masks: activeScene.weather.masks.map((mask) => (selectedWeatherMaskIdSet.has(mask.id) ? { ...mask, visibleInPlayer } : mask))
+      },
+      environment: {
+        ...activeScene.environment,
+        effects: activeScene.environment.effects.map((effect) => (effect.id === selectedEnvironmentEffectId ? { ...effect, visibleInPlayer } : effect))
       }
     });
   };
@@ -420,6 +481,10 @@ export function GmApp() {
       weather: {
         ...activeScene.weather,
         masks: activeScene.weather.masks.filter((mask) => !selectedWeatherMaskIdSet.has(mask.id))
+      },
+      environment: {
+        ...activeScene.environment,
+        effects: activeScene.environment.effects.filter((effect) => effect.id !== selectedEnvironmentEffectId)
       }
     });
     clearSceneSelection();
@@ -753,6 +818,20 @@ export function GmApp() {
   }, [activeScene?.tokens]);
 
   useEffect(() => {
+    if (campaign) {
+      playerIdleClearedForNoCampaignRef.current = false;
+      return;
+    }
+    if (playerIdleClearedForNoCampaignRef.current) {
+      return;
+    }
+    playerIdleClearedForNoCampaignRef.current = true;
+    void window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.", "hold");
+    setPlayerSceneId(null);
+    setPlayerDisplayMode("hold");
+  }, [campaign]);
+
+  useEffect(() => {
     if (!playerSceneId || campaign?.scenes.some((scene) => scene.id === playerSceneId)) {
       return;
     }
@@ -909,6 +988,20 @@ export function GmApp() {
       weather: {
         ...activeScene.weather,
         masks: activeScene.weather.masks.slice(0, -1)
+      },
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const undoEnvironmentEffect = () => {
+    if (!activeScene || activeScene.environment.effects.length === 0) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      environment: {
+        ...activeScene.environment,
+        effects: activeScene.environment.effects.slice(0, -1)
       },
       updatedAt: new Date().toISOString()
     });
@@ -1784,7 +1877,10 @@ export function GmApp() {
               activeCanvasTool={activeCanvasTool}
               activeFogTool={activeFogTool}
               activeWeatherMaskTool={activeWeatherMaskTool}
+              activeEnvironmentEffectTool={activeEnvironmentEffectTool}
               activeDrawingTool={activeDrawingTool}
+              environmentEffectType={environmentEffectType}
+              waterEffectTuning={waterEffectTuning}
               mouseBehavior={mouseBehavior}
               fogOperation={fogOperation}
               brushSize={fogBrushSize}
@@ -1807,6 +1903,7 @@ export function GmApp() {
               fogShapeCount={activeScene.fog.shapes.length}
               drawingCount={activeScene.drawings.length}
               weatherMaskCount={activeScene.weather.masks.length}
+              environmentEffectCount={activeScene.environment.effects.length}
               weatherToolsEnabled={
                 activeScene.weather.enabled &&
                 (activeScene.weather.effects.rain.enabled || activeScene.weather.effects.fog.enabled || activeScene.weather.effects.snow.enabled || activeScene.weather.effects.sand.enabled)
@@ -1818,7 +1915,11 @@ export function GmApp() {
               onCanvasToolChange={setActiveCanvasTool}
               onFogToolChange={setActiveFogTool}
               onWeatherMaskToolChange={setActiveWeatherMaskTool}
+              onEnvironmentEffectToolChange={setActiveEnvironmentEffectTool}
               onDrawingToolChange={setActiveDrawingTool}
+              onEnvironmentEffectTypeChange={setEnvironmentEffectType}
+              onWaterEffectTuningChange={setWaterEffectTuning}
+              onWaterEffectTuningReset={() => setWaterEffectTuning(DEFAULT_WATER_EFFECT_TUNING)}
               onMouseBehaviorChange={setMouseBehavior}
               onFogOperationChange={setFogOperation}
               onBrushSizeChange={setFogBrushSize}
@@ -1842,6 +1943,7 @@ export function GmApp() {
               onUndoFogShape={undoFogShape}
               onUndoDrawing={undoDrawing}
               onUndoWeatherMask={undoWeatherMask}
+              onUndoEnvironmentEffect={undoEnvironmentEffect}
               onRequestClearFog={() => setConfirmClearFogOpen(true)}
               onToggleDicePanel={() => setDicePanelOpen((open) => !open)}
               onToggleTurnOrder={() =>
@@ -1877,11 +1979,15 @@ export function GmApp() {
             fogBrushSize={fogBrushSize}
             fogTool={activeFogTool}
             weatherMaskTool={activeWeatherMaskTool}
+            environmentEffectTool={activeEnvironmentEffectTool}
+            environmentEffectType={environmentEffectType}
+            waterEffectTuning={waterEffectTuning}
             liveTableEvents={liveTableEvents}
             tableTools={tableTools}
             tableToolsVisibleInPlayer={tableToolsVisibleInPlayer}
             selectedFogShapeId={selectedFogShapeId}
             selectedWeatherMaskId={selectedWeatherMaskId}
+            selectedEnvironmentEffectId={selectedEnvironmentEffectId}
             selectedDrawingId={selectedDrawingId}
             selectedTokenId={selectedTokenId}
             selectedFogShapeIds={selectedFogShapeIds}
@@ -1893,6 +1999,8 @@ export function GmApp() {
             onSelectToken={(tokenId) => selectTokens(tokenId ? [tokenId] : [])}
             onSelectFogShape={(shapeId) => selectFogShapes(shapeId ? [shapeId] : [])}
             onSelectWeatherMask={(maskId) => selectWeatherMasks(maskId ? [maskId] : [])}
+            onSelectEnvironmentEffect={selectEnvironmentEffect}
+            onEditEnvironmentEffect={setEnvironmentEffectEditorId}
             onSelectDrawing={(drawingId) => selectDrawings(drawingId ? [drawingId] : [])}
             onSelectSceneItems={selectSceneItems}
             onAddTokenToTurnOrder={addSceneTokenToTurnOrder}
@@ -1963,6 +2071,7 @@ export function GmApp() {
         tokenAssets={tokenAssets}
         selectedFogShapeId={selectedFogShapeId}
         selectedWeatherMaskId={selectedWeatherMaskId}
+        selectedEnvironmentEffectId={selectedEnvironmentEffectId}
         selectedDrawingId={selectedDrawingId}
         selectedTokenId={selectedTokenId}
         selectedFogShapeIds={selectedFogShapeIds}
@@ -1986,6 +2095,8 @@ export function GmApp() {
         onDeleteMap={setMapAssetToDelete}
         onSelectFogShape={(shapeId) => selectSceneItems({ fogShapeIds: shapeId ? [shapeId] : [] })}
         onSelectWeatherMask={(maskId) => selectSceneItems({ weatherMaskIds: maskId ? [maskId] : [] })}
+        onSelectEnvironmentEffect={selectEnvironmentEffect}
+        onEditEnvironmentEffect={setEnvironmentEffectEditorId}
         onSelectDrawing={(drawingId) => selectSceneItems({ drawingIds: drawingId ? [drawingId] : [] })}
         onSelectToken={(tokenId) => selectSceneItems({ tokenIds: tokenId ? [tokenId] : [] })}
         onRenameFogShape={openRenameFogShapeDialog}
@@ -1994,6 +2105,17 @@ export function GmApp() {
         onOpenGridColor={() => openSceneColorDialog("grid")}
         onOpenTokenColor={openTokenColorDialog}
       />
+
+      {environmentEffectEditorEffect && (
+        <EnvironmentEffectEditorModal
+          effect={environmentEffectEditorEffect}
+          position={environmentEffectEditorPosition}
+          onClose={() => setEnvironmentEffectEditorId(null)}
+          onPositionChange={setEnvironmentEffectEditorPosition}
+          onWaterTuningChange={(waterTuning) => updateEnvironmentEffectWaterTuning(environmentEffectEditorEffect.id, waterTuning)}
+          onWaterTuningReset={() => updateEnvironmentEffectWaterTuning(environmentEffectEditorEffect.id, { ...DEFAULT_WATER_EFFECT_TUNING })}
+        />
+      )}
 
       <GmDialogs
         sceneDialog={sceneDialog}
@@ -2113,6 +2235,121 @@ function CampaignBusyOverlay({ busyState }: { busyState: CampaignBusyState }) {
       </div>
     </div>
   );
+}
+
+function EnvironmentEffectEditorModal({
+  effect,
+  position,
+  onClose,
+  onPositionChange,
+  onWaterTuningChange,
+  onWaterTuningReset
+}: {
+  effect: Scene["environment"]["effects"][number];
+  position: { x: number; y: number } | null;
+  onClose: () => void;
+  onPositionChange: (position: { x: number; y: number }) => void;
+  onWaterTuningChange: (tuning: WaterEffectTuning) => void;
+  onWaterTuningReset: () => void;
+}) {
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
+  const label = effect.name?.trim() || `${formatEnvironmentEffectEditorLabel(effect.effect)} Effect`;
+  const style = position ? ({ left: position.x, top: position.y } as CSSProperties) : undefined;
+
+  const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const bounds = modalRef.current?.getBoundingClientRect();
+    if (!bounds) {
+      return;
+    }
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - bounds.left,
+      offsetY: event.clientY - bounds.top
+    };
+    onPositionChange(clampEnvironmentEffectEditorPosition(bounds.left, bounds.top, bounds));
+  };
+
+  const drag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const dragState = dragRef.current;
+    const bounds = modalRef.current?.getBoundingClientRect();
+    if (!dragState || dragState.pointerId !== event.pointerId || !bounds) {
+      return;
+    }
+    onPositionChange(clampEnvironmentEffectEditorPosition(event.clientX - dragState.offsetX, event.clientY - dragState.offsetY, bounds));
+  };
+
+  const stopDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      dragRef.current = null;
+    }
+  };
+
+  return (
+    <section
+      ref={modalRef}
+      className={position ? "environment-effect-editor-modal environment-effect-editor-modal-positioned" : "environment-effect-editor-modal"}
+      style={style}
+      role="dialog"
+      aria-labelledby="environment-effect-editor-title"
+    >
+      <div
+        className="environment-effect-editor-header"
+        onPointerDown={startDrag}
+        onPointerMove={drag}
+        onPointerUp={stopDrag}
+        onPointerCancel={stopDrag}
+      >
+        <div className="environment-effect-editor-title">
+          <GripVertical size={15} aria-hidden="true" />
+          <div>
+            <h2 id="environment-effect-editor-title">Edit Effect</h2>
+            <p title={label}>{label}</p>
+          </div>
+        </div>
+        <div className="environment-effect-editor-actions" onPointerDown={(event) => event.stopPropagation()}>
+          <button className="icon-button" type="button" aria-label="Close edit effect" title="Close" onClick={onClose}>
+            <X size={15} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+      <div className="environment-effect-editor-body">
+        {effect.effect === "water" ? (
+          <WaterEffectTuningPanel
+            key={effect.id}
+            tuning={{ ...DEFAULT_WATER_EFFECT_TUNING, ...(effect.waterTuning ?? {}) }}
+            defaultOpen
+            onChange={onWaterTuningChange}
+            onReset={onWaterTuningReset}
+          />
+        ) : (
+          <div className="layer-empty-state">
+            <strong>No Editable Settings</strong>
+            <span>{formatEnvironmentEffectEditorLabel(effect.effect)} effects do not have advanced controls yet.</span>
+          </div>
+        )}
+        <div className="button-row modal-actions">
+          <button type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function formatEnvironmentEffectEditorLabel(effect: EnvironmentEffectType): string {
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : "Smoke";
+}
+
+function clampEnvironmentEffectEditorPosition(x: number, y: number, bounds: DOMRect): { x: number; y: number } {
+  const margin = 12;
+  return {
+    x: Math.min(Math.max(margin, x), Math.max(margin, window.innerWidth - bounds.width - margin)),
+    y: Math.min(Math.max(margin, y), Math.max(margin, window.innerHeight - bounds.height - margin))
+  };
 }
 
 function TurnOrderModal({

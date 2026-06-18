@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Circle,
   CloudFog,
+  Copy,
   Dices,
   Eye,
   EyeOff,
@@ -30,14 +31,16 @@ import {
   X
 } from "lucide-react";
 import type { DrawingTool } from "../../canvas/drawingRenderer";
-import type { DrawingStrokeStyle, DrawingTemplateEffect } from "../../../shared/localvtt";
+import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType } from "../../../shared/localvtt";
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
+import { WATER_EFFECT_PRESETS, type WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
 
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";
 export type WeatherMaskTool = "rectangle" | "circle" | "polygon";
+export type EnvironmentEffectTool = "rectangle" | "circle" | "polygon";
 export type DrawingTemplateSize = "custom" | 5 | 10 | 15 | 20 | 30 | 60 | 100;
 export type DrawingTemplateWidth = 0 | 5 | 10 | 15 | 20;
 type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
@@ -148,7 +151,10 @@ interface ToolsMenuProps {
   activeCanvasTool: CanvasTool | null;
   activeFogTool: FogTool | null;
   activeWeatherMaskTool: WeatherMaskTool | null;
+  activeEnvironmentEffectTool: EnvironmentEffectTool | null;
   activeDrawingTool: DrawingTool | null;
+  environmentEffectType: EnvironmentEffectType;
+  waterEffectTuning: WaterEffectTuning;
   mouseBehavior: MouseBehavior;
   fogOperation: FogOperation;
   brushSize: number;
@@ -171,6 +177,7 @@ interface ToolsMenuProps {
   fogShapeCount: number;
   drawingCount: number;
   weatherMaskCount: number;
+  environmentEffectCount: number;
   weatherToolsEnabled: boolean;
   dicePanelOpen: boolean;
   turnOrderModalOpen: boolean;
@@ -179,7 +186,11 @@ interface ToolsMenuProps {
   onCanvasToolChange: (tool: CanvasTool | null) => void;
   onFogToolChange: (tool: FogTool | null) => void;
   onWeatherMaskToolChange: (tool: WeatherMaskTool | null) => void;
+  onEnvironmentEffectToolChange: (tool: EnvironmentEffectTool | null) => void;
   onDrawingToolChange: (tool: DrawingTool | null) => void;
+  onEnvironmentEffectTypeChange: (effect: EnvironmentEffectType) => void;
+  onWaterEffectTuningChange: (tuning: WaterEffectTuning) => void;
+  onWaterEffectTuningReset: () => void;
   onMouseBehaviorChange: (behavior: MouseBehavior) => void;
   onFogOperationChange: (operation: FogOperation) => void;
   onBrushSizeChange: (brushSize: number) => void;
@@ -202,6 +213,7 @@ interface ToolsMenuProps {
   onUndoFogShape: () => void;
   onUndoDrawing: () => void;
   onUndoWeatherMask: () => void;
+  onUndoEnvironmentEffect: () => void;
   onRequestClearFog: () => void;
   onToggleDicePanel: () => void;
   onToggleTurnOrder: () => void;
@@ -229,7 +241,10 @@ export function ToolsMenu({
   activeCanvasTool,
   activeFogTool,
   activeWeatherMaskTool,
+  activeEnvironmentEffectTool,
   activeDrawingTool,
+  environmentEffectType,
+  waterEffectTuning,
   mouseBehavior,
   fogOperation,
   brushSize,
@@ -252,6 +267,7 @@ export function ToolsMenu({
   fogShapeCount,
   drawingCount,
   weatherMaskCount,
+  environmentEffectCount,
   weatherToolsEnabled,
   dicePanelOpen,
   turnOrderModalOpen,
@@ -260,7 +276,11 @@ export function ToolsMenu({
   onCanvasToolChange,
   onFogToolChange,
   onWeatherMaskToolChange,
+  onEnvironmentEffectToolChange,
   onDrawingToolChange,
+  onEnvironmentEffectTypeChange,
+  onWaterEffectTuningChange,
+  onWaterEffectTuningReset,
   onMouseBehaviorChange,
   onFogOperationChange,
   onBrushSizeChange,
@@ -283,6 +303,7 @@ export function ToolsMenu({
   onUndoFogShape,
   onUndoDrawing,
   onUndoWeatherMask,
+  onUndoEnvironmentEffect,
   onToggleDicePanel,
   onToggleTurnOrder,
   onSelectorSelectionFiltersChange,
@@ -313,7 +334,10 @@ export function ToolsMenu({
     if (activeWeatherMaskTool) {
       setActiveCategory("effects");
     }
-  }, [activeFogTool, activeWeatherMaskTool]);
+    if (activeEnvironmentEffectTool) {
+      setActiveCategory("effects");
+    }
+  }, [activeFogTool, activeWeatherMaskTool, activeEnvironmentEffectTool]);
 
   useEffect(() => {
     if (activeCanvasTool) {
@@ -337,6 +361,7 @@ export function ToolsMenu({
     onCanvasToolChange(null);
     onFogToolChange(null);
     onWeatherMaskToolChange(null);
+    onEnvironmentEffectToolChange(null);
     onDrawingToolChange(null);
     setHelpTopic(null);
   };
@@ -366,6 +391,7 @@ export function ToolsMenu({
       onCanvasToolChange(null);
       onFogToolChange(null);
       onWeatherMaskToolChange(null);
+      onEnvironmentEffectToolChange(null);
       onDrawingColorChange(category === "templates" ? DEFAULT_TEMPLATE_COLOR : DEFAULT_DRAWING_COLOR);
       if (category === "templates" && drawingStrokeWidth === 40) {
         onDrawingStrokeWidthChange(8);
@@ -373,11 +399,13 @@ export function ToolsMenu({
     } else if (category === "table") {
       onFogToolChange(null);
       onWeatherMaskToolChange(null);
+      onEnvironmentEffectToolChange(null);
       onDrawingToolChange(null);
     } else if (category === "fog") {
       onCanvasToolChange(null);
       onDrawingToolChange(null);
       onWeatherMaskToolChange(null);
+      onEnvironmentEffectToolChange(null);
     } else if (category === "effects") {
       onCanvasToolChange(null);
       onFogToolChange(null);
@@ -392,6 +420,7 @@ export function ToolsMenu({
     onCanvasToolChange(null);
     onDrawingToolChange(null);
     onWeatherMaskToolChange(null);
+    onEnvironmentEffectToolChange(null);
     onFogToolChange(activeFogTool === nextTool ? null : nextTool);
   };
 
@@ -401,6 +430,7 @@ export function ToolsMenu({
     onCanvasToolChange(null);
     onFogToolChange(null);
     onWeatherMaskToolChange(null);
+    onEnvironmentEffectToolChange(null);
     onDrawingColorChange(isTemplateDrawingTool(tool) ? DEFAULT_TEMPLATE_COLOR : DEFAULT_DRAWING_COLOR);
     if (enteringTemplateTools && drawingStrokeWidth === 40) {
       onDrawingStrokeWidthChange(8);
@@ -412,13 +442,23 @@ export function ToolsMenu({
     onCanvasToolChange(null);
     onFogToolChange(null);
     onDrawingToolChange(null);
+    onEnvironmentEffectToolChange(null);
     onWeatherMaskToolChange(activeWeatherMaskTool === tool ? null : tool);
+  };
+
+  const setEnvironmentEffectTool = (tool: EnvironmentEffectTool) => {
+    onCanvasToolChange(null);
+    onFogToolChange(null);
+    onDrawingToolChange(null);
+    onWeatherMaskToolChange(null);
+    onEnvironmentEffectToolChange(activeEnvironmentEffectTool === tool ? null : tool);
   };
 
   const setTableTool = (tool: CanvasTool) => {
     onFogToolChange(null);
     onDrawingToolChange(null);
     onWeatherMaskToolChange(null);
+    onEnvironmentEffectToolChange(null);
     setHelpTopic(null);
     if (tool === "ping") {
       onPingColorChange(DEFAULT_SONAR_COLOR);
@@ -463,7 +503,7 @@ export function ToolsMenu({
       return Boolean(activeFogTool);
     }
     if (category === "effects") {
-      return Boolean(activeWeatherMaskTool);
+      return Boolean(activeWeatherMaskTool || activeEnvironmentEffectTool);
     }
     if (category === "dice") {
       return dicePanelOpen;
@@ -888,18 +928,68 @@ export function ToolsMenu({
               </div>
               <div className="tools-section-divider" />
               <div className="tools-section-label">Environmental Effects</div>
-              <span className="tools-section-note">Shape tools for animated area effects will live here.</span>
+              <div className="tools-strip-select-field">
+                <strong>Effect</strong>
+                <div>
+                  <select
+                    aria-label="Environmental effect type"
+                    title="Environmental effect type"
+                    value={environmentEffectType}
+                    onChange={(event) => onEnvironmentEffectTypeChange(event.target.value as EnvironmentEffectType)}
+                  >
+                    <option value="water">Water</option>
+                    <option value="lava">Lava</option>
+                    <option value="smoke">Smoke</option>
+                  </select>
+                </div>
+              </div>
+              {environmentEffectType === "water" && (
+                <div className="tools-strip-select-field">
+                  <strong>Preset</strong>
+                  <div>
+                    <select
+                      aria-label="Water effect preset"
+                      title="Water effect preset"
+                      value={getWaterPresetSelectValue(waterEffectTuning)}
+                      onChange={(event) => {
+                        const preset = WATER_EFFECT_PRESETS[event.target.value as keyof typeof WATER_EFFECT_PRESETS];
+                        if (preset) {
+                          onWaterEffectTuningChange({ ...preset });
+                        }
+                      }}
+                    >
+                      <option value="custom">Custom</option>
+                      <option value="stream">Stream</option>
+                      <option value="river">River</option>
+                    </select>
+                  </div>
+                </div>
+              )}
               <div className="tools-button-row">
-                <ToolButton label="Radius Effect" disabled onClick={() => undefined}>
+                <ToolButton active={activeEnvironmentEffectTool === "circle"} label="Radius Environmental Effect" onClick={() => setEnvironmentEffectTool("circle")}>
                   <Circle size={17} aria-hidden="true" />
                 </ToolButton>
-                <ToolButton label="Square Effect" disabled onClick={() => undefined}>
+                <ToolButton active={activeEnvironmentEffectTool === "rectangle"} label="Rectangle Environmental Effect" onClick={() => setEnvironmentEffectTool("rectangle")}>
                   <Square size={17} aria-hidden="true" />
                 </ToolButton>
-                <ToolButton label="Polygon Effect" disabled onClick={() => undefined}>
+                <ToolButton active={activeEnvironmentEffectTool === "polygon"} label="Polygon Environmental Effect" onClick={() => setEnvironmentEffectTool("polygon")}>
                   <Pentagon size={17} aria-hidden="true" />
                 </ToolButton>
+                <span className="tools-vertical-divider" aria-hidden="true" />
+                <ToolButton label="Undo Last Environmental Effect" disabled={environmentEffectCount === 0} onClick={onUndoEnvironmentEffect}>
+                  <Undo2 size={17} aria-hidden="true" />
+                </ToolButton>
               </div>
+              {environmentEffectType === "water" && (
+                <>
+                  <div className="tools-section-divider" />
+                  <WaterEffectTuningPanel
+                    tuning={waterEffectTuning}
+                    onChange={onWaterEffectTuningChange}
+                    onReset={onWaterEffectTuningReset}
+                  />
+                </>
+              )}
               {helpTopic === "effects" && <ToolHelpCard topic="effects" />}
             </div>
           )}
@@ -927,6 +1017,124 @@ function HelpButton({ active, disabled = false, label, onClick }: { active: bool
     <button className={active ? "tool-circle-button tool-help-trigger tools-panel-help-button tool-active" : "tool-circle-button tool-help-trigger tools-panel-help-button"} aria-label={label} title={label} type="button" aria-expanded={active} disabled={disabled} onClick={onClick}>
       <HelpCircle size={14} aria-hidden="true" />
     </button>
+  );
+}
+
+export function WaterEffectTuningPanel({
+  tuning,
+  title = "Advanced Effects Settings",
+  defaultOpen = false,
+  onChange,
+  onReset
+}: {
+  tuning: WaterEffectTuning;
+  title?: string;
+  defaultOpen?: boolean;
+  onChange: (tuning: WaterEffectTuning) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const update = (patch: Partial<WaterEffectTuning>) => onChange({ ...tuning, ...patch });
+  const readout = JSON.stringify(tuning);
+
+  return (
+    <div className="water-tuning-panel" aria-label="Water effect tuning">
+      <div className="tools-section-label-row">
+        <SettingsToggle open={open} label={title} onToggle={() => setOpen((current) => !current)} />
+        {open && (
+          <button className="icon-button no-chrome" type="button" title="Reset water tuning" aria-label="Reset water tuning" onClick={onReset}>
+            <Undo2 size={15} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      {open && (
+        <>
+          <div className="water-tuning-sliders">
+            <WaterTuningSlider label="Opacity" value={tuning.opacity} min={0} max={1} step={0.01} onChange={(opacity) => update({ opacity })} />
+            <WaterTuningSlider label="Band Scale" value={tuning.bandScale} min={0.5} max={20} step={0.1} onChange={(bandScale) => update({ bandScale })} />
+            <WaterTuningSlider label="Band Width" value={tuning.bandWidth} min={0.01} max={0.49} step={0.01} onChange={(bandWidth) => update({ bandWidth })} />
+            <WaterTuningSlider label="Speed" value={tuning.speed} min={0} max={2} step={0.01} onChange={(speed) => update({ speed })} />
+            <WaterTuningSlider label="Direction" value={tuning.directionDegrees} min={0} max={360} step={1} suffix="deg" onChange={(directionDegrees) => update({ directionDegrees })} />
+            <WaterTuningSlider label="Distortion" value={tuning.distortion} min={0} max={2} step={0.01} onChange={(distortion) => update({ distortion })} />
+            <WaterTuningSlider label="Vertical Distortion" value={tuning.verticalDistortion} min={0} max={2} step={0.01} onChange={(verticalDistortion) => update({ verticalDistortion })} />
+            <WaterTuningSlider label="Distortion Variation" value={tuning.distortionVariation} min={0} max={2} step={0.01} onChange={(distortionVariation) => update({ distortionVariation })} />
+            <WaterTuningSlider label="Band Breakup" value={tuning.bandBreakup} min={0} max={1} step={0.01} onChange={(bandBreakup) => update({ bandBreakup })} />
+            <WaterTuningSlider label="Band Variation" value={tuning.bandVariation} min={0} max={4} step={0.01} onChange={(bandVariation) => update({ bandVariation })} />
+            <WaterTuningSlider label="Band Overlap" value={tuning.bandOverlap} min={0} max={1} step={0.01} onChange={(bandOverlap) => update({ bandOverlap })} />
+            <WaterTuningSlider label="Pan Follow" value={tuning.panFollow} min={0} max={1} step={0.05} onChange={(panFollow) => update({ panFollow })} />
+            <WaterTuningSlider label="Zoom Scale" value={tuning.zoomScale} min={-3} max={3} step={0.05} onChange={(zoomScale) => update({ zoomScale })} />
+            <WaterTuningSlider label="Base Alpha" value={tuning.baseAlpha} min={0} max={1} step={0.01} onChange={(baseAlpha) => update({ baseAlpha })} />
+            <WaterTuningSlider label="Highlight Alpha" value={tuning.highlightAlpha} min={0} max={1} step={0.01} onChange={(highlightAlpha) => update({ highlightAlpha })} />
+          </div>
+          <div className="water-tuning-colors">
+            <WaterTuningColor label="Deep" value={tuning.deepColor} onChange={(deepColor) => update({ deepColor })} />
+            <WaterTuningColor label="Water" value={tuning.waterColor} onChange={(waterColor) => update({ waterColor })} />
+            <WaterTuningColor label="Highlight" value={tuning.highlightColor} onChange={(highlightColor) => update({ highlightColor })} />
+          </div>
+          <div className="water-tuning-readout-row">
+            <div className="water-tuning-readout" title={readout}>{readout}</div>
+            <button className="icon-button no-chrome" type="button" title="Copy water tuning JSON" aria-label="Copy water tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
+              <Copy size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function WaterTuningSlider({ label, value, min, max, step, suffix = "", onChange }: { label: string; value: number; min: number; max: number; step: number; suffix?: string; onChange: (value: number) => void }) {
+  return (
+    <label className="water-tuning-slider">
+      <span>{label}</span>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
+      <strong>{formatTuningNumber(value)}{suffix}</strong>
+    </label>
+  );
+}
+
+function WaterTuningColor({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="water-tuning-color">
+      <span>{label}</span>
+      <ColorInput value={value} onChange={onChange} aria-label={`${label} water color`} />
+    </label>
+  );
+}
+
+function formatTuningNumber(value: number): string {
+  return Number.isInteger(value) ? value.toString() : value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function getWaterPresetSelectValue(tuning: WaterEffectTuning): keyof typeof WATER_EFFECT_PRESETS | "custom" {
+  for (const [presetName, preset] of Object.entries(WATER_EFFECT_PRESETS)) {
+    if (isWaterTuningMatch(tuning, preset)) {
+      return presetName as keyof typeof WATER_EFFECT_PRESETS;
+    }
+  }
+  return "custom";
+}
+
+function isWaterTuningMatch(tuning: WaterEffectTuning, preset: WaterEffectTuning): boolean {
+  return (
+    tuning.opacity === preset.opacity &&
+    tuning.bandScale === preset.bandScale &&
+    tuning.bandWidth === preset.bandWidth &&
+    tuning.speed === preset.speed &&
+    tuning.directionDegrees === preset.directionDegrees &&
+    tuning.distortion === preset.distortion &&
+    tuning.verticalDistortion === preset.verticalDistortion &&
+    tuning.distortionVariation === preset.distortionVariation &&
+    tuning.bandBreakup === preset.bandBreakup &&
+    tuning.bandVariation === preset.bandVariation &&
+    tuning.bandOverlap === preset.bandOverlap &&
+    tuning.panFollow === preset.panFollow &&
+    tuning.zoomScale === preset.zoomScale &&
+    tuning.baseAlpha === preset.baseAlpha &&
+    tuning.highlightAlpha === preset.highlightAlpha &&
+    tuning.deepColor === preset.deepColor &&
+    tuning.waterColor === preset.waterColor &&
+    tuning.highlightColor === preset.highlightColor
   );
 }
 

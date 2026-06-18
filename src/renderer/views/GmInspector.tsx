@@ -10,6 +10,7 @@ export function GmInspector({
   tokenAssets,
   selectedFogShapeId,
   selectedWeatherMaskId,
+  selectedEnvironmentEffectId,
   selectedDrawingId,
   selectedTokenId,
   selectedFogShapeIds,
@@ -33,6 +34,8 @@ export function GmInspector({
   onDeleteMap,
   onSelectFogShape,
   onSelectWeatherMask,
+  onSelectEnvironmentEffect,
+  onEditEnvironmentEffect,
   onSelectDrawing,
   onSelectToken,
   onRenameFogShape,
@@ -46,6 +49,7 @@ export function GmInspector({
   tokenAssets: Map<string, Asset>;
   selectedFogShapeId: string | null;
   selectedWeatherMaskId: string | null;
+  selectedEnvironmentEffectId: string | null;
   selectedDrawingId: string | null;
   selectedTokenId: string | null;
   selectedFogShapeIds: string[];
@@ -69,6 +73,8 @@ export function GmInspector({
   onDeleteMap: (asset: Asset) => void;
   onSelectFogShape: (shapeId: string | null) => void;
   onSelectWeatherMask: (maskId: string | null) => void;
+  onSelectEnvironmentEffect: (effectId: string | null) => void;
+  onEditEnvironmentEffect: (effectId: string) => void;
   onSelectDrawing: (drawingId: string | null) => void;
   onSelectToken: (tokenId: string | null) => void;
   onRenameFogShape: (shapeId: string, fallbackName: string) => void;
@@ -124,6 +130,7 @@ export function GmInspector({
                 tokenAssets={tokenAssets}
                 selectedFogShapeId={selectedFogShapeId}
                 selectedWeatherMaskId={selectedWeatherMaskId}
+                selectedEnvironmentEffectId={selectedEnvironmentEffectId}
                 selectedDrawingId={selectedDrawingId}
                 selectedTokenId={selectedTokenId}
                 selectedFogShapeIds={selectedFogShapeIds}
@@ -141,6 +148,8 @@ export function GmInspector({
                 onDeleteMap={onDeleteMap}
                 onSelectFogShape={onSelectFogShape}
                 onSelectWeatherMask={onSelectWeatherMask}
+                onSelectEnvironmentEffect={onSelectEnvironmentEffect}
+                onEditEnvironmentEffect={onEditEnvironmentEffect}
                 onSelectDrawing={onSelectDrawing}
                 onSelectToken={onSelectToken}
                 onRenameFogShape={onRenameFogShape}
