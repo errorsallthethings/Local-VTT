@@ -44,8 +44,8 @@ import type {
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { LavaEffectTuningPanel, ToolsMenu, WaterEffectTuningPanel, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
-import { DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type LavaEffectTuning, type WaterEffectTuning } from "../canvas/environmentEffectsRenderer";
+import { LavaEffectTuningPanel, SmokeEffectTuningPanel, ToolsMenu, WaterEffectTuningPanel, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
+import { DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type LavaEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../canvas/environmentEffectsRenderer";
 import type { DrawingTool } from "../canvas/drawingRenderer";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -167,6 +167,7 @@ export function GmApp() {
   const [environmentEffectType, setEnvironmentEffectType] = useState<EnvironmentEffectType>("water");
   const [waterEffectTuning, setWaterEffectTuning] = useState<WaterEffectTuning>(DEFAULT_WATER_EFFECT_TUNING);
   const [lavaEffectTuning, setLavaEffectTuning] = useState<LavaEffectTuning>(DEFAULT_LAVA_EFFECT_TUNING);
+  const [smokeEffectTuning, setSmokeEffectTuning] = useState<SmokeEffectTuning>(DEFAULT_SMOKE_EFFECT_TUNING);
   const [mouseBehavior, setMouseBehavior] = useState<MouseBehavior>("selector");
   const [tableToolsVisibleInPlayer, setTableToolsVisibleInPlayer] = useState(true);
   const [tableTools, setTableTools] = useState(() => ({ ...DEFAULT_TABLE_TOOLS }));
@@ -439,6 +440,20 @@ export function GmApp() {
       environment: {
         ...activeScene.environment,
         effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, lavaTuning } : effect))
+      },
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const updateEnvironmentEffectSmokeTuning = (effectId: string, smokeTuning: SmokeEffectTuning) => {
+    if (!activeScene) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      environment: {
+        ...activeScene.environment,
+        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, smokeTuning } : effect))
       },
       updatedAt: new Date().toISOString()
     });
@@ -1897,6 +1912,7 @@ export function GmApp() {
               environmentEffectType={environmentEffectType}
               waterEffectTuning={waterEffectTuning}
               lavaEffectTuning={lavaEffectTuning}
+              smokeEffectTuning={smokeEffectTuning}
               mouseBehavior={mouseBehavior}
               fogOperation={fogOperation}
               brushSize={fogBrushSize}
@@ -1938,6 +1954,8 @@ export function GmApp() {
               onWaterEffectTuningReset={() => setWaterEffectTuning(DEFAULT_WATER_EFFECT_TUNING)}
               onLavaEffectTuningChange={setLavaEffectTuning}
               onLavaEffectTuningReset={() => setLavaEffectTuning(DEFAULT_LAVA_EFFECT_TUNING)}
+              onSmokeEffectTuningChange={setSmokeEffectTuning}
+              onSmokeEffectTuningReset={() => setSmokeEffectTuning(DEFAULT_SMOKE_EFFECT_TUNING)}
               onMouseBehaviorChange={setMouseBehavior}
               onFogOperationChange={setFogOperation}
               onBrushSizeChange={setFogBrushSize}
@@ -2001,6 +2019,7 @@ export function GmApp() {
             environmentEffectType={environmentEffectType}
             waterEffectTuning={waterEffectTuning}
             lavaEffectTuning={lavaEffectTuning}
+            smokeEffectTuning={smokeEffectTuning}
             liveTableEvents={liveTableEvents}
             tableTools={tableTools}
             tableToolsVisibleInPlayer={tableToolsVisibleInPlayer}
@@ -2135,6 +2154,8 @@ export function GmApp() {
           onWaterTuningReset={() => updateEnvironmentEffectWaterTuning(environmentEffectEditorEffect.id, { ...DEFAULT_WATER_EFFECT_TUNING })}
           onLavaTuningChange={(lavaTuning) => updateEnvironmentEffectLavaTuning(environmentEffectEditorEffect.id, lavaTuning)}
           onLavaTuningReset={() => updateEnvironmentEffectLavaTuning(environmentEffectEditorEffect.id, { ...DEFAULT_LAVA_EFFECT_TUNING })}
+          onSmokeTuningChange={(smokeTuning) => updateEnvironmentEffectSmokeTuning(environmentEffectEditorEffect.id, smokeTuning)}
+          onSmokeTuningReset={() => updateEnvironmentEffectSmokeTuning(environmentEffectEditorEffect.id, { ...DEFAULT_SMOKE_EFFECT_TUNING })}
         />
       )}
 
@@ -2266,7 +2287,9 @@ function EnvironmentEffectEditorModal({
   onWaterTuningChange,
   onWaterTuningReset,
   onLavaTuningChange,
-  onLavaTuningReset
+  onLavaTuningReset,
+  onSmokeTuningChange,
+  onSmokeTuningReset
 }: {
   effect: Scene["environment"]["effects"][number];
   position: { x: number; y: number } | null;
@@ -2276,6 +2299,8 @@ function EnvironmentEffectEditorModal({
   onWaterTuningReset: () => void;
   onLavaTuningChange: (tuning: LavaEffectTuning) => void;
   onLavaTuningReset: () => void;
+  onSmokeTuningChange: (tuning: SmokeEffectTuning) => void;
+  onSmokeTuningReset: () => void;
 }) {
   const modalRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
@@ -2356,6 +2381,14 @@ function EnvironmentEffectEditorModal({
             defaultOpen
             onChange={onLavaTuningChange}
             onReset={onLavaTuningReset}
+          />
+        ) : effect.effect === "smoke" ? (
+          <SmokeEffectTuningPanel
+            key={effect.id}
+            tuning={{ ...DEFAULT_SMOKE_EFFECT_TUNING, ...(effect.smokeTuning ?? {}) }}
+            defaultOpen
+            onChange={onSmokeTuningChange}
+            onReset={onSmokeTuningReset}
           />
         ) : (
           <div className="layer-empty-state">

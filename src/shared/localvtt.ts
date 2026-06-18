@@ -249,6 +249,40 @@ export const DEFAULT_LAVA_EFFECT_TUNING_SETTINGS: LavaEffectTuningSettings = {
   hotColor: "#ffd166"
 };
 
+export interface SmokeEffectTuningSettings {
+  opacity: number;
+  cloudScale: number;
+  speed: number;
+  directionDegrees: number;
+  turbulence: number;
+  softness: number;
+  density: number;
+  lift: number;
+  panFollow: number;
+  zoomScale: number;
+  baseAlpha: number;
+  shadowColor: string;
+  smokeColor: string;
+  highlightColor: string;
+}
+
+export const DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS: SmokeEffectTuningSettings = {
+  opacity: 0.82,
+  cloudScale: 4.8,
+  speed: 0.16,
+  directionDegrees: 270,
+  turbulence: 0.72,
+  softness: 0.64,
+  density: 0.58,
+  lift: 0.35,
+  panFollow: 1,
+  zoomScale: 0,
+  baseAlpha: 0.22,
+  shadowColor: "#1f2933",
+  smokeColor: "#8c98a5",
+  highlightColor: "#d7dee6"
+};
+
 export interface EnvironmentEffectMask {
   id: string;
   name?: string;
@@ -258,6 +292,7 @@ export interface EnvironmentEffectMask {
   radius?: number;
   waterTuning?: WaterEffectTuningSettings;
   lavaTuning?: LavaEffectTuningSettings;
+  smokeTuning?: SmokeEffectTuningSettings;
   visibleInGm?: boolean;
   visibleInPlayer?: boolean;
 }
@@ -1591,6 +1626,7 @@ function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): Env
         points,
         waterTuning: effectType === "water" ? normalizeWaterEffectTuning(effect.waterTuning) : undefined,
         lavaTuning: effectType === "lava" ? normalizeLavaEffectTuning(effect.lavaTuning) : undefined,
+        smokeTuning: effectType === "smoke" ? normalizeSmokeEffectTuning(effect.smokeTuning) : undefined,
         visibleInGm: effect.visibleInGm ?? true,
         visibleInPlayer: effect.visibleInPlayer ?? true
       };
@@ -1636,6 +1672,25 @@ function normalizeLavaEffectTuning(tuning?: LavaEffectTuningSettings): LavaEffec
     darkColor: normalizeColorValue(tuning?.darkColor, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.darkColor),
     lavaColor: normalizeColorValue(tuning?.lavaColor, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.lavaColor),
     hotColor: normalizeColorValue(tuning?.hotColor, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.hotColor)
+  };
+}
+
+function normalizeSmokeEffectTuning(tuning?: SmokeEffectTuningSettings): SmokeEffectTuningSettings {
+  return {
+    opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.opacity),
+    cloudScale: clampNumber(tuning?.cloudScale, 0.5, 20, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.cloudScale),
+    speed: clampNumber(tuning?.speed, 0, 2, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.speed),
+    directionDegrees: clampNumber(tuning?.directionDegrees, 0, 360, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.directionDegrees),
+    turbulence: clampNumber(tuning?.turbulence, 0, 2, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.turbulence),
+    softness: clampNumber(tuning?.softness, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.softness),
+    density: clampNumber(tuning?.density, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.density),
+    lift: clampNumber(tuning?.lift, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.lift),
+    panFollow: clampNumber(tuning?.panFollow, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.panFollow),
+    zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.zoomScale),
+    baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.baseAlpha),
+    shadowColor: normalizeColorValue(tuning?.shadowColor, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.shadowColor),
+    smokeColor: normalizeColorValue(tuning?.smokeColor, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.smokeColor),
+    highlightColor: normalizeColorValue(tuning?.highlightColor, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.highlightColor)
   };
 }
 
