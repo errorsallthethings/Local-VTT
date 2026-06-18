@@ -171,7 +171,7 @@ export interface WeatherMask {
   visible?: boolean;
 }
 
-export type EnvironmentEffectType = "water" | "lava" | "smoke";
+export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog";
 
 export interface WaterEffectTuningSettings {
   opacity: number;
@@ -283,6 +283,25 @@ export const DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS: SmokeEffectTuningSettings = {
   highlightColor: "#d7dee6"
 };
 
+export type FogEffectTuningSettings = SmokeEffectTuningSettings;
+
+export const DEFAULT_FOG_EFFECT_TUNING_SETTINGS: FogEffectTuningSettings = {
+  opacity: 0.62,
+  cloudScale: 3.6,
+  speed: 0.08,
+  directionDegrees: 282,
+  turbulence: 0.42,
+  softness: 0.9,
+  density: 0.48,
+  lift: 0.08,
+  panFollow: 1,
+  zoomScale: 0,
+  baseAlpha: 0.18,
+  shadowColor: "#52606d",
+  smokeColor: "#b7c2cc",
+  highlightColor: "#f3f7fb"
+};
+
 export interface EnvironmentEffectMask {
   id: string;
   name?: string;
@@ -293,6 +312,7 @@ export interface EnvironmentEffectMask {
   waterTuning?: WaterEffectTuningSettings;
   lavaTuning?: LavaEffectTuningSettings;
   smokeTuning?: SmokeEffectTuningSettings;
+  fogTuning?: FogEffectTuningSettings;
   visibleInGm?: boolean;
   visibleInPlayer?: boolean;
 }
@@ -1138,7 +1158,7 @@ const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "sandstorm"
 ]);
 
-const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke"]);
+const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog"]);
 
 export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
@@ -1627,6 +1647,7 @@ function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): Env
         waterTuning: effectType === "water" ? normalizeWaterEffectTuning(effect.waterTuning) : undefined,
         lavaTuning: effectType === "lava" ? normalizeLavaEffectTuning(effect.lavaTuning) : undefined,
         smokeTuning: effectType === "smoke" ? normalizeSmokeEffectTuning(effect.smokeTuning) : undefined,
+        fogTuning: effectType === "fog" ? normalizeFogEffectTuning(effect.fogTuning) : undefined,
         visibleInGm: effect.visibleInGm ?? true,
         visibleInPlayer: effect.visibleInPlayer ?? true
       };
@@ -1694,12 +1715,31 @@ function normalizeSmokeEffectTuning(tuning?: SmokeEffectTuningSettings): SmokeEf
   };
 }
 
+function normalizeFogEffectTuning(tuning?: FogEffectTuningSettings): FogEffectTuningSettings {
+  return {
+    opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.opacity),
+    cloudScale: clampNumber(tuning?.cloudScale, 0.5, 20, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.cloudScale),
+    speed: clampNumber(tuning?.speed, 0, 2, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.speed),
+    directionDegrees: clampNumber(tuning?.directionDegrees, 0, 360, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.directionDegrees),
+    turbulence: clampNumber(tuning?.turbulence, 0, 2, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.turbulence),
+    softness: clampNumber(tuning?.softness, 0, 1, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.softness),
+    density: clampNumber(tuning?.density, 0, 1, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.density),
+    lift: clampNumber(tuning?.lift, 0, 1, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.lift),
+    panFollow: clampNumber(tuning?.panFollow, 0, 1, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.panFollow),
+    zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.zoomScale),
+    baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.baseAlpha),
+    shadowColor: normalizeColorValue(tuning?.shadowColor, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.shadowColor),
+    smokeColor: normalizeColorValue(tuning?.smokeColor, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.smokeColor),
+    highlightColor: normalizeColorValue(tuning?.highlightColor, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.highlightColor)
+  };
+}
+
 function normalizeColorValue(value: unknown, fallback: string): string {
   return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
 }
 
 function formatEnvironmentEffectName(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fog" ? "Fog / Mist" : "Smoke";
 }
 
 function normalizeWeatherEffectSettings(settings?: WeatherSettings["effectSettings"]): WeatherSettings["effectSettings"] {

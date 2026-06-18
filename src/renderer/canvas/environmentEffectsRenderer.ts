@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import {
+  DEFAULT_FOG_EFFECT_TUNING_SETTINGS,
   DEFAULT_LAVA_EFFECT_TUNING_SETTINGS,
   DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS,
   DEFAULT_WATER_EFFECT_TUNING_SETTINGS,
+  type FogEffectTuningSettings,
   type LavaEffectTuningSettings,
   type SmokeEffectTuningSettings,
   type WaterEffectTuningSettings
@@ -18,10 +20,12 @@ export interface ScreenBounds {
 export type WaterEffectTuning = WaterEffectTuningSettings;
 export type LavaEffectTuning = LavaEffectTuningSettings;
 export type SmokeEffectTuning = SmokeEffectTuningSettings;
+export type FogEffectTuning = FogEffectTuningSettings;
 
 export const DEFAULT_WATER_EFFECT_TUNING: WaterEffectTuning = DEFAULT_WATER_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_LAVA_EFFECT_TUNING: LavaEffectTuning = DEFAULT_LAVA_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_SMOKE_EFFECT_TUNING: SmokeEffectTuning = DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS;
+export const DEFAULT_FOG_EFFECT_TUNING: FogEffectTuning = DEFAULT_FOG_EFFECT_TUNING_SETTINGS;
 
 export const WATER_EFFECT_PRESETS = {
   stream: {
@@ -105,6 +109,42 @@ export const SMOKE_EFFECT_PRESETS = {
     highlightColor: "#eef2f7"
   }
 } as const satisfies Record<string, SmokeEffectTuning>;
+
+export const FOG_EFFECT_PRESETS = {
+  lightMist: { ...DEFAULT_FOG_EFFECT_TUNING },
+  lowFog: {
+    opacity: 0.7,
+    cloudScale: 4.2,
+    speed: 0.06,
+    directionDegrees: 276,
+    turbulence: 0.34,
+    softness: 0.94,
+    density: 0.58,
+    lift: 0.03,
+    panFollow: 1,
+    zoomScale: 0,
+    baseAlpha: 0.24,
+    shadowColor: "#687482",
+    smokeColor: "#c8d2dc",
+    highlightColor: "#f8fbff"
+  },
+  thickMist: {
+    opacity: 0.78,
+    cloudScale: 3.2,
+    speed: 0.04,
+    directionDegrees: 288,
+    turbulence: 0.5,
+    softness: 0.98,
+    density: 0.72,
+    lift: 0.05,
+    panFollow: 1,
+    zoomScale: 0,
+    baseAlpha: 0.28,
+    shadowColor: "#5f6c78",
+    smokeColor: "#b8c4cf",
+    highlightColor: "#eef5fb"
+  }
+} as const satisfies Record<string, FogEffectTuning>;
 
 type WaterRuntime = {
   renderer: THREE.WebGLRenderer;
@@ -266,6 +306,17 @@ export function drawEnvironmentSmokeEffect(
   ctx.save();
   ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
   ctx.restore();
+}
+
+export function drawEnvironmentFogEffect(
+  ctx: CanvasRenderingContext2D,
+  bounds: ScreenBounds,
+  timestamp: number,
+  layerOpacity: number,
+  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
+  tuning: FogEffectTuning = DEFAULT_FOG_EFFECT_TUNING
+) {
+  drawEnvironmentSmokeEffect(ctx, bounds, timestamp, layerOpacity, cameraState, tuning);
 }
 
 function getWaterRuntime(width: number, height: number): WaterRuntime | null {

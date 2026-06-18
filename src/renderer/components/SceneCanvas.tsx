@@ -59,12 +59,15 @@ import {
 import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
 import {
+  DEFAULT_FOG_EFFECT_TUNING,
   DEFAULT_LAVA_EFFECT_TUNING,
   DEFAULT_SMOKE_EFFECT_TUNING,
   DEFAULT_WATER_EFFECT_TUNING,
+  drawEnvironmentFogEffect,
   drawEnvironmentLavaEffect,
   drawEnvironmentSmokeEffect,
   drawEnvironmentWaterEffect,
+  type FogEffectTuning,
   type LavaEffectTuning,
   type SmokeEffectTuning,
   type WaterEffectTuning
@@ -120,6 +123,7 @@ interface SceneCanvasProps {
   waterEffectTuning?: WaterEffectTuning;
   lavaEffectTuning?: LavaEffectTuning;
   smokeEffectTuning?: SmokeEffectTuning;
+  fogEffectTuning?: FogEffectTuning;
   liveTableEvents?: LiveTableEvent[];
   tableTools?: TableToolSettings;
   tableToolsVisibleInPlayer?: boolean;
@@ -229,6 +233,7 @@ type EnvironmentEffectDrag = {
   waterTuning?: WaterEffectTuning;
   lavaTuning?: LavaEffectTuning;
   smokeTuning?: SmokeEffectTuning;
+  fogTuning?: FogEffectTuning;
   start: Point;
   current: Point;
 };
@@ -356,6 +361,7 @@ export function SceneCanvas({
   waterEffectTuning,
   lavaEffectTuning,
   smokeEffectTuning,
+  fogEffectTuning,
   liveTableEvents = [],
   tableTools,
   tableToolsVisibleInPlayer = true,
@@ -1271,7 +1277,7 @@ export function SceneCanvas({
         if (weatherMapReady) {
           drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1, weatherMapSource);
         }
-        drawEnvironmentEffects(ctx, scene.environment.effects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, waterEffectTuning, lavaEffectTuning, smokeEffectTuning);
+        drawEnvironmentEffects(ctx, scene.environment.effects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, waterEffectTuning, lavaEffectTuning, smokeEffectTuning, fogEffectTuning);
       }
       if (mode === "gm") {
         drawWeatherMaskOutlines(ctx, scene.weather.masks, renderCamera);
@@ -1390,7 +1396,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, lavaEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, isVideoMap, lavaEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1627,6 +1633,7 @@ export function SceneCanvas({
         waterTuning: environmentEffectType === "water" ? cloneWaterEffectTuning(waterEffectTuning) : undefined,
         lavaTuning: environmentEffectType === "lava" ? cloneLavaEffectTuning(lavaEffectTuning) : undefined,
         smokeTuning: environmentEffectType === "smoke" ? cloneSmokeEffectTuning(smokeEffectTuning) : undefined,
+        fogTuning: environmentEffectType === "fog" ? cloneFogEffectTuning(fogEffectTuning) : undefined,
         start: point,
         current: point
       } satisfies EnvironmentEffectDrag;
@@ -2170,6 +2177,7 @@ export function SceneCanvas({
                 waterTuning: environmentEffectDrag.effect === "water" ? cloneWaterEffectTuning(environmentEffectDrag.waterTuning ?? waterEffectTuning) : undefined,
                 lavaTuning: environmentEffectDrag.effect === "lava" ? cloneLavaEffectTuning(environmentEffectDrag.lavaTuning ?? lavaEffectTuning) : undefined,
                 smokeTuning: environmentEffectDrag.effect === "smoke" ? cloneSmokeEffectTuning(environmentEffectDrag.smokeTuning ?? smokeEffectTuning) : undefined,
+                fogTuning: environmentEffectDrag.effect === "fog" ? cloneFogEffectTuning(environmentEffectDrag.fogTuning ?? fogEffectTuning) : undefined,
                 points: environmentEffectDrag.kind === "circle" ? [environmentEffectDrag.start] : [environmentEffectDrag.start, environmentEffectDrag.current],
                 radius: environmentEffectDrag.kind === "circle" ? distanceBetween(environmentEffectDrag.start, environmentEffectDrag.current) : undefined,
                 visibleInGm: true,
@@ -2828,6 +2836,7 @@ export function SceneCanvas({
             waterTuning: environmentEffectType === "water" ? cloneWaterEffectTuning(waterEffectTuning) : undefined,
             lavaTuning: environmentEffectType === "lava" ? cloneLavaEffectTuning(lavaEffectTuning) : undefined,
             smokeTuning: environmentEffectType === "smoke" ? cloneSmokeEffectTuning(smokeEffectTuning) : undefined,
+            fogTuning: environmentEffectType === "fog" ? cloneFogEffectTuning(fogEffectTuning) : undefined,
             points: draft.points,
             visibleInGm: true,
             visibleInPlayer: true
@@ -4805,7 +4814,8 @@ function drawEnvironmentEffects(
   layerOpacity: number,
   waterEffectTuning?: WaterEffectTuning,
   lavaEffectTuning?: LavaEffectTuning,
-  smokeEffectTuning?: SmokeEffectTuning
+  smokeEffectTuning?: SmokeEffectTuning,
+  fogEffectTuning?: FogEffectTuning
 ) {
   for (const effect of effects) {
     const visible = mode === "gm" ? effect.visibleInGm !== false : effect.visibleInPlayer !== false;
@@ -4817,6 +4827,8 @@ function drawEnvironmentEffects(
     ctx.clip(path);
     if (effect.effect === "lava") {
       drawLavaEffect(ctx, effect, camera, timestamp, layerOpacity, lavaEffectTuning);
+    } else if (effect.effect === "fog") {
+      drawFogMistEffect(ctx, effect, camera, timestamp, layerOpacity, fogEffectTuning);
     } else if (effect.effect === "smoke") {
       drawSmokeEffect(ctx, effect, camera, timestamp, layerOpacity, smokeEffectTuning);
     } else {
@@ -4856,6 +4868,10 @@ function cloneSmokeEffectTuning(tuning?: SmokeEffectTuning): SmokeEffectTuning {
   return { ...(tuning ?? DEFAULT_SMOKE_EFFECT_TUNING) };
 }
 
+function cloneFogEffectTuning(tuning?: FogEffectTuning): FogEffectTuning {
+  return { ...(tuning ?? DEFAULT_FOG_EFFECT_TUNING) };
+}
+
 function drawLavaEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, lavaEffectTuning?: LavaEffectTuning) {
   const bounds = getEnvironmentEffectBounds(effect);
   if (!bounds) {
@@ -4874,6 +4890,16 @@ function drawSmokeEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffec
   const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.smokeTuning ? { ...DEFAULT_SMOKE_EFFECT_TUNING, ...effect.smokeTuning } : smokeEffectTuning;
   drawEnvironmentSmokeEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
+}
+
+function drawFogMistEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, fogEffectTuning?: FogEffectTuning) {
+  const bounds = getEnvironmentEffectBounds(effect);
+  if (!bounds) {
+    return;
+  }
+  const screenBounds = worldRectToScreen(bounds, camera);
+  const tuning = effect.fogTuning ? { ...DEFAULT_FOG_EFFECT_TUNING, ...effect.fogTuning } : fogEffectTuning;
+  drawEnvironmentFogEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawEnvironmentEffectShape(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, options: { fill: boolean; selected: boolean }) {
@@ -4971,15 +4997,15 @@ function isMeaningfulEnvironmentEffectDrag(drag: EnvironmentEffectDrag): boolean
 }
 
 function getEnvironmentEffectStroke(effect: EnvironmentEffectType): string {
-  return effect === "lava" ? "rgba(255, 129, 52, 0.95)" : effect === "smoke" ? "rgba(210, 220, 226, 0.88)" : "rgba(125, 211, 252, 0.95)";
+  return effect === "lava" ? "rgba(255, 129, 52, 0.95)" : effect === "smoke" ? "rgba(210, 220, 226, 0.88)" : effect === "fog" ? "rgba(226, 232, 240, 0.82)" : "rgba(125, 211, 252, 0.95)";
 }
 
 function getEnvironmentEffectPreviewFill(effect: EnvironmentEffectType): string {
-  return effect === "lava" ? "rgba(255, 129, 52, 0.2)" : effect === "smoke" ? "rgba(210, 220, 226, 0.18)" : "rgba(56, 189, 248, 0.2)";
+  return effect === "lava" ? "rgba(255, 129, 52, 0.2)" : effect === "smoke" ? "rgba(210, 220, 226, 0.18)" : effect === "fog" ? "rgba(226, 232, 240, 0.14)" : "rgba(56, 189, 248, 0.2)";
 }
 
 function formatEnvironmentEffectLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fog" ? "Fog / Mist" : "Smoke";
 }
 
 function drawWeatherPolygonDraft(ctx: CanvasRenderingContext2D, draft: WeatherPolygonDraft, camera: Camera) {
