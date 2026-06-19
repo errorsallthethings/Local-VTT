@@ -34,7 +34,7 @@ import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType }
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
-import { ARCANE_EFFECT_PRESETS, FIRE_EFFECT_PRESETS, FOG_EFFECT_PRESETS, LAVA_EFFECT_PRESETS, LIGHTNING_EFFECT_PRESETS, RADIANT_EFFECT_PRESETS, SMOKE_EFFECT_PRESETS, WATER_EFFECT_PRESETS, type ArcaneEffectTuning, type FireEffectTuning, type FogEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type RadiantEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
+import { ARCANE_EFFECT_PRESETS, FIRE_EFFECT_PRESETS, FOG_EFFECT_PRESETS, FORCE_FIELD_EFFECT_PRESETS, LAVA_EFFECT_PRESETS, LIGHTNING_EFFECT_PRESETS, RADIANT_EFFECT_PRESETS, SMOKE_EFFECT_PRESETS, WATER_EFFECT_PRESETS, type ArcaneEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type RadiantEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
 
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";
@@ -166,6 +166,7 @@ interface ToolsMenuProps {
   lightningEffectTuning: LightningEffectTuning;
   arcaneEffectTuning: ArcaneEffectTuning;
   radiantEffectTuning: RadiantEffectTuning;
+  forceFieldEffectTuning: ForceFieldEffectTuning;
   smokeEffectTuning: SmokeEffectTuning;
   fogEffectTuning: FogEffectTuning;
   mouseBehavior: MouseBehavior;
@@ -215,6 +216,8 @@ interface ToolsMenuProps {
   onArcaneEffectTuningReset: () => void;
   onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
   onRadiantEffectTuningReset: () => void;
+  onForceFieldEffectTuningChange: (tuning: ForceFieldEffectTuning) => void;
+  onForceFieldEffectTuningReset: () => void;
   onSmokeEffectTuningChange: (tuning: SmokeEffectTuning) => void;
   onSmokeEffectTuningReset: () => void;
   onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
@@ -283,6 +286,7 @@ export function ToolsMenu({
   lightningEffectTuning,
   arcaneEffectTuning,
   radiantEffectTuning,
+  forceFieldEffectTuning,
   smokeEffectTuning,
   fogEffectTuning,
   mouseBehavior,
@@ -332,6 +336,8 @@ export function ToolsMenu({
   onArcaneEffectTuningReset,
   onRadiantEffectTuningChange,
   onRadiantEffectTuningReset,
+  onForceFieldEffectTuningChange,
+  onForceFieldEffectTuningReset,
   onSmokeEffectTuningChange,
   onSmokeEffectTuningReset,
   onFogEffectTuningChange,
@@ -396,6 +402,7 @@ export function ToolsMenu({
         onLightningEffectTuningChange,
         onArcaneEffectTuningChange,
         onRadiantEffectTuningChange,
+        onForceFieldEffectTuningChange,
         onSmokeEffectTuningChange,
         onFogEffectTuningChange
       });
@@ -414,6 +421,8 @@ export function ToolsMenu({
       onArcaneEffectTuningReset();
     } else if (environmentEffectType === "radiant") {
       onRadiantEffectTuningReset();
+    } else if (environmentEffectType === "field") {
+      onForceFieldEffectTuningReset();
     } else if (environmentEffectType === "smoke") {
       onSmokeEffectTuningReset();
     } else if (environmentEffectType === "fog") {
@@ -1055,6 +1064,7 @@ export function ToolsMenu({
                       <option value="fire">Fire</option>
                       <option value="lava">Lava</option>
                       <option value="electric">Electric</option>
+                      <option value="field">Force Field</option>
                       <option value="arcane">Arcane</option>
                       <option value="fog">Mist</option>
                       <option value="radiant">Radiant</option>
@@ -1083,6 +1093,7 @@ export function ToolsMenu({
                           onLightningEffectTuningChange,
                           onArcaneEffectTuningChange,
                           onRadiantEffectTuningChange,
+                          onForceFieldEffectTuningChange,
                           onSmokeEffectTuningChange,
                           onFogEffectTuningChange
                         });
@@ -1168,6 +1179,16 @@ export function ToolsMenu({
                   <RadiantEffectTuningPanel
                     tuning={radiantEffectTuning}
                     onChange={onRadiantEffectTuningChange}
+                    onReset={resetEnvironmentEffectTuning}
+                  />
+                </>
+              )}
+              {environmentEffectType === "field" && (
+                <>
+                  <div className="tools-section-divider" />
+                  <ForceFieldEffectTuningPanel
+                    tuning={forceFieldEffectTuning}
+                    onChange={onForceFieldEffectTuningChange}
                     onReset={resetEnvironmentEffectTuning}
                   />
                 </>
@@ -1590,6 +1611,68 @@ export function RadiantEffectTuningPanel({
   );
 }
 
+export function ForceFieldEffectTuningPanel({
+  tuning,
+  title = "Advanced Settings",
+  defaultOpen = false,
+  onChange,
+  onReset
+}: {
+  tuning: ForceFieldEffectTuning;
+  title?: string;
+  defaultOpen?: boolean;
+  onChange: (tuning: ForceFieldEffectTuning) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const update = (patch: Partial<ForceFieldEffectTuning>) => onChange({ ...tuning, ...patch });
+  const readout = JSON.stringify(tuning);
+
+  return (
+    <div className="water-tuning-panel" aria-label="Force Field effect tuning">
+      <div className="tools-section-label-row">
+        <SettingsToggle open={open} label={title} onToggle={() => setOpen((current) => !current)} />
+        {open && (
+          <button className="icon-button no-chrome" type="button" title="Reset force field tuning" aria-label="Reset force field tuning" onClick={onReset}>
+            <Undo2 size={15} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      {open && (
+        <>
+          <div className="water-tuning-sliders">
+            <WaterTuningSlider label="Opacity" value={tuning.opacity} min={0} max={1} step={0.01} onChange={(opacity) => update({ opacity })} />
+            <WaterTuningSlider label="Field Scale" value={tuning.fieldScale} min={0.5} max={20} step={0.1} onChange={(fieldScale) => update({ fieldScale })} />
+            <WaterTuningSlider label="Drift Speed" value={tuning.speed} min={0} max={2} step={0.01} onChange={(speed) => update({ speed })} />
+            <WaterTuningSlider label="Direction" value={tuning.directionDegrees} min={0} max={360} step={1} suffix="deg" onChange={(directionDegrees) => update({ directionDegrees })} />
+            <WaterTuningSlider label="Grid Density" value={tuning.gridDensity} min={0} max={1} step={0.01} onChange={(gridDensity) => update({ gridDensity })} />
+            <WaterTuningSlider label="Grid Warp" value={tuning.gridWarp} min={0} max={1} step={0.01} onChange={(gridWarp) => update({ gridWarp })} />
+            <WaterTuningSlider label="Ripple Strength" value={tuning.rippleStrength} min={0} max={1} step={0.01} onChange={(rippleStrength) => update({ rippleStrength })} />
+            <WaterTuningSlider label="Ripple Frequency" value={tuning.rippleFrequency} min={0} max={1} step={0.01} onChange={(rippleFrequency) => update({ rippleFrequency })} />
+            <WaterTuningSlider label="Edge Strength" value={tuning.edgeStrength} min={0} max={1} step={0.01} onChange={(edgeStrength) => update({ edgeStrength })} />
+            <WaterTuningSlider label="Pulse" value={tuning.pulse} min={0} max={1} step={0.01} onChange={(pulse) => update({ pulse })} />
+            <WaterTuningSlider label="Glow" value={tuning.glow} min={0} max={1} step={0.01} onChange={(glow) => update({ glow })} />
+            <WaterTuningSlider label="Refraction" value={tuning.refraction} min={0} max={1} step={0.01} onChange={(refraction) => update({ refraction })} />
+            <WaterTuningSlider label="Zoom Response" value={tuning.zoomScale} min={-3} max={3} step={0.05} onChange={(zoomScale) => update({ zoomScale })} />
+            <WaterTuningSlider label="Background Tint" value={tuning.baseAlpha} min={0} max={1} step={0.01} onChange={(baseAlpha) => update({ baseAlpha })} />
+          </div>
+          <div className="water-tuning-colors">
+            <WaterTuningColor label="Background" value={tuning.backgroundColor} onChange={(backgroundColor) => update({ backgroundColor })} />
+            <WaterTuningColor label="Grid" value={tuning.gridColor} onChange={(gridColor) => update({ gridColor })} />
+            <WaterTuningColor label="Edge" value={tuning.edgeColor} onChange={(edgeColor) => update({ edgeColor })} />
+          </div>
+          <div className="water-tuning-readout-row">
+            <div className="water-tuning-readout" title={readout}>{readout}</div>
+            <button className="icon-button no-chrome" type="button" title="Copy force field tuning JSON" aria-label="Copy force field tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
+              <Copy size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function SmokeEffectTuningPanel({
   tuning,
   title = "Advanced Settings",
@@ -1769,6 +1852,14 @@ function getEnvironmentEffectPresetOptions(effect: EnvironmentEffectType): Array
       { label: "Starfall", value: "starfall" }
     ];
   }
+  if (effect === "field") {
+    return [
+      { label: "Custom", value: "custom" },
+      { label: "Magic Field", value: "magicField" },
+      { label: "Shield Field", value: "shieldField" },
+      { label: "Warp Field", value: "warpField" }
+    ];
+  }
   if (effect === "smoke") {
     return [
       { label: "Custom", value: "custom" },
@@ -1801,6 +1892,7 @@ function applyEnvironmentEffectPreset(
     onLightningEffectTuningChange: (tuning: LightningEffectTuning) => void;
     onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
     onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
+    onForceFieldEffectTuningChange: (tuning: ForceFieldEffectTuning) => void;
     onSmokeEffectTuningChange: (tuning: SmokeEffectTuning) => void;
     onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
   }
@@ -1840,6 +1932,13 @@ function applyEnvironmentEffectPreset(
     }
     return;
   }
+  if (effect === "field") {
+    const preset = FORCE_FIELD_EFFECT_PRESETS[value as keyof typeof FORCE_FIELD_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onForceFieldEffectTuningChange({ ...preset });
+    }
+    return;
+  }
   if (effect === "smoke") {
     const preset = SMOKE_EFFECT_PRESETS[value as keyof typeof SMOKE_EFFECT_PRESETS];
     if (preset) {
@@ -1861,7 +1960,7 @@ function applyEnvironmentEffectPreset(
 }
 
 function formatEnvironmentEffectOptionLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function getEnvironmentEffectFeatherSelectValue(feather: number): number {

@@ -3,6 +3,7 @@ import {
   ARCANE_EFFECT_PRESETS,
   FIRE_EFFECT_PRESETS,
   FOG_EFFECT_PRESETS,
+  FORCE_FIELD_EFFECT_PRESETS,
   LAVA_EFFECT_PRESETS,
   LIGHTNING_EFFECT_PRESETS,
   RADIANT_EFFECT_PRESETS,
@@ -11,6 +12,7 @@ import {
   type ArcaneEffectTuning,
   type FireEffectTuning,
   type FogEffectTuning,
+  type ForceFieldEffectTuning,
   type LavaEffectTuning,
   type LightningEffectTuning,
   type RadiantEffectTuning,
@@ -33,6 +35,7 @@ export function getEnvironmentEffectPresetSelectValue(
   lightningEffectTuning: LightningEffectTuning,
   arcaneEffectTuning: ArcaneEffectTuning,
   radiantEffectTuning: RadiantEffectTuning,
+  forceFieldEffectTuning: ForceFieldEffectTuning,
   smokeEffectTuning: SmokeEffectTuning,
   fogEffectTuning: FogEffectTuning
 ): string {
@@ -50,6 +53,9 @@ export function getEnvironmentEffectPresetSelectValue(
   }
   if (effect === "radiant") {
     return getRadiantPresetSelectValue(radiantEffectTuning);
+  }
+  if (effect === "field") {
+    return getForceFieldPresetSelectValue(forceFieldEffectTuning);
   }
   if (effect === "smoke") {
     return getSmokePresetSelectValue(smokeEffectTuning);
@@ -100,6 +106,14 @@ export function getEnvironmentEffectPresetOptions(effect: EnvironmentEffectType)
       { label: "Starfall", value: "starfall" }
     ];
   }
+  if (effect === "field") {
+    return [
+      { label: "Custom", value: "custom" },
+      { label: "Magic Field", value: "magicField" },
+      { label: "Shield Field", value: "shieldField" },
+      { label: "Warp Field", value: "warpField" }
+    ];
+  }
   if (effect === "smoke") {
     return [
       { label: "Custom", value: "custom" },
@@ -132,6 +146,7 @@ export function applyEnvironmentEffectPreset(
     onLightningEffectTuningChange: (tuning: LightningEffectTuning) => void;
     onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
     onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
+    onForceFieldEffectTuningChange: (tuning: ForceFieldEffectTuning) => void;
     onSmokeEffectTuningChange: (tuning: SmokeEffectTuning) => void;
     onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
   }
@@ -171,6 +186,13 @@ export function applyEnvironmentEffectPreset(
     }
     return;
   }
+  if (effect === "field") {
+    const preset = FORCE_FIELD_EFFECT_PRESETS[value as keyof typeof FORCE_FIELD_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onForceFieldEffectTuningChange({ ...preset });
+    }
+    return;
+  }
   if (effect === "smoke") {
     const preset = SMOKE_EFFECT_PRESETS[value as keyof typeof SMOKE_EFFECT_PRESETS];
     if (preset) {
@@ -192,7 +214,7 @@ export function applyEnvironmentEffectPreset(
 }
 
 export function formatEnvironmentEffectOptionLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 export function getEnvironmentEffectFeatherSelectValue(feather: number): number {
@@ -249,6 +271,15 @@ function getRadiantPresetSelectValue(tuning: RadiantEffectTuning): keyof typeof 
   for (const [presetName, preset] of Object.entries(RADIANT_EFFECT_PRESETS)) {
     if (isRadiantTuningMatch(tuning, preset)) {
       return presetName as keyof typeof RADIANT_EFFECT_PRESETS;
+    }
+  }
+  return "custom";
+}
+
+function getForceFieldPresetSelectValue(tuning: ForceFieldEffectTuning): keyof typeof FORCE_FIELD_EFFECT_PRESETS | "custom" {
+  for (const [presetName, preset] of Object.entries(FORCE_FIELD_EFFECT_PRESETS)) {
+    if (isForceFieldTuningMatch(tuning, preset)) {
+      return presetName as keyof typeof FORCE_FIELD_EFFECT_PRESETS;
     }
   }
   return "custom";
@@ -397,6 +428,28 @@ function isRadiantTuningMatch(tuning: RadiantEffectTuning, preset: RadiantEffect
     tuning.backgroundColor === preset.backgroundColor &&
     tuning.rayColor === preset.rayColor &&
     tuning.coreColor === preset.coreColor
+  );
+}
+
+function isForceFieldTuningMatch(tuning: ForceFieldEffectTuning, preset: ForceFieldEffectTuning): boolean {
+  return (
+    tuning.opacity === preset.opacity &&
+    tuning.fieldScale === preset.fieldScale &&
+    tuning.speed === preset.speed &&
+    tuning.directionDegrees === preset.directionDegrees &&
+    tuning.gridDensity === preset.gridDensity &&
+    tuning.gridWarp === preset.gridWarp &&
+    tuning.rippleStrength === preset.rippleStrength &&
+    tuning.rippleFrequency === preset.rippleFrequency &&
+    tuning.edgeStrength === preset.edgeStrength &&
+    tuning.pulse === preset.pulse &&
+    tuning.glow === preset.glow &&
+    tuning.refraction === preset.refraction &&
+    tuning.zoomScale === preset.zoomScale &&
+    tuning.baseAlpha === preset.baseAlpha &&
+    tuning.backgroundColor === preset.backgroundColor &&
+    tuning.gridColor === preset.gridColor &&
+    tuning.edgeColor === preset.edgeColor
   );
 }
 

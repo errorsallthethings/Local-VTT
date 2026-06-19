@@ -44,8 +44,8 @@ import type {
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ArcaneEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, RadiantEffectTuningPanel, SmokeEffectTuningPanel, ToolsMenu, WaterEffectTuningPanel, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
-import { DEFAULT_ARCANE_EFFECT_TUNING, DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_RADIANT_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type ArcaneEffectTuning, type FireEffectTuning, type FogEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type RadiantEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../canvas/environmentEffectsRenderer";
+import { ArcaneEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, RadiantEffectTuningPanel, SmokeEffectTuningPanel, ToolsMenu, WaterEffectTuningPanel, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
+import { DEFAULT_ARCANE_EFFECT_TUNING, DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_FORCE_FIELD_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_RADIANT_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type ArcaneEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type RadiantEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../canvas/environmentEffectsRenderer";
 import type { DrawingTool } from "../canvas/drawingRenderer";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -175,6 +175,7 @@ export function GmApp() {
   const [lightningEffectTuning, setLightningEffectTuning] = useState<LightningEffectTuning>(DEFAULT_LIGHTNING_EFFECT_TUNING);
   const [arcaneEffectTuning, setArcaneEffectTuning] = useState<ArcaneEffectTuning>(DEFAULT_ARCANE_EFFECT_TUNING);
   const [radiantEffectTuning, setRadiantEffectTuning] = useState<RadiantEffectTuning>(DEFAULT_RADIANT_EFFECT_TUNING);
+  const [forceFieldEffectTuning, setForceFieldEffectTuning] = useState<ForceFieldEffectTuning>(DEFAULT_FORCE_FIELD_EFFECT_TUNING);
   const [smokeEffectTuning, setSmokeEffectTuning] = useState<SmokeEffectTuning>(DEFAULT_SMOKE_EFFECT_TUNING);
   const [fogEffectTuning, setFogEffectTuning] = useState<FogEffectTuning>(DEFAULT_FOG_EFFECT_TUNING);
   const [mouseBehavior, setMouseBehavior] = useState<MouseBehavior>("selector");
@@ -511,6 +512,20 @@ export function GmApp() {
     });
   };
 
+  const updateEnvironmentEffectForceFieldTuning = (effectId: string, fieldTuning: ForceFieldEffectTuning) => {
+    if (!activeScene) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      environment: {
+        ...activeScene.environment,
+        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, fieldTuning } : effect))
+      },
+      updatedAt: new Date().toISOString()
+    });
+  };
+
   const updateEnvironmentEffectSmokeTuning = (effectId: string, smokeTuning: SmokeEffectTuning) => {
     if (!activeScene) {
       return;
@@ -572,6 +587,7 @@ export function GmApp() {
                 lightningTuning: effectType === "electric" ? (effect.lightningTuning ?? { ...DEFAULT_LIGHTNING_EFFECT_TUNING }) : undefined,
                 arcaneTuning: effectType === "arcane" ? (effect.arcaneTuning ?? { ...DEFAULT_ARCANE_EFFECT_TUNING }) : undefined,
                 radiantTuning: effectType === "radiant" ? (effect.radiantTuning ?? { ...DEFAULT_RADIANT_EFFECT_TUNING }) : undefined,
+                fieldTuning: effectType === "field" ? (effect.fieldTuning ?? { ...DEFAULT_FORCE_FIELD_EFFECT_TUNING }) : undefined,
                 smokeTuning: effectType === "smoke" ? (effect.smokeTuning ?? { ...DEFAULT_SMOKE_EFFECT_TUNING }) : undefined,
                 fogTuning: effectType === "fog" ? (effect.fogTuning ?? { ...DEFAULT_FOG_EFFECT_TUNING }) : undefined
               }
@@ -2065,6 +2081,7 @@ export function GmApp() {
               lightningEffectTuning={lightningEffectTuning}
               arcaneEffectTuning={arcaneEffectTuning}
               radiantEffectTuning={radiantEffectTuning}
+              forceFieldEffectTuning={forceFieldEffectTuning}
               smokeEffectTuning={smokeEffectTuning}
               fogEffectTuning={fogEffectTuning}
               mouseBehavior={mouseBehavior}
@@ -2117,6 +2134,8 @@ export function GmApp() {
               onArcaneEffectTuningReset={() => setArcaneEffectTuning(DEFAULT_ARCANE_EFFECT_TUNING)}
               onRadiantEffectTuningChange={setRadiantEffectTuning}
               onRadiantEffectTuningReset={() => setRadiantEffectTuning(DEFAULT_RADIANT_EFFECT_TUNING)}
+              onForceFieldEffectTuningChange={setForceFieldEffectTuning}
+              onForceFieldEffectTuningReset={() => setForceFieldEffectTuning(DEFAULT_FORCE_FIELD_EFFECT_TUNING)}
               onSmokeEffectTuningChange={setSmokeEffectTuning}
               onSmokeEffectTuningReset={() => setSmokeEffectTuning(DEFAULT_SMOKE_EFFECT_TUNING)}
               onFogEffectTuningChange={setFogEffectTuning}
@@ -2189,6 +2208,7 @@ export function GmApp() {
             lightningEffectTuning={lightningEffectTuning}
             arcaneEffectTuning={arcaneEffectTuning}
             radiantEffectTuning={radiantEffectTuning}
+            forceFieldEffectTuning={forceFieldEffectTuning}
             smokeEffectTuning={smokeEffectTuning}
             fogEffectTuning={fogEffectTuning}
             liveTableEvents={liveTableEvents}
@@ -2334,6 +2354,8 @@ export function GmApp() {
           onArcaneTuningReset={() => updateEnvironmentEffectArcaneTuning(environmentEffectEditorEffect.id, { ...DEFAULT_ARCANE_EFFECT_TUNING })}
           onRadiantTuningChange={(radiantTuning) => updateEnvironmentEffectRadiantTuning(environmentEffectEditorEffect.id, radiantTuning)}
           onRadiantTuningReset={() => updateEnvironmentEffectRadiantTuning(environmentEffectEditorEffect.id, { ...DEFAULT_RADIANT_EFFECT_TUNING })}
+          onForceFieldTuningChange={(fieldTuning) => updateEnvironmentEffectForceFieldTuning(environmentEffectEditorEffect.id, fieldTuning)}
+          onForceFieldTuningReset={() => updateEnvironmentEffectForceFieldTuning(environmentEffectEditorEffect.id, { ...DEFAULT_FORCE_FIELD_EFFECT_TUNING })}
           onSmokeTuningChange={(smokeTuning) => updateEnvironmentEffectSmokeTuning(environmentEffectEditorEffect.id, smokeTuning)}
           onSmokeTuningReset={() => updateEnvironmentEffectSmokeTuning(environmentEffectEditorEffect.id, { ...DEFAULT_SMOKE_EFFECT_TUNING })}
           onFogTuningChange={(fogTuning) => updateEnvironmentEffectFogTuning(environmentEffectEditorEffect.id, fogTuning)}
@@ -2485,6 +2507,8 @@ function EnvironmentEffectEditorModal({
   onArcaneTuningReset,
   onRadiantTuningChange,
   onRadiantTuningReset,
+  onForceFieldTuningChange,
+  onForceFieldTuningReset,
   onSmokeTuningChange,
   onSmokeTuningReset,
   onFogTuningChange,
@@ -2508,6 +2532,8 @@ function EnvironmentEffectEditorModal({
   onArcaneTuningReset: () => void;
   onRadiantTuningChange: (tuning: RadiantEffectTuning) => void;
   onRadiantTuningReset: () => void;
+  onForceFieldTuningChange: (tuning: ForceFieldEffectTuning) => void;
+  onForceFieldTuningReset: () => void;
   onSmokeTuningChange: (tuning: SmokeEffectTuning) => void;
   onSmokeTuningReset: () => void;
   onFogTuningChange: (tuning: FogEffectTuning) => void;
@@ -2525,9 +2551,10 @@ function EnvironmentEffectEditorModal({
   const activeLightningTuning = { ...DEFAULT_LIGHTNING_EFFECT_TUNING, ...(effect.lightningTuning ?? {}) };
   const activeArcaneTuning = { ...DEFAULT_ARCANE_EFFECT_TUNING, ...(effect.arcaneTuning ?? {}) };
   const activeRadiantTuning = { ...DEFAULT_RADIANT_EFFECT_TUNING, ...(effect.radiantTuning ?? {}) };
+  const activeForceFieldTuning = { ...DEFAULT_FORCE_FIELD_EFFECT_TUNING, ...(effect.fieldTuning ?? {}) };
   const activeSmokeTuning = { ...DEFAULT_SMOKE_EFFECT_TUNING, ...(effect.smokeTuning ?? {}) };
   const activeFogTuning = { ...DEFAULT_FOG_EFFECT_TUNING, ...(effect.fogTuning ?? {}) };
-  const defaultPresetValue = getEnvironmentEffectPresetSelectValue(effect.effect, activeWaterTuning, activeLavaTuning, activeFireTuning, activeLightningTuning, activeArcaneTuning, activeRadiantTuning, activeSmokeTuning, activeFogTuning);
+  const defaultPresetValue = getEnvironmentEffectPresetSelectValue(effect.effect, activeWaterTuning, activeLavaTuning, activeFireTuning, activeLightningTuning, activeArcaneTuning, activeRadiantTuning, activeForceFieldTuning, activeSmokeTuning, activeFogTuning);
   const [presetSelection, setPresetSelection] = useState(() => ({ effectId: effect.id, value: defaultPresetValue }));
   const presetValue = presetSelection.effectId === effect.id ? presetSelection.value : defaultPresetValue;
   const resetActiveTuning = () => {
@@ -2539,6 +2566,7 @@ function EnvironmentEffectEditorModal({
         onLightningEffectTuningChange: onLightningTuningChange,
         onArcaneEffectTuningChange: onArcaneTuningChange,
         onRadiantEffectTuningChange: onRadiantTuningChange,
+        onForceFieldEffectTuningChange: onForceFieldTuningChange,
         onSmokeEffectTuningChange: onSmokeTuningChange,
         onFogEffectTuningChange: onFogTuningChange
       });
@@ -2557,6 +2585,8 @@ function EnvironmentEffectEditorModal({
       onArcaneTuningReset();
     } else if (effect.effect === "radiant") {
       onRadiantTuningReset();
+    } else if (effect.effect === "field") {
+      onForceFieldTuningReset();
     } else if (effect.effect === "smoke") {
       onSmokeTuningReset();
     } else if (effect.effect === "fog") {
@@ -2640,6 +2670,7 @@ function EnvironmentEffectEditorModal({
                 <option value="fire">Fire</option>
                 <option value="lava">Lava</option>
                 <option value="electric">Electric</option>
+                <option value="field">Force Field</option>
                 <option value="arcane">Arcane</option>
                 <option value="fog">Mist</option>
                 <option value="radiant">Radiant</option>
@@ -2668,6 +2699,7 @@ function EnvironmentEffectEditorModal({
                     onLightningEffectTuningChange: onLightningTuningChange,
                     onArcaneEffectTuningChange: onArcaneTuningChange,
                     onRadiantEffectTuningChange: onRadiantTuningChange,
+                    onForceFieldEffectTuningChange: onForceFieldTuningChange,
                     onSmokeEffectTuningChange: onSmokeTuningChange,
                     onFogEffectTuningChange: onFogTuningChange
                   });
@@ -2744,6 +2776,14 @@ function EnvironmentEffectEditorModal({
             tuning={activeRadiantTuning}
             defaultOpen
             onChange={onRadiantTuningChange}
+            onReset={resetActiveTuning}
+          />
+        ) : effect.effect === "field" ? (
+          <ForceFieldEffectTuningPanel
+            key={effect.id}
+            tuning={activeForceFieldTuning}
+            defaultOpen
+            onChange={onForceFieldTuningChange}
             onReset={resetActiveTuning}
           />
         ) : effect.effect === "smoke" ? (

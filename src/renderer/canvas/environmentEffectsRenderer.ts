@@ -3,6 +3,7 @@ import {
   DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS,
   DEFAULT_FOG_EFFECT_TUNING_SETTINGS,
   DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS,
   DEFAULT_LAVA_EFFECT_TUNING_SETTINGS,
   DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
   DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS,
@@ -11,6 +12,7 @@ import {
   type ArcaneEffectTuningSettings,
   type FogEffectTuningSettings,
   type FireEffectTuningSettings,
+  type ForceFieldEffectTuningSettings,
   type LavaEffectTuningSettings,
   type LightningEffectTuningSettings,
   type RadiantEffectTuningSettings,
@@ -28,6 +30,7 @@ export interface ScreenBounds {
 export type WaterEffectTuning = WaterEffectTuningSettings;
 export type LavaEffectTuning = LavaEffectTuningSettings;
 export type FireEffectTuning = FireEffectTuningSettings;
+export type ForceFieldEffectTuning = ForceFieldEffectTuningSettings;
 export type LightningEffectTuning = LightningEffectTuningSettings;
 export type ArcaneEffectTuning = ArcaneEffectTuningSettings;
 export type RadiantEffectTuning = RadiantEffectTuningSettings;
@@ -37,6 +40,7 @@ export type FogEffectTuning = FogEffectTuningSettings;
 export const DEFAULT_WATER_EFFECT_TUNING: WaterEffectTuning = DEFAULT_WATER_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_LAVA_EFFECT_TUNING: LavaEffectTuning = DEFAULT_LAVA_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FIRE_EFFECT_TUNING: FireEffectTuning = DEFAULT_FIRE_EFFECT_TUNING_SETTINGS;
+export const DEFAULT_FORCE_FIELD_EFFECT_TUNING: ForceFieldEffectTuning = DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_LIGHTNING_EFFECT_TUNING: LightningEffectTuning = DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_ARCANE_EFFECT_TUNING: ArcaneEffectTuning = DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_RADIANT_EFFECT_TUNING: RadiantEffectTuning = DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS;
@@ -303,6 +307,69 @@ export const RADIANT_EFFECT_PRESETS = {
   }
 } as const satisfies Record<string, RadiantEffectTuning>;
 
+export const FORCE_FIELD_EFFECT_PRESETS = {
+  shieldField: {
+    opacity: 0.78,
+    fieldScale: 5.4,
+    speed: 0.22,
+    directionDegrees: 269,
+    gridDensity: 0,
+    gridWarp: 0.64,
+    rippleStrength: 0.55,
+    rippleFrequency: 0.56,
+    edgeStrength: 0.78,
+    pulse: 0.48,
+    glow: 0.52,
+    refraction: 0.54,
+    panFollow: 1,
+    zoomScale: 0,
+    baseAlpha: 0.2,
+    backgroundColor: "#03131f",
+    gridColor: "#67e8f9",
+    edgeColor: "#d8b4fe"
+  },
+  magicField: {
+    opacity: 0.82,
+    fieldScale: 4.2,
+    speed: 0.18,
+    directionDegrees: 286,
+    gridDensity: 0.08,
+    gridWarp: 0.68,
+    rippleStrength: 0.42,
+    rippleFrequency: 0.72,
+    edgeStrength: 0.86,
+    pulse: 0.72,
+    glow: 0.82,
+    refraction: 0.62,
+    panFollow: 1,
+    zoomScale: 0,
+    baseAlpha: 0.18,
+    backgroundColor: "#12051f",
+    gridColor: "#c084fc",
+    edgeColor: "#67e8f9"
+  },
+  warpField: {
+    opacity: 0.74,
+    fieldScale: 6.8,
+    speed: 0.32,
+    directionDegrees: 248,
+    gridDensity: 0.09,
+    gridWarp: 0.92,
+    rippleStrength: 0.88,
+    rippleFrequency: 0.46,
+    edgeStrength: 0.64,
+    pulse: 0.38,
+    glow: 0.58,
+    refraction: 0.9,
+    panFollow: 1,
+    zoomScale: 0,
+    baseAlpha: 0.24,
+    backgroundColor: "#04111d",
+    gridColor: "#22d3ee",
+    edgeColor: "#f0abfc"
+  }
+} as const satisfies Record<string, ForceFieldEffectTuning>;
+
 export const SMOKE_EFFECT_PRESETS = {
   driftingSmoke: { ...DEFAULT_SMOKE_EFFECT_TUNING },
   heavySmoke: {
@@ -376,6 +443,7 @@ let fireRuntime: WaterRuntime | null = null;
 let lightningRuntime: WaterRuntime | null = null;
 let arcaneRuntime: WaterRuntime | null = null;
 let radiantRuntime: WaterRuntime | null = null;
+let forceFieldRuntime: WaterRuntime | null = null;
 let smokeRuntime: WaterRuntime | null = null;
 let fogRuntime: WaterRuntime | null = null;
 
@@ -651,6 +719,50 @@ export function drawEnvironmentRadiantEffect(
   updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateRadiantMaterialTuning(runtime.meshA.material, tuning);
   updateRadiantMaterialTuning(runtime.meshB.material, tuning);
+
+  runtime.renderer.setSize(width, height, false);
+  runtime.renderer.setClearColor(0x000000, 0);
+  runtime.renderer.clear();
+  runtime.renderer.render(runtime.scene, runtime.camera);
+
+  ctx.save();
+  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
+  ctx.restore();
+}
+
+export function drawEnvironmentForceFieldEffect(
+  ctx: CanvasRenderingContext2D,
+  bounds: ScreenBounds,
+  timestamp: number,
+  layerOpacity: number,
+  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
+  tuning: ForceFieldEffectTuning = DEFAULT_FORCE_FIELD_EFFECT_TUNING
+) {
+  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
+    return;
+  }
+
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
+  const height = ctx.canvas.clientHeight || ctx.canvas.height;
+  const runtime = getForceFieldRuntime(width, height);
+  if (!runtime) {
+    drawForceFieldFallback(ctx, bounds, layerOpacity);
+    return;
+  }
+
+  const time = (timestamp - runtime.startedAt) / 1000;
+  positionWaterMesh(runtime.meshA, width, height, 1);
+  positionWaterMesh(runtime.meshB, width, height, 1);
+  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
+  runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.42;
+  runtime.meshA.material.uniforms.time.value = time;
+  runtime.meshB.material.uniforms.time.value = time * 0.67 + 13.7;
+  runtime.meshA.material.uniforms.resolution.value.set(width, height);
+  runtime.meshB.material.uniforms.resolution.value.set(width, height);
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateForceFieldMaterialTuning(runtime.meshA.material, tuning);
+  updateForceFieldMaterialTuning(runtime.meshB.material, tuning);
 
   runtime.renderer.setSize(width, height, false);
   runtime.renderer.setClearColor(0x000000, 0);
@@ -1042,6 +1154,55 @@ function getRadiantRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   return radiantRuntime;
+}
+
+function getForceFieldRuntime(width: number, height: number): WaterRuntime | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!forceFieldRuntime) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+    camera.position.set(0, 0, 2400);
+    camera.lookAt(0, 0, 0);
+
+    const material = createForceFieldMaterial(0.78);
+    const materialB = createForceFieldMaterial(0.32);
+    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    meshA.position.z = 1280;
+    meshB.position.z = 1281;
+    scene.add(meshA, meshB);
+
+    forceFieldRuntime = {
+      renderer,
+      scene,
+      camera,
+      meshA,
+      meshB,
+      startedAt: Date.now(),
+      width: 0,
+      height: 0
+    };
+  }
+
+  if (forceFieldRuntime.width !== width || forceFieldRuntime.height !== height) {
+    forceFieldRuntime.width = width;
+    forceFieldRuntime.height = height;
+    forceFieldRuntime.camera.left = 0;
+    forceFieldRuntime.camera.right = width;
+    forceFieldRuntime.camera.top = 0;
+    forceFieldRuntime.camera.bottom = height;
+    forceFieldRuntime.camera.near = 0.1;
+    forceFieldRuntime.camera.far = 5000;
+    forceFieldRuntime.camera.updateProjectionMatrix();
+  }
+
+  return forceFieldRuntime;
 }
 
 function getSmokeRuntime(width: number, height: number): WaterRuntime | null {
@@ -2159,6 +2320,168 @@ function updateRadiantMaterialTuning(material: THREE.ShaderMaterial, tuning: Rad
   material.uniforms.coreColor.value.set(tuning.coreColor);
 }
 
+function createForceFieldMaterial(opacity: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    uniforms: {
+      fieldScale: { value: DEFAULT_FORCE_FIELD_EFFECT_TUNING.fieldScale },
+      speed: { value: DEFAULT_FORCE_FIELD_EFFECT_TUNING.speed },
+      directionRadians: { value: degreesToRadians(DEFAULT_FORCE_FIELD_EFFECT_TUNING.directionDegrees) },
+      gridDensity: { value: DEFAULT_FORCE_FIELD_EFFECT_TUNING.gridDensity },
+      gridWarp: { value: DEFAULT_FORCE_FIELD_EFFECT_TUNING.gridWarp },
+      rippleStrength: { value: DEFAULT_FORCE_FIELD_EFFECT_TUNING.rippleStrength },
+      rippleFrequency: { value: DEFAULT_FORCE_FIELD_EFFECT_TUNING.rippleFrequency },
+      edgeStrength: { value: DEFAULT_FORCE_FIELD_EFFECT_TUNING.edgeStrength },
+      pulse: { value: DEFAULT_FORCE_FIELD_EFFECT_TUNING.pulse },
+      glow: { value: DEFAULT_FORCE_FIELD_EFFECT_TUNING.glow },
+      refraction: { value: DEFAULT_FORCE_FIELD_EFFECT_TUNING.refraction },
+      panFollow: { value: DEFAULT_FORCE_FIELD_EFFECT_TUNING.panFollow },
+      zoomScale: { value: DEFAULT_FORCE_FIELD_EFFECT_TUNING.zoomScale },
+      baseAlpha: { value: DEFAULT_FORCE_FIELD_EFFECT_TUNING.baseAlpha },
+      backgroundColor: { value: new THREE.Color(DEFAULT_FORCE_FIELD_EFFECT_TUNING.backgroundColor) },
+      gridColor: { value: new THREE.Color(DEFAULT_FORCE_FIELD_EFFECT_TUNING.gridColor) },
+      edgeColor: { value: new THREE.Color(DEFAULT_FORCE_FIELD_EFFECT_TUNING.edgeColor) },
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2(1, 1) },
+      cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
+      effectSize: { value: new THREE.Vector2(1, 1) },
+      cameraZoom: { value: 1 },
+      opacity: { value: opacity }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float fieldScale;
+      uniform float speed;
+      uniform float directionRadians;
+      uniform float gridDensity;
+      uniform float gridWarp;
+      uniform float rippleStrength;
+      uniform float rippleFrequency;
+      uniform float edgeStrength;
+      uniform float pulse;
+      uniform float glow;
+      uniform float refraction;
+      uniform float panFollow;
+      uniform float zoomScale;
+      uniform float baseAlpha;
+      uniform vec3 backgroundColor;
+      uniform vec3 gridColor;
+      uniform vec3 edgeColor;
+      uniform float time;
+      uniform vec2 resolution;
+      uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
+      uniform vec2 effectSize;
+      uniform float cameraZoom;
+      uniform float opacity;
+
+      float randomValue(vec2 value) {
+        return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float valueNoise(vec2 value) {
+        vec2 base = floor(value);
+        vec2 fraction = fract(value);
+        vec2 blend = fraction * fraction * (3.0 - 2.0 * fraction);
+        float a = randomValue(base);
+        float b = randomValue(base + vec2(1.0, 0.0));
+        float c = randomValue(base + vec2(0.0, 1.0));
+        float d = randomValue(base + vec2(1.0, 1.0));
+        return mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y);
+      }
+
+      float fbm(vec2 value) {
+        float total = 0.0;
+        float amplitude = 0.5;
+        for (int i = 0; i < 5; i++) {
+          total += valueNoise(value) * amplitude;
+          value *= 2.03;
+          amplitude *= 0.52;
+        }
+        return total;
+      }
+
+      float lineMask(float value, float width) {
+        return smoothstep(width, 0.0, abs(fract(value) - 0.5));
+      }
+
+      void main() {
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
+        vec2 size = max(effectSize, vec2(1.0));
+        vec2 localCoord = (worldCoord - effectOrigin) / size;
+        vec2 centered = localCoord - 0.5;
+        vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
+        vec2 perpendicular = vec2(-direction.y, direction.x);
+        float localTime = time * speed;
+        vec2 uv = anchoredCoord / 150.0 * zoomFactor;
+        vec2 fieldUv = vec2(dot(uv, direction), dot(uv, perpendicular));
+        fieldUv.x += localTime * 0.45;
+
+        float warpA = fbm(fieldUv * 0.34 + vec2(localTime * 0.08, 7.0));
+        float warpB = fbm(fieldUv.yx * 0.42 + vec2(13.0, -localTime * 0.06));
+        vec2 warped = fieldUv + vec2(warpA - 0.5, warpB - 0.5) * gridWarp * 1.8;
+        float density = mix(3.0, 18.0, gridDensity) * max(0.25, fieldScale / 5.0);
+        vec2 gridUv = warped * density;
+        float gridLines = max(lineMask(gridUv.x, 0.025 + glow * 0.035), lineMask(gridUv.y, 0.025 + glow * 0.035));
+        vec2 diagonalUv = vec2(gridUv.x + gridUv.y, gridUv.x - gridUv.y) * 0.5;
+        float diagonalLines = max(lineMask(diagonalUv.x, 0.018 + glow * 0.02), lineMask(diagonalUv.y, 0.018 + glow * 0.02));
+
+        float radial = length(centered);
+        float ripple = sin((radial * mix(18.0, 72.0, rippleFrequency)) - localTime * 8.0 + fbm(centered * 5.0) * 2.0);
+        float rippleMask = smoothstep(0.72, 1.0, ripple) * rippleStrength;
+        float edgeDistance = max(abs(centered.x), abs(centered.y));
+        float rim = smoothstep(0.5, 0.34, edgeDistance) * smoothstep(0.26, 0.5, edgeDistance);
+        float rimPulse = 0.72 + sin(localTime * 6.2831 + radial * 8.0) * 0.28 * pulse;
+        float rimEnergy = rim * edgeStrength * rimPulse;
+        float shimmer = fbm(warped * 1.4 + vec2(localTime * 0.18, -localTime * 0.09));
+        float refract = smoothstep(0.38, 1.0, shimmer) * refraction;
+        float energy = clamp((gridLines * 0.72 + diagonalLines * 0.34) * mix(0.45, 1.15, gridDensity) + rippleMask * 0.74 + rimEnergy + refract * 0.44, 0.0, 1.0);
+        vec3 color = mix(backgroundColor, gridColor, clamp(gridLines + diagonalLines + rippleMask + refract, 0.0, 1.0));
+        color = mix(color, edgeColor, clamp(rimEnergy + energy * glow * 0.35, 0.0, 1.0));
+        float alpha = (baseAlpha * 0.42 + energy * (0.56 + glow * 0.48)) * opacity;
+        alpha *= smoothstep(0.02, 0.12, energy + baseAlpha);
+        gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+      }
+    `
+  });
+}
+
+function updateForceFieldMaterialTuning(material: THREE.ShaderMaterial, tuning: ForceFieldEffectTuning) {
+  material.uniforms.fieldScale.value = tuning.fieldScale;
+  material.uniforms.speed.value = tuning.speed;
+  material.uniforms.directionRadians.value = degreesToRadians(tuning.directionDegrees);
+  material.uniforms.gridDensity.value = tuning.gridDensity;
+  material.uniforms.gridWarp.value = tuning.gridWarp;
+  material.uniforms.rippleStrength.value = tuning.rippleStrength;
+  material.uniforms.rippleFrequency.value = tuning.rippleFrequency;
+  material.uniforms.edgeStrength.value = tuning.edgeStrength;
+  material.uniforms.pulse.value = tuning.pulse;
+  material.uniforms.glow.value = tuning.glow;
+  material.uniforms.refraction.value = tuning.refraction;
+  material.uniforms.panFollow.value = 1;
+  material.uniforms.zoomScale.value = tuning.zoomScale;
+  material.uniforms.baseAlpha.value = tuning.baseAlpha;
+  material.uniforms.backgroundColor.value.set(tuning.backgroundColor);
+  material.uniforms.gridColor.value.set(tuning.gridColor);
+  material.uniforms.edgeColor.value.set(tuning.edgeColor);
+}
+
 function createSmokeMaterial(opacity: number): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     transparent: true,
@@ -2501,6 +2824,14 @@ function drawRadiantFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.32;
   ctx.fillStyle = "rgb(253, 230, 138)";
+  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  ctx.restore();
+}
+
+function drawForceFieldFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.3;
+  ctx.fillStyle = "rgb(103, 232, 249)";
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }

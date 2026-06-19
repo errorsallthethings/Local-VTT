@@ -171,7 +171,7 @@ export interface WeatherMask {
   visible?: boolean;
 }
 
-export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire" | "electric" | "arcane" | "radiant";
+export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire" | "electric" | "arcane" | "radiant" | "field";
 
 export interface WaterEffectTuningSettings {
   opacity: number;
@@ -417,6 +417,48 @@ export const DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS: RadiantEffectTuningSettings
   coreColor: "#fffdf4"
 };
 
+export interface ForceFieldEffectTuningSettings {
+  opacity: number;
+  fieldScale: number;
+  speed: number;
+  directionDegrees: number;
+  gridDensity: number;
+  gridWarp: number;
+  rippleStrength: number;
+  rippleFrequency: number;
+  edgeStrength: number;
+  pulse: number;
+  glow: number;
+  refraction: number;
+  panFollow: number;
+  zoomScale: number;
+  baseAlpha: number;
+  backgroundColor: string;
+  gridColor: string;
+  edgeColor: string;
+}
+
+export const DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS: ForceFieldEffectTuningSettings = {
+  opacity: 0.78,
+  fieldScale: 5.4,
+  speed: 0.22,
+  directionDegrees: 278,
+  gridDensity: 0.62,
+  gridWarp: 0.42,
+  rippleStrength: 0.5,
+  rippleFrequency: 0.56,
+  edgeStrength: 0.78,
+  pulse: 0.48,
+  glow: 0.74,
+  refraction: 0.46,
+  panFollow: 1,
+  zoomScale: 0,
+  baseAlpha: 0.2,
+  backgroundColor: "#03131f",
+  gridColor: "#67e8f9",
+  edgeColor: "#d8b4fe"
+};
+
 export interface SmokeEffectTuningSettings {
   opacity: number;
   cloudScale: number;
@@ -484,6 +526,7 @@ export interface EnvironmentEffectMask {
   lightningTuning?: LightningEffectTuningSettings;
   arcaneTuning?: ArcaneEffectTuningSettings;
   radiantTuning?: RadiantEffectTuningSettings;
+  fieldTuning?: ForceFieldEffectTuningSettings;
   smokeTuning?: SmokeEffectTuningSettings;
   fogTuning?: FogEffectTuningSettings;
   visibleInGm?: boolean;
@@ -1331,7 +1374,7 @@ const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "sandstorm"
 ]);
 
-const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire", "electric", "arcane", "radiant"]);
+const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire", "electric", "arcane", "radiant", "field"]);
 
 export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
@@ -1826,6 +1869,7 @@ function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): Env
         lightningTuning: effectType === "electric" ? normalizeLightningEffectTuning(effect.lightningTuning) : undefined,
         arcaneTuning: effectType === "arcane" ? normalizeArcaneEffectTuning(effect.arcaneTuning) : undefined,
         radiantTuning: effectType === "radiant" ? normalizeRadiantEffectTuning(effect.radiantTuning) : undefined,
+        fieldTuning: effectType === "field" ? normalizeForceFieldEffectTuning(effect.fieldTuning) : undefined,
         smokeTuning: effectType === "smoke" ? normalizeSmokeEffectTuning(effect.smokeTuning) : undefined,
         fogTuning: effectType === "fog" ? normalizeFogEffectTuning(effect.fogTuning) : undefined,
         visibleInGm: effect.visibleInGm ?? true,
@@ -1968,6 +2012,29 @@ function normalizeRadiantEffectTuning(tuning?: RadiantEffectTuningSettings): Rad
   };
 }
 
+function normalizeForceFieldEffectTuning(tuning?: ForceFieldEffectTuningSettings): ForceFieldEffectTuningSettings {
+  return {
+    opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.opacity),
+    fieldScale: clampNumber(tuning?.fieldScale, 0.5, 20, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.fieldScale),
+    speed: clampNumber(tuning?.speed, 0, 2, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.speed),
+    directionDegrees: clampNumber(tuning?.directionDegrees, 0, 360, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.directionDegrees),
+    gridDensity: clampNumber(tuning?.gridDensity, 0, 1, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.gridDensity),
+    gridWarp: clampNumber(tuning?.gridWarp, 0, 1, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.gridWarp),
+    rippleStrength: clampNumber(tuning?.rippleStrength, 0, 1, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.rippleStrength),
+    rippleFrequency: clampNumber(tuning?.rippleFrequency, 0, 1, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.rippleFrequency),
+    edgeStrength: clampNumber(tuning?.edgeStrength, 0, 1, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.edgeStrength),
+    pulse: clampNumber(tuning?.pulse, 0, 1, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.pulse),
+    glow: clampNumber(tuning?.glow, 0, 1, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.glow),
+    refraction: clampNumber(tuning?.refraction, 0, 1, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.refraction),
+    panFollow: 1,
+    zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.zoomScale),
+    baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.baseAlpha),
+    backgroundColor: normalizeColorValue(tuning?.backgroundColor, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.backgroundColor),
+    gridColor: normalizeColorValue(tuning?.gridColor, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.gridColor),
+    edgeColor: normalizeColorValue(tuning?.edgeColor, DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS.edgeColor)
+  };
+}
+
 function normalizeSmokeEffectTuning(tuning?: SmokeEffectTuningSettings): SmokeEffectTuningSettings {
   return {
     opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.opacity),
@@ -2011,7 +2078,7 @@ function normalizeColorValue(value: unknown, fallback: string): string {
 }
 
 function formatEnvironmentEffectName(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function normalizeWeatherEffectSettings(settings?: WeatherSettings["effectSettings"]): WeatherSettings["effectSettings"] {
