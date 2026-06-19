@@ -363,14 +363,11 @@ export function ToolsMenu({
   const [maskSettingsOpen, setMaskSettingsOpen] = useState(false);
   const [selectorSettingsOpen, setSelectorSettingsOpen] = useState(false);
   const activeFogShape = getActiveFogShape(activeFogTool);
-  const environmentEffectPresetValue = getEnvironmentEffectPresetSelectValue(
-    environmentEffectType,
-    waterEffectTuning,
-    lavaEffectTuning,
-    fireEffectTuning,
-    smokeEffectTuning,
-    fogEffectTuning
-  );
+  const [environmentEffectPresetValue, setEnvironmentEffectPresetValue] = useState("custom");
+
+  useEffect(() => {
+    setEnvironmentEffectPresetValue("custom");
+  }, [environmentEffectType]);
 
   useEffect(() => {
     if (activeFogTool) {
@@ -1001,11 +998,11 @@ export function ToolsMenu({
                       value={environmentEffectType}
                       onChange={(event) => onEnvironmentEffectTypeChange(event.target.value as EnvironmentEffectType)}
                     >
-                      <option value="water">Water</option>
-                      <option value="lava">Lava</option>
                       <option value="fire">Fire</option>
-                      <option value="smoke">Smoke</option>
+                      <option value="lava">Lava</option>
                       <option value="fog">Mist</option>
+                      <option value="smoke">Smoke</option>
+                      <option value="water">Water</option>
                     </select>
                   </div>
                 </div>
@@ -1017,7 +1014,12 @@ export function ToolsMenu({
                       title={`${formatEnvironmentEffectOptionLabel(environmentEffectType)} effect preset`}
                       value={environmentEffectPresetValue}
                       onChange={(event) => {
-                        applyEnvironmentEffectPreset(environmentEffectType, event.target.value, {
+                        const nextPreset = event.target.value;
+                        setEnvironmentEffectPresetValue(nextPreset);
+                        if (nextPreset === "custom") {
+                          return;
+                        }
+                        applyEnvironmentEffectPreset(environmentEffectType, nextPreset, {
                           onWaterEffectTuningChange,
                           onLavaEffectTuningChange,
                           onFireEffectTuningChange,

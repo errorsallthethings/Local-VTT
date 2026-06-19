@@ -2445,7 +2445,9 @@ function EnvironmentEffectEditorModal({
   const activeFireTuning = { ...DEFAULT_FIRE_EFFECT_TUNING, ...(effect.fireTuning ?? {}) };
   const activeSmokeTuning = { ...DEFAULT_SMOKE_EFFECT_TUNING, ...(effect.smokeTuning ?? {}) };
   const activeFogTuning = { ...DEFAULT_FOG_EFFECT_TUNING, ...(effect.fogTuning ?? {}) };
-  const presetValue = getEnvironmentEffectPresetSelectValue(effect.effect, activeWaterTuning, activeLavaTuning, activeFireTuning, activeSmokeTuning, activeFogTuning);
+  const defaultPresetValue = getEnvironmentEffectPresetSelectValue(effect.effect, activeWaterTuning, activeLavaTuning, activeFireTuning, activeSmokeTuning, activeFogTuning);
+  const [presetSelection, setPresetSelection] = useState(() => ({ effectId: effect.id, value: defaultPresetValue }));
+  const presetValue = presetSelection.effectId === effect.id ? presetSelection.value : defaultPresetValue;
 
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     const bounds = modalRef.current?.getBoundingClientRect();
@@ -2514,13 +2516,16 @@ function EnvironmentEffectEditorModal({
                 aria-label="Environmental effect type"
                 title="Environmental effect type"
                 value={effect.effect}
-                onChange={(event) => onEffectTypeChange(event.target.value as EnvironmentEffectType)}
+                onChange={(event) => {
+                  setPresetSelection({ effectId: effect.id, value: "custom" });
+                  onEffectTypeChange(event.target.value as EnvironmentEffectType);
+                }}
               >
-                <option value="water">Water</option>
-                <option value="lava">Lava</option>
                 <option value="fire">Fire</option>
-                <option value="smoke">Smoke</option>
+                <option value="lava">Lava</option>
                 <option value="fog">Mist</option>
+                <option value="smoke">Smoke</option>
+                <option value="water">Water</option>
               </select>
             </div>
           </div>
@@ -2532,7 +2537,12 @@ function EnvironmentEffectEditorModal({
                 title={`${formatEnvironmentEffectOptionLabel(effect.effect)} effect preset`}
                 value={presetValue}
                 onChange={(event) => {
-                  applyEnvironmentEffectPreset(effect.effect, event.target.value, {
+                  const nextPreset = event.target.value;
+                  setPresetSelection({ effectId: effect.id, value: nextPreset });
+                  if (nextPreset === "custom") {
+                    return;
+                  }
+                  applyEnvironmentEffectPreset(effect.effect, nextPreset, {
                     onWaterEffectTuningChange: onWaterTuningChange,
                     onLavaEffectTuningChange: onLavaTuningChange,
                     onFireEffectTuningChange: onFireTuningChange,
