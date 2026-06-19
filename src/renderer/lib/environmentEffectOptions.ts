@@ -31,6 +31,114 @@ export const ENVIRONMENT_EFFECT_FEATHER_OPTIONS = [
   { label: "Wide", value: 1 }
 ] as const;
 
+export const ENVIRONMENT_EFFECT_OPTIONS: Array<{ label: string; value: EnvironmentEffectType }> = [
+  { label: "Arcane", value: "arcane" },
+  { label: "Distortion", value: "distortion" },
+  { label: "Electric", value: "electric" },
+  { label: "Fire", value: "fire" },
+  { label: "Force Field", value: "field" },
+  { label: "Lava", value: "lava" },
+  { label: "Mist", value: "fog" },
+  { label: "Radiant", value: "radiant" },
+  { label: "Shockwave", value: "shockwave" },
+  { label: "Smoke", value: "smoke" },
+  { label: "Water", value: "water" }
+];
+
+const ENVIRONMENT_EFFECT_LABELS: Record<EnvironmentEffectType, string> = {
+  arcane: "Arcane",
+  distortion: "Distortion",
+  electric: "Electric",
+  field: "Force Field",
+  fire: "Fire",
+  fog: "Mist",
+  lava: "Lava",
+  radiant: "Radiant",
+  shockwave: "Shockwave",
+  smoke: "Smoke",
+  water: "Water"
+};
+
+const ENVIRONMENT_EFFECT_PRESET_OPTIONS: Record<EnvironmentEffectType, Array<{ label: string; value: string }>> = {
+  arcane: [
+    { label: "Custom", value: "custom" },
+    { label: "Ritual Circle", value: "ritualCircle" },
+    { label: "Sigil Field", value: "sigilField" },
+    { label: "Warding Runes", value: "wardingRunes" }
+  ],
+  distortion: [
+    { label: "Custom", value: "custom" },
+    { label: "Heat Haze", value: "heatHaze" },
+    { label: "Planar Distortion", value: "planarDistortion" },
+    { label: "Reality Warp", value: "realityWarp" }
+  ],
+  electric: [
+    { label: "Custom", value: "custom" },
+    { label: "Arcing Field", value: "arcingField" },
+    { label: "Static Web", value: "staticWeb" },
+    { label: "Electric Surge", value: "stormSurge" }
+  ],
+  field: [
+    { label: "Custom", value: "custom" },
+    { label: "Magic Field", value: "magicField" },
+    { label: "Shield Field", value: "shieldField" },
+    { label: "Warp Field", value: "warpField" }
+  ],
+  fire: [
+    { label: "Custom", value: "custom" },
+    { label: "Embers", value: "embers" },
+    { label: "Flames", value: "flames" },
+    { label: "Inferno", value: "inferno" }
+  ],
+  fog: [
+    { label: "Custom", value: "custom" },
+    { label: "Light Mist", value: "lightMist" },
+    { label: "Low Mist", value: "lowFog" },
+    { label: "Thick Mist", value: "thickMist" }
+  ],
+  lava: [
+    { label: "Custom", value: "custom" },
+    { label: "Molten Flow", value: "moltenFlow" },
+    { label: "Magma Pool", value: "magmaPool" }
+  ],
+  radiant: [
+    { label: "Custom", value: "custom" },
+    { label: "Divine Rays", value: "divineRays" },
+    { label: "Holy Light", value: "holyLight" },
+    { label: "Starfall", value: "starfall" }
+  ],
+  shockwave: [
+    { label: "Custom", value: "custom" },
+    { label: "Impact Pulse", value: "impactPulse" },
+    { label: "Ripple Zone", value: "rippleZone" },
+    { label: "Solar Ripples", value: "solarRipples" }
+  ],
+  smoke: [
+    { label: "Custom", value: "custom" },
+    { label: "Drifting Smoke", value: "driftingSmoke" },
+    { label: "Heavy Smoke", value: "heavySmoke" }
+  ],
+  water: [
+    { label: "Custom", value: "custom" },
+    { label: "Stream", value: "stream" },
+    { label: "River", value: "river" }
+  ]
+};
+
+const ENVIRONMENT_EFFECT_CANVAS_STYLES: Record<EnvironmentEffectType, { previewFill: string; stroke: string }> = {
+  arcane: { previewFill: "rgba(168, 85, 247, 0.18)", stroke: "rgba(192, 132, 252, 0.95)" },
+  distortion: { previewFill: "rgba(103, 232, 249, 0.14)", stroke: "rgba(103, 232, 249, 0.95)" },
+  electric: { previewFill: "rgba(250, 204, 21, 0.18)", stroke: "rgba(250, 204, 21, 0.95)" },
+  field: { previewFill: "rgba(103, 232, 249, 0.14)", stroke: "rgba(103, 232, 249, 0.95)" },
+  fire: { previewFill: "rgba(249, 115, 22, 0.2)", stroke: "rgba(251, 146, 60, 0.95)" },
+  fog: { previewFill: "rgba(226, 232, 240, 0.14)", stroke: "rgba(226, 232, 240, 0.82)" },
+  lava: { previewFill: "rgba(255, 129, 52, 0.2)", stroke: "rgba(255, 129, 52, 0.95)" },
+  radiant: { previewFill: "rgba(253, 230, 138, 0.16)", stroke: "rgba(253, 230, 138, 0.95)" },
+  shockwave: { previewFill: "rgba(147, 197, 253, 0.16)", stroke: "rgba(147, 197, 253, 0.95)" },
+  smoke: { previewFill: "rgba(210, 220, 226, 0.18)", stroke: "rgba(210, 220, 226, 0.88)" },
+  water: { previewFill: "rgba(56, 189, 248, 0.2)", stroke: "rgba(125, 211, 252, 0.95)" }
+};
+
 export function getEnvironmentEffectPresetSelectValue(
   effect: EnvironmentEffectType,
   waterEffectTuning: WaterEffectTuning,
@@ -79,89 +187,7 @@ export function getEnvironmentEffectPresetSelectValue(
 }
 
 export function getEnvironmentEffectPresetOptions(effect: EnvironmentEffectType): Array<{ label: string; value: string }> {
-  if (effect === "lava") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Molten Flow", value: "moltenFlow" },
-      { label: "Magma Pool", value: "magmaPool" }
-    ];
-  }
-  if (effect === "fire") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Embers", value: "embers" },
-      { label: "Flames", value: "flames" },
-      { label: "Inferno", value: "inferno" }
-    ];
-  }
-  if (effect === "electric") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Arcing Field", value: "arcingField" },
-      { label: "Static Web", value: "staticWeb" },
-      { label: "Electric Surge", value: "stormSurge" }
-    ];
-  }
-  if (effect === "arcane") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Ritual Circle", value: "ritualCircle" },
-      { label: "Sigil Field", value: "sigilField" },
-      { label: "Warding Runes", value: "wardingRunes" }
-    ];
-  }
-  if (effect === "distortion") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Heat Haze", value: "heatHaze" },
-      { label: "Planar Distortion", value: "planarDistortion" },
-      { label: "Reality Warp", value: "realityWarp" }
-    ];
-  }
-  if (effect === "radiant") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Divine Rays", value: "divineRays" },
-      { label: "Holy Light", value: "holyLight" },
-      { label: "Starfall", value: "starfall" }
-    ];
-  }
-  if (effect === "field") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Magic Field", value: "magicField" },
-      { label: "Shield Field", value: "shieldField" },
-      { label: "Warp Field", value: "warpField" }
-    ];
-  }
-  if (effect === "shockwave") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Impact Pulse", value: "impactPulse" },
-      { label: "Ripple Zone", value: "rippleZone" },
-      { label: "Solar Ripples", value: "solarRipples" }
-    ];
-  }
-  if (effect === "smoke") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Drifting Smoke", value: "driftingSmoke" },
-      { label: "Heavy Smoke", value: "heavySmoke" }
-    ];
-  }
-  if (effect === "fog") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Light Mist", value: "lightMist" },
-      { label: "Low Mist", value: "lowFog" },
-      { label: "Thick Mist", value: "thickMist" }
-    ];
-  }
-  return [
-    { label: "Custom", value: "custom" },
-    { label: "Stream", value: "stream" },
-    { label: "River", value: "river" }
-  ];
+  return ENVIRONMENT_EFFECT_PRESET_OPTIONS[effect];
 }
 
 export function applyEnvironmentEffectPreset(
@@ -258,7 +284,15 @@ export function applyEnvironmentEffectPreset(
 }
 
 export function formatEnvironmentEffectOptionLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
+  return ENVIRONMENT_EFFECT_LABELS[effect];
+}
+
+export function getEnvironmentEffectStroke(effect: EnvironmentEffectType): string {
+  return ENVIRONMENT_EFFECT_CANVAS_STYLES[effect].stroke;
+}
+
+export function getEnvironmentEffectPreviewFill(effect: EnvironmentEffectType): string {
+  return ENVIRONMENT_EFFECT_CANVAS_STYLES[effect].previewFill;
 }
 
 export function getEnvironmentEffectFeatherSelectValue(feather: number): number {

@@ -34,7 +34,15 @@ import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType }
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
-import { ARCANE_EFFECT_PRESETS, DISTORTION_EFFECT_PRESETS, FIRE_EFFECT_PRESETS, FOG_EFFECT_PRESETS, FORCE_FIELD_EFFECT_PRESETS, LAVA_EFFECT_PRESETS, LIGHTNING_EFFECT_PRESETS, RADIANT_EFFECT_PRESETS, SHOCKWAVE_EFFECT_PRESETS, SMOKE_EFFECT_PRESETS, WATER_EFFECT_PRESETS, type ArcaneEffectTuning, type DistortionEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
+import type { ArcaneEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
+import {
+  ENVIRONMENT_EFFECT_FEATHER_OPTIONS,
+  ENVIRONMENT_EFFECT_OPTIONS,
+  applyEnvironmentEffectPreset,
+  formatEnvironmentEffectOptionLabel,
+  getEnvironmentEffectFeatherSelectValue,
+  getEnvironmentEffectPresetOptions
+} from "../../lib/environmentEffectOptions";
 
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";
@@ -145,12 +153,6 @@ const TEMPLATE_EFFECT_OPTIONS: Array<{ label: string; value: DrawingTemplateEffe
 const DEFAULT_DRAWING_COLOR = "#ff0000";
 const DEFAULT_TEMPLATE_COLOR = "#7dd3fc";
 const DEFAULT_SONAR_COLOR = "#ffd84d";
-const ENVIRONMENT_EFFECT_FEATHER_OPTIONS = [
-  { label: "None", value: 0 },
-  { label: "Soft", value: 0.3 },
-  { label: "Medium", value: 0.6 },
-  { label: "Wide", value: 1 }
-] as const;
 
 interface ToolsMenuProps {
   activeCanvasTool: CanvasTool | null;
@@ -1079,17 +1081,9 @@ export function ToolsMenu({
                       value={environmentEffectType}
                       onChange={(event) => onEnvironmentEffectTypeChange(event.target.value as EnvironmentEffectType)}
                     >
-                      <option value="arcane">Arcane</option>
-                      <option value="distortion">Distortion</option>
-                      <option value="electric">Electric</option>
-                      <option value="fire">Fire</option>
-                      <option value="field">Force Field</option>
-                      <option value="lava">Lava</option>
-                      <option value="fog">Mist</option>
-                      <option value="radiant">Radiant</option>
-                      <option value="shockwave">Shockwave</option>
-                      <option value="smoke">Smoke</option>
-                      <option value="water">Water</option>
+                      {ENVIRONMENT_EFFECT_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -1977,194 +1971,6 @@ function WaterTuningColor({ label, value, onChange }: { label: string; value: st
 
 function formatTuningNumber(value: number): string {
   return Number.isInteger(value) ? value.toString() : value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
-}
-
-function getEnvironmentEffectPresetOptions(effect: EnvironmentEffectType): Array<{ label: string; value: string }> {
-  if (effect === "lava") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Molten Flow", value: "moltenFlow" },
-      { label: "Magma Pool", value: "magmaPool" }
-    ];
-  }
-  if (effect === "fire") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Embers", value: "embers" },
-      { label: "Flames", value: "flames" },
-      { label: "Inferno", value: "inferno" }
-    ];
-  }
-  if (effect === "electric") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Arcing Field", value: "arcingField" },
-      { label: "Static Web", value: "staticWeb" },
-      { label: "Electric Surge", value: "stormSurge" }
-    ];
-  }
-  if (effect === "arcane") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Ritual Circle", value: "ritualCircle" },
-      { label: "Sigil Field", value: "sigilField" },
-      { label: "Warding Runes", value: "wardingRunes" }
-    ];
-  }
-  if (effect === "distortion") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Heat Haze", value: "heatHaze" },
-      { label: "Planar Distortion", value: "planarDistortion" },
-      { label: "Reality Warp", value: "realityWarp" }
-    ];
-  }
-  if (effect === "radiant") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Divine Rays", value: "divineRays" },
-      { label: "Holy Light", value: "holyLight" },
-      { label: "Starfall", value: "starfall" }
-    ];
-  }
-  if (effect === "field") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Magic Field", value: "magicField" },
-      { label: "Shield Field", value: "shieldField" },
-      { label: "Warp Field", value: "warpField" }
-    ];
-  }
-  if (effect === "shockwave") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Impact Pulse", value: "impactPulse" },
-      { label: "Ripple Zone", value: "rippleZone" },
-      { label: "Solar Ripples", value: "solarRipples" }
-    ];
-  }
-  if (effect === "smoke") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Drifting Smoke", value: "driftingSmoke" },
-      { label: "Heavy Smoke", value: "heavySmoke" }
-    ];
-  }
-  if (effect === "fog") {
-    return [
-      { label: "Custom", value: "custom" },
-      { label: "Light Mist", value: "lightMist" },
-      { label: "Low Mist", value: "lowFog" },
-      { label: "Thick Mist", value: "thickMist" }
-    ];
-  }
-  return [
-    { label: "Custom", value: "custom" },
-    { label: "Stream", value: "stream" },
-    { label: "River", value: "river" }
-  ];
-}
-
-function applyEnvironmentEffectPreset(
-  effect: EnvironmentEffectType,
-  value: string,
-  handlers: {
-    onWaterEffectTuningChange: (tuning: WaterEffectTuning) => void;
-    onLavaEffectTuningChange: (tuning: LavaEffectTuning) => void;
-    onFireEffectTuningChange: (tuning: FireEffectTuning) => void;
-    onLightningEffectTuningChange: (tuning: LightningEffectTuning) => void;
-    onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
-    onDistortionEffectTuningChange: (tuning: DistortionEffectTuning) => void;
-    onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
-    onForceFieldEffectTuningChange: (tuning: ForceFieldEffectTuning) => void;
-    onShockwaveEffectTuningChange: (tuning: ShockwaveEffectTuning) => void;
-    onSmokeEffectTuningChange: (tuning: SmokeEffectTuning) => void;
-    onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
-  }
-) {
-  if (effect === "lava") {
-    const preset = LAVA_EFFECT_PRESETS[value as keyof typeof LAVA_EFFECT_PRESETS];
-    if (preset) {
-      handlers.onLavaEffectTuningChange({ ...preset });
-    }
-    return;
-  }
-  if (effect === "fire") {
-    const preset = FIRE_EFFECT_PRESETS[value as keyof typeof FIRE_EFFECT_PRESETS];
-    if (preset) {
-      handlers.onFireEffectTuningChange({ ...preset });
-    }
-    return;
-  }
-  if (effect === "electric") {
-    const preset = LIGHTNING_EFFECT_PRESETS[value as keyof typeof LIGHTNING_EFFECT_PRESETS];
-    if (preset) {
-      handlers.onLightningEffectTuningChange({ ...preset });
-    }
-    return;
-  }
-  if (effect === "arcane") {
-    const preset = ARCANE_EFFECT_PRESETS[value as keyof typeof ARCANE_EFFECT_PRESETS];
-    if (preset) {
-      handlers.onArcaneEffectTuningChange({ ...preset });
-    }
-    return;
-  }
-  if (effect === "distortion") {
-    const preset = DISTORTION_EFFECT_PRESETS[value as keyof typeof DISTORTION_EFFECT_PRESETS];
-    if (preset) {
-      handlers.onDistortionEffectTuningChange({ ...preset });
-    }
-    return;
-  }
-  if (effect === "radiant") {
-    const preset = RADIANT_EFFECT_PRESETS[value as keyof typeof RADIANT_EFFECT_PRESETS];
-    if (preset) {
-      handlers.onRadiantEffectTuningChange({ ...preset });
-    }
-    return;
-  }
-  if (effect === "field") {
-    const preset = FORCE_FIELD_EFFECT_PRESETS[value as keyof typeof FORCE_FIELD_EFFECT_PRESETS];
-    if (preset) {
-      handlers.onForceFieldEffectTuningChange({ ...preset });
-    }
-    return;
-  }
-  if (effect === "shockwave") {
-    const preset = SHOCKWAVE_EFFECT_PRESETS[value as keyof typeof SHOCKWAVE_EFFECT_PRESETS];
-    if (preset) {
-      handlers.onShockwaveEffectTuningChange({ ...preset });
-    }
-    return;
-  }
-  if (effect === "smoke") {
-    const preset = SMOKE_EFFECT_PRESETS[value as keyof typeof SMOKE_EFFECT_PRESETS];
-    if (preset) {
-      handlers.onSmokeEffectTuningChange({ ...preset });
-    }
-    return;
-  }
-  if (effect === "fog") {
-    const preset = FOG_EFFECT_PRESETS[value as keyof typeof FOG_EFFECT_PRESETS];
-    if (preset) {
-      handlers.onFogEffectTuningChange({ ...preset });
-    }
-    return;
-  }
-  const preset = WATER_EFFECT_PRESETS[value as keyof typeof WATER_EFFECT_PRESETS];
-  if (preset) {
-    handlers.onWaterEffectTuningChange({ ...preset });
-  }
-}
-
-function formatEnvironmentEffectOptionLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
-}
-
-function getEnvironmentEffectFeatherSelectValue(feather: number): number {
-  const match = ENVIRONMENT_EFFECT_FEATHER_OPTIONS.find((option) => Math.abs(option.value - feather) < 0.001);
-  return match?.value ?? 0;
 }
 
 function SettingsToggle({ open, label, onToggle }: { open: boolean; label: string; onToggle: () => void }) {

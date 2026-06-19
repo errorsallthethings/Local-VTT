@@ -97,6 +97,11 @@ import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { duplicateDrawingElement } from "../lib/drawingDefaults";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
+import {
+  formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel,
+  getEnvironmentEffectPreviewFill,
+  getEnvironmentEffectStroke
+} from "../lib/environmentEffectOptions";
 import { duplicateToken } from "../lib/tokenDefaults";
 import { TokenSettings } from "./layers/TokenSettings";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools/ToolsMenu";
@@ -5480,18 +5485,6 @@ function environmentDragToMask(drag: EnvironmentEffectDrag): EnvironmentEffectMa
 
 function isMeaningfulEnvironmentEffectDrag(drag: EnvironmentEffectDrag): boolean {
   return drag.kind === "circle" ? distanceBetween(drag.start, drag.current) > 8 : Math.abs(drag.current.x - drag.start.x) > 8 && Math.abs(drag.current.y - drag.start.y) > 8;
-}
-
-function getEnvironmentEffectStroke(effect: EnvironmentEffectType): string {
-  return effect === "lava" ? "rgba(255, 129, 52, 0.95)" : effect === "fire" ? "rgba(251, 146, 60, 0.95)" : effect === "electric" ? "rgba(250, 204, 21, 0.95)" : effect === "arcane" ? "rgba(192, 132, 252, 0.95)" : effect === "distortion" ? "rgba(103, 232, 249, 0.95)" : effect === "radiant" ? "rgba(253, 230, 138, 0.95)" : effect === "field" ? "rgba(103, 232, 249, 0.95)" : effect === "shockwave" ? "rgba(147, 197, 253, 0.95)" : effect === "smoke" ? "rgba(210, 220, 226, 0.88)" : effect === "fog" ? "rgba(226, 232, 240, 0.82)" : "rgba(125, 211, 252, 0.95)";
-}
-
-function getEnvironmentEffectPreviewFill(effect: EnvironmentEffectType): string {
-  return effect === "lava" ? "rgba(255, 129, 52, 0.2)" : effect === "fire" ? "rgba(249, 115, 22, 0.2)" : effect === "electric" ? "rgba(250, 204, 21, 0.18)" : effect === "arcane" ? "rgba(168, 85, 247, 0.18)" : effect === "distortion" ? "rgba(103, 232, 249, 0.14)" : effect === "radiant" ? "rgba(253, 230, 138, 0.16)" : effect === "field" ? "rgba(103, 232, 249, 0.14)" : effect === "shockwave" ? "rgba(147, 197, 253, 0.16)" : effect === "smoke" ? "rgba(210, 220, 226, 0.18)" : effect === "fog" ? "rgba(226, 232, 240, 0.14)" : "rgba(56, 189, 248, 0.2)";
-}
-
-function formatEnvironmentEffectLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function drawWeatherPolygonDraft(ctx: CanvasRenderingContext2D, draft: WeatherPolygonDraft, camera: Camera) {

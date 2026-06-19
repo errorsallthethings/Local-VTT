@@ -47,6 +47,7 @@ import { DEFAULT_GRID, DEFAULT_MAP_TRANSFORM, DEFAULT_WEATHER_EFFECT_SETTINGS, f
 import { getSnappedTokenPosition } from "../../canvas/tokenGeometry";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
+import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../../lib/environmentEffectOptions";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
 import {
   WEATHER_CATEGORY_OPTIONS,
@@ -1568,10 +1569,6 @@ function WeatherMaskList({
       )}
     </div>
   );
-}
-
-function formatEnvironmentEffectLabel(effect: Scene["environment"]["effects"][number]["effect"]): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function getWeatherEffectSettingsWithCurrent(weather: WeatherSettings): WeatherSettings["effectSettings"] {

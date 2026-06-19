@@ -67,7 +67,7 @@ import {
 } from "../lib/recentCampaigns";
 import { createImportedToken } from "../lib/tokenDefaults";
 import { addTurnOrderEntry, createTurnOrderEntryFromToken, stopTurnOrder } from "../lib/turnOrder";
-import { ENVIRONMENT_EFFECT_FEATHER_OPTIONS, applyEnvironmentEffectPreset, formatEnvironmentEffectOptionLabel, getEnvironmentEffectFeatherSelectValue, getEnvironmentEffectPresetOptions, getEnvironmentEffectPresetSelectValue } from "../lib/environmentEffectOptions";
+import { ENVIRONMENT_EFFECT_FEATHER_OPTIONS, ENVIRONMENT_EFFECT_OPTIONS, applyEnvironmentEffectPreset, formatEnvironmentEffectOptionLabel, getEnvironmentEffectFeatherSelectValue, getEnvironmentEffectPresetOptions, getEnvironmentEffectPresetSelectValue } from "../lib/environmentEffectOptions";
 import {
   COLLAPSED_RAIL_WIDTH,
   COMPACT_RIGHT_PANEL_WIDTH,
@@ -2595,7 +2595,7 @@ function EnvironmentEffectEditorModal({
 }) {
   const modalRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
-  const label = effect.name?.trim() || `${formatEnvironmentEffectEditorLabel(effect.effect)} Effect`;
+  const label = effect.name?.trim() || `${formatEnvironmentEffectOptionLabel(effect.effect)} Effect`;
   const style = position ? ({ left: position.x, top: position.y } as CSSProperties) : undefined;
   const activeWaterTuning = { ...DEFAULT_WATER_EFFECT_TUNING, ...(effect.waterTuning ?? {}) };
   const activeLavaTuning = { ...DEFAULT_LAVA_EFFECT_TUNING, ...(effect.lavaTuning ?? {}) };
@@ -2727,17 +2727,9 @@ function EnvironmentEffectEditorModal({
                   onEffectTypeChange(event.target.value as EnvironmentEffectType);
                 }}
               >
-                <option value="arcane">Arcane</option>
-                <option value="distortion">Distortion</option>
-                <option value="electric">Electric</option>
-                <option value="fire">Fire</option>
-                <option value="field">Force Field</option>
-                <option value="lava">Lava</option>
-                <option value="fog">Mist</option>
-                <option value="radiant">Radiant</option>
-                <option value="shockwave">Shockwave</option>
-                <option value="smoke">Smoke</option>
-                <option value="water">Water</option>
+                {ENVIRONMENT_EFFECT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -2885,7 +2877,7 @@ function EnvironmentEffectEditorModal({
         ) : (
           <div className="layer-empty-state">
             <strong>No Editable Settings</strong>
-            <span>{formatEnvironmentEffectEditorLabel(effect.effect)} effects do not have advanced controls yet.</span>
+            <span>{formatEnvironmentEffectOptionLabel(effect.effect)} effects do not have advanced controls yet.</span>
           </div>
         )}
         <div className="button-row modal-actions">
@@ -2896,10 +2888,6 @@ function EnvironmentEffectEditorModal({
       </div>
     </section>
   );
-}
-
-function formatEnvironmentEffectEditorLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function clampEnvironmentEffectEditorPosition(x: number, y: number, bounds: DOMRect): { x: number; y: number } {
