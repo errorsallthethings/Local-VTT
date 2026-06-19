@@ -15,6 +15,7 @@ import {
   DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
   DEFAULT_MAP_TRANSFORM,
   DEFAULT_MEASUREMENT,
+  DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TABLE_TOOLS,
   DEFAULT_VIDEO_PLAYBACK,
@@ -252,6 +253,46 @@ it("normalizeScene preserves arcane environmental effects", () => {
     arcaneTuning: expect.objectContaining({
       glyphScale: 8,
       ringDensity: 0.7,
+      panFollow: 1
+    })
+  });
+  expect(normalized.environment.effects[0].waterTuning).toBeUndefined();
+});
+
+it("normalizeScene preserves radiant environmental effects", () => {
+  const scene = createDefaultScene("Radiant Effects");
+  scene.environment.effects = [
+    {
+      id: "radiant-effect",
+      name: "Radiant Effect",
+      kind: "circle",
+      effect: "radiant",
+      points: [
+        { x: 80, y: 80 },
+        { x: 180, y: 180 }
+      ],
+      radius: 40,
+      feather: 0.2,
+      radiantTuning: {
+        ...DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS,
+        rayScale: 8,
+        moteDensity: 0.7
+      },
+      visibleInGm: true,
+      visibleInPlayer: false
+    }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.environment.effects[0]).toMatchObject({
+    effect: "radiant",
+    feather: 0.2,
+    visibleInGm: true,
+    visibleInPlayer: false,
+    radiantTuning: expect.objectContaining({
+      rayScale: 8,
+      moteDensity: 0.7,
       panFollow: 1
     })
   });

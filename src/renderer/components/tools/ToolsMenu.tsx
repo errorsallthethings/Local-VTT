@@ -34,7 +34,7 @@ import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType }
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
-import { ARCANE_EFFECT_PRESETS, FIRE_EFFECT_PRESETS, FOG_EFFECT_PRESETS, LAVA_EFFECT_PRESETS, LIGHTNING_EFFECT_PRESETS, SMOKE_EFFECT_PRESETS, WATER_EFFECT_PRESETS, type ArcaneEffectTuning, type FireEffectTuning, type FogEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
+import { ARCANE_EFFECT_PRESETS, FIRE_EFFECT_PRESETS, FOG_EFFECT_PRESETS, LAVA_EFFECT_PRESETS, LIGHTNING_EFFECT_PRESETS, RADIANT_EFFECT_PRESETS, SMOKE_EFFECT_PRESETS, WATER_EFFECT_PRESETS, type ArcaneEffectTuning, type FireEffectTuning, type FogEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type RadiantEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
 
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";
@@ -165,6 +165,7 @@ interface ToolsMenuProps {
   fireEffectTuning: FireEffectTuning;
   lightningEffectTuning: LightningEffectTuning;
   arcaneEffectTuning: ArcaneEffectTuning;
+  radiantEffectTuning: RadiantEffectTuning;
   smokeEffectTuning: SmokeEffectTuning;
   fogEffectTuning: FogEffectTuning;
   mouseBehavior: MouseBehavior;
@@ -212,6 +213,8 @@ interface ToolsMenuProps {
   onLightningEffectTuningReset: () => void;
   onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
   onArcaneEffectTuningReset: () => void;
+  onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
+  onRadiantEffectTuningReset: () => void;
   onSmokeEffectTuningChange: (tuning: SmokeEffectTuning) => void;
   onSmokeEffectTuningReset: () => void;
   onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
@@ -279,6 +282,7 @@ export function ToolsMenu({
   fireEffectTuning,
   lightningEffectTuning,
   arcaneEffectTuning,
+  radiantEffectTuning,
   smokeEffectTuning,
   fogEffectTuning,
   mouseBehavior,
@@ -326,6 +330,8 @@ export function ToolsMenu({
   onLightningEffectTuningReset,
   onArcaneEffectTuningChange,
   onArcaneEffectTuningReset,
+  onRadiantEffectTuningChange,
+  onRadiantEffectTuningReset,
   onSmokeEffectTuningChange,
   onSmokeEffectTuningReset,
   onFogEffectTuningChange,
@@ -389,6 +395,7 @@ export function ToolsMenu({
         onFireEffectTuningChange,
         onLightningEffectTuningChange,
         onArcaneEffectTuningChange,
+        onRadiantEffectTuningChange,
         onSmokeEffectTuningChange,
         onFogEffectTuningChange
       });
@@ -405,6 +412,8 @@ export function ToolsMenu({
       onLightningEffectTuningReset();
     } else if (environmentEffectType === "arcane") {
       onArcaneEffectTuningReset();
+    } else if (environmentEffectType === "radiant") {
+      onRadiantEffectTuningReset();
     } else if (environmentEffectType === "smoke") {
       onSmokeEffectTuningReset();
     } else if (environmentEffectType === "fog") {
@@ -1048,6 +1057,7 @@ export function ToolsMenu({
                       <option value="electric">Electric</option>
                       <option value="arcane">Arcane</option>
                       <option value="fog">Mist</option>
+                      <option value="radiant">Radiant</option>
                       <option value="smoke">Smoke</option>
                       <option value="water">Water</option>
                     </select>
@@ -1072,6 +1082,7 @@ export function ToolsMenu({
                           onFireEffectTuningChange,
                           onLightningEffectTuningChange,
                           onArcaneEffectTuningChange,
+                          onRadiantEffectTuningChange,
                           onSmokeEffectTuningChange,
                           onFogEffectTuningChange
                         });
@@ -1147,6 +1158,16 @@ export function ToolsMenu({
                   <ArcaneEffectTuningPanel
                     tuning={arcaneEffectTuning}
                     onChange={onArcaneEffectTuningChange}
+                    onReset={resetEnvironmentEffectTuning}
+                  />
+                </>
+              )}
+              {environmentEffectType === "radiant" && (
+                <>
+                  <div className="tools-section-divider" />
+                  <RadiantEffectTuningPanel
+                    tuning={radiantEffectTuning}
+                    onChange={onRadiantEffectTuningChange}
                     onReset={resetEnvironmentEffectTuning}
                   />
                 </>
@@ -1505,6 +1526,70 @@ export function ArcaneEffectTuningPanel({
   );
 }
 
+export function RadiantEffectTuningPanel({
+  tuning,
+  title = "Advanced Settings",
+  defaultOpen = false,
+  onChange,
+  onReset
+}: {
+  tuning: RadiantEffectTuning;
+  title?: string;
+  defaultOpen?: boolean;
+  onChange: (tuning: RadiantEffectTuning) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const update = (patch: Partial<RadiantEffectTuning>) => onChange({ ...tuning, ...patch });
+  const readout = JSON.stringify(tuning);
+
+  return (
+    <div className="water-tuning-panel" aria-label="Radiant effect tuning">
+      <div className="tools-section-label-row">
+        <SettingsToggle open={open} label={title} onToggle={() => setOpen((current) => !current)} />
+        {open && (
+          <button className="icon-button no-chrome" type="button" title="Reset radiant tuning" aria-label="Reset radiant tuning" onClick={onReset}>
+            <Undo2 size={15} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      {open && (
+        <>
+          <div className="water-tuning-sliders">
+            <WaterTuningSlider label="Opacity" value={tuning.opacity} min={0} max={1} step={0.01} onChange={(opacity) => update({ opacity })} />
+            <WaterTuningSlider label="Ray Count" value={tuning.rayScale} min={0.5} max={20} step={0.1} onChange={(rayScale) => update({ rayScale })} />
+            <WaterTuningSlider label="Drift Speed" value={tuning.speed} min={0} max={2} step={0.01} onChange={(speed) => update({ speed })} />
+            <WaterTuningSlider label="Source Edge Position" value={tuning.directionDegrees} min={0} max={360} step={1} suffix="deg" onChange={(directionDegrees) => update({ directionDegrees })} />
+            <WaterTuningSlider label="Ray Amount" value={tuning.rayDensity} min={0} max={1} step={0.01} onChange={(rayDensity) => update({ rayDensity })} />
+            <WaterTuningSlider label="Ray Breakup" value={tuning.rayBreakup} min={0} max={1} step={0.01} onChange={(rayBreakup) => update({ rayBreakup })} />
+            <WaterTuningSlider label="Source Spread" value={tuning.raySpread} min={0} max={1} step={0.01} onChange={(raySpread) => update({ raySpread })} />
+            <WaterTuningSlider label="Source Distance" value={tuning.rayDistance} min={0} max={1} step={0.01} onChange={(rayDistance) => update({ rayDistance })} />
+            <WaterTuningSlider label="Mote Count" value={tuning.moteDensity} min={0} max={1} step={0.01} onChange={(moteDensity) => update({ moteDensity })} />
+            <WaterTuningSlider label="Mote Size" value={tuning.moteSize} min={0} max={5} step={0.05} onChange={(moteSize) => update({ moteSize })} />
+            <WaterTuningSlider label="Shimmer" value={tuning.shimmer} min={0} max={1} step={0.01} onChange={(shimmer) => update({ shimmer })} />
+            <WaterTuningSlider label="Bloom" value={tuning.bloom} min={0} max={1} step={0.01} onChange={(bloom) => update({ bloom })} />
+            <WaterTuningSlider label="Ray Width" value={tuning.streakWidth} min={0} max={5} step={0.05} onChange={(streakWidth) => update({ streakWidth })} />
+            <WaterTuningSlider label="Pulse" value={tuning.pulse} min={0} max={1} step={0.01} onChange={(pulse) => update({ pulse })} />
+            <WaterTuningSlider label="Zoom Response" value={tuning.zoomScale} min={-3} max={3} step={0.05} onChange={(zoomScale) => update({ zoomScale })} />
+            <WaterTuningSlider label="Background Tint" value={tuning.baseAlpha} min={0} max={1} step={0.01} onChange={(baseAlpha) => update({ baseAlpha })} />
+          </div>
+          <div className="water-tuning-colors">
+            <WaterTuningColor label="Background" value={tuning.backgroundColor} onChange={(backgroundColor) => update({ backgroundColor })} />
+            <WaterTuningColor label="Rays" value={tuning.rayColor} onChange={(rayColor) => update({ rayColor })} />
+            <WaterTuningColor label="Core" value={tuning.coreColor} onChange={(coreColor) => update({ coreColor })} />
+          </div>
+          <div className="water-tuning-readout-row">
+            <div className="water-tuning-readout" title={readout}>{readout}</div>
+            <button className="icon-button no-chrome" type="button" title="Copy radiant tuning JSON" aria-label="Copy radiant tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
+              <Copy size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function SmokeEffectTuningPanel({
   tuning,
   title = "Advanced Settings",
@@ -1676,6 +1761,14 @@ function getEnvironmentEffectPresetOptions(effect: EnvironmentEffectType): Array
       { label: "Warding Runes", value: "wardingRunes" }
     ];
   }
+  if (effect === "radiant") {
+    return [
+      { label: "Custom", value: "custom" },
+      { label: "Divine Rays", value: "divineRays" },
+      { label: "Holy Light", value: "holyLight" },
+      { label: "Starfall", value: "starfall" }
+    ];
+  }
   if (effect === "smoke") {
     return [
       { label: "Custom", value: "custom" },
@@ -1707,6 +1800,7 @@ function applyEnvironmentEffectPreset(
     onFireEffectTuningChange: (tuning: FireEffectTuning) => void;
     onLightningEffectTuningChange: (tuning: LightningEffectTuning) => void;
     onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
+    onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
     onSmokeEffectTuningChange: (tuning: SmokeEffectTuning) => void;
     onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
   }
@@ -1739,6 +1833,13 @@ function applyEnvironmentEffectPreset(
     }
     return;
   }
+  if (effect === "radiant") {
+    const preset = RADIANT_EFFECT_PRESETS[value as keyof typeof RADIANT_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onRadiantEffectTuningChange({ ...preset });
+    }
+    return;
+  }
   if (effect === "smoke") {
     const preset = SMOKE_EFFECT_PRESETS[value as keyof typeof SMOKE_EFFECT_PRESETS];
     if (preset) {
@@ -1760,7 +1861,7 @@ function applyEnvironmentEffectPreset(
 }
 
 function formatEnvironmentEffectOptionLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function getEnvironmentEffectFeatherSelectValue(feather: number): number {

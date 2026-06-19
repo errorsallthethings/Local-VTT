@@ -5,6 +5,7 @@ import {
   DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
   DEFAULT_LAVA_EFFECT_TUNING_SETTINGS,
   DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
+  DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS,
   DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS,
   DEFAULT_WATER_EFFECT_TUNING_SETTINGS,
   type ArcaneEffectTuningSettings,
@@ -12,6 +13,7 @@ import {
   type FireEffectTuningSettings,
   type LavaEffectTuningSettings,
   type LightningEffectTuningSettings,
+  type RadiantEffectTuningSettings,
   type SmokeEffectTuningSettings,
   type WaterEffectTuningSettings
 } from "../../shared/localvtt";
@@ -28,6 +30,7 @@ export type LavaEffectTuning = LavaEffectTuningSettings;
 export type FireEffectTuning = FireEffectTuningSettings;
 export type LightningEffectTuning = LightningEffectTuningSettings;
 export type ArcaneEffectTuning = ArcaneEffectTuningSettings;
+export type RadiantEffectTuning = RadiantEffectTuningSettings;
 export type SmokeEffectTuning = SmokeEffectTuningSettings;
 export type FogEffectTuning = FogEffectTuningSettings;
 
@@ -36,6 +39,7 @@ export const DEFAULT_LAVA_EFFECT_TUNING: LavaEffectTuning = DEFAULT_LAVA_EFFECT_
 export const DEFAULT_FIRE_EFFECT_TUNING: FireEffectTuning = DEFAULT_FIRE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_LIGHTNING_EFFECT_TUNING: LightningEffectTuning = DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_ARCANE_EFFECT_TUNING: ArcaneEffectTuning = DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS;
+export const DEFAULT_RADIANT_EFFECT_TUNING: RadiantEffectTuning = DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_SMOKE_EFFECT_TUNING: SmokeEffectTuning = DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FOG_EFFECT_TUNING: FogEffectTuning = DEFAULT_FOG_EFFECT_TUNING_SETTINGS;
 
@@ -230,6 +234,75 @@ export const ARCANE_EFFECT_PRESETS = {
   }
 } as const satisfies Record<string, ArcaneEffectTuning>;
 
+export const RADIANT_EFFECT_PRESETS = {
+  holyLight: {
+    opacity: 0.78,
+    rayScale: 16.2,
+    speed: 1.18,
+    directionDegrees: 270,
+    rayDensity: 0.8,
+    rayBreakup: 0,
+    raySpread: 0.19,
+    rayDistance: 0.44,
+    moteDensity: 0.58,
+    moteSize: 4.05,
+    shimmer: 0.93,
+    bloom: 0.97,
+    streakWidth: 5,
+    pulse: 0.26,
+    panFollow: 1,
+    zoomScale: -0.85,
+    baseAlpha: 0.29,
+    backgroundColor: "#1c1607",
+    rayColor: "#fde68a",
+    coreColor: "#fffdf4"
+  },
+  divineRays: {
+    opacity: 1,
+    rayScale: 1.9,
+    speed: 0.26,
+    directionDegrees: 228,
+    rayDensity: 0.62,
+    rayBreakup: 0,
+    raySpread: 0.31,
+    rayDistance: 0.51,
+    moteDensity: 0.34,
+    moteSize: 2.9,
+    shimmer: 1,
+    bloom: 1,
+    streakWidth: 5,
+    pulse: 1,
+    panFollow: 1,
+    zoomScale: -0.1,
+    baseAlpha: 0.48,
+    backgroundColor: "#241a05",
+    rayColor: "#facc15",
+    coreColor: "#fff7d6"
+  },
+  starfall: {
+    opacity: 0.73,
+    rayScale: 2.5,
+    speed: 0.56,
+    directionDegrees: 254,
+    rayDensity: 0.14,
+    rayBreakup: 1,
+    raySpread: 0.72,
+    rayDistance: 0.38,
+    moteDensity: 0.88,
+    moteSize: 2.15,
+    shimmer: 1,
+    bloom: 0.96,
+    streakWidth: 2.85,
+    pulse: 0.99,
+    panFollow: 1,
+    zoomScale: -0.4,
+    baseAlpha: 0.3,
+    backgroundColor: "#111827",
+    rayColor: "#fde68a",
+    coreColor: "#ffffff"
+  }
+} as const satisfies Record<string, RadiantEffectTuning>;
+
 export const SMOKE_EFFECT_PRESETS = {
   driftingSmoke: { ...DEFAULT_SMOKE_EFFECT_TUNING },
   heavySmoke: {
@@ -302,6 +375,7 @@ let lavaRuntime: WaterRuntime | null = null;
 let fireRuntime: WaterRuntime | null = null;
 let lightningRuntime: WaterRuntime | null = null;
 let arcaneRuntime: WaterRuntime | null = null;
+let radiantRuntime: WaterRuntime | null = null;
 let smokeRuntime: WaterRuntime | null = null;
 let fogRuntime: WaterRuntime | null = null;
 
@@ -533,6 +607,50 @@ export function drawEnvironmentArcaneEffect(
   updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateArcaneMaterialTuning(runtime.meshA.material, tuning);
   updateArcaneMaterialTuning(runtime.meshB.material, tuning);
+
+  runtime.renderer.setSize(width, height, false);
+  runtime.renderer.setClearColor(0x000000, 0);
+  runtime.renderer.clear();
+  runtime.renderer.render(runtime.scene, runtime.camera);
+
+  ctx.save();
+  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
+  ctx.restore();
+}
+
+export function drawEnvironmentRadiantEffect(
+  ctx: CanvasRenderingContext2D,
+  bounds: ScreenBounds,
+  timestamp: number,
+  layerOpacity: number,
+  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
+  tuning: RadiantEffectTuning = DEFAULT_RADIANT_EFFECT_TUNING
+) {
+  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
+    return;
+  }
+
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
+  const height = ctx.canvas.clientHeight || ctx.canvas.height;
+  const runtime = getRadiantRuntime(width, height);
+  if (!runtime) {
+    drawRadiantFallback(ctx, bounds, layerOpacity);
+    return;
+  }
+
+  const time = (timestamp - runtime.startedAt) / 1000;
+  positionWaterMesh(runtime.meshA, width, height, 1);
+  positionWaterMesh(runtime.meshB, width, height, 1);
+  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
+  runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.36;
+  runtime.meshA.material.uniforms.time.value = time;
+  runtime.meshB.material.uniforms.time.value = time * 0.57 + 19.3;
+  runtime.meshA.material.uniforms.resolution.value.set(width, height);
+  runtime.meshB.material.uniforms.resolution.value.set(width, height);
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateRadiantMaterialTuning(runtime.meshA.material, tuning);
+  updateRadiantMaterialTuning(runtime.meshB.material, tuning);
 
   runtime.renderer.setSize(width, height, false);
   runtime.renderer.setClearColor(0x000000, 0);
@@ -875,6 +993,55 @@ function getArcaneRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   return arcaneRuntime;
+}
+
+function getRadiantRuntime(width: number, height: number): WaterRuntime | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!radiantRuntime) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+    camera.position.set(0, 0, 2400);
+    camera.lookAt(0, 0, 0);
+
+    const material = createRadiantMaterial(0.78);
+    const materialB = createRadiantMaterial(0.28);
+    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    meshA.position.z = 1280;
+    meshB.position.z = 1281;
+    scene.add(meshA, meshB);
+
+    radiantRuntime = {
+      renderer,
+      scene,
+      camera,
+      meshA,
+      meshB,
+      startedAt: Date.now(),
+      width: 0,
+      height: 0
+    };
+  }
+
+  if (radiantRuntime.width !== width || radiantRuntime.height !== height) {
+    radiantRuntime.width = width;
+    radiantRuntime.height = height;
+    radiantRuntime.camera.left = 0;
+    radiantRuntime.camera.right = width;
+    radiantRuntime.camera.top = 0;
+    radiantRuntime.camera.bottom = height;
+    radiantRuntime.camera.near = 0.1;
+    radiantRuntime.camera.far = 5000;
+    radiantRuntime.camera.updateProjectionMatrix();
+  }
+
+  return radiantRuntime;
 }
 
 function getSmokeRuntime(width: number, height: number): WaterRuntime | null {
@@ -1792,6 +1959,206 @@ function updateArcaneMaterialTuning(material: THREE.ShaderMaterial, tuning: Arca
   material.uniforms.glowColor.value.set(tuning.glowColor);
 }
 
+function createRadiantMaterial(opacity: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    uniforms: {
+      rayScale: { value: DEFAULT_RADIANT_EFFECT_TUNING.rayScale },
+      speed: { value: DEFAULT_RADIANT_EFFECT_TUNING.speed },
+      directionRadians: { value: degreesToRadians(DEFAULT_RADIANT_EFFECT_TUNING.directionDegrees) },
+      rayDensity: { value: DEFAULT_RADIANT_EFFECT_TUNING.rayDensity },
+      rayBreakup: { value: DEFAULT_RADIANT_EFFECT_TUNING.rayBreakup },
+      raySpread: { value: DEFAULT_RADIANT_EFFECT_TUNING.raySpread },
+      rayDistance: { value: DEFAULT_RADIANT_EFFECT_TUNING.rayDistance },
+      moteDensity: { value: DEFAULT_RADIANT_EFFECT_TUNING.moteDensity },
+      moteSize: { value: DEFAULT_RADIANT_EFFECT_TUNING.moteSize },
+      shimmer: { value: DEFAULT_RADIANT_EFFECT_TUNING.shimmer },
+      bloom: { value: DEFAULT_RADIANT_EFFECT_TUNING.bloom },
+      streakWidth: { value: DEFAULT_RADIANT_EFFECT_TUNING.streakWidth },
+      pulse: { value: DEFAULT_RADIANT_EFFECT_TUNING.pulse },
+      panFollow: { value: DEFAULT_RADIANT_EFFECT_TUNING.panFollow },
+      zoomScale: { value: DEFAULT_RADIANT_EFFECT_TUNING.zoomScale },
+      baseAlpha: { value: DEFAULT_RADIANT_EFFECT_TUNING.baseAlpha },
+      backgroundColor: { value: new THREE.Color(DEFAULT_RADIANT_EFFECT_TUNING.backgroundColor) },
+      rayColor: { value: new THREE.Color(DEFAULT_RADIANT_EFFECT_TUNING.rayColor) },
+      coreColor: { value: new THREE.Color(DEFAULT_RADIANT_EFFECT_TUNING.coreColor) },
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2(1, 1) },
+      cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
+      effectSize: { value: new THREE.Vector2(1, 1) },
+      cameraZoom: { value: 1 },
+      opacity: { value: opacity }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float rayScale;
+      uniform float speed;
+      uniform float directionRadians;
+      uniform float rayDensity;
+      uniform float rayBreakup;
+      uniform float raySpread;
+      uniform float rayDistance;
+      uniform float moteDensity;
+      uniform float moteSize;
+      uniform float shimmer;
+      uniform float bloom;
+      uniform float streakWidth;
+      uniform float pulse;
+      uniform float panFollow;
+      uniform float zoomScale;
+      uniform float baseAlpha;
+      uniform vec3 backgroundColor;
+      uniform vec3 rayColor;
+      uniform vec3 coreColor;
+      uniform float time;
+      uniform vec2 resolution;
+      uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
+      uniform vec2 effectSize;
+      uniform float cameraZoom;
+      uniform float opacity;
+
+      float randomValue(vec2 value) {
+        return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float valueNoise(vec2 value) {
+        vec2 base = floor(value);
+        vec2 fraction = fract(value);
+        vec2 blend = fraction * fraction * (3.0 - 2.0 * fraction);
+        float a = randomValue(base);
+        float b = randomValue(base + vec2(1.0, 0.0));
+        float c = randomValue(base + vec2(0.0, 1.0));
+        float d = randomValue(base + vec2(1.0, 1.0));
+        return mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y);
+      }
+
+      float fbm(vec2 value) {
+        float total = 0.0;
+        float amplitude = 0.5;
+        for (int i = 0; i < 5; i++) {
+          total += valueNoise(value) * amplitude;
+          value *= 2.04;
+          amplitude *= 0.52;
+        }
+        return total;
+      }
+
+      float starMote(vec2 uv, float localTime) {
+        vec2 driftUv = uv + vec2(localTime * 0.08, -localTime * 0.03);
+        vec2 grid = driftUv * mix(2.0, 18.0, moteDensity);
+        vec2 cell = floor(grid);
+        float seed = randomValue(cell);
+        vec2 offset = vec2(randomValue(cell + vec2(17.0, 3.0)), randomValue(cell + vec2(41.0, 11.0))) - 0.5;
+        vec2 local = fract(grid) - 0.5 - offset * 0.82;
+        float visible = step(1.0 - moteDensity, seed) * smoothstep(0.0, 0.08, moteDensity);
+        float radius = length(local);
+        float normalizedMoteSize = clamp(moteSize / 5.0, 0.0, 1.0);
+        float core = smoothstep(mix(0.04, 0.28, normalizedMoteSize), 0.0, radius);
+        float armWidth = mix(0.012, 0.09, normalizedMoteSize);
+        float armLength = mix(0.18, 0.68, normalizedMoteSize);
+        float arms = max(smoothstep(armWidth, 0.0, abs(local.x)) * smoothstep(armLength, 0.02, abs(local.y)), smoothstep(armWidth, 0.0, abs(local.y)) * smoothstep(armLength, 0.02, abs(local.x)));
+        float twinkle = 0.55 + 0.45 * sin(localTime * (2.0 + seed * 5.0) + seed * 18.0);
+        return max(core, arms * 0.52) * visible * twinkle;
+      }
+
+      float radiantRays(vec2 centeredLocal, float localTime) {
+        vec2 edgeDirection = normalize(vec2(cos(directionRadians), sin(directionRadians)));
+        vec2 inwardDirection = -edgeDirection;
+        float edgeScale = min(0.5 / max(abs(edgeDirection.x), 0.0001), 0.5 / max(abs(edgeDirection.y), 0.0001));
+        vec2 edgePoint = edgeDirection * edgeScale;
+        vec2 sourcePoint = edgePoint + edgeDirection * mix(0.02, 0.92, rayDistance);
+        vec2 fromSource = centeredLocal - sourcePoint;
+        float distanceFromSource = max(length(fromSource), 0.001);
+        vec2 fragmentDirection = fromSource / distanceFromSource;
+        float signedAngle = atan(inwardDirection.x * fragmentDirection.y - inwardDirection.y * fragmentDirection.x, dot(inwardDirection, fragmentDirection));
+        float coneWidth = mix(0.08, 1.36, raySpread);
+        float coneMask = smoothstep(coneWidth, coneWidth * 0.18, abs(signedAngle));
+        float rayCount = mix(1.0, 36.0, rayScale / 20.0);
+        float rayCoord = ((signedAngle / coneWidth) * 0.5 + 0.5) * rayCount;
+        float rayIndex = floor(rayCoord);
+        float localRay = fract(rayCoord);
+        float seed = randomValue(vec2(rayIndex, 7.0));
+        float rayCenter = mix(0.18, 0.82, seed);
+        float normalizedRayWidth = clamp(streakWidth / 5.0, 0.0, 1.0);
+        float width = mix(0.018, 0.42, normalizedRayWidth);
+        float ray = smoothstep(width, 0.0, abs(localRay - rayCenter));
+        float rayStrength = mix(0.14, 1.0, rayDensity) * mix(0.65, 1.25, randomValue(vec2(rayIndex, 19.0)));
+        float segmentIndex = floor(distanceFromSource * mix(3.0, 16.0, rayBreakup));
+        float segmentSeed = randomValue(vec2(rayIndex, segmentIndex));
+        float segmentMask = mix(1.0, smoothstep(0.18, 0.92, segmentSeed), rayBreakup);
+        float shimmerOffset = fbm(vec2(rayIndex * 0.31, distanceFromSource * 2.7) + vec2(localTime * 0.06, 4.0));
+        float shimmerMask = mix(1.0, mix(0.72, 1.18, shimmerOffset), shimmer);
+        float distanceFade = smoothstep(0.02, 0.16, distanceFromSource) * smoothstep(1.68, 0.34, distanceFromSource);
+        return ray * rayStrength * segmentMask * shimmerMask * coneMask * distanceFade;
+      }
+
+      void main() {
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
+        vec2 size = max(effectSize, vec2(1.0));
+        vec2 localCoord = (worldCoord - effectOrigin) / size;
+        vec2 centeredLocal = localCoord - 0.5;
+        vec2 pixelUv = anchoredCoord / 180.0 * zoomFactor;
+        vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
+        vec2 perpendicular = vec2(-direction.y, direction.x);
+        vec2 uv = vec2(dot(pixelUv, direction), dot(pixelUv, perpendicular));
+        float localTime = time * speed;
+        uv.x += localTime * 0.42;
+
+        float rays = radiantRays(centeredLocal, localTime);
+        float wash = fbm(uv * 0.62 + vec2(localTime * 0.06, localTime * 0.02));
+        float bloomField = smoothstep(0.42, 1.0, wash) * bloom;
+        float pulseWave = 0.75 + sin(localTime * 6.2831 + wash * 5.0) * 0.25 * pulse;
+        float motes = starMote(localCoord * mix(1.2, 3.6, moteDensity), localTime) * moteDensity;
+        float energy = clamp(rays * (0.68 + bloom * 0.34) * pulseWave + bloomField * 0.58 + motes * 0.92, 0.0, 1.0);
+        vec3 color = mix(backgroundColor, rayColor, energy);
+        color = mix(color, coreColor, smoothstep(0.55, 1.0, energy) * (0.55 + bloom * 0.45));
+        float alpha = (baseAlpha * 0.45 + energy * (0.66 + bloom * 0.42)) * opacity;
+        alpha *= smoothstep(0.02, 0.12, energy + baseAlpha);
+        gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+      }
+    `
+  });
+}
+
+function updateRadiantMaterialTuning(material: THREE.ShaderMaterial, tuning: RadiantEffectTuning) {
+  material.uniforms.rayScale.value = tuning.rayScale;
+  material.uniforms.speed.value = tuning.speed;
+  material.uniforms.directionRadians.value = degreesToRadians(tuning.directionDegrees);
+  material.uniforms.rayDensity.value = tuning.rayDensity;
+  material.uniforms.rayBreakup.value = tuning.rayBreakup;
+  material.uniforms.raySpread.value = tuning.raySpread;
+  material.uniforms.rayDistance.value = tuning.rayDistance;
+  material.uniforms.moteDensity.value = tuning.moteDensity;
+  material.uniforms.moteSize.value = tuning.moteSize;
+  material.uniforms.shimmer.value = tuning.shimmer;
+  material.uniforms.bloom.value = tuning.bloom;
+  material.uniforms.streakWidth.value = tuning.streakWidth;
+  material.uniforms.pulse.value = tuning.pulse;
+  material.uniforms.panFollow.value = 1;
+  material.uniforms.zoomScale.value = tuning.zoomScale;
+  material.uniforms.baseAlpha.value = tuning.baseAlpha;
+  material.uniforms.backgroundColor.value.set(tuning.backgroundColor);
+  material.uniforms.rayColor.value.set(tuning.rayColor);
+  material.uniforms.coreColor.value.set(tuning.coreColor);
+}
+
 function createSmokeMaterial(opacity: number): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     transparent: true,
@@ -2126,6 +2493,14 @@ function drawArcaneFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds,
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.3;
   ctx.fillStyle = "rgb(192, 132, 252)";
+  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  ctx.restore();
+}
+
+function drawRadiantFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.32;
+  ctx.fillStyle = "rgb(253, 230, 138)";
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }
