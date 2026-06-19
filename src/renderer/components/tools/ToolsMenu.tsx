@@ -34,7 +34,7 @@ import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType }
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
-import type { ArcaneEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
+import type { ArcaneEffectTuning, ChaosEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
 import {
   ENVIRONMENT_EFFECT_FEATHER_OPTIONS,
   ENVIRONMENT_EFFECT_OPTIONS,
@@ -167,6 +167,7 @@ interface ToolsMenuProps {
   fireEffectTuning: FireEffectTuning;
   lightningEffectTuning: LightningEffectTuning;
   arcaneEffectTuning: ArcaneEffectTuning;
+  chaosEffectTuning: ChaosEffectTuning;
   distortionEffectTuning: DistortionEffectTuning;
   radiantEffectTuning: RadiantEffectTuning;
   forceFieldEffectTuning: ForceFieldEffectTuning;
@@ -218,6 +219,8 @@ interface ToolsMenuProps {
   onLightningEffectTuningReset: () => void;
   onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
   onArcaneEffectTuningReset: () => void;
+  onChaosEffectTuningChange: (tuning: ChaosEffectTuning) => void;
+  onChaosEffectTuningReset: () => void;
   onDistortionEffectTuningChange: (tuning: DistortionEffectTuning) => void;
   onDistortionEffectTuningReset: () => void;
   onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
@@ -293,6 +296,7 @@ export function ToolsMenu({
   fireEffectTuning,
   lightningEffectTuning,
   arcaneEffectTuning,
+  chaosEffectTuning,
   distortionEffectTuning,
   radiantEffectTuning,
   forceFieldEffectTuning,
@@ -344,6 +348,8 @@ export function ToolsMenu({
   onLightningEffectTuningReset,
   onArcaneEffectTuningChange,
   onArcaneEffectTuningReset,
+  onChaosEffectTuningChange,
+  onChaosEffectTuningReset,
   onDistortionEffectTuningChange,
   onDistortionEffectTuningReset,
   onRadiantEffectTuningChange,
@@ -415,6 +421,7 @@ export function ToolsMenu({
         onFireEffectTuningChange,
         onLightningEffectTuningChange,
         onArcaneEffectTuningChange,
+        onChaosEffectTuningChange,
         onDistortionEffectTuningChange,
         onRadiantEffectTuningChange,
         onForceFieldEffectTuningChange,
@@ -435,6 +442,8 @@ export function ToolsMenu({
       onLightningEffectTuningReset();
     } else if (environmentEffectType === "arcane") {
       onArcaneEffectTuningReset();
+    } else if (environmentEffectType === "chaos") {
+      onChaosEffectTuningReset();
     } else if (environmentEffectType === "distortion") {
       onDistortionEffectTuningReset();
     } else if (environmentEffectType === "radiant") {
@@ -1106,6 +1115,7 @@ export function ToolsMenu({
                           onFireEffectTuningChange,
                           onLightningEffectTuningChange,
                           onArcaneEffectTuningChange,
+                          onChaosEffectTuningChange,
                           onDistortionEffectTuningChange,
                           onRadiantEffectTuningChange,
                           onForceFieldEffectTuningChange,
@@ -1185,6 +1195,16 @@ export function ToolsMenu({
                   <ArcaneEffectTuningPanel
                     tuning={arcaneEffectTuning}
                     onChange={onArcaneEffectTuningChange}
+                    onReset={resetEnvironmentEffectTuning}
+                  />
+                </>
+              )}
+              {environmentEffectType === "chaos" && (
+                <>
+                  <div className="tools-section-divider" />
+                  <ChaosEffectTuningPanel
+                    tuning={chaosEffectTuning}
+                    onChange={onChaosEffectTuningChange}
                     onReset={resetEnvironmentEffectTuning}
                   />
                 </>
@@ -1574,6 +1594,69 @@ export function ArcaneEffectTuningPanel({
           <div className="water-tuning-readout-row">
             <div className="water-tuning-readout" title={readout}>{readout}</div>
             <button className="icon-button no-chrome" type="button" title="Copy arcane tuning JSON" aria-label="Copy arcane tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
+              <Copy size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function ChaosEffectTuningPanel({
+  tuning,
+  title = "Advanced Settings",
+  defaultOpen = false,
+  onChange,
+  onReset
+}: {
+  tuning: ChaosEffectTuning;
+  title?: string;
+  defaultOpen?: boolean;
+  onChange: (tuning: ChaosEffectTuning) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const update = (patch: Partial<ChaosEffectTuning>) => onChange({ ...tuning, ...patch });
+  const readout = JSON.stringify(tuning);
+
+  return (
+    <div className="water-tuning-panel" aria-label="Chaos Field effect tuning">
+      <div className="tools-section-label-row">
+        <SettingsToggle open={open} label={title} onToggle={() => setOpen((current) => !current)} />
+        {open && (
+          <button className="icon-button no-chrome" type="button" title="Reset chaos field tuning" aria-label="Reset chaos field tuning" onClick={onReset}>
+            <Undo2 size={15} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      {open && (
+        <>
+          <div className="water-tuning-sliders">
+            <WaterTuningSlider label="Opacity" value={tuning.opacity} min={0} max={1} step={0.01} onChange={(opacity) => update({ opacity })} />
+            <WaterTuningSlider label="Chaos Scale" value={tuning.chaosScale} min={0.5} max={20} step={0.1} onChange={(chaosScale) => update({ chaosScale })} />
+            <WaterTuningSlider label="Animation Speed" value={tuning.speed} min={0} max={2} step={0.01} onChange={(speed) => update({ speed })} />
+            <WaterTuningSlider label="Drift Direction" value={tuning.directionDegrees} min={0} max={360} step={1} suffix="deg" onChange={(directionDegrees) => update({ directionDegrees })} />
+            <WaterTuningSlider label="Rift Density" value={tuning.riftDensity} min={0} max={1} step={0.01} onChange={(riftDensity) => update({ riftDensity })} />
+            <WaterTuningSlider label="Rift Warp" value={tuning.riftWarp} min={0} max={1} step={0.01} onChange={(riftWarp) => update({ riftWarp })} />
+            <WaterTuningSlider label="Mote Count" value={tuning.moteDensity} min={0} max={1} step={0.01} onChange={(moteDensity) => update({ moteDensity })} />
+            <WaterTuningSlider label="Mote Size" value={tuning.moteSize} min={0} max={5} step={0.05} onChange={(moteSize) => update({ moteSize })} />
+            <WaterTuningSlider label="Color Shift" value={tuning.colorShift} min={0} max={1} step={0.01} onChange={(colorShift) => update({ colorShift })} />
+            <WaterTuningSlider label="Pulse" value={tuning.pulse} min={0} max={1} step={0.01} onChange={(pulse) => update({ pulse })} />
+            <WaterTuningSlider label="Glow" value={tuning.glow} min={0} max={1} step={0.01} onChange={(glow) => update({ glow })} />
+            <WaterTuningSlider label="Instability" value={tuning.instability} min={0} max={1} step={0.01} onChange={(instability) => update({ instability })} />
+            <WaterTuningSlider label="Zoom Response" value={tuning.zoomScale} min={-3} max={3} step={0.05} onChange={(zoomScale) => update({ zoomScale })} />
+            <WaterTuningSlider label="Background Tint" value={tuning.baseAlpha} min={0} max={1} step={0.01} onChange={(baseAlpha) => update({ baseAlpha })} />
+          </div>
+          <div className="water-tuning-colors">
+            <WaterTuningColor label="Background" value={tuning.backgroundColor} onChange={(backgroundColor) => update({ backgroundColor })} />
+            <WaterTuningColor label="Rifts" value={tuning.riftColor} onChange={(riftColor) => update({ riftColor })} />
+            <WaterTuningColor label="Motes" value={tuning.moteColor} onChange={(moteColor) => update({ moteColor })} />
+            <WaterTuningColor label="Accent" value={tuning.accentColor} onChange={(accentColor) => update({ accentColor })} />
+          </div>
+          <div className="water-tuning-readout-row">
+            <div className="water-tuning-readout" title={readout}>{readout}</div>
+            <button className="icon-button no-chrome" type="button" title="Copy chaos field tuning JSON" aria-label="Copy chaos field tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
               <Copy size={15} aria-hidden="true" />
             </button>
           </div>

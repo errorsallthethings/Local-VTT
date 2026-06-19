@@ -1,6 +1,7 @@
 import type { EnvironmentEffectType } from "../../shared/localvtt";
 import {
   ARCANE_EFFECT_PRESETS,
+  CHAOS_EFFECT_PRESETS,
   FIRE_EFFECT_PRESETS,
   FOG_EFFECT_PRESETS,
   FORCE_FIELD_EFFECT_PRESETS,
@@ -12,6 +13,7 @@ import {
   SMOKE_EFFECT_PRESETS,
   WATER_EFFECT_PRESETS,
   type ArcaneEffectTuning,
+  type ChaosEffectTuning,
   type FireEffectTuning,
   type FogEffectTuning,
   type ForceFieldEffectTuning,
@@ -33,6 +35,7 @@ export const ENVIRONMENT_EFFECT_FEATHER_OPTIONS = [
 
 export const ENVIRONMENT_EFFECT_OPTIONS: Array<{ label: string; value: EnvironmentEffectType }> = [
   { label: "Arcane", value: "arcane" },
+  { label: "Chaos Field", value: "chaos" },
   { label: "Distortion", value: "distortion" },
   { label: "Electric", value: "electric" },
   { label: "Fire", value: "fire" },
@@ -47,6 +50,7 @@ export const ENVIRONMENT_EFFECT_OPTIONS: Array<{ label: string; value: Environme
 
 const ENVIRONMENT_EFFECT_LABELS: Record<EnvironmentEffectType, string> = {
   arcane: "Arcane",
+  chaos: "Chaos Field",
   distortion: "Distortion",
   electric: "Electric",
   field: "Force Field",
@@ -65,6 +69,12 @@ const ENVIRONMENT_EFFECT_PRESET_OPTIONS: Record<EnvironmentEffectType, Array<{ l
     { label: "Ritual Circle", value: "ritualCircle" },
     { label: "Sigil Field", value: "sigilField" },
     { label: "Warding Runes", value: "wardingRunes" }
+  ],
+  chaos: [
+    { label: "Custom", value: "custom" },
+    { label: "Wild Surge", value: "wildSurge" },
+    { label: "Prismatic Rift", value: "prismaticRift" },
+    { label: "Chaos Motes", value: "chaosMotes" }
   ],
   distortion: [
     { label: "Custom", value: "custom" },
@@ -127,6 +137,7 @@ const ENVIRONMENT_EFFECT_PRESET_OPTIONS: Record<EnvironmentEffectType, Array<{ l
 
 const ENVIRONMENT_EFFECT_CANVAS_STYLES: Record<EnvironmentEffectType, { previewFill: string; stroke: string }> = {
   arcane: { previewFill: "rgba(168, 85, 247, 0.18)", stroke: "rgba(192, 132, 252, 0.95)" },
+  chaos: { previewFill: "rgba(244, 114, 182, 0.16)", stroke: "rgba(244, 114, 182, 0.95)" },
   distortion: { previewFill: "rgba(103, 232, 249, 0.14)", stroke: "rgba(103, 232, 249, 0.95)" },
   electric: { previewFill: "rgba(250, 204, 21, 0.18)", stroke: "rgba(250, 204, 21, 0.95)" },
   field: { previewFill: "rgba(103, 232, 249, 0.14)", stroke: "rgba(103, 232, 249, 0.95)" },
@@ -146,6 +157,7 @@ export function getEnvironmentEffectPresetSelectValue(
   fireEffectTuning: FireEffectTuning,
   lightningEffectTuning: LightningEffectTuning,
   arcaneEffectTuning: ArcaneEffectTuning,
+  chaosEffectTuning: ChaosEffectTuning,
   distortionEffectTuning: DistortionEffectTuning,
   radiantEffectTuning: RadiantEffectTuning,
   forceFieldEffectTuning: ForceFieldEffectTuning,
@@ -164,6 +176,9 @@ export function getEnvironmentEffectPresetSelectValue(
   }
   if (effect === "arcane") {
     return getArcanePresetSelectValue(arcaneEffectTuning);
+  }
+  if (effect === "chaos") {
+    return getChaosPresetSelectValue(chaosEffectTuning);
   }
   if (effect === "distortion") {
     return getDistortionPresetSelectValue(distortionEffectTuning);
@@ -199,6 +214,7 @@ export function applyEnvironmentEffectPreset(
     onFireEffectTuningChange: (tuning: FireEffectTuning) => void;
     onLightningEffectTuningChange: (tuning: LightningEffectTuning) => void;
     onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
+    onChaosEffectTuningChange: (tuning: ChaosEffectTuning) => void;
     onDistortionEffectTuningChange: (tuning: DistortionEffectTuning) => void;
     onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
     onForceFieldEffectTuningChange: (tuning: ForceFieldEffectTuning) => void;
@@ -232,6 +248,13 @@ export function applyEnvironmentEffectPreset(
     const preset = ARCANE_EFFECT_PRESETS[value as keyof typeof ARCANE_EFFECT_PRESETS];
     if (preset) {
       handlers.onArcaneEffectTuningChange({ ...preset });
+    }
+    return;
+  }
+  if (effect === "chaos") {
+    const preset = CHAOS_EFFECT_PRESETS[value as keyof typeof CHAOS_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onChaosEffectTuningChange({ ...preset });
     }
     return;
   }
@@ -340,6 +363,15 @@ function getArcanePresetSelectValue(tuning: ArcaneEffectTuning): keyof typeof AR
   for (const [presetName, preset] of Object.entries(ARCANE_EFFECT_PRESETS)) {
     if (isArcaneTuningMatch(tuning, preset)) {
       return presetName as keyof typeof ARCANE_EFFECT_PRESETS;
+    }
+  }
+  return "custom";
+}
+
+function getChaosPresetSelectValue(tuning: ChaosEffectTuning): keyof typeof CHAOS_EFFECT_PRESETS | "custom" {
+  for (const [presetName, preset] of Object.entries(CHAOS_EFFECT_PRESETS)) {
+    if (isChaosTuningMatch(tuning, preset)) {
+      return presetName as keyof typeof CHAOS_EFFECT_PRESETS;
     }
   }
   return "custom";
@@ -500,6 +532,29 @@ function isArcaneTuningMatch(tuning: ArcaneEffectTuning, preset: ArcaneEffectTun
     tuning.backgroundColor === preset.backgroundColor &&
     tuning.glyphColor === preset.glyphColor &&
     tuning.glowColor === preset.glowColor
+  );
+}
+
+function isChaosTuningMatch(tuning: ChaosEffectTuning, preset: ChaosEffectTuning): boolean {
+  return (
+    tuning.opacity === preset.opacity &&
+    tuning.chaosScale === preset.chaosScale &&
+    tuning.speed === preset.speed &&
+    tuning.directionDegrees === preset.directionDegrees &&
+    tuning.riftDensity === preset.riftDensity &&
+    tuning.riftWarp === preset.riftWarp &&
+    tuning.moteDensity === preset.moteDensity &&
+    tuning.moteSize === preset.moteSize &&
+    tuning.colorShift === preset.colorShift &&
+    tuning.pulse === preset.pulse &&
+    tuning.glow === preset.glow &&
+    tuning.instability === preset.instability &&
+    tuning.zoomScale === preset.zoomScale &&
+    tuning.baseAlpha === preset.baseAlpha &&
+    tuning.backgroundColor === preset.backgroundColor &&
+    tuning.riftColor === preset.riftColor &&
+    tuning.moteColor === preset.moteColor &&
+    tuning.accentColor === preset.accentColor
   );
 }
 

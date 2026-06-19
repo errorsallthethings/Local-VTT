@@ -44,8 +44,8 @@ import type {
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ArcaneEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, ToolsMenu, WaterEffectTuningPanel, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
-import { DEFAULT_ARCANE_EFFECT_TUNING, DEFAULT_DISTORTION_EFFECT_TUNING, DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_FORCE_FIELD_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_RADIANT_EFFECT_TUNING, DEFAULT_SHOCKWAVE_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type ArcaneEffectTuning, type DistortionEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../canvas/environmentEffectsRenderer";
+import { ArcaneEffectTuningPanel, ChaosEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, ToolsMenu, WaterEffectTuningPanel, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
+import { DEFAULT_ARCANE_EFFECT_TUNING, DEFAULT_CHAOS_EFFECT_TUNING, DEFAULT_DISTORTION_EFFECT_TUNING, DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_FORCE_FIELD_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_RADIANT_EFFECT_TUNING, DEFAULT_SHOCKWAVE_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type ArcaneEffectTuning, type ChaosEffectTuning, type DistortionEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../canvas/environmentEffectsRenderer";
 import type { DrawingTool } from "../canvas/drawingRenderer";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -174,6 +174,7 @@ export function GmApp() {
   const [fireEffectTuning, setFireEffectTuning] = useState<FireEffectTuning>(DEFAULT_FIRE_EFFECT_TUNING);
   const [lightningEffectTuning, setLightningEffectTuning] = useState<LightningEffectTuning>(DEFAULT_LIGHTNING_EFFECT_TUNING);
   const [arcaneEffectTuning, setArcaneEffectTuning] = useState<ArcaneEffectTuning>(DEFAULT_ARCANE_EFFECT_TUNING);
+  const [chaosEffectTuning, setChaosEffectTuning] = useState<ChaosEffectTuning>(DEFAULT_CHAOS_EFFECT_TUNING);
   const [distortionEffectTuning, setDistortionEffectTuning] = useState<DistortionEffectTuning>(DEFAULT_DISTORTION_EFFECT_TUNING);
   const [radiantEffectTuning, setRadiantEffectTuning] = useState<RadiantEffectTuning>(DEFAULT_RADIANT_EFFECT_TUNING);
   const [forceFieldEffectTuning, setForceFieldEffectTuning] = useState<ForceFieldEffectTuning>(DEFAULT_FORCE_FIELD_EFFECT_TUNING);
@@ -500,6 +501,20 @@ export function GmApp() {
     });
   };
 
+  const updateEnvironmentEffectChaosTuning = (effectId: string, chaosTuning: ChaosEffectTuning) => {
+    if (!activeScene) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      environment: {
+        ...activeScene.environment,
+        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, chaosTuning } : effect))
+      },
+      updatedAt: new Date().toISOString()
+    });
+  };
+
   const updateEnvironmentEffectDistortionTuning = (effectId: string, distortionTuning: DistortionEffectTuning) => {
     if (!activeScene) {
       return;
@@ -616,6 +631,7 @@ export function GmApp() {
                 fireTuning: effectType === "fire" ? (effect.fireTuning ?? { ...DEFAULT_FIRE_EFFECT_TUNING }) : undefined,
                 lightningTuning: effectType === "electric" ? (effect.lightningTuning ?? { ...DEFAULT_LIGHTNING_EFFECT_TUNING }) : undefined,
                 arcaneTuning: effectType === "arcane" ? (effect.arcaneTuning ?? { ...DEFAULT_ARCANE_EFFECT_TUNING }) : undefined,
+                chaosTuning: effectType === "chaos" ? (effect.chaosTuning ?? { ...DEFAULT_CHAOS_EFFECT_TUNING }) : undefined,
                 distortionTuning: effectType === "distortion" ? (effect.distortionTuning ?? { ...DEFAULT_DISTORTION_EFFECT_TUNING }) : undefined,
                 radiantTuning: effectType === "radiant" ? (effect.radiantTuning ?? { ...DEFAULT_RADIANT_EFFECT_TUNING }) : undefined,
                 fieldTuning: effectType === "field" ? (effect.fieldTuning ?? { ...DEFAULT_FORCE_FIELD_EFFECT_TUNING }) : undefined,
@@ -2112,6 +2128,7 @@ export function GmApp() {
               fireEffectTuning={fireEffectTuning}
               lightningEffectTuning={lightningEffectTuning}
               arcaneEffectTuning={arcaneEffectTuning}
+              chaosEffectTuning={chaosEffectTuning}
               distortionEffectTuning={distortionEffectTuning}
               radiantEffectTuning={radiantEffectTuning}
               forceFieldEffectTuning={forceFieldEffectTuning}
@@ -2166,6 +2183,8 @@ export function GmApp() {
               onLightningEffectTuningReset={() => setLightningEffectTuning(DEFAULT_LIGHTNING_EFFECT_TUNING)}
               onArcaneEffectTuningChange={setArcaneEffectTuning}
               onArcaneEffectTuningReset={() => setArcaneEffectTuning(DEFAULT_ARCANE_EFFECT_TUNING)}
+              onChaosEffectTuningChange={setChaosEffectTuning}
+              onChaosEffectTuningReset={() => setChaosEffectTuning(DEFAULT_CHAOS_EFFECT_TUNING)}
               onDistortionEffectTuningChange={setDistortionEffectTuning}
               onDistortionEffectTuningReset={() => setDistortionEffectTuning(DEFAULT_DISTORTION_EFFECT_TUNING)}
               onRadiantEffectTuningChange={setRadiantEffectTuning}
@@ -2245,6 +2264,7 @@ export function GmApp() {
             fireEffectTuning={fireEffectTuning}
             lightningEffectTuning={lightningEffectTuning}
             arcaneEffectTuning={arcaneEffectTuning}
+            chaosEffectTuning={chaosEffectTuning}
             distortionEffectTuning={distortionEffectTuning}
             radiantEffectTuning={radiantEffectTuning}
             forceFieldEffectTuning={forceFieldEffectTuning}
@@ -2392,6 +2412,8 @@ export function GmApp() {
           onLightningTuningReset={() => updateEnvironmentEffectLightningTuning(environmentEffectEditorEffect.id, { ...DEFAULT_LIGHTNING_EFFECT_TUNING })}
           onArcaneTuningChange={(arcaneTuning) => updateEnvironmentEffectArcaneTuning(environmentEffectEditorEffect.id, arcaneTuning)}
           onArcaneTuningReset={() => updateEnvironmentEffectArcaneTuning(environmentEffectEditorEffect.id, { ...DEFAULT_ARCANE_EFFECT_TUNING })}
+          onChaosTuningChange={(chaosTuning) => updateEnvironmentEffectChaosTuning(environmentEffectEditorEffect.id, chaosTuning)}
+          onChaosTuningReset={() => updateEnvironmentEffectChaosTuning(environmentEffectEditorEffect.id, { ...DEFAULT_CHAOS_EFFECT_TUNING })}
           onDistortionTuningChange={(distortionTuning) => updateEnvironmentEffectDistortionTuning(environmentEffectEditorEffect.id, distortionTuning)}
           onDistortionTuningReset={() => updateEnvironmentEffectDistortionTuning(environmentEffectEditorEffect.id, { ...DEFAULT_DISTORTION_EFFECT_TUNING })}
           onRadiantTuningChange={(radiantTuning) => updateEnvironmentEffectRadiantTuning(environmentEffectEditorEffect.id, radiantTuning)}
@@ -2549,6 +2571,8 @@ function EnvironmentEffectEditorModal({
   onLightningTuningReset,
   onArcaneTuningChange,
   onArcaneTuningReset,
+  onChaosTuningChange,
+  onChaosTuningReset,
   onDistortionTuningChange,
   onDistortionTuningReset,
   onRadiantTuningChange,
@@ -2578,6 +2602,8 @@ function EnvironmentEffectEditorModal({
   onLightningTuningReset: () => void;
   onArcaneTuningChange: (tuning: ArcaneEffectTuning) => void;
   onArcaneTuningReset: () => void;
+  onChaosTuningChange: (tuning: ChaosEffectTuning) => void;
+  onChaosTuningReset: () => void;
   onDistortionTuningChange: (tuning: DistortionEffectTuning) => void;
   onDistortionTuningReset: () => void;
   onRadiantTuningChange: (tuning: RadiantEffectTuning) => void;
@@ -2602,13 +2628,14 @@ function EnvironmentEffectEditorModal({
   const activeFireTuning = { ...DEFAULT_FIRE_EFFECT_TUNING, ...(effect.fireTuning ?? {}) };
   const activeLightningTuning = { ...DEFAULT_LIGHTNING_EFFECT_TUNING, ...(effect.lightningTuning ?? {}) };
   const activeArcaneTuning = { ...DEFAULT_ARCANE_EFFECT_TUNING, ...(effect.arcaneTuning ?? {}) };
+  const activeChaosTuning = { ...DEFAULT_CHAOS_EFFECT_TUNING, ...(effect.chaosTuning ?? {}) };
   const activeDistortionTuning = { ...DEFAULT_DISTORTION_EFFECT_TUNING, ...(effect.distortionTuning ?? {}) };
   const activeRadiantTuning = { ...DEFAULT_RADIANT_EFFECT_TUNING, ...(effect.radiantTuning ?? {}) };
   const activeForceFieldTuning = { ...DEFAULT_FORCE_FIELD_EFFECT_TUNING, ...(effect.fieldTuning ?? {}) };
   const activeShockwaveTuning = { ...DEFAULT_SHOCKWAVE_EFFECT_TUNING, ...(effect.shockwaveTuning ?? {}) };
   const activeSmokeTuning = { ...DEFAULT_SMOKE_EFFECT_TUNING, ...(effect.smokeTuning ?? {}) };
   const activeFogTuning = { ...DEFAULT_FOG_EFFECT_TUNING, ...(effect.fogTuning ?? {}) };
-  const defaultPresetValue = getEnvironmentEffectPresetSelectValue(effect.effect, activeWaterTuning, activeLavaTuning, activeFireTuning, activeLightningTuning, activeArcaneTuning, activeDistortionTuning, activeRadiantTuning, activeForceFieldTuning, activeShockwaveTuning, activeSmokeTuning, activeFogTuning);
+  const defaultPresetValue = getEnvironmentEffectPresetSelectValue(effect.effect, activeWaterTuning, activeLavaTuning, activeFireTuning, activeLightningTuning, activeArcaneTuning, activeChaosTuning, activeDistortionTuning, activeRadiantTuning, activeForceFieldTuning, activeShockwaveTuning, activeSmokeTuning, activeFogTuning);
   const [presetSelection, setPresetSelection] = useState(() => ({ effectId: effect.id, value: defaultPresetValue }));
   const presetValue = presetSelection.effectId === effect.id ? presetSelection.value : defaultPresetValue;
   const resetActiveTuning = () => {
@@ -2619,6 +2646,7 @@ function EnvironmentEffectEditorModal({
         onFireEffectTuningChange: onFireTuningChange,
         onLightningEffectTuningChange: onLightningTuningChange,
         onArcaneEffectTuningChange: onArcaneTuningChange,
+        onChaosEffectTuningChange: onChaosTuningChange,
         onDistortionEffectTuningChange: onDistortionTuningChange,
         onRadiantEffectTuningChange: onRadiantTuningChange,
         onForceFieldEffectTuningChange: onForceFieldTuningChange,
@@ -2639,6 +2667,8 @@ function EnvironmentEffectEditorModal({
       onLightningTuningReset();
     } else if (effect.effect === "arcane") {
       onArcaneTuningReset();
+    } else if (effect.effect === "chaos") {
+      onChaosTuningReset();
     } else if (effect.effect === "distortion") {
       onDistortionTuningReset();
     } else if (effect.effect === "radiant") {
@@ -2752,6 +2782,7 @@ function EnvironmentEffectEditorModal({
                     onFireEffectTuningChange: onFireTuningChange,
                     onLightningEffectTuningChange: onLightningTuningChange,
                     onArcaneEffectTuningChange: onArcaneTuningChange,
+                    onChaosEffectTuningChange: onChaosTuningChange,
                     onDistortionEffectTuningChange: onDistortionTuningChange,
                     onRadiantEffectTuningChange: onRadiantTuningChange,
                     onForceFieldEffectTuningChange: onForceFieldTuningChange,
@@ -2824,6 +2855,14 @@ function EnvironmentEffectEditorModal({
             tuning={activeArcaneTuning}
             defaultOpen
             onChange={onArcaneTuningChange}
+            onReset={resetActiveTuning}
+          />
+        ) : effect.effect === "chaos" ? (
+          <ChaosEffectTuningPanel
+            key={effect.id}
+            tuning={activeChaosTuning}
+            defaultOpen
+            onChange={onChaosTuningChange}
             onReset={resetActiveTuning}
           />
         ) : effect.effect === "distortion" ? (

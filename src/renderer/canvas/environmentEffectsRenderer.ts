@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {
   DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_CHAOS_EFFECT_TUNING_SETTINGS,
   DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS,
   DEFAULT_FOG_EFFECT_TUNING_SETTINGS,
   DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
@@ -12,6 +13,7 @@ import {
   DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS,
   DEFAULT_WATER_EFFECT_TUNING_SETTINGS,
   type ArcaneEffectTuningSettings,
+  type ChaosEffectTuningSettings,
   type DistortionEffectTuningSettings,
   type FogEffectTuningSettings,
   type FireEffectTuningSettings,
@@ -39,6 +41,7 @@ export type ShockwaveEffectTuning = ShockwaveEffectTuningSettings;
 export type DistortionEffectTuning = DistortionEffectTuningSettings;
 export type LightningEffectTuning = LightningEffectTuningSettings;
 export type ArcaneEffectTuning = ArcaneEffectTuningSettings;
+export type ChaosEffectTuning = ChaosEffectTuningSettings;
 export type RadiantEffectTuning = RadiantEffectTuningSettings;
 export type SmokeEffectTuning = SmokeEffectTuningSettings;
 export type FogEffectTuning = FogEffectTuningSettings;
@@ -51,6 +54,7 @@ export const DEFAULT_SHOCKWAVE_EFFECT_TUNING: ShockwaveEffectTuning = DEFAULT_SH
 export const DEFAULT_DISTORTION_EFFECT_TUNING: DistortionEffectTuning = DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_LIGHTNING_EFFECT_TUNING: LightningEffectTuning = DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_ARCANE_EFFECT_TUNING: ArcaneEffectTuning = DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS;
+export const DEFAULT_CHAOS_EFFECT_TUNING: ChaosEffectTuning = DEFAULT_CHAOS_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_RADIANT_EFFECT_TUNING: RadiantEffectTuning = DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_SMOKE_EFFECT_TUNING: SmokeEffectTuning = DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FOG_EFFECT_TUNING: FogEffectTuning = DEFAULT_FOG_EFFECT_TUNING_SETTINGS;
@@ -245,6 +249,52 @@ export const ARCANE_EFFECT_PRESETS = {
     glowColor: "#ddd6fe"
   }
 } as const satisfies Record<string, ArcaneEffectTuning>;
+
+export const CHAOS_EFFECT_PRESETS = {
+  wildSurge: { ...DEFAULT_CHAOS_EFFECT_TUNING },
+  prismaticRift: {
+    opacity: 0.86,
+    chaosScale: 4.2,
+    speed: 0.52,
+    directionDegrees: 245,
+    riftDensity: 0.78,
+    riftWarp: 0.88,
+    moteDensity: 0.42,
+    moteSize: 1.9,
+    colorShift: 0.92,
+    pulse: 0.74,
+    glow: 0.88,
+    instability: 0.86,
+    panFollow: 1,
+    zoomScale: 1,
+    baseAlpha: 0.18,
+    backgroundColor: "#150720",
+    riftColor: "#f472b6",
+    moteColor: "#22d3ee",
+    accentColor: "#facc15"
+  },
+  chaosMotes: {
+    opacity: 0.76,
+    chaosScale: 0.5,
+    speed: 0.28,
+    directionDegrees: 286,
+    riftDensity: 0.24,
+    riftWarp: 0.54,
+    moteDensity: 0.92,
+    moteSize: 3.4,
+    colorShift: 0.85,
+    pulse: 0.58,
+    glow: 0.7,
+    instability: 0.62,
+    panFollow: 1,
+    zoomScale: -0.5,
+    baseAlpha: 0.12,
+    backgroundColor: "#08111f",
+    riftColor: "#a78bfa",
+    moteColor: "#67e8f9",
+    accentColor: "#fb7185"
+  }
+} as const satisfies Record<string, ChaosEffectTuning>;
 
 export const RADIANT_EFFECT_PRESETS = {
   holyLight: {
@@ -540,6 +590,7 @@ let lavaRuntime: WaterRuntime | null = null;
 let fireRuntime: WaterRuntime | null = null;
 let lightningRuntime: WaterRuntime | null = null;
 let arcaneRuntime: WaterRuntime | null = null;
+let chaosRuntime: WaterRuntime | null = null;
 let radiantRuntime: WaterRuntime | null = null;
 let forceFieldRuntime: WaterRuntime | null = null;
 let shockwaveRuntime: WaterRuntime | null = null;
@@ -775,6 +826,50 @@ export function drawEnvironmentArcaneEffect(
   updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateArcaneMaterialTuning(runtime.meshA.material, tuning);
   updateArcaneMaterialTuning(runtime.meshB.material, tuning);
+
+  runtime.renderer.setSize(width, height, false);
+  runtime.renderer.setClearColor(0x000000, 0);
+  runtime.renderer.clear();
+  runtime.renderer.render(runtime.scene, runtime.camera);
+
+  ctx.save();
+  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
+  ctx.restore();
+}
+
+export function drawEnvironmentChaosEffect(
+  ctx: CanvasRenderingContext2D,
+  bounds: ScreenBounds,
+  timestamp: number,
+  layerOpacity: number,
+  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
+  tuning: ChaosEffectTuning = DEFAULT_CHAOS_EFFECT_TUNING
+) {
+  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
+    return;
+  }
+
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
+  const height = ctx.canvas.clientHeight || ctx.canvas.height;
+  const runtime = getChaosRuntime(width, height);
+  if (!runtime) {
+    drawChaosFallback(ctx, bounds, layerOpacity);
+    return;
+  }
+
+  const time = (timestamp - runtime.startedAt) / 1000;
+  positionWaterMesh(runtime.meshA, width, height, 1);
+  positionWaterMesh(runtime.meshB, width, height, 1);
+  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
+  runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.34;
+  runtime.meshA.material.uniforms.time.value = time;
+  runtime.meshB.material.uniforms.time.value = time * 0.59 + 29.4;
+  runtime.meshA.material.uniforms.resolution.value.set(width, height);
+  runtime.meshB.material.uniforms.resolution.value.set(width, height);
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateChaosMaterialTuning(runtime.meshA.material, tuning);
+  updateChaosMaterialTuning(runtime.meshB.material, tuning);
 
   runtime.renderer.setSize(width, height, false);
   runtime.renderer.setClearColor(0x000000, 0);
@@ -1293,6 +1388,55 @@ function getArcaneRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   return arcaneRuntime;
+}
+
+function getChaosRuntime(width: number, height: number): WaterRuntime | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!chaosRuntime) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+    camera.position.set(0, 0, 2400);
+    camera.lookAt(0, 0, 0);
+
+    const material = createChaosMaterial(0.82);
+    const materialB = createChaosMaterial(0.32);
+    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    meshA.position.z = 1280;
+    meshB.position.z = 1281;
+    scene.add(meshA, meshB);
+
+    chaosRuntime = {
+      renderer,
+      scene,
+      camera,
+      meshA,
+      meshB,
+      startedAt: Date.now(),
+      width: 0,
+      height: 0
+    };
+  }
+
+  if (chaosRuntime.width !== width || chaosRuntime.height !== height) {
+    chaosRuntime.width = width;
+    chaosRuntime.height = height;
+    chaosRuntime.camera.left = 0;
+    chaosRuntime.camera.right = width;
+    chaosRuntime.camera.top = 0;
+    chaosRuntime.camera.bottom = height;
+    chaosRuntime.camera.near = 0.1;
+    chaosRuntime.camera.far = 5000;
+    chaosRuntime.camera.updateProjectionMatrix();
+  }
+
+  return chaosRuntime;
 }
 
 function getRadiantRuntime(width: number, height: number): WaterRuntime | null {
@@ -2406,6 +2550,194 @@ function updateArcaneMaterialTuning(material: THREE.ShaderMaterial, tuning: Arca
   material.uniforms.glowColor.value.set(tuning.glowColor);
 }
 
+function createChaosMaterial(opacity: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    uniforms: {
+      chaosScale: { value: DEFAULT_CHAOS_EFFECT_TUNING.chaosScale },
+      speed: { value: DEFAULT_CHAOS_EFFECT_TUNING.speed },
+      directionRadians: { value: degreesToRadians(DEFAULT_CHAOS_EFFECT_TUNING.directionDegrees) },
+      riftDensity: { value: DEFAULT_CHAOS_EFFECT_TUNING.riftDensity },
+      riftWarp: { value: DEFAULT_CHAOS_EFFECT_TUNING.riftWarp },
+      moteDensity: { value: DEFAULT_CHAOS_EFFECT_TUNING.moteDensity },
+      moteSize: { value: DEFAULT_CHAOS_EFFECT_TUNING.moteSize },
+      colorShift: { value: DEFAULT_CHAOS_EFFECT_TUNING.colorShift },
+      pulse: { value: DEFAULT_CHAOS_EFFECT_TUNING.pulse },
+      glow: { value: DEFAULT_CHAOS_EFFECT_TUNING.glow },
+      instability: { value: DEFAULT_CHAOS_EFFECT_TUNING.instability },
+      panFollow: { value: DEFAULT_CHAOS_EFFECT_TUNING.panFollow },
+      zoomScale: { value: DEFAULT_CHAOS_EFFECT_TUNING.zoomScale },
+      baseAlpha: { value: DEFAULT_CHAOS_EFFECT_TUNING.baseAlpha },
+      backgroundColor: { value: new THREE.Color(DEFAULT_CHAOS_EFFECT_TUNING.backgroundColor) },
+      riftColor: { value: new THREE.Color(DEFAULT_CHAOS_EFFECT_TUNING.riftColor) },
+      moteColor: { value: new THREE.Color(DEFAULT_CHAOS_EFFECT_TUNING.moteColor) },
+      accentColor: { value: new THREE.Color(DEFAULT_CHAOS_EFFECT_TUNING.accentColor) },
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2(1, 1) },
+      cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
+      effectSize: { value: new THREE.Vector2(1, 1) },
+      cameraZoom: { value: 1 },
+      opacity: { value: opacity }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float chaosScale;
+      uniform float speed;
+      uniform float directionRadians;
+      uniform float riftDensity;
+      uniform float riftWarp;
+      uniform float moteDensity;
+      uniform float moteSize;
+      uniform float colorShift;
+      uniform float pulse;
+      uniform float glow;
+      uniform float instability;
+      uniform float panFollow;
+      uniform float zoomScale;
+      uniform float baseAlpha;
+      uniform vec3 backgroundColor;
+      uniform vec3 riftColor;
+      uniform vec3 moteColor;
+      uniform vec3 accentColor;
+      uniform float time;
+      uniform vec2 resolution;
+      uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
+      uniform vec2 effectSize;
+      uniform float cameraZoom;
+      uniform float opacity;
+
+      float randomValue(vec2 value) {
+        return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float valueNoise(vec2 value) {
+        vec2 base = floor(value);
+        vec2 fraction = fract(value);
+        vec2 blend = fraction * fraction * (3.0 - 2.0 * fraction);
+        float a = randomValue(base);
+        float b = randomValue(base + vec2(1.0, 0.0));
+        float c = randomValue(base + vec2(0.0, 1.0));
+        float d = randomValue(base + vec2(1.0, 1.0));
+        return mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y);
+      }
+
+      float fbm(vec2 value) {
+        float total = 0.0;
+        float amplitude = 0.5;
+        for (int i = 0; i < 5; i++) {
+          total += valueNoise(value) * amplitude;
+          value *= 2.05;
+          amplitude *= 0.52;
+        }
+        return total;
+      }
+
+      mat2 rotate2d(float angle) {
+        float s = sin(angle);
+        float c = cos(angle);
+        return mat2(c, -s, s, c);
+      }
+
+      float riftLayer(vec2 uv, float localTime, float seedOffset) {
+        vec2 warped = uv;
+        float coarse = fbm(warped * 0.55 + vec2(seedOffset, localTime * 0.12));
+        float fine = fbm(warped * 1.7 + vec2(localTime * 0.08, seedOffset * 1.7));
+        warped += vec2(coarse - 0.5, fine - 0.5) * riftWarp * (0.65 + instability);
+        float path = warped.x * mix(1.8, 8.4, riftDensity) + sin(warped.y * (2.4 + chaosScale * 0.18) + localTime * 2.4 + seedOffset) * (0.22 + riftWarp * 0.55);
+        path += fbm(warped * (1.8 + chaosScale * 0.22) + seedOffset) * instability * 1.8;
+        float line = 1.0 - smoothstep(0.018, mix(0.11, 0.035, riftDensity), abs(fract(path) - 0.5));
+        float segment = smoothstep(0.2, 0.92, fbm(warped * vec2(2.8, 7.4) + vec2(localTime * 0.34, seedOffset)));
+        float flare = smoothstep(0.82, 1.0, fbm(warped * 3.2 - vec2(seedOffset, localTime * 0.28)));
+        return line * mix(0.42, 1.0, segment) + flare * line * glow * 0.5;
+      }
+
+      float chaosMotes(vec2 uv, float localTime) {
+        float density = mix(2.0, 18.0, moteDensity);
+        vec2 grid = uv * density;
+        vec2 cell = floor(grid);
+        float seed = randomValue(cell);
+        vec2 offset = vec2(randomValue(cell + vec2(19.0, 5.0)), randomValue(cell + vec2(7.0, 31.0))) - 0.5;
+        offset += vec2(sin(localTime * (0.7 + seed) + seed * 8.0), cos(localTime * (0.52 + seed) + seed * 11.0)) * instability * 0.18;
+        vec2 local = fract(grid) - 0.5 - offset * 0.82;
+        float visible = step(1.0 - moteDensity, seed) * smoothstep(0.02, 0.12, moteDensity);
+        float radius = length(local);
+        float normalizedSize = clamp(moteSize / 5.0, 0.0, 1.0);
+        float core = smoothstep(mix(0.035, 0.24, normalizedSize), 0.0, radius);
+        float halo = smoothstep(mix(0.18, 0.48, normalizedSize), 0.0, radius) * 0.35 * glow;
+        float twinkle = 0.55 + 0.45 * sin(localTime * (3.0 + seed * 8.0) + seed * 21.0);
+        return (core + halo) * visible * twinkle;
+      }
+
+      void main() {
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
+        vec2 size = max(effectSize, vec2(1.0));
+        vec2 localCoord = (worldCoord - effectOrigin) / size;
+        vec2 centered = localCoord - 0.5;
+        centered.x *= size.x / max(size.y, 1.0);
+        vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
+        vec2 perpendicular = vec2(-direction.y, direction.x);
+        vec2 uv = anchoredCoord / 150.0 * zoomFactor;
+        vec2 flowUv = vec2(dot(uv, direction), dot(uv, perpendicular));
+        float localTime = time * speed;
+        flowUv.x += localTime * 0.42;
+        flowUv += rotate2d(localTime * 0.08 * instability) * centered * 0.36;
+
+        float riftA = riftLayer(flowUv * max(0.25, chaosScale / 5.0), localTime, 3.1);
+        float riftB = riftLayer(rotate2d(1.17 + colorShift) * flowUv.yx * max(0.25, chaosScale / 6.0), localTime * 0.83 + 4.0, 17.7) * 0.72;
+        float mote = chaosMotes(localCoord * (1.2 + chaosScale * 0.08) + vec2(localTime * 0.06, -localTime * 0.04), localTime) * moteDensity;
+        float fieldNoise = fbm(flowUv * 0.45 + vec2(localTime * 0.09, 6.0));
+        float pulseWave = 0.72 + sin(localTime * 6.2831 + fieldNoise * 5.8) * 0.28 * pulse;
+        float energy = clamp((riftA + riftB) * (0.58 + riftDensity * 0.64) * pulseWave + mote * 0.82 + fieldNoise * baseAlpha * 0.5, 0.0, 1.0);
+        vec3 shiftedRift = mix(riftColor, accentColor, smoothstep(0.2, 0.95, sin(fieldNoise * 6.2831 + localTime * 2.0) * 0.5 + 0.5) * colorShift);
+        vec3 color = mix(backgroundColor, shiftedRift, clamp(riftA + riftB, 0.0, 1.0));
+        color = mix(color, moteColor, clamp(mote + energy * glow * 0.32, 0.0, 1.0));
+        color = mix(color, accentColor, smoothstep(0.72, 1.0, energy) * colorShift * 0.55);
+        float alpha = (baseAlpha * 0.42 + energy * (0.62 + glow * 0.48)) * opacity;
+        alpha *= smoothstep(0.02, 0.12, energy + baseAlpha);
+        gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+      }
+    `
+  });
+}
+
+function updateChaosMaterialTuning(material: THREE.ShaderMaterial, tuning: ChaosEffectTuning) {
+  material.uniforms.chaosScale.value = tuning.chaosScale;
+  material.uniforms.speed.value = tuning.speed;
+  material.uniforms.directionRadians.value = degreesToRadians(tuning.directionDegrees);
+  material.uniforms.riftDensity.value = tuning.riftDensity;
+  material.uniforms.riftWarp.value = tuning.riftWarp;
+  material.uniforms.moteDensity.value = tuning.moteDensity;
+  material.uniforms.moteSize.value = tuning.moteSize;
+  material.uniforms.colorShift.value = tuning.colorShift;
+  material.uniforms.pulse.value = tuning.pulse;
+  material.uniforms.glow.value = tuning.glow;
+  material.uniforms.instability.value = tuning.instability;
+  material.uniforms.panFollow.value = 1;
+  material.uniforms.zoomScale.value = tuning.zoomScale;
+  material.uniforms.baseAlpha.value = tuning.baseAlpha;
+  material.uniforms.backgroundColor.value.set(tuning.backgroundColor);
+  material.uniforms.riftColor.value.set(tuning.riftColor);
+  material.uniforms.moteColor.value.set(tuning.moteColor);
+  material.uniforms.accentColor.value.set(tuning.accentColor);
+}
+
 function createRadiantMaterial(opacity: number): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     transparent: true,
@@ -3423,6 +3755,14 @@ function drawArcaneFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds,
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.3;
   ctx.fillStyle = "rgb(192, 132, 252)";
+  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  ctx.restore();
+}
+
+function drawChaosFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.34;
+  ctx.fillStyle = "rgb(244, 114, 182)";
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }

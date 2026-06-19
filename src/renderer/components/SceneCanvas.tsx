@@ -60,6 +60,7 @@ import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenP
 import { getVideoTransform } from "../canvas/videoMap";
 import {
   DEFAULT_ARCANE_EFFECT_TUNING,
+  DEFAULT_CHAOS_EFFECT_TUNING,
   DEFAULT_DISTORTION_EFFECT_TUNING,
   DEFAULT_FOG_EFFECT_TUNING,
   DEFAULT_FORCE_FIELD_EFFECT_TUNING,
@@ -71,6 +72,7 @@ import {
   DEFAULT_SMOKE_EFFECT_TUNING,
   DEFAULT_WATER_EFFECT_TUNING,
   drawEnvironmentArcaneEffect,
+  drawEnvironmentChaosEffect,
   drawEnvironmentDistortionEffect,
   drawEnvironmentFogEffect,
   drawEnvironmentForceFieldEffect,
@@ -82,6 +84,7 @@ import {
   drawEnvironmentSmokeEffect,
   drawEnvironmentWaterEffect,
   type ArcaneEffectTuning,
+  type ChaosEffectTuning,
   type DistortionEffectTuning,
   type FogEffectTuning,
   type ForceFieldEffectTuning,
@@ -152,6 +155,7 @@ interface SceneCanvasProps {
   fireEffectTuning?: FireEffectTuning;
   lightningEffectTuning?: LightningEffectTuning;
   arcaneEffectTuning?: ArcaneEffectTuning;
+  chaosEffectTuning?: ChaosEffectTuning;
   distortionEffectTuning?: DistortionEffectTuning;
   radiantEffectTuning?: RadiantEffectTuning;
   forceFieldEffectTuning?: ForceFieldEffectTuning;
@@ -270,6 +274,7 @@ type EnvironmentEffectDrag = {
   fireTuning?: FireEffectTuning;
   lightningTuning?: LightningEffectTuning;
   arcaneTuning?: ArcaneEffectTuning;
+  chaosTuning?: ChaosEffectTuning;
   distortionTuning?: DistortionEffectTuning;
   radiantTuning?: RadiantEffectTuning;
   fieldTuning?: ForceFieldEffectTuning;
@@ -409,6 +414,7 @@ export function SceneCanvas({
   fireEffectTuning,
   lightningEffectTuning,
   arcaneEffectTuning,
+  chaosEffectTuning,
   distortionEffectTuning,
   radiantEffectTuning,
   forceFieldEffectTuning,
@@ -1331,7 +1337,7 @@ export function SceneCanvas({
         if (weatherMapReady) {
           drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1, weatherMapSource);
         }
-        drawEnvironmentEffects(ctx, scene.environment.effects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
+        drawEnvironmentEffects(ctx, scene.environment.effects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
       }
       if (mode === "gm") {
         drawWeatherMaskOutlines(ctx, scene.weather.masks, renderCamera);
@@ -1450,7 +1456,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, environmentEffectFeather, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, environmentEffectFeather, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1690,6 +1696,7 @@ export function SceneCanvas({
         fireTuning: environmentEffectType === "fire" ? cloneFireEffectTuning(fireEffectTuning) : undefined,
         lightningTuning: environmentEffectType === "electric" ? cloneLightningEffectTuning(lightningEffectTuning) : undefined,
         arcaneTuning: environmentEffectType === "arcane" ? cloneArcaneEffectTuning(arcaneEffectTuning) : undefined,
+        chaosTuning: environmentEffectType === "chaos" ? cloneChaosEffectTuning(chaosEffectTuning) : undefined,
         distortionTuning: environmentEffectType === "distortion" ? cloneDistortionEffectTuning(distortionEffectTuning) : undefined,
         radiantTuning: environmentEffectType === "radiant" ? cloneRadiantEffectTuning(radiantEffectTuning) : undefined,
         fieldTuning: environmentEffectType === "field" ? cloneForceFieldEffectTuning(forceFieldEffectTuning) : undefined,
@@ -2242,6 +2249,7 @@ export function SceneCanvas({
                 fireTuning: environmentEffectDrag.effect === "fire" ? cloneFireEffectTuning(environmentEffectDrag.fireTuning ?? fireEffectTuning) : undefined,
                 lightningTuning: environmentEffectDrag.effect === "electric" ? cloneLightningEffectTuning(environmentEffectDrag.lightningTuning ?? lightningEffectTuning) : undefined,
                 arcaneTuning: environmentEffectDrag.effect === "arcane" ? cloneArcaneEffectTuning(environmentEffectDrag.arcaneTuning ?? arcaneEffectTuning) : undefined,
+                chaosTuning: environmentEffectDrag.effect === "chaos" ? cloneChaosEffectTuning(environmentEffectDrag.chaosTuning ?? chaosEffectTuning) : undefined,
                 distortionTuning: environmentEffectDrag.effect === "distortion" ? cloneDistortionEffectTuning(environmentEffectDrag.distortionTuning ?? distortionEffectTuning) : undefined,
                 radiantTuning: environmentEffectDrag.effect === "radiant" ? cloneRadiantEffectTuning(environmentEffectDrag.radiantTuning ?? radiantEffectTuning) : undefined,
                 fieldTuning: environmentEffectDrag.effect === "field" ? cloneForceFieldEffectTuning(environmentEffectDrag.fieldTuning ?? forceFieldEffectTuning) : undefined,
@@ -2909,6 +2917,7 @@ export function SceneCanvas({
             fireTuning: environmentEffectType === "fire" ? cloneFireEffectTuning(fireEffectTuning) : undefined,
             lightningTuning: environmentEffectType === "electric" ? cloneLightningEffectTuning(lightningEffectTuning) : undefined,
             arcaneTuning: environmentEffectType === "arcane" ? cloneArcaneEffectTuning(arcaneEffectTuning) : undefined,
+            chaosTuning: environmentEffectType === "chaos" ? cloneChaosEffectTuning(chaosEffectTuning) : undefined,
             distortionTuning: environmentEffectType === "distortion" ? cloneDistortionEffectTuning(distortionEffectTuning) : undefined,
             radiantTuning: environmentEffectType === "radiant" ? cloneRadiantEffectTuning(radiantEffectTuning) : undefined,
             fieldTuning: environmentEffectType === "field" ? cloneForceFieldEffectTuning(forceFieldEffectTuning) : undefined,
@@ -4920,6 +4929,7 @@ function drawEnvironmentEffects(
   fireEffectTuning?: FireEffectTuning,
   lightningEffectTuning?: LightningEffectTuning,
   arcaneEffectTuning?: ArcaneEffectTuning,
+  chaosEffectTuning?: ChaosEffectTuning,
   distortionEffectTuning?: DistortionEffectTuning,
   radiantEffectTuning?: RadiantEffectTuning,
   forceFieldEffectTuning?: ForceFieldEffectTuning,
@@ -4934,7 +4944,7 @@ function drawEnvironmentEffects(
     }
     const feather = Math.max(0, Math.min(1, effect.feather ?? 0));
     if (feather > 0) {
-      drawFeatheredEnvironmentEffect(ctx, effect, camera, timestamp, layerOpacity, feather, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
+      drawFeatheredEnvironmentEffect(ctx, effect, camera, timestamp, layerOpacity, feather, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
       continue;
     }
     ctx.save();
@@ -4948,6 +4958,8 @@ function drawEnvironmentEffects(
       drawLightningEffect(ctx, effect, camera, timestamp, layerOpacity, lightningEffectTuning);
     } else if (effect.effect === "arcane") {
       drawArcaneEffect(ctx, effect, camera, timestamp, layerOpacity, arcaneEffectTuning);
+    } else if (effect.effect === "chaos") {
+      drawChaosEffect(ctx, effect, camera, timestamp, layerOpacity, chaosEffectTuning);
     } else if (effect.effect === "distortion") {
       drawDistortionEffect(ctx, effect, camera, timestamp, layerOpacity, distortionEffectTuning);
     } else if (effect.effect === "radiant") {
@@ -4979,6 +4991,7 @@ function drawFeatheredEnvironmentEffect(
   fireEffectTuning?: FireEffectTuning,
   lightningEffectTuning?: LightningEffectTuning,
   arcaneEffectTuning?: ArcaneEffectTuning,
+  chaosEffectTuning?: ChaosEffectTuning,
   distortionEffectTuning?: DistortionEffectTuning,
   radiantEffectTuning?: RadiantEffectTuning,
   forceFieldEffectTuning?: ForceFieldEffectTuning,
@@ -5007,6 +5020,8 @@ function drawFeatheredEnvironmentEffect(
     drawLightningEffect(effectCtx, effect, camera, timestamp, layerOpacity, lightningEffectTuning);
   } else if (effect.effect === "arcane") {
     drawArcaneEffect(effectCtx, effect, camera, timestamp, layerOpacity, arcaneEffectTuning);
+  } else if (effect.effect === "chaos") {
+    drawChaosEffect(effectCtx, effect, camera, timestamp, layerOpacity, chaosEffectTuning);
   } else if (effect.effect === "distortion") {
     drawDistortionEffect(effectCtx, effect, camera, timestamp, layerOpacity, distortionEffectTuning);
   } else if (effect.effect === "radiant") {
@@ -5268,6 +5283,10 @@ function cloneArcaneEffectTuning(tuning?: ArcaneEffectTuning): ArcaneEffectTunin
   return { ...(tuning ?? DEFAULT_ARCANE_EFFECT_TUNING) };
 }
 
+function cloneChaosEffectTuning(tuning?: ChaosEffectTuning): ChaosEffectTuning {
+  return { ...(tuning ?? DEFAULT_CHAOS_EFFECT_TUNING) };
+}
+
 function cloneDistortionEffectTuning(tuning?: DistortionEffectTuning): DistortionEffectTuning {
   return { ...(tuning ?? DEFAULT_DISTORTION_EFFECT_TUNING) };
 }
@@ -5330,6 +5349,16 @@ function drawArcaneEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffe
   const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.arcaneTuning ? { ...DEFAULT_ARCANE_EFFECT_TUNING, ...effect.arcaneTuning } : arcaneEffectTuning;
   drawEnvironmentArcaneEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
+}
+
+function drawChaosEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, chaosEffectTuning?: ChaosEffectTuning) {
+  const bounds = getEnvironmentEffectBounds(effect);
+  if (!bounds) {
+    return;
+  }
+  const screenBounds = worldRectToScreen(bounds, camera);
+  const tuning = effect.chaosTuning ? { ...DEFAULT_CHAOS_EFFECT_TUNING, ...effect.chaosTuning } : chaosEffectTuning;
+  drawEnvironmentChaosEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawDistortionEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, distortionEffectTuning?: DistortionEffectTuning) {
