@@ -171,7 +171,7 @@ export interface WeatherMask {
   visible?: boolean;
 }
 
-export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire" | "electric" | "arcane" | "radiant" | "field";
+export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire" | "electric" | "arcane" | "radiant" | "field" | "shockwave";
 
 export interface WaterEffectTuningSettings {
   opacity: number;
@@ -459,6 +459,50 @@ export const DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS: ForceFieldEffectTuningS
   edgeColor: "#d8b4fe"
 };
 
+export interface ShockwaveEffectTuningSettings {
+  opacity: number;
+  ringScale: number;
+  speed: number;
+  directionDegrees: number;
+  ringCount: number;
+  ringWidth: number;
+  ringSharpness: number;
+  distortion: number;
+  turbulence: number;
+  centerStrength: number;
+  fade: number;
+  pulse: number;
+  glow: number;
+  panFollow: number;
+  zoomScale: number;
+  baseAlpha: number;
+  backgroundColor: string;
+  ringColor: string;
+  coreColor: string;
+}
+
+export const DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS: ShockwaveEffectTuningSettings = {
+  opacity: 0.78,
+  ringScale: 6,
+  speed: 0.42,
+  directionDegrees: 270,
+  ringCount: 0.58,
+  ringWidth: 0.48,
+  ringSharpness: 0.62,
+  distortion: 0.45,
+  turbulence: 0.42,
+  centerStrength: 0.72,
+  fade: 0.55,
+  pulse: 0.62,
+  glow: 0.7,
+  panFollow: 1,
+  zoomScale: 0,
+  baseAlpha: 0.12,
+  backgroundColor: "#07111f",
+  ringColor: "#93c5fd",
+  coreColor: "#f8fbff"
+};
+
 export interface SmokeEffectTuningSettings {
   opacity: number;
   cloudScale: number;
@@ -527,6 +571,7 @@ export interface EnvironmentEffectMask {
   arcaneTuning?: ArcaneEffectTuningSettings;
   radiantTuning?: RadiantEffectTuningSettings;
   fieldTuning?: ForceFieldEffectTuningSettings;
+  shockwaveTuning?: ShockwaveEffectTuningSettings;
   smokeTuning?: SmokeEffectTuningSettings;
   fogTuning?: FogEffectTuningSettings;
   visibleInGm?: boolean;
@@ -1374,7 +1419,7 @@ const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "sandstorm"
 ]);
 
-const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire", "electric", "arcane", "radiant", "field"]);
+const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire", "electric", "arcane", "radiant", "field", "shockwave"]);
 
 export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
@@ -1870,6 +1915,7 @@ function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): Env
         arcaneTuning: effectType === "arcane" ? normalizeArcaneEffectTuning(effect.arcaneTuning) : undefined,
         radiantTuning: effectType === "radiant" ? normalizeRadiantEffectTuning(effect.radiantTuning) : undefined,
         fieldTuning: effectType === "field" ? normalizeForceFieldEffectTuning(effect.fieldTuning) : undefined,
+        shockwaveTuning: effectType === "shockwave" ? normalizeShockwaveEffectTuning(effect.shockwaveTuning) : undefined,
         smokeTuning: effectType === "smoke" ? normalizeSmokeEffectTuning(effect.smokeTuning) : undefined,
         fogTuning: effectType === "fog" ? normalizeFogEffectTuning(effect.fogTuning) : undefined,
         visibleInGm: effect.visibleInGm ?? true,
@@ -2035,6 +2081,30 @@ function normalizeForceFieldEffectTuning(tuning?: ForceFieldEffectTuningSettings
   };
 }
 
+function normalizeShockwaveEffectTuning(tuning?: ShockwaveEffectTuningSettings): ShockwaveEffectTuningSettings {
+  return {
+    opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.opacity),
+    ringScale: clampNumber(tuning?.ringScale, 0.5, 20, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.ringScale),
+    speed: clampNumber(tuning?.speed, 0, 2, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.speed),
+    directionDegrees: clampNumber(tuning?.directionDegrees, 0, 360, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.directionDegrees),
+    ringCount: clampNumber(tuning?.ringCount, 0, 1, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.ringCount),
+    ringWidth: clampNumber(tuning?.ringWidth, 0, 1, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.ringWidth),
+    ringSharpness: clampNumber(tuning?.ringSharpness, 0, 1, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.ringSharpness),
+    distortion: clampNumber(tuning?.distortion, 0, 1, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.distortion),
+    turbulence: clampNumber(tuning?.turbulence, 0, 1, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.turbulence),
+    centerStrength: clampNumber(tuning?.centerStrength, 0, 1, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.centerStrength),
+    fade: clampNumber(tuning?.fade, 0, 1, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.fade),
+    pulse: clampNumber(tuning?.pulse, 0, 1, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.pulse),
+    glow: clampNumber(tuning?.glow, 0, 1, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.glow),
+    panFollow: 1,
+    zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.zoomScale),
+    baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.baseAlpha),
+    backgroundColor: normalizeColorValue(tuning?.backgroundColor, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.backgroundColor),
+    ringColor: normalizeColorValue(tuning?.ringColor, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.ringColor),
+    coreColor: normalizeColorValue(tuning?.coreColor, DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS.coreColor)
+  };
+}
+
 function normalizeSmokeEffectTuning(tuning?: SmokeEffectTuningSettings): SmokeEffectTuningSettings {
   return {
     opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.opacity),
@@ -2078,7 +2148,7 @@ function normalizeColorValue(value: unknown, fallback: string): string {
 }
 
 function formatEnvironmentEffectName(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function normalizeWeatherEffectSettings(settings?: WeatherSettings["effectSettings"]): WeatherSettings["effectSettings"] {

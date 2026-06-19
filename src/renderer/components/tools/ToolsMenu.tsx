@@ -34,7 +34,7 @@ import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType }
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
-import { ARCANE_EFFECT_PRESETS, FIRE_EFFECT_PRESETS, FOG_EFFECT_PRESETS, FORCE_FIELD_EFFECT_PRESETS, LAVA_EFFECT_PRESETS, LIGHTNING_EFFECT_PRESETS, RADIANT_EFFECT_PRESETS, SMOKE_EFFECT_PRESETS, WATER_EFFECT_PRESETS, type ArcaneEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type RadiantEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
+import { ARCANE_EFFECT_PRESETS, FIRE_EFFECT_PRESETS, FOG_EFFECT_PRESETS, FORCE_FIELD_EFFECT_PRESETS, LAVA_EFFECT_PRESETS, LIGHTNING_EFFECT_PRESETS, RADIANT_EFFECT_PRESETS, SHOCKWAVE_EFFECT_PRESETS, SMOKE_EFFECT_PRESETS, WATER_EFFECT_PRESETS, type ArcaneEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
 
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";
@@ -167,6 +167,7 @@ interface ToolsMenuProps {
   arcaneEffectTuning: ArcaneEffectTuning;
   radiantEffectTuning: RadiantEffectTuning;
   forceFieldEffectTuning: ForceFieldEffectTuning;
+  shockwaveEffectTuning: ShockwaveEffectTuning;
   smokeEffectTuning: SmokeEffectTuning;
   fogEffectTuning: FogEffectTuning;
   mouseBehavior: MouseBehavior;
@@ -218,6 +219,8 @@ interface ToolsMenuProps {
   onRadiantEffectTuningReset: () => void;
   onForceFieldEffectTuningChange: (tuning: ForceFieldEffectTuning) => void;
   onForceFieldEffectTuningReset: () => void;
+  onShockwaveEffectTuningChange: (tuning: ShockwaveEffectTuning) => void;
+  onShockwaveEffectTuningReset: () => void;
   onSmokeEffectTuningChange: (tuning: SmokeEffectTuning) => void;
   onSmokeEffectTuningReset: () => void;
   onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
@@ -287,6 +290,7 @@ export function ToolsMenu({
   arcaneEffectTuning,
   radiantEffectTuning,
   forceFieldEffectTuning,
+  shockwaveEffectTuning,
   smokeEffectTuning,
   fogEffectTuning,
   mouseBehavior,
@@ -338,6 +342,8 @@ export function ToolsMenu({
   onRadiantEffectTuningReset,
   onForceFieldEffectTuningChange,
   onForceFieldEffectTuningReset,
+  onShockwaveEffectTuningChange,
+  onShockwaveEffectTuningReset,
   onSmokeEffectTuningChange,
   onSmokeEffectTuningReset,
   onFogEffectTuningChange,
@@ -403,6 +409,7 @@ export function ToolsMenu({
         onArcaneEffectTuningChange,
         onRadiantEffectTuningChange,
         onForceFieldEffectTuningChange,
+        onShockwaveEffectTuningChange,
         onSmokeEffectTuningChange,
         onFogEffectTuningChange
       });
@@ -423,6 +430,8 @@ export function ToolsMenu({
       onRadiantEffectTuningReset();
     } else if (environmentEffectType === "field") {
       onForceFieldEffectTuningReset();
+    } else if (environmentEffectType === "shockwave") {
+      onShockwaveEffectTuningReset();
     } else if (environmentEffectType === "smoke") {
       onSmokeEffectTuningReset();
     } else if (environmentEffectType === "fog") {
@@ -1061,13 +1070,14 @@ export function ToolsMenu({
                       value={environmentEffectType}
                       onChange={(event) => onEnvironmentEffectTypeChange(event.target.value as EnvironmentEffectType)}
                     >
-                      <option value="fire">Fire</option>
-                      <option value="lava">Lava</option>
-                      <option value="electric">Electric</option>
-                      <option value="field">Force Field</option>
                       <option value="arcane">Arcane</option>
+                      <option value="electric">Electric</option>
+                      <option value="fire">Fire</option>
+                      <option value="field">Force Field</option>
+                      <option value="lava">Lava</option>
                       <option value="fog">Mist</option>
                       <option value="radiant">Radiant</option>
+                      <option value="shockwave">Shockwave</option>
                       <option value="smoke">Smoke</option>
                       <option value="water">Water</option>
                     </select>
@@ -1094,6 +1104,7 @@ export function ToolsMenu({
                           onArcaneEffectTuningChange,
                           onRadiantEffectTuningChange,
                           onForceFieldEffectTuningChange,
+                          onShockwaveEffectTuningChange,
                           onSmokeEffectTuningChange,
                           onFogEffectTuningChange
                         });
@@ -1189,6 +1200,16 @@ export function ToolsMenu({
                   <ForceFieldEffectTuningPanel
                     tuning={forceFieldEffectTuning}
                     onChange={onForceFieldEffectTuningChange}
+                    onReset={resetEnvironmentEffectTuning}
+                  />
+                </>
+              )}
+              {environmentEffectType === "shockwave" && (
+                <>
+                  <div className="tools-section-divider" />
+                  <ShockwaveEffectTuningPanel
+                    tuning={shockwaveEffectTuning}
+                    onChange={onShockwaveEffectTuningChange}
                     onReset={resetEnvironmentEffectTuning}
                   />
                 </>
@@ -1673,6 +1694,69 @@ export function ForceFieldEffectTuningPanel({
   );
 }
 
+export function ShockwaveEffectTuningPanel({
+  tuning,
+  title = "Advanced Settings",
+  defaultOpen = false,
+  onChange,
+  onReset
+}: {
+  tuning: ShockwaveEffectTuning;
+  title?: string;
+  defaultOpen?: boolean;
+  onChange: (tuning: ShockwaveEffectTuning) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const update = (patch: Partial<ShockwaveEffectTuning>) => onChange({ ...tuning, ...patch });
+  const readout = JSON.stringify(tuning);
+
+  return (
+    <div className="water-tuning-panel" aria-label="Shockwave effect tuning">
+      <div className="tools-section-label-row">
+        <SettingsToggle open={open} label={title} onToggle={() => setOpen((current) => !current)} />
+        {open && (
+          <button className="icon-button no-chrome" type="button" title="Reset shockwave tuning" aria-label="Reset shockwave tuning" onClick={onReset}>
+            <Undo2 size={15} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      {open && (
+        <>
+          <div className="water-tuning-sliders">
+            <WaterTuningSlider label="Opacity" value={tuning.opacity} min={0} max={1} step={0.01} onChange={(opacity) => update({ opacity })} />
+            <WaterTuningSlider label="Ring Scale" value={tuning.ringScale} min={0.5} max={20} step={0.1} onChange={(ringScale) => update({ ringScale })} />
+            <WaterTuningSlider label="Pulse Speed" value={tuning.speed} min={0} max={2} step={0.01} onChange={(speed) => update({ speed })} />
+            <WaterTuningSlider label="Drift Direction" value={tuning.directionDegrees} min={0} max={360} step={1} suffix="deg" onChange={(directionDegrees) => update({ directionDegrees })} />
+            <WaterTuningSlider label="Ring Count" value={tuning.ringCount} min={0} max={1} step={0.01} onChange={(ringCount) => update({ ringCount })} />
+            <WaterTuningSlider label="Ring Width" value={tuning.ringWidth} min={0} max={1} step={0.01} onChange={(ringWidth) => update({ ringWidth })} />
+            <WaterTuningSlider label="Ring Sharpness" value={tuning.ringSharpness} min={0} max={1} step={0.01} onChange={(ringSharpness) => update({ ringSharpness })} />
+            <WaterTuningSlider label="Distortion" value={tuning.distortion} min={0} max={1} step={0.01} onChange={(distortion) => update({ distortion })} />
+            <WaterTuningSlider label="Turbulence" value={tuning.turbulence} min={0} max={1} step={0.01} onChange={(turbulence) => update({ turbulence })} />
+            <WaterTuningSlider label="Center Impact" value={tuning.centerStrength} min={0} max={1} step={0.01} onChange={(centerStrength) => update({ centerStrength })} />
+            <WaterTuningSlider label="Edge Fade" value={tuning.fade} min={0} max={1} step={0.01} onChange={(fade) => update({ fade })} />
+            <WaterTuningSlider label="Pulse" value={tuning.pulse} min={0} max={1} step={0.01} onChange={(pulse) => update({ pulse })} />
+            <WaterTuningSlider label="Glow" value={tuning.glow} min={0} max={1} step={0.01} onChange={(glow) => update({ glow })} />
+            <WaterTuningSlider label="Zoom Response" value={tuning.zoomScale} min={-3} max={3} step={0.05} onChange={(zoomScale) => update({ zoomScale })} />
+            <WaterTuningSlider label="Background Tint" value={tuning.baseAlpha} min={0} max={1} step={0.01} onChange={(baseAlpha) => update({ baseAlpha })} />
+          </div>
+          <div className="water-tuning-colors">
+            <WaterTuningColor label="Background" value={tuning.backgroundColor} onChange={(backgroundColor) => update({ backgroundColor })} />
+            <WaterTuningColor label="Rings" value={tuning.ringColor} onChange={(ringColor) => update({ ringColor })} />
+            <WaterTuningColor label="Core" value={tuning.coreColor} onChange={(coreColor) => update({ coreColor })} />
+          </div>
+          <div className="water-tuning-readout-row">
+            <div className="water-tuning-readout" title={readout}>{readout}</div>
+            <button className="icon-button no-chrome" type="button" title="Copy shockwave tuning JSON" aria-label="Copy shockwave tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
+              <Copy size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function SmokeEffectTuningPanel({
   tuning,
   title = "Advanced Settings",
@@ -1860,6 +1944,14 @@ function getEnvironmentEffectPresetOptions(effect: EnvironmentEffectType): Array
       { label: "Warp Field", value: "warpField" }
     ];
   }
+  if (effect === "shockwave") {
+    return [
+      { label: "Custom", value: "custom" },
+      { label: "Impact Pulse", value: "impactPulse" },
+      { label: "Ripple Zone", value: "rippleZone" },
+      { label: "Solar Ripples", value: "solarRipples" }
+    ];
+  }
   if (effect === "smoke") {
     return [
       { label: "Custom", value: "custom" },
@@ -1893,6 +1985,7 @@ function applyEnvironmentEffectPreset(
     onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
     onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
     onForceFieldEffectTuningChange: (tuning: ForceFieldEffectTuning) => void;
+    onShockwaveEffectTuningChange: (tuning: ShockwaveEffectTuning) => void;
     onSmokeEffectTuningChange: (tuning: SmokeEffectTuning) => void;
     onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
   }
@@ -1939,6 +2032,13 @@ function applyEnvironmentEffectPreset(
     }
     return;
   }
+  if (effect === "shockwave") {
+    const preset = SHOCKWAVE_EFFECT_PRESETS[value as keyof typeof SHOCKWAVE_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onShockwaveEffectTuningChange({ ...preset });
+    }
+    return;
+  }
   if (effect === "smoke") {
     const preset = SMOKE_EFFECT_PRESETS[value as keyof typeof SMOKE_EFFECT_PRESETS];
     if (preset) {
@@ -1960,7 +2060,7 @@ function applyEnvironmentEffectPreset(
 }
 
 function formatEnvironmentEffectOptionLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function getEnvironmentEffectFeatherSelectValue(feather: number): number {

@@ -7,6 +7,7 @@ import {
   LAVA_EFFECT_PRESETS,
   LIGHTNING_EFFECT_PRESETS,
   RADIANT_EFFECT_PRESETS,
+  SHOCKWAVE_EFFECT_PRESETS,
   SMOKE_EFFECT_PRESETS,
   WATER_EFFECT_PRESETS,
   type ArcaneEffectTuning,
@@ -16,6 +17,7 @@ import {
   type LavaEffectTuning,
   type LightningEffectTuning,
   type RadiantEffectTuning,
+  type ShockwaveEffectTuning,
   type SmokeEffectTuning,
   type WaterEffectTuning
 } from "../canvas/environmentEffectsRenderer";
@@ -36,6 +38,7 @@ export function getEnvironmentEffectPresetSelectValue(
   arcaneEffectTuning: ArcaneEffectTuning,
   radiantEffectTuning: RadiantEffectTuning,
   forceFieldEffectTuning: ForceFieldEffectTuning,
+  shockwaveEffectTuning: ShockwaveEffectTuning,
   smokeEffectTuning: SmokeEffectTuning,
   fogEffectTuning: FogEffectTuning
 ): string {
@@ -56,6 +59,9 @@ export function getEnvironmentEffectPresetSelectValue(
   }
   if (effect === "field") {
     return getForceFieldPresetSelectValue(forceFieldEffectTuning);
+  }
+  if (effect === "shockwave") {
+    return getShockwavePresetSelectValue(shockwaveEffectTuning);
   }
   if (effect === "smoke") {
     return getSmokePresetSelectValue(smokeEffectTuning);
@@ -114,6 +120,14 @@ export function getEnvironmentEffectPresetOptions(effect: EnvironmentEffectType)
       { label: "Warp Field", value: "warpField" }
     ];
   }
+  if (effect === "shockwave") {
+    return [
+      { label: "Custom", value: "custom" },
+      { label: "Impact Pulse", value: "impactPulse" },
+      { label: "Ripple Zone", value: "rippleZone" },
+      { label: "Solar Ripples", value: "solarRipples" }
+    ];
+  }
   if (effect === "smoke") {
     return [
       { label: "Custom", value: "custom" },
@@ -147,6 +161,7 @@ export function applyEnvironmentEffectPreset(
     onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
     onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
     onForceFieldEffectTuningChange: (tuning: ForceFieldEffectTuning) => void;
+    onShockwaveEffectTuningChange: (tuning: ShockwaveEffectTuning) => void;
     onSmokeEffectTuningChange: (tuning: SmokeEffectTuning) => void;
     onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
   }
@@ -193,6 +208,13 @@ export function applyEnvironmentEffectPreset(
     }
     return;
   }
+  if (effect === "shockwave") {
+    const preset = SHOCKWAVE_EFFECT_PRESETS[value as keyof typeof SHOCKWAVE_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onShockwaveEffectTuningChange({ ...preset });
+    }
+    return;
+  }
   if (effect === "smoke") {
     const preset = SMOKE_EFFECT_PRESETS[value as keyof typeof SMOKE_EFFECT_PRESETS];
     if (preset) {
@@ -214,7 +236,7 @@ export function applyEnvironmentEffectPreset(
 }
 
 export function formatEnvironmentEffectOptionLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 export function getEnvironmentEffectFeatherSelectValue(feather: number): number {
@@ -280,6 +302,15 @@ function getForceFieldPresetSelectValue(tuning: ForceFieldEffectTuning): keyof t
   for (const [presetName, preset] of Object.entries(FORCE_FIELD_EFFECT_PRESETS)) {
     if (isForceFieldTuningMatch(tuning, preset)) {
       return presetName as keyof typeof FORCE_FIELD_EFFECT_PRESETS;
+    }
+  }
+  return "custom";
+}
+
+function getShockwavePresetSelectValue(tuning: ShockwaveEffectTuning): keyof typeof SHOCKWAVE_EFFECT_PRESETS | "custom" {
+  for (const [presetName, preset] of Object.entries(SHOCKWAVE_EFFECT_PRESETS)) {
+    if (isShockwaveTuningMatch(tuning, preset)) {
+      return presetName as keyof typeof SHOCKWAVE_EFFECT_PRESETS;
     }
   }
   return "custom";
@@ -450,6 +481,29 @@ function isForceFieldTuningMatch(tuning: ForceFieldEffectTuning, preset: ForceFi
     tuning.backgroundColor === preset.backgroundColor &&
     tuning.gridColor === preset.gridColor &&
     tuning.edgeColor === preset.edgeColor
+  );
+}
+
+function isShockwaveTuningMatch(tuning: ShockwaveEffectTuning, preset: ShockwaveEffectTuning): boolean {
+  return (
+    tuning.opacity === preset.opacity &&
+    tuning.ringScale === preset.ringScale &&
+    tuning.speed === preset.speed &&
+    tuning.directionDegrees === preset.directionDegrees &&
+    tuning.ringCount === preset.ringCount &&
+    tuning.ringWidth === preset.ringWidth &&
+    tuning.ringSharpness === preset.ringSharpness &&
+    tuning.distortion === preset.distortion &&
+    tuning.turbulence === preset.turbulence &&
+    tuning.centerStrength === preset.centerStrength &&
+    tuning.fade === preset.fade &&
+    tuning.pulse === preset.pulse &&
+    tuning.glow === preset.glow &&
+    tuning.zoomScale === preset.zoomScale &&
+    tuning.baseAlpha === preset.baseAlpha &&
+    tuning.backgroundColor === preset.backgroundColor &&
+    tuning.ringColor === preset.ringColor &&
+    tuning.coreColor === preset.coreColor
   );
 }
 
