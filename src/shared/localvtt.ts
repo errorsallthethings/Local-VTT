@@ -171,7 +171,7 @@ export interface WeatherMask {
   visible?: boolean;
 }
 
-export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire" | "electric" | "arcane" | "radiant" | "field" | "shockwave";
+export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire" | "electric" | "arcane" | "radiant" | "field" | "shockwave" | "distortion";
 
 export interface WaterEffectTuningSettings {
   opacity: number;
@@ -503,6 +503,48 @@ export const DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS: ShockwaveEffectTuningSett
   coreColor: "#f8fbff"
 };
 
+export interface DistortionEffectTuningSettings {
+  opacity: number;
+  distortionScale: number;
+  speed: number;
+  directionDegrees: number;
+  distortionStrength: number;
+  rippleStrength: number;
+  rippleFrequency: number;
+  shimmer: number;
+  turbulence: number;
+  causticStrength: number;
+  edgeStrength: number;
+  pulse: number;
+  panFollow: number;
+  zoomScale: number;
+  baseAlpha: number;
+  backgroundColor: string;
+  distortionColor: string;
+  highlightColor: string;
+}
+
+export const DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS: DistortionEffectTuningSettings = {
+  opacity: 0.72,
+  distortionScale: 5.8,
+  speed: 0.24,
+  directionDegrees: 270,
+  distortionStrength: 0.58,
+  rippleStrength: 0.48,
+  rippleFrequency: 0.56,
+  shimmer: 0.62,
+  turbulence: 0.64,
+  causticStrength: 0.38,
+  edgeStrength: 0.42,
+  pulse: 0.32,
+  panFollow: 1,
+  zoomScale: 0,
+  baseAlpha: 0.08,
+  backgroundColor: "#0f172a",
+  distortionColor: "#67e8f9",
+  highlightColor: "#f8fafc"
+};
+
 export interface SmokeEffectTuningSettings {
   opacity: number;
   cloudScale: number;
@@ -572,6 +614,7 @@ export interface EnvironmentEffectMask {
   radiantTuning?: RadiantEffectTuningSettings;
   fieldTuning?: ForceFieldEffectTuningSettings;
   shockwaveTuning?: ShockwaveEffectTuningSettings;
+  distortionTuning?: DistortionEffectTuningSettings;
   smokeTuning?: SmokeEffectTuningSettings;
   fogTuning?: FogEffectTuningSettings;
   visibleInGm?: boolean;
@@ -1419,7 +1462,7 @@ const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "sandstorm"
 ]);
 
-const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire", "electric", "arcane", "radiant", "field", "shockwave"]);
+const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire", "electric", "arcane", "radiant", "field", "shockwave", "distortion"]);
 
 export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
@@ -1916,6 +1959,7 @@ function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): Env
         radiantTuning: effectType === "radiant" ? normalizeRadiantEffectTuning(effect.radiantTuning) : undefined,
         fieldTuning: effectType === "field" ? normalizeForceFieldEffectTuning(effect.fieldTuning) : undefined,
         shockwaveTuning: effectType === "shockwave" ? normalizeShockwaveEffectTuning(effect.shockwaveTuning) : undefined,
+        distortionTuning: effectType === "distortion" ? normalizeDistortionEffectTuning(effect.distortionTuning) : undefined,
         smokeTuning: effectType === "smoke" ? normalizeSmokeEffectTuning(effect.smokeTuning) : undefined,
         fogTuning: effectType === "fog" ? normalizeFogEffectTuning(effect.fogTuning) : undefined,
         visibleInGm: effect.visibleInGm ?? true,
@@ -2105,6 +2149,29 @@ function normalizeShockwaveEffectTuning(tuning?: ShockwaveEffectTuningSettings):
   };
 }
 
+function normalizeDistortionEffectTuning(tuning?: DistortionEffectTuningSettings): DistortionEffectTuningSettings {
+  return {
+    opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.opacity),
+    distortionScale: clampNumber(tuning?.distortionScale, 0.5, 20, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.distortionScale),
+    speed: clampNumber(tuning?.speed, 0, 2, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.speed),
+    directionDegrees: clampNumber(tuning?.directionDegrees, 0, 360, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.directionDegrees),
+    distortionStrength: clampNumber(tuning?.distortionStrength, 0, 1, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.distortionStrength),
+    rippleStrength: clampNumber(tuning?.rippleStrength, 0, 1, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.rippleStrength),
+    rippleFrequency: clampNumber(tuning?.rippleFrequency, 0, 1, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.rippleFrequency),
+    shimmer: clampNumber(tuning?.shimmer, 0, 1, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.shimmer),
+    turbulence: clampNumber(tuning?.turbulence, 0, 1, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.turbulence),
+    causticStrength: clampNumber(tuning?.causticStrength, 0, 1, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.causticStrength),
+    edgeStrength: clampNumber(tuning?.edgeStrength, 0, 1, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.edgeStrength),
+    pulse: clampNumber(tuning?.pulse, 0, 1, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.pulse),
+    panFollow: 1,
+    zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.zoomScale),
+    baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.baseAlpha),
+    backgroundColor: normalizeColorValue(tuning?.backgroundColor, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.backgroundColor),
+    distortionColor: normalizeColorValue(tuning?.distortionColor, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.distortionColor),
+    highlightColor: normalizeColorValue(tuning?.highlightColor, DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS.highlightColor)
+  };
+}
+
 function normalizeSmokeEffectTuning(tuning?: SmokeEffectTuningSettings): SmokeEffectTuningSettings {
   return {
     opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.opacity),
@@ -2148,7 +2215,7 @@ function normalizeColorValue(value: unknown, fallback: string): string {
 }
 
 function formatEnvironmentEffectName(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function normalizeWeatherEffectSettings(settings?: WeatherSettings["effectSettings"]): WeatherSettings["effectSettings"] {

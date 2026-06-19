@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {
   DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS,
   DEFAULT_FOG_EFFECT_TUNING_SETTINGS,
   DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
   DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS,
@@ -11,6 +12,7 @@ import {
   DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS,
   DEFAULT_WATER_EFFECT_TUNING_SETTINGS,
   type ArcaneEffectTuningSettings,
+  type DistortionEffectTuningSettings,
   type FogEffectTuningSettings,
   type FireEffectTuningSettings,
   type ForceFieldEffectTuningSettings,
@@ -34,6 +36,7 @@ export type LavaEffectTuning = LavaEffectTuningSettings;
 export type FireEffectTuning = FireEffectTuningSettings;
 export type ForceFieldEffectTuning = ForceFieldEffectTuningSettings;
 export type ShockwaveEffectTuning = ShockwaveEffectTuningSettings;
+export type DistortionEffectTuning = DistortionEffectTuningSettings;
 export type LightningEffectTuning = LightningEffectTuningSettings;
 export type ArcaneEffectTuning = ArcaneEffectTuningSettings;
 export type RadiantEffectTuning = RadiantEffectTuningSettings;
@@ -45,6 +48,7 @@ export const DEFAULT_LAVA_EFFECT_TUNING: LavaEffectTuning = DEFAULT_LAVA_EFFECT_
 export const DEFAULT_FIRE_EFFECT_TUNING: FireEffectTuning = DEFAULT_FIRE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FORCE_FIELD_EFFECT_TUNING: ForceFieldEffectTuning = DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_SHOCKWAVE_EFFECT_TUNING: ShockwaveEffectTuning = DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS;
+export const DEFAULT_DISTORTION_EFFECT_TUNING: DistortionEffectTuning = DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_LIGHTNING_EFFECT_TUNING: LightningEffectTuning = DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_ARCANE_EFFECT_TUNING: ArcaneEffectTuning = DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_RADIANT_EFFECT_TUNING: RadiantEffectTuning = DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS;
@@ -420,6 +424,50 @@ export const SHOCKWAVE_EFFECT_PRESETS = {
   }
 } as const satisfies Record<string, ShockwaveEffectTuning>;
 
+export const DISTORTION_EFFECT_PRESETS = {
+  heatHaze: {
+    opacity: 0.58,
+    distortionScale: 7.6,
+    speed: 0.18,
+    directionDegrees: 270,
+    distortionStrength: 0.42,
+    rippleStrength: 0.34,
+    rippleFrequency: 0.48,
+    shimmer: 0.82,
+    turbulence: 0.74,
+    causticStrength: 0.22,
+    edgeStrength: 0.18,
+    pulse: 0.12,
+    panFollow: 1,
+    zoomScale: 0,
+    baseAlpha: 0.04,
+    backgroundColor: "#1f1306",
+    distortionColor: "#fbbf24",
+    highlightColor: "#fff7ad"
+  },
+  planarDistortion: { ...DEFAULT_DISTORTION_EFFECT_TUNING },
+  realityWarp: {
+    opacity: 0.78,
+    distortionScale: 4.4,
+    speed: 0.36,
+    directionDegrees: 245,
+    distortionStrength: 0.86,
+    rippleStrength: 0.72,
+    rippleFrequency: 0.38,
+    shimmer: 0.58,
+    turbulence: 0.92,
+    causticStrength: 0.66,
+    edgeStrength: 0.64,
+    pulse: 0.56,
+    panFollow: 1,
+    zoomScale: 0,
+    baseAlpha: 0.16,
+    backgroundColor: "#16051f",
+    distortionColor: "#c084fc",
+    highlightColor: "#67e8f9"
+  }
+} as const satisfies Record<string, DistortionEffectTuning>;
+
 export const SMOKE_EFFECT_PRESETS = {
   driftingSmoke: { ...DEFAULT_SMOKE_EFFECT_TUNING },
   heavySmoke: {
@@ -495,6 +543,7 @@ let arcaneRuntime: WaterRuntime | null = null;
 let radiantRuntime: WaterRuntime | null = null;
 let forceFieldRuntime: WaterRuntime | null = null;
 let shockwaveRuntime: WaterRuntime | null = null;
+let distortionRuntime: WaterRuntime | null = null;
 let smokeRuntime: WaterRuntime | null = null;
 let fogRuntime: WaterRuntime | null = null;
 
@@ -858,6 +907,50 @@ export function drawEnvironmentShockwaveEffect(
   updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateShockwaveMaterialTuning(runtime.meshA.material, tuning);
   updateShockwaveMaterialTuning(runtime.meshB.material, tuning);
+
+  runtime.renderer.setSize(width, height, false);
+  runtime.renderer.setClearColor(0x000000, 0);
+  runtime.renderer.clear();
+  runtime.renderer.render(runtime.scene, runtime.camera);
+
+  ctx.save();
+  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
+  ctx.restore();
+}
+
+export function drawEnvironmentDistortionEffect(
+  ctx: CanvasRenderingContext2D,
+  bounds: ScreenBounds,
+  timestamp: number,
+  layerOpacity: number,
+  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
+  tuning: DistortionEffectTuning = DEFAULT_DISTORTION_EFFECT_TUNING
+) {
+  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
+    return;
+  }
+
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
+  const height = ctx.canvas.clientHeight || ctx.canvas.height;
+  const runtime = getDistortionRuntime(width, height);
+  if (!runtime) {
+    drawDistortionFallback(ctx, bounds, layerOpacity);
+    return;
+  }
+
+  const time = (timestamp - runtime.startedAt) / 1000;
+  positionWaterMesh(runtime.meshA, width, height, 1);
+  positionWaterMesh(runtime.meshB, width, height, 1);
+  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
+  runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.34;
+  runtime.meshA.material.uniforms.time.value = time;
+  runtime.meshB.material.uniforms.time.value = time * 0.61 + 23.4;
+  runtime.meshA.material.uniforms.resolution.value.set(width, height);
+  runtime.meshB.material.uniforms.resolution.value.set(width, height);
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateDistortionMaterialTuning(runtime.meshA.material, tuning);
+  updateDistortionMaterialTuning(runtime.meshB.material, tuning);
 
   runtime.renderer.setSize(width, height, false);
   runtime.renderer.setClearColor(0x000000, 0);
@@ -1347,6 +1440,55 @@ function getShockwaveRuntime(width: number, height: number): WaterRuntime | null
   }
 
   return shockwaveRuntime;
+}
+
+function getDistortionRuntime(width: number, height: number): WaterRuntime | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!distortionRuntime) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+    camera.position.set(0, 0, 2400);
+    camera.lookAt(0, 0, 0);
+
+    const material = createDistortionMaterial(0.72);
+    const materialB = createDistortionMaterial(0.28);
+    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    meshA.position.z = 1280;
+    meshB.position.z = 1281;
+    scene.add(meshA, meshB);
+
+    distortionRuntime = {
+      renderer,
+      scene,
+      camera,
+      meshA,
+      meshB,
+      startedAt: Date.now(),
+      width: 0,
+      height: 0
+    };
+  }
+
+  if (distortionRuntime.width !== width || distortionRuntime.height !== height) {
+    distortionRuntime.width = width;
+    distortionRuntime.height = height;
+    distortionRuntime.camera.left = 0;
+    distortionRuntime.camera.right = width;
+    distortionRuntime.camera.top = 0;
+    distortionRuntime.camera.bottom = height;
+    distortionRuntime.camera.near = 0.1;
+    distortionRuntime.camera.far = 5000;
+    distortionRuntime.camera.updateProjectionMatrix();
+  }
+
+  return distortionRuntime;
 }
 
 function getSmokeRuntime(width: number, height: number): WaterRuntime | null {
@@ -2787,6 +2929,166 @@ function updateShockwaveMaterialTuning(material: THREE.ShaderMaterial, tuning: S
   material.uniforms.coreColor.value.set(tuning.coreColor);
 }
 
+function createDistortionMaterial(opacity: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    uniforms: {
+      distortionScale: { value: DEFAULT_DISTORTION_EFFECT_TUNING.distortionScale },
+      speed: { value: DEFAULT_DISTORTION_EFFECT_TUNING.speed },
+      directionRadians: { value: degreesToRadians(DEFAULT_DISTORTION_EFFECT_TUNING.directionDegrees) },
+      distortionStrength: { value: DEFAULT_DISTORTION_EFFECT_TUNING.distortionStrength },
+      rippleStrength: { value: DEFAULT_DISTORTION_EFFECT_TUNING.rippleStrength },
+      rippleFrequency: { value: DEFAULT_DISTORTION_EFFECT_TUNING.rippleFrequency },
+      shimmer: { value: DEFAULT_DISTORTION_EFFECT_TUNING.shimmer },
+      turbulence: { value: DEFAULT_DISTORTION_EFFECT_TUNING.turbulence },
+      causticStrength: { value: DEFAULT_DISTORTION_EFFECT_TUNING.causticStrength },
+      edgeStrength: { value: DEFAULT_DISTORTION_EFFECT_TUNING.edgeStrength },
+      pulse: { value: DEFAULT_DISTORTION_EFFECT_TUNING.pulse },
+      panFollow: { value: DEFAULT_DISTORTION_EFFECT_TUNING.panFollow },
+      zoomScale: { value: DEFAULT_DISTORTION_EFFECT_TUNING.zoomScale },
+      baseAlpha: { value: DEFAULT_DISTORTION_EFFECT_TUNING.baseAlpha },
+      backgroundColor: { value: new THREE.Color(DEFAULT_DISTORTION_EFFECT_TUNING.backgroundColor) },
+      distortionColor: { value: new THREE.Color(DEFAULT_DISTORTION_EFFECT_TUNING.distortionColor) },
+      highlightColor: { value: new THREE.Color(DEFAULT_DISTORTION_EFFECT_TUNING.highlightColor) },
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2(1, 1) },
+      cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
+      effectSize: { value: new THREE.Vector2(1, 1) },
+      cameraZoom: { value: 1 },
+      opacity: { value: opacity }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float distortionScale;
+      uniform float speed;
+      uniform float directionRadians;
+      uniform float distortionStrength;
+      uniform float rippleStrength;
+      uniform float rippleFrequency;
+      uniform float shimmer;
+      uniform float turbulence;
+      uniform float causticStrength;
+      uniform float edgeStrength;
+      uniform float pulse;
+      uniform float panFollow;
+      uniform float zoomScale;
+      uniform float baseAlpha;
+      uniform vec3 backgroundColor;
+      uniform vec3 distortionColor;
+      uniform vec3 highlightColor;
+      uniform float time;
+      uniform vec2 resolution;
+      uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
+      uniform vec2 effectSize;
+      uniform float cameraZoom;
+      uniform float opacity;
+
+      float randomValue(vec2 value) {
+        return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float valueNoise(vec2 value) {
+        vec2 base = floor(value);
+        vec2 fraction = fract(value);
+        vec2 blend = fraction * fraction * (3.0 - 2.0 * fraction);
+        float a = randomValue(base);
+        float b = randomValue(base + vec2(1.0, 0.0));
+        float c = randomValue(base + vec2(0.0, 1.0));
+        float d = randomValue(base + vec2(1.0, 1.0));
+        return mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y);
+      }
+
+      float fbm(vec2 value) {
+        float total = 0.0;
+        float amplitude = 0.5;
+        for (int i = 0; i < 5; i++) {
+          total += valueNoise(value) * amplitude;
+          value *= 2.05;
+          amplitude *= 0.52;
+        }
+        return total;
+      }
+
+      float bandMask(float value, float width) {
+        return smoothstep(width, 0.0, abs(fract(value) - 0.5));
+      }
+
+      void main() {
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
+        vec2 size = max(effectSize, vec2(1.0));
+        vec2 localCoord = (worldCoord - effectOrigin) / size;
+        vec2 centered = localCoord - 0.5;
+        vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
+        vec2 perpendicular = vec2(-direction.y, direction.x);
+        float localTime = time * speed;
+        vec2 uv = anchoredCoord / 145.0 * zoomFactor;
+        vec2 flowUv = vec2(dot(uv, direction), dot(uv, perpendicular));
+        flowUv.x += localTime * 0.34;
+        flowUv.y += sin(localTime * 0.77 + flowUv.x * 1.8) * distortionStrength * 0.28;
+
+        float scale = max(0.25, distortionScale / 5.5);
+        float warpA = fbm(flowUv * scale + vec2(localTime * 0.09, 3.0));
+        float warpB = fbm(flowUv.yx * (scale * 1.27) + vec2(11.0, -localTime * 0.11));
+        vec2 warped = flowUv + vec2(warpA - 0.5, warpB - 0.5) * distortionStrength * mix(0.55, 2.2, turbulence);
+        float ripple = sin((warped.x + warped.y * 0.42) * mix(4.0, 34.0, rippleFrequency) + localTime * 4.0);
+        float rippleMask = smoothstep(0.42, 1.0, ripple) * rippleStrength;
+        float haze = fbm(warped * mix(0.65, 2.8, turbulence) + vec2(localTime * 0.18, localTime * 0.05));
+        float secondHaze = fbm(warped.yx * mix(1.2, 4.2, shimmer) + vec2(-localTime * 0.12, 19.0));
+        float shimmerMask = smoothstep(mix(0.82, 0.42, shimmer), 1.0, haze + secondHaze * 0.55) * shimmer;
+        float causticA = bandMask(warped.x * mix(2.0, 12.0, causticStrength) + warpA * 1.5, mix(0.22, 0.045, causticStrength));
+        float causticB = bandMask(warped.y * mix(2.0, 10.0, causticStrength) + warpB * 1.7, mix(0.24, 0.055, causticStrength));
+        float caustics = max(causticA, causticB) * causticStrength * smoothstep(0.35, 1.0, haze);
+        float edgeDistance = max(abs(centered.x), abs(centered.y));
+        float edge = smoothstep(0.52, 0.38, edgeDistance) * smoothstep(0.28, 0.5, edgeDistance) * edgeStrength;
+        float pulseWave = 0.75 + sin(localTime * 6.2831 + haze * 5.0) * 0.25 * pulse;
+        float energy = clamp((haze * distortionStrength * 0.5 + rippleMask * 0.5 + shimmerMask * 0.7 + caustics * 0.86 + edge) * pulseWave, 0.0, 1.0);
+        vec3 color = mix(backgroundColor, distortionColor, clamp(haze * distortionStrength + rippleMask + edge, 0.0, 1.0));
+        color = mix(color, highlightColor, clamp(shimmerMask + caustics + edge * 0.5, 0.0, 1.0));
+        float alpha = (baseAlpha * 0.38 + energy * 0.62) * opacity;
+        alpha *= smoothstep(0.02, 0.12, energy + baseAlpha);
+        gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+      }
+    `
+  });
+}
+
+function updateDistortionMaterialTuning(material: THREE.ShaderMaterial, tuning: DistortionEffectTuning) {
+  material.uniforms.distortionScale.value = tuning.distortionScale;
+  material.uniforms.speed.value = tuning.speed;
+  material.uniforms.directionRadians.value = degreesToRadians(tuning.directionDegrees);
+  material.uniforms.distortionStrength.value = tuning.distortionStrength;
+  material.uniforms.rippleStrength.value = tuning.rippleStrength;
+  material.uniforms.rippleFrequency.value = tuning.rippleFrequency;
+  material.uniforms.shimmer.value = tuning.shimmer;
+  material.uniforms.turbulence.value = tuning.turbulence;
+  material.uniforms.causticStrength.value = tuning.causticStrength;
+  material.uniforms.edgeStrength.value = tuning.edgeStrength;
+  material.uniforms.pulse.value = tuning.pulse;
+  material.uniforms.panFollow.value = 1;
+  material.uniforms.zoomScale.value = tuning.zoomScale;
+  material.uniforms.baseAlpha.value = tuning.baseAlpha;
+  material.uniforms.backgroundColor.value.set(tuning.backgroundColor);
+  material.uniforms.distortionColor.value.set(tuning.distortionColor);
+  material.uniforms.highlightColor.value.set(tuning.highlightColor);
+}
+
 function createSmokeMaterial(opacity: number): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     transparent: true,
@@ -3154,6 +3456,14 @@ function drawShockwaveFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBoun
     ctx.ellipse(centerX, centerY, maxRadius * (index / 3), maxRadius * (index / 3), 0, 0, Math.PI * 2);
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+function drawDistortionFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.2;
+  ctx.fillStyle = "rgb(103, 232, 249)";
+  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }
 

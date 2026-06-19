@@ -4,6 +4,7 @@ import {
   FIRE_EFFECT_PRESETS,
   FOG_EFFECT_PRESETS,
   FORCE_FIELD_EFFECT_PRESETS,
+  DISTORTION_EFFECT_PRESETS,
   LAVA_EFFECT_PRESETS,
   LIGHTNING_EFFECT_PRESETS,
   RADIANT_EFFECT_PRESETS,
@@ -14,6 +15,7 @@ import {
   type FireEffectTuning,
   type FogEffectTuning,
   type ForceFieldEffectTuning,
+  type DistortionEffectTuning,
   type LavaEffectTuning,
   type LightningEffectTuning,
   type RadiantEffectTuning,
@@ -36,6 +38,7 @@ export function getEnvironmentEffectPresetSelectValue(
   fireEffectTuning: FireEffectTuning,
   lightningEffectTuning: LightningEffectTuning,
   arcaneEffectTuning: ArcaneEffectTuning,
+  distortionEffectTuning: DistortionEffectTuning,
   radiantEffectTuning: RadiantEffectTuning,
   forceFieldEffectTuning: ForceFieldEffectTuning,
   shockwaveEffectTuning: ShockwaveEffectTuning,
@@ -53,6 +56,9 @@ export function getEnvironmentEffectPresetSelectValue(
   }
   if (effect === "arcane") {
     return getArcanePresetSelectValue(arcaneEffectTuning);
+  }
+  if (effect === "distortion") {
+    return getDistortionPresetSelectValue(distortionEffectTuning);
   }
   if (effect === "radiant") {
     return getRadiantPresetSelectValue(radiantEffectTuning);
@@ -102,6 +108,14 @@ export function getEnvironmentEffectPresetOptions(effect: EnvironmentEffectType)
       { label: "Ritual Circle", value: "ritualCircle" },
       { label: "Sigil Field", value: "sigilField" },
       { label: "Warding Runes", value: "wardingRunes" }
+    ];
+  }
+  if (effect === "distortion") {
+    return [
+      { label: "Custom", value: "custom" },
+      { label: "Heat Haze", value: "heatHaze" },
+      { label: "Planar Distortion", value: "planarDistortion" },
+      { label: "Reality Warp", value: "realityWarp" }
     ];
   }
   if (effect === "radiant") {
@@ -159,6 +173,7 @@ export function applyEnvironmentEffectPreset(
     onFireEffectTuningChange: (tuning: FireEffectTuning) => void;
     onLightningEffectTuningChange: (tuning: LightningEffectTuning) => void;
     onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
+    onDistortionEffectTuningChange: (tuning: DistortionEffectTuning) => void;
     onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
     onForceFieldEffectTuningChange: (tuning: ForceFieldEffectTuning) => void;
     onShockwaveEffectTuningChange: (tuning: ShockwaveEffectTuning) => void;
@@ -191,6 +206,13 @@ export function applyEnvironmentEffectPreset(
     const preset = ARCANE_EFFECT_PRESETS[value as keyof typeof ARCANE_EFFECT_PRESETS];
     if (preset) {
       handlers.onArcaneEffectTuningChange({ ...preset });
+    }
+    return;
+  }
+  if (effect === "distortion") {
+    const preset = DISTORTION_EFFECT_PRESETS[value as keyof typeof DISTORTION_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onDistortionEffectTuningChange({ ...preset });
     }
     return;
   }
@@ -236,7 +258,7 @@ export function applyEnvironmentEffectPreset(
 }
 
 export function formatEnvironmentEffectOptionLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 export function getEnvironmentEffectFeatherSelectValue(feather: number): number {
@@ -284,6 +306,15 @@ function getArcanePresetSelectValue(tuning: ArcaneEffectTuning): keyof typeof AR
   for (const [presetName, preset] of Object.entries(ARCANE_EFFECT_PRESETS)) {
     if (isArcaneTuningMatch(tuning, preset)) {
       return presetName as keyof typeof ARCANE_EFFECT_PRESETS;
+    }
+  }
+  return "custom";
+}
+
+function getDistortionPresetSelectValue(tuning: DistortionEffectTuning): keyof typeof DISTORTION_EFFECT_PRESETS | "custom" {
+  for (const [presetName, preset] of Object.entries(DISTORTION_EFFECT_PRESETS)) {
+    if (isDistortionTuningMatch(tuning, preset)) {
+      return presetName as keyof typeof DISTORTION_EFFECT_PRESETS;
     }
   }
   return "custom";
@@ -435,6 +466,28 @@ function isArcaneTuningMatch(tuning: ArcaneEffectTuning, preset: ArcaneEffectTun
     tuning.backgroundColor === preset.backgroundColor &&
     tuning.glyphColor === preset.glyphColor &&
     tuning.glowColor === preset.glowColor
+  );
+}
+
+function isDistortionTuningMatch(tuning: DistortionEffectTuning, preset: DistortionEffectTuning): boolean {
+  return (
+    tuning.opacity === preset.opacity &&
+    tuning.distortionScale === preset.distortionScale &&
+    tuning.speed === preset.speed &&
+    tuning.directionDegrees === preset.directionDegrees &&
+    tuning.distortionStrength === preset.distortionStrength &&
+    tuning.rippleStrength === preset.rippleStrength &&
+    tuning.rippleFrequency === preset.rippleFrequency &&
+    tuning.shimmer === preset.shimmer &&
+    tuning.turbulence === preset.turbulence &&
+    tuning.causticStrength === preset.causticStrength &&
+    tuning.edgeStrength === preset.edgeStrength &&
+    tuning.pulse === preset.pulse &&
+    tuning.zoomScale === preset.zoomScale &&
+    tuning.baseAlpha === preset.baseAlpha &&
+    tuning.backgroundColor === preset.backgroundColor &&
+    tuning.distortionColor === preset.distortionColor &&
+    tuning.highlightColor === preset.highlightColor
   );
 }
 

@@ -34,7 +34,7 @@ import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType }
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
-import { ARCANE_EFFECT_PRESETS, FIRE_EFFECT_PRESETS, FOG_EFFECT_PRESETS, FORCE_FIELD_EFFECT_PRESETS, LAVA_EFFECT_PRESETS, LIGHTNING_EFFECT_PRESETS, RADIANT_EFFECT_PRESETS, SHOCKWAVE_EFFECT_PRESETS, SMOKE_EFFECT_PRESETS, WATER_EFFECT_PRESETS, type ArcaneEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
+import { ARCANE_EFFECT_PRESETS, DISTORTION_EFFECT_PRESETS, FIRE_EFFECT_PRESETS, FOG_EFFECT_PRESETS, FORCE_FIELD_EFFECT_PRESETS, LAVA_EFFECT_PRESETS, LIGHTNING_EFFECT_PRESETS, RADIANT_EFFECT_PRESETS, SHOCKWAVE_EFFECT_PRESETS, SMOKE_EFFECT_PRESETS, WATER_EFFECT_PRESETS, type ArcaneEffectTuning, type DistortionEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
 
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";
@@ -165,6 +165,7 @@ interface ToolsMenuProps {
   fireEffectTuning: FireEffectTuning;
   lightningEffectTuning: LightningEffectTuning;
   arcaneEffectTuning: ArcaneEffectTuning;
+  distortionEffectTuning: DistortionEffectTuning;
   radiantEffectTuning: RadiantEffectTuning;
   forceFieldEffectTuning: ForceFieldEffectTuning;
   shockwaveEffectTuning: ShockwaveEffectTuning;
@@ -215,6 +216,8 @@ interface ToolsMenuProps {
   onLightningEffectTuningReset: () => void;
   onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
   onArcaneEffectTuningReset: () => void;
+  onDistortionEffectTuningChange: (tuning: DistortionEffectTuning) => void;
+  onDistortionEffectTuningReset: () => void;
   onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
   onRadiantEffectTuningReset: () => void;
   onForceFieldEffectTuningChange: (tuning: ForceFieldEffectTuning) => void;
@@ -288,6 +291,7 @@ export function ToolsMenu({
   fireEffectTuning,
   lightningEffectTuning,
   arcaneEffectTuning,
+  distortionEffectTuning,
   radiantEffectTuning,
   forceFieldEffectTuning,
   shockwaveEffectTuning,
@@ -338,6 +342,8 @@ export function ToolsMenu({
   onLightningEffectTuningReset,
   onArcaneEffectTuningChange,
   onArcaneEffectTuningReset,
+  onDistortionEffectTuningChange,
+  onDistortionEffectTuningReset,
   onRadiantEffectTuningChange,
   onRadiantEffectTuningReset,
   onForceFieldEffectTuningChange,
@@ -407,6 +413,7 @@ export function ToolsMenu({
         onFireEffectTuningChange,
         onLightningEffectTuningChange,
         onArcaneEffectTuningChange,
+        onDistortionEffectTuningChange,
         onRadiantEffectTuningChange,
         onForceFieldEffectTuningChange,
         onShockwaveEffectTuningChange,
@@ -426,6 +433,8 @@ export function ToolsMenu({
       onLightningEffectTuningReset();
     } else if (environmentEffectType === "arcane") {
       onArcaneEffectTuningReset();
+    } else if (environmentEffectType === "distortion") {
+      onDistortionEffectTuningReset();
     } else if (environmentEffectType === "radiant") {
       onRadiantEffectTuningReset();
     } else if (environmentEffectType === "field") {
@@ -1071,6 +1080,7 @@ export function ToolsMenu({
                       onChange={(event) => onEnvironmentEffectTypeChange(event.target.value as EnvironmentEffectType)}
                     >
                       <option value="arcane">Arcane</option>
+                      <option value="distortion">Distortion</option>
                       <option value="electric">Electric</option>
                       <option value="fire">Fire</option>
                       <option value="field">Force Field</option>
@@ -1102,6 +1112,7 @@ export function ToolsMenu({
                           onFireEffectTuningChange,
                           onLightningEffectTuningChange,
                           onArcaneEffectTuningChange,
+                          onDistortionEffectTuningChange,
                           onRadiantEffectTuningChange,
                           onForceFieldEffectTuningChange,
                           onShockwaveEffectTuningChange,
@@ -1180,6 +1191,16 @@ export function ToolsMenu({
                   <ArcaneEffectTuningPanel
                     tuning={arcaneEffectTuning}
                     onChange={onArcaneEffectTuningChange}
+                    onReset={resetEnvironmentEffectTuning}
+                  />
+                </>
+              )}
+              {environmentEffectType === "distortion" && (
+                <>
+                  <div className="tools-section-divider" />
+                  <DistortionEffectTuningPanel
+                    tuning={distortionEffectTuning}
+                    onChange={onDistortionEffectTuningChange}
                     onReset={resetEnvironmentEffectTuning}
                   />
                 </>
@@ -1757,6 +1778,68 @@ export function ShockwaveEffectTuningPanel({
   );
 }
 
+export function DistortionEffectTuningPanel({
+  tuning,
+  title = "Advanced Settings",
+  defaultOpen = false,
+  onChange,
+  onReset
+}: {
+  tuning: DistortionEffectTuning;
+  title?: string;
+  defaultOpen?: boolean;
+  onChange: (tuning: DistortionEffectTuning) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const update = (patch: Partial<DistortionEffectTuning>) => onChange({ ...tuning, ...patch });
+  const readout = JSON.stringify(tuning);
+
+  return (
+    <div className="water-tuning-panel" aria-label="Distortion effect tuning">
+      <div className="tools-section-label-row">
+        <SettingsToggle open={open} label={title} onToggle={() => setOpen((current) => !current)} />
+        {open && (
+          <button className="icon-button no-chrome" type="button" title="Reset distortion tuning" aria-label="Reset distortion tuning" onClick={onReset}>
+            <Undo2 size={15} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      {open && (
+        <>
+          <div className="water-tuning-sliders">
+            <WaterTuningSlider label="Opacity" value={tuning.opacity} min={0} max={1} step={0.01} onChange={(opacity) => update({ opacity })} />
+            <WaterTuningSlider label="Distortion Scale" value={tuning.distortionScale} min={0.5} max={20} step={0.1} onChange={(distortionScale) => update({ distortionScale })} />
+            <WaterTuningSlider label="Flow Speed" value={tuning.speed} min={0} max={2} step={0.01} onChange={(speed) => update({ speed })} />
+            <WaterTuningSlider label="Flow Direction" value={tuning.directionDegrees} min={0} max={360} step={1} suffix="deg" onChange={(directionDegrees) => update({ directionDegrees })} />
+            <WaterTuningSlider label="Warp Strength" value={tuning.distortionStrength} min={0} max={1} step={0.01} onChange={(distortionStrength) => update({ distortionStrength })} />
+            <WaterTuningSlider label="Ripple Strength" value={tuning.rippleStrength} min={0} max={1} step={0.01} onChange={(rippleStrength) => update({ rippleStrength })} />
+            <WaterTuningSlider label="Ripple Frequency" value={tuning.rippleFrequency} min={0} max={1} step={0.01} onChange={(rippleFrequency) => update({ rippleFrequency })} />
+            <WaterTuningSlider label="Shimmer" value={tuning.shimmer} min={0} max={1} step={0.01} onChange={(shimmer) => update({ shimmer })} />
+            <WaterTuningSlider label="Turbulence" value={tuning.turbulence} min={0} max={1} step={0.01} onChange={(turbulence) => update({ turbulence })} />
+            <WaterTuningSlider label="Caustic Highlights" value={tuning.causticStrength} min={0} max={1} step={0.01} onChange={(causticStrength) => update({ causticStrength })} />
+            <WaterTuningSlider label="Edge Strength" value={tuning.edgeStrength} min={0} max={1} step={0.01} onChange={(edgeStrength) => update({ edgeStrength })} />
+            <WaterTuningSlider label="Pulse" value={tuning.pulse} min={0} max={1} step={0.01} onChange={(pulse) => update({ pulse })} />
+            <WaterTuningSlider label="Zoom Response" value={tuning.zoomScale} min={-3} max={3} step={0.05} onChange={(zoomScale) => update({ zoomScale })} />
+            <WaterTuningSlider label="Background Tint" value={tuning.baseAlpha} min={0} max={1} step={0.01} onChange={(baseAlpha) => update({ baseAlpha })} />
+          </div>
+          <div className="water-tuning-colors">
+            <WaterTuningColor label="Background" value={tuning.backgroundColor} onChange={(backgroundColor) => update({ backgroundColor })} />
+            <WaterTuningColor label="Warp" value={tuning.distortionColor} onChange={(distortionColor) => update({ distortionColor })} />
+            <WaterTuningColor label="Highlight" value={tuning.highlightColor} onChange={(highlightColor) => update({ highlightColor })} />
+          </div>
+          <div className="water-tuning-readout-row">
+            <div className="water-tuning-readout" title={readout}>{readout}</div>
+            <button className="icon-button no-chrome" type="button" title="Copy distortion tuning JSON" aria-label="Copy distortion tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
+              <Copy size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function SmokeEffectTuningPanel({
   tuning,
   title = "Advanced Settings",
@@ -1928,6 +2011,14 @@ function getEnvironmentEffectPresetOptions(effect: EnvironmentEffectType): Array
       { label: "Warding Runes", value: "wardingRunes" }
     ];
   }
+  if (effect === "distortion") {
+    return [
+      { label: "Custom", value: "custom" },
+      { label: "Heat Haze", value: "heatHaze" },
+      { label: "Planar Distortion", value: "planarDistortion" },
+      { label: "Reality Warp", value: "realityWarp" }
+    ];
+  }
   if (effect === "radiant") {
     return [
       { label: "Custom", value: "custom" },
@@ -1983,6 +2074,7 @@ function applyEnvironmentEffectPreset(
     onFireEffectTuningChange: (tuning: FireEffectTuning) => void;
     onLightningEffectTuningChange: (tuning: LightningEffectTuning) => void;
     onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
+    onDistortionEffectTuningChange: (tuning: DistortionEffectTuning) => void;
     onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
     onForceFieldEffectTuningChange: (tuning: ForceFieldEffectTuning) => void;
     onShockwaveEffectTuningChange: (tuning: ShockwaveEffectTuning) => void;
@@ -2015,6 +2107,13 @@ function applyEnvironmentEffectPreset(
     const preset = ARCANE_EFFECT_PRESETS[value as keyof typeof ARCANE_EFFECT_PRESETS];
     if (preset) {
       handlers.onArcaneEffectTuningChange({ ...preset });
+    }
+    return;
+  }
+  if (effect === "distortion") {
+    const preset = DISTORTION_EFFECT_PRESETS[value as keyof typeof DISTORTION_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onDistortionEffectTuningChange({ ...preset });
     }
     return;
   }
@@ -2060,7 +2159,7 @@ function applyEnvironmentEffectPreset(
 }
 
 function formatEnvironmentEffectOptionLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function getEnvironmentEffectFeatherSelectValue(feather: number): number {
