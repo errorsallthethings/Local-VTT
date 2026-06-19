@@ -2508,6 +2508,7 @@ function EnvironmentEffectEditorModal({
         </div>
       </div>
       <div className="environment-effect-editor-body">
+        <div className="tools-section-label">Settings</div>
         <div className="tools-effect-select-row">
           <div className="tools-strip-select-field">
             <strong>Effect</strong>
@@ -2558,21 +2559,24 @@ function EnvironmentEffectEditorModal({
             </div>
           </div>
         </div>
-        <div className="tools-strip-select-field">
-          <strong>Feather</strong>
-          <div>
-            <select
-              aria-label="Environmental effect feather"
-              title="Environmental effect feather"
-              value={getEnvironmentEffectFeatherSelectValue(effect.feather ?? 0)}
-              onChange={(event) => onFeatherChange(Number(event.target.value))}
-            >
-              {ENVIRONMENT_EFFECT_FEATHER_OPTIONS.map((option) => (
-                <option key={option.label} value={option.value}>{option.label}</option>
-              ))}
-            </select>
+        <div className="tools-effect-select-row tools-effect-select-row-single">
+          <div className="tools-strip-select-field">
+            <strong>Feather</strong>
+            <div>
+              <select
+                aria-label="Environmental effect feather"
+                title="Environmental effect feather"
+                value={getEnvironmentEffectFeatherSelectValue(effect.feather ?? 0)}
+                onChange={(event) => onFeatherChange(Number(event.target.value))}
+              >
+                {ENVIRONMENT_EFFECT_FEATHER_OPTIONS.map((option) => (
+                  <option key={option.label} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
+        <div className="tools-section-divider" />
         {effect.effect === "water" ? (
           <WaterEffectTuningPanel
             key={effect.id}

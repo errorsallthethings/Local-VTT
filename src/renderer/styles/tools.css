@@ -487,6 +487,11 @@
   min-width: 0;
 }
 
+.tools-effect-select-row-single {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 160px;
+}
+
 .tools-strip-thickness-control {
   border-right: 1px solid var(--color-border-muted);
   padding-right: 8px;
