@@ -171,7 +171,7 @@ export interface WeatherMask {
   visible?: boolean;
 }
 
-export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire";
+export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire" | "electric";
 
 export interface WaterEffectTuningSettings {
   opacity: number;
@@ -291,6 +291,44 @@ export const DEFAULT_FIRE_EFFECT_TUNING_SETTINGS: FireEffectTuningSettings = {
   hotColor: "#fff2a8"
 };
 
+export interface LightningEffectTuningSettings {
+  opacity: number;
+  arcScale: number;
+  speed: number;
+  directionDegrees: number;
+  boltDensity: number;
+  branchiness: number;
+  jitter: number;
+  glow: number;
+  strikeWidth: number;
+  segmentBreaks: number;
+  panFollow: number;
+  zoomScale: number;
+  baseAlpha: number;
+  backgroundColor: string;
+  arcColor: string;
+  coreColor: string;
+}
+
+export const DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS: LightningEffectTuningSettings = {
+  opacity: 0.7,
+  arcScale: 1,
+  speed: 0.21,
+  directionDegrees: 18,
+  boltDensity: 0.49,
+  branchiness: 0.9,
+  jitter: 0.91,
+  glow: 0.88,
+  strikeWidth: 0.67,
+  segmentBreaks: 0.33,
+  panFollow: 1,
+  zoomScale: 1.15,
+  baseAlpha: 0.18,
+  backgroundColor: "#081226",
+  arcColor: "#60a5fa",
+  coreColor: "#f8fbff"
+};
+
 export interface SmokeEffectTuningSettings {
   opacity: number;
   cloudScale: number;
@@ -355,6 +393,7 @@ export interface EnvironmentEffectMask {
   waterTuning?: WaterEffectTuningSettings;
   lavaTuning?: LavaEffectTuningSettings;
   fireTuning?: FireEffectTuningSettings;
+  lightningTuning?: LightningEffectTuningSettings;
   smokeTuning?: SmokeEffectTuningSettings;
   fogTuning?: FogEffectTuningSettings;
   visibleInGm?: boolean;
@@ -1202,7 +1241,7 @@ const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "sandstorm"
 ]);
 
-const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire"]);
+const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire", "electric"]);
 
 export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
@@ -1681,7 +1720,9 @@ function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): Env
       }
       usedIds.add(id);
       const points = effect.kind === "circle" ? effect.points.slice(0, 1) : effect.points;
-      const effectType = ENVIRONMENT_EFFECTS.has(effect.effect) ? effect.effect : "water";
+      const incomingEffectType = (effect as { effect?: unknown }).effect;
+      const rawEffectType = incomingEffectType === "lightning" ? "electric" : incomingEffectType;
+      const effectType = ENVIRONMENT_EFFECTS.has(rawEffectType as EnvironmentEffectType) ? (rawEffectType as EnvironmentEffectType) : "water";
       return {
         ...effect,
         id,
@@ -1692,6 +1733,7 @@ function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): Env
         waterTuning: effectType === "water" ? normalizeWaterEffectTuning(effect.waterTuning) : undefined,
         lavaTuning: effectType === "lava" ? normalizeLavaEffectTuning(effect.lavaTuning) : undefined,
         fireTuning: effectType === "fire" ? normalizeFireEffectTuning(effect.fireTuning) : undefined,
+        lightningTuning: effectType === "electric" ? normalizeLightningEffectTuning(effect.lightningTuning) : undefined,
         smokeTuning: effectType === "smoke" ? normalizeSmokeEffectTuning(effect.smokeTuning) : undefined,
         fogTuning: effectType === "fog" ? normalizeFogEffectTuning(effect.fogTuning) : undefined,
         visibleInGm: effect.visibleInGm ?? true,
@@ -1765,6 +1807,27 @@ function normalizeFireEffectTuning(tuning?: FireEffectTuningSettings): FireEffec
   };
 }
 
+function normalizeLightningEffectTuning(tuning?: LightningEffectTuningSettings): LightningEffectTuningSettings {
+  return {
+    opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.opacity),
+    arcScale: clampNumber(tuning?.arcScale, 0.5, 20, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.arcScale),
+    speed: clampNumber(tuning?.speed, 0, 2, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.speed),
+    directionDegrees: clampNumber(tuning?.directionDegrees, 0, 360, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.directionDegrees),
+    boltDensity: clampNumber(tuning?.boltDensity, 0, 1, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.boltDensity),
+    branchiness: clampNumber(tuning?.branchiness, 0, 1, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.branchiness),
+    jitter: clampNumber(tuning?.jitter, 0, 1, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.jitter),
+    glow: clampNumber(tuning?.glow, 0, 1, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.glow),
+    strikeWidth: clampNumber(tuning?.strikeWidth, 0, 1, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.strikeWidth),
+    segmentBreaks: clampNumber(tuning?.segmentBreaks, 0, 1, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.segmentBreaks),
+    panFollow: 1,
+    zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.zoomScale),
+    baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.baseAlpha),
+    backgroundColor: normalizeColorValue(tuning?.backgroundColor, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.backgroundColor),
+    arcColor: normalizeColorValue(tuning?.arcColor, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.arcColor),
+    coreColor: normalizeColorValue(tuning?.coreColor, DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS.coreColor)
+  };
+}
+
 function normalizeSmokeEffectTuning(tuning?: SmokeEffectTuningSettings): SmokeEffectTuningSettings {
   return {
     opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.opacity),
@@ -1808,7 +1871,7 @@ function normalizeColorValue(value: unknown, fallback: string): string {
 }
 
 function formatEnvironmentEffectName(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function normalizeWeatherEffectSettings(settings?: WeatherSettings["effectSettings"]): WeatherSettings["effectSettings"] {

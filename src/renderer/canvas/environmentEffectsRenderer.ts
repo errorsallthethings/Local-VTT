@@ -3,11 +3,13 @@ import {
   DEFAULT_FOG_EFFECT_TUNING_SETTINGS,
   DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
   DEFAULT_LAVA_EFFECT_TUNING_SETTINGS,
+  DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
   DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS,
   DEFAULT_WATER_EFFECT_TUNING_SETTINGS,
   type FogEffectTuningSettings,
   type FireEffectTuningSettings,
   type LavaEffectTuningSettings,
+  type LightningEffectTuningSettings,
   type SmokeEffectTuningSettings,
   type WaterEffectTuningSettings
 } from "../../shared/localvtt";
@@ -22,12 +24,14 @@ export interface ScreenBounds {
 export type WaterEffectTuning = WaterEffectTuningSettings;
 export type LavaEffectTuning = LavaEffectTuningSettings;
 export type FireEffectTuning = FireEffectTuningSettings;
+export type LightningEffectTuning = LightningEffectTuningSettings;
 export type SmokeEffectTuning = SmokeEffectTuningSettings;
 export type FogEffectTuning = FogEffectTuningSettings;
 
 export const DEFAULT_WATER_EFFECT_TUNING: WaterEffectTuning = DEFAULT_WATER_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_LAVA_EFFECT_TUNING: LavaEffectTuning = DEFAULT_LAVA_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FIRE_EFFECT_TUNING: FireEffectTuning = DEFAULT_FIRE_EFFECT_TUNING_SETTINGS;
+export const DEFAULT_LIGHTNING_EFFECT_TUNING: LightningEffectTuning = DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_SMOKE_EFFECT_TUNING: SmokeEffectTuning = DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FOG_EFFECT_TUNING: FogEffectTuning = DEFAULT_FOG_EFFECT_TUNING_SETTINGS;
 
@@ -138,6 +142,46 @@ export const FIRE_EFFECT_PRESETS = {
   }
 } as const satisfies Record<string, FireEffectTuning>;
 
+export const LIGHTNING_EFFECT_PRESETS = {
+  arcingField: { ...DEFAULT_LIGHTNING_EFFECT_TUNING },
+  stormSurge: {
+    opacity: 0.94,
+    arcScale: 0.5,
+    speed: 0.77,
+    directionDegrees: 26,
+    boltDensity: 1,
+    branchiness: 0.7,
+    jitter: 0.01,
+    glow: 1,
+    strikeWidth: 1,
+    segmentBreaks: 1,
+    panFollow: 1,
+    zoomScale: 0.85,
+    baseAlpha: 0.32,
+    backgroundColor: "#07111f",
+    arcColor: "#facc15",
+    coreColor: "#ffffff"
+  },
+  staticWeb: {
+    opacity: 0.9,
+    arcScale: 1.25,
+    speed: 0.28,
+    directionDegrees: 344,
+    boltDensity: 0.66,
+    branchiness: 0.86,
+    jitter: 0.76,
+    glow: 0.7,
+    strikeWidth: 0.56,
+    segmentBreaks: 0.72,
+    panFollow: 1,
+    zoomScale: 1.15,
+    baseAlpha: 0.22,
+    backgroundColor: "#080f24",
+    arcColor: "#93c5fd",
+    coreColor: "#f8fbff"
+  }
+} as const satisfies Record<string, LightningEffectTuning>;
+
 export const SMOKE_EFFECT_PRESETS = {
   driftingSmoke: { ...DEFAULT_SMOKE_EFFECT_TUNING },
   heavySmoke: {
@@ -208,6 +252,7 @@ type WaterRuntime = {
 let waterRuntime: WaterRuntime | null = null;
 let lavaRuntime: WaterRuntime | null = null;
 let fireRuntime: WaterRuntime | null = null;
+let lightningRuntime: WaterRuntime | null = null;
 let smokeRuntime: WaterRuntime | null = null;
 let fogRuntime: WaterRuntime | null = null;
 
@@ -347,6 +392,50 @@ export function drawEnvironmentFireEffect(
   updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateFireMaterialTuning(runtime.meshA.material, tuning);
   updateFireMaterialTuning(runtime.meshB.material, tuning);
+
+  runtime.renderer.setSize(width, height, false);
+  runtime.renderer.setClearColor(0x000000, 0);
+  runtime.renderer.clear();
+  runtime.renderer.render(runtime.scene, runtime.camera);
+
+  ctx.save();
+  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
+  ctx.restore();
+}
+
+export function drawEnvironmentLightningEffect(
+  ctx: CanvasRenderingContext2D,
+  bounds: ScreenBounds,
+  timestamp: number,
+  layerOpacity: number,
+  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
+  tuning: LightningEffectTuning = DEFAULT_LIGHTNING_EFFECT_TUNING
+) {
+  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
+    return;
+  }
+
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
+  const height = ctx.canvas.clientHeight || ctx.canvas.height;
+  const runtime = getLightningRuntime(width, height);
+  if (!runtime) {
+    _drawLightningFallback(ctx, bounds, layerOpacity);
+    return;
+  }
+
+  const time = (timestamp - runtime.startedAt) / 1000;
+  positionWaterMesh(runtime.meshA, width, height, 1);
+  positionWaterMesh(runtime.meshB, width, height, 1);
+  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
+  runtime.meshB.material.uniforms.opacity.value = 0;
+  runtime.meshA.material.uniforms.time.value = time;
+  runtime.meshB.material.uniforms.time.value = time * 0.77 + 17.2;
+  runtime.meshA.material.uniforms.resolution.value.set(width, height);
+  runtime.meshB.material.uniforms.resolution.value.set(width, height);
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  _updateLightningMaterialTuning(runtime.meshA.material, tuning);
+  _updateLightningMaterialTuning(runtime.meshB.material, tuning);
 
   runtime.renderer.setSize(width, height, false);
   runtime.renderer.setClearColor(0x000000, 0);
@@ -591,6 +680,55 @@ function getFireRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   return fireRuntime;
+}
+
+function getLightningRuntime(width: number, height: number): WaterRuntime | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!lightningRuntime) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+    camera.position.set(0, 0, 2400);
+    camera.lookAt(0, 0, 0);
+
+    const material = _createLightningMaterial(0.9);
+    const materialB = _createLightningMaterial(0.35);
+    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    meshA.position.z = 1280;
+    meshB.position.z = 1281;
+    scene.add(meshA, meshB);
+
+    lightningRuntime = {
+      renderer,
+      scene,
+      camera,
+      meshA,
+      meshB,
+      startedAt: Date.now(),
+      width: 0,
+      height: 0
+    };
+  }
+
+  if (lightningRuntime.width !== width || lightningRuntime.height !== height) {
+    lightningRuntime.width = width;
+    lightningRuntime.height = height;
+    lightningRuntime.camera.left = 0;
+    lightningRuntime.camera.right = width;
+    lightningRuntime.camera.top = 0;
+    lightningRuntime.camera.bottom = height;
+    lightningRuntime.camera.near = 0.1;
+    lightningRuntime.camera.far = 5000;
+    lightningRuntime.camera.updateProjectionMatrix();
+  }
+
+  return lightningRuntime;
 }
 
 function getSmokeRuntime(width: number, height: number): WaterRuntime | null {
@@ -1154,6 +1292,204 @@ function updateFireMaterialTuning(material: THREE.ShaderMaterial, tuning: FireEf
   material.uniforms.hotColor.value.set(tuning.hotColor);
 }
 
+function _createLightningMaterial(opacity: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+    blending: THREE.NormalBlending,
+    uniforms: {
+      arcScale: { value: DEFAULT_LIGHTNING_EFFECT_TUNING.arcScale },
+      speed: { value: DEFAULT_LIGHTNING_EFFECT_TUNING.speed },
+      directionRadians: { value: degreesToRadians(DEFAULT_LIGHTNING_EFFECT_TUNING.directionDegrees) },
+      boltDensity: { value: DEFAULT_LIGHTNING_EFFECT_TUNING.boltDensity },
+      branchiness: { value: DEFAULT_LIGHTNING_EFFECT_TUNING.branchiness },
+      jitter: { value: DEFAULT_LIGHTNING_EFFECT_TUNING.jitter },
+      glow: { value: DEFAULT_LIGHTNING_EFFECT_TUNING.glow },
+      strikeWidth: { value: DEFAULT_LIGHTNING_EFFECT_TUNING.strikeWidth },
+      segmentBreaks: { value: DEFAULT_LIGHTNING_EFFECT_TUNING.segmentBreaks },
+      panFollow: { value: DEFAULT_LIGHTNING_EFFECT_TUNING.panFollow },
+      zoomScale: { value: DEFAULT_LIGHTNING_EFFECT_TUNING.zoomScale },
+      baseAlpha: { value: DEFAULT_LIGHTNING_EFFECT_TUNING.baseAlpha },
+      backgroundColor: { value: new THREE.Color(DEFAULT_LIGHTNING_EFFECT_TUNING.backgroundColor) },
+      arcColor: { value: new THREE.Color(DEFAULT_LIGHTNING_EFFECT_TUNING.arcColor) },
+      coreColor: { value: new THREE.Color(DEFAULT_LIGHTNING_EFFECT_TUNING.coreColor) },
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2(1, 1) },
+      cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
+      cameraZoom: { value: 1 },
+      opacity: { value: opacity }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float arcScale;
+      uniform float speed;
+      uniform float directionRadians;
+      uniform float boltDensity;
+      uniform float branchiness;
+      uniform float jitter;
+      uniform float glow;
+      uniform float strikeWidth;
+      uniform float segmentBreaks;
+      uniform float panFollow;
+      uniform float zoomScale;
+      uniform float baseAlpha;
+      uniform vec3 backgroundColor;
+      uniform vec3 arcColor;
+      uniform vec3 coreColor;
+      uniform float time;
+      uniform vec2 resolution;
+      uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
+      uniform float cameraZoom;
+      uniform float opacity;
+      varying vec2 vUv;
+
+      const float PI = 3.14159265358979323846264;
+
+      float perlin(vec3 P) {
+        vec3 Pi = floor(P);
+        vec3 Pf = P - Pi;
+        vec3 PfMin1 = Pf - 1.0;
+
+        Pi.xyz = Pi.xyz - floor(Pi.xyz * (1.0 / 69.0)) * 69.0;
+        vec3 PiInc1 = step(Pi, vec3(69.0 - 1.5)) * (Pi + 1.0);
+
+        vec4 Pt = vec4(Pi.xy, PiInc1.xy) + vec2(50.0, 161.0).xyxy;
+        Pt *= Pt;
+        Pt = Pt.xzxz * Pt.yyww;
+        const vec3 largeFloats = vec3(635.298681, 682.357502, 668.926525);
+        const vec3 zinc = vec3(48.500388, 65.294118, 63.934599);
+        vec3 lowzMod = vec3(1.0 / (largeFloats + Pi.zzz * zinc));
+        vec3 highzMod = vec3(1.0 / (largeFloats + PiInc1.zzz * zinc));
+        vec4 hashx0 = fract(Pt * lowzMod.xxxx);
+        vec4 hashx1 = fract(Pt * highzMod.xxxx);
+        vec4 hashy0 = fract(Pt * lowzMod.yyyy);
+        vec4 hashy1 = fract(Pt * highzMod.yyyy);
+        vec4 hashz0 = fract(Pt * lowzMod.zzzz);
+        vec4 hashz1 = fract(Pt * highzMod.zzzz);
+
+        vec4 gradX0 = hashx0 - 0.49999;
+        vec4 gradY0 = hashy0 - 0.49999;
+        vec4 gradZ0 = hashz0 - 0.49999;
+        vec4 gradX1 = hashx1 - 0.49999;
+        vec4 gradY1 = hashy1 - 0.49999;
+        vec4 gradZ1 = hashz1 - 0.49999;
+        vec4 gradResults0 = inversesqrt(gradX0 * gradX0 + gradY0 * gradY0 + gradZ0 * gradZ0) * (vec2(Pf.x, PfMin1.x).xyxy * gradX0 + vec2(Pf.y, PfMin1.y).xxyy * gradY0 + Pf.zzzz * gradZ0);
+        vec4 gradResults1 = inversesqrt(gradX1 * gradX1 + gradY1 * gradY1 + gradZ1 * gradZ1) * (vec2(Pf.x, PfMin1.x).xyxy * gradX1 + vec2(Pf.y, PfMin1.y).xxyy * gradY1 + PfMin1.zzzz * gradZ1);
+
+        vec3 blend = Pf * Pf * Pf * (Pf * (Pf * 6.0 - 15.0) + 10.0);
+        vec4 res0 = mix(gradResults0, gradResults1, blend.z);
+        vec4 blend2 = vec4(blend.xy, vec2(1.0 - blend.xy));
+        float finalValue = dot(res0, blend2.zxzx * blend2.wwyy);
+        return finalValue * 1.1547005383792515;
+      }
+
+      float randomValue(vec2 value) {
+        return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float tokenMagicFbm(vec3 p, float localTime) {
+        float v = 0.0;
+        v += perlin(p * 0.9) * 1.5 * cos(PI * localTime * 0.48);
+        v += perlin(p * 3.99) * 0.5 * sin(PI * localTime * 0.4);
+        v += perlin(p * 8.01) * 0.4 * cos(PI * localTime * 0.4);
+        v += perlin(p * 15.05) * 0.05 * sin(PI * localTime * 0.8);
+        return v;
+      }
+
+      vec3 electricColor(vec2 filterCoord) {
+        vec3 noiseVec = vec3(filterCoord, 1.0);
+        vec3 result = vec3(0.0);
+        float localPhase = perlin(vec3(filterCoord * 0.19 + vec2(31.0, 11.0), 2.0)) * 1.8;
+        float motionTime = time * speed;
+        float localTime = motionTime + localPhase + perlin(vec3(filterCoord * 0.07 + vec2(3.0, 41.0), motionTime * 0.025)) * 0.9;
+        for (int i = 0; i < 5; ++i) {
+          noiseVec = noiseVec.yxz;
+          float branchPhase = float(i);
+          float densityPassGate = i == 0 ? smoothstep(0.02, 0.18, boltDensity) : smoothstep(branchPhase * 0.17, branchPhase * 0.17 + 0.28, boltDensity);
+          float branchGate = i == 0 ? 1.0 : smoothstep(branchPhase * 0.14, branchPhase * 0.14 + 0.28, branchiness);
+          float branchOffset = perlin(vec3(filterCoord * (0.42 + branchPhase * 0.18) + branchPhase * 7.0, motionTime * 0.045)) * jitter * branchiness * 0.26;
+          float divisor = max(abs(tokenMagicFbm(noiseVec + vec3(branchOffset, localTime / float(i + 4), -branchOffset * 0.55), localTime) * 120.0), 0.001);
+          float t = abs(2.0 / divisor);
+          result += t * vec3(float(i + 1) * 0.1 + 0.1, 0.5, 2.0) * branchGate * densityPassGate;
+        }
+        return result;
+      }
+
+      void main() {
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
+        vec2 pixelUv = anchoredCoord / 128.0 * zoomFactor;
+        vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
+        vec2 perpendicular = vec2(-direction.y, direction.x);
+        vec2 uv = vec2(dot(pixelUv, direction), dot(pixelUv, perpendicular));
+        uv *= arcScale * 0.46;
+        float motionTime = time * speed;
+        uv.x += motionTime * 0.12;
+        vec2 broadWarp = vec2(
+          perlin(vec3(uv * 0.27 + vec2(4.0, 13.0), motionTime * 0.06)),
+          perlin(vec3(uv.yx * 0.31 + vec2(17.0, 2.0), motionTime * 0.055))
+        );
+        uv += broadWarp * jitter * 0.34;
+        uv.y += sin(uv.x * (0.55 + branchiness * 1.15) + motionTime) * jitter * 0.12;
+
+        vec3 electric = electricColor(uv) * arcColor;
+        float energy = max(max(electric.r, electric.g), electric.b);
+        float normalizedEnergy = log(1.0 + energy * 0.82);
+        normalizedEnergy = normalizedEnergy / (1.0 + normalizedEnergy);
+        float wideBreakup = perlin(vec3(uv * 0.34 + vec2(23.0, 7.0), motionTime * 0.035)) * 0.5 + 0.5;
+        float pocketBreakup = perlin(vec3(uv.yx * 0.83 + vec2(5.0, 29.0), motionTime * 0.05)) * 0.5 + 0.5;
+        float breakup = clamp(wideBreakup * 0.72 + pocketBreakup * 0.42, 0.0, 1.0);
+        float visibleEnergy = normalizedEnergy * mix(0.38, 1.18, breakup);
+        float survivors = smoothstep(0.2, 0.78, visibleEnergy);
+        float widthBoost = smoothstep(0.2 - strikeWidth * 0.12, 0.78, visibleEnergy) * survivors;
+        float segmentNoise = perlin(vec3(vec2(uv.x * (1.8 + arcScale * 0.06), uv.y * 0.32) + vec2(61.0, 17.0), motionTime * 0.055)) * 0.5 + 0.5;
+        float segmentNoiseFine = perlin(vec3(vec2(uv.x * (4.4 + arcScale * 0.09), uv.y * 0.74) + vec2(7.0, 73.0), motionTime * 0.08)) * 0.5 + 0.5;
+        float segmentMask = smoothstep(0.24, 0.72, segmentNoise * 0.7 + segmentNoiseFine * 0.36);
+        float segmentGate = mix(1.0, mix(0.38, 1.0, segmentMask), segmentBreaks);
+        float shapedEnergy = pow(clamp(max(survivors, widthBoost * strikeWidth * 0.72) * segmentGate * normalizedEnergy * (1.2 + glow * 0.65), 0.0, 1.0), mix(2.35, 0.62, strikeWidth));
+        vec3 color = mix(backgroundColor, electric, shapedEnergy);
+        float coreShape = smoothstep(0.64, 1.0, shapedEnergy);
+        color = mix(color, coreColor, coreShape * glow);
+        float alpha = (baseAlpha * survivors * 0.7 + shapedEnergy * (0.92 + glow * 0.55)) * opacity;
+        alpha *= smoothstep(0.01, 0.13, shapedEnergy);
+        gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+      }
+    `
+  });
+}
+
+function _updateLightningMaterialTuning(material: THREE.ShaderMaterial, tuning: LightningEffectTuning) {
+  material.uniforms.arcScale.value = tuning.arcScale;
+  material.uniforms.speed.value = tuning.speed;
+  material.uniforms.directionRadians.value = degreesToRadians(tuning.directionDegrees);
+  material.uniforms.boltDensity.value = tuning.boltDensity;
+  material.uniforms.branchiness.value = tuning.branchiness;
+  material.uniforms.jitter.value = tuning.jitter;
+  material.uniforms.glow.value = tuning.glow;
+  material.uniforms.strikeWidth.value = tuning.strikeWidth;
+  material.uniforms.segmentBreaks.value = tuning.segmentBreaks;
+  material.uniforms.panFollow.value = 1;
+  material.uniforms.zoomScale.value = tuning.zoomScale;
+  material.uniforms.baseAlpha.value = tuning.baseAlpha;
+  material.uniforms.backgroundColor.value.set(tuning.backgroundColor);
+  material.uniforms.arcColor.value.set(tuning.arcColor);
+  material.uniforms.coreColor.value.set(tuning.coreColor);
+}
+
 function createSmokeMaterial(opacity: number): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     transparent: true,
@@ -1472,6 +1808,14 @@ function drawFireFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, l
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.36;
   ctx.fillStyle = "rgb(249, 115, 22)";
+  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  ctx.restore();
+}
+
+function _drawLightningFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.34;
+  ctx.fillStyle = "rgb(96, 165, 250)";
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }

@@ -62,16 +62,19 @@ import {
   DEFAULT_FOG_EFFECT_TUNING,
   DEFAULT_FIRE_EFFECT_TUNING,
   DEFAULT_LAVA_EFFECT_TUNING,
+  DEFAULT_LIGHTNING_EFFECT_TUNING,
   DEFAULT_SMOKE_EFFECT_TUNING,
   DEFAULT_WATER_EFFECT_TUNING,
   drawEnvironmentFogEffect,
   drawEnvironmentFireEffect,
   drawEnvironmentLavaEffect,
+  drawEnvironmentLightningEffect,
   drawEnvironmentSmokeEffect,
   drawEnvironmentWaterEffect,
   type FogEffectTuning,
   type FireEffectTuning,
   type LavaEffectTuning,
+  type LightningEffectTuning,
   type SmokeEffectTuning,
   type WaterEffectTuning
 } from "../canvas/environmentEffectsRenderer";
@@ -127,6 +130,7 @@ interface SceneCanvasProps {
   waterEffectTuning?: WaterEffectTuning;
   lavaEffectTuning?: LavaEffectTuning;
   fireEffectTuning?: FireEffectTuning;
+  lightningEffectTuning?: LightningEffectTuning;
   smokeEffectTuning?: SmokeEffectTuning;
   fogEffectTuning?: FogEffectTuning;
   liveTableEvents?: LiveTableEvent[];
@@ -239,6 +243,7 @@ type EnvironmentEffectDrag = {
   waterTuning?: WaterEffectTuning;
   lavaTuning?: LavaEffectTuning;
   fireTuning?: FireEffectTuning;
+  lightningTuning?: LightningEffectTuning;
   smokeTuning?: SmokeEffectTuning;
   fogTuning?: FogEffectTuning;
   start: Point;
@@ -372,6 +377,7 @@ export function SceneCanvas({
   waterEffectTuning,
   lavaEffectTuning,
   fireEffectTuning,
+  lightningEffectTuning,
   smokeEffectTuning,
   fogEffectTuning,
   liveTableEvents = [],
@@ -1290,7 +1296,7 @@ export function SceneCanvas({
         if (weatherMapReady) {
           drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1, weatherMapSource);
         }
-        drawEnvironmentEffects(ctx, scene.environment.effects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, waterEffectTuning, lavaEffectTuning, fireEffectTuning, smokeEffectTuning, fogEffectTuning);
+        drawEnvironmentEffects(ctx, scene.environment.effects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, smokeEffectTuning, fogEffectTuning);
       }
       if (mode === "gm") {
         drawWeatherMaskOutlines(ctx, scene.weather.masks, renderCamera);
@@ -1409,7 +1415,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, environmentEffectFeather, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, isVideoMap, lavaEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, environmentEffectFeather, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1647,6 +1653,7 @@ export function SceneCanvas({
         waterTuning: environmentEffectType === "water" ? cloneWaterEffectTuning(waterEffectTuning) : undefined,
         lavaTuning: environmentEffectType === "lava" ? cloneLavaEffectTuning(lavaEffectTuning) : undefined,
         fireTuning: environmentEffectType === "fire" ? cloneFireEffectTuning(fireEffectTuning) : undefined,
+        lightningTuning: environmentEffectType === "electric" ? cloneLightningEffectTuning(lightningEffectTuning) : undefined,
         smokeTuning: environmentEffectType === "smoke" ? cloneSmokeEffectTuning(smokeEffectTuning) : undefined,
         fogTuning: environmentEffectType === "fog" ? cloneFogEffectTuning(fogEffectTuning) : undefined,
         start: point,
@@ -2193,6 +2200,7 @@ export function SceneCanvas({
                 waterTuning: environmentEffectDrag.effect === "water" ? cloneWaterEffectTuning(environmentEffectDrag.waterTuning ?? waterEffectTuning) : undefined,
                 lavaTuning: environmentEffectDrag.effect === "lava" ? cloneLavaEffectTuning(environmentEffectDrag.lavaTuning ?? lavaEffectTuning) : undefined,
                 fireTuning: environmentEffectDrag.effect === "fire" ? cloneFireEffectTuning(environmentEffectDrag.fireTuning ?? fireEffectTuning) : undefined,
+                lightningTuning: environmentEffectDrag.effect === "electric" ? cloneLightningEffectTuning(environmentEffectDrag.lightningTuning ?? lightningEffectTuning) : undefined,
                 smokeTuning: environmentEffectDrag.effect === "smoke" ? cloneSmokeEffectTuning(environmentEffectDrag.smokeTuning ?? smokeEffectTuning) : undefined,
                 fogTuning: environmentEffectDrag.effect === "fog" ? cloneFogEffectTuning(environmentEffectDrag.fogTuning ?? fogEffectTuning) : undefined,
                 points: environmentEffectDrag.kind === "circle" ? [environmentEffectDrag.start] : [environmentEffectDrag.start, environmentEffectDrag.current],
@@ -2854,6 +2862,7 @@ export function SceneCanvas({
             waterTuning: environmentEffectType === "water" ? cloneWaterEffectTuning(waterEffectTuning) : undefined,
             lavaTuning: environmentEffectType === "lava" ? cloneLavaEffectTuning(lavaEffectTuning) : undefined,
             fireTuning: environmentEffectType === "fire" ? cloneFireEffectTuning(fireEffectTuning) : undefined,
+            lightningTuning: environmentEffectType === "electric" ? cloneLightningEffectTuning(lightningEffectTuning) : undefined,
             smokeTuning: environmentEffectType === "smoke" ? cloneSmokeEffectTuning(smokeEffectTuning) : undefined,
             fogTuning: environmentEffectType === "fog" ? cloneFogEffectTuning(fogEffectTuning) : undefined,
             points: draft.points,
@@ -4322,7 +4331,7 @@ function getTemplateEffectNamePart(effect: DrawingTemplateEffect): string {
     darkness: "Darkness",
     fire: "Fire",
     fog: "Fog",
-    lightning: "Lightning",
+    lightning: "Electric",
     nature: "Nature",
     plain: "Plain",
     poison: "Poison",
@@ -4859,6 +4868,7 @@ function drawEnvironmentEffects(
   waterEffectTuning?: WaterEffectTuning,
   lavaEffectTuning?: LavaEffectTuning,
   fireEffectTuning?: FireEffectTuning,
+  lightningEffectTuning?: LightningEffectTuning,
   smokeEffectTuning?: SmokeEffectTuning,
   fogEffectTuning?: FogEffectTuning
 ) {
@@ -4869,7 +4879,7 @@ function drawEnvironmentEffects(
     }
     const feather = Math.max(0, Math.min(1, effect.feather ?? 0));
     if (feather > 0) {
-      drawFeatheredEnvironmentEffect(ctx, effect, camera, timestamp, layerOpacity, feather, waterEffectTuning, lavaEffectTuning, fireEffectTuning, smokeEffectTuning, fogEffectTuning);
+      drawFeatheredEnvironmentEffect(ctx, effect, camera, timestamp, layerOpacity, feather, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, smokeEffectTuning, fogEffectTuning);
       continue;
     }
     ctx.save();
@@ -4879,6 +4889,8 @@ function drawEnvironmentEffects(
       drawLavaEffect(ctx, effect, camera, timestamp, layerOpacity, lavaEffectTuning);
     } else if (effect.effect === "fire") {
       drawFireEffect(ctx, effect, camera, timestamp, layerOpacity, fireEffectTuning);
+    } else if (effect.effect === "electric") {
+      drawLightningEffect(ctx, effect, camera, timestamp, layerOpacity, lightningEffectTuning);
     } else if (effect.effect === "fog") {
       drawFogMistEffect(ctx, effect, camera, timestamp, layerOpacity, fogEffectTuning);
     } else if (effect.effect === "smoke") {
@@ -4900,6 +4912,7 @@ function drawFeatheredEnvironmentEffect(
   waterEffectTuning?: WaterEffectTuning,
   lavaEffectTuning?: LavaEffectTuning,
   fireEffectTuning?: FireEffectTuning,
+  lightningEffectTuning?: LightningEffectTuning,
   smokeEffectTuning?: SmokeEffectTuning,
   fogEffectTuning?: FogEffectTuning
 ) {
@@ -4920,6 +4933,8 @@ function drawFeatheredEnvironmentEffect(
     drawLavaEffect(effectCtx, effect, camera, timestamp, layerOpacity, lavaEffectTuning);
   } else if (effect.effect === "fire") {
     drawFireEffect(effectCtx, effect, camera, timestamp, layerOpacity, fireEffectTuning);
+  } else if (effect.effect === "electric") {
+    drawLightningEffect(effectCtx, effect, camera, timestamp, layerOpacity, lightningEffectTuning);
   } else if (effect.effect === "fog") {
     drawFogMistEffect(effectCtx, effect, camera, timestamp, layerOpacity, fogEffectTuning);
   } else if (effect.effect === "smoke") {
@@ -5165,6 +5180,10 @@ function cloneFireEffectTuning(tuning?: FireEffectTuning): FireEffectTuning {
   return { ...(tuning ?? DEFAULT_FIRE_EFFECT_TUNING) };
 }
 
+function cloneLightningEffectTuning(tuning?: LightningEffectTuning): LightningEffectTuning {
+  return { ...(tuning ?? DEFAULT_LIGHTNING_EFFECT_TUNING) };
+}
+
 function cloneSmokeEffectTuning(tuning?: SmokeEffectTuning): SmokeEffectTuning {
   return { ...(tuning ?? DEFAULT_SMOKE_EFFECT_TUNING) };
 }
@@ -5191,6 +5210,16 @@ function drawFireEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffect
   const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.fireTuning ? { ...DEFAULT_FIRE_EFFECT_TUNING, ...effect.fireTuning } : fireEffectTuning;
   drawEnvironmentFireEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
+}
+
+function drawLightningEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, lightningEffectTuning?: LightningEffectTuning) {
+  const bounds = getEnvironmentEffectBounds(effect);
+  if (!bounds) {
+    return;
+  }
+  const screenBounds = worldRectToScreen(bounds, camera);
+  const tuning = effect.lightningTuning ? { ...DEFAULT_LIGHTNING_EFFECT_TUNING, ...effect.lightningTuning } : lightningEffectTuning;
+  drawEnvironmentLightningEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawSmokeEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, smokeEffectTuning?: SmokeEffectTuning) {
@@ -5309,15 +5338,15 @@ function isMeaningfulEnvironmentEffectDrag(drag: EnvironmentEffectDrag): boolean
 }
 
 function getEnvironmentEffectStroke(effect: EnvironmentEffectType): string {
-  return effect === "lava" ? "rgba(255, 129, 52, 0.95)" : effect === "fire" ? "rgba(251, 146, 60, 0.95)" : effect === "smoke" ? "rgba(210, 220, 226, 0.88)" : effect === "fog" ? "rgba(226, 232, 240, 0.82)" : "rgba(125, 211, 252, 0.95)";
+  return effect === "lava" ? "rgba(255, 129, 52, 0.95)" : effect === "fire" ? "rgba(251, 146, 60, 0.95)" : effect === "electric" ? "rgba(250, 204, 21, 0.95)" : effect === "smoke" ? "rgba(210, 220, 226, 0.88)" : effect === "fog" ? "rgba(226, 232, 240, 0.82)" : "rgba(125, 211, 252, 0.95)";
 }
 
 function getEnvironmentEffectPreviewFill(effect: EnvironmentEffectType): string {
-  return effect === "lava" ? "rgba(255, 129, 52, 0.2)" : effect === "fire" ? "rgba(249, 115, 22, 0.2)" : effect === "smoke" ? "rgba(210, 220, 226, 0.18)" : effect === "fog" ? "rgba(226, 232, 240, 0.14)" : "rgba(56, 189, 248, 0.2)";
+  return effect === "lava" ? "rgba(255, 129, 52, 0.2)" : effect === "fire" ? "rgba(249, 115, 22, 0.2)" : effect === "electric" ? "rgba(250, 204, 21, 0.18)" : effect === "smoke" ? "rgba(210, 220, 226, 0.18)" : effect === "fog" ? "rgba(226, 232, 240, 0.14)" : "rgba(56, 189, 248, 0.2)";
 }
 
 function formatEnvironmentEffectLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function drawWeatherPolygonDraft(ctx: CanvasRenderingContext2D, draft: WeatherPolygonDraft, camera: Camera) {

@@ -11,6 +11,7 @@ import {
   DEFAULT_FOG,
   DEFAULT_GRID,
   DEFAULT_LAYERS,
+  DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
   DEFAULT_MAP_TRANSFORM,
   DEFAULT_MEASUREMENT,
   DEFAULT_SCENE_FOLDER_COLOR,
@@ -171,6 +172,45 @@ it("normalizeScene preserves fire environmental effects", () => {
     fireTuning: expect.objectContaining({
       flameScale: 9,
       speed: 0.7,
+      panFollow: 1
+    })
+  });
+  expect(normalized.environment.effects[0].waterTuning).toBeUndefined();
+});
+
+it("normalizeScene migrates legacy lightning environmental effects to electric", () => {
+  const scene = createDefaultScene("Electric Effects");
+  scene.environment.effects = [
+    {
+      id: "electric-effect",
+      name: "Electric Effect",
+      kind: "circle",
+      effect: "lightning",
+      points: [
+        { x: 40, y: 40 },
+        { x: 140, y: 140 }
+      ],
+      feather: 0.4,
+      lightningTuning: {
+        ...DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
+        arcScale: 9,
+        boltDensity: 0.7
+      },
+      visibleInGm: true,
+      visibleInPlayer: true
+    }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.environment.effects[0]).toMatchObject({
+    effect: "electric",
+    feather: 0.4,
+    visibleInGm: true,
+    visibleInPlayer: true,
+    lightningTuning: expect.objectContaining({
+      arcScale: 9,
+      boltDensity: 0.7,
       panFollow: 1
     })
   });
