@@ -5,6 +5,7 @@ import {
   createDefaultCampaign,
   createDefaultScene,
   duplicateScene,
+  DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS,
   DEFAULT_CALIBRATION,
   DEFAULT_DICE_SETTINGS,
   DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
@@ -211,6 +212,46 @@ it("normalizeScene migrates legacy lightning environmental effects to electric",
     lightningTuning: expect.objectContaining({
       arcScale: 9,
       boltDensity: 0.7,
+      panFollow: 1
+    })
+  });
+  expect(normalized.environment.effects[0].waterTuning).toBeUndefined();
+});
+
+it("normalizeScene preserves arcane environmental effects", () => {
+  const scene = createDefaultScene("Arcane Effects");
+  scene.environment.effects = [
+    {
+      id: "arcane-effect",
+      name: "Arcane Effect",
+      kind: "polygon",
+      effect: "arcane",
+      points: [
+        { x: 20, y: 20 },
+        { x: 120, y: 40 },
+        { x: 80, y: 140 }
+      ],
+      feather: 0.3,
+      arcaneTuning: {
+        ...DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS,
+        glyphScale: 8,
+        ringDensity: 0.7
+      },
+      visibleInGm: true,
+      visibleInPlayer: true
+    }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.environment.effects[0]).toMatchObject({
+    effect: "arcane",
+    feather: 0.3,
+    visibleInGm: true,
+    visibleInPlayer: true,
+    arcaneTuning: expect.objectContaining({
+      glyphScale: 8,
+      ringDensity: 0.7,
       panFollow: 1
     })
   });

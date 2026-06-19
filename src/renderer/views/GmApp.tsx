@@ -44,8 +44,8 @@ import type {
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { FireEffectTuningPanel, FogEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, SmokeEffectTuningPanel, ToolsMenu, WaterEffectTuningPanel, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
-import { DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type FireEffectTuning, type FogEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../canvas/environmentEffectsRenderer";
+import { ArcaneEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, SmokeEffectTuningPanel, ToolsMenu, WaterEffectTuningPanel, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
+import { DEFAULT_ARCANE_EFFECT_TUNING, DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type ArcaneEffectTuning, type FireEffectTuning, type FogEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../canvas/environmentEffectsRenderer";
 import type { DrawingTool } from "../canvas/drawingRenderer";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -173,6 +173,7 @@ export function GmApp() {
   const [lavaEffectTuning, setLavaEffectTuning] = useState<LavaEffectTuning>(DEFAULT_LAVA_EFFECT_TUNING);
   const [fireEffectTuning, setFireEffectTuning] = useState<FireEffectTuning>(DEFAULT_FIRE_EFFECT_TUNING);
   const [lightningEffectTuning, setLightningEffectTuning] = useState<LightningEffectTuning>(DEFAULT_LIGHTNING_EFFECT_TUNING);
+  const [arcaneEffectTuning, setArcaneEffectTuning] = useState<ArcaneEffectTuning>(DEFAULT_ARCANE_EFFECT_TUNING);
   const [smokeEffectTuning, setSmokeEffectTuning] = useState<SmokeEffectTuning>(DEFAULT_SMOKE_EFFECT_TUNING);
   const [fogEffectTuning, setFogEffectTuning] = useState<FogEffectTuning>(DEFAULT_FOG_EFFECT_TUNING);
   const [mouseBehavior, setMouseBehavior] = useState<MouseBehavior>("selector");
@@ -481,6 +482,20 @@ export function GmApp() {
     });
   };
 
+  const updateEnvironmentEffectArcaneTuning = (effectId: string, arcaneTuning: ArcaneEffectTuning) => {
+    if (!activeScene) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      environment: {
+        ...activeScene.environment,
+        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, arcaneTuning } : effect))
+      },
+      updatedAt: new Date().toISOString()
+    });
+  };
+
   const updateEnvironmentEffectSmokeTuning = (effectId: string, smokeTuning: SmokeEffectTuning) => {
     if (!activeScene) {
       return;
@@ -540,6 +555,7 @@ export function GmApp() {
                 lavaTuning: effectType === "lava" ? (effect.lavaTuning ?? { ...DEFAULT_LAVA_EFFECT_TUNING }) : undefined,
                 fireTuning: effectType === "fire" ? (effect.fireTuning ?? { ...DEFAULT_FIRE_EFFECT_TUNING }) : undefined,
                 lightningTuning: effectType === "electric" ? (effect.lightningTuning ?? { ...DEFAULT_LIGHTNING_EFFECT_TUNING }) : undefined,
+                arcaneTuning: effectType === "arcane" ? (effect.arcaneTuning ?? { ...DEFAULT_ARCANE_EFFECT_TUNING }) : undefined,
                 smokeTuning: effectType === "smoke" ? (effect.smokeTuning ?? { ...DEFAULT_SMOKE_EFFECT_TUNING }) : undefined,
                 fogTuning: effectType === "fog" ? (effect.fogTuning ?? { ...DEFAULT_FOG_EFFECT_TUNING }) : undefined
               }
@@ -2031,6 +2047,7 @@ export function GmApp() {
               lavaEffectTuning={lavaEffectTuning}
               fireEffectTuning={fireEffectTuning}
               lightningEffectTuning={lightningEffectTuning}
+              arcaneEffectTuning={arcaneEffectTuning}
               smokeEffectTuning={smokeEffectTuning}
               fogEffectTuning={fogEffectTuning}
               mouseBehavior={mouseBehavior}
@@ -2079,6 +2096,8 @@ export function GmApp() {
               onFireEffectTuningReset={() => setFireEffectTuning(DEFAULT_FIRE_EFFECT_TUNING)}
               onLightningEffectTuningChange={setLightningEffectTuning}
               onLightningEffectTuningReset={() => setLightningEffectTuning(DEFAULT_LIGHTNING_EFFECT_TUNING)}
+              onArcaneEffectTuningChange={setArcaneEffectTuning}
+              onArcaneEffectTuningReset={() => setArcaneEffectTuning(DEFAULT_ARCANE_EFFECT_TUNING)}
               onSmokeEffectTuningChange={setSmokeEffectTuning}
               onSmokeEffectTuningReset={() => setSmokeEffectTuning(DEFAULT_SMOKE_EFFECT_TUNING)}
               onFogEffectTuningChange={setFogEffectTuning}
@@ -2149,6 +2168,7 @@ export function GmApp() {
             lavaEffectTuning={lavaEffectTuning}
             fireEffectTuning={fireEffectTuning}
             lightningEffectTuning={lightningEffectTuning}
+            arcaneEffectTuning={arcaneEffectTuning}
             smokeEffectTuning={smokeEffectTuning}
             fogEffectTuning={fogEffectTuning}
             liveTableEvents={liveTableEvents}
@@ -2290,6 +2310,8 @@ export function GmApp() {
           onFireTuningReset={() => updateEnvironmentEffectFireTuning(environmentEffectEditorEffect.id, { ...DEFAULT_FIRE_EFFECT_TUNING })}
           onLightningTuningChange={(lightningTuning) => updateEnvironmentEffectLightningTuning(environmentEffectEditorEffect.id, lightningTuning)}
           onLightningTuningReset={() => updateEnvironmentEffectLightningTuning(environmentEffectEditorEffect.id, { ...DEFAULT_LIGHTNING_EFFECT_TUNING })}
+          onArcaneTuningChange={(arcaneTuning) => updateEnvironmentEffectArcaneTuning(environmentEffectEditorEffect.id, arcaneTuning)}
+          onArcaneTuningReset={() => updateEnvironmentEffectArcaneTuning(environmentEffectEditorEffect.id, { ...DEFAULT_ARCANE_EFFECT_TUNING })}
           onSmokeTuningChange={(smokeTuning) => updateEnvironmentEffectSmokeTuning(environmentEffectEditorEffect.id, smokeTuning)}
           onSmokeTuningReset={() => updateEnvironmentEffectSmokeTuning(environmentEffectEditorEffect.id, { ...DEFAULT_SMOKE_EFFECT_TUNING })}
           onFogTuningChange={(fogTuning) => updateEnvironmentEffectFogTuning(environmentEffectEditorEffect.id, fogTuning)}
@@ -2437,6 +2459,8 @@ function EnvironmentEffectEditorModal({
   onFireTuningReset,
   onLightningTuningChange,
   onLightningTuningReset,
+  onArcaneTuningChange,
+  onArcaneTuningReset,
   onSmokeTuningChange,
   onSmokeTuningReset,
   onFogTuningChange,
@@ -2456,6 +2480,8 @@ function EnvironmentEffectEditorModal({
   onFireTuningReset: () => void;
   onLightningTuningChange: (tuning: LightningEffectTuning) => void;
   onLightningTuningReset: () => void;
+  onArcaneTuningChange: (tuning: ArcaneEffectTuning) => void;
+  onArcaneTuningReset: () => void;
   onSmokeTuningChange: (tuning: SmokeEffectTuning) => void;
   onSmokeTuningReset: () => void;
   onFogTuningChange: (tuning: FogEffectTuning) => void;
@@ -2471,11 +2497,42 @@ function EnvironmentEffectEditorModal({
   const activeLavaTuning = { ...DEFAULT_LAVA_EFFECT_TUNING, ...(effect.lavaTuning ?? {}) };
   const activeFireTuning = { ...DEFAULT_FIRE_EFFECT_TUNING, ...(effect.fireTuning ?? {}) };
   const activeLightningTuning = { ...DEFAULT_LIGHTNING_EFFECT_TUNING, ...(effect.lightningTuning ?? {}) };
+  const activeArcaneTuning = { ...DEFAULT_ARCANE_EFFECT_TUNING, ...(effect.arcaneTuning ?? {}) };
   const activeSmokeTuning = { ...DEFAULT_SMOKE_EFFECT_TUNING, ...(effect.smokeTuning ?? {}) };
   const activeFogTuning = { ...DEFAULT_FOG_EFFECT_TUNING, ...(effect.fogTuning ?? {}) };
-  const defaultPresetValue = getEnvironmentEffectPresetSelectValue(effect.effect, activeWaterTuning, activeLavaTuning, activeFireTuning, activeLightningTuning, activeSmokeTuning, activeFogTuning);
+  const defaultPresetValue = getEnvironmentEffectPresetSelectValue(effect.effect, activeWaterTuning, activeLavaTuning, activeFireTuning, activeLightningTuning, activeArcaneTuning, activeSmokeTuning, activeFogTuning);
   const [presetSelection, setPresetSelection] = useState(() => ({ effectId: effect.id, value: defaultPresetValue }));
   const presetValue = presetSelection.effectId === effect.id ? presetSelection.value : defaultPresetValue;
+  const resetActiveTuning = () => {
+    if (presetValue !== "custom") {
+      applyEnvironmentEffectPreset(effect.effect, presetValue, {
+        onWaterEffectTuningChange: onWaterTuningChange,
+        onLavaEffectTuningChange: onLavaTuningChange,
+        onFireEffectTuningChange: onFireTuningChange,
+        onLightningEffectTuningChange: onLightningTuningChange,
+        onArcaneEffectTuningChange: onArcaneTuningChange,
+        onSmokeEffectTuningChange: onSmokeTuningChange,
+        onFogEffectTuningChange: onFogTuningChange
+      });
+      return;
+    }
+
+    if (effect.effect === "water") {
+      onWaterTuningReset();
+    } else if (effect.effect === "lava") {
+      onLavaTuningReset();
+    } else if (effect.effect === "fire") {
+      onFireTuningReset();
+    } else if (effect.effect === "electric") {
+      onLightningTuningReset();
+    } else if (effect.effect === "arcane") {
+      onArcaneTuningReset();
+    } else if (effect.effect === "smoke") {
+      onSmokeTuningReset();
+    } else if (effect.effect === "fog") {
+      onFogTuningReset();
+    }
+  };
 
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     const bounds = modalRef.current?.getBoundingClientRect();
@@ -2553,6 +2610,7 @@ function EnvironmentEffectEditorModal({
                 <option value="fire">Fire</option>
                 <option value="lava">Lava</option>
                 <option value="electric">Electric</option>
+                <option value="arcane">Arcane</option>
                 <option value="fog">Mist</option>
                 <option value="smoke">Smoke</option>
                 <option value="water">Water</option>
@@ -2577,6 +2635,7 @@ function EnvironmentEffectEditorModal({
                     onLavaEffectTuningChange: onLavaTuningChange,
                     onFireEffectTuningChange: onFireTuningChange,
                     onLightningEffectTuningChange: onLightningTuningChange,
+                    onArcaneEffectTuningChange: onArcaneTuningChange,
                     onSmokeEffectTuningChange: onSmokeTuningChange,
                     onFogEffectTuningChange: onFogTuningChange
                   });
@@ -2613,7 +2672,7 @@ function EnvironmentEffectEditorModal({
             tuning={activeWaterTuning}
             defaultOpen
             onChange={onWaterTuningChange}
-            onReset={onWaterTuningReset}
+            onReset={resetActiveTuning}
           />
         ) : effect.effect === "lava" ? (
           <LavaEffectTuningPanel
@@ -2621,7 +2680,7 @@ function EnvironmentEffectEditorModal({
             tuning={activeLavaTuning}
             defaultOpen
             onChange={onLavaTuningChange}
-            onReset={onLavaTuningReset}
+            onReset={resetActiveTuning}
           />
         ) : effect.effect === "fire" ? (
           <FireEffectTuningPanel
@@ -2629,7 +2688,7 @@ function EnvironmentEffectEditorModal({
             tuning={activeFireTuning}
             defaultOpen
             onChange={onFireTuningChange}
-            onReset={onFireTuningReset}
+            onReset={resetActiveTuning}
           />
         ) : effect.effect === "electric" ? (
           <LightningEffectTuningPanel
@@ -2637,7 +2696,15 @@ function EnvironmentEffectEditorModal({
             tuning={activeLightningTuning}
             defaultOpen
             onChange={onLightningTuningChange}
-            onReset={onLightningTuningReset}
+            onReset={resetActiveTuning}
+          />
+        ) : effect.effect === "arcane" ? (
+          <ArcaneEffectTuningPanel
+            key={effect.id}
+            tuning={activeArcaneTuning}
+            defaultOpen
+            onChange={onArcaneTuningChange}
+            onReset={resetActiveTuning}
           />
         ) : effect.effect === "smoke" ? (
           <SmokeEffectTuningPanel
@@ -2645,7 +2712,7 @@ function EnvironmentEffectEditorModal({
             tuning={activeSmokeTuning}
             defaultOpen
             onChange={onSmokeTuningChange}
-            onReset={onSmokeTuningReset}
+            onReset={resetActiveTuning}
           />
         ) : effect.effect === "fog" ? (
           <FogEffectTuningPanel
@@ -2653,7 +2720,7 @@ function EnvironmentEffectEditorModal({
             tuning={activeFogTuning}
             defaultOpen
             onChange={onFogTuningChange}
-            onReset={onFogTuningReset}
+            onReset={resetActiveTuning}
           />
         ) : (
           <div className="layer-empty-state">
@@ -2672,7 +2739,7 @@ function EnvironmentEffectEditorModal({
 }
 
 function formatEnvironmentEffectEditorLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function clampEnvironmentEffectEditorPosition(x: number, y: number, bounds: DOMRect): { x: number; y: number } {

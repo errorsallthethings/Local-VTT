@@ -1,11 +1,13 @@
 import type { EnvironmentEffectType } from "../../shared/localvtt";
 import {
+  ARCANE_EFFECT_PRESETS,
   FIRE_EFFECT_PRESETS,
   FOG_EFFECT_PRESETS,
   LAVA_EFFECT_PRESETS,
   LIGHTNING_EFFECT_PRESETS,
   SMOKE_EFFECT_PRESETS,
   WATER_EFFECT_PRESETS,
+  type ArcaneEffectTuning,
   type FireEffectTuning,
   type FogEffectTuning,
   type LavaEffectTuning,
@@ -27,6 +29,7 @@ export function getEnvironmentEffectPresetSelectValue(
   lavaEffectTuning: LavaEffectTuning,
   fireEffectTuning: FireEffectTuning,
   lightningEffectTuning: LightningEffectTuning,
+  arcaneEffectTuning: ArcaneEffectTuning,
   smokeEffectTuning: SmokeEffectTuning,
   fogEffectTuning: FogEffectTuning
 ): string {
@@ -38,6 +41,9 @@ export function getEnvironmentEffectPresetSelectValue(
   }
   if (effect === "electric") {
     return getLightningPresetSelectValue(lightningEffectTuning);
+  }
+  if (effect === "arcane") {
+    return getArcanePresetSelectValue(arcaneEffectTuning);
   }
   if (effect === "smoke") {
     return getSmokePresetSelectValue(smokeEffectTuning);
@@ -72,6 +78,14 @@ export function getEnvironmentEffectPresetOptions(effect: EnvironmentEffectType)
       { label: "Electric Surge", value: "stormSurge" }
     ];
   }
+  if (effect === "arcane") {
+    return [
+      { label: "Custom", value: "custom" },
+      { label: "Ritual Circle", value: "ritualCircle" },
+      { label: "Sigil Field", value: "sigilField" },
+      { label: "Warding Runes", value: "wardingRunes" }
+    ];
+  }
   if (effect === "smoke") {
     return [
       { label: "Custom", value: "custom" },
@@ -102,6 +116,7 @@ export function applyEnvironmentEffectPreset(
     onLavaEffectTuningChange: (tuning: LavaEffectTuning) => void;
     onFireEffectTuningChange: (tuning: FireEffectTuning) => void;
     onLightningEffectTuningChange: (tuning: LightningEffectTuning) => void;
+    onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
     onSmokeEffectTuningChange: (tuning: SmokeEffectTuning) => void;
     onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
   }
@@ -127,6 +142,13 @@ export function applyEnvironmentEffectPreset(
     }
     return;
   }
+  if (effect === "arcane") {
+    const preset = ARCANE_EFFECT_PRESETS[value as keyof typeof ARCANE_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onArcaneEffectTuningChange({ ...preset });
+    }
+    return;
+  }
   if (effect === "smoke") {
     const preset = SMOKE_EFFECT_PRESETS[value as keyof typeof SMOKE_EFFECT_PRESETS];
     if (preset) {
@@ -148,7 +170,7 @@ export function applyEnvironmentEffectPreset(
 }
 
 export function formatEnvironmentEffectOptionLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 export function getEnvironmentEffectFeatherSelectValue(feather: number): number {
@@ -187,6 +209,15 @@ function getLightningPresetSelectValue(tuning: LightningEffectTuning): keyof typ
   for (const [presetName, preset] of Object.entries(LIGHTNING_EFFECT_PRESETS)) {
     if (isLightningTuningMatch(tuning, preset)) {
       return presetName as keyof typeof LIGHTNING_EFFECT_PRESETS;
+    }
+  }
+  return "custom";
+}
+
+function getArcanePresetSelectValue(tuning: ArcaneEffectTuning): keyof typeof ARCANE_EFFECT_PRESETS | "custom" {
+  for (const [presetName, preset] of Object.entries(ARCANE_EFFECT_PRESETS)) {
+    if (isArcaneTuningMatch(tuning, preset)) {
+      return presetName as keyof typeof ARCANE_EFFECT_PRESETS;
     }
   }
   return "custom";
@@ -289,6 +320,28 @@ function isLightningTuningMatch(tuning: LightningEffectTuning, preset: Lightning
     tuning.backgroundColor === preset.backgroundColor &&
     tuning.arcColor === preset.arcColor &&
     tuning.coreColor === preset.coreColor
+  );
+}
+
+function isArcaneTuningMatch(tuning: ArcaneEffectTuning, preset: ArcaneEffectTuning): boolean {
+  return (
+    tuning.opacity === preset.opacity &&
+    tuning.glyphScale === preset.glyphScale &&
+    tuning.speed === preset.speed &&
+    tuning.rotationSpeed === preset.rotationSpeed &&
+    tuning.glyphDensity === preset.glyphDensity &&
+    tuning.ringDensity === preset.ringDensity &&
+    tuning.circleScale === preset.circleScale &&
+    tuning.spokeAmount === preset.spokeAmount &&
+    tuning.pulse === preset.pulse &&
+    tuning.drift === preset.drift &&
+    tuning.glow === preset.glow &&
+    tuning.lineWidth === preset.lineWidth &&
+    tuning.zoomScale === preset.zoomScale &&
+    tuning.baseAlpha === preset.baseAlpha &&
+    tuning.backgroundColor === preset.backgroundColor &&
+    tuning.glyphColor === preset.glyphColor &&
+    tuning.glowColor === preset.glowColor
   );
 }
 

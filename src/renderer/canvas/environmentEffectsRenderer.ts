@@ -1,11 +1,13 @@
 import * as THREE from "three";
 import {
+  DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS,
   DEFAULT_FOG_EFFECT_TUNING_SETTINGS,
   DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
   DEFAULT_LAVA_EFFECT_TUNING_SETTINGS,
   DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
   DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS,
   DEFAULT_WATER_EFFECT_TUNING_SETTINGS,
+  type ArcaneEffectTuningSettings,
   type FogEffectTuningSettings,
   type FireEffectTuningSettings,
   type LavaEffectTuningSettings,
@@ -25,6 +27,7 @@ export type WaterEffectTuning = WaterEffectTuningSettings;
 export type LavaEffectTuning = LavaEffectTuningSettings;
 export type FireEffectTuning = FireEffectTuningSettings;
 export type LightningEffectTuning = LightningEffectTuningSettings;
+export type ArcaneEffectTuning = ArcaneEffectTuningSettings;
 export type SmokeEffectTuning = SmokeEffectTuningSettings;
 export type FogEffectTuning = FogEffectTuningSettings;
 
@@ -32,6 +35,7 @@ export const DEFAULT_WATER_EFFECT_TUNING: WaterEffectTuning = DEFAULT_WATER_EFFE
 export const DEFAULT_LAVA_EFFECT_TUNING: LavaEffectTuning = DEFAULT_LAVA_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FIRE_EFFECT_TUNING: FireEffectTuning = DEFAULT_FIRE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_LIGHTNING_EFFECT_TUNING: LightningEffectTuning = DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS;
+export const DEFAULT_ARCANE_EFFECT_TUNING: ArcaneEffectTuning = DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_SMOKE_EFFECT_TUNING: SmokeEffectTuning = DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FOG_EFFECT_TUNING: FogEffectTuning = DEFAULT_FOG_EFFECT_TUNING_SETTINGS;
 
@@ -182,6 +186,50 @@ export const LIGHTNING_EFFECT_PRESETS = {
   }
 } as const satisfies Record<string, LightningEffectTuning>;
 
+export const ARCANE_EFFECT_PRESETS = {
+  sigilField: { ...DEFAULT_ARCANE_EFFECT_TUNING },
+  ritualCircle: {
+    opacity: 0.88,
+    glyphScale: 3.4,
+    speed: 0.18,
+    rotationSpeed: 0.55,
+    glyphDensity: 0.42,
+    ringDensity: 0.92,
+    circleScale: 8.8,
+    spokeAmount: 0.78,
+    pulse: 0.86,
+    drift: 0.12,
+    glow: 0.9,
+    lineWidth: 0.5,
+    panFollow: 1,
+    zoomScale: 0,
+    baseAlpha: 0.24,
+    backgroundColor: "#12041d",
+    glyphColor: "#a78bfa",
+    glowColor: "#f0abfc"
+  },
+  wardingRunes: {
+    opacity: 0.78,
+    glyphScale: 6.2,
+    speed: 0.12,
+    rotationSpeed: -0.18,
+    glyphDensity: 0.88,
+    ringDensity: 0.34,
+    circleScale: 4.4,
+    spokeAmount: 0.32,
+    pulse: 0.5,
+    drift: 0.46,
+    glow: 0.62,
+    lineWidth: 0.38,
+    panFollow: 1,
+    zoomScale: 0,
+    baseAlpha: 0.16,
+    backgroundColor: "#0b1026",
+    glyphColor: "#67e8f9",
+    glowColor: "#ddd6fe"
+  }
+} as const satisfies Record<string, ArcaneEffectTuning>;
+
 export const SMOKE_EFFECT_PRESETS = {
   driftingSmoke: { ...DEFAULT_SMOKE_EFFECT_TUNING },
   heavySmoke: {
@@ -253,6 +301,7 @@ let waterRuntime: WaterRuntime | null = null;
 let lavaRuntime: WaterRuntime | null = null;
 let fireRuntime: WaterRuntime | null = null;
 let lightningRuntime: WaterRuntime | null = null;
+let arcaneRuntime: WaterRuntime | null = null;
 let smokeRuntime: WaterRuntime | null = null;
 let fogRuntime: WaterRuntime | null = null;
 
@@ -266,9 +315,13 @@ function getEffectWorldOrigin(bounds: ScreenBounds, cameraState: { x: number; y:
 
 function updateCameraUniforms(material: THREE.ShaderMaterial, bounds: ScreenBounds, cameraState: { x: number; y: number; zoom: number }) {
   const origin = getEffectWorldOrigin(bounds, cameraState);
+  const zoom = Math.max(cameraState.zoom, 0.01);
   material.uniforms.cameraOffset.value.set(cameraState.x, cameraState.y);
   material.uniforms.cameraZoom.value = cameraState.zoom;
   material.uniforms.effectOrigin.value.set(origin.x, origin.y);
+  if (material.uniforms.effectSize) {
+    material.uniforms.effectSize.value.set(Math.max(bounds.width / zoom, 1), Math.max(bounds.height / zoom, 1));
+  }
 }
 
 export function drawEnvironmentWaterEffect(
@@ -436,6 +489,50 @@ export function drawEnvironmentLightningEffect(
   updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
   _updateLightningMaterialTuning(runtime.meshA.material, tuning);
   _updateLightningMaterialTuning(runtime.meshB.material, tuning);
+
+  runtime.renderer.setSize(width, height, false);
+  runtime.renderer.setClearColor(0x000000, 0);
+  runtime.renderer.clear();
+  runtime.renderer.render(runtime.scene, runtime.camera);
+
+  ctx.save();
+  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
+  ctx.restore();
+}
+
+export function drawEnvironmentArcaneEffect(
+  ctx: CanvasRenderingContext2D,
+  bounds: ScreenBounds,
+  timestamp: number,
+  layerOpacity: number,
+  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
+  tuning: ArcaneEffectTuning = DEFAULT_ARCANE_EFFECT_TUNING
+) {
+  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
+    return;
+  }
+
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
+  const height = ctx.canvas.clientHeight || ctx.canvas.height;
+  const runtime = getArcaneRuntime(width, height);
+  if (!runtime) {
+    drawArcaneFallback(ctx, bounds, layerOpacity);
+    return;
+  }
+
+  const time = (timestamp - runtime.startedAt) / 1000;
+  positionWaterMesh(runtime.meshA, width, height, 1);
+  positionWaterMesh(runtime.meshB, width, height, 1);
+  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
+  runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.42;
+  runtime.meshA.material.uniforms.time.value = time;
+  runtime.meshB.material.uniforms.time.value = time * 0.73 + 21.5;
+  runtime.meshA.material.uniforms.resolution.value.set(width, height);
+  runtime.meshB.material.uniforms.resolution.value.set(width, height);
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateArcaneMaterialTuning(runtime.meshA.material, tuning);
+  updateArcaneMaterialTuning(runtime.meshB.material, tuning);
 
   runtime.renderer.setSize(width, height, false);
   runtime.renderer.setClearColor(0x000000, 0);
@@ -729,6 +826,55 @@ function getLightningRuntime(width: number, height: number): WaterRuntime | null
   }
 
   return lightningRuntime;
+}
+
+function getArcaneRuntime(width: number, height: number): WaterRuntime | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!arcaneRuntime) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+    camera.position.set(0, 0, 2400);
+    camera.lookAt(0, 0, 0);
+
+    const material = createArcaneMaterial(0.82);
+    const materialB = createArcaneMaterial(0.34);
+    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    meshA.position.z = 1280;
+    meshB.position.z = 1281;
+    scene.add(meshA, meshB);
+
+    arcaneRuntime = {
+      renderer,
+      scene,
+      camera,
+      meshA,
+      meshB,
+      startedAt: Date.now(),
+      width: 0,
+      height: 0
+    };
+  }
+
+  if (arcaneRuntime.width !== width || arcaneRuntime.height !== height) {
+    arcaneRuntime.width = width;
+    arcaneRuntime.height = height;
+    arcaneRuntime.camera.left = 0;
+    arcaneRuntime.camera.right = width;
+    arcaneRuntime.camera.top = 0;
+    arcaneRuntime.camera.bottom = height;
+    arcaneRuntime.camera.near = 0.1;
+    arcaneRuntime.camera.far = 5000;
+    arcaneRuntime.camera.updateProjectionMatrix();
+  }
+
+  return arcaneRuntime;
 }
 
 function getSmokeRuntime(width: number, height: number): WaterRuntime | null {
@@ -1490,6 +1636,162 @@ function _updateLightningMaterialTuning(material: THREE.ShaderMaterial, tuning: 
   material.uniforms.coreColor.value.set(tuning.coreColor);
 }
 
+function createArcaneMaterial(opacity: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    uniforms: {
+      glyphScale: { value: DEFAULT_ARCANE_EFFECT_TUNING.glyphScale },
+      speed: { value: DEFAULT_ARCANE_EFFECT_TUNING.speed },
+      rotationSpeed: { value: DEFAULT_ARCANE_EFFECT_TUNING.rotationSpeed },
+      glyphDensity: { value: DEFAULT_ARCANE_EFFECT_TUNING.glyphDensity },
+      ringDensity: { value: DEFAULT_ARCANE_EFFECT_TUNING.ringDensity },
+      circleScale: { value: DEFAULT_ARCANE_EFFECT_TUNING.circleScale },
+      spokeAmount: { value: DEFAULT_ARCANE_EFFECT_TUNING.spokeAmount },
+      pulse: { value: DEFAULT_ARCANE_EFFECT_TUNING.pulse },
+      drift: { value: DEFAULT_ARCANE_EFFECT_TUNING.drift },
+      glow: { value: DEFAULT_ARCANE_EFFECT_TUNING.glow },
+      lineWidth: { value: DEFAULT_ARCANE_EFFECT_TUNING.lineWidth },
+      panFollow: { value: DEFAULT_ARCANE_EFFECT_TUNING.panFollow },
+      zoomScale: { value: DEFAULT_ARCANE_EFFECT_TUNING.zoomScale },
+      baseAlpha: { value: DEFAULT_ARCANE_EFFECT_TUNING.baseAlpha },
+      backgroundColor: { value: new THREE.Color(DEFAULT_ARCANE_EFFECT_TUNING.backgroundColor) },
+      glyphColor: { value: new THREE.Color(DEFAULT_ARCANE_EFFECT_TUNING.glyphColor) },
+      glowColor: { value: new THREE.Color(DEFAULT_ARCANE_EFFECT_TUNING.glowColor) },
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2(1, 1) },
+      cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
+      effectSize: { value: new THREE.Vector2(1, 1) },
+      cameraZoom: { value: 1 },
+      opacity: { value: opacity }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float glyphScale;
+      uniform float speed;
+      uniform float rotationSpeed;
+      uniform float glyphDensity;
+      uniform float ringDensity;
+      uniform float circleScale;
+      uniform float spokeAmount;
+      uniform float pulse;
+      uniform float drift;
+      uniform float glow;
+      uniform float lineWidth;
+      uniform float panFollow;
+      uniform float zoomScale;
+      uniform float baseAlpha;
+      uniform vec3 backgroundColor;
+      uniform vec3 glyphColor;
+      uniform vec3 glowColor;
+      uniform float time;
+      uniform vec2 resolution;
+      uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
+      uniform vec2 effectSize;
+      uniform float cameraZoom;
+      uniform float opacity;
+
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float lineMask(float value, float width) {
+        float distanceToLine = abs(fract(value) - 0.5);
+        return smoothstep(width, 0.0, distanceToLine);
+      }
+
+      mat2 rotate2d(float angle) {
+        float s = sin(angle);
+        float c = cos(angle);
+        return mat2(c, -s, s, c);
+      }
+
+      float runeCell(vec2 uv, float localTime) {
+        vec2 grid = uv * glyphScale;
+        vec2 cell = floor(grid);
+        vec2 local = fract(grid) - 0.5;
+        float seed = hash(cell);
+        float visible = smoothstep(1.0 - glyphDensity, 1.0, seed);
+        local *= rotate2d((seed - 0.5) * 6.2831 + localTime * rotationSpeed * (seed > 0.5 ? 1.0 : -1.0));
+        float width = mix(0.018, 0.07, lineWidth);
+        float vertical = smoothstep(width, 0.0, abs(local.x)) * step(abs(local.y), 0.36);
+        float horizontal = smoothstep(width, 0.0, abs(local.y)) * step(abs(local.x), 0.36);
+        float diagonal = smoothstep(width, 0.0, abs(local.x - local.y)) * step(max(abs(local.x), abs(local.y)), 0.34);
+        float hook = smoothstep(width, 0.0, abs(length(local - vec2(0.16, -0.12)) - 0.22)) * step(local.x, 0.22);
+        vec2 boxDistance = abs(local) - vec2(0.28);
+        float squareOutline = smoothstep(width, 0.0, abs(max(boxDistance.x, boxDistance.y))) * step(max(abs(local.x), abs(local.y)), 0.34);
+        float shapePick = floor(seed * 5.0);
+        float glyph = shapePick < 1.0 ? vertical : shapePick < 2.0 ? max(vertical, horizontal) : shapePick < 3.0 ? diagonal : shapePick < 4.0 ? squareOutline : hook;
+        float blink = mix(0.65, 1.0, sin(localTime * (1.4 + seed * 2.0) + seed * 9.0) * 0.5 + 0.5);
+        return glyph * visible * blink;
+      }
+
+      void main() {
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 localCoord = (worldCoord - effectOrigin) / max(effectSize, vec2(1.0));
+        vec2 centeredCoord = localCoord - 0.5;
+        centeredCoord.x *= effectSize.x / max(effectSize.y, 1.0);
+        vec2 glyphCoord = centeredCoord * 3.2 * zoomFactor;
+        float localTime = time * speed;
+        vec2 driftOffset = vec2(sin(localTime * 0.67), cos(localTime * 0.53)) * drift * 0.65;
+        vec2 fieldUv = glyphCoord + driftOffset;
+        vec2 radialUv = rotate2d(localTime * rotationSpeed * 0.35) * centeredCoord;
+        float radius = length(radialUv);
+        float angle = atan(radialUv.y, radialUv.x) / 6.2831853 + 0.5;
+
+        float ringWidth = mix(0.016, 0.06, lineWidth);
+        float rings = lineMask(radius * circleScale, ringWidth) * ringDensity;
+        float spokes = lineMask(angle * mix(4.0, 22.0, spokeAmount), ringWidth * 0.82) * smoothstep(0.08, 0.62, radius) * ringDensity * spokeAmount;
+        float runeFragments = runeCell(fieldUv, localTime);
+        float pulseWave = 0.72 + sin(localTime * 6.2831 + radius * 7.0) * 0.28 * pulse;
+        float sigil = max(rings * pulseWave, spokes * 0.75);
+        sigil = max(sigil, runeFragments);
+        float aura = smoothstep(0.08, 0.0, abs(fract(radius * 2.3 - localTime * 0.18) - 0.5)) * glow * 0.28;
+        float energy = clamp(sigil + aura, 0.0, 1.0);
+        vec3 color = mix(backgroundColor, glyphColor, energy);
+        color = mix(color, glowColor, smoothstep(0.45, 1.0, energy) * glow);
+        float alpha = (baseAlpha * 0.42 + energy * (0.78 + glow * 0.38)) * opacity;
+        gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+      }
+    `
+  });
+}
+
+function updateArcaneMaterialTuning(material: THREE.ShaderMaterial, tuning: ArcaneEffectTuning) {
+  material.uniforms.glyphScale.value = tuning.glyphScale;
+  material.uniforms.speed.value = tuning.speed;
+  material.uniforms.rotationSpeed.value = tuning.rotationSpeed;
+  material.uniforms.glyphDensity.value = tuning.glyphDensity;
+  material.uniforms.ringDensity.value = tuning.ringDensity;
+  material.uniforms.circleScale.value = tuning.circleScale;
+  material.uniforms.spokeAmount.value = tuning.spokeAmount;
+  material.uniforms.pulse.value = tuning.pulse;
+  material.uniforms.drift.value = tuning.drift;
+  material.uniforms.glow.value = tuning.glow;
+  material.uniforms.lineWidth.value = tuning.lineWidth;
+  material.uniforms.panFollow.value = 1;
+  material.uniforms.zoomScale.value = tuning.zoomScale;
+  material.uniforms.baseAlpha.value = tuning.baseAlpha;
+  material.uniforms.backgroundColor.value.set(tuning.backgroundColor);
+  material.uniforms.glyphColor.value.set(tuning.glyphColor);
+  material.uniforms.glowColor.value.set(tuning.glowColor);
+}
+
 function createSmokeMaterial(opacity: number): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     transparent: true,
@@ -1816,6 +2118,14 @@ function _drawLightningFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBou
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.34;
   ctx.fillStyle = "rgb(96, 165, 250)";
+  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  ctx.restore();
+}
+
+function drawArcaneFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.3;
+  ctx.fillStyle = "rgb(192, 132, 252)";
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }

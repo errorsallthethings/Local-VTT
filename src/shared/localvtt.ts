@@ -171,7 +171,7 @@ export interface WeatherMask {
   visible?: boolean;
 }
 
-export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire" | "electric";
+export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire" | "electric" | "arcane";
 
 export interface WaterEffectTuningSettings {
   opacity: number;
@@ -329,6 +329,48 @@ export const DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS: LightningEffectTuningSett
   coreColor: "#f8fbff"
 };
 
+export interface ArcaneEffectTuningSettings {
+  opacity: number;
+  glyphScale: number;
+  speed: number;
+  rotationSpeed: number;
+  glyphDensity: number;
+  ringDensity: number;
+  circleScale: number;
+  spokeAmount: number;
+  pulse: number;
+  drift: number;
+  glow: number;
+  lineWidth: number;
+  panFollow: number;
+  zoomScale: number;
+  baseAlpha: number;
+  backgroundColor: string;
+  glyphColor: string;
+  glowColor: string;
+}
+
+export const DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS: ArcaneEffectTuningSettings = {
+  opacity: 0.82,
+  glyphScale: 4.8,
+  speed: 0.24,
+  rotationSpeed: 0.28,
+  glyphDensity: 0.62,
+  ringDensity: 0.58,
+  circleScale: 6.5,
+  spokeAmount: 0.62,
+  pulse: 0.72,
+  drift: 0.3,
+  glow: 0.74,
+  lineWidth: 0.46,
+  panFollow: 1,
+  zoomScale: 0,
+  baseAlpha: 0.2,
+  backgroundColor: "#14051f",
+  glyphColor: "#c084fc",
+  glowColor: "#f5d0fe"
+};
+
 export interface SmokeEffectTuningSettings {
   opacity: number;
   cloudScale: number;
@@ -394,6 +436,7 @@ export interface EnvironmentEffectMask {
   lavaTuning?: LavaEffectTuningSettings;
   fireTuning?: FireEffectTuningSettings;
   lightningTuning?: LightningEffectTuningSettings;
+  arcaneTuning?: ArcaneEffectTuningSettings;
   smokeTuning?: SmokeEffectTuningSettings;
   fogTuning?: FogEffectTuningSettings;
   visibleInGm?: boolean;
@@ -1241,7 +1284,7 @@ const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "sandstorm"
 ]);
 
-const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire", "electric"]);
+const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire", "electric", "arcane"]);
 
 export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
@@ -1734,6 +1777,7 @@ function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): Env
         lavaTuning: effectType === "lava" ? normalizeLavaEffectTuning(effect.lavaTuning) : undefined,
         fireTuning: effectType === "fire" ? normalizeFireEffectTuning(effect.fireTuning) : undefined,
         lightningTuning: effectType === "electric" ? normalizeLightningEffectTuning(effect.lightningTuning) : undefined,
+        arcaneTuning: effectType === "arcane" ? normalizeArcaneEffectTuning(effect.arcaneTuning) : undefined,
         smokeTuning: effectType === "smoke" ? normalizeSmokeEffectTuning(effect.smokeTuning) : undefined,
         fogTuning: effectType === "fog" ? normalizeFogEffectTuning(effect.fogTuning) : undefined,
         visibleInGm: effect.visibleInGm ?? true,
@@ -1828,6 +1872,29 @@ function normalizeLightningEffectTuning(tuning?: LightningEffectTuningSettings):
   };
 }
 
+function normalizeArcaneEffectTuning(tuning?: ArcaneEffectTuningSettings): ArcaneEffectTuningSettings {
+  return {
+    opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.opacity),
+    glyphScale: clampNumber(tuning?.glyphScale, 0.5, 20, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.glyphScale),
+    speed: clampNumber(tuning?.speed, 0, 2, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.speed),
+    rotationSpeed: clampNumber(tuning?.rotationSpeed, -2, 2, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.rotationSpeed),
+    glyphDensity: clampNumber(tuning?.glyphDensity, 0, 1, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.glyphDensity),
+    ringDensity: clampNumber(tuning?.ringDensity, 0, 1, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.ringDensity),
+    circleScale: clampNumber(tuning?.circleScale, 1, 20, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.circleScale),
+    spokeAmount: clampNumber(tuning?.spokeAmount, 0, 1, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.spokeAmount),
+    pulse: clampNumber(tuning?.pulse, 0, 1, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.pulse),
+    drift: clampNumber(tuning?.drift, 0, 1, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.drift),
+    glow: clampNumber(tuning?.glow, 0, 1, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.glow),
+    lineWidth: clampNumber(tuning?.lineWidth, 0, 1, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.lineWidth),
+    panFollow: 1,
+    zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.zoomScale),
+    baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.baseAlpha),
+    backgroundColor: normalizeColorValue(tuning?.backgroundColor, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.backgroundColor),
+    glyphColor: normalizeColorValue(tuning?.glyphColor, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.glyphColor),
+    glowColor: normalizeColorValue(tuning?.glowColor, DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS.glowColor)
+  };
+}
+
 function normalizeSmokeEffectTuning(tuning?: SmokeEffectTuningSettings): SmokeEffectTuningSettings {
   return {
     opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.opacity),
@@ -1871,7 +1938,7 @@ function normalizeColorValue(value: unknown, fallback: string): string {
 }
 
 function formatEnvironmentEffectName(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function normalizeWeatherEffectSettings(settings?: WeatherSettings["effectSettings"]): WeatherSettings["effectSettings"] {
