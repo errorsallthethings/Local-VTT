@@ -160,6 +160,7 @@ type WaterRuntime = {
 let waterRuntime: WaterRuntime | null = null;
 let lavaRuntime: WaterRuntime | null = null;
 let smokeRuntime: WaterRuntime | null = null;
+let fogRuntime: WaterRuntime | null = null;
 
 function getEffectWorldOrigin(bounds: ScreenBounds, cameraState: { x: number; y: number; zoom: number }) {
   const zoom = Math.max(cameraState.zoom, 0.01);
@@ -316,7 +317,40 @@ export function drawEnvironmentFogEffect(
   cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
   tuning: FogEffectTuning = DEFAULT_FOG_EFFECT_TUNING
 ) {
-  drawEnvironmentSmokeEffect(ctx, bounds, timestamp, layerOpacity, cameraState, tuning);
+  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
+    return;
+  }
+
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
+  const height = ctx.canvas.clientHeight || ctx.canvas.height;
+  const runtime = getFogRuntime(width, height);
+  if (!runtime) {
+    drawFogFallback(ctx, bounds, layerOpacity);
+    return;
+  }
+
+  const time = (timestamp - runtime.startedAt) / 1000;
+  positionWaterMesh(runtime.meshA, width, height, 1);
+  positionWaterMesh(runtime.meshB, width, height, 1);
+  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
+  runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.32;
+  runtime.meshA.material.uniforms.time.value = time;
+  runtime.meshB.material.uniforms.time.value = time * 0.47 + 31.1;
+  runtime.meshA.material.uniforms.resolution.value.set(width, height);
+  runtime.meshB.material.uniforms.resolution.value.set(width, height);
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateFogMaterialTuning(runtime.meshA.material, tuning);
+  updateFogMaterialTuning(runtime.meshB.material, tuning);
+
+  runtime.renderer.setSize(width, height, false);
+  runtime.renderer.setClearColor(0x000000, 0);
+  runtime.renderer.clear();
+  runtime.renderer.render(runtime.scene, runtime.camera);
+
+  ctx.save();
+  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
+  ctx.restore();
 }
 
 function getWaterRuntime(width: number, height: number): WaterRuntime | null {
@@ -464,6 +498,55 @@ function getSmokeRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   return smokeRuntime;
+}
+
+function getFogRuntime(width: number, height: number): WaterRuntime | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!fogRuntime) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+    camera.position.set(0, 0, 2400);
+    camera.lookAt(0, 0, 0);
+
+    const material = createFogMaterial(0.68);
+    const materialB = createFogMaterial(0.28);
+    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    meshA.position.z = 1280;
+    meshB.position.z = 1281;
+    scene.add(meshA, meshB);
+
+    fogRuntime = {
+      renderer,
+      scene,
+      camera,
+      meshA,
+      meshB,
+      startedAt: Date.now(),
+      width: 0,
+      height: 0
+    };
+  }
+
+  if (fogRuntime.width !== width || fogRuntime.height !== height) {
+    fogRuntime.width = width;
+    fogRuntime.height = height;
+    fogRuntime.camera.left = 0;
+    fogRuntime.camera.right = width;
+    fogRuntime.camera.top = 0;
+    fogRuntime.camera.bottom = height;
+    fogRuntime.camera.near = 0.1;
+    fogRuntime.camera.far = 5000;
+    fogRuntime.camera.updateProjectionMatrix();
+  }
+
+  return fogRuntime;
 }
 
 function createWaterMaterial(opacity: number): THREE.ShaderMaterial {
@@ -898,6 +981,149 @@ function updateSmokeMaterialTuning(material: THREE.ShaderMaterial, tuning: Smoke
   material.uniforms.highlightColor.value.set(tuning.highlightColor);
 }
 
+function createFogMaterial(opacity: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+    blending: THREE.NormalBlending,
+    uniforms: {
+      cloudScale: { value: DEFAULT_FOG_EFFECT_TUNING.cloudScale },
+      speed: { value: DEFAULT_FOG_EFFECT_TUNING.speed },
+      directionRadians: { value: degreesToRadians(DEFAULT_FOG_EFFECT_TUNING.directionDegrees) },
+      turbulence: { value: DEFAULT_FOG_EFFECT_TUNING.turbulence },
+      softness: { value: DEFAULT_FOG_EFFECT_TUNING.softness },
+      density: { value: DEFAULT_FOG_EFFECT_TUNING.density },
+      lift: { value: DEFAULT_FOG_EFFECT_TUNING.lift },
+      panFollow: { value: DEFAULT_FOG_EFFECT_TUNING.panFollow },
+      zoomScale: { value: DEFAULT_FOG_EFFECT_TUNING.zoomScale },
+      baseAlpha: { value: DEFAULT_FOG_EFFECT_TUNING.baseAlpha },
+      shadowColor: { value: new THREE.Color(DEFAULT_FOG_EFFECT_TUNING.shadowColor) },
+      smokeColor: { value: new THREE.Color(DEFAULT_FOG_EFFECT_TUNING.smokeColor) },
+      highlightColor: { value: new THREE.Color(DEFAULT_FOG_EFFECT_TUNING.highlightColor) },
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2(1, 1) },
+      cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
+      cameraZoom: { value: 1 },
+      opacity: { value: opacity }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float cloudScale;
+      uniform float speed;
+      uniform float directionRadians;
+      uniform float turbulence;
+      uniform float softness;
+      uniform float density;
+      uniform float lift;
+      uniform float panFollow;
+      uniform float zoomScale;
+      uniform float baseAlpha;
+      uniform vec3 shadowColor;
+      uniform vec3 smokeColor;
+      uniform vec3 highlightColor;
+      uniform float time;
+      uniform vec2 resolution;
+      uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
+      uniform float cameraZoom;
+      uniform float opacity;
+      varying vec2 vUv;
+
+      float randomValue(vec2 value) {
+        return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float valueNoise(vec2 value) {
+        vec2 base = floor(value);
+        vec2 fraction = fract(value);
+        vec2 blend = fraction * fraction * (3.0 - 2.0 * fraction);
+        float a = randomValue(base);
+        float b = randomValue(base + vec2(1.0, 0.0));
+        float c = randomValue(base + vec2(0.0, 1.0));
+        float d = randomValue(base + vec2(1.0, 1.0));
+        return mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y);
+      }
+
+      float fbm(vec2 value) {
+        float total = 0.0;
+        float amplitude = 0.5;
+        for (int i = 0; i < 5; i++) {
+          total += valueNoise(value) * amplitude;
+          value *= 2.02;
+          amplitude *= 0.54;
+        }
+        return total;
+      }
+
+      void main() {
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
+        vec2 pixelUv = anchoredCoord / 260.0 * zoomFactor;
+        vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
+        vec2 perpendicular = vec2(-direction.y, direction.x);
+        vec2 uv = vec2(dot(pixelUv, direction), dot(pixelUv, perpendicular));
+        float motion = time * speed;
+
+        vec2 driftUv = uv;
+        driftUv.x -= motion * 0.34;
+        driftUv.y -= motion * lift * 0.26;
+
+        float sheetA = fbm(driftUv * vec2(cloudScale * 0.28, cloudScale * 0.08) + vec2(motion * 0.05, -motion * 0.015));
+        float sheetB = fbm(driftUv * vec2(cloudScale * 0.18, cloudScale * 0.14) - vec2(motion * 0.035, motion * 0.025));
+        float veil = smoothstep(0.22, 0.88, sheetA * 0.62 + sheetB * 0.38);
+
+        float lowBand = sin((driftUv.y + sheetB * 0.28) * cloudScale * 1.15 + motion * 0.45);
+        float band = smoothstep(-0.72, 0.72, lowBand) * smoothstep(0.18, 0.92, veil);
+
+        float eddyA = fbm(driftUv * cloudScale * 0.72 + vec2(motion * 0.08, motion * 0.03));
+        float eddyB = fbm(driftUv * cloudScale * 1.2 - vec2(motion * 0.045, motion * 0.055));
+        float wisps = smoothstep(0.42, 0.92, eddyA * 0.55 + eddyB * 0.45 + band * 0.18);
+        wisps *= mix(0.58, 1.0, turbulence);
+
+        float thinBreaks = fbm(driftUv * vec2(cloudScale * 1.65, cloudScale * 0.32) + vec2(-motion * 0.12, motion * 0.02));
+        float body = clamp(veil * 0.45 + band * 0.28 + wisps * 0.38 - thinBreaks * (0.2 + softness * 0.16), 0.0, 1.0);
+        body = smoothstep(0.12, mix(0.9, 0.42, density), body);
+
+        float highlight = smoothstep(0.54, 0.96, sheetA * 0.62 + thinBreaks * 0.38) * softness;
+        vec3 color = mix(shadowColor, smokeColor, body);
+        color = mix(color, highlightColor, highlight * 0.34);
+        float alpha = (baseAlpha + body * density * 0.34 + band * 0.08 + highlight * 0.05) * opacity;
+        alpha *= smoothstep(0.02, 0.2, body + density * 0.16);
+        gl_FragColor = vec4(color, alpha);
+      }
+    `
+  });
+}
+
+function updateFogMaterialTuning(material: THREE.ShaderMaterial, tuning: FogEffectTuning) {
+  material.uniforms.cloudScale.value = tuning.cloudScale;
+  material.uniforms.speed.value = tuning.speed;
+  material.uniforms.directionRadians.value = degreesToRadians(tuning.directionDegrees);
+  material.uniforms.turbulence.value = tuning.turbulence;
+  material.uniforms.softness.value = tuning.softness;
+  material.uniforms.density.value = tuning.density;
+  material.uniforms.lift.value = tuning.lift;
+  material.uniforms.panFollow.value = tuning.panFollow;
+  material.uniforms.zoomScale.value = tuning.zoomScale;
+  material.uniforms.baseAlpha.value = tuning.baseAlpha;
+  material.uniforms.shadowColor.value.set(tuning.shadowColor);
+  material.uniforms.smokeColor.value.set(tuning.smokeColor);
+  material.uniforms.highlightColor.value.set(tuning.highlightColor);
+}
+
 function degreesToRadians(degrees: number): number {
   return (degrees * Math.PI) / 180;
 }
@@ -929,6 +1155,14 @@ function drawSmokeFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, 
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.24;
   ctx.fillStyle = "rgb(140, 152, 165)";
+  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  ctx.restore();
+}
+
+function drawFogFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.18;
+  ctx.fillStyle = "rgb(190, 204, 216)";
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }
