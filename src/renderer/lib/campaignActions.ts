@@ -6,7 +6,7 @@ export function getSceneDraftToSave(
   sceneDrafts: Record<string, Scene>,
   activeScene: Scene | null
 ): Scene | null {
-  return sceneDrafts[sceneId] ?? (activeScene?.id === sceneId ? activeScene : null);
+  return activeScene?.id === sceneId ? activeScene : (sceneDrafts[sceneId] ?? null);
 }
 
 export function getDirtySceneIdsInFolder(campaign: Campaign, dirtySceneIds: Set<string>, folderId: string): string[] {

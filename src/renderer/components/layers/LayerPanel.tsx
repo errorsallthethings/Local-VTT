@@ -1571,7 +1571,7 @@ function WeatherMaskList({
 }
 
 function formatEnvironmentEffectLabel(effect: Scene["environment"]["effects"][number]["effect"]): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fog" ? "Fog / Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function getWeatherEffectSettingsWithCurrent(weather: WeatherSettings): WeatherSettings["effectSettings"] {

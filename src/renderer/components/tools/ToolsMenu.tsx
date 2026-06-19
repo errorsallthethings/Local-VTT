@@ -17,7 +17,6 @@ import {
   MousePointer2,
   Paintbrush,
   Pentagon,
-  Pin,
   Ruler,
   Sparkles,
   Square,
@@ -35,7 +34,7 @@ import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType }
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
-import { FOG_EFFECT_PRESETS, LAVA_EFFECT_PRESETS, SMOKE_EFFECT_PRESETS, WATER_EFFECT_PRESETS, type FogEffectTuning, type LavaEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
+import { FIRE_EFFECT_PRESETS, FOG_EFFECT_PRESETS, LAVA_EFFECT_PRESETS, SMOKE_EFFECT_PRESETS, WATER_EFFECT_PRESETS, type FireEffectTuning, type FogEffectTuning, type LavaEffectTuning, type SmokeEffectTuning, type WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
 
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";
@@ -146,6 +145,12 @@ const TEMPLATE_EFFECT_OPTIONS: Array<{ label: string; value: DrawingTemplateEffe
 const DEFAULT_DRAWING_COLOR = "#ff0000";
 const DEFAULT_TEMPLATE_COLOR = "#7dd3fc";
 const DEFAULT_SONAR_COLOR = "#ffd84d";
+export const ENVIRONMENT_EFFECT_FEATHER_OPTIONS = [
+  { label: "None", value: 0 },
+  { label: "Soft", value: 0.3 },
+  { label: "Medium", value: 0.6 },
+  { label: "Wide", value: 1 }
+] as const;
 
 interface ToolsMenuProps {
   activeCanvasTool: CanvasTool | null;
@@ -154,8 +159,10 @@ interface ToolsMenuProps {
   activeEnvironmentEffectTool: EnvironmentEffectTool | null;
   activeDrawingTool: DrawingTool | null;
   environmentEffectType: EnvironmentEffectType;
+  environmentEffectFeather: number;
   waterEffectTuning: WaterEffectTuning;
   lavaEffectTuning: LavaEffectTuning;
+  fireEffectTuning: FireEffectTuning;
   smokeEffectTuning: SmokeEffectTuning;
   fogEffectTuning: FogEffectTuning;
   mouseBehavior: MouseBehavior;
@@ -192,10 +199,13 @@ interface ToolsMenuProps {
   onEnvironmentEffectToolChange: (tool: EnvironmentEffectTool | null) => void;
   onDrawingToolChange: (tool: DrawingTool | null) => void;
   onEnvironmentEffectTypeChange: (effect: EnvironmentEffectType) => void;
+  onEnvironmentEffectFeatherChange: (feather: number) => void;
   onWaterEffectTuningChange: (tuning: WaterEffectTuning) => void;
   onWaterEffectTuningReset: () => void;
   onLavaEffectTuningChange: (tuning: LavaEffectTuning) => void;
   onLavaEffectTuningReset: () => void;
+  onFireEffectTuningChange: (tuning: FireEffectTuning) => void;
+  onFireEffectTuningReset: () => void;
   onSmokeEffectTuningChange: (tuning: SmokeEffectTuning) => void;
   onSmokeEffectTuningReset: () => void;
   onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
@@ -233,17 +243,21 @@ interface ToolsMenuProps {
   onClearSelection: () => void;
 }
 
-const TOOL_CATEGORIES: Array<{ id: ToolCategory; label: string; icon: typeof SquareDashedMousePointer; hasPanelTools: boolean }> = [
-  { id: "drawing", label: "Drawing Tools", icon: LineSquiggle, hasPanelTools: true },
-  { id: "templates", label: "Template Tools", icon: Triangle, hasPanelTools: true },
-  { id: "text", label: "Text Tool", icon: Type, hasPanelTools: false },
-  { id: "table", label: "Table Tools", icon: Table2, hasPanelTools: true },
-  { id: "dice", label: "Dice Bag", icon: Dices, hasPanelTools: false },
-  { id: "turn-order", label: "Turn Order", icon: ListOrdered, hasPanelTools: false },
-  { id: "pin", label: "Pin Tools", icon: Pin, hasPanelTools: false },
-  { id: "fog", label: "Fog Of War Tools", icon: CloudFog, hasPanelTools: true },
-  { id: "effects", label: "Effects Tools", icon: Sparkles, hasPanelTools: true },
-  { id: "lighting", label: "Dynamic Lighting", icon: Lightbulb, hasPanelTools: false }
+type ToolCategoryEntry =
+  | { kind: "category"; id: ToolCategory; label: string; icon: typeof SquareDashedMousePointer; hasPanelTools: boolean }
+  | { kind: "divider"; id: string };
+
+const TOOL_CATEGORIES: ToolCategoryEntry[] = [
+  { kind: "category", id: "fog", label: "Fog Of War Tools", icon: CloudFog, hasPanelTools: true },
+  { kind: "category", id: "effects", label: "Effects Tools", icon: Sparkles, hasPanelTools: true },
+  { kind: "category", id: "drawing", label: "Drawing Tools", icon: LineSquiggle, hasPanelTools: true },
+  { kind: "category", id: "text", label: "Text Tool", icon: Type, hasPanelTools: false },
+  { kind: "category", id: "templates", label: "Template Tools", icon: Triangle, hasPanelTools: true },
+  { kind: "category", id: "lighting", label: "Dynamic Lighting", icon: Lightbulb, hasPanelTools: false },
+  { kind: "divider", id: "tools-primary-secondary-divider" },
+  { kind: "category", id: "dice", label: "Dice Bag", icon: Dices, hasPanelTools: false },
+  { kind: "category", id: "turn-order", label: "Turn Order", icon: ListOrdered, hasPanelTools: false },
+  { kind: "category", id: "table", label: "Table Tools", icon: Table2, hasPanelTools: true }
 ];
 
 export function ToolsMenu({
@@ -253,8 +267,10 @@ export function ToolsMenu({
   activeEnvironmentEffectTool,
   activeDrawingTool,
   environmentEffectType,
+  environmentEffectFeather,
   waterEffectTuning,
   lavaEffectTuning,
+  fireEffectTuning,
   smokeEffectTuning,
   fogEffectTuning,
   mouseBehavior,
@@ -291,10 +307,13 @@ export function ToolsMenu({
   onEnvironmentEffectToolChange,
   onDrawingToolChange,
   onEnvironmentEffectTypeChange,
+  onEnvironmentEffectFeatherChange,
   onWaterEffectTuningChange,
   onWaterEffectTuningReset,
   onLavaEffectTuningChange,
   onLavaEffectTuningReset,
+  onFireEffectTuningChange,
+  onFireEffectTuningReset,
   onSmokeEffectTuningChange,
   onSmokeEffectTuningReset,
   onFogEffectTuningChange,
@@ -344,6 +363,14 @@ export function ToolsMenu({
   const [maskSettingsOpen, setMaskSettingsOpen] = useState(false);
   const [selectorSettingsOpen, setSelectorSettingsOpen] = useState(false);
   const activeFogShape = getActiveFogShape(activeFogTool);
+  const environmentEffectPresetValue = getEnvironmentEffectPresetSelectValue(
+    environmentEffectType,
+    waterEffectTuning,
+    lavaEffectTuning,
+    fireEffectTuning,
+    smokeEffectTuning,
+    fogEffectTuning
+  );
 
   useEffect(() => {
     if (activeFogTool) {
@@ -550,6 +577,9 @@ export function ToolsMenu({
         </button>
         {toolsExpanded &&
           TOOL_CATEGORIES.map((category) => {
+            if (category.kind === "divider") {
+              return <span key={category.id} className="tools-menu-divider" aria-hidden="true" />;
+            }
             const Icon = category.icon;
             return (
               <button
@@ -946,111 +976,6 @@ export function ToolsMenu({
               </div>
               <div className="tools-section-divider" />
               <div className="tools-section-label">Environmental Effects</div>
-              <div className="tools-strip-select-field">
-                <strong>Effect</strong>
-                <div>
-                  <select
-                    aria-label="Environmental effect type"
-                    title="Environmental effect type"
-                    value={environmentEffectType}
-                    onChange={(event) => onEnvironmentEffectTypeChange(event.target.value as EnvironmentEffectType)}
-                  >
-                    <option value="water">Water</option>
-                    <option value="lava">Lava</option>
-                    <option value="smoke">Smoke</option>
-                    <option value="fog">Fog / Mist</option>
-                  </select>
-                </div>
-              </div>
-              {environmentEffectType === "water" && (
-                <div className="tools-strip-select-field">
-                  <strong>Preset</strong>
-                  <div>
-                    <select
-                      aria-label="Water effect preset"
-                      title="Water effect preset"
-                      value={getWaterPresetSelectValue(waterEffectTuning)}
-                      onChange={(event) => {
-                        const preset = WATER_EFFECT_PRESETS[event.target.value as keyof typeof WATER_EFFECT_PRESETS];
-                        if (preset) {
-                          onWaterEffectTuningChange({ ...preset });
-                        }
-                      }}
-                    >
-                      <option value="custom">Custom</option>
-                      <option value="stream">Stream</option>
-                      <option value="river">River</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-              {environmentEffectType === "lava" && (
-                <div className="tools-strip-select-field">
-                  <strong>Preset</strong>
-                  <div>
-                    <select
-                      aria-label="Lava effect preset"
-                      title="Lava effect preset"
-                      value={getLavaPresetSelectValue(lavaEffectTuning)}
-                      onChange={(event) => {
-                        const preset = LAVA_EFFECT_PRESETS[event.target.value as keyof typeof LAVA_EFFECT_PRESETS];
-                        if (preset) {
-                          onLavaEffectTuningChange({ ...preset });
-                        }
-                      }}
-                    >
-                      <option value="custom">Custom</option>
-                      <option value="moltenFlow">Molten Flow</option>
-                      <option value="magmaPool">Magma Pool</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-              {environmentEffectType === "smoke" && (
-                <div className="tools-strip-select-field">
-                  <strong>Preset</strong>
-                  <div>
-                    <select
-                      aria-label="Smoke effect preset"
-                      title="Smoke effect preset"
-                      value={getSmokePresetSelectValue(smokeEffectTuning)}
-                      onChange={(event) => {
-                        const preset = SMOKE_EFFECT_PRESETS[event.target.value as keyof typeof SMOKE_EFFECT_PRESETS];
-                        if (preset) {
-                          onSmokeEffectTuningChange({ ...preset });
-                        }
-                      }}
-                    >
-                      <option value="custom">Custom</option>
-                      <option value="driftingSmoke">Drifting Smoke</option>
-                      <option value="heavyFog">Heavy Fog</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-              {environmentEffectType === "fog" && (
-                <div className="tools-strip-select-field">
-                  <strong>Preset</strong>
-                  <div>
-                    <select
-                      aria-label="Fog / Mist effect preset"
-                      title="Fog / Mist effect preset"
-                      value={getFogPresetSelectValue(fogEffectTuning)}
-                      onChange={(event) => {
-                        const preset = FOG_EFFECT_PRESETS[event.target.value as keyof typeof FOG_EFFECT_PRESETS];
-                        if (preset) {
-                          onFogEffectTuningChange({ ...preset });
-                        }
-                      }}
-                    >
-                      <option value="custom">Custom</option>
-                      <option value="lightMist">Light Mist</option>
-                      <option value="lowFog">Low Fog</option>
-                      <option value="thickMist">Thick Mist</option>
-                    </select>
-                  </div>
-                </div>
-              )}
               <div className="tools-button-row">
                 <ToolButton active={activeEnvironmentEffectTool === "circle"} label="Radius Environmental Effect" onClick={() => setEnvironmentEffectTool("circle")}>
                   <Circle size={17} aria-hidden="true" />
@@ -1065,6 +990,63 @@ export function ToolsMenu({
                 <ToolButton label="Undo Last Environmental Effect" disabled={environmentEffectCount === 0} onClick={onUndoEnvironmentEffect}>
                   <Undo2 size={17} aria-hidden="true" />
                 </ToolButton>
+              </div>
+              <div className="tools-effect-select-row">
+                <div className="tools-strip-select-field">
+                  <strong>Effect</strong>
+                  <div>
+                    <select
+                      aria-label="Environmental effect type"
+                      title="Environmental effect type"
+                      value={environmentEffectType}
+                      onChange={(event) => onEnvironmentEffectTypeChange(event.target.value as EnvironmentEffectType)}
+                    >
+                      <option value="water">Water</option>
+                      <option value="lava">Lava</option>
+                      <option value="fire">Fire</option>
+                      <option value="smoke">Smoke</option>
+                      <option value="fog">Mist</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="tools-strip-select-field">
+                  <strong>Preset</strong>
+                  <div>
+                    <select
+                      aria-label={`${formatEnvironmentEffectOptionLabel(environmentEffectType)} effect preset`}
+                      title={`${formatEnvironmentEffectOptionLabel(environmentEffectType)} effect preset`}
+                      value={environmentEffectPresetValue}
+                      onChange={(event) => {
+                        applyEnvironmentEffectPreset(environmentEffectType, event.target.value, {
+                          onWaterEffectTuningChange,
+                          onLavaEffectTuningChange,
+                          onFireEffectTuningChange,
+                          onSmokeEffectTuningChange,
+                          onFogEffectTuningChange
+                        });
+                      }}
+                    >
+                      {getEnvironmentEffectPresetOptions(environmentEffectType).map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="tools-strip-select-field">
+                <strong>Feather</strong>
+                <div>
+                  <select
+                    aria-label="Environmental effect feather"
+                    title="Environmental effect feather"
+                    value={getEnvironmentEffectFeatherSelectValue(environmentEffectFeather)}
+                    onChange={(event) => onEnvironmentEffectFeatherChange(Number(event.target.value))}
+                  >
+                    {ENVIRONMENT_EFFECT_FEATHER_OPTIONS.map((option) => (
+                      <option key={option.label} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               {environmentEffectType === "water" && (
                 <>
@@ -1083,6 +1065,16 @@ export function ToolsMenu({
                     tuning={lavaEffectTuning}
                     onChange={onLavaEffectTuningChange}
                     onReset={onLavaEffectTuningReset}
+                  />
+                </>
+              )}
+              {environmentEffectType === "fire" && (
+                <>
+                  <div className="tools-section-divider" />
+                  <FireEffectTuningPanel
+                    tuning={fireEffectTuning}
+                    onChange={onFireEffectTuningChange}
+                    onReset={onFireEffectTuningReset}
                   />
                 </>
               )}
@@ -1177,7 +1169,6 @@ export function WaterEffectTuningPanel({
             <WaterTuningSlider label="Band Breakup" value={tuning.bandBreakup} min={0} max={1} step={0.01} onChange={(bandBreakup) => update({ bandBreakup })} />
             <WaterTuningSlider label="Band Variation" value={tuning.bandVariation} min={0} max={4} step={0.01} onChange={(bandVariation) => update({ bandVariation })} />
             <WaterTuningSlider label="Band Overlap" value={tuning.bandOverlap} min={0} max={1} step={0.01} onChange={(bandOverlap) => update({ bandOverlap })} />
-            <WaterTuningSlider label="Pan Follow" value={tuning.panFollow} min={0} max={1} step={0.05} onChange={(panFollow) => update({ panFollow })} />
             <WaterTuningSlider label="Zoom Scale" value={tuning.zoomScale} min={-3} max={3} step={0.05} onChange={(zoomScale) => update({ zoomScale })} />
             <WaterTuningSlider label="Base Alpha" value={tuning.baseAlpha} min={0} max={1} step={0.01} onChange={(baseAlpha) => update({ baseAlpha })} />
             <WaterTuningSlider label="Highlight Alpha" value={tuning.highlightAlpha} min={0} max={1} step={0.01} onChange={(highlightAlpha) => update({ highlightAlpha })} />
@@ -1237,7 +1228,6 @@ export function LavaEffectTuningPanel({
             <WaterTuningSlider label="Crust" value={tuning.crust} min={0} max={1} step={0.01} onChange={(crust) => update({ crust })} />
             <WaterTuningSlider label="Glow" value={tuning.glow} min={0} max={1} step={0.01} onChange={(glow) => update({ glow })} />
             <WaterTuningSlider label="Ember" value={tuning.ember} min={0} max={1} step={0.01} onChange={(ember) => update({ ember })} />
-            <WaterTuningSlider label="Pan Follow" value={tuning.panFollow} min={0} max={1} step={0.05} onChange={(panFollow) => update({ panFollow })} />
             <WaterTuningSlider label="Zoom Scale" value={tuning.zoomScale} min={-3} max={3} step={0.05} onChange={(zoomScale) => update({ zoomScale })} />
             <WaterTuningSlider label="Base Alpha" value={tuning.baseAlpha} min={0} max={1} step={0.01} onChange={(baseAlpha) => update({ baseAlpha })} />
           </div>
@@ -1249,6 +1239,68 @@ export function LavaEffectTuningPanel({
           <div className="water-tuning-readout-row">
             <div className="water-tuning-readout" title={readout}>{readout}</div>
             <button className="icon-button no-chrome" type="button" title="Copy lava tuning JSON" aria-label="Copy lava tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
+              <Copy size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function FireEffectTuningPanel({
+  tuning,
+  title = "Advanced Effects Settings",
+  defaultOpen = false,
+  onChange,
+  onReset
+}: {
+  tuning: FireEffectTuning;
+  title?: string;
+  defaultOpen?: boolean;
+  onChange: (tuning: FireEffectTuning) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const update = (patch: Partial<FireEffectTuning>) => onChange({ ...tuning, ...patch });
+  const readout = JSON.stringify(tuning);
+
+  return (
+    <div className="water-tuning-panel" aria-label="Fire effect tuning">
+      <div className="tools-section-label-row">
+        <SettingsToggle open={open} label={title} onToggle={() => setOpen((current) => !current)} />
+        {open && (
+          <button className="icon-button no-chrome" type="button" title="Reset fire tuning" aria-label="Reset fire tuning" onClick={onReset}>
+            <Undo2 size={15} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      {open && (
+        <>
+          <div className="water-tuning-sliders">
+            <WaterTuningSlider label="Opacity" value={tuning.opacity} min={0} max={1} step={0.01} onChange={(opacity) => update({ opacity })} />
+            <WaterTuningSlider label="Flame Scale" value={tuning.flameScale} min={0.5} max={20} step={0.1} onChange={(flameScale) => update({ flameScale })} />
+            <WaterTuningSlider label="Speed" value={tuning.speed} min={0} max={2} step={0.01} onChange={(speed) => update({ speed })} />
+            <WaterTuningSlider label="Direction" value={tuning.directionDegrees} min={0} max={360} step={1} suffix="deg" onChange={(directionDegrees) => update({ directionDegrees })} />
+            <WaterTuningSlider label="Turbulence" value={tuning.turbulence} min={0} max={2} step={0.01} onChange={(turbulence) => update({ turbulence })} />
+            <WaterTuningSlider label="Tongues" value={tuning.tongues} min={0} max={1} step={0.01} onChange={(tongues) => update({ tongues })} />
+            <WaterTuningSlider label="Distortion" value={tuning.tongueVariation} min={0} max={1} step={0.01} onChange={(tongueVariation) => update({ tongueVariation })} />
+            <WaterTuningSlider label="Breakup" value={tuning.breakup} min={0} max={1} step={0.01} onChange={(breakup) => update({ breakup })} />
+            <WaterTuningSlider label="Flame Stretch" value={tuning.flameStretch} min={0} max={1} step={0.01} onChange={(flameStretch) => update({ flameStretch })} />
+            <WaterTuningSlider label="Flicker" value={tuning.flicker} min={0} max={1} step={0.01} onChange={(flicker) => update({ flicker })} />
+            <WaterTuningSlider label="Ember" value={tuning.ember} min={0} max={1} step={0.01} onChange={(ember) => update({ ember })} />
+            <WaterTuningSlider label="Heat" value={tuning.heat} min={0} max={1} step={0.01} onChange={(heat) => update({ heat })} />
+            <WaterTuningSlider label="Zoom Scale" value={tuning.zoomScale} min={-3} max={3} step={0.05} onChange={(zoomScale) => update({ zoomScale })} />
+            <WaterTuningSlider label="Base Alpha" value={tuning.baseAlpha} min={0} max={1} step={0.01} onChange={(baseAlpha) => update({ baseAlpha })} />
+          </div>
+          <div className="water-tuning-colors">
+            <WaterTuningColor label="Ember" value={tuning.emberColor} onChange={(emberColor) => update({ emberColor })} />
+            <WaterTuningColor label="Flame" value={tuning.flameColor} onChange={(flameColor) => update({ flameColor })} />
+            <WaterTuningColor label="Hot" value={tuning.hotColor} onChange={(hotColor) => update({ hotColor })} />
+          </div>
+          <div className="water-tuning-readout-row">
+            <div className="water-tuning-readout" title={readout}>{readout}</div>
+            <button className="icon-button no-chrome" type="button" title="Copy fire tuning JSON" aria-label="Copy fire tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
               <Copy size={15} aria-hidden="true" />
             </button>
           </div>
@@ -1296,7 +1348,6 @@ export function SmokeEffectTuningPanel({
             <WaterTuningSlider label="Softness" value={tuning.softness} min={0} max={1} step={0.01} onChange={(softness) => update({ softness })} />
             <WaterTuningSlider label="Density" value={tuning.density} min={0} max={1} step={0.01} onChange={(density) => update({ density })} />
             <WaterTuningSlider label="Lift" value={tuning.lift} min={0} max={1} step={0.01} onChange={(lift) => update({ lift })} />
-            <WaterTuningSlider label="Pan Follow" value={tuning.panFollow} min={0} max={1} step={0.05} onChange={(panFollow) => update({ panFollow })} />
             <WaterTuningSlider label="Zoom Scale" value={tuning.zoomScale} min={-3} max={3} step={0.05} onChange={(zoomScale) => update({ zoomScale })} />
             <WaterTuningSlider label="Base Alpha" value={tuning.baseAlpha} min={0} max={1} step={0.01} onChange={(baseAlpha) => update({ baseAlpha })} />
           </div>
@@ -1335,11 +1386,11 @@ export function FogEffectTuningPanel({
   const readout = JSON.stringify(tuning);
 
   return (
-    <div className="water-tuning-panel" aria-label="Fog / Mist effect tuning">
+    <div className="water-tuning-panel" aria-label="Mist effect tuning">
       <div className="tools-section-label-row">
         <SettingsToggle open={open} label={title} onToggle={() => setOpen((current) => !current)} />
         {open && (
-          <button className="icon-button no-chrome" type="button" title="Reset fog / mist tuning" aria-label="Reset fog / mist tuning" onClick={onReset}>
+          <button className="icon-button no-chrome" type="button" title="Reset mist tuning" aria-label="Reset mist tuning" onClick={onReset}>
             <Undo2 size={15} aria-hidden="true" />
           </button>
         )}
@@ -1355,7 +1406,6 @@ export function FogEffectTuningPanel({
             <WaterTuningSlider label="Softness" value={tuning.softness} min={0} max={1} step={0.01} onChange={(softness) => update({ softness })} />
             <WaterTuningSlider label="Density" value={tuning.density} min={0} max={1} step={0.01} onChange={(density) => update({ density })} />
             <WaterTuningSlider label="Lift" value={tuning.lift} min={0} max={1} step={0.01} onChange={(lift) => update({ lift })} />
-            <WaterTuningSlider label="Pan Follow" value={tuning.panFollow} min={0} max={1} step={0.05} onChange={(panFollow) => update({ panFollow })} />
             <WaterTuningSlider label="Zoom Scale" value={tuning.zoomScale} min={-3} max={3} step={0.05} onChange={(zoomScale) => update({ zoomScale })} />
             <WaterTuningSlider label="Base Alpha" value={tuning.baseAlpha} min={0} max={1} step={0.01} onChange={(baseAlpha) => update({ baseAlpha })} />
           </div>
@@ -1366,7 +1416,7 @@ export function FogEffectTuningPanel({
           </div>
           <div className="water-tuning-readout-row">
             <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy fog / mist tuning JSON" aria-label="Copy fog / mist tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
+            <button className="icon-button no-chrome" type="button" title="Copy mist tuning JSON" aria-label="Copy mist tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
               <Copy size={15} aria-hidden="true" />
             </button>
           </div>
@@ -1417,6 +1467,15 @@ function getLavaPresetSelectValue(tuning: LavaEffectTuning): keyof typeof LAVA_E
   return "custom";
 }
 
+function getFirePresetSelectValue(tuning: FireEffectTuning): keyof typeof FIRE_EFFECT_PRESETS | "custom" {
+  for (const [presetName, preset] of Object.entries(FIRE_EFFECT_PRESETS)) {
+    if (isFireTuningMatch(tuning, preset)) {
+      return presetName as keyof typeof FIRE_EFFECT_PRESETS;
+    }
+  }
+  return "custom";
+}
+
 function getSmokePresetSelectValue(tuning: SmokeEffectTuning): keyof typeof SMOKE_EFFECT_PRESETS | "custom" {
   for (const [presetName, preset] of Object.entries(SMOKE_EFFECT_PRESETS)) {
     if (isSmokeTuningMatch(tuning, preset)) {
@@ -1435,6 +1494,121 @@ function getFogPresetSelectValue(tuning: FogEffectTuning): keyof typeof FOG_EFFE
   return "custom";
 }
 
+export function getEnvironmentEffectPresetSelectValue(
+  effect: EnvironmentEffectType,
+  waterEffectTuning: WaterEffectTuning,
+  lavaEffectTuning: LavaEffectTuning,
+  fireEffectTuning: FireEffectTuning,
+  smokeEffectTuning: SmokeEffectTuning,
+  fogEffectTuning: FogEffectTuning
+): string {
+  if (effect === "lava") {
+    return getLavaPresetSelectValue(lavaEffectTuning);
+  }
+  if (effect === "fire") {
+    return getFirePresetSelectValue(fireEffectTuning);
+  }
+  if (effect === "smoke") {
+    return getSmokePresetSelectValue(smokeEffectTuning);
+  }
+  if (effect === "fog") {
+    return getFogPresetSelectValue(fogEffectTuning);
+  }
+  return getWaterPresetSelectValue(waterEffectTuning);
+}
+
+export function getEnvironmentEffectPresetOptions(effect: EnvironmentEffectType): Array<{ label: string; value: string }> {
+  if (effect === "lava") {
+    return [
+      { label: "Custom", value: "custom" },
+      { label: "Molten Flow", value: "moltenFlow" },
+      { label: "Magma Pool", value: "magmaPool" }
+    ];
+  }
+  if (effect === "fire") {
+    return [
+      { label: "Custom", value: "custom" },
+      { label: "Embers", value: "embers" },
+      { label: "Flames", value: "flames" },
+      { label: "Inferno", value: "inferno" }
+    ];
+  }
+  if (effect === "smoke") {
+    return [
+      { label: "Custom", value: "custom" },
+      { label: "Drifting Smoke", value: "driftingSmoke" },
+      { label: "Heavy Smoke", value: "heavySmoke" }
+    ];
+  }
+  if (effect === "fog") {
+    return [
+      { label: "Custom", value: "custom" },
+      { label: "Light Mist", value: "lightMist" },
+      { label: "Low Mist", value: "lowFog" },
+      { label: "Thick Mist", value: "thickMist" }
+    ];
+  }
+  return [
+    { label: "Custom", value: "custom" },
+    { label: "Stream", value: "stream" },
+    { label: "River", value: "river" }
+  ];
+}
+
+export function applyEnvironmentEffectPreset(
+  effect: EnvironmentEffectType,
+  value: string,
+  handlers: {
+    onWaterEffectTuningChange: (tuning: WaterEffectTuning) => void;
+    onLavaEffectTuningChange: (tuning: LavaEffectTuning) => void;
+    onFireEffectTuningChange: (tuning: FireEffectTuning) => void;
+    onSmokeEffectTuningChange: (tuning: SmokeEffectTuning) => void;
+    onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
+  }
+) {
+  if (effect === "lava") {
+    const preset = LAVA_EFFECT_PRESETS[value as keyof typeof LAVA_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onLavaEffectTuningChange({ ...preset });
+    }
+    return;
+  }
+  if (effect === "fire") {
+    const preset = FIRE_EFFECT_PRESETS[value as keyof typeof FIRE_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onFireEffectTuningChange({ ...preset });
+    }
+    return;
+  }
+  if (effect === "smoke") {
+    const preset = SMOKE_EFFECT_PRESETS[value as keyof typeof SMOKE_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onSmokeEffectTuningChange({ ...preset });
+    }
+    return;
+  }
+  if (effect === "fog") {
+    const preset = FOG_EFFECT_PRESETS[value as keyof typeof FOG_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onFogEffectTuningChange({ ...preset });
+    }
+    return;
+  }
+  const preset = WATER_EFFECT_PRESETS[value as keyof typeof WATER_EFFECT_PRESETS];
+  if (preset) {
+    handlers.onWaterEffectTuningChange({ ...preset });
+  }
+}
+
+export function formatEnvironmentEffectOptionLabel(effect: EnvironmentEffectType): string {
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "fog" ? "Mist" : "Smoke";
+}
+
+export function getEnvironmentEffectFeatherSelectValue(feather: number): number {
+  const match = ENVIRONMENT_EFFECT_FEATHER_OPTIONS.find((option) => Math.abs(option.value - feather) < 0.001);
+  return match?.value ?? 0;
+}
+
 function isWaterTuningMatch(tuning: WaterEffectTuning, preset: WaterEffectTuning): boolean {
   return (
     tuning.opacity === preset.opacity &&
@@ -1448,7 +1622,6 @@ function isWaterTuningMatch(tuning: WaterEffectTuning, preset: WaterEffectTuning
     tuning.bandBreakup === preset.bandBreakup &&
     tuning.bandVariation === preset.bandVariation &&
     tuning.bandOverlap === preset.bandOverlap &&
-    tuning.panFollow === preset.panFollow &&
     tuning.zoomScale === preset.zoomScale &&
     tuning.baseAlpha === preset.baseAlpha &&
     tuning.highlightAlpha === preset.highlightAlpha &&
@@ -1468,11 +1641,32 @@ function isLavaTuningMatch(tuning: LavaEffectTuning, preset: LavaEffectTuning): 
     tuning.crust === preset.crust &&
     tuning.glow === preset.glow &&
     tuning.ember === preset.ember &&
-    tuning.panFollow === preset.panFollow &&
     tuning.zoomScale === preset.zoomScale &&
     tuning.baseAlpha === preset.baseAlpha &&
     tuning.darkColor === preset.darkColor &&
     tuning.lavaColor === preset.lavaColor &&
+    tuning.hotColor === preset.hotColor
+  );
+}
+
+function isFireTuningMatch(tuning: FireEffectTuning, preset: FireEffectTuning): boolean {
+  return (
+    tuning.opacity === preset.opacity &&
+    tuning.flameScale === preset.flameScale &&
+    tuning.speed === preset.speed &&
+    tuning.directionDegrees === preset.directionDegrees &&
+    tuning.turbulence === preset.turbulence &&
+    tuning.tongues === preset.tongues &&
+    tuning.tongueVariation === preset.tongueVariation &&
+    tuning.breakup === preset.breakup &&
+    tuning.flameStretch === preset.flameStretch &&
+    tuning.flicker === preset.flicker &&
+    tuning.ember === preset.ember &&
+    tuning.heat === preset.heat &&
+    tuning.zoomScale === preset.zoomScale &&
+    tuning.baseAlpha === preset.baseAlpha &&
+    tuning.emberColor === preset.emberColor &&
+    tuning.flameColor === preset.flameColor &&
     tuning.hotColor === preset.hotColor
   );
 }
@@ -1487,7 +1681,6 @@ function isSmokeTuningMatch(tuning: SmokeEffectTuning, preset: SmokeEffectTuning
     tuning.softness === preset.softness &&
     tuning.density === preset.density &&
     tuning.lift === preset.lift &&
-    tuning.panFollow === preset.panFollow &&
     tuning.zoomScale === preset.zoomScale &&
     tuning.baseAlpha === preset.baseAlpha &&
     tuning.shadowColor === preset.shadowColor &&
@@ -1506,7 +1699,6 @@ function isFogTuningMatch(tuning: FogEffectTuning, preset: FogEffectTuning): boo
     tuning.softness === preset.softness &&
     tuning.density === preset.density &&
     tuning.lift === preset.lift &&
-    tuning.panFollow === preset.panFollow &&
     tuning.zoomScale === preset.zoomScale &&
     tuning.baseAlpha === preset.baseAlpha &&
     tuning.shadowColor === preset.shadowColor &&
@@ -1919,6 +2111,10 @@ function getCategoryLabel(category: ToolCategory): string {
   if (category === "mouse") {
     return "Mouse Behavior";
   }
-  const toolCategory = TOOL_CATEGORIES.find((candidate) => candidate.id === category);
-  return toolCategory?.label ?? "Tools";
+  for (const toolCategory of TOOL_CATEGORIES) {
+    if (toolCategory.kind === "category" && toolCategory.id === category) {
+      return toolCategory.label;
+    }
+  }
+  return "Tools";
 }

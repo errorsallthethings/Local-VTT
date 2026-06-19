@@ -62,6 +62,13 @@
   margin-bottom: 3px;
 }
 
+.tools-menu-divider {
+  width: 28px;
+  height: 1px;
+  background: var(--color-border-muted);
+  margin: 3px 0;
+}
+
 .tools-category-button,
 .tool-circle-button {
   position: relative;
@@ -470,6 +477,13 @@
 .tools-strip-select-field {
   display: grid;
   gap: 4px;
+  min-width: 0;
+}
+
+.tools-effect-select-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
   min-width: 0;
 }
 

@@ -1,10 +1,12 @@
 import * as THREE from "three";
 import {
   DEFAULT_FOG_EFFECT_TUNING_SETTINGS,
+  DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
   DEFAULT_LAVA_EFFECT_TUNING_SETTINGS,
   DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS,
   DEFAULT_WATER_EFFECT_TUNING_SETTINGS,
   type FogEffectTuningSettings,
+  type FireEffectTuningSettings,
   type LavaEffectTuningSettings,
   type SmokeEffectTuningSettings,
   type WaterEffectTuningSettings
@@ -19,11 +21,13 @@ export interface ScreenBounds {
 
 export type WaterEffectTuning = WaterEffectTuningSettings;
 export type LavaEffectTuning = LavaEffectTuningSettings;
+export type FireEffectTuning = FireEffectTuningSettings;
 export type SmokeEffectTuning = SmokeEffectTuningSettings;
 export type FogEffectTuning = FogEffectTuningSettings;
 
 export const DEFAULT_WATER_EFFECT_TUNING: WaterEffectTuning = DEFAULT_WATER_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_LAVA_EFFECT_TUNING: LavaEffectTuning = DEFAULT_LAVA_EFFECT_TUNING_SETTINGS;
+export const DEFAULT_FIRE_EFFECT_TUNING: FireEffectTuning = DEFAULT_FIRE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_SMOKE_EFFECT_TUNING: SmokeEffectTuning = DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FOG_EFFECT_TUNING: FogEffectTuning = DEFAULT_FOG_EFFECT_TUNING_SETTINGS;
 
@@ -90,9 +94,53 @@ export const LAVA_EFFECT_PRESETS = {
   }
 } as const satisfies Record<string, LavaEffectTuning>;
 
+export const FIRE_EFFECT_PRESETS = {
+  embers: {
+    opacity: 0.64,
+    flameScale: 8.4,
+    speed: 0.28,
+    directionDegrees: 270,
+    turbulence: 0.52,
+    tongues: 0.18,
+    tongueVariation: 0.58,
+    breakup: 0.8,
+    flameStretch: 0.32,
+    flicker: 0.46,
+    ember: 0.82,
+    heat: 0.38,
+    panFollow: 1,
+    zoomScale: 0,
+    baseAlpha: 0.22,
+    emberColor: "#2b0a03",
+    flameColor: "#b45309",
+    hotColor: "#fef3c7"
+  },
+  flames: { ...DEFAULT_FIRE_EFFECT_TUNING },
+  inferno: {
+    opacity: 0.94,
+    flameScale: 5.2,
+    speed: 0.92,
+    directionDegrees: 270,
+    turbulence: 1.24,
+    tongues: 0.72,
+    tongueVariation: 0.92,
+    breakup: 0.52,
+    flameStretch: 0.82,
+    flicker: 0.9,
+    ember: 0.58,
+    heat: 0.96,
+    panFollow: 1,
+    zoomScale: 0,
+    baseAlpha: 0.34,
+    emberColor: "#450a0a",
+    flameColor: "#ef4444",
+    hotColor: "#fff7ad"
+  }
+} as const satisfies Record<string, FireEffectTuning>;
+
 export const SMOKE_EFFECT_PRESETS = {
   driftingSmoke: { ...DEFAULT_SMOKE_EFFECT_TUNING },
-  heavyFog: {
+  heavySmoke: {
     opacity: 0.72,
     cloudScale: 7.2,
     speed: 0.08,
@@ -159,6 +207,7 @@ type WaterRuntime = {
 
 let waterRuntime: WaterRuntime | null = null;
 let lavaRuntime: WaterRuntime | null = null;
+let fireRuntime: WaterRuntime | null = null;
 let smokeRuntime: WaterRuntime | null = null;
 let fogRuntime: WaterRuntime | null = null;
 
@@ -254,6 +303,50 @@ export function drawEnvironmentLavaEffect(
   updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateLavaMaterialTuning(runtime.meshA.material, tuning);
   updateLavaMaterialTuning(runtime.meshB.material, tuning);
+
+  runtime.renderer.setSize(width, height, false);
+  runtime.renderer.setClearColor(0x000000, 0);
+  runtime.renderer.clear();
+  runtime.renderer.render(runtime.scene, runtime.camera);
+
+  ctx.save();
+  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
+  ctx.restore();
+}
+
+export function drawEnvironmentFireEffect(
+  ctx: CanvasRenderingContext2D,
+  bounds: ScreenBounds,
+  timestamp: number,
+  layerOpacity: number,
+  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
+  tuning: FireEffectTuning = DEFAULT_FIRE_EFFECT_TUNING
+) {
+  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
+    return;
+  }
+
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
+  const height = ctx.canvas.clientHeight || ctx.canvas.height;
+  const runtime = getFireRuntime(width, height);
+  if (!runtime) {
+    drawFireFallback(ctx, bounds, layerOpacity);
+    return;
+  }
+
+  const time = (timestamp - runtime.startedAt) / 1000;
+  positionWaterMesh(runtime.meshA, width, height, 1);
+  positionWaterMesh(runtime.meshB, width, height, 1);
+  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
+  runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.36;
+  runtime.meshA.material.uniforms.time.value = time;
+  runtime.meshB.material.uniforms.time.value = time * 1.31 + 11.4;
+  runtime.meshA.material.uniforms.resolution.value.set(width, height);
+  runtime.meshB.material.uniforms.resolution.value.set(width, height);
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateFireMaterialTuning(runtime.meshA.material, tuning);
+  updateFireMaterialTuning(runtime.meshB.material, tuning);
 
   runtime.renderer.setSize(width, height, false);
   runtime.renderer.setClearColor(0x000000, 0);
@@ -449,6 +542,55 @@ function getLavaRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   return lavaRuntime;
+}
+
+function getFireRuntime(width: number, height: number): WaterRuntime | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!fireRuntime) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+    camera.position.set(0, 0, 2400);
+    camera.lookAt(0, 0, 0);
+
+    const material = createFireMaterial(0.86);
+    const materialB = createFireMaterial(0.34);
+    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    meshA.position.z = 1280;
+    meshB.position.z = 1281;
+    scene.add(meshA, meshB);
+
+    fireRuntime = {
+      renderer,
+      scene,
+      camera,
+      meshA,
+      meshB,
+      startedAt: Date.now(),
+      width: 0,
+      height: 0
+    };
+  }
+
+  if (fireRuntime.width !== width || fireRuntime.height !== height) {
+    fireRuntime.width = width;
+    fireRuntime.height = height;
+    fireRuntime.camera.left = 0;
+    fireRuntime.camera.right = width;
+    fireRuntime.camera.top = 0;
+    fireRuntime.camera.bottom = height;
+    fireRuntime.camera.near = 0.1;
+    fireRuntime.camera.far = 5000;
+    fireRuntime.camera.updateProjectionMatrix();
+  }
+
+  return fireRuntime;
 }
 
 function getSmokeRuntime(width: number, height: number): WaterRuntime | null {
@@ -699,7 +841,7 @@ function updateWaterMaterialTuning(material: THREE.ShaderMaterial, tuning: Water
   material.uniforms.bandBreakup.value = tuning.bandBreakup;
   material.uniforms.bandVariation.value = tuning.bandVariation;
   material.uniforms.bandOverlap.value = tuning.bandOverlap;
-  material.uniforms.panFollow.value = tuning.panFollow;
+  material.uniforms.panFollow.value = 1;
   material.uniforms.zoomScale.value = tuning.zoomScale;
   material.uniforms.baseAlpha.value = tuning.baseAlpha;
   material.uniforms.highlightAlpha.value = tuning.highlightAlpha;
@@ -834,11 +976,181 @@ function updateLavaMaterialTuning(material: THREE.ShaderMaterial, tuning: LavaEf
   material.uniforms.crust.value = tuning.crust;
   material.uniforms.glow.value = tuning.glow;
   material.uniforms.ember.value = tuning.ember;
-  material.uniforms.panFollow.value = tuning.panFollow;
+  material.uniforms.panFollow.value = 1;
   material.uniforms.zoomScale.value = tuning.zoomScale;
   material.uniforms.baseAlpha.value = tuning.baseAlpha;
   material.uniforms.darkColor.value.set(tuning.darkColor);
   material.uniforms.lavaColor.value.set(tuning.lavaColor);
+  material.uniforms.hotColor.value.set(tuning.hotColor);
+}
+
+function createFireMaterial(opacity: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+    blending: THREE.NormalBlending,
+    uniforms: {
+      flameScale: { value: DEFAULT_FIRE_EFFECT_TUNING.flameScale },
+      speed: { value: DEFAULT_FIRE_EFFECT_TUNING.speed },
+      directionRadians: { value: degreesToRadians(DEFAULT_FIRE_EFFECT_TUNING.directionDegrees) },
+      turbulence: { value: DEFAULT_FIRE_EFFECT_TUNING.turbulence },
+      tongues: { value: DEFAULT_FIRE_EFFECT_TUNING.tongues },
+      tongueVariation: { value: DEFAULT_FIRE_EFFECT_TUNING.tongueVariation },
+      breakup: { value: DEFAULT_FIRE_EFFECT_TUNING.breakup },
+      flameStretch: { value: DEFAULT_FIRE_EFFECT_TUNING.flameStretch },
+      flicker: { value: DEFAULT_FIRE_EFFECT_TUNING.flicker },
+      ember: { value: DEFAULT_FIRE_EFFECT_TUNING.ember },
+      heat: { value: DEFAULT_FIRE_EFFECT_TUNING.heat },
+      panFollow: { value: DEFAULT_FIRE_EFFECT_TUNING.panFollow },
+      zoomScale: { value: DEFAULT_FIRE_EFFECT_TUNING.zoomScale },
+      baseAlpha: { value: DEFAULT_FIRE_EFFECT_TUNING.baseAlpha },
+      emberColor: { value: new THREE.Color(DEFAULT_FIRE_EFFECT_TUNING.emberColor) },
+      flameColor: { value: new THREE.Color(DEFAULT_FIRE_EFFECT_TUNING.flameColor) },
+      hotColor: { value: new THREE.Color(DEFAULT_FIRE_EFFECT_TUNING.hotColor) },
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2(1, 1) },
+      cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
+      cameraZoom: { value: 1 },
+      opacity: { value: opacity }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float flameScale;
+      uniform float speed;
+      uniform float directionRadians;
+      uniform float turbulence;
+      uniform float tongues;
+      uniform float tongueVariation;
+      uniform float breakup;
+      uniform float flameStretch;
+      uniform float flicker;
+      uniform float ember;
+      uniform float heat;
+      uniform float panFollow;
+      uniform float zoomScale;
+      uniform float baseAlpha;
+      uniform vec3 emberColor;
+      uniform vec3 flameColor;
+      uniform vec3 hotColor;
+      uniform float time;
+      uniform vec2 resolution;
+      uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
+      uniform float cameraZoom;
+      uniform float opacity;
+      varying vec2 vUv;
+
+      float randomValue(vec2 value) {
+        return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float valueNoise(vec2 value) {
+        vec2 base = floor(value);
+        vec2 fraction = fract(value);
+        vec2 blend = fraction * fraction * (3.0 - 2.0 * fraction);
+        float a = randomValue(base);
+        float b = randomValue(base + vec2(1.0, 0.0));
+        float c = randomValue(base + vec2(0.0, 1.0));
+        float d = randomValue(base + vec2(1.0, 1.0));
+        return mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y);
+      }
+
+      float fbm(vec2 value) {
+        float total = 0.0;
+        float amplitude = 0.5;
+        for (int i = 0; i < 5; i++) {
+          total += valueNoise(value) * amplitude;
+          value *= 2.06;
+          amplitude *= 0.52;
+        }
+        return total;
+      }
+
+      void main() {
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
+        vec2 pixelUv = anchoredCoord / 165.0 * zoomFactor;
+        vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
+        vec2 perpendicular = vec2(-direction.y, direction.x);
+        vec2 uv = vec2(dot(pixelUv, direction), dot(pixelUv, perpendicular));
+        float motion = time * speed;
+
+        vec2 flameUv = uv;
+        flameUv.x -= motion * 0.94;
+
+        float stretch = mix(0.78, 1.65, flameStretch);
+        vec2 stretchedUv = vec2(flameUv.x, flameUv.y * stretch);
+
+        float broadWarpA = fbm(stretchedUv * vec2(flameScale * 0.16, flameScale * 0.14) + vec2(motion * 0.18, -motion * 0.09)) - 0.5;
+        float broadWarpB = fbm(stretchedUv * vec2(flameScale * 0.24, flameScale * 0.19) - vec2(motion * 0.08, motion * 0.16)) - 0.5;
+        float fineWarp = fbm(stretchedUv * vec2(flameScale * 0.74, flameScale * 0.58) + vec2(-motion * 0.22, motion * 0.25)) - 0.5;
+        vec2 warpedUv = stretchedUv;
+        warpedUv.x += (broadWarpA * 0.95 + fineWarp * 0.2) * turbulence * (0.18 + tongueVariation * 0.72);
+        warpedUv.y += (broadWarpB * 0.7 + fineWarp * 0.18) * turbulence * (0.12 + tongueVariation * 0.58);
+
+        float longNoise = fbm(warpedUv * vec2(flameScale * 0.26, flameScale * 0.54) + vec2(motion * 0.44, -motion * 0.15));
+        float columnNoise = fbm(warpedUv * vec2(flameScale * mix(0.32, 0.72, tongues), flameScale * 1.28) - vec2(motion * 0.18, motion * 0.44));
+        float forkNoise = fbm(warpedUv * vec2(flameScale * 0.72, flameScale * 1.86) + vec2(-motion * 0.35, motion * 0.21));
+        float fineNoise = fbm(warpedUv * vec2(flameScale * 1.82, flameScale * 2.65) + vec2(motion * 0.27, motion * 0.58));
+
+        float largeChunkScale = mix(0.55, 1.45, breakup);
+        float chunkNoise = fbm(warpedUv * vec2(flameScale * largeChunkScale * 0.28, flameScale * largeChunkScale * 0.36) + vec2(motion * 0.09, -motion * 0.06));
+        float chunkGate = smoothstep(mix(0.18, 0.46, breakup), mix(0.82, 0.62, breakup), chunkNoise + longNoise * 0.18);
+
+        float tongueField = smoothstep(0.2, 0.86, columnNoise * 0.58 + forkNoise * 0.34 + broadWarpA * 0.18);
+        tongueField = mix(0.64, tongueField, tongues);
+
+        float flickerPulse = 0.8 + sin(time * speed * 16.0 + longNoise * 5.0 + broadWarpB * 3.0) * 0.13 * flicker + fineNoise * 0.24 * flicker;
+        float flameBody = smoothstep(0.31, 0.86, longNoise * 0.38 + columnNoise * 0.28 + forkNoise * 0.24 + fineNoise * 0.14 + tongueField * 0.22);
+        flameBody *= mix(1.0, chunkGate, breakup);
+        flameBody *= flickerPulse;
+        flameBody = clamp(flameBody, 0.0, 1.0);
+
+        float hotCore = smoothstep(0.58, 0.98, flameBody + fineNoise * 0.26 + heat * 0.2);
+        float emberNoise = randomValue(floor(flameUv * flameScale * vec2(7.0, 9.0)) + floor(time * speed * 8.0));
+        float emberMask = smoothstep(0.94 - ember * 0.28, 1.0, emberNoise) * smoothstep(0.22, 0.88, flameBody);
+
+        vec3 color = mix(emberColor, flameColor, flameBody);
+        color = mix(color, hotColor, hotCore * heat);
+        color = mix(color, hotColor, emberMask * ember);
+        float alpha = (baseAlpha + flameBody * 0.38 + hotCore * heat * 0.18 + emberMask * ember * 0.18) * opacity;
+        alpha *= smoothstep(0.04, 0.18, flameBody + emberMask * 0.4);
+        gl_FragColor = vec4(color, alpha);
+      }
+    `
+  });
+}
+
+function updateFireMaterialTuning(material: THREE.ShaderMaterial, tuning: FireEffectTuning) {
+  material.uniforms.flameScale.value = tuning.flameScale;
+  material.uniforms.speed.value = tuning.speed;
+  material.uniforms.directionRadians.value = degreesToRadians(tuning.directionDegrees);
+  material.uniforms.turbulence.value = tuning.turbulence;
+  material.uniforms.tongues.value = tuning.tongues;
+  material.uniforms.tongueVariation.value = tuning.tongueVariation;
+  material.uniforms.breakup.value = tuning.breakup;
+  material.uniforms.flameStretch.value = tuning.flameStretch;
+  material.uniforms.flicker.value = tuning.flicker;
+  material.uniforms.ember.value = tuning.ember;
+  material.uniforms.heat.value = tuning.heat;
+  material.uniforms.panFollow.value = 1;
+  material.uniforms.zoomScale.value = tuning.zoomScale;
+  material.uniforms.baseAlpha.value = tuning.baseAlpha;
+  material.uniforms.emberColor.value.set(tuning.emberColor);
+  material.uniforms.flameColor.value.set(tuning.flameColor);
   material.uniforms.hotColor.value.set(tuning.hotColor);
 }
 
@@ -973,7 +1285,7 @@ function updateSmokeMaterialTuning(material: THREE.ShaderMaterial, tuning: Smoke
   material.uniforms.softness.value = tuning.softness;
   material.uniforms.density.value = tuning.density;
   material.uniforms.lift.value = tuning.lift;
-  material.uniforms.panFollow.value = tuning.panFollow;
+  material.uniforms.panFollow.value = 1;
   material.uniforms.zoomScale.value = tuning.zoomScale;
   material.uniforms.baseAlpha.value = tuning.baseAlpha;
   material.uniforms.shadowColor.value.set(tuning.shadowColor);
@@ -1081,26 +1393,31 @@ function createFogMaterial(opacity: number): THREE.ShaderMaterial {
         driftUv.x -= motion * 0.34;
         driftUv.y -= motion * lift * 0.26;
 
-        float sheetA = fbm(driftUv * vec2(cloudScale * 0.28, cloudScale * 0.08) + vec2(motion * 0.05, -motion * 0.015));
-        float sheetB = fbm(driftUv * vec2(cloudScale * 0.18, cloudScale * 0.14) - vec2(motion * 0.035, motion * 0.025));
-        float veil = smoothstep(0.22, 0.88, sheetA * 0.62 + sheetB * 0.38);
+        float sheetA = fbm(driftUv * vec2(cloudScale * 0.24, cloudScale * 0.1) + vec2(motion * 0.05, -motion * 0.015));
+        float sheetB = fbm(driftUv * vec2(cloudScale * 0.16, cloudScale * 0.16) - vec2(motion * 0.035, motion * 0.025));
+        float sheetC = fbm(driftUv * vec2(cloudScale * 0.34, cloudScale * 0.22) + vec2(-motion * 0.025, motion * 0.018));
+        float veil = smoothstep(0.22, 0.88, sheetA * 0.48 + sheetB * 0.34 + sheetC * 0.18);
 
-        float lowBand = sin((driftUv.y + sheetB * 0.28) * cloudScale * 1.15 + motion * 0.45);
-        float band = smoothstep(-0.72, 0.72, lowBand) * smoothstep(0.18, 0.92, veil);
+        float driftPatchA = fbm(driftUv * vec2(cloudScale * 0.42, cloudScale * 0.2) + vec2(motion * 0.08, motion * 0.02));
+        float driftPatchB = fbm(driftUv * vec2(cloudScale * 0.22, cloudScale * 0.44) - vec2(motion * 0.03, motion * 0.055));
+        float broadPatch = smoothstep(0.34, 0.88, driftPatchA * 0.62 + driftPatchB * 0.38 + veil * 0.16);
 
-        float eddyA = fbm(driftUv * cloudScale * 0.72 + vec2(motion * 0.08, motion * 0.03));
-        float eddyB = fbm(driftUv * cloudScale * 1.2 - vec2(motion * 0.045, motion * 0.055));
-        float wisps = smoothstep(0.42, 0.92, eddyA * 0.55 + eddyB * 0.45 + band * 0.18);
+        vec2 wispUv = driftUv;
+        wispUv.x += (sheetB - 0.5) * turbulence * 0.32;
+        wispUv.y += (sheetA - 0.5) * turbulence * 0.18;
+        float eddyA = fbm(wispUv * cloudScale * 0.72 + vec2(motion * 0.08, motion * 0.03));
+        float eddyB = fbm(wispUv * cloudScale * 1.2 - vec2(motion * 0.045, motion * 0.055));
+        float wisps = smoothstep(0.42, 0.92, eddyA * 0.5 + eddyB * 0.36 + broadPatch * 0.24);
         wisps *= mix(0.58, 1.0, turbulence);
 
         float thinBreaks = fbm(driftUv * vec2(cloudScale * 1.65, cloudScale * 0.32) + vec2(-motion * 0.12, motion * 0.02));
-        float body = clamp(veil * 0.45 + band * 0.28 + wisps * 0.38 - thinBreaks * (0.2 + softness * 0.16), 0.0, 1.0);
+        float body = clamp(veil * 0.5 + broadPatch * 0.22 + wisps * 0.36 - thinBreaks * (0.2 + softness * 0.16), 0.0, 1.0);
         body = smoothstep(0.12, mix(0.9, 0.42, density), body);
 
         float highlight = smoothstep(0.54, 0.96, sheetA * 0.62 + thinBreaks * 0.38) * softness;
         vec3 color = mix(shadowColor, smokeColor, body);
         color = mix(color, highlightColor, highlight * 0.34);
-        float alpha = (baseAlpha + body * density * 0.34 + band * 0.08 + highlight * 0.05) * opacity;
+        float alpha = (baseAlpha + body * density * 0.34 + broadPatch * 0.06 + highlight * 0.05) * opacity;
         alpha *= smoothstep(0.02, 0.2, body + density * 0.16);
         gl_FragColor = vec4(color, alpha);
       }
@@ -1116,7 +1433,7 @@ function updateFogMaterialTuning(material: THREE.ShaderMaterial, tuning: FogEffe
   material.uniforms.softness.value = tuning.softness;
   material.uniforms.density.value = tuning.density;
   material.uniforms.lift.value = tuning.lift;
-  material.uniforms.panFollow.value = tuning.panFollow;
+  material.uniforms.panFollow.value = 1;
   material.uniforms.zoomScale.value = tuning.zoomScale;
   material.uniforms.baseAlpha.value = tuning.baseAlpha;
   material.uniforms.shadowColor.value.set(tuning.shadowColor);
@@ -1147,6 +1464,14 @@ function drawLavaFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, l
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.42;
   ctx.fillStyle = "rgb(216, 67, 21)";
+  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  ctx.restore();
+}
+
+function drawFireFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.36;
+  ctx.fillStyle = "rgb(249, 115, 22)";
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }

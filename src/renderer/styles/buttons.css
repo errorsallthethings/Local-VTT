@@ -103,11 +103,22 @@
 }
 
 :is(.scene-menu, .token-settings-menu) .danger-menu-item,
+.token-settings-menu .token-menu-delete,
+.canvas-context-menu .token-menu-delete,
 .token-menu-delete {
   color: var(--color-danger);
 }
 
+:is(.scene-menu, .token-settings-menu) .danger-menu-item svg,
+.token-settings-menu .token-menu-delete svg,
+.canvas-context-menu .token-menu-delete svg,
+.token-menu-delete svg {
+  color: currentColor;
+}
+
 :is(.scene-menu, .token-settings-menu) .danger-menu-item:hover:not(:disabled),
+.token-settings-menu .token-menu-delete:hover:not(:disabled),
+.canvas-context-menu .token-menu-delete:hover:not(:disabled),
 .token-menu-delete:hover:not(:disabled) {
   background: var(--color-danger-menu-hover);
   color: var(--color-danger);

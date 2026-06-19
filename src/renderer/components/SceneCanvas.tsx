@@ -60,14 +60,17 @@ import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenP
 import { getVideoTransform } from "../canvas/videoMap";
 import {
   DEFAULT_FOG_EFFECT_TUNING,
+  DEFAULT_FIRE_EFFECT_TUNING,
   DEFAULT_LAVA_EFFECT_TUNING,
   DEFAULT_SMOKE_EFFECT_TUNING,
   DEFAULT_WATER_EFFECT_TUNING,
   drawEnvironmentFogEffect,
+  drawEnvironmentFireEffect,
   drawEnvironmentLavaEffect,
   drawEnvironmentSmokeEffect,
   drawEnvironmentWaterEffect,
   type FogEffectTuning,
+  type FireEffectTuning,
   type LavaEffectTuning,
   type SmokeEffectTuning,
   type WaterEffectTuning
@@ -120,8 +123,10 @@ interface SceneCanvasProps {
   weatherMaskTool?: WeatherMaskTool | null;
   environmentEffectTool?: EnvironmentEffectTool | null;
   environmentEffectType?: EnvironmentEffectType;
+  environmentEffectFeather?: number;
   waterEffectTuning?: WaterEffectTuning;
   lavaEffectTuning?: LavaEffectTuning;
+  fireEffectTuning?: FireEffectTuning;
   smokeEffectTuning?: SmokeEffectTuning;
   fogEffectTuning?: FogEffectTuning;
   liveTableEvents?: LiveTableEvent[];
@@ -230,8 +235,10 @@ type EnvironmentEffectDrag = {
   pointerId: number;
   kind: EnvironmentEffectTool;
   effect: EnvironmentEffectType;
+  feather: number;
   waterTuning?: WaterEffectTuning;
   lavaTuning?: LavaEffectTuning;
+  fireTuning?: FireEffectTuning;
   smokeTuning?: SmokeEffectTuning;
   fogTuning?: FogEffectTuning;
   start: Point;
@@ -320,6 +327,9 @@ type EnvironmentEffectContextMenu = {
   y: number;
 };
 
+const ENVIRONMENT_FEATHER_MASK_CACHE_LIMIT = 80;
+const environmentFeatherMaskCache = new Map<string, HTMLCanvasElement>();
+
 function parseTokenImageSourceKey(key: string): TokenImageSource[] {
   try {
     const parsed = JSON.parse(key);
@@ -358,8 +368,10 @@ export function SceneCanvas({
   weatherMaskTool = null,
   environmentEffectTool = null,
   environmentEffectType = "water",
+  environmentEffectFeather = 0,
   waterEffectTuning,
   lavaEffectTuning,
+  fireEffectTuning,
   smokeEffectTuning,
   fogEffectTuning,
   liveTableEvents = [],
@@ -617,6 +629,7 @@ export function SceneCanvas({
   const canShowWeather = mode === "gm" ? weatherLayer?.visibleInGm : weatherLayer?.visibleInPlayer;
   const canShowTokens = mode === "gm" ? tokenLayer?.visibleInGm : tokenLayer?.visibleInPlayer;
   const isVideoMap = Boolean(canShowMap && mapAsset?.mediaType === "video" && assetUrl);
+  const mapOverlayActive = Boolean(canShowMap && mapAsset && (mapLoadStatus === "loading" || mapLoadStatus === "error"));
   const playerDisplayScale = getPlayerDisplayScale(campaign, scene, mode);
   const videoPlayback = scene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const videoPaused = videoPlayback.paused;
@@ -1273,11 +1286,11 @@ export function SceneCanvas({
         // Fog is drawn after world content so hidden/partial modes mask maps, tokens, grid, and ruler consistently.
         drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, selectedFogShapeIds.length > 0 ? selectedFogShapeIds : selectedFogShapeId);
       }
-      if (canShowWeather) {
+      if (canShowWeather && !mapOverlayActive) {
         if (weatherMapReady) {
           drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1, weatherMapSource);
         }
-        drawEnvironmentEffects(ctx, scene.environment.effects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, waterEffectTuning, lavaEffectTuning, smokeEffectTuning, fogEffectTuning);
+        drawEnvironmentEffects(ctx, scene.environment.effects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, waterEffectTuning, lavaEffectTuning, fireEffectTuning, smokeEffectTuning, fogEffectTuning);
       }
       if (mode === "gm") {
         drawWeatherMaskOutlines(ctx, scene.weather.masks, renderCamera);
@@ -1396,7 +1409,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, isVideoMap, lavaEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [activeFogBrushSize, activeTableTools, activeVideoIndex, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, environmentEffectFeather, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, isVideoMap, lavaEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1630,8 +1643,10 @@ export function SceneCanvas({
         pointerId: event.pointerId,
         kind: environmentEffectTool,
         effect: environmentEffectType,
+        feather: environmentEffectFeather,
         waterTuning: environmentEffectType === "water" ? cloneWaterEffectTuning(waterEffectTuning) : undefined,
         lavaTuning: environmentEffectType === "lava" ? cloneLavaEffectTuning(lavaEffectTuning) : undefined,
+        fireTuning: environmentEffectType === "fire" ? cloneFireEffectTuning(fireEffectTuning) : undefined,
         smokeTuning: environmentEffectType === "smoke" ? cloneSmokeEffectTuning(smokeEffectTuning) : undefined,
         fogTuning: environmentEffectType === "fog" ? cloneFogEffectTuning(fogEffectTuning) : undefined,
         start: point,
@@ -2174,8 +2189,10 @@ export function SceneCanvas({
                 name: `${formatEnvironmentEffectLabel(environmentEffectDrag.effect)} Effect ${scene.environment.effects.length + 1}`,
                 kind: environmentEffectDrag.kind,
                 effect: environmentEffectDrag.effect,
+                feather: environmentEffectDrag.feather,
                 waterTuning: environmentEffectDrag.effect === "water" ? cloneWaterEffectTuning(environmentEffectDrag.waterTuning ?? waterEffectTuning) : undefined,
                 lavaTuning: environmentEffectDrag.effect === "lava" ? cloneLavaEffectTuning(environmentEffectDrag.lavaTuning ?? lavaEffectTuning) : undefined,
+                fireTuning: environmentEffectDrag.effect === "fire" ? cloneFireEffectTuning(environmentEffectDrag.fireTuning ?? fireEffectTuning) : undefined,
                 smokeTuning: environmentEffectDrag.effect === "smoke" ? cloneSmokeEffectTuning(environmentEffectDrag.smokeTuning ?? smokeEffectTuning) : undefined,
                 fogTuning: environmentEffectDrag.effect === "fog" ? cloneFogEffectTuning(environmentEffectDrag.fogTuning ?? fogEffectTuning) : undefined,
                 points: environmentEffectDrag.kind === "circle" ? [environmentEffectDrag.start] : [environmentEffectDrag.start, environmentEffectDrag.current],
@@ -2833,8 +2850,10 @@ export function SceneCanvas({
             name: `${formatEnvironmentEffectLabel(environmentEffectType)} Effect ${scene.environment.effects.length + 1}`,
             kind: "polygon",
             effect: environmentEffectType,
+            feather: environmentEffectFeather,
             waterTuning: environmentEffectType === "water" ? cloneWaterEffectTuning(waterEffectTuning) : undefined,
             lavaTuning: environmentEffectType === "lava" ? cloneLavaEffectTuning(lavaEffectTuning) : undefined,
+            fireTuning: environmentEffectType === "fire" ? cloneFireEffectTuning(fireEffectTuning) : undefined,
             smokeTuning: environmentEffectType === "smoke" ? cloneSmokeEffectTuning(smokeEffectTuning) : undefined,
             fogTuning: environmentEffectType === "fog" ? cloneFogEffectTuning(fogEffectTuning) : undefined,
             points: draft.points,
@@ -2869,7 +2888,7 @@ export function SceneCanvas({
     fitGmCameraToReadyMap(rect.width, rect.height);
   };
 
-  const showMapOverlay = Boolean(canShowMap && mapAsset && (mapLoadStatus === "loading" || mapLoadStatus === "error"));
+  const showMapOverlay = mapOverlayActive;
   const mapOverlayMessage = mapLoadStatus === "error" ? "Map asset unavailable" : mapAsset?.mediaType === "video" ? "Loading video map..." : "Loading map...";
   const activeCalibrationBox = onMapCalibrationBox ? mapCalibrationDraftBox : null;
   const activeCalibrationBoxCamera = getRenderCamera(camera, playerDisplayScale);
@@ -3309,6 +3328,31 @@ export function SceneCanvas({
           >
             <Settings2 size={14} aria-hidden="true" />
             <span>Edit Effect</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="token-menu-action token-menu-delete"
+            title={`Delete ${environmentEffectContextMenu.label}`}
+            aria-label={`Delete ${environmentEffectContextMenu.label}`}
+            onClick={() => {
+              if (!scene || !onSceneChange) {
+                return;
+              }
+              onSceneChange({
+                ...scene,
+                environment: {
+                  ...scene.environment,
+                  effects: scene.environment.effects.filter((effect) => effect.id !== environmentEffectContextMenu.effectId)
+                },
+                updatedAt: new Date().toISOString()
+              });
+              onSelectEnvironmentEffect?.(null);
+              setEnvironmentEffectContextMenu(null);
+            }}
+          >
+            <Trash2 size={14} aria-hidden="true" />
+            <span>Delete</span>
           </button>
         </div>
       )}
@@ -4814,6 +4858,7 @@ function drawEnvironmentEffects(
   layerOpacity: number,
   waterEffectTuning?: WaterEffectTuning,
   lavaEffectTuning?: LavaEffectTuning,
+  fireEffectTuning?: FireEffectTuning,
   smokeEffectTuning?: SmokeEffectTuning,
   fogEffectTuning?: FogEffectTuning
 ) {
@@ -4822,11 +4867,18 @@ function drawEnvironmentEffects(
     if (!visible) {
       continue;
     }
+    const feather = Math.max(0, Math.min(1, effect.feather ?? 0));
+    if (feather > 0) {
+      drawFeatheredEnvironmentEffect(ctx, effect, camera, timestamp, layerOpacity, feather, waterEffectTuning, lavaEffectTuning, fireEffectTuning, smokeEffectTuning, fogEffectTuning);
+      continue;
+    }
     ctx.save();
     const path = getEnvironmentEffectPath(effect, camera);
     ctx.clip(path);
     if (effect.effect === "lava") {
       drawLavaEffect(ctx, effect, camera, timestamp, layerOpacity, lavaEffectTuning);
+    } else if (effect.effect === "fire") {
+      drawFireEffect(ctx, effect, camera, timestamp, layerOpacity, fireEffectTuning);
     } else if (effect.effect === "fog") {
       drawFogMistEffect(ctx, effect, camera, timestamp, layerOpacity, fogEffectTuning);
     } else if (effect.effect === "smoke") {
@@ -4836,6 +4888,251 @@ function drawEnvironmentEffects(
     }
     ctx.restore();
   }
+}
+
+function drawFeatheredEnvironmentEffect(
+  ctx: CanvasRenderingContext2D,
+  effect: EnvironmentEffectMask,
+  camera: Camera,
+  timestamp: number,
+  layerOpacity: number,
+  feather: number,
+  waterEffectTuning?: WaterEffectTuning,
+  lavaEffectTuning?: LavaEffectTuning,
+  fireEffectTuning?: FireEffectTuning,
+  smokeEffectTuning?: SmokeEffectTuning,
+  fogEffectTuning?: FogEffectTuning
+) {
+  const width = Math.max(1, Math.round(ctx.canvas.width / (window.devicePixelRatio || 1)));
+  const height = Math.max(1, Math.round(ctx.canvas.height / (window.devicePixelRatio || 1)));
+  const effectCanvas = document.createElement("canvas");
+  effectCanvas.width = width;
+  effectCanvas.height = height;
+  const effectCtx = effectCanvas.getContext("2d");
+  if (!effectCtx) {
+    return;
+  }
+
+  const path = getEnvironmentEffectPath(effect, camera);
+  effectCtx.save();
+  effectCtx.clip(path);
+  if (effect.effect === "lava") {
+    drawLavaEffect(effectCtx, effect, camera, timestamp, layerOpacity, lavaEffectTuning);
+  } else if (effect.effect === "fire") {
+    drawFireEffect(effectCtx, effect, camera, timestamp, layerOpacity, fireEffectTuning);
+  } else if (effect.effect === "fog") {
+    drawFogMistEffect(effectCtx, effect, camera, timestamp, layerOpacity, fogEffectTuning);
+  } else if (effect.effect === "smoke") {
+    drawSmokeEffect(effectCtx, effect, camera, timestamp, layerOpacity, smokeEffectTuning);
+  } else {
+    drawWaterEffect(effectCtx, effect, camera, timestamp, layerOpacity, waterEffectTuning);
+  }
+  effectCtx.restore();
+
+  applyEnvironmentEffectFeather(effectCtx, effect, camera, feather);
+  ctx.drawImage(effectCanvas, 0, 0, width, height);
+}
+
+function applyEnvironmentEffectFeather(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, feather: number) {
+  const path = getEnvironmentEffectPath(effect, camera);
+  const bounds = getEnvironmentEffectBounds(effect);
+  if (!bounds) {
+    return;
+  }
+  const screenBounds = worldRectToScreen(bounds, camera);
+  const shortestEdge = Math.max(1, Math.min(Math.abs(screenBounds.width), Math.abs(screenBounds.height)));
+  const featherPx = Math.max(10, shortestEdge * (0.06 + feather * 0.34));
+
+  ctx.save();
+  ctx.globalCompositeOperation = "destination-in";
+  if (effect.kind === "rectangle") {
+    applyRectangleEnvironmentFeather(ctx, screenBounds, featherPx);
+  } else if (effect.kind === "circle") {
+    applyCircleEnvironmentFeather(ctx, screenBounds, featherPx);
+  } else if (effect.kind === "polygon") {
+    applyPolygonEnvironmentFeather(ctx, effect, camera, featherPx);
+  } else {
+    ctx.fillStyle = "#000";
+    ctx.fill(path);
+  }
+  ctx.restore();
+
+  if (effect.kind === "rectangle" || effect.kind === "circle" || effect.kind === "polygon") {
+    return;
+  }
+
+  ctx.save();
+  ctx.clip(path);
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.strokeStyle = "#000";
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  const steps = 12;
+  for (let step = 0; step < steps; step += 1) {
+    const progress = (step + 1) / steps;
+    ctx.globalAlpha = Math.pow(progress, 1.45) * 0.09;
+    ctx.lineWidth = featherPx * 2 * progress;
+    ctx.stroke(path);
+  }
+  ctx.restore();
+}
+
+function applyRectangleEnvironmentFeather(ctx: CanvasRenderingContext2D, bounds: { x: number; y: number; width: number; height: number }, featherPx: number) {
+  const x = Math.min(bounds.x, bounds.x + bounds.width);
+  const y = Math.min(bounds.y, bounds.y + bounds.height);
+  const width = Math.abs(bounds.width);
+  const height = Math.abs(bounds.height);
+  if (width <= 1 || height <= 1) {
+    return;
+  }
+
+  const feather = Math.min(featherPx, width / 2, height / 2);
+  const maskWidth = Math.max(1, Math.ceil(width));
+  const maskHeight = Math.max(1, Math.ceil(height));
+  const cacheKey = `rect:${maskWidth}:${maskHeight}:${roundMaskValue(feather)}`;
+  const mask = getEnvironmentFeatherMask(cacheKey, maskWidth, maskHeight, (pixelX, pixelY) => {
+    const distanceToEdge = Math.min(pixelX, maskWidth - pixelX, pixelY, maskHeight - pixelY);
+    return getEnvironmentFeatherAlpha(distanceToEdge / feather);
+  });
+  ctx.drawImage(mask, x, y, width, height);
+}
+
+function applyCircleEnvironmentFeather(ctx: CanvasRenderingContext2D, bounds: { x: number; y: number; width: number; height: number }, featherPx: number) {
+  const radius = Math.max(1, Math.min(Math.abs(bounds.width), Math.abs(bounds.height)) / 2);
+  const feather = Math.min(featherPx, radius);
+  const size = Math.max(1, Math.ceil(radius * 2));
+  const center = size / 2;
+  const cacheKey = `circle:${size}:${roundMaskValue(feather)}`;
+  const mask = getEnvironmentFeatherMask(cacheKey, size, size, (pixelX, pixelY) => {
+    const distanceFromCenter = Math.hypot(pixelX - center, pixelY - center);
+    if (distanceFromCenter > radius) {
+      return 0;
+    }
+    return getEnvironmentFeatherAlpha((radius - distanceFromCenter) / feather);
+  });
+  ctx.drawImage(mask, bounds.x, bounds.y, bounds.width, bounds.height);
+}
+
+function applyPolygonEnvironmentFeather(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, featherPx: number) {
+  if (effect.points.length < 3) {
+    return;
+  }
+  const screenPoints = effect.points.map((point) => worldToScreenPoint(point, camera));
+  const bounds = getPointBounds(screenPoints);
+  const maskWidth = Math.max(1, Math.ceil(bounds.width));
+  const maskHeight = Math.max(1, Math.ceil(bounds.height));
+  const localPoints = screenPoints.map((point) => ({ x: point.x - bounds.x, y: point.y - bounds.y }));
+  const cacheKey = `poly:${maskWidth}:${maskHeight}:${roundMaskValue(featherPx)}:${localPoints.map((point) => `${roundMaskValue(point.x)},${roundMaskValue(point.y)}`).join(";")}`;
+  const mask = getEnvironmentFeatherMask(cacheKey, maskWidth, maskHeight, (pixelX, pixelY) => {
+    const point = { x: pixelX, y: pixelY };
+    if (!isPointInPolygon(point, localPoints)) {
+      return 0;
+    }
+    const distanceToEdge = getDistanceToPolygonEdge(point, localPoints);
+    return getEnvironmentFeatherAlpha(distanceToEdge / featherPx);
+  });
+  ctx.drawImage(mask, bounds.x, bounds.y, bounds.width, bounds.height);
+}
+
+function getEnvironmentFeatherAlpha(progress: number): number {
+  return Math.pow(Math.max(0, Math.min(1, progress)), 1.85);
+}
+
+function roundMaskValue(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+function getPointBounds(points: Point[]): { x: number; y: number; width: number; height: number } {
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY
+  };
+}
+
+function isPointInPolygon(point: Point, polygon: Point[]): boolean {
+  let inside = false;
+  for (let index = 0, previousIndex = polygon.length - 1; index < polygon.length; previousIndex = index, index += 1) {
+    const current = polygon[index];
+    const previous = polygon[previousIndex];
+    const crossesY = current.y > point.y !== previous.y > point.y;
+    if (crossesY) {
+      const intersectionX = ((previous.x - current.x) * (point.y - current.y)) / (previous.y - current.y || 1) + current.x;
+      if (point.x < intersectionX) {
+        inside = !inside;
+      }
+    }
+  }
+  return inside;
+}
+
+function getDistanceToPolygonEdge(point: Point, polygon: Point[]): number {
+  let nearest = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < polygon.length; index += 1) {
+    const start = polygon[index];
+    const end = polygon[(index + 1) % polygon.length];
+    nearest = Math.min(nearest, getDistanceToSegment(point, start, end));
+  }
+  return nearest;
+}
+
+function getDistanceToSegment(point: Point, start: Point, end: Point): number {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared <= 0) {
+    return Math.hypot(point.x - start.x, point.y - start.y);
+  }
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  return Math.hypot(point.x - (start.x + dx * t), point.y - (start.y + dy * t));
+}
+
+function getEnvironmentFeatherMask(key: string, width: number, height: number, alphaAt: (x: number, y: number) => number): HTMLCanvasElement {
+  const cached = environmentFeatherMaskCache.get(key);
+  if (cached) {
+    environmentFeatherMaskCache.delete(key);
+    environmentFeatherMaskCache.set(key, cached);
+    return cached;
+  }
+  const mask = createEnvironmentFeatherMask(width, height, alphaAt);
+  environmentFeatherMaskCache.set(key, mask);
+  while (environmentFeatherMaskCache.size > ENVIRONMENT_FEATHER_MASK_CACHE_LIMIT) {
+    const oldestKey = environmentFeatherMaskCache.keys().next().value;
+    if (!oldestKey) {
+      break;
+    }
+    environmentFeatherMaskCache.delete(oldestKey);
+  }
+  return mask;
+}
+
+function createEnvironmentFeatherMask(width: number, height: number, alphaAt: (x: number, y: number) => number): HTMLCanvasElement {
+  const mask = document.createElement("canvas");
+  mask.width = width;
+  mask.height = height;
+  const maskCtx = mask.getContext("2d");
+  if (!maskCtx) {
+    return mask;
+  }
+  const image = maskCtx.createImageData(width, height);
+  for (let pixelY = 0; pixelY < height; pixelY += 1) {
+    for (let pixelX = 0; pixelX < width; pixelX += 1) {
+      const offset = (pixelY * width + pixelX) * 4;
+      image.data[offset] = 0;
+      image.data[offset + 1] = 0;
+      image.data[offset + 2] = 0;
+      image.data[offset + 3] = Math.round(alphaAt(pixelX + 0.5, pixelY + 0.5) * 255);
+    }
+  }
+  maskCtx.putImageData(image, 0, 0);
+  return mask;
 }
 
 function shouldAnimateEnvironmentEffects(scene: Scene | null, mode: "gm" | "player", layerVisible: boolean): boolean {
@@ -4864,6 +5161,10 @@ function cloneLavaEffectTuning(tuning?: LavaEffectTuning): LavaEffectTuning {
   return { ...(tuning ?? DEFAULT_LAVA_EFFECT_TUNING) };
 }
 
+function cloneFireEffectTuning(tuning?: FireEffectTuning): FireEffectTuning {
+  return { ...(tuning ?? DEFAULT_FIRE_EFFECT_TUNING) };
+}
+
 function cloneSmokeEffectTuning(tuning?: SmokeEffectTuning): SmokeEffectTuning {
   return { ...(tuning ?? DEFAULT_SMOKE_EFFECT_TUNING) };
 }
@@ -4880,6 +5181,16 @@ function drawLavaEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffect
   const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.lavaTuning ? { ...DEFAULT_LAVA_EFFECT_TUNING, ...effect.lavaTuning } : lavaEffectTuning;
   drawEnvironmentLavaEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
+}
+
+function drawFireEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, fireEffectTuning?: FireEffectTuning) {
+  const bounds = getEnvironmentEffectBounds(effect);
+  if (!bounds) {
+    return;
+  }
+  const screenBounds = worldRectToScreen(bounds, camera);
+  const tuning = effect.fireTuning ? { ...DEFAULT_FIRE_EFFECT_TUNING, ...effect.fireTuning } : fireEffectTuning;
+  drawEnvironmentFireEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawSmokeEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, smokeEffectTuning?: SmokeEffectTuning) {
@@ -4985,6 +5296,7 @@ function environmentDragToMask(drag: EnvironmentEffectDrag): EnvironmentEffectMa
     id: "preview",
     kind: drag.kind,
     effect: drag.effect,
+    feather: drag.feather,
     points: drag.kind === "circle" ? [drag.start] : [drag.start, drag.current],
     radius: drag.kind === "circle" ? distanceBetween(drag.start, drag.current) : undefined,
     visibleInGm: true,
@@ -4997,15 +5309,15 @@ function isMeaningfulEnvironmentEffectDrag(drag: EnvironmentEffectDrag): boolean
 }
 
 function getEnvironmentEffectStroke(effect: EnvironmentEffectType): string {
-  return effect === "lava" ? "rgba(255, 129, 52, 0.95)" : effect === "smoke" ? "rgba(210, 220, 226, 0.88)" : effect === "fog" ? "rgba(226, 232, 240, 0.82)" : "rgba(125, 211, 252, 0.95)";
+  return effect === "lava" ? "rgba(255, 129, 52, 0.95)" : effect === "fire" ? "rgba(251, 146, 60, 0.95)" : effect === "smoke" ? "rgba(210, 220, 226, 0.88)" : effect === "fog" ? "rgba(226, 232, 240, 0.82)" : "rgba(125, 211, 252, 0.95)";
 }
 
 function getEnvironmentEffectPreviewFill(effect: EnvironmentEffectType): string {
-  return effect === "lava" ? "rgba(255, 129, 52, 0.2)" : effect === "smoke" ? "rgba(210, 220, 226, 0.18)" : effect === "fog" ? "rgba(226, 232, 240, 0.14)" : "rgba(56, 189, 248, 0.2)";
+  return effect === "lava" ? "rgba(255, 129, 52, 0.2)" : effect === "fire" ? "rgba(249, 115, 22, 0.2)" : effect === "smoke" ? "rgba(210, 220, 226, 0.18)" : effect === "fog" ? "rgba(226, 232, 240, 0.14)" : "rgba(56, 189, 248, 0.2)";
 }
 
 function formatEnvironmentEffectLabel(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fog" ? "Fog / Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function drawWeatherPolygonDraft(ctx: CanvasRenderingContext2D, draft: WeatherPolygonDraft, camera: Camera) {

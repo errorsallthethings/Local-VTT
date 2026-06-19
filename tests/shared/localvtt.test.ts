@@ -7,6 +7,7 @@ import {
   duplicateScene,
   DEFAULT_CALIBRATION,
   DEFAULT_DICE_SETTINGS,
+  DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
   DEFAULT_FOG,
   DEFAULT_GRID,
   DEFAULT_LAYERS,
@@ -135,6 +136,45 @@ it("normalizeScene clamps weather settings", () => {
     },
     masks: []
   });
+});
+
+it("normalizeScene preserves fire environmental effects", () => {
+  const scene = createDefaultScene("Fire Effects");
+  scene.environment.effects = [
+    {
+      id: "fire-effect",
+      name: "Fire Effect",
+      kind: "rectangle",
+      effect: "fire",
+      points: [
+        { x: 10, y: 20 },
+        { x: 110, y: 120 }
+      ],
+      feather: 0.6,
+      fireTuning: {
+        ...DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
+        flameScale: 9,
+        speed: 0.7
+      },
+      visibleInGm: true,
+      visibleInPlayer: false
+    }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.environment.effects[0]).toMatchObject({
+    effect: "fire",
+    feather: 0.6,
+    visibleInGm: true,
+    visibleInPlayer: false,
+    fireTuning: expect.objectContaining({
+      flameScale: 9,
+      speed: 0.7,
+      panFollow: 1
+    })
+  });
+  expect(normalized.environment.effects[0].waterTuning).toBeUndefined();
 });
 
 it("normalizeScene applies canonical core layer names and order", () => {

@@ -337,7 +337,7 @@
 
 .fog-shape-action-button.danger:hover:not(:disabled) {
   border-color: transparent;
-  background: transparent;
+  background: var(--color-danger-menu-hover);
   color: var(--color-danger);
 }
 

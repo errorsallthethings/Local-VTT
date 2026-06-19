@@ -171,7 +171,7 @@ export interface WeatherMask {
   visible?: boolean;
 }
 
-export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog";
+export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire";
 
 export interface WaterEffectTuningSettings {
   opacity: number;
@@ -249,6 +249,48 @@ export const DEFAULT_LAVA_EFFECT_TUNING_SETTINGS: LavaEffectTuningSettings = {
   hotColor: "#ffd166"
 };
 
+export interface FireEffectTuningSettings {
+  opacity: number;
+  flameScale: number;
+  speed: number;
+  directionDegrees: number;
+  turbulence: number;
+  tongues: number;
+  tongueVariation: number;
+  breakup: number;
+  flameStretch: number;
+  flicker: number;
+  ember: number;
+  heat: number;
+  panFollow: number;
+  zoomScale: number;
+  baseAlpha: number;
+  emberColor: string;
+  flameColor: string;
+  hotColor: string;
+}
+
+export const DEFAULT_FIRE_EFFECT_TUNING_SETTINGS: FireEffectTuningSettings = {
+  opacity: 0.86,
+  flameScale: 6.4,
+  speed: 0.62,
+  directionDegrees: 270,
+  turbulence: 0.92,
+  tongues: 0.58,
+  tongueVariation: 0.86,
+  breakup: 0.64,
+  flameStretch: 0.58,
+  flicker: 0.74,
+  ember: 0.34,
+  heat: 0.78,
+  panFollow: 1,
+  zoomScale: 0,
+  baseAlpha: 0.26,
+  emberColor: "#4a1205",
+  flameColor: "#f97316",
+  hotColor: "#fff2a8"
+};
+
 export interface SmokeEffectTuningSettings {
   opacity: number;
   cloudScale: number;
@@ -309,8 +351,10 @@ export interface EnvironmentEffectMask {
   effect: EnvironmentEffectType;
   points: Point[];
   radius?: number;
+  feather?: number;
   waterTuning?: WaterEffectTuningSettings;
   lavaTuning?: LavaEffectTuningSettings;
+  fireTuning?: FireEffectTuningSettings;
   smokeTuning?: SmokeEffectTuningSettings;
   fogTuning?: FogEffectTuningSettings;
   visibleInGm?: boolean;
@@ -1158,7 +1202,7 @@ const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "sandstorm"
 ]);
 
-const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog"]);
+const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire"]);
 
 export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
@@ -1644,8 +1688,10 @@ function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): Env
         name: typeof effect.name === "string" && effect.name.trim() ? effect.name : `${formatEnvironmentEffectName(effectType)} Effect ${index + 1}`,
         effect: effectType,
         points,
+        feather: clampNumber(effect.feather, 0, 1, 0),
         waterTuning: effectType === "water" ? normalizeWaterEffectTuning(effect.waterTuning) : undefined,
         lavaTuning: effectType === "lava" ? normalizeLavaEffectTuning(effect.lavaTuning) : undefined,
+        fireTuning: effectType === "fire" ? normalizeFireEffectTuning(effect.fireTuning) : undefined,
         smokeTuning: effectType === "smoke" ? normalizeSmokeEffectTuning(effect.smokeTuning) : undefined,
         fogTuning: effectType === "fog" ? normalizeFogEffectTuning(effect.fogTuning) : undefined,
         visibleInGm: effect.visibleInGm ?? true,
@@ -1667,7 +1713,7 @@ function normalizeWaterEffectTuning(tuning?: WaterEffectTuningSettings): WaterEf
     bandBreakup: clampNumber(tuning?.bandBreakup, 0, 1, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.bandBreakup),
     bandVariation: clampNumber(tuning?.bandVariation, 0, 4, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.bandVariation),
     bandOverlap: clampNumber(tuning?.bandOverlap, 0, 1, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.bandOverlap),
-    panFollow: clampNumber(tuning?.panFollow, 0, 1, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.panFollow),
+    panFollow: 1,
     zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.zoomScale),
     baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.baseAlpha),
     highlightAlpha: clampNumber(tuning?.highlightAlpha, 0, 1, DEFAULT_WATER_EFFECT_TUNING_SETTINGS.highlightAlpha),
@@ -1687,12 +1733,35 @@ function normalizeLavaEffectTuning(tuning?: LavaEffectTuningSettings): LavaEffec
     crust: clampNumber(tuning?.crust, 0, 1, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.crust),
     glow: clampNumber(tuning?.glow, 0, 1, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.glow),
     ember: clampNumber(tuning?.ember, 0, 1, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.ember),
-    panFollow: clampNumber(tuning?.panFollow, 0, 1, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.panFollow),
+    panFollow: 1,
     zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.zoomScale),
     baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.baseAlpha),
     darkColor: normalizeColorValue(tuning?.darkColor, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.darkColor),
     lavaColor: normalizeColorValue(tuning?.lavaColor, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.lavaColor),
     hotColor: normalizeColorValue(tuning?.hotColor, DEFAULT_LAVA_EFFECT_TUNING_SETTINGS.hotColor)
+  };
+}
+
+function normalizeFireEffectTuning(tuning?: FireEffectTuningSettings): FireEffectTuningSettings {
+  return {
+    opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.opacity),
+    flameScale: clampNumber(tuning?.flameScale, 0.5, 20, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.flameScale),
+    speed: clampNumber(tuning?.speed, 0, 2, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.speed),
+    directionDegrees: clampNumber(tuning?.directionDegrees, 0, 360, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.directionDegrees),
+    turbulence: clampNumber(tuning?.turbulence, 0, 2, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.turbulence),
+    tongues: clampNumber(tuning?.tongues, 0, 1, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.tongues),
+    tongueVariation: clampNumber(tuning?.tongueVariation, 0, 1, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.tongueVariation),
+    breakup: clampNumber(tuning?.breakup, 0, 1, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.breakup),
+    flameStretch: clampNumber(tuning?.flameStretch, 0, 1, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.flameStretch),
+    flicker: clampNumber(tuning?.flicker, 0, 1, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.flicker),
+    ember: clampNumber(tuning?.ember, 0, 1, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.ember),
+    heat: clampNumber(tuning?.heat, 0, 1, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.heat),
+    panFollow: 1,
+    zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.zoomScale),
+    baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.baseAlpha),
+    emberColor: normalizeColorValue(tuning?.emberColor, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.emberColor),
+    flameColor: normalizeColorValue(tuning?.flameColor, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.flameColor),
+    hotColor: normalizeColorValue(tuning?.hotColor, DEFAULT_FIRE_EFFECT_TUNING_SETTINGS.hotColor)
   };
 }
 
@@ -1706,7 +1775,7 @@ function normalizeSmokeEffectTuning(tuning?: SmokeEffectTuningSettings): SmokeEf
     softness: clampNumber(tuning?.softness, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.softness),
     density: clampNumber(tuning?.density, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.density),
     lift: clampNumber(tuning?.lift, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.lift),
-    panFollow: clampNumber(tuning?.panFollow, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.panFollow),
+    panFollow: 1,
     zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.zoomScale),
     baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.baseAlpha),
     shadowColor: normalizeColorValue(tuning?.shadowColor, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.shadowColor),
@@ -1725,7 +1794,7 @@ function normalizeFogEffectTuning(tuning?: FogEffectTuningSettings): FogEffectTu
     softness: clampNumber(tuning?.softness, 0, 1, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.softness),
     density: clampNumber(tuning?.density, 0, 1, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.density),
     lift: clampNumber(tuning?.lift, 0, 1, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.lift),
-    panFollow: clampNumber(tuning?.panFollow, 0, 1, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.panFollow),
+    panFollow: 1,
     zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.zoomScale),
     baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.baseAlpha),
     shadowColor: normalizeColorValue(tuning?.shadowColor, DEFAULT_FOG_EFFECT_TUNING_SETTINGS.shadowColor),
@@ -1739,7 +1808,7 @@ function normalizeColorValue(value: unknown, fallback: string): string {
 }
 
 function formatEnvironmentEffectName(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fog" ? "Fog / Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function normalizeWeatherEffectSettings(settings?: WeatherSettings["effectSettings"]): WeatherSettings["effectSettings"] {
