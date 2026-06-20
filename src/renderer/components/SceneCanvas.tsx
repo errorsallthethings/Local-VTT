@@ -22,7 +22,8 @@ import {
   type DrawingTool
 } from "../canvas/drawingRenderer";
 import {
-  getDrawingGroupBounds,
+  getDrawingGroupSnapAnchor,
+  getDrawingPointSnapshot,
   getDrawingResizeHandleAtPoint,
   getDrawingRotationHandleAtPoint,
   resizeDrawingPoints,
@@ -1665,11 +1666,7 @@ export function SceneCanvas({
         if ((mouseBehavior === "grabber" || mouseBehavior === "selector") && canShowDrawings && effectiveSelectedDrawingIds.length > 0) {
           const rotateTarget = getDrawingRotationHandleAtPoint(scene.drawings, effectiveSelectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
           if (rotateTarget) {
-            const groupStartPoints = new Map(
-              scene.drawings
-                .filter((candidate) => effectiveSelectedDrawingIdSet.has(candidate.id) && !candidate.measurementLabelVisible)
-                .map((candidate) => [candidate.id, candidate.points.map((candidatePoint) => ({ ...candidatePoint }))])
-            );
+            const groupStartPoints = getDrawingPointSnapshot(scene.drawings, effectiveSelectedDrawingIds);
             drawingRotateRef.current = {
               pointerId: event.pointerId,
               center: rotateTarget.center,
@@ -1681,11 +1678,7 @@ export function SceneCanvas({
           }
           const resizeTarget = getDrawingResizeHandleAtPoint(scene.drawings, effectiveSelectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
           if (resizeTarget) {
-            const groupStartPoints = new Map(
-              scene.drawings
-                .filter((candidate) => effectiveSelectedDrawingIdSet.has(candidate.id) && !candidate.measurementLabelVisible)
-                .map((candidate) => [candidate.id, candidate.points.map((candidatePoint) => ({ ...candidatePoint }))])
-            );
+            const groupStartPoints = getDrawingPointSnapshot(scene.drawings, effectiveSelectedDrawingIds);
             drawingResizeRef.current = {
               pointerId: event.pointerId,
               handle: resizeTarget.handle,
@@ -1700,18 +1693,8 @@ export function SceneCanvas({
         if (drawingHit) {
           const shouldDragSelectedGroup = mouseBehavior === "grabber" && effectiveSelectedDrawingIdSet.has(drawingHit.id) && effectiveSelectedDrawingIds.length > 1;
           const groupDrawingIds = shouldDragSelectedGroup ? effectiveSelectedDrawingIds : [drawingHit.id];
-          const groupStartPoints = new Map(
-            scene.drawings
-              .filter((candidate) => groupDrawingIds.includes(candidate.id))
-              .map((candidate) => [candidate.id, candidate.points.map((candidatePoint) => ({ ...candidatePoint }))])
-          );
-          const snapBounds = getDrawingGroupBounds(scene.drawings.filter((candidate) => groupDrawingIds.includes(candidate.id)));
-          const snapAnchor = snapBounds
-            ? {
-                x: (snapBounds.left + snapBounds.right) / 2,
-                y: (snapBounds.top + snapBounds.bottom) / 2
-              }
-            : point;
+          const groupStartPoints = getDrawingPointSnapshot(scene.drawings, groupDrawingIds, { includeTemplates: true });
+          const snapAnchor = getDrawingGroupSnapAnchor(scene.drawings, groupDrawingIds, point);
           onSelectToken?.(null);
           if (!shouldDragSelectedGroup) {
             onSelectDrawing?.(drawingHit.id);

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { DrawingElement } from "../../src/shared/localvtt";
 import {
   getDrawingGroupBounds,
+  getDrawingGroupSnapAnchor,
+  getDrawingPointSnapshot,
   getDrawingResizeHandleAtPoint,
   getDrawingResizeHandles,
   getDrawingRotationHandle,
@@ -51,6 +53,34 @@ describe("drawing transform geometry", () => {
         drawing({ kind: "line", points: [{ x: -5, y: 0 }, { x: 5, y: 80 }] })
       ])
     ).toEqual({ left: -5, top: 0, right: 30, bottom: 80 });
+  });
+
+  it("captures cloned drawing points and skips templates by default", () => {
+    const drawings = [
+      drawing({ id: "a", kind: "line", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }] }),
+      drawing({ id: "template", kind: "line", measurementLabelVisible: true, points: [{ x: 10, y: 20 }, { x: 30, y: 40 }] })
+    ];
+    const snapshot = getDrawingPointSnapshot(drawings, ["a", "template"]);
+
+    expect([...snapshot.keys()]).toEqual(["a"]);
+    expect(snapshot.get("a")).toEqual([{ x: 1, y: 2 }, { x: 3, y: 4 }]);
+    expect(snapshot.get("a")).not.toBe(drawings[0].points);
+  });
+
+  it("can include template points for drawing movement snapshots", () => {
+    const drawings = [drawing({ id: "template", kind: "line", measurementLabelVisible: true })];
+
+    expect([...getDrawingPointSnapshot(drawings, ["template"], { includeTemplates: true }).keys()]).toEqual(["template"]);
+  });
+
+  it("uses drawing group center as snap anchor with a fallback", () => {
+    const drawings = [
+      drawing({ id: "a", kind: "rectangle", points: [{ x: 10, y: 20 }, { x: 30, y: 40 }] }),
+      drawing({ id: "b", kind: "rectangle", points: [{ x: -10, y: 0 }, { x: 10, y: 20 }] })
+    ];
+
+    expect(getDrawingGroupSnapAnchor(drawings, ["a", "b"], { x: 99, y: 99 })).toEqual({ x: 10, y: 20 });
+    expect(getDrawingGroupSnapAnchor(drawings, ["missing"], { x: 99, y: 99 })).toEqual({ x: 99, y: 99 });
   });
 
   it("returns resize handles around a bounds rectangle", () => {

@@ -5,6 +5,7 @@ import { getDrawingBounds } from "./drawingRenderer";
 import { distanceBetween } from "./tokenGeometry";
 
 export type DrawingBounds = { left: number; top: number; right: number; bottom: number };
+export type DrawingPointSnapshot = Map<string, Point[]>;
 
 export function getDrawingRotationHandleAtPoint(
   drawings: Scene["drawings"],
@@ -74,6 +75,26 @@ export function getDrawingGroupBounds(drawings: Scene["drawings"]): DrawingBound
     return null;
   }
   return getCombinedDrawingBounds(bounds);
+}
+
+export function getDrawingPointSnapshot(drawings: Scene["drawings"], drawingIds: string[], options: { includeTemplates?: boolean } = {}): DrawingPointSnapshot {
+  const ids = new Set(drawingIds);
+  return new Map(
+    drawings
+      .filter((drawing) => ids.has(drawing.id) && (options.includeTemplates || !drawing.measurementLabelVisible))
+      .map((drawing) => [drawing.id, drawing.points.map((point) => ({ ...point }))])
+  );
+}
+
+export function getDrawingGroupSnapAnchor(drawings: Scene["drawings"], drawingIds: string[], fallback: Point): Point {
+  const ids = new Set(drawingIds);
+  const bounds = getDrawingGroupBounds(drawings.filter((drawing) => ids.has(drawing.id)));
+  return bounds
+    ? {
+        x: (bounds.left + bounds.right) / 2,
+        y: (bounds.top + bounds.bottom) / 2
+      }
+    : fallback;
 }
 
 function getCombinedDrawingBounds(bounds: DrawingBounds[]): DrawingBounds {
