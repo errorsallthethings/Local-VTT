@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowDown,
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../../shared/localvtt";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
+import { buildSceneLibraryGroups } from "../../lib/sceneLibrary";
 import { getActiveWeatherEffects } from "../../lib/weatherCatalog";
 
 interface SceneLibraryPanelProps {
@@ -51,6 +52,9 @@ interface SceneLibraryPanelProps {
 type SceneDropTarget =
   | { kind: "folder"; folderId?: string }
   | { kind: "scene"; sceneId: string; folderId?: string; position: "before" | "after" };
+
+const EMPTY_SCENES: CampaignSceneEntry[] = [];
+const EMPTY_SCENE_FOLDERS: CampaignSceneFolder[] = [];
 
 export function SceneLibraryPanel({
   campaign,
@@ -88,7 +92,9 @@ export function SceneLibraryPanel({
       ? `folder:${getDropTargetId(target.folderId)}`
       : `scene:${target.sceneId}:${target.position}`;
   };
-  const unfiledScenes = campaign?.scenes.filter((scene) => !scene.folderId) ?? [];
+  const campaignScenes = campaign?.scenes ?? EMPTY_SCENES;
+  const campaignSceneFolders = campaign?.sceneFolders ?? EMPTY_SCENE_FOLDERS;
+  const { folderGroups, unfiledScenes } = useMemo(() => buildSceneLibraryGroups(campaignScenes, campaignSceneFolders), [campaignScenes, campaignSceneFolders]);
   const emptySceneMessage = getSceneLibraryEmptyMessage(campaign);
 
   const renderSceneCard = (scene: CampaignSceneEntry) => {
@@ -251,13 +257,12 @@ export function SceneLibraryPanel({
         onDrop={(event) => onSceneDrop(event)}
       >
         {emptySceneMessage && <div className="scene-library-empty">{emptySceneMessage}</div>}
-        {campaign?.sceneFolders.map((folder, folderIndex) => {
-          const folderScenes = campaign.scenes.filter((scene) => scene.folderId === folder.id);
+        {folderGroups.map(({ folder, scenes: folderScenes }, folderIndex) => {
           const folderDirtyCount = getDirtySceneCount(folderScenes, dirtySceneIds);
           const folderHasDirtyScenes = folderDirtyCount > 0;
           const isCollapsed = collapsedFolderIds.has(folder.id);
           const canMoveUp = folderIndex > 0;
-          const canMoveDown = folderIndex < campaign.sceneFolders.length - 1;
+          const canMoveDown = folderIndex < folderGroups.length - 1;
           const folderStyle = {
             "--scene-folder-color": folder.color,
             "--scene-folder-color-bg": hexToRgba(folder.color, 0.13)

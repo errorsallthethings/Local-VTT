@@ -23,8 +23,13 @@ import type { Asset } from "../../../shared/localvtt";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/dragTypes";
+import {
+  filterTokenLibraryAssets,
+  getSelectedTokenLibraryAsset,
+  getSelectedTokenLibraryAssetIds,
+  type TokenLibrarySort
+} from "../../lib/tokenLibrary";
 
-type TokenLibrarySort = "name-asc" | "newest" | "oldest";
 type TokenLibraryView = "list" | "small" | "medium" | "large";
 
 interface TokenLibraryDrawerProps {
@@ -68,14 +73,12 @@ export function TokenLibraryDrawer({
   const [openTokenMenuId, setOpenTokenMenuId] = useState<string | null>(null);
   const [splitPercent, setSplitPercent] = useState(62);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const filteredAssets = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return [...assets]
-      .filter((asset) => !normalizedQuery || `${asset.name} ${asset.originalFileName}`.toLowerCase().includes(normalizedQuery))
-      .sort((a, b) => sortTokenAssets(a, b, sort));
-  }, [assets, query, sort]);
-  const selectedAssetIds = new Set(selectedTokenAssetIds.length > 0 ? selectedTokenAssetIds : selectedTokenAssetId ? [selectedTokenAssetId] : []);
-  const selectedTokenAsset = selectedTokenAssetId ? (assets.find((asset) => asset.id === selectedTokenAssetId) ?? null) : null;
+  const filteredAssets = useMemo(() => filterTokenLibraryAssets(assets, query, sort), [assets, query, sort]);
+  const selectedAssetIds = useMemo(
+    () => getSelectedTokenLibraryAssetIds(selectedTokenAssetId, selectedTokenAssetIds),
+    [selectedTokenAssetId, selectedTokenAssetIds]
+  );
+  const selectedTokenAsset = useMemo(() => getSelectedTokenLibraryAsset(assets, selectedTokenAssetId), [assets, selectedTokenAssetId]);
   useDismissableMenu({
     enabled: Boolean(openTokenMenuId),
     menuRootClass: "token-library-menu-wrap",
@@ -436,17 +439,3 @@ function TokenLibraryMenu({
   );
 }
 
-function sortTokenAssets(a: Asset, b: Asset, sort: TokenLibrarySort): number {
-  if (sort === "newest" || sort === "oldest") {
-    const direction = sort === "newest" ? -1 : 1;
-    const dateDelta = (Date.parse(a.createdAt) - Date.parse(b.createdAt)) * direction;
-    if (dateDelta !== 0) {
-      return dateDelta;
-    }
-  }
-  return getAssetLabel(a).localeCompare(getAssetLabel(b), undefined, { sensitivity: "base" });
-}
-
-function getAssetLabel(asset: Asset): string {
-  return asset.name || asset.originalFileName || "Token";
-}
