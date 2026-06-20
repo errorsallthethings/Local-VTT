@@ -98,6 +98,7 @@ import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEf
 import { getEnvironmentEffectAtPoint, getMaskHitAtPoint, isMaskHitVisibleForLayers } from "../canvas/sceneHitTesting";
 import { getSceneLayerVisibility } from "../canvas/sceneLayerVisibility";
 import { getNearestSceneSnapPoint, getRulerSnapPoint } from "../canvas/sceneSnapping";
+import { getSelectedItemIdList, getSelectedItemIds } from "../lib/selectionIds";
 import {
   getDrawingElementFromPreview,
   getDrawingPolygonElementFromDraft,
@@ -197,6 +198,7 @@ import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, Selecto
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
 const WEATHER_ONLY_FRAME_INTERVAL_MS = 50;
+const EMPTY_SELECTED_IDS: string[] = [];
 
 interface SceneCanvasProps {
   campaign: Campaign | null;
@@ -418,10 +420,10 @@ export function SceneCanvas({
   selectedEnvironmentEffectId = null,
   selectedDrawingId = null,
   selectedTokenId = null,
-  selectedFogShapeIds = [],
-  selectedWeatherMaskIds = [],
-  selectedDrawingIds = [],
-  selectedTokenIds = [],
+  selectedFogShapeIds = EMPTY_SELECTED_IDS,
+  selectedWeatherMaskIds = EMPTY_SELECTED_IDS,
+  selectedDrawingIds = EMPTY_SELECTED_IDS,
+  selectedTokenIds = EMPTY_SELECTED_IDS,
   selectorSelectionFilters = {
     tokens: true,
     templates: false,
@@ -634,6 +636,12 @@ export function SceneCanvas({
   const tokenImageSourceKey = useMemo(() => {
     return getTokenImageSourceKey(tokenAssets);
   }, [tokenAssets]);
+  const effectiveSelectedTokenIds = useMemo(() => getSelectedItemIdList(selectedTokenId, selectedTokenIds), [selectedTokenId, selectedTokenIds]);
+  const effectiveSelectedTokenIdSet = useMemo(() => getSelectedItemIds(selectedTokenId, selectedTokenIds), [selectedTokenId, selectedTokenIds]);
+  const effectiveSelectedDrawingIds = useMemo(() => getSelectedItemIdList(selectedDrawingId, selectedDrawingIds), [selectedDrawingId, selectedDrawingIds]);
+  const effectiveSelectedDrawingIdSet = useMemo(() => getSelectedItemIds(selectedDrawingId, selectedDrawingIds), [selectedDrawingId, selectedDrawingIds]);
+  const effectiveSelectedFogShapeIds = useMemo(() => getSelectedItemIdList(selectedFogShapeId, selectedFogShapeIds), [selectedFogShapeId, selectedFogShapeIds]);
+  const effectiveSelectedWeatherMaskIds = useMemo(() => getSelectedItemIdList(selectedWeatherMaskId, selectedWeatherMaskIds), [selectedWeatherMaskId, selectedWeatherMaskIds]);
 
   const {
     mapLayer,
@@ -1159,7 +1167,7 @@ export function SceneCanvas({
       }
 
       if (canShowTokens) {
-        drawTokens(ctx, scene, loadedTokenImages, mode, selectedTokenIds.length > 0 ? selectedTokenIds : selectedTokenId, tokenDragPreview, playerTokenTweenPositionsRef.current, renderCamera.zoom);
+        drawTokens(ctx, scene, loadedTokenImages, mode, effectiveSelectedTokenIds, tokenDragPreview, playerTokenTweenPositionsRef.current, renderCamera.zoom);
       }
 
       if (canShowDrawings) {
@@ -1190,7 +1198,7 @@ export function SceneCanvas({
           drawingLayer?.opacity ?? 1,
           mode === "gm" ? (drawingPreview ?? drawingPolygonPreview) : null,
           renderCamera.zoom,
-          selectedDrawingIds.length > 0 ? selectedDrawingIds : selectedDrawingId,
+          effectiveSelectedDrawingIds,
           drawingDragPreview,
           drawingRotateRef.current ? drawingRotateRef.current.groupStartPoints : drawingDragPreview
         );
@@ -1205,7 +1213,7 @@ export function SceneCanvas({
 
       if (canShowFog) {
         // Fog is drawn after world content so hidden/partial modes mask maps, tokens, grid, and ruler consistently.
-        drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, selectedFogShapeIds.length > 0 ? selectedFogShapeIds : selectedFogShapeId);
+        drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, effectiveSelectedFogShapeIds);
       }
       if (canShowWeather && !mapOverlayActive) {
         if (weatherMapReady) {
@@ -1229,8 +1237,7 @@ export function SceneCanvas({
         drawWeatherPolygonDraft(ctx, environmentPolygonDraft, renderCamera);
       }
       if (mode === "gm") {
-        const weatherMaskSelection = selectedWeatherMaskIds.length > 0 ? selectedWeatherMaskIds : selectedWeatherMaskId ? [selectedWeatherMaskId] : [];
-        for (const selectedWeatherMask of scene.weather.masks.filter((mask) => weatherMaskSelection.includes(mask.id) && (mask.visible ?? true))) {
+        for (const selectedWeatherMask of scene.weather.masks.filter((mask) => effectiveSelectedWeatherMaskIds.includes(mask.id) && (mask.visible ?? true))) {
           drawWeatherMaskSelection(ctx, selectedWeatherMask, renderCamera);
         }
         if (selectedEnvironmentEffectId) {
@@ -1264,8 +1271,8 @@ export function SceneCanvas({
       if (mode === "gm" && selectionDrag) {
         drawSelectionMarquee(ctx, selectionDrag, renderCamera);
       }
-      if (mode === "gm" && canShowDrawings && !drawingDragPreview && selectedDrawingIds.length > 0) {
-        drawDrawingResizeHandles(ctx, scene.drawings, selectedDrawingIds, renderCamera);
+      if (mode === "gm" && canShowDrawings && !drawingDragPreview && effectiveSelectedDrawingIds.length > 0) {
+        drawDrawingResizeHandles(ctx, scene.drawings, effectiveSelectedDrawingIds, renderCamera);
       }
       const visibleLiveTableEvents = mode === "gm" ? liveTableEvents.filter((event) => event.type !== "ruler") : liveTableEvents;
       if (visibleLiveTableEvents.length > 0) {
@@ -1283,14 +1290,10 @@ export function SceneCanvas({
       const environmentAnimating = shouldAnimateEnvironmentEffects(scene, mode, Boolean(canShowWeather));
       const selectionAnimating =
         mode === "gm" &&
-        (Boolean(selectedDrawingId) ||
-          selectedDrawingIds.length > 0 ||
-          Boolean(selectedFogShapeId) ||
-          selectedFogShapeIds.length > 0 ||
-          Boolean(selectedTokenId) ||
-          selectedTokenIds.length > 0 ||
-          Boolean(selectedWeatherMaskId) ||
-          selectedWeatherMaskIds.length > 0);
+        (effectiveSelectedDrawingIds.length > 0 ||
+          effectiveSelectedFogShapeIds.length > 0 ||
+          effectiveSelectedTokenIds.length > 0 ||
+          effectiveSelectedWeatherMaskIds.length > 0);
       const hasFullRateAnimation = mapAnimating || tokenAnimating || tableEventsAnimating || selectionAnimating;
       const effectAnimating = weatherAnimating || environmentAnimating;
       const shouldDrawFrame = !effectAnimating || hasFullRateAnimation || timestamp - lastWeatherOnlyFrameAt >= WEATHER_ONLY_FRAME_INTERVAL_MS;
@@ -1311,14 +1314,10 @@ export function SceneCanvas({
     resize();
     const selectionAnimating =
       mode === "gm" &&
-      (Boolean(selectedDrawingId) ||
-        selectedDrawingIds.length > 0 ||
-        Boolean(selectedFogShapeId) ||
-        selectedFogShapeIds.length > 0 ||
-        Boolean(selectedTokenId) ||
-        selectedTokenIds.length > 0 ||
-        Boolean(selectedWeatherMaskId) ||
-        selectedWeatherMaskIds.length > 0);
+      (effectiveSelectedDrawingIds.length > 0 ||
+        effectiveSelectedFogShapeIds.length > 0 ||
+        effectiveSelectedTokenIds.length > 0 ||
+        effectiveSelectedWeatherMaskIds.length > 0);
     if (loadedMap?.animate || playerTokenTweenPositionsRef.current || hasActiveLiveTableEvents(liveTableEvents) || shouldAnimateWeather(scene, Boolean(canShowWeather)) || shouldAnimateEnvironmentEffects(scene, mode, Boolean(canShowWeather)) || selectionAnimating) {
       animationFrame = window.requestAnimationFrame(drawCurrentFrame);
     }
@@ -1330,7 +1329,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, coldEffectTuning, darknessEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, environmentEffectFeather, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, coldEffectTuning, darknessEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, effectiveSelectedDrawingIds, effectiveSelectedFogShapeIds, effectiveSelectedTokenIds, effectiveSelectedWeatherMaskIds, environmentEffectFeather, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedTokenId, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1589,9 +1588,8 @@ export function SceneCanvas({
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const token = canShowTokens ? getTokenAtPoint(scene.tokens, point) : null;
       if (token) {
-        const selectedTokenIdSet = new Set(selectedTokenIds);
-        const shouldDragSelectedGroup = mouseBehavior === "grabber" && selectedTokenIdSet.has(token.id) && selectedTokenIds.length > 1;
-        const groupTokenIds = shouldDragSelectedGroup ? selectedTokenIds : [token.id];
+        const shouldDragSelectedGroup = mouseBehavior === "grabber" && effectiveSelectedTokenIdSet.has(token.id) && effectiveSelectedTokenIds.length > 1;
+        const groupTokenIds = shouldDragSelectedGroup ? effectiveSelectedTokenIds : [token.id];
         const groupStartPositions = new Map(
           scene.tokens
             .filter((candidate) => groupTokenIds.includes(candidate.id))
@@ -1630,13 +1628,12 @@ export function SceneCanvas({
       }
       onSelectToken?.(null);
       if (!canvasTool && !drawingTool && !fogTool && !weatherMaskTool && !environmentEffectTool) {
-        if ((mouseBehavior === "grabber" || mouseBehavior === "selector") && canShowDrawings && selectedDrawingIds.length > 0) {
-          const rotateTarget = getDrawingRotationHandleAtPoint(scene.drawings, selectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
+        if ((mouseBehavior === "grabber" || mouseBehavior === "selector") && canShowDrawings && effectiveSelectedDrawingIds.length > 0) {
+          const rotateTarget = getDrawingRotationHandleAtPoint(scene.drawings, effectiveSelectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
           if (rotateTarget) {
-            const selectedIdSet = new Set(selectedDrawingIds);
             const groupStartPoints = new Map(
               scene.drawings
-                .filter((candidate) => selectedIdSet.has(candidate.id) && !candidate.measurementLabelVisible)
+                .filter((candidate) => effectiveSelectedDrawingIdSet.has(candidate.id) && !candidate.measurementLabelVisible)
                 .map((candidate) => [candidate.id, candidate.points.map((candidatePoint) => ({ ...candidatePoint }))])
             );
             drawingRotateRef.current = {
@@ -1648,12 +1645,11 @@ export function SceneCanvas({
             setDrawingDragPreview(groupStartPoints);
             return;
           }
-          const resizeTarget = getDrawingResizeHandleAtPoint(scene.drawings, selectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
+          const resizeTarget = getDrawingResizeHandleAtPoint(scene.drawings, effectiveSelectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
           if (resizeTarget) {
-            const selectedIdSet = new Set(selectedDrawingIds);
             const groupStartPoints = new Map(
               scene.drawings
-                .filter((candidate) => selectedIdSet.has(candidate.id) && !candidate.measurementLabelVisible)
+                .filter((candidate) => effectiveSelectedDrawingIdSet.has(candidate.id) && !candidate.measurementLabelVisible)
                 .map((candidate) => [candidate.id, candidate.points.map((candidatePoint) => ({ ...candidatePoint }))])
             );
             drawingResizeRef.current = {
@@ -1668,9 +1664,8 @@ export function SceneCanvas({
         }
         const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, getDrawingHitRadius(getRenderCamera(camera, playerDisplayScale).zoom), scene.grid) : null;
         if (drawingHit) {
-          const selectedDrawingIdSet = new Set(selectedDrawingIds);
-          const shouldDragSelectedGroup = mouseBehavior === "grabber" && selectedDrawingIdSet.has(drawingHit.id) && selectedDrawingIds.length > 1;
-          const groupDrawingIds = shouldDragSelectedGroup ? selectedDrawingIds : [drawingHit.id];
+          const shouldDragSelectedGroup = mouseBehavior === "grabber" && effectiveSelectedDrawingIdSet.has(drawingHit.id) && effectiveSelectedDrawingIds.length > 1;
+          const groupDrawingIds = shouldDragSelectedGroup ? effectiveSelectedDrawingIds : [drawingHit.id];
           const groupStartPoints = new Map(
             scene.drawings
               .filter((candidate) => groupDrawingIds.includes(candidate.id))
