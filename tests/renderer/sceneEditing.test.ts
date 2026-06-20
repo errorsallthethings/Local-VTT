@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createDefaultScene } from "../../src/shared/localvtt";
 import {
   duplicateSceneDrawing,
+  duplicateSceneToken,
   getFitGridPatch,
   moveLayerOrder,
   moveSceneLayer,
@@ -9,9 +10,11 @@ import {
   patchSceneDrawing,
   patchSceneGrid,
   patchSceneMapTransform,
+  patchSceneToken,
   patchSceneVideoPlayback,
   removeEnvironmentEffect,
   removeSceneDrawing,
+  removeSceneToken,
   setDrawingPlayerVisibility,
   setDrawingTemplateFootprintVisibility,
   setFogShapePlayerVisibility,
@@ -131,6 +134,53 @@ describe("scene editing helpers", () => {
       id: "weather-1",
       visible: false
     });
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("patches a single token without changing other tokens", () => {
+    const scene = createDefaultScene("Tokens");
+    scene.tokens = [
+      { id: "token-1", name: "One", assetId: "asset-1", position: { x: 0, y: 0 }, size: { width: 50, height: 50 }, order: 0, visibleInPlayer: true },
+      { id: "token-2", name: "Two", assetId: "asset-2", position: { x: 10, y: 10 }, size: { width: 50, height: 50 }, order: 1, visibleInPlayer: true }
+    ];
+
+    const next = patchSceneToken(scene, "token-1", { name: "Changed" }, "updated");
+
+    expect(next.tokens[0]).toMatchObject({ id: "token-1", name: "Changed" });
+    expect(next.tokens[1]).toMatchObject({ id: "token-2", name: "Two" });
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("duplicates a token and returns the new token id", () => {
+    const scene = createDefaultScene("Tokens");
+    scene.tokens = [
+      { id: "token-1", name: "Goblin", assetId: "asset-1", position: { x: 0, y: 0 }, size: { width: 50, height: 50 }, order: 0, visibleInPlayer: true }
+    ];
+
+    const result = duplicateSceneToken(scene, "token-1", "token-2", "updated");
+
+    expect(result.duplicatedTokenId).toBe("token-2");
+    expect(result.scene.tokens).toHaveLength(2);
+    expect(result.scene.tokens[1]).toMatchObject({ id: "token-2", name: "Goblin Copy", order: 1 });
+    expect(result.scene.updatedAt).toBe("updated");
+  });
+
+  it("returns the original scene when duplicating a missing token", () => {
+    const scene = createDefaultScene("Tokens");
+
+    expect(duplicateSceneToken(scene, "missing", "token-2")).toEqual({ scene });
+  });
+
+  it("removes a token", () => {
+    const scene = createDefaultScene("Tokens");
+    scene.tokens = [
+      { id: "token-1", name: "One", assetId: "asset-1", position: { x: 0, y: 0 }, size: { width: 50, height: 50 }, order: 0, visibleInPlayer: true },
+      { id: "token-2", name: "Two", assetId: "asset-2", position: { x: 10, y: 10 }, size: { width: 50, height: 50 }, order: 1, visibleInPlayer: true }
+    ];
+
+    const next = removeSceneToken(scene, "token-1", "updated");
+
+    expect(next.tokens.map((token) => token.id)).toEqual(["token-2"]);
     expect(next.updatedAt).toBe("updated");
   });
 

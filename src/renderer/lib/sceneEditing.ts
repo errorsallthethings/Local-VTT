@@ -1,11 +1,17 @@
-import { DEFAULT_VIDEO_PLAYBACK, type GridSettings, type Layer, type MapTransform, type Scene } from "../../shared/localvtt";
+import { DEFAULT_VIDEO_PLAYBACK, type GridSettings, type Layer, type MapTransform, type Scene, type Token } from "../../shared/localvtt";
 import { duplicateDrawingElement } from "./drawingDefaults";
+import { duplicateToken } from "./tokenDefaults";
 
 export type LayerMoveDirection = "up" | "down";
 
 export type DuplicateSceneDrawingResult = {
   scene: Scene;
   duplicatedDrawingId?: string;
+};
+
+export type DuplicateSceneTokenResult = {
+  scene: Scene;
+  duplicatedTokenId?: string;
 };
 
 export function patchSceneVideoPlayback(scene: Scene, patch: Partial<Scene["videoPlayback"]>): Scene {
@@ -29,6 +35,38 @@ export function patchSceneFog(scene: Scene, patch: Partial<Scene["fog"]>): Scene
     ...scene,
     fog: { ...scene.fog, ...patch },
     updatedAt: new Date().toISOString()
+  };
+}
+
+export function patchSceneToken(scene: Scene, tokenId: string, patch: Partial<Token>, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    tokens: scene.tokens.map((token) => (token.id === tokenId ? { ...token, ...patch } : token)),
+    updatedAt
+  };
+}
+
+export function duplicateSceneToken(scene: Scene, tokenId: string, duplicateId: string, updatedAt = new Date().toISOString()): DuplicateSceneTokenResult {
+  const tokens = duplicateToken(scene.tokens, tokenId, duplicateId);
+  if (tokens.length === scene.tokens.length) {
+    return { scene };
+  }
+
+  return {
+    scene: {
+      ...scene,
+      tokens,
+      updatedAt
+    },
+    duplicatedTokenId: duplicateId
+  };
+}
+
+export function removeSceneToken(scene: Scene, tokenId: string, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    tokens: scene.tokens.filter((token) => token.id !== tokenId),
+    updatedAt
   };
 }
 

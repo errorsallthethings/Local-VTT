@@ -168,14 +168,16 @@ import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/dragTypes";
 import {
   duplicateSceneDrawing,
+  duplicateSceneToken,
   removeEnvironmentEffect,
   removeSceneDrawing,
+  removeSceneToken,
+  patchSceneToken,
   setDrawingPlayerVisibility,
   setDrawingTemplateFootprintVisibility,
   setFogShapePlayerVisibility,
   setWeatherMaskVisibility
 } from "../lib/sceneEditing";
-import { duplicateToken } from "../lib/tokenDefaults";
 import { TokenSettings } from "./layers/TokenSettings";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
 import {
@@ -3004,11 +3006,7 @@ export function SceneCanvas({
                 if (!onSceneChange) {
                   return;
                 }
-                onSceneChange({
-                  ...scene,
-                  tokens: scene.tokens.map((candidate) => (candidate.id === token.id ? { ...candidate, ...patch } : candidate)),
-                  updatedAt: new Date().toISOString()
-                });
+                onSceneChange(patchSceneToken(scene, token.id, patch));
               }}
               onOpenTokenColor={(tokenId, value, kind) => {
                 onOpenTokenColor?.(tokenId, value, kind);
@@ -3041,13 +3039,13 @@ export function SceneCanvas({
                   setTokenContextMenu(null);
                   return;
                 }
-                const duplicateTokenId = crypto.randomUUID();
-                onSceneChange({
-                  ...scene,
-                  tokens: duplicateToken(scene.tokens, token.id, duplicateTokenId),
-                  updatedAt: new Date().toISOString()
-                });
-                onSelectToken?.(duplicateTokenId);
+                const result = duplicateSceneToken(scene, token.id, crypto.randomUUID());
+                if (!result.duplicatedTokenId) {
+                  setTokenContextMenu(null);
+                  return;
+                }
+                onSceneChange(result.scene);
+                onSelectToken?.(result.duplicatedTokenId);
                 setTokenContextMenu(null);
               }}
             >
@@ -3065,11 +3063,7 @@ export function SceneCanvas({
                   setTokenContextMenu(null);
                   return;
                 }
-                onSceneChange({
-                  ...scene,
-                  tokens: scene.tokens.filter((candidate) => candidate.id !== token.id),
-                  updatedAt: new Date().toISOString()
-                });
+                onSceneChange(removeSceneToken(scene, token.id));
                 onSelectToken?.(null);
                 setTokenContextMenu(null);
               }}
