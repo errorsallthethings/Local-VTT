@@ -3,6 +3,7 @@ import {
   DEFAULT_ACID_EFFECT_TUNING_SETTINGS,
   DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS,
   DEFAULT_CHAOS_EFFECT_TUNING_SETTINGS,
+  DEFAULT_COLD_EFFECT_TUNING_SETTINGS,
   DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS,
   DEFAULT_FOG_EFFECT_TUNING_SETTINGS,
   DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
@@ -19,6 +20,7 @@ import {
   type AcidEffectTuningSettings,
   type ArcaneEffectTuningSettings,
   type ChaosEffectTuningSettings,
+  type ColdEffectTuningSettings,
   type DistortionEffectTuningSettings,
   type FogEffectTuningSettings,
   type FireEffectTuningSettings,
@@ -44,6 +46,7 @@ export interface ScreenBounds {
 export type WaterEffectTuning = WaterEffectTuningSettings;
 export type AcidEffectTuning = AcidEffectTuningSettings;
 export type PoisonEffectTuning = PoisonEffectTuningSettings;
+export type ColdEffectTuning = ColdEffectTuningSettings;
 export type LavaEffectTuning = LavaEffectTuningSettings;
 export type FireEffectTuning = FireEffectTuningSettings;
 export type ForceFieldEffectTuning = ForceFieldEffectTuningSettings;
@@ -61,6 +64,7 @@ export type FogEffectTuning = FogEffectTuningSettings;
 export const DEFAULT_WATER_EFFECT_TUNING: WaterEffectTuning = DEFAULT_WATER_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_ACID_EFFECT_TUNING: AcidEffectTuning = DEFAULT_ACID_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_POISON_EFFECT_TUNING: PoisonEffectTuning = DEFAULT_POISON_EFFECT_TUNING_SETTINGS;
+export const DEFAULT_COLD_EFFECT_TUNING: ColdEffectTuning = DEFAULT_COLD_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_LAVA_EFFECT_TUNING: LavaEffectTuning = DEFAULT_LAVA_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FIRE_EFFECT_TUNING: FireEffectTuning = DEFAULT_FIRE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FORCE_FIELD_EFFECT_TUNING: ForceFieldEffectTuning = DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS;
@@ -201,6 +205,48 @@ export const POISON_EFFECT_PRESETS = {
     highlightColor: "#ecfccb"
   }
 } as const satisfies Record<string, PoisonEffectTuning>;
+
+export const COLD_EFFECT_PRESETS = {
+  frostField: { ...DEFAULT_COLD_EFFECT_TUNING },
+  iceCrystals: {
+    opacity: 0.78,
+    frostScale: 4.2,
+    speed: 0.05,
+    directionDegrees: 292,
+    veinDensity: 0.72,
+    veinWidth: 0.36,
+    crystalDensity: 0.92,
+    crystalSize: 0.78,
+    haze: 0.18,
+    shimmer: 0.72,
+    glow: 0.66,
+    panFollow: 1,
+    zoomScale: -0.1,
+    baseAlpha: 0.14,
+    shadowColor: "#0b1f33",
+    frostColor: "#93c5fd",
+    highlightColor: "#ffffff"
+  },
+  freezingHaze: {
+    opacity: 0.68,
+    frostScale: 7.6,
+    speed: 0.12,
+    directionDegrees: 278,
+    veinDensity: 0.34,
+    veinWidth: 0.28,
+    crystalDensity: 0.36,
+    crystalSize: 0.52,
+    haze: 0.86,
+    shimmer: 0.4,
+    glow: 0.36,
+    panFollow: 1,
+    zoomScale: 0.1,
+    baseAlpha: 0.28,
+    shadowColor: "#13293d",
+    frostColor: "#bfdbfe",
+    highlightColor: "#eff6ff"
+  }
+} as const satisfies Record<string, ColdEffectTuning>;
 
 export const LAVA_EFFECT_PRESETS = {
   moltenFlow: { ...DEFAULT_LAVA_EFFECT_TUNING },
@@ -821,6 +867,7 @@ type WaterRuntime = {
 
 let waterRuntime: WaterRuntime | null = null;
 let acidRuntime: WaterRuntime | null = null;
+let coldRuntime: WaterRuntime | null = null;
 let poisonRuntime: WaterRuntime | null = null;
 let lavaRuntime: WaterRuntime | null = null;
 let fireRuntime: WaterRuntime | null = null;
@@ -976,6 +1023,50 @@ export function drawEnvironmentPoisonEffect(
   updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updatePoisonMaterialTuning(runtime.meshA.material, tuning);
   updatePoisonMaterialTuning(runtime.meshB.material, tuning);
+
+  runtime.renderer.setSize(width, height, false);
+  runtime.renderer.setClearColor(0x000000, 0);
+  runtime.renderer.clear();
+  runtime.renderer.render(runtime.scene, runtime.camera);
+
+  ctx.save();
+  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
+  ctx.restore();
+}
+
+export function drawEnvironmentColdEffect(
+  ctx: CanvasRenderingContext2D,
+  bounds: ScreenBounds,
+  timestamp: number,
+  layerOpacity: number,
+  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
+  tuning: ColdEffectTuning = DEFAULT_COLD_EFFECT_TUNING
+) {
+  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
+    return;
+  }
+
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
+  const height = ctx.canvas.clientHeight || ctx.canvas.height;
+  const runtime = getColdRuntime(width, height);
+  if (!runtime) {
+    drawColdFallback(ctx, bounds, layerOpacity);
+    return;
+  }
+
+  const time = (timestamp - runtime.startedAt) / 1000;
+  positionWaterMesh(runtime.meshA, width, height, 1);
+  positionWaterMesh(runtime.meshB, width, height, 1);
+  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
+  runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.3;
+  runtime.meshA.material.uniforms.time.value = time;
+  runtime.meshB.material.uniforms.time.value = time * 0.58 + 22.4;
+  runtime.meshA.material.uniforms.resolution.value.set(width, height);
+  runtime.meshB.material.uniforms.resolution.value.set(width, height);
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateColdMaterialTuning(runtime.meshA.material, tuning);
+  updateColdMaterialTuning(runtime.meshB.material, tuning);
 
   runtime.renderer.setSize(width, height, false);
   runtime.renderer.setClearColor(0x000000, 0);
@@ -1704,6 +1795,55 @@ function getPoisonRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   return poisonRuntime;
+}
+
+function getColdRuntime(width: number, height: number): WaterRuntime | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!coldRuntime) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+    camera.position.set(0, 0, 2400);
+    camera.lookAt(0, 0, 0);
+
+    const material = createColdMaterial(0.72);
+    const materialB = createColdMaterial(0.3);
+    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    meshA.position.z = 1280;
+    meshB.position.z = 1281;
+    scene.add(meshA, meshB);
+
+    coldRuntime = {
+      renderer,
+      scene,
+      camera,
+      meshA,
+      meshB,
+      startedAt: Date.now(),
+      width: 0,
+      height: 0
+    };
+  }
+
+  if (coldRuntime.width !== width || coldRuntime.height !== height) {
+    coldRuntime.width = width;
+    coldRuntime.height = height;
+    coldRuntime.camera.left = 0;
+    coldRuntime.camera.right = width;
+    coldRuntime.camera.top = 0;
+    coldRuntime.camera.bottom = height;
+    coldRuntime.camera.near = 0.1;
+    coldRuntime.camera.far = 5000;
+    coldRuntime.camera.updateProjectionMatrix();
+  }
+
+  return coldRuntime;
 }
 
 function getLavaRuntime(width: number, height: number): WaterRuntime | null {
@@ -2817,6 +2957,192 @@ function updatePoisonMaterialTuning(material: THREE.ShaderMaterial, tuning: Pois
   material.uniforms.baseAlpha.value = tuning.baseAlpha;
   material.uniforms.shadowColor.value.set(tuning.shadowColor);
   material.uniforms.poisonColor.value.set(tuning.poisonColor);
+  material.uniforms.highlightColor.value.set(tuning.highlightColor);
+}
+
+function createColdMaterial(opacity: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+    blending: THREE.NormalBlending,
+    uniforms: {
+      frostScale: { value: DEFAULT_COLD_EFFECT_TUNING.frostScale },
+      speed: { value: DEFAULT_COLD_EFFECT_TUNING.speed },
+      directionRadians: { value: degreesToRadians(DEFAULT_COLD_EFFECT_TUNING.directionDegrees) },
+      veinDensity: { value: DEFAULT_COLD_EFFECT_TUNING.veinDensity },
+      veinWidth: { value: DEFAULT_COLD_EFFECT_TUNING.veinWidth },
+      crystalDensity: { value: DEFAULT_COLD_EFFECT_TUNING.crystalDensity },
+      crystalSize: { value: DEFAULT_COLD_EFFECT_TUNING.crystalSize },
+      haze: { value: DEFAULT_COLD_EFFECT_TUNING.haze },
+      shimmer: { value: DEFAULT_COLD_EFFECT_TUNING.shimmer },
+      glow: { value: DEFAULT_COLD_EFFECT_TUNING.glow },
+      panFollow: { value: DEFAULT_COLD_EFFECT_TUNING.panFollow },
+      zoomScale: { value: DEFAULT_COLD_EFFECT_TUNING.zoomScale },
+      baseAlpha: { value: DEFAULT_COLD_EFFECT_TUNING.baseAlpha },
+      shadowColor: { value: new THREE.Color(DEFAULT_COLD_EFFECT_TUNING.shadowColor) },
+      frostColor: { value: new THREE.Color(DEFAULT_COLD_EFFECT_TUNING.frostColor) },
+      highlightColor: { value: new THREE.Color(DEFAULT_COLD_EFFECT_TUNING.highlightColor) },
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2(1, 1) },
+      cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
+      cameraZoom: { value: 1 },
+      opacity: { value: opacity }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float frostScale;
+      uniform float speed;
+      uniform float directionRadians;
+      uniform float veinDensity;
+      uniform float veinWidth;
+      uniform float crystalDensity;
+      uniform float crystalSize;
+      uniform float haze;
+      uniform float shimmer;
+      uniform float glow;
+      uniform float panFollow;
+      uniform float zoomScale;
+      uniform float baseAlpha;
+      uniform vec3 shadowColor;
+      uniform vec3 frostColor;
+      uniform vec3 highlightColor;
+      uniform float time;
+      uniform vec2 resolution;
+      uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
+      uniform float cameraZoom;
+      uniform float opacity;
+
+      float randomValue(vec2 value) {
+        return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float valueNoise(vec2 value) {
+        vec2 base = floor(value);
+        vec2 fraction = fract(value);
+        vec2 blend = fraction * fraction * (3.0 - 2.0 * fraction);
+        float a = randomValue(base);
+        float b = randomValue(base + vec2(1.0, 0.0));
+        float c = randomValue(base + vec2(0.0, 1.0));
+        float d = randomValue(base + vec2(1.0, 1.0));
+        return mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y);
+      }
+
+      float fbm(vec2 value) {
+        float total = 0.0;
+        float amplitude = 0.5;
+        for (int i = 0; i < 5; i++) {
+          total += valueNoise(value) * amplitude;
+          value *= 2.05;
+          amplitude *= 0.52;
+        }
+        return total;
+      }
+
+      mat2 rotate2d(float angle) {
+        float s = sin(angle);
+        float c = cos(angle);
+        return mat2(c, -s, s, c);
+      }
+
+      float frostVeins(vec2 uv, float localTime) {
+        float field = 0.0;
+        for (int layer = 0; layer < 4; layer++) {
+          float layerSeed = float(layer) * 11.73;
+          vec2 veinUv = rotate2d(float(layer) * 0.78 + directionRadians * 0.35) * uv;
+          veinUv += vec2(fbm(veinUv * 1.3 + layerSeed), fbm(veinUv * 1.7 - layerSeed)) * 0.42;
+          float lines = veinUv.x * mix(3.5, 12.0, veinDensity) + sin(veinUv.y * (2.0 + float(layer)) + localTime * 0.32 + layerSeed) * 0.45;
+          float phase = abs(fract(lines) - 0.5);
+          float width = mix(0.015, 0.075, veinWidth);
+          float line = 1.0 - smoothstep(width, width + 0.025, phase);
+          float breakup = smoothstep(0.24, 0.86, fbm(veinUv * vec2(2.5, 7.0) + vec2(layerSeed, localTime * 0.06)));
+          field = max(field, line * breakup);
+        }
+        return field * veinDensity;
+      }
+
+      float crystalField(vec2 uv, float localTime) {
+        float field = 0.0;
+        float cells = mix(2.0, 9.0, crystalDensity) * mix(0.75, 1.3, crystalSize);
+        for (int layer = 0; layer < 3; layer++) {
+          float layerSeed = float(layer) * 31.19;
+          vec2 gridUv = rotate2d(float(layer) * 1.4 + 0.2) * uv * (cells + float(layer) * 1.4);
+          vec2 cell = floor(gridUv);
+          vec2 fraction = fract(gridUv);
+          float seed = randomValue(cell + layerSeed);
+          float placed = smoothstep(0.83 - crystalDensity * 0.62, 0.98, seed);
+          vec2 center = vec2(0.5) + (vec2(randomValue(cell + vec2(4.0, layerSeed)), randomValue(cell + vec2(13.0, layerSeed))) - 0.5) * 0.44;
+          vec2 localPoint = fraction - center;
+          float angle = randomValue(cell + vec2(7.0, layerSeed)) * 3.14159;
+          localPoint = rotate2d(angle) * localPoint;
+          float size = mix(0.1, 0.28, crystalSize);
+          float shardA = 1.0 - smoothstep(size * 0.08, size * 0.18, abs(localPoint.x)) * smoothstep(size * 0.95, size * 1.25, abs(localPoint.y));
+          float shardB = 1.0 - smoothstep(size * 0.07, size * 0.17, abs(localPoint.y)) * smoothstep(size * 0.75, size * 1.1, abs(localPoint.x));
+          float diagonal = abs(localPoint.x + localPoint.y) * 0.72;
+          float shardC = 1.0 - smoothstep(size * 0.055, size * 0.15, diagonal) * smoothstep(size * 0.85, size * 1.2, length(localPoint));
+          float crystal = max(max(shardA, shardB), shardC * 0.72);
+          crystal *= 1.0 - smoothstep(size * 0.95, size * 1.3, length(localPoint));
+          float twinkle = 0.75 + sin(localTime * 4.0 + seed * 6.2831853) * 0.25 * shimmer;
+          field = max(field, crystal * placed * twinkle);
+        }
+        return clamp(field, 0.0, 1.0);
+      }
+
+      void main() {
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
+        vec2 pixelUv = anchoredCoord / 180.0 * zoomFactor;
+        vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
+        vec2 perpendicular = vec2(-direction.y, direction.x);
+        vec2 uv = vec2(dot(pixelUv, direction), dot(pixelUv, perpendicular));
+        float localTime = time * speed;
+        vec2 frostUv = uv * max(0.2, frostScale / 4.0);
+        frostUv += vec2(fbm(frostUv * 0.9 + localTime * 0.08), fbm(frostUv * 1.2 - localTime * 0.05)) * shimmer * 0.22;
+
+        float hazeField = smoothstep(0.22, 0.88, fbm(frostUv * 0.82 + vec2(localTime * 0.05, -localTime * 0.03)));
+        float veins = frostVeins(frostUv, localTime);
+        float crystals = crystalField(frostUv, localTime);
+        float icyPatch = smoothstep(0.38, 0.92, fbm(frostUv * 1.7 - vec2(localTime * 0.025, 8.0)));
+
+        vec3 color = mix(shadowColor, frostColor, hazeField * haze + icyPatch * 0.5 + veins * 0.32);
+        color = mix(color, highlightColor, clamp(crystals * 0.82 + veins * 0.5 + shimmer * glow * hazeField * 0.18, 0.0, 1.0));
+        color += frostColor * glow * (veins * 0.22 + crystals * 0.18 + icyPatch * 0.1);
+        float alpha = (baseAlpha + hazeField * haze * 0.35 + icyPatch * 0.2 + veins * 0.34 + crystals * 0.38) * opacity;
+        gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+      }
+    `
+  });
+}
+
+function updateColdMaterialTuning(material: THREE.ShaderMaterial, tuning: ColdEffectTuning) {
+  material.uniforms.frostScale.value = tuning.frostScale;
+  material.uniforms.speed.value = tuning.speed;
+  material.uniforms.directionRadians.value = degreesToRadians(tuning.directionDegrees);
+  material.uniforms.veinDensity.value = tuning.veinDensity;
+  material.uniforms.veinWidth.value = tuning.veinWidth;
+  material.uniforms.crystalDensity.value = tuning.crystalDensity;
+  material.uniforms.crystalSize.value = tuning.crystalSize;
+  material.uniforms.haze.value = tuning.haze;
+  material.uniforms.shimmer.value = tuning.shimmer;
+  material.uniforms.glow.value = tuning.glow;
+  material.uniforms.panFollow.value = 1;
+  material.uniforms.zoomScale.value = tuning.zoomScale;
+  material.uniforms.baseAlpha.value = tuning.baseAlpha;
+  material.uniforms.shadowColor.value.set(tuning.shadowColor);
+  material.uniforms.frostColor.value.set(tuning.frostColor);
   material.uniforms.highlightColor.value.set(tuning.highlightColor);
 }
 
@@ -5129,6 +5455,14 @@ function drawPoisonFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds,
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.32;
   ctx.fillStyle = "rgb(101, 163, 13)";
+  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  ctx.restore();
+}
+
+function drawColdFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.3;
+  ctx.fillStyle = "rgb(191, 219, 254)";
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }

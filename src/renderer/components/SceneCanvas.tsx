@@ -62,6 +62,7 @@ import {
   DEFAULT_ACID_EFFECT_TUNING,
   DEFAULT_ARCANE_EFFECT_TUNING,
   DEFAULT_CHAOS_EFFECT_TUNING,
+  DEFAULT_COLD_EFFECT_TUNING,
   DEFAULT_DISTORTION_EFFECT_TUNING,
   DEFAULT_FOG_EFFECT_TUNING,
   DEFAULT_FORCE_FIELD_EFFECT_TUNING,
@@ -78,6 +79,7 @@ import {
   drawEnvironmentAcidEffect,
   drawEnvironmentArcaneEffect,
   drawEnvironmentChaosEffect,
+  drawEnvironmentColdEffect,
   drawEnvironmentDistortionEffect,
   drawEnvironmentFogEffect,
   drawEnvironmentForceFieldEffect,
@@ -94,6 +96,7 @@ import {
   type AcidEffectTuning,
   type ArcaneEffectTuning,
   type ChaosEffectTuning,
+  type ColdEffectTuning,
   type DistortionEffectTuning,
   type FogEffectTuning,
   type ForceFieldEffectTuning,
@@ -163,6 +166,7 @@ interface SceneCanvasProps {
   environmentEffectType?: EnvironmentEffectType;
   environmentEffectFeather?: number;
   acidEffectTuning?: AcidEffectTuning;
+  coldEffectTuning?: ColdEffectTuning;
   poisonEffectTuning?: PoisonEffectTuning;
   waterEffectTuning?: WaterEffectTuning;
   lavaEffectTuning?: LavaEffectTuning;
@@ -286,6 +290,7 @@ type EnvironmentEffectDrag = {
   effect: EnvironmentEffectType;
   feather: number;
   acidTuning?: AcidEffectTuning;
+  coldTuning?: ColdEffectTuning;
   poisonTuning?: PoisonEffectTuning;
   waterTuning?: WaterEffectTuning;
   lavaTuning?: LavaEffectTuning;
@@ -430,6 +435,7 @@ export function SceneCanvas({
   environmentEffectType = "water",
   environmentEffectFeather = 0,
   acidEffectTuning,
+  coldEffectTuning,
   poisonEffectTuning,
   waterEffectTuning,
   lavaEffectTuning,
@@ -1361,7 +1367,7 @@ export function SceneCanvas({
         if (weatherMapReady) {
           drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1, weatherMapSource);
         }
-        drawEnvironmentEffects(ctx, scene.environment.effects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, acidEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
+        drawEnvironmentEffects(ctx, scene.environment.effects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, acidEffectTuning, coldEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
       }
       if (mode === "gm") {
         drawWeatherMaskOutlines(ctx, scene.weather.masks, renderCamera);
@@ -1480,7 +1486,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, environmentEffectFeather, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, coldEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, environmentEffectFeather, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedFogShapeId, selectedFogShapeIds, selectedTokenId, selectedTokenIds, selectedWeatherMaskId, selectedWeatherMaskIds, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -1716,6 +1722,7 @@ export function SceneCanvas({
         effect: environmentEffectType,
         feather: environmentEffectFeather,
         acidTuning: environmentEffectType === "acid" ? cloneAcidEffectTuning(acidEffectTuning) : undefined,
+        coldTuning: environmentEffectType === "cold" ? cloneColdEffectTuning(coldEffectTuning) : undefined,
         poisonTuning: environmentEffectType === "poison" ? clonePoisonEffectTuning(poisonEffectTuning) : undefined,
         waterTuning: environmentEffectType === "water" ? cloneWaterEffectTuning(waterEffectTuning) : undefined,
         lavaTuning: environmentEffectType === "lava" ? cloneLavaEffectTuning(lavaEffectTuning) : undefined,
@@ -2273,6 +2280,7 @@ export function SceneCanvas({
                 effect: environmentEffectDrag.effect,
                 feather: environmentEffectDrag.feather,
                 acidTuning: environmentEffectDrag.effect === "acid" ? cloneAcidEffectTuning(environmentEffectDrag.acidTuning ?? acidEffectTuning) : undefined,
+                coldTuning: environmentEffectDrag.effect === "cold" ? cloneColdEffectTuning(environmentEffectDrag.coldTuning ?? coldEffectTuning) : undefined,
                 poisonTuning: environmentEffectDrag.effect === "poison" ? clonePoisonEffectTuning(environmentEffectDrag.poisonTuning ?? poisonEffectTuning) : undefined,
                 waterTuning: environmentEffectDrag.effect === "water" ? cloneWaterEffectTuning(environmentEffectDrag.waterTuning ?? waterEffectTuning) : undefined,
                 lavaTuning: environmentEffectDrag.effect === "lava" ? cloneLavaEffectTuning(environmentEffectDrag.lavaTuning ?? lavaEffectTuning) : undefined,
@@ -2945,6 +2953,7 @@ export function SceneCanvas({
             effect: environmentEffectType,
             feather: environmentEffectFeather,
             acidTuning: environmentEffectType === "acid" ? cloneAcidEffectTuning(acidEffectTuning) : undefined,
+            coldTuning: environmentEffectType === "cold" ? cloneColdEffectTuning(coldEffectTuning) : undefined,
             poisonTuning: environmentEffectType === "poison" ? clonePoisonEffectTuning(poisonEffectTuning) : undefined,
             waterTuning: environmentEffectType === "water" ? cloneWaterEffectTuning(waterEffectTuning) : undefined,
             lavaTuning: environmentEffectType === "lava" ? cloneLavaEffectTuning(lavaEffectTuning) : undefined,
@@ -4961,6 +4970,7 @@ function drawEnvironmentEffects(
   timestamp: number,
   layerOpacity: number,
   acidEffectTuning?: AcidEffectTuning,
+  coldEffectTuning?: ColdEffectTuning,
   poisonEffectTuning?: PoisonEffectTuning,
   waterEffectTuning?: WaterEffectTuning,
   lavaEffectTuning?: LavaEffectTuning,
@@ -4984,7 +4994,7 @@ function drawEnvironmentEffects(
     }
     const feather = Math.max(0, Math.min(1, effect.feather ?? 0));
     if (feather > 0) {
-      drawFeatheredEnvironmentEffect(ctx, effect, camera, timestamp, layerOpacity, feather, acidEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
+      drawFeatheredEnvironmentEffect(ctx, effect, camera, timestamp, layerOpacity, feather, acidEffectTuning, coldEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
       continue;
     }
     ctx.save();
@@ -4992,6 +5002,8 @@ function drawEnvironmentEffects(
     ctx.clip(path);
     if (effect.effect === "acid") {
       drawAcidEffect(ctx, effect, camera, timestamp, layerOpacity, acidEffectTuning);
+    } else if (effect.effect === "cold") {
+      drawColdEffect(ctx, effect, camera, timestamp, layerOpacity, coldEffectTuning);
     } else if (effect.effect === "poison") {
       drawPoisonEffect(ctx, effect, camera, timestamp, layerOpacity, poisonEffectTuning);
     } else if (effect.effect === "lava") {
@@ -5035,6 +5047,7 @@ function drawFeatheredEnvironmentEffect(
   layerOpacity: number,
   feather: number,
   acidEffectTuning?: AcidEffectTuning,
+  coldEffectTuning?: ColdEffectTuning,
   poisonEffectTuning?: PoisonEffectTuning,
   waterEffectTuning?: WaterEffectTuning,
   lavaEffectTuning?: LavaEffectTuning,
@@ -5066,6 +5079,8 @@ function drawFeatheredEnvironmentEffect(
   effectCtx.clip(path);
   if (effect.effect === "acid") {
     drawAcidEffect(effectCtx, effect, camera, timestamp, layerOpacity, acidEffectTuning);
+  } else if (effect.effect === "cold") {
+    drawColdEffect(effectCtx, effect, camera, timestamp, layerOpacity, coldEffectTuning);
   } else if (effect.effect === "poison") {
     drawPoisonEffect(effectCtx, effect, camera, timestamp, layerOpacity, poisonEffectTuning);
   } else if (effect.effect === "lava") {
@@ -5343,6 +5358,16 @@ function drawPoisonEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffe
   drawEnvironmentPoisonEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
+function drawColdEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, coldEffectTuning?: ColdEffectTuning) {
+  const bounds = getEnvironmentEffectBounds(effect);
+  if (!bounds) {
+    return;
+  }
+  const screenBounds = worldRectToScreen(bounds, camera);
+  const tuning = effect.coldTuning ? { ...DEFAULT_COLD_EFFECT_TUNING, ...effect.coldTuning } : coldEffectTuning;
+  drawEnvironmentColdEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
+}
+
 function cloneWaterEffectTuning(tuning?: WaterEffectTuning): WaterEffectTuning {
   return { ...(tuning ?? DEFAULT_WATER_EFFECT_TUNING) };
 }
@@ -5353,6 +5378,10 @@ function cloneAcidEffectTuning(tuning?: AcidEffectTuning): AcidEffectTuning {
 
 function clonePoisonEffectTuning(tuning?: PoisonEffectTuning): PoisonEffectTuning {
   return { ...(tuning ?? DEFAULT_POISON_EFFECT_TUNING) };
+}
+
+function cloneColdEffectTuning(tuning?: ColdEffectTuning): ColdEffectTuning {
+  return { ...(tuning ?? DEFAULT_COLD_EFFECT_TUNING) };
 }
 
 function cloneLavaEffectTuning(tuning?: LavaEffectTuning): LavaEffectTuning {

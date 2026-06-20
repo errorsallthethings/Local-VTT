@@ -3,6 +3,7 @@ import {
   ACID_EFFECT_PRESETS,
   ARCANE_EFFECT_PRESETS,
   CHAOS_EFFECT_PRESETS,
+  COLD_EFFECT_PRESETS,
   FIRE_EFFECT_PRESETS,
   FOG_EFFECT_PRESETS,
   FORCE_FIELD_EFFECT_PRESETS,
@@ -19,6 +20,7 @@ import {
   type AcidEffectTuning,
   type ArcaneEffectTuning,
   type ChaosEffectTuning,
+  type ColdEffectTuning,
   type FireEffectTuning,
   type FogEffectTuning,
   type ForceFieldEffectTuning,
@@ -45,6 +47,7 @@ export const ENVIRONMENT_EFFECT_OPTIONS: Array<{ label: string; value: Environme
   { label: "Acid", value: "acid" },
   { label: "Arcane", value: "arcane" },
   { label: "Chaos Field", value: "chaos" },
+  { label: "Cold", value: "cold" },
   { label: "Distortion", value: "distortion" },
   { label: "Electric", value: "electric" },
   { label: "Fire", value: "fire" },
@@ -64,6 +67,7 @@ const ENVIRONMENT_EFFECT_LABELS: Record<EnvironmentEffectType, string> = {
   acid: "Acid",
   arcane: "Arcane",
   chaos: "Chaos Field",
+  cold: "Cold",
   distortion: "Distortion",
   electric: "Electric",
   field: "Force Field",
@@ -97,6 +101,12 @@ const ENVIRONMENT_EFFECT_PRESET_OPTIONS: Record<EnvironmentEffectType, Array<{ l
     { label: "Wild Surge", value: "wildSurge" },
     { label: "Prismatic Rift", value: "prismaticRift" },
     { label: "Chaos Motes", value: "chaosMotes" }
+  ],
+  cold: [
+    { label: "Custom", value: "custom" },
+    { label: "Frost Field", value: "frostField" },
+    { label: "Ice Crystals", value: "iceCrystals" },
+    { label: "Freezing Haze", value: "freezingHaze" }
   ],
   distortion: [
     { label: "Custom", value: "custom" },
@@ -179,6 +189,7 @@ const ENVIRONMENT_EFFECT_CANVAS_STYLES: Record<EnvironmentEffectType, { previewF
   acid: { previewFill: "rgba(132, 204, 22, 0.18)", stroke: "rgba(190, 242, 100, 0.95)" },
   arcane: { previewFill: "rgba(168, 85, 247, 0.18)", stroke: "rgba(192, 132, 252, 0.95)" },
   chaos: { previewFill: "rgba(244, 114, 182, 0.16)", stroke: "rgba(244, 114, 182, 0.95)" },
+  cold: { previewFill: "rgba(191, 219, 254, 0.18)", stroke: "rgba(239, 246, 255, 0.95)" },
   distortion: { previewFill: "rgba(103, 232, 249, 0.14)", stroke: "rgba(103, 232, 249, 0.95)" },
   electric: { previewFill: "rgba(250, 204, 21, 0.18)", stroke: "rgba(250, 204, 21, 0.95)" },
   field: { previewFill: "rgba(103, 232, 249, 0.14)", stroke: "rgba(103, 232, 249, 0.95)" },
@@ -197,6 +208,7 @@ const ENVIRONMENT_EFFECT_CANVAS_STYLES: Record<EnvironmentEffectType, { previewF
 export function getEnvironmentEffectPresetSelectValue(
   effect: EnvironmentEffectType,
   acidEffectTuning: AcidEffectTuning,
+  coldEffectTuning: ColdEffectTuning,
   poisonEffectTuning: PoisonEffectTuning,
   waterEffectTuning: WaterEffectTuning,
   lavaEffectTuning: LavaEffectTuning,
@@ -215,6 +227,9 @@ export function getEnvironmentEffectPresetSelectValue(
 ): string {
   if (effect === "acid") {
     return getAcidPresetSelectValue(acidEffectTuning);
+  }
+  if (effect === "cold") {
+    return getColdPresetSelectValue(coldEffectTuning);
   }
   if (effect === "poison") {
     return getPoisonPresetSelectValue(poisonEffectTuning);
@@ -270,6 +285,7 @@ export function applyEnvironmentEffectPreset(
   value: string,
   handlers: {
     onAcidEffectTuningChange: (tuning: AcidEffectTuning) => void;
+    onColdEffectTuningChange: (tuning: ColdEffectTuning) => void;
     onPoisonEffectTuningChange: (tuning: PoisonEffectTuning) => void;
     onWaterEffectTuningChange: (tuning: WaterEffectTuning) => void;
     onLavaEffectTuningChange: (tuning: LavaEffectTuning) => void;
@@ -291,6 +307,13 @@ export function applyEnvironmentEffectPreset(
     const preset = ACID_EFFECT_PRESETS[value as keyof typeof ACID_EFFECT_PRESETS];
     if (preset) {
       handlers.onAcidEffectTuningChange({ ...preset });
+    }
+    return;
+  }
+  if (effect === "cold") {
+    const preset = COLD_EFFECT_PRESETS[value as keyof typeof COLD_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onColdEffectTuningChange({ ...preset });
     }
     return;
   }
@@ -428,6 +451,15 @@ function getAcidPresetSelectValue(tuning: AcidEffectTuning): keyof typeof ACID_E
   for (const [presetName, preset] of Object.entries(ACID_EFFECT_PRESETS)) {
     if (isAcidTuningMatch(tuning, preset)) {
       return presetName as keyof typeof ACID_EFFECT_PRESETS;
+    }
+  }
+  return "custom";
+}
+
+function getColdPresetSelectValue(tuning: ColdEffectTuning): keyof typeof COLD_EFFECT_PRESETS | "custom" {
+  for (const [presetName, preset] of Object.entries(COLD_EFFECT_PRESETS)) {
+    if (isColdTuningMatch(tuning, preset)) {
+      return presetName as keyof typeof COLD_EFFECT_PRESETS;
     }
   }
   return "custom";
@@ -599,6 +631,27 @@ function isAcidTuningMatch(tuning: AcidEffectTuning, preset: AcidEffectTuning): 
     tuning.darkColor === preset.darkColor &&
     tuning.acidColor === preset.acidColor &&
     tuning.foamColor === preset.foamColor
+  );
+}
+
+function isColdTuningMatch(tuning: ColdEffectTuning, preset: ColdEffectTuning): boolean {
+  return (
+    tuning.opacity === preset.opacity &&
+    tuning.frostScale === preset.frostScale &&
+    tuning.speed === preset.speed &&
+    tuning.directionDegrees === preset.directionDegrees &&
+    tuning.veinDensity === preset.veinDensity &&
+    tuning.veinWidth === preset.veinWidth &&
+    tuning.crystalDensity === preset.crystalDensity &&
+    tuning.crystalSize === preset.crystalSize &&
+    tuning.haze === preset.haze &&
+    tuning.shimmer === preset.shimmer &&
+    tuning.glow === preset.glow &&
+    tuning.zoomScale === preset.zoomScale &&
+    tuning.baseAlpha === preset.baseAlpha &&
+    tuning.shadowColor === preset.shadowColor &&
+    tuning.frostColor === preset.frostColor &&
+    tuning.highlightColor === preset.highlightColor
   );
 }
 
