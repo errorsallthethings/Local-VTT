@@ -2912,7 +2912,7 @@ function EnvironmentEffectEditorModal({
         <div className="environment-effect-editor-title">
           <GripVertical size={15} aria-hidden="true" />
           <div>
-            <h2 id="environment-effect-editor-title">Edit Effect</h2>
+            <h2 id="environment-effect-editor-title">Edit Animated Effect</h2>
             <p title={label}>{label}</p>
           </div>
         </div>
@@ -2929,8 +2929,8 @@ function EnvironmentEffectEditorModal({
             <strong>Effect</strong>
             <div>
               <select
-                aria-label="Environmental effect type"
-                title="Environmental effect type"
+                aria-label="Animated effect type"
+                title="Animated effect type"
                 value={effect.effect}
                 onChange={(event) => {
                   setPresetSelection({ effectId: effect.id, value: "custom" });
@@ -2990,8 +2990,8 @@ function EnvironmentEffectEditorModal({
             <strong>Feather</strong>
             <div>
               <select
-                aria-label="Environmental effect feather"
-                title="Environmental effect feather"
+                aria-label="Animated effect feather"
+                title="Animated effect feather"
                 value={getEnvironmentEffectFeatherSelectValue(effect.feather ?? 0)}
                 onChange={(event) => onFeatherChange(Number(event.target.value))}
               >

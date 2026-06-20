@@ -681,7 +681,7 @@ export function LayerPanel({
                   </div>
                   )}
                   <div className="control-divider" />
-                  <div className="inline-help">Effects render on both GM View and Player View when this layer is visible. Keep weather drift centered for no directional movement.</div>
+                  <div className="inline-help">Scene weather renders on both GM View and Player View when this layer is visible. Keep weather drift centered for no directional movement.</div>
                 </div>
               )}
               {isEffectsLayerId(layer.id) && isExpanded && !areSettingsExpanded && (
@@ -1375,7 +1375,7 @@ function EnvironmentEffectList({
       ) : (
         <div className="layer-empty-state">
           <strong>No Animated Effects</strong>
-          <span>Draw water, fire, fog, darkness, and other animated areas from Effects Tools.</span>
+          <span>Draw scene-specific water, fire, fog, darkness, and other animated areas from Effects Tools.</span>
         </div>
       )}
     </div>
@@ -1405,7 +1405,7 @@ function EnvironmentEffectMenuButton({
         ref={buttonRef}
         className="icon-button fog-shape-action-button"
         aria-label={`Open ${label} effect menu`}
-        title="Effect options"
+        title="Animated effect options"
         aria-expanded={open}
         onClick={(event) => {
           event.stopPropagation();
@@ -1465,7 +1465,7 @@ function FloatingEnvironmentEffectMenu({
         }}
       >
         <Settings2 size={14} aria-hidden="true" />
-        Edit Effect
+        Edit Animated Effect
       </button>
       <button
         className="token-menu-action token-menu-delete"
@@ -1476,7 +1476,7 @@ function FloatingEnvironmentEffectMenu({
         }}
       >
         <Trash2 size={14} aria-hidden="true" />
-        Delete
+        Delete Animated Effect
       </button>
     </div>
   );
@@ -1504,7 +1504,7 @@ function WeatherMaskList({
       </div>
       {scene.weather.masks.length > 0 ? (
         scene.weather.masks.map((mask) => {
-          const label = mask.name?.trim() || "Weather Effect Mask";
+          const label = mask.name?.trim() || "Weather Mask";
           const shapeLabel = formatEnvironmentShapeLabel(mask.kind);
           const isVisible = mask.visible ?? true;
           const isSelected = selectedIds.has(mask.id);
@@ -1550,7 +1550,7 @@ function WeatherMaskList({
               <button
                 className="icon-button fog-shape-action-button danger"
                 aria-label={`Delete ${label}`}
-                title="Delete weather effect mask"
+                title="Delete weather mask"
                 onClick={(event) => {
                   event.stopPropagation();
                   onUpdateWeather({ masks: scene.weather.masks.filter((candidate) => candidate.id !== mask.id) });
@@ -1569,8 +1569,8 @@ function WeatherMaskList({
           <strong>No Weather Masks</strong>
           <span>
             {scene.weather.enabled && hasEnabledWeatherEffect(scene.weather.effects)
-              ? "Draw masks from Effects Tools to keep global weather out of interiors."
-              : "Choose a weather pattern in settings, then draw masks to exclude weather from covered areas."}
+              ? "Draw masks from Effects Tools to keep this scene's weather out of interiors."
+              : "Choose a scene weather pattern in settings, then draw masks to exclude weather from covered areas."}
           </span>
         </div>
       )}

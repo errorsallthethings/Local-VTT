@@ -130,11 +130,11 @@ export function getTableHelpLines(): string[] {
 
 export function getWeatherHelpLines(): string[] {
   return [
-    "Weather masks exclude weather from interiors or covered spaces.",
+    "Weather masks exclude this scene's active weather from interiors or covered spaces.",
     "Rectangle: left-drag to draw; hold Shift for a square.",
     "Circle: left-drag from the center to set the radius.",
     "Polygon: click points, Enter or double-click to finish, right-click to remove the last point.",
-    "Animated effect shape tools draw visible animated areas inside the Effects layer."
+    "Animated effect shape tools draw scene-specific animated areas inside the Effects layer."
   ];
 }
 

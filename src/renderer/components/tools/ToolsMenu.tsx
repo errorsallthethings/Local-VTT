@@ -770,7 +770,7 @@ export function ToolsMenu({
                       <SelectorFilterCheckbox label="Token" checked={selectorSelectionFilters.tokens} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, tokens: checked })} />
                       <SelectorFilterCheckbox label="Template" checked={selectorSelectionFilters.templates} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, templates: checked })} />
                       <SelectorFilterCheckbox label="Fog Mask" checked={selectorSelectionFilters.fogMasks} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, fogMasks: checked })} />
-                      <SelectorFilterCheckbox label="Weather Effect Mask" checked={selectorSelectionFilters.weatherMasks} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, weatherMasks: checked })} />
+                      <SelectorFilterCheckbox label="Weather Mask" checked={selectorSelectionFilters.weatherMasks} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, weatherMasks: checked })} />
                       <SelectorFilterCheckbox label="Drawings" checked={selectorSelectionFilters.drawings} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, drawings: checked })} />
                     </div>
                   )}
@@ -1102,36 +1102,36 @@ export function ToolsMenu({
             <div className="tools-panel-section">
               <HelpButton active={helpTopic === "effects"} label="Effects Tools Help" onClick={() => setHelpTopic((topic) => (topic === "effects" ? null : "effects"))} />
               <div className="tools-section-label">Weather Masks</div>
-              {!weatherToolsEnabled && <span className="tools-section-note">Enable a weather effect to use weather effect masks.</span>}
+              {!weatherToolsEnabled && <span className="tools-section-note">Enable scene weather to use weather masks.</span>}
               <div className="tools-button-row">
-                <ToolButton active={activeWeatherMaskTool === "rectangle"} label="Rectangle Weather Effect Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("rectangle")}>
+                <ToolButton active={activeWeatherMaskTool === "rectangle"} label="Rectangle Weather Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("rectangle")}>
                   <Square size={17} aria-hidden="true" />
                 </ToolButton>
-                <ToolButton active={activeWeatherMaskTool === "circle"} label="Circle Weather Effect Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("circle")}>
+                <ToolButton active={activeWeatherMaskTool === "circle"} label="Circle Weather Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("circle")}>
                   <Circle size={17} aria-hidden="true" />
                 </ToolButton>
-                <ToolButton active={activeWeatherMaskTool === "polygon"} label="Polygon Weather Effect Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("polygon")}>
+                <ToolButton active={activeWeatherMaskTool === "polygon"} label="Polygon Weather Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("polygon")}>
                   <Pentagon size={17} aria-hidden="true" />
                 </ToolButton>
                 <span className="tools-vertical-divider" aria-hidden="true" />
-                <ToolButton label="Undo Last Weather Effect Mask" disabled={!weatherToolsEnabled || weatherMaskCount === 0} onClick={onUndoWeatherMask}>
+                <ToolButton label="Undo Last Weather Mask" disabled={!weatherToolsEnabled || weatherMaskCount === 0} onClick={onUndoWeatherMask}>
                   <Undo2 size={17} aria-hidden="true" />
                 </ToolButton>
               </div>
               <div className="tools-section-divider" />
               <div className="tools-section-label">Animated Effects</div>
               <div className="tools-button-row">
-                <ToolButton active={activeEnvironmentEffectTool === "circle"} label="Radius Environmental Effect" onClick={() => setEnvironmentEffectTool("circle")}>
+                <ToolButton active={activeEnvironmentEffectTool === "circle"} label="Radius Animated Effect" onClick={() => setEnvironmentEffectTool("circle")}>
                   <Circle size={17} aria-hidden="true" />
                 </ToolButton>
-                <ToolButton active={activeEnvironmentEffectTool === "rectangle"} label="Rectangle Environmental Effect" onClick={() => setEnvironmentEffectTool("rectangle")}>
+                <ToolButton active={activeEnvironmentEffectTool === "rectangle"} label="Rectangle Animated Effect" onClick={() => setEnvironmentEffectTool("rectangle")}>
                   <Square size={17} aria-hidden="true" />
                 </ToolButton>
-                <ToolButton active={activeEnvironmentEffectTool === "polygon"} label="Polygon Environmental Effect" onClick={() => setEnvironmentEffectTool("polygon")}>
+                <ToolButton active={activeEnvironmentEffectTool === "polygon"} label="Polygon Animated Effect" onClick={() => setEnvironmentEffectTool("polygon")}>
                   <Pentagon size={17} aria-hidden="true" />
                 </ToolButton>
                 <span className="tools-vertical-divider" aria-hidden="true" />
-                <ToolButton label="Undo Last Environmental Effect" disabled={environmentEffectCount === 0} onClick={onUndoEnvironmentEffect}>
+                <ToolButton label="Undo Last Animated Effect" disabled={environmentEffectCount === 0} onClick={onUndoEnvironmentEffect}>
                   <Undo2 size={17} aria-hidden="true" />
                 </ToolButton>
               </div>
@@ -2624,7 +2624,7 @@ function formatSelectorSelectionSummary(counts: SelectorSelectionCounts): string
     formatSelectorSelectionPart(counts.templates, "Template"),
     formatSelectorSelectionPart(counts.drawings, "Drawing"),
     formatSelectorSelectionPart(counts.fogMasks, "Fog Mask"),
-    formatSelectorSelectionPart(counts.weatherMasks, "Weather Effect Mask")
+    formatSelectorSelectionPart(counts.weatherMasks, "Weather Mask")
   ]
     .filter(Boolean)
     .join(", ");
