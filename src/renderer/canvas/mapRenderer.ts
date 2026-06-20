@@ -1,4 +1,5 @@
 import type { Scene } from "../../shared/localvtt";
+import type { Camera } from "./camera";
 
 export function drawMapSource(
   ctx: CanvasRenderingContext2D,
@@ -33,6 +34,49 @@ export function resolveMapTransform(scene: Scene, sourceWidth: number, sourceHei
     x: (viewportWidth - sourceWidth * scale) / 2,
     y: (viewportHeight - sourceHeight * scale) / 2,
     scale
+  };
+}
+
+export function getCameraForMapFit(scene: Scene, sourceWidth: number, sourceHeight: number, viewportWidth: number, viewportHeight: number): Camera {
+  if (sourceWidth <= 0 || sourceHeight <= 0 || viewportWidth <= 0 || viewportHeight <= 0) {
+    return { x: 0, y: 0, zoom: 1 };
+  }
+
+  const transform = resolveMapTransform(scene, sourceWidth, sourceHeight, viewportWidth, viewportHeight);
+  const rotation = (transform.rotation * Math.PI) / 180;
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  const corners = [
+    { x: 0, y: 0 },
+    { x: sourceWidth, y: 0 },
+    { x: sourceWidth, y: sourceHeight },
+    { x: 0, y: sourceHeight }
+  ].map((corner) => {
+    const scaledX = corner.x * transform.scale;
+    const scaledY = corner.y * transform.scale;
+    return {
+      x: transform.x + scaledX * cos - scaledY * sin,
+      y: transform.y + scaledX * sin + scaledY * cos
+    };
+  });
+
+  const minX = Math.min(...corners.map((corner) => corner.x));
+  const maxX = Math.max(...corners.map((corner) => corner.x));
+  const minY = Math.min(...corners.map((corner) => corner.y));
+  const maxY = Math.max(...corners.map((corner) => corner.y));
+  const mapWidth = Math.max(1, maxX - minX);
+  const mapHeight = Math.max(1, maxY - minY);
+  const padding = Math.min(48, Math.max(16, Math.min(viewportWidth, viewportHeight) * 0.04));
+  const availableWidth = Math.max(1, viewportWidth - padding * 2);
+  const availableHeight = Math.max(1, viewportHeight - padding * 2);
+  const zoom = Math.min(6, Math.max(0.05, Math.min(availableWidth / mapWidth, availableHeight / mapHeight)));
+  const centerX = minX + mapWidth / 2;
+  const centerY = minY + mapHeight / 2;
+
+  return {
+    x: viewportWidth / 2 - centerX * zoom,
+    y: viewportHeight / 2 - centerY * zoom,
+    zoom
   };
 }
 

@@ -3,7 +3,7 @@ import { ArrowRight, Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultDrawingName, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings, Token, WeatherMask } from "../../shared/localvtt";
 import { getEnvironmentEffectBounds, getPointBounds, getWeatherMaskBounds } from "../canvas/boundsGeometry";
-import { getRenderCamera, type Camera } from "../canvas/camera";
+import { areCamerasEqual, getRenderCamera, type Camera } from "../canvas/camera";
 import { getCanvasInteractionClass, type DrawingResizeHandle, type DrawingTransformHover } from "../canvas/canvasInteraction";
 import {
   drawDrawings,
@@ -38,7 +38,7 @@ import {
   LASER_POINT_LIFETIME_MS,
   RULER_RELEASE_LINGER_MS
 } from "../canvas/liveTableRenderer";
-import { drawMapSource, resolveMapTransform } from "../canvas/mapRenderer";
+import { drawMapSource, getCameraForMapFit, resolveMapTransform } from "../canvas/mapRenderer";
 import {
   drawRuler,
   formatMeasurementDistance,
@@ -4022,10 +4022,6 @@ function getCanvasViewportCenter(element: HTMLCanvasElement, camera: Camera): Po
   };
 }
 
-function areCamerasEqual(a: Camera, b: Camera): boolean {
-  return Math.abs(a.x - b.x) < 0.001 && Math.abs(a.y - b.y) < 0.001 && Math.abs(a.zoom - b.zoom) < 0.0001;
-}
-
 async function prepareLoadedImageMap(image: HTMLImageElement, assetPath: string): Promise<{ optimizedSource: CanvasImageSource | null; optimizedScale: number }> {
   const sourceWidth = image.naturalWidth || image.width;
   const sourceHeight = image.naturalHeight || image.height;
@@ -4096,49 +4092,6 @@ function getReadyMapSourceForFit(loadedMap: LoadedMap | null, mapAssetId: string
     return { source: activeVideo, width: activeVideo.videoWidth, height: activeVideo.videoHeight };
   }
   return null;
-}
-
-function getCameraForMapFit(scene: Scene, sourceWidth: number, sourceHeight: number, viewportWidth: number, viewportHeight: number): Camera {
-  if (sourceWidth <= 0 || sourceHeight <= 0 || viewportWidth <= 0 || viewportHeight <= 0) {
-    return { x: 0, y: 0, zoom: 1 };
-  }
-
-  const transform = resolveMapTransform(scene, sourceWidth, sourceHeight, viewportWidth, viewportHeight);
-  const rotation = (transform.rotation * Math.PI) / 180;
-  const cos = Math.cos(rotation);
-  const sin = Math.sin(rotation);
-  const corners = [
-    { x: 0, y: 0 },
-    { x: sourceWidth, y: 0 },
-    { x: sourceWidth, y: sourceHeight },
-    { x: 0, y: sourceHeight }
-  ].map((corner) => {
-    const scaledX = corner.x * transform.scale;
-    const scaledY = corner.y * transform.scale;
-    return {
-      x: transform.x + scaledX * cos - scaledY * sin,
-      y: transform.y + scaledX * sin + scaledY * cos
-    };
-  });
-
-  const minX = Math.min(...corners.map((corner) => corner.x));
-  const maxX = Math.max(...corners.map((corner) => corner.x));
-  const minY = Math.min(...corners.map((corner) => corner.y));
-  const maxY = Math.max(...corners.map((corner) => corner.y));
-  const mapWidth = Math.max(1, maxX - minX);
-  const mapHeight = Math.max(1, maxY - minY);
-  const padding = Math.min(48, Math.max(16, Math.min(viewportWidth, viewportHeight) * 0.04));
-  const availableWidth = Math.max(1, viewportWidth - padding * 2);
-  const availableHeight = Math.max(1, viewportHeight - padding * 2);
-  const zoom = Math.min(6, Math.max(0.05, Math.min(availableWidth / mapWidth, availableHeight / mapHeight)));
-  const centerX = minX + mapWidth / 2;
-  const centerY = minY + mapHeight / 2;
-
-  return {
-    x: viewportWidth / 2 - centerX * zoom,
-    y: viewportHeight / 2 - centerY * zoom,
-    zoom
-  };
 }
 
 function isSnapModifier(event: React.PointerEvent<HTMLCanvasElement>): boolean {

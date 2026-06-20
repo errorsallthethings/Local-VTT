@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getRenderCamera } from "../../src/renderer/canvas/camera";
+import { areCamerasEqual, getRenderCamera } from "../../src/renderer/canvas/camera";
 import {
   getFogDragKindForTool,
   getFogOperationForTool,
@@ -10,7 +10,7 @@ import {
   shouldAddBrushPoint
 } from "../../src/renderer/canvas/fogRenderer";
 import { getNearestGridPoint, getNearestSquareGridSnapPoint } from "../../src/renderer/canvas/gridMath";
-import { resolveMapTransform } from "../../src/renderer/canvas/mapRenderer";
+import { getCameraForMapFit, resolveMapTransform } from "../../src/renderer/canvas/mapRenderer";
 import { createDefaultScene } from "../../src/shared/localvtt";
 
 describe("canvas helpers", () => {
@@ -20,6 +20,12 @@ it("getRenderCamera applies display scale only to zoom", () => {
     y: -8,
     zoom: 3
   });
+});
+
+it("areCamerasEqual tolerates tiny floating point drift", () => {
+  expect(areCamerasEqual({ x: 1, y: 2, zoom: 3 }, { x: 1.0005, y: 1.9995, zoom: 3.00005 })).toBe(true);
+  expect(areCamerasEqual({ x: 1, y: 2, zoom: 3 }, { x: 1.01, y: 2, zoom: 3 })).toBe(false);
+  expect(areCamerasEqual({ x: 1, y: 2, zoom: 3 }, { x: 1, y: 2, zoom: 3.001 })).toBe(false);
 });
 
 it("getNearestGridPoint snaps to the configured grid offset", () => {
@@ -100,6 +106,29 @@ it("resolveMapTransform centers contain, cover, and actual-size fit modes", () =
     y: 400,
     scale: 1
   });
+});
+
+it("getCameraForMapFit centers a transformed map inside the viewport", () => {
+  const scene = createDefaultScene("Map Fit");
+  scene.mapTransform = { x: 100, y: 50, scale: 2, rotation: 0, fitMode: "manual" };
+
+  expect(getCameraForMapFit(scene, 200, 100, 1000, 800)).toEqual({
+    x: -202,
+    y: 49,
+    zoom: 2.34
+  });
+});
+
+it("getCameraForMapFit accounts for rotation and rejects invalid dimensions", () => {
+  const scene = createDefaultScene("Rotated Map Fit");
+  scene.mapTransform = { x: 0, y: 0, scale: 1, rotation: 90, fitMode: "manual" };
+
+  expect(getCameraForMapFit(scene, 200, 100, 1000, 800)).toEqual({
+    x: 684,
+    y: 32,
+    zoom: 3.68
+  });
+  expect(getCameraForMapFit(scene, 0, 100, 1000, 800)).toEqual({ x: 0, y: 0, zoom: 1 });
 });
 
 it("fog tool helpers classify operation, shape, and polygon tools", () => {
