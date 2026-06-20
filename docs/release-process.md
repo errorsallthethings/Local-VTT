@@ -24,6 +24,7 @@ Update `CHANGELOG.md`, then verify the release branch:
 ```bash
 npm run check
 npm run build
+npm run smoke:electron
 ```
 
 Commit the release metadata:
@@ -64,6 +65,7 @@ git status
 ```bash
 npm run check
 npm run build
+npm run smoke:electron
 ```
 
 4. Commit the release metadata changes:
@@ -155,6 +157,7 @@ Before packaging or sharing a build, run through these workflows:
 - Close with unsaved scene changes, campaign-only changes, and both; confirm Save preserves changes and Close Without Saving discards them.
 - Confirm common failure messages are actionable, including missing recent campaigns, missing assets, and disconnected Player View displays.
 - Run `npm run check` and `npm run build`.
+- Run `npm run smoke:electron` to launch the built Electron app and confirm the GM window preload bridge is available.
 
 For packaged Windows builds, also run:
 

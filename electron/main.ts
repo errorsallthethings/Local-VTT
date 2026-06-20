@@ -23,9 +23,14 @@ import {
 } from "../src/shared/localvtt.js";
 import { createImageMapThumbnail, createSquareImageThumbnail, createVideoMapThumbnail } from "./assets.js";
 
-const isDev = !app.isPackaged;
+const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
+const isDev = !app.isPackaged && !isSmokeTest;
 const devServerUrl = "http://127.0.0.1:5173";
 const MAX_METADATA_BACKUPS = 10;
+
+if (isSmokeTest) {
+  app.setPath("userData", path.join(app.getPath("temp"), "local-vtt-smoke-test"));
+}
 
 let gmWindow: BrowserWindow | null = null;
 let playerWindow: BrowserWindow | null = null;
@@ -486,10 +491,16 @@ app.whenReady().then(() => {
   });
 
   gmWindow = createGmWindow();
+  if (isSmokeTest) {
+    runSmokeTest(gmWindow);
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       gmWindow = createGmWindow();
+      if (isSmokeTest) {
+        runSmokeTest(gmWindow);
+      }
     }
   });
 });
@@ -549,6 +560,61 @@ function createGmWindow(): BrowserWindow {
     forceCloseGmWindow = false;
   });
   return win;
+}
+
+function runSmokeTest(win: BrowserWindow): void {
+  let completed = false;
+  const timeout = setTimeout(() => {
+    if (completed) {
+      return;
+    }
+    completed = true;
+    console.error("LOCALVTT_SMOKE_ERROR GM window did not finish loading in time.");
+    app.exit(1);
+  }, 15000);
+
+  const finish = () => {
+    if (completed) {
+      return;
+    }
+    completed = true;
+    void win.webContents
+      .executeJavaScript(
+        `({
+          hash: window.location.hash,
+          hasPreloadBridge: Boolean(window.localVtt),
+          hasCreateCampaign: typeof window.localVtt?.createCampaign === "function",
+          title: document.title,
+          bodyText: document.body.innerText.slice(0, 500)
+        })`
+      )
+      .then((result: unknown) => {
+        clearTimeout(timeout);
+        console.log(`LOCALVTT_SMOKE_RESULT ${JSON.stringify(result)}`);
+        app.exit(0);
+      })
+      .catch((caught: unknown) => {
+        clearTimeout(timeout);
+        console.error("LOCALVTT_SMOKE_ERROR", caught);
+        app.exit(1);
+      });
+  };
+
+  win.webContents.once("did-fail-load", (_event, errorCode, errorDescription) => {
+    if (completed) {
+      return;
+    }
+    completed = true;
+    clearTimeout(timeout);
+    console.error(`LOCALVTT_SMOKE_ERROR GM window failed to load: ${errorCode} ${errorDescription}`);
+    app.exit(1);
+  });
+
+  if (win.webContents.isLoading()) {
+    win.webContents.once("did-finish-load", finish);
+  } else {
+    queueMicrotask(finish);
+  }
 }
 
 async function closeGmWindowAfterPausing(win: BrowserWindow): Promise<void> {
