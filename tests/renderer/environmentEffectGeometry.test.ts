@@ -3,6 +3,7 @@ import { createDefaultScene } from "../../src/shared/localvtt";
 import {
   environmentDragToMask,
   getClampedEnvironmentEffectFeather,
+  getEnvironmentEffectPathCommands,
   isEnvironmentEffectVisibleForMode,
   isMeaningfulEnvironmentEffectDrag,
   shouldAnimateEnvironmentEffects,
@@ -73,6 +74,70 @@ describe("environment effect geometry", () => {
     expect(getClampedEnvironmentEffectFeather({ ...effect, feather: -1 })).toBe(0);
     expect(getClampedEnvironmentEffectFeather({ ...effect, feather: 0.45 })).toBe(0.45);
     expect(getClampedEnvironmentEffectFeather({ ...effect, feather: 2 })).toBe(1);
+  });
+
+  it("builds screen-space path commands for rectangle effects", () => {
+    expect(
+      getEnvironmentEffectPathCommands(
+        {
+          id: "effect-1",
+          kind: "rectangle",
+          effect: "water",
+          points: [{ x: 20, y: 30 }, { x: 5, y: 10 }]
+        },
+        { x: 100, y: 50, zoom: 2 }
+      )
+    ).toEqual([{ kind: "rect", x: 110, y: 70, width: 30, height: 40 }]);
+  });
+
+  it("builds screen-space path commands for circle effects", () => {
+    expect(
+      getEnvironmentEffectPathCommands(
+        {
+          id: "effect-1",
+          kind: "circle",
+          effect: "water",
+          points: [{ x: 10, y: 20 }],
+          radius: 15
+        },
+        { x: 100, y: 50, zoom: 2 }
+      )
+    ).toEqual([{ kind: "arc", x: 120, y: 90, radius: 30 }]);
+  });
+
+  it("builds screen-space path commands for polygon effects", () => {
+    expect(
+      getEnvironmentEffectPathCommands(
+        {
+          id: "effect-1",
+          kind: "polygon",
+          effect: "water",
+          points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }]
+        },
+        { x: 100, y: 50, zoom: 2 }
+      )
+    ).toEqual([
+      {
+        kind: "polygon",
+        points: [{ x: 100, y: 50 }, { x: 120, y: 50 }, { x: 120, y: 70 }]
+      }
+    ]);
+  });
+
+  it("returns no path commands for incomplete effect geometry", () => {
+    expect(getEnvironmentEffectPathCommands({ id: "effect-1", kind: "rectangle", effect: "water", points: [] }, { x: 0, y: 0, zoom: 1 })).toEqual([]);
+    expect(getEnvironmentEffectPathCommands({ id: "effect-1", kind: "circle", effect: "water", points: [{ x: 0, y: 0 }] }, { x: 0, y: 0, zoom: 1 })).toEqual([]);
+    expect(
+      getEnvironmentEffectPathCommands(
+        {
+          id: "effect-1",
+          kind: "polygon",
+          effect: "water",
+          points: [{ x: 0, y: 0 }, { x: 10, y: 0 }]
+        },
+        { x: 0, y: 0, zoom: 1 }
+      )
+    ).toEqual([]);
   });
 
   it("does not animate effects without a scene, visible layer, or visible effects", () => {

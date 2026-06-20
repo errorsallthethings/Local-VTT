@@ -175,6 +175,7 @@ import {
 import {
   environmentDragToMask,
   getClampedEnvironmentEffectFeather,
+  getEnvironmentEffectPathCommands,
   isEnvironmentEffectVisibleForMode,
   isMeaningfulEnvironmentEffectDrag,
   shouldAnimateEnvironmentEffects,
@@ -4421,26 +4422,19 @@ function drawEnvironmentEffectShape(ctx: CanvasRenderingContext2D, effect: Envir
 
 function getEnvironmentEffectPath(effect: EnvironmentEffectMask, camera: Camera): Path2D {
   const path = new Path2D();
-  if (effect.kind === "rectangle" && effect.points.length >= 2) {
-    const start = worldToScreenPoint(effect.points[0], camera);
-    const end = worldToScreenPoint(effect.points[1], camera);
-    path.rect(Math.min(start.x, end.x), Math.min(start.y, end.y), Math.abs(end.x - start.x), Math.abs(end.y - start.y));
-    return path;
-  }
-  if (effect.kind === "circle" && effect.points[0] && effect.radius) {
-    const center = worldToScreenPoint(effect.points[0], camera);
-    path.moveTo(center.x + effect.radius * camera.zoom, center.y);
-    path.arc(center.x, center.y, effect.radius * camera.zoom, 0, Math.PI * 2);
-    return path;
-  }
-  if (effect.kind === "polygon" && effect.points.length >= 3) {
-    const start = worldToScreenPoint(effect.points[0], camera);
-    path.moveTo(start.x, start.y);
-    for (const point of effect.points.slice(1)) {
-      const screenPoint = worldToScreenPoint(point, camera);
-      path.lineTo(screenPoint.x, screenPoint.y);
+  for (const command of getEnvironmentEffectPathCommands(effect, camera)) {
+    if (command.kind === "rect") {
+      path.rect(command.x, command.y, command.width, command.height);
+    } else if (command.kind === "arc") {
+      path.moveTo(command.x + command.radius, command.y);
+      path.arc(command.x, command.y, command.radius, 0, Math.PI * 2);
+    } else if (command.points.length > 0) {
+      path.moveTo(command.points[0].x, command.points[0].y);
+      for (const point of command.points.slice(1)) {
+        path.lineTo(point.x, point.y);
+      }
+      path.closePath();
     }
-    path.closePath();
   }
   return path;
 }
