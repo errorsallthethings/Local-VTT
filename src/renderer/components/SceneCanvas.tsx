@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultDrawingName, formatDefaultFogShapeName } from "../../shared/localvtt";
-import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings, Token, WeatherMask } from "../../shared/localvtt";
+import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings, WeatherMask } from "../../shared/localvtt";
 import { getEnvironmentEffectBounds, getPointBounds, getWeatherMaskBounds } from "../canvas/boundsGeometry";
 import { areCamerasEqual, getRenderCamera, type Camera } from "../canvas/camera";
 import { getCanvasInteractionClass, type DrawingResizeHandle, type DrawingTransformHover } from "../canvas/canvasInteraction";
@@ -47,6 +47,7 @@ import {
   LASER_POINT_LIFETIME_MS,
   RULER_RELEASE_LINGER_MS
 } from "../canvas/liveTableRenderer";
+import { getPlayerDisplayScale, getRulerLabel, getTokenMoveLabel, isVisibleDiceOverlayEvent } from "../canvas/liveTableState";
 import {
   getMapCalibrationBoxHit,
   getSquareCalibrationBox,
@@ -58,13 +59,8 @@ import { drawMapSource, getCameraForMapFit } from "../canvas/mapRenderer";
 import { closeCanvasImageSource, getLargeMapCacheScale, getMapDrawSource, getReadyMapSourceForFit, type LoadedMap, type ReadyMapSource } from "../canvas/mapSource";
 import {
   drawRuler,
-  formatMeasurementDistance,
-  getMeasurementDistance,
-  getMeasurementPathDistance,
   getRulerPathPoints,
-  getStraightLineMeasurementDistance,
-  type RulerDrag,
-  type RulerLabel
+  type RulerDrag
 } from "../canvas/measurement";
 import { getPointAlongPath } from "../canvas/movementPath";
 import {
@@ -3923,64 +3919,6 @@ function EnvironmentEffectStatusStrip({
       <span>{FOG_GRID_SNAP_HINT}</span>
     </div>
   );
-}
-
-function getRulerLabel(rulerDrag: RulerDrag, scene: Scene): RulerLabel {
-  const pathPoints = getRulerPathPoints(rulerDrag);
-  const primaryDistance = getMeasurementPathDistance(pathPoints, scene.grid, getMeasurementDistance);
-  const primary = formatMeasurementDistance(primaryDistance, scene.grid.measurement, scene.grid.type);
-  if (scene.grid.type === "gridless" || scene.grid.measurement.distanceMode === "euclidean") {
-    return { primary };
-  }
-
-  const straightLine = formatMeasurementDistance(getMeasurementPathDistance(pathPoints, scene.grid, getStraightLineMeasurementDistance), scene.grid.measurement, scene.grid.type);
-  return { primary, secondary: `Straight: ${straightLine}` };
-}
-
-function getTokenMoveLabel(scene: Scene, preview: TokenDragPreview): string | null {
-  const token = scene.tokens.find((candidate) => candidate.id === preview.tokenId);
-  if (!token) {
-    return null;
-  }
-
-  const pathPoints = [
-    getTokenCenterPoint(token, preview.startPosition),
-    ...preview.waypoints.map((waypoint) => getTokenCenterPoint(token, waypoint)),
-    getTokenCenterPoint(token, preview.snappedPosition)
-  ];
-  const distance = getMeasurementPathDistance(pathPoints, scene.grid, getMeasurementDistance);
-  return formatMeasurementDistance(distance, scene.grid.measurement, scene.grid.type);
-}
-
-function getTokenCenterPoint(token: Token, position: Point): Point {
-  return {
-    x: position.x + token.size.width / 2,
-    y: position.y + token.size.height / 2
-  };
-}
-
-function getPlayerDisplayScale(campaign: Campaign | null, scene: Scene | null, mode: "gm" | "player"): number {
-  if (mode !== "player" || !campaign?.playerDisplay?.physicalScaleEnabled || !scene || scene.grid.sizePx <= 0) {
-    return 1;
-  }
-  const targetCellSize = campaign.playerDisplay.pixelsPerInch * campaign.playerDisplay.inchesPerGridCell;
-  if (!Number.isFinite(targetCellSize) || targetCellSize <= 0) {
-    return 1;
-  }
-  return targetCellSize / scene.grid.sizePx;
-}
-
-function isVisibleDiceOverlayEvent(event: LiveTableEvent, mode: "gm" | "player"): event is Extract<LiveTableEvent, { type: "dice" }> {
-  return event.type === "dice" && shouldShowDiceOverlay(event, mode);
-}
-
-function shouldShowDiceOverlay(event: Extract<LiveTableEvent, { type: "dice" }>, mode: "gm" | "player"): boolean {
-  const displayMode = mode === "gm" ? event.gmDiceDisplay : event.playerDiceDisplay;
-  if (displayMode) {
-    return displayMode !== "hidden";
-  }
-  const presentation = mode === "gm" ? event.gmPresentation : event.playerPresentation;
-  return presentation ? presentation === "3d" : event.presentation === "3d";
 }
 
 function eventToWorldPoint(event: React.PointerEvent<HTMLCanvasElement>, camera: Camera): Point {
