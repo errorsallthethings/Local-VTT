@@ -56,7 +56,7 @@ import {
   type MapCalibrationDrag
 } from "../canvas/mapCalibrationGeometry";
 import { drawMapSource, getCameraForMapFit } from "../canvas/mapRenderer";
-import { closeCanvasImageSource, getLargeMapCacheScale, getMapDrawSource, getReadyMapSourceForFit, type LoadedMap, type ReadyMapSource } from "../canvas/mapSource";
+import { closeCanvasImageSource, getMapDrawSource, getReadyMapSourceForFit, prepareLoadedImageMap, type LoadedMap, type ReadyMapSource } from "../canvas/mapSource";
 import {
   drawRuler,
   getRulerPathPoints,
@@ -3877,29 +3877,6 @@ function EnvironmentEffectStatusStrip({
       <span>{FOG_GRID_SNAP_HINT}</span>
     </div>
   );
-}
-
-async function prepareLoadedImageMap(image: HTMLImageElement, assetPath: string): Promise<{ optimizedSource: CanvasImageSource | null; optimizedScale: number }> {
-  const sourceWidth = image.naturalWidth || image.width;
-  const sourceHeight = image.naturalHeight || image.height;
-  const isAnimatedImage = assetPath.toLowerCase().endsWith(".gif");
-  if (isAnimatedImage || sourceWidth <= 0 || sourceHeight <= 0 || typeof createImageBitmap !== "function") {
-    return { optimizedSource: null, optimizedScale: 1 };
-  }
-
-  const resizeScale = getLargeMapCacheScale(sourceWidth, sourceHeight);
-  if (resizeScale >= 1) {
-    return { optimizedSource: null, optimizedScale: 1 };
-  }
-
-  const resizeWidth = Math.max(1, Math.round(sourceWidth * resizeScale));
-  const resizeHeight = Math.max(1, Math.round(sourceHeight * resizeScale));
-  const optimizedSource = await createImageBitmap(image, {
-    resizeWidth,
-    resizeHeight,
-    resizeQuality: "high"
-  });
-  return { optimizedSource, optimizedScale: resizeScale };
 }
 
 function drawSnapMarker(ctx: CanvasRenderingContext2D, point: Point, camera: Camera, operation: "reveal" | "hide") {

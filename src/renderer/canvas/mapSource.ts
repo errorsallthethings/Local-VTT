@@ -24,10 +24,38 @@ export interface ReadyMapSource {
   height: number;
 }
 
+export interface PreparedLoadedImageMap {
+  optimizedSource: CanvasImageSource | null;
+  optimizedScale: number;
+}
+
 export function getLargeMapCacheScale(width: number, height: number): number {
   const edgeScale = Math.min(1, LARGE_MAP_CACHE_MAX_EDGE / Math.max(width, height));
   const pixelScale = Math.min(1, Math.sqrt(LARGE_MAP_CACHE_MAX_PIXELS / Math.max(1, width * height)));
   return Math.min(edgeScale, pixelScale);
+}
+
+export async function prepareLoadedImageMap(image: HTMLImageElement, assetPath: string): Promise<PreparedLoadedImageMap> {
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  const isAnimatedImage = assetPath.toLowerCase().endsWith(".gif");
+  if (isAnimatedImage || sourceWidth <= 0 || sourceHeight <= 0 || typeof createImageBitmap !== "function") {
+    return { optimizedSource: null, optimizedScale: 1 };
+  }
+
+  const resizeScale = getLargeMapCacheScale(sourceWidth, sourceHeight);
+  if (resizeScale >= 1) {
+    return { optimizedSource: null, optimizedScale: 1 };
+  }
+
+  const resizeWidth = Math.max(1, Math.round(sourceWidth * resizeScale));
+  const resizeHeight = Math.max(1, Math.round(sourceHeight * resizeScale));
+  const optimizedSource = await createImageBitmap(image, {
+    resizeWidth,
+    resizeHeight,
+    resizeQuality: "high"
+  });
+  return { optimizedSource, optimizedScale: resizeScale };
 }
 
 export function closeCanvasImageSource(source: CanvasImageSource | null) {

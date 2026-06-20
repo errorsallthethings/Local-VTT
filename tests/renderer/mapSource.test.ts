@@ -1,9 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import { createDefaultScene } from "../../src/shared/localvtt";
-import { closeCanvasImageSource, getLargeMapCacheScale, getMapDrawSource, getReadyMapSourceForFit, type LoadedMap } from "../../src/renderer/canvas/mapSource";
+import { closeCanvasImageSource, getLargeMapCacheScale, getMapDrawSource, getReadyMapSourceForFit, prepareLoadedImageMap, type LoadedMap } from "../../src/renderer/canvas/mapSource";
 
 function imageSource(id: string): HTMLImageElement {
   return { id } as unknown as HTMLImageElement;
+}
+
+function loadedImage(overrides: Partial<HTMLImageElement> = {}): HTMLImageElement {
+  return {
+    naturalWidth: 1000,
+    naturalHeight: 1000,
+    width: 1000,
+    height: 1000,
+    ...overrides
+  } as HTMLImageElement;
 }
 
 function canvasSource(id: string): CanvasImageSource {
@@ -30,6 +40,41 @@ describe("map source helpers", () => {
     expect(getLargeMapCacheScale(1000, 1000)).toBe(1);
     expect(getLargeMapCacheScale(8192, 2000)).toBe(0.5);
     expect(getLargeMapCacheScale(8000, 8000)).toBe(0.5);
+  });
+
+  it("skips prepared optimized image maps for GIFs, invalid dimensions, unavailable bitmap support, and small maps", async () => {
+    const createImageBitmapSpy = vi.fn();
+    vi.stubGlobal("createImageBitmap", createImageBitmapSpy);
+
+    await expect(prepareLoadedImageMap(loadedImage(), "C:/maps/animated.GIF")).resolves.toEqual({ optimizedSource: null, optimizedScale: 1 });
+    await expect(prepareLoadedImageMap(loadedImage({ naturalWidth: 0, width: 0 }), "C:/maps/map.png")).resolves.toEqual({ optimizedSource: null, optimizedScale: 1 });
+
+    vi.stubGlobal("createImageBitmap", undefined);
+    await expect(prepareLoadedImageMap(loadedImage(), "C:/maps/map.png")).resolves.toEqual({ optimizedSource: null, optimizedScale: 1 });
+
+    vi.stubGlobal("createImageBitmap", createImageBitmapSpy);
+    await expect(prepareLoadedImageMap(loadedImage(), "C:/maps/map.png")).resolves.toEqual({ optimizedSource: null, optimizedScale: 1 });
+    expect(createImageBitmapSpy).not.toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
+  });
+
+  it("prepares an optimized bitmap for large image maps", async () => {
+    const optimizedSource = canvasSource("optimized");
+    const createImageBitmapSpy = vi.fn().mockResolvedValue(optimizedSource);
+    vi.stubGlobal("createImageBitmap", createImageBitmapSpy);
+
+    await expect(prepareLoadedImageMap(loadedImage({ naturalWidth: 8192, naturalHeight: 2000, width: 8192, height: 2000 }), "C:/maps/large.png")).resolves.toEqual({
+      optimizedSource,
+      optimizedScale: 0.5
+    });
+    expect(createImageBitmapSpy).toHaveBeenCalledWith(expect.any(Object), {
+      resizeWidth: 4096,
+      resizeHeight: 1000,
+      resizeQuality: "high"
+    });
+
+    vi.unstubAllGlobals();
   });
 
   it("closes closeable canvas image sources only", () => {
