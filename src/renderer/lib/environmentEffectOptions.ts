@@ -216,6 +216,32 @@ const ENVIRONMENT_EFFECT_CANVAS_STYLES: Record<EnvironmentEffectType, { previewF
   water: { previewFill: "rgba(56, 189, 248, 0.2)", stroke: "rgba(125, 211, 252, 0.95)" }
 };
 
+export interface EnvironmentEffectRegistryEntry {
+  id: EnvironmentEffectType;
+  label: string;
+  presetOptions: Array<{ label: string; value: string }>;
+  canvasStyle: {
+    previewFill: string;
+    stroke: string;
+  };
+}
+
+export const ENVIRONMENT_EFFECT_REGISTRY: Record<EnvironmentEffectType, EnvironmentEffectRegistryEntry> = Object.fromEntries(
+  ENVIRONMENT_EFFECT_OPTIONS.map((option) => [
+    option.value,
+    {
+      id: option.value,
+      label: ENVIRONMENT_EFFECT_LABELS[option.value],
+      presetOptions: ENVIRONMENT_EFFECT_PRESET_OPTIONS[option.value],
+      canvasStyle: ENVIRONMENT_EFFECT_CANVAS_STYLES[option.value]
+    }
+  ])
+) as Record<EnvironmentEffectType, EnvironmentEffectRegistryEntry>;
+
+export function getEnvironmentEffectRegistryEntry(effect: EnvironmentEffectType): EnvironmentEffectRegistryEntry {
+  return ENVIRONMENT_EFFECT_REGISTRY[effect];
+}
+
 export function getEnvironmentEffectPresetSelectValue(
   effect: EnvironmentEffectType,
   acidEffectTuning: AcidEffectTuning,
@@ -292,7 +318,7 @@ export function getEnvironmentEffectPresetSelectValue(
 }
 
 export function getEnvironmentEffectPresetOptions(effect: EnvironmentEffectType): Array<{ label: string; value: string }> {
-  return ENVIRONMENT_EFFECT_PRESET_OPTIONS[effect];
+  return getEnvironmentEffectRegistryEntry(effect).presetOptions;
 }
 
 export function applyEnvironmentEffectPreset(
@@ -445,15 +471,15 @@ export function applyEnvironmentEffectPreset(
 }
 
 export function formatEnvironmentEffectOptionLabel(effect: EnvironmentEffectType): string {
-  return ENVIRONMENT_EFFECT_LABELS[effect];
+  return getEnvironmentEffectRegistryEntry(effect).label;
 }
 
 export function getEnvironmentEffectStroke(effect: EnvironmentEffectType): string {
-  return ENVIRONMENT_EFFECT_CANVAS_STYLES[effect].stroke;
+  return getEnvironmentEffectRegistryEntry(effect).canvasStyle.stroke;
 }
 
 export function getEnvironmentEffectPreviewFill(effect: EnvironmentEffectType): string {
-  return ENVIRONMENT_EFFECT_CANVAS_STYLES[effect].previewFill;
+  return getEnvironmentEffectRegistryEntry(effect).canvasStyle.previewFill;
 }
 
 export function getEnvironmentEffectFeatherSelectValue(feather: number): number {
