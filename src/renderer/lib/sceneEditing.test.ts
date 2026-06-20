@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 import { createDefaultScene, type Scene } from "../../shared/localvtt";
 import { removeSelectedSceneItems, setSelectedSceneItemsPlayerVisibility } from "./sceneEditing";
 
-type WeatherMaskWithPlayerVisibility = Scene["weather"]["masks"][number] & { visibleInPlayer?: boolean };
-
 function createSceneWithSelectableItems(): Scene {
   return {
     ...createDefaultScene("Scene"),
@@ -75,7 +73,7 @@ function createSceneWithSelectableItems(): Scene {
       masks: [
         { id: "weather-1", kind: "rectangle", points: [{ x: 0, y: 0 }, { x: 1, y: 1 }], visible: true, visibleInPlayer: false },
         { id: "weather-2", kind: "rectangle", points: [{ x: 1, y: 1 }, { x: 2, y: 2 }], visible: true, visibleInPlayer: false }
-      ] as WeatherMaskWithPlayerVisibility[]
+      ]
     },
     environment: {
       effects: [
@@ -105,7 +103,7 @@ describe("scene editing selected item actions", () => {
     expect(scene.drawings.map((drawing) => drawing.visibleInPlayer)).toEqual([true, false]);
     expect(scene.fog.shapes.map((shape) => shape.visibleInPlayer)).toEqual([true, false]);
     expect(scene.fog.shapes.map((shape) => shape.visible)).toEqual([true, false]);
-    expect(scene.weather.masks.map((mask: WeatherMaskWithPlayerVisibility) => mask.visibleInPlayer)).toEqual([true, false]);
+    expect(scene.weather.masks.map((mask) => mask.visibleInPlayer)).toEqual([true, false]);
     expect(scene.environment.effects.map((effect) => effect.visibleInPlayer)).toEqual([true, false]);
   });
 

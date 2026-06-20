@@ -218,6 +218,7 @@ export interface WeatherMask {
   points: Point[];
   radius?: number;
   visible?: boolean;
+  visibleInPlayer?: boolean;
 }
 
 export type {
@@ -1608,7 +1609,8 @@ function normalizeWeatherMasks(masks?: WeatherMask[]): WeatherMask[] {
         id,
         name: typeof mask.name === "string" && mask.name.trim() ? mask.name : `Weather Effect Mask ${index + 1}`,
         points,
-        visible: mask.visible ?? true
+        visible: mask.visible ?? true,
+        visibleInPlayer: mask.visibleInPlayer ?? true
       };
     });
 }
