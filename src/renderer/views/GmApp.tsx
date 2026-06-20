@@ -72,7 +72,7 @@ import {
   type RecentCampaign
 } from "../lib/recentCampaigns";
 import { createImportedToken } from "../lib/tokenDefaults";
-import { getSelectedTokenAssetIds } from "../lib/tokenLibrary";
+import { getSelectedTokenAssetIds, mergeTokenAssetUsage, removeSceneTokensByAsset } from "../lib/tokenLibrary";
 import { addTurnOrderEntry, createTurnOrderEntryFromToken, stopTurnOrder } from "../lib/turnOrder";
 import { ENVIRONMENT_EFFECT_FEATHER_OPTIONS, ENVIRONMENT_EFFECT_OPTIONS, applyEnvironmentEffectPreset, formatEnvironmentEffectOptionLabel, getEnvironmentEffectFeatherSelectValue, getEnvironmentEffectPresetOptions, getEnvironmentEffectPresetSelectValue } from "../lib/environmentEffectOptions";
 import {
@@ -3306,44 +3306,3 @@ function formatCleanSaveState(saveState: string): string {
   return saveState[0].toUpperCase() + saveState.slice(1);
 }
 
-function removeSceneTokensByAsset(scene: Scene, assetId: string): Scene {
-  if (!scene.tokens.some((token) => token.assetId === assetId)) {
-    return scene;
-  }
-  return {
-    ...scene,
-    tokens: scene.tokens.filter((token) => token.assetId !== assetId),
-    updatedAt: new Date().toISOString()
-  };
-}
-
-function mergeTokenAssetUsage(
-  savedUsage: Array<{ sceneId: string; sceneName: string; count: number }>,
-  campaign: Campaign,
-  sceneDrafts: Record<string, Scene>,
-  activeScene: Scene | null,
-  assetId: string
-): Array<{ sceneId: string; sceneName: string; count: number }> {
-  const sceneOrder = new Map(campaign.scenes.map((scene, index) => [scene.id, index]));
-  const sceneNames = new Map(campaign.scenes.map((scene) => [scene.id, scene.name]));
-  const usageByScene = new Map(savedUsage.map((usage) => [usage.sceneId, usage]));
-  const localScenes = new Map(Object.entries(sceneDrafts));
-  if (activeScene) {
-    localScenes.set(activeScene.id, activeScene);
-  }
-
-  for (const [sceneId, scene] of localScenes) {
-    const count = scene.tokens.filter((token) => token.assetId === assetId).length;
-    if (count > 0) {
-      usageByScene.set(sceneId, {
-        sceneId,
-        sceneName: sceneNames.get(sceneId) ?? scene.name,
-        count
-      });
-    } else {
-      usageByScene.delete(sceneId);
-    }
-  }
-
-  return [...usageByScene.values()].sort((a, b) => (sceneOrder.get(a.sceneId) ?? Number.MAX_SAFE_INTEGER) - (sceneOrder.get(b.sceneId) ?? Number.MAX_SAFE_INTEGER));
-}

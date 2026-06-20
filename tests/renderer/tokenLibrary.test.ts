@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { Asset, Token } from "../../src/shared/localvtt";
-import { filterTokenLibraryAssets, getSelectedTokenAssetIds, getSelectedTokenLibraryAsset, getSelectedTokenLibraryAssetIds } from "../../src/renderer/lib/tokenLibrary";
+import { createDefaultCampaign, createDefaultScene } from "../../src/shared/localvtt";
+import {
+  filterTokenLibraryAssets,
+  getSelectedTokenAssetIds,
+  getSelectedTokenLibraryAsset,
+  getSelectedTokenLibraryAssetIds,
+  mergeTokenAssetUsage,
+  removeSceneTokensByAsset
+} from "../../src/renderer/lib/tokenLibrary";
 
 function tokenAsset(id: string, name: string, originalFileName: string, createdAt: string): Asset {
   return {
@@ -75,5 +83,53 @@ describe("token library helpers", () => {
       selectedTokenAssetId: undefined,
       selectedTokenAssetIds: []
     });
+  });
+
+  it("removes tokens that reference a deleted asset", () => {
+    const scene = createDefaultScene("Scene");
+    scene.tokens = [sceneToken("one", "asset-1"), sceneToken("two", "asset-2"), sceneToken("three", "asset-1")];
+
+    const updated = removeSceneTokensByAsset(scene, "asset-1");
+
+    expect(updated).not.toBe(scene);
+    expect(updated.tokens.map((token) => token.id)).toEqual(["two"]);
+  });
+
+  it("keeps the same scene reference when no tokens reference a deleted asset", () => {
+    const scene = createDefaultScene("Scene");
+    scene.tokens = [sceneToken("one", "asset-1")];
+
+    expect(removeSceneTokensByAsset(scene, "asset-2")).toBe(scene);
+  });
+
+  it("merges saved token asset usage with local scene drafts", () => {
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.scenes = [
+      { id: "scene-1", name: "One", mapAssetId: null, folderId: null, color: "#ffffff", weather: createDefaultScene("One").weather },
+      { id: "scene-2", name: "Two", mapAssetId: null, folderId: null, color: "#ffffff", weather: createDefaultScene("Two").weather },
+      { id: "scene-3", name: "Three", mapAssetId: null, folderId: null, color: "#ffffff", weather: createDefaultScene("Three").weather }
+    ];
+    const draft = createDefaultScene("Draft Two");
+    draft.id = "scene-2";
+    draft.tokens = [sceneToken("two-a", "asset-1"), sceneToken("two-b", "asset-1")];
+    const active = createDefaultScene("Active Three");
+    active.id = "scene-3";
+    active.tokens = [];
+
+    expect(
+      mergeTokenAssetUsage(
+        [
+          { sceneId: "scene-1", sceneName: "Saved One", count: 1 },
+          { sceneId: "scene-3", sceneName: "Saved Three", count: 4 }
+        ],
+        campaign,
+        { "scene-2": draft },
+        active,
+        "asset-1"
+      )
+    ).toEqual([
+      { sceneId: "scene-1", sceneName: "Saved One", count: 1 },
+      { sceneId: "scene-2", sceneName: "Two", count: 2 }
+    ]);
   });
 });
