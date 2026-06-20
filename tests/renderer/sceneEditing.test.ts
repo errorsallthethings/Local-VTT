@@ -5,9 +5,12 @@ import {
   moveLayerOrder,
   moveSceneLayer,
   patchSceneFog,
+  patchSceneDrawing,
   patchSceneGrid,
   patchSceneMapTransform,
   patchSceneVideoPlayback,
+  setDrawingPlayerVisibility,
+  setDrawingTemplateFootprintVisibility,
   setFogShapePlayerVisibility,
   setWeatherMaskVisibility,
   setSceneLayerOrderLocked
@@ -125,6 +128,51 @@ describe("scene editing helpers", () => {
       id: "weather-1",
       visible: false
     });
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("patches a single drawing without changing other drawings", () => {
+    const scene = createDefaultScene("Drawings");
+    scene.drawings = [
+      { id: "drawing-1", kind: "line", points: [], color: "#fff", opacity: 1, strokeWidth: 8, visibleInPlayer: true },
+      { id: "drawing-2", kind: "line", points: [], color: "#fff", opacity: 1, strokeWidth: 8, visibleInPlayer: true }
+    ];
+
+    const next = patchSceneDrawing(scene, "drawing-1", { opacity: 0.5 }, "updated");
+
+    expect(next.drawings[0]).toMatchObject({ id: "drawing-1", opacity: 0.5 });
+    expect(next.drawings[1]).toMatchObject({ id: "drawing-2", opacity: 1 });
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("sets drawing Player View visibility", () => {
+    const scene = createDefaultScene("Drawings");
+    scene.drawings = [{ id: "drawing-1", kind: "line", points: [], color: "#fff", opacity: 1, strokeWidth: 8, visibleInPlayer: true }];
+
+    const next = setDrawingPlayerVisibility(scene, "drawing-1", false, "updated");
+
+    expect(next.drawings[0]).toMatchObject({ visibleInPlayer: false });
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("sets template footprint visibility", () => {
+    const scene = createDefaultScene("Drawings");
+    scene.drawings = [
+      {
+        id: "drawing-1",
+        kind: "line",
+        points: [],
+        color: "#fff",
+        opacity: 1,
+        strokeWidth: 8,
+        visibleInPlayer: true,
+        templateFootprintVisible: true
+      }
+    ];
+
+    const next = setDrawingTemplateFootprintVisibility(scene, "drawing-1", false, "updated");
+
+    expect(next.drawings[0]).toMatchObject({ templateFootprintVisible: false });
     expect(next.updatedAt).toBe("updated");
   });
 });

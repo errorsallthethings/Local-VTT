@@ -167,7 +167,12 @@ import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { duplicateDrawingElement } from "../lib/drawingDefaults";
 import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/dragTypes";
-import { setFogShapePlayerVisibility, setWeatherMaskVisibility } from "../lib/sceneEditing";
+import {
+  setDrawingPlayerVisibility,
+  setDrawingTemplateFootprintVisibility,
+  setFogShapePlayerVisibility,
+  setWeatherMaskVisibility
+} from "../lib/sceneEditing";
 import { duplicateToken } from "../lib/tokenDefaults";
 import { TokenSettings } from "./layers/TokenSettings";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
@@ -3147,13 +3152,7 @@ export function SceneCanvas({
                         setDrawingContextMenu(null);
                         return;
                       }
-                      onSceneChange({
-                        ...scene,
-                        drawings: scene.drawings.map((drawing) =>
-                          drawing.id === drawingContextMenu.drawingId ? { ...drawing, templateFootprintVisible: !event.target.checked } : drawing
-                        ),
-                        updatedAt: new Date().toISOString()
-                      });
+                      onSceneChange(setDrawingTemplateFootprintVisibility(scene, drawingContextMenu.drawingId, !event.target.checked));
                       setDrawingContextMenu(null);
                     }}
                   />
@@ -3174,13 +3173,7 @@ export function SceneCanvas({
                       setDrawingContextMenu(null);
                       return;
                     }
-                    onSceneChange({
-                      ...scene,
-                      drawings: scene.drawings.map((drawing) =>
-                        drawing.id === drawingContextMenu.drawingId ? { ...drawing, visibleInPlayer: !event.target.checked } : drawing
-                      ),
-                      updatedAt: new Date().toISOString()
-                    });
+                    onSceneChange(setDrawingPlayerVisibility(scene, drawingContextMenu.drawingId, !event.target.checked));
                     setDrawingContextMenu(null);
                   }}
                 />

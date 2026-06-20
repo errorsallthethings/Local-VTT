@@ -56,6 +56,22 @@ export function setWeatherMaskVisibility(scene: Scene, maskId: string, visible: 
   };
 }
 
+export function patchSceneDrawing(scene: Scene, drawingId: string, patch: Partial<Scene["drawings"][number]>, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    drawings: scene.drawings.map((drawing) => (drawing.id === drawingId ? { ...drawing, ...patch } : drawing)),
+    updatedAt
+  };
+}
+
+export function setDrawingTemplateFootprintVisibility(scene: Scene, drawingId: string, templateFootprintVisible: boolean, updatedAt = new Date().toISOString()): Scene {
+  return patchSceneDrawing(scene, drawingId, { templateFootprintVisible }, updatedAt);
+}
+
+export function setDrawingPlayerVisibility(scene: Scene, drawingId: string, visibleInPlayer: boolean, updatedAt = new Date().toISOString()): Scene {
+  return patchSceneDrawing(scene, drawingId, { visibleInPlayer }, updatedAt);
+}
+
 export function patchSceneMapTransform(scene: Scene, patch: Partial<MapTransform>): Scene {
   return {
     ...scene,
