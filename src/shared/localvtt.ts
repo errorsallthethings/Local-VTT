@@ -1,5 +1,5 @@
-import { formatEnvironmentEffectName, isEnvironmentEffectType } from "./environmentEffectCatalog";
-import type { EnvironmentEffectType } from "./environmentEffectCatalog";
+import { formatEnvironmentEffectName, isEnvironmentEffectType } from "./environmentEffectCatalog.js";
+import type { EnvironmentEffectType } from "./environmentEffectCatalog.js";
 import {
   normalizeAcidEffectTuning,
   normalizeArcaneEffectTuning,
@@ -19,7 +19,7 @@ import {
   normalizeSmokeEffectTuning,
   normalizeVoidEffectTuning,
   normalizeWaterEffectTuning
-} from "./environmentEffectTuning";
+} from "./environmentEffectTuning.js";
 import type {
   AcidEffectTuningSettings,
   ArcaneEffectTuningSettings,
@@ -39,9 +39,9 @@ import type {
   SmokeEffectTuningSettings,
   VoidEffectTuningSettings,
   WaterEffectTuningSettings
-} from "./environmentEffectTuning";
+} from "./environmentEffectTuning.js";
 
-export type { EnvironmentEffectType } from "./environmentEffectCatalog";
+export type { EnvironmentEffectType } from "./environmentEffectCatalog.js";
 
 export type AssetKind = "map" | "token" | "overlay" | "effect" | "handout";
 export type AssetMediaType = "image" | "video";
@@ -240,7 +240,7 @@ export type {
   SmokeEffectTuningSettings,
   VoidEffectTuningSettings,
   WaterEffectTuningSettings
-} from "./environmentEffectTuning";
+} from "./environmentEffectTuning.js";
 export {
   DEFAULT_ACID_EFFECT_TUNING_SETTINGS,
   DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS,
@@ -260,7 +260,7 @@ export {
   DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS,
   DEFAULT_VOID_EFFECT_TUNING_SETTINGS,
   DEFAULT_WATER_EFFECT_TUNING_SETTINGS
-} from "./environmentEffectTuning";
+} from "./environmentEffectTuning.js";
 
 export interface EnvironmentEffectMask {
   id: string;
