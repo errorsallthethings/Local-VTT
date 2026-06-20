@@ -128,6 +128,7 @@ import { distanceBetween, getSnappedTokenPosition, getTokenAtPoint } from "../ca
 import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey, parseTokenImageSourceKey } from "../canvas/tokenImageSource";
 import {
   getSceneAfterTokenDrag,
+  getTokenDragPreviewFromPoint,
   getTokenMovementTweens,
   getTokenWaypointPosition,
   isDuplicateTokenWaypoint
@@ -1812,32 +1813,7 @@ export function SceneCanvas({
         cancelTokenDrag();
         return;
       }
-      const currentPosition = {
-        x: point.x - tokenDrag.offset.x,
-        y: point.y - tokenDrag.offset.y
-      };
-      const snappedPosition = getSnappedTokenPosition(currentPosition, token, scene);
-      const currentDelta = {
-        x: currentPosition.x - tokenDrag.startPosition.x,
-        y: currentPosition.y - tokenDrag.startPosition.y
-      };
-      const tokenPositions = new Map(
-        [...tokenDrag.groupStartPositions.entries()].map(([tokenId, startPosition]) => [
-          tokenId,
-          {
-            x: startPosition.x + currentDelta.x,
-            y: startPosition.y + currentDelta.y
-          }
-        ])
-      );
-      setTokenDragPreview({
-        tokenId: token.id,
-        startPosition: tokenDrag.startPosition,
-        currentPosition,
-        snappedPosition,
-        waypoints: tokenDrag.waypoints,
-        tokenPositions
-      });
+      setTokenDragPreview(getTokenDragPreviewFromPoint(scene, tokenDrag, token, point));
       return;
     }
 

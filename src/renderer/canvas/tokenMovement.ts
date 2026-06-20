@@ -1,5 +1,5 @@
 import type { Point, Scene, Token } from "../../shared/localvtt";
-import { getNearestGridCellCenter, getNearestHexCenter, distanceBetween } from "./tokenGeometry";
+import { getNearestGridCellCenter, getNearestHexCenter, getSnappedTokenPosition, distanceBetween } from "./tokenGeometry";
 import { getPathDistance, normalizeMovementPath } from "./movementPath";
 import { updateSceneTokenPositions } from "../lib/sceneEditing";
 import type { TokenDragState } from "./sceneInteractionTypes";
@@ -36,6 +36,35 @@ export function getSceneAfterTokenDrag(scene: Scene, tokenDrag: TokenDragState, 
           }
         }
       : undefined
+  };
+}
+
+export function getTokenDragPreviewFromPoint(scene: Scene, tokenDrag: TokenDragState, token: Token, point: Point): TokenDragPreview {
+  const currentPosition = {
+    x: point.x - tokenDrag.offset.x,
+    y: point.y - tokenDrag.offset.y
+  };
+  const snappedPosition = getSnappedTokenPosition(currentPosition, token, scene);
+  const currentDelta = {
+    x: currentPosition.x - tokenDrag.startPosition.x,
+    y: currentPosition.y - tokenDrag.startPosition.y
+  };
+  const tokenPositions = new Map(
+    [...tokenDrag.groupStartPositions.entries()].map(([tokenId, startPosition]) => [
+      tokenId,
+      {
+        x: startPosition.x + currentDelta.x,
+        y: startPosition.y + currentDelta.y
+      }
+    ])
+  );
+  return {
+    tokenId: token.id,
+    startPosition: tokenDrag.startPosition,
+    currentPosition,
+    snappedPosition,
+    waypoints: tokenDrag.waypoints,
+    tokenPositions
   };
 }
 
