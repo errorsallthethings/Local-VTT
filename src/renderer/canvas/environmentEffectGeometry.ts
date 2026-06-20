@@ -67,10 +67,18 @@ export function isMeaningfulEnvironmentEffectDrag(drag: EnvironmentEffectDrag): 
   return drag.kind === "circle" ? distanceBetween(drag.start, drag.current) > 8 : Math.abs(drag.current.x - drag.start.x) > 8 && Math.abs(drag.current.y - drag.start.y) > 8;
 }
 
+export function isEnvironmentEffectVisibleForMode(effect: EnvironmentEffectMask, mode: "gm" | "player"): boolean {
+  return mode === "gm" ? effect.visibleInGm !== false : effect.visibleInPlayer !== false;
+}
+
+export function getClampedEnvironmentEffectFeather(effect: EnvironmentEffectMask): number {
+  return Math.max(0, Math.min(1, effect.feather ?? 0));
+}
+
 export function shouldAnimateEnvironmentEffects(scene: Scene | null, mode: "gm" | "player", layerVisible: boolean): boolean {
   return Boolean(
     scene &&
       layerVisible &&
-      scene.environment.effects.some((effect) => (mode === "gm" ? effect.visibleInGm !== false : effect.visibleInPlayer !== false))
+      scene.environment.effects.some((effect) => isEnvironmentEffectVisibleForMode(effect, mode))
   );
 }

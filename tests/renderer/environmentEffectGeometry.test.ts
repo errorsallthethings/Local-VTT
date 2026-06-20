@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene } from "../../src/shared/localvtt";
-import { environmentDragToMask, isMeaningfulEnvironmentEffectDrag, shouldAnimateEnvironmentEffects, type EnvironmentEffectDrag } from "../../src/renderer/canvas/environmentEffectGeometry";
+import {
+  environmentDragToMask,
+  getClampedEnvironmentEffectFeather,
+  isEnvironmentEffectVisibleForMode,
+  isMeaningfulEnvironmentEffectDrag,
+  shouldAnimateEnvironmentEffects,
+  type EnvironmentEffectDrag
+} from "../../src/renderer/canvas/environmentEffectGeometry";
 
 function drag(overrides: Partial<EnvironmentEffectDrag> = {}): EnvironmentEffectDrag {
   return {
@@ -48,6 +55,24 @@ describe("environment effect geometry", () => {
     expect(isMeaningfulEnvironmentEffectDrag(drag({ kind: "circle", start: { x: 0, y: 0 }, current: { x: 9, y: 0 } }))).toBe(true);
     expect(isMeaningfulEnvironmentEffectDrag(drag({ start: { x: 0, y: 0 }, current: { x: 9, y: 8 } }))).toBe(false);
     expect(isMeaningfulEnvironmentEffectDrag(drag({ start: { x: 0, y: 0 }, current: { x: 9, y: 9 } }))).toBe(true);
+  });
+
+  it("checks environment effect visibility for each view", () => {
+    const effect = environmentDragToMask(drag());
+
+    expect(isEnvironmentEffectVisibleForMode(effect, "gm")).toBe(true);
+    expect(isEnvironmentEffectVisibleForMode(effect, "player")).toBe(true);
+    expect(isEnvironmentEffectVisibleForMode({ ...effect, visibleInGm: false }, "gm")).toBe(false);
+    expect(isEnvironmentEffectVisibleForMode({ ...effect, visibleInPlayer: false }, "player")).toBe(false);
+  });
+
+  it("clamps environment effect feather values", () => {
+    const effect = environmentDragToMask(drag());
+
+    expect(getClampedEnvironmentEffectFeather(effect)).toBe(0);
+    expect(getClampedEnvironmentEffectFeather({ ...effect, feather: -1 })).toBe(0);
+    expect(getClampedEnvironmentEffectFeather({ ...effect, feather: 0.45 })).toBe(0.45);
+    expect(getClampedEnvironmentEffectFeather({ ...effect, feather: 2 })).toBe(1);
   });
 
   it("does not animate effects without a scene, visible layer, or visible effects", () => {

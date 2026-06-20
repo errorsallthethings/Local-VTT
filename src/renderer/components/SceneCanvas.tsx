@@ -156,6 +156,8 @@ import {
 } from "../canvas/environmentFeather";
 import {
   environmentDragToMask,
+  getClampedEnvironmentEffectFeather,
+  isEnvironmentEffectVisibleForMode,
   isMeaningfulEnvironmentEffectDrag,
   shouldAnimateEnvironmentEffects,
   type EnvironmentEffectDrag
@@ -4074,11 +4076,10 @@ function drawEnvironmentEffects(
   fogEffectTuning?: FogEffectTuning
 ) {
   for (const effect of effects) {
-    const visible = mode === "gm" ? effect.visibleInGm !== false : effect.visibleInPlayer !== false;
-    if (!visible) {
+    if (!isEnvironmentEffectVisibleForMode(effect, mode)) {
       continue;
     }
-    const feather = Math.max(0, Math.min(1, effect.feather ?? 0));
+    const feather = getClampedEnvironmentEffectFeather(effect);
     if (feather > 0) {
       drawFeatheredEnvironmentEffect(ctx, effect, camera, timestamp, layerOpacity, feather, acidEffectTuning, coldEffectTuning, darknessEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
       continue;
