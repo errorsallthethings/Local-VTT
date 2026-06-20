@@ -30,7 +30,7 @@ import {
   type FogTool
 } from "../canvas/fogRenderer";
 import { drawHexGrid, drawSquareGrid } from "../canvas/gridRenderer";
-import { getNearestSquareGridSnapPoint } from "../canvas/gridMath";
+import { constrainSquarePoint } from "../canvas/gridMath";
 import {
   drawLiveTableEvents,
   hasActiveLiveTableEvents,
@@ -59,6 +59,7 @@ import {
 } from "../canvas/selectionGeometry";
 import { drawSelectionBox } from "../canvas/selectionRenderer";
 import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/sceneHitTesting";
+import { getNearestSceneSnapPoint, getRulerSnapPoint } from "../canvas/sceneSnapping";
 import {
   formatDefaultTemplateDrawingName,
   getDrawingKindForTool,
@@ -66,7 +67,7 @@ import {
   getTemplatePreviewDrawing,
   isTemplateDrawingTool
 } from "../canvas/templateDrawing";
-import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
+import { distanceBetween, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
 import {
   getTokenMovementPath,
   getTokenMovementTweens,
@@ -4140,45 +4141,8 @@ function getCameraForMapFit(scene: Scene, sourceWidth: number, sourceHeight: num
   };
 }
 
-function getRulerSnapPoint(point: Point, scene: Scene): Point | null {
-  if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
-    return null;
-  }
-  if (scene.grid.type === "hex") {
-    return getNearestHexCenter(point, scene.grid);
-  }
-  return getNearestGridCellCenter(point, scene.grid);
-}
-
-function getNearestSceneSnapPoint(point: Point, scene: Scene): Point | null {
-  if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
-    return null;
-  }
-  const candidates =
-    scene.grid.type === "hex"
-      ? [getNearestHexCenter(point, scene.grid), getNearestHexVertex(point, scene.grid)]
-      : [getNearestSquareGridSnapPoint(point, scene.grid)].filter((candidate): candidate is Point => Boolean(candidate));
-
-  return candidates.reduce<Point | null>((nearest, candidate) => {
-    if (!nearest) {
-      return candidate;
-    }
-    return distanceBetween(candidate, point) < distanceBetween(nearest, point) ? candidate : nearest;
-  }, null);
-}
-
 function isSnapModifier(event: React.PointerEvent<HTMLCanvasElement>): boolean {
   return event.ctrlKey || event.metaKey;
-}
-
-function constrainSquarePoint(start: Point, current: Point): Point {
-  const width = current.x - start.x;
-  const height = current.y - start.y;
-  const size = Math.max(Math.abs(width), Math.abs(height));
-  return {
-    x: start.x + Math.sign(width || 1) * size,
-    y: start.y + Math.sign(height || 1) * size
-  };
 }
 
 function drawSnapMarker(ctx: CanvasRenderingContext2D, point: Point, camera: Camera, operation: "reveal" | "hide") {

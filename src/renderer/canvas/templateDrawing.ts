@@ -1,5 +1,6 @@
 import { formatDefaultDrawingName, type DrawingElement, type DrawingKind, type DrawingTemplateEffect, type Point, type Scene } from "../../shared/localvtt";
 import { getDrawingPreviewPoints, type DrawingPreview, type DrawingTool } from "./drawingRenderer";
+import { constrainSquarePoint } from "./gridMath";
 
 export type DrawingTemplateSize = "custom" | 5 | 10 | 15 | 20 | 30 | 60 | 100;
 
@@ -124,14 +125,4 @@ export function getTemplateEffectNamePart(effect: DrawingTemplateEffect): string
     web: "Web"
   };
   return ` - ${labels[effect]}`;
-}
-
-function constrainSquarePoint(start: Point, current: Point): Point {
-  const width = current.x - start.x;
-  const height = current.y - start.y;
-  const size = Math.max(Math.abs(width), Math.abs(height));
-  return {
-    x: start.x + Math.sign(width || 1) * size,
-    y: start.y + Math.sign(height || 1) * size
-  };
 }

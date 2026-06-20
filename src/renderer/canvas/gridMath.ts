@@ -42,3 +42,13 @@ export function getNearestSquareGridSnapPoint(point: Point, grid: GridSettings):
     return candidateDistance < nearestDistance ? candidate : nearest;
   });
 }
+
+export function constrainSquarePoint(start: Point, current: Point): Point {
+  const width = current.x - start.x;
+  const height = current.y - start.y;
+  const size = Math.max(Math.abs(width), Math.abs(height));
+  return {
+    x: start.x + Math.sign(width || 1) * size,
+    y: start.y + Math.sign(height || 1) * size
+  };
+}
