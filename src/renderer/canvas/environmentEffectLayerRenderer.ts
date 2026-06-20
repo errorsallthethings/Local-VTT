@@ -55,7 +55,8 @@ import {
   type ShockwaveEffectTuning,
   type SmokeEffectTuning,
   type VoidEffectTuning,
-  type WaterEffectTuning
+  type WaterEffectTuning,
+  type ScreenBounds
 } from "./environmentEffectsRenderer";
 import {
   environmentDragToMask,
@@ -315,183 +316,170 @@ function applyPolygonEnvironmentFeather(ctx: CanvasRenderingContext2D, effect: E
 }
 
 function drawWaterEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, waterEffectTuning?: WaterEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.waterTuning ? { ...DEFAULT_WATER_EFFECT_TUNING, ...effect.waterTuning } : waterEffectTuning;
   drawEnvironmentWaterEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawAcidEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, acidEffectTuning?: AcidEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.acidTuning ? { ...DEFAULT_ACID_EFFECT_TUNING, ...effect.acidTuning } : acidEffectTuning;
   drawEnvironmentAcidEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawPoisonEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, poisonEffectTuning?: PoisonEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.poisonTuning ? { ...DEFAULT_POISON_EFFECT_TUNING, ...effect.poisonTuning } : poisonEffectTuning;
   drawEnvironmentPoisonEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawColdEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, coldEffectTuning?: ColdEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.coldTuning ? { ...DEFAULT_COLD_EFFECT_TUNING, ...effect.coldTuning } : coldEffectTuning;
   drawEnvironmentColdEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawDarknessEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, darknessEffectTuning?: DarknessEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.darknessTuning ? { ...DEFAULT_DARKNESS_EFFECT_TUNING, ...effect.darknessTuning } : darknessEffectTuning;
   drawEnvironmentDarknessEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawLavaEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, lavaEffectTuning?: LavaEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.lavaTuning ? { ...DEFAULT_LAVA_EFFECT_TUNING, ...effect.lavaTuning } : lavaEffectTuning;
   drawEnvironmentLavaEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawFireEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, fireEffectTuning?: FireEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.fireTuning ? { ...DEFAULT_FIRE_EFFECT_TUNING, ...effect.fireTuning } : fireEffectTuning;
   drawEnvironmentFireEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawLightningEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, lightningEffectTuning?: LightningEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.lightningTuning ? { ...DEFAULT_LIGHTNING_EFFECT_TUNING, ...effect.lightningTuning } : lightningEffectTuning;
   drawEnvironmentLightningEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawArcaneEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, arcaneEffectTuning?: ArcaneEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.arcaneTuning ? { ...DEFAULT_ARCANE_EFFECT_TUNING, ...effect.arcaneTuning } : arcaneEffectTuning;
   drawEnvironmentArcaneEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawChaosEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, chaosEffectTuning?: ChaosEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.chaosTuning ? { ...DEFAULT_CHAOS_EFFECT_TUNING, ...effect.chaosTuning } : chaosEffectTuning;
   drawEnvironmentChaosEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawVoidEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, voidEffectTuning?: VoidEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.voidTuning ? { ...DEFAULT_VOID_EFFECT_TUNING, ...effect.voidTuning } : voidEffectTuning;
   drawEnvironmentVoidEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawNatureEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, natureEffectTuning?: NatureEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.natureTuning ? { ...DEFAULT_NATURE_EFFECT_TUNING, ...effect.natureTuning } : natureEffectTuning;
   drawEnvironmentNatureEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawDistortionEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, distortionEffectTuning?: DistortionEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.distortionTuning ? { ...DEFAULT_DISTORTION_EFFECT_TUNING, ...effect.distortionTuning } : distortionEffectTuning;
   drawEnvironmentDistortionEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawRadiantEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, radiantEffectTuning?: RadiantEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.radiantTuning ? { ...DEFAULT_RADIANT_EFFECT_TUNING, ...effect.radiantTuning } : radiantEffectTuning;
   drawEnvironmentRadiantEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawForceFieldEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, forceFieldEffectTuning?: ForceFieldEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.fieldTuning ? { ...DEFAULT_FORCE_FIELD_EFFECT_TUNING, ...effect.fieldTuning } : forceFieldEffectTuning;
   drawEnvironmentForceFieldEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawShockwaveEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, shockwaveEffectTuning?: ShockwaveEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.shockwaveTuning ? { ...DEFAULT_SHOCKWAVE_EFFECT_TUNING, ...effect.shockwaveTuning } : shockwaveEffectTuning;
   drawEnvironmentShockwaveEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawSmokeEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, smokeEffectTuning?: SmokeEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.smokeTuning ? { ...DEFAULT_SMOKE_EFFECT_TUNING, ...effect.smokeTuning } : smokeEffectTuning;
   drawEnvironmentSmokeEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
 
 function drawFogMistEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, fogEffectTuning?: FogEffectTuning) {
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
+  const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+  if (!screenBounds) {
     return;
   }
-  const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.fogTuning ? { ...DEFAULT_FOG_EFFECT_TUNING, ...effect.fogTuning } : fogEffectTuning;
   drawEnvironmentFogEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
+}
+
+function getEnvironmentEffectScreenBounds(effect: EnvironmentEffectMask, camera: Camera): ScreenBounds | null {
+  const bounds = getEnvironmentEffectBounds(effect);
+  return bounds ? worldRectToScreen(bounds, camera) : null;
 }
 
 const ENVIRONMENT_EFFECT_DRAWERS: Record<EnvironmentEffectType, EnvironmentEffectDrawFn> = {
