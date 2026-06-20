@@ -1,4 +1,4 @@
-import type { EnvironmentEffectMask } from "../../shared/localvtt";
+import type { EnvironmentEffectMask, EnvironmentEffectType } from "../../shared/localvtt";
 import { getEnvironmentEffectBounds, getPointBounds } from "./boundsGeometry";
 import type { Camera } from "./camera";
 import {
@@ -94,6 +94,15 @@ interface EnvironmentEffectTuningOverrides {
   smokeEffectTuning?: SmokeEffectTuning;
   fogEffectTuning?: FogEffectTuning;
 }
+
+type EnvironmentEffectDrawFn = (
+  ctx: CanvasRenderingContext2D,
+  effect: EnvironmentEffectMask,
+  camera: Camera,
+  timestamp: number,
+  layerOpacity: number,
+  tuningOverrides: EnvironmentEffectTuningOverrides
+) => void;
 
 export function drawEnvironmentEffectPreview(ctx: CanvasRenderingContext2D, preview: EnvironmentEffectDrag, camera: Camera) {
   const effectMask = environmentDragToMask(preview);
@@ -200,43 +209,8 @@ function drawEnvironmentEffectContent(
   layerOpacity: number,
   tuningOverrides: EnvironmentEffectTuningOverrides
 ) {
-  if (effect.effect === "acid") {
-    drawAcidEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.acidEffectTuning);
-  } else if (effect.effect === "cold") {
-    drawColdEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.coldEffectTuning);
-  } else if (effect.effect === "darkness") {
-    drawDarknessEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.darknessEffectTuning);
-  } else if (effect.effect === "poison") {
-    drawPoisonEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.poisonEffectTuning);
-  } else if (effect.effect === "lava") {
-    drawLavaEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.lavaEffectTuning);
-  } else if (effect.effect === "fire") {
-    drawFireEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.fireEffectTuning);
-  } else if (effect.effect === "electric") {
-    drawLightningEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.lightningEffectTuning);
-  } else if (effect.effect === "arcane") {
-    drawArcaneEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.arcaneEffectTuning);
-  } else if (effect.effect === "chaos") {
-    drawChaosEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.chaosEffectTuning);
-  } else if (effect.effect === "void") {
-    drawVoidEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.voidEffectTuning);
-  } else if (effect.effect === "nature") {
-    drawNatureEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.natureEffectTuning);
-  } else if (effect.effect === "distortion") {
-    drawDistortionEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.distortionEffectTuning);
-  } else if (effect.effect === "radiant") {
-    drawRadiantEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.radiantEffectTuning);
-  } else if (effect.effect === "field") {
-    drawForceFieldEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.forceFieldEffectTuning);
-  } else if (effect.effect === "shockwave") {
-    drawShockwaveEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.shockwaveEffectTuning);
-  } else if (effect.effect === "fog") {
-    drawFogMistEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.fogEffectTuning);
-  } else if (effect.effect === "smoke") {
-    drawSmokeEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.smokeEffectTuning);
-  } else {
-    drawWaterEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.waterEffectTuning);
-  }
+  const drawEffect = ENVIRONMENT_EFFECT_DRAWERS[effect.effect] ?? ENVIRONMENT_EFFECT_DRAWERS.water;
+  drawEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides);
 }
 
 function applyEnvironmentEffectFeather(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, feather: number) {
@@ -519,6 +493,27 @@ function drawFogMistEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEff
   const tuning = effect.fogTuning ? { ...DEFAULT_FOG_EFFECT_TUNING, ...effect.fogTuning } : fogEffectTuning;
   drawEnvironmentFogEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
 }
+
+const ENVIRONMENT_EFFECT_DRAWERS: Record<EnvironmentEffectType, EnvironmentEffectDrawFn> = {
+  acid: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawAcidEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.acidEffectTuning),
+  arcane: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawArcaneEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.arcaneEffectTuning),
+  chaos: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawChaosEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.chaosEffectTuning),
+  cold: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawColdEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.coldEffectTuning),
+  darkness: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawDarknessEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.darknessEffectTuning),
+  distortion: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawDistortionEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.distortionEffectTuning),
+  electric: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawLightningEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.lightningEffectTuning),
+  field: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawForceFieldEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.forceFieldEffectTuning),
+  fire: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawFireEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.fireEffectTuning),
+  fog: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawFogMistEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.fogEffectTuning),
+  lava: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawLavaEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.lavaEffectTuning),
+  nature: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawNatureEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.natureEffectTuning),
+  poison: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawPoisonEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.poisonEffectTuning),
+  radiant: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawRadiantEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.radiantEffectTuning),
+  shockwave: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawShockwaveEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.shockwaveEffectTuning),
+  smoke: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawSmokeEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.smokeEffectTuning),
+  void: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawVoidEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.voidEffectTuning),
+  water: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawWaterEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.waterEffectTuning)
+};
 
 export function drawEnvironmentEffectShape(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, options: { fill: boolean; selected: boolean }) {
   const path = getEnvironmentEffectPath(effect, camera);
