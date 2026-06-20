@@ -71,6 +71,7 @@ import {
   type RulerDrag
 } from "../canvas/measurement";
 import { getPointAlongPath } from "../canvas/movementPath";
+import { removeLastPolygonDraftPoint } from "../canvas/polygonDraft";
 import {
   getDrawingContextLabel,
   getEnvironmentEffectContextLabel,
@@ -2588,29 +2589,25 @@ export function SceneCanvas({
     }
     event.preventDefault();
     if (draft) {
-      const nextPoints = draft.points.slice(0, -1);
-      const nextDraft = nextPoints.length > 0 ? { ...draft, points: nextPoints, current: nextPoints[nextPoints.length - 1] } : null;
+      const nextDraft = removeLastPolygonDraftPoint(draft);
       polygonDraftRef.current = nextDraft;
       setPolygonDraft(nextDraft);
       return;
     }
     if (drawingDraft) {
-      const nextPoints = drawingDraft.points.slice(0, -1);
-      const nextDraft = nextPoints.length > 0 ? { ...drawingDraft, points: nextPoints, current: nextPoints[nextPoints.length - 1] } : null;
+      const nextDraft = removeLastPolygonDraftPoint(drawingDraft);
       drawingPolygonDraftRef.current = nextDraft;
       setDrawingPolygonDraft(nextDraft);
       return;
     }
     if (weatherDraft) {
-      const nextPoints = weatherDraft.points.slice(0, -1);
-      const nextDraft = nextPoints.length > 0 ? { ...weatherDraft, points: nextPoints, current: nextPoints[nextPoints.length - 1] } : null;
+      const nextDraft = removeLastPolygonDraftPoint(weatherDraft);
       weatherPolygonDraftRef.current = nextDraft;
       setWeatherPolygonDraft(nextDraft);
       return;
     }
     if (environmentDraft) {
-      const nextPoints = environmentDraft.points.slice(0, -1);
-      const nextDraft = nextPoints.length > 0 ? { ...environmentDraft, points: nextPoints, current: nextPoints[nextPoints.length - 1] } : null;
+      const nextDraft = removeLastPolygonDraftPoint(environmentDraft);
       environmentPolygonDraftRef.current = nextDraft;
       setEnvironmentPolygonDraft(nextDraft);
     }

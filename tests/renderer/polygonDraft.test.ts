@@ -1,0 +1,29 @@
+import { describe, expect, it } from "vitest";
+import { removeLastPolygonDraftPoint } from "../../src/renderer/canvas/polygonDraft";
+
+describe("polygon draft helpers", () => {
+  it("removes the last point and moves current to the new last point", () => {
+    const draft = {
+      operation: "hide" as const,
+      points: [
+        { x: 1, y: 2 },
+        { x: 3, y: 4 },
+        { x: 5, y: 6 }
+      ],
+      current: { x: 10, y: 12 }
+    };
+
+    expect(removeLastPolygonDraftPoint(draft)).toEqual({
+      operation: "hide",
+      points: [
+        { x: 1, y: 2 },
+        { x: 3, y: 4 }
+      ],
+      current: { x: 3, y: 4 }
+    });
+  });
+
+  it("clears the draft when the last point is removed", () => {
+    expect(removeLastPolygonDraftPoint({ points: [{ x: 1, y: 2 }], current: { x: 1, y: 2 } })).toBeNull();
+  });
+});
