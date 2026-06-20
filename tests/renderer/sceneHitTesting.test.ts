@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { EnvironmentEffectMask, Scene, WeatherMask } from "../../src/shared/localvtt";
-import { getEnvironmentEffectAtPoint, getMaskHitAtPoint, isPointInsideEnvironmentEffect, isPointInsidePolygon, isPointInsideWeatherMask } from "../../src/renderer/canvas/sceneHitTesting";
+import {
+  getEnvironmentEffectAtPoint,
+  getMaskHitAtPoint,
+  isMaskHitVisibleForLayers,
+  isPointInsideEnvironmentEffect,
+  isPointInsidePolygon,
+  isPointInsideWeatherMask
+} from "../../src/renderer/canvas/sceneHitTesting";
 
 function makeScene(overrides: Partial<Scene>): Scene {
   return {
@@ -112,5 +119,25 @@ describe("scene hit testing", () => {
       kind: "fog",
       shape: fogShape
     });
+  });
+
+  it("checks whether mask hits are visible for the active layers", () => {
+    const weatherMask: WeatherMask = {
+      id: "weather",
+      kind: "rectangle",
+      points: []
+    };
+    const fogShape: Scene["fog"]["shapes"][number] = {
+      id: "fog",
+      operation: "hide",
+      kind: "rectangle",
+      points: []
+    };
+
+    expect(isMaskHitVisibleForLayers({ kind: "weather", mask: weatherMask }, true, false)).toBe(true);
+    expect(isMaskHitVisibleForLayers({ kind: "weather", mask: weatherMask }, false, true)).toBe(false);
+    expect(isMaskHitVisibleForLayers({ kind: "fog", shape: fogShape }, false, true)).toBe(true);
+    expect(isMaskHitVisibleForLayers({ kind: "fog", shape: fogShape }, true, false)).toBe(false);
+    expect(isMaskHitVisibleForLayers(null, true, true)).toBe(false);
   });
 });

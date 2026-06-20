@@ -5,6 +5,10 @@ export type MaskHit =
   | { kind: "weather"; mask: WeatherMask }
   | { kind: "fog"; shape: Scene["fog"]["shapes"][number] };
 
+export function isMaskHitVisibleForLayers(maskHit: MaskHit | null, canShowWeather: boolean | undefined, canShowFog: boolean | undefined): boolean {
+  return Boolean((maskHit?.kind === "weather" && canShowWeather) || (maskHit?.kind === "fog" && canShowFog));
+}
+
 export function getMaskHitAtPoint(scene: Scene, point: Point): MaskHit | null {
   for (const mask of [...scene.weather.masks].reverse()) {
     if ((mask.visible ?? true) && isPointInsideWeatherMask(point, mask)) {

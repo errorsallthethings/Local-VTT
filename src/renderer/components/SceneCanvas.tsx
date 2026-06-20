@@ -94,7 +94,7 @@ import {
   drawSnapMarker
 } from "../canvas/sceneOverlayRenderer";
 import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/environmentEffectLayerRenderer";
-import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/sceneHitTesting";
+import { getEnvironmentEffectAtPoint, getMaskHitAtPoint, isMaskHitVisibleForLayers } from "../canvas/sceneHitTesting";
 import { getSceneLayerVisibility } from "../canvas/sceneLayerVisibility";
 import { getNearestSceneSnapPoint, getRulerSnapPoint } from "../canvas/sceneSnapping";
 import {
@@ -2601,8 +2601,7 @@ export function SceneCanvas({
       return;
     }
     const maskHit = getMaskHitAtPoint(scene, point);
-    const hasVisibleMaskHit = Boolean((maskHit?.kind === "weather" && canShowWeather) || (maskHit?.kind === "fog" && canShowFog));
-    setSceneItemHover(hasVisibleMaskHit);
+    setSceneItemHover(isMaskHitVisibleForLayers(maskHit, canShowWeather, canShowFog));
   };
 
   const updatePolygonDraft = (tool: FogTool, point: Point) => {
