@@ -48,6 +48,13 @@ import {
   type RulerLabel
 } from "../canvas/measurement";
 import { getPointAlongPath } from "../canvas/movementPath";
+import {
+  isDrawingInSelectionRect,
+  isFogShapeInSelectionRect,
+  isTokenInSelectionRect,
+  isWeatherMaskInSelectionRect,
+  pointsToSelectionRect
+} from "../canvas/selectionGeometry";
 import { drawSelectionBox } from "../canvas/selectionRenderer";
 import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex, getSnappedTokenPosition, getTokenAtPoint, isPointInsideFogShape } from "../canvas/tokenGeometry";
 import {
@@ -4827,39 +4834,6 @@ function resizeCenterLockedPoints(points: Point[], bounds: { left: number; top: 
     x: center.x + (point.x - center.x) * scaleX,
     y: center.y + (point.y - center.y) * scaleY
   }));
-}
-
-function pointsToSelectionRect(start: Point, end: Point) {
-  return {
-    x: Math.min(start.x, end.x),
-    y: Math.min(start.y, end.y),
-    width: Math.abs(end.x - start.x),
-    height: Math.abs(end.y - start.y)
-  };
-}
-
-function isPointInSelectionRect(point: Point, rect: { x: number; y: number; width: number; height: number }): boolean {
-  return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
-}
-
-function isTokenInSelectionRect(token: Token, rect: { x: number; y: number; width: number; height: number }): boolean {
-  const center = { x: token.position.x + token.size.width / 2, y: token.position.y + token.size.height / 2 };
-  return isPointInSelectionRect(center, rect);
-}
-
-function isDrawingInSelectionRect(drawing: { points: Point[] }, rect: { x: number; y: number; width: number; height: number }): boolean {
-  return drawing.points.some((point) => isPointInSelectionRect(point, rect));
-}
-
-function isWeatherMaskInSelectionRect(mask: WeatherMask, rect: { x: number; y: number; width: number; height: number }): boolean {
-  if (mask.kind === "circle" && mask.points[0]) {
-    return isPointInSelectionRect(mask.points[0], rect);
-  }
-  return mask.points.some((point) => isPointInSelectionRect(point, rect));
-}
-
-function isFogShapeInSelectionRect(shape: Scene["fog"]["shapes"][number], rect: { x: number; y: number; width: number; height: number }): boolean {
-  return shape.points.some((point) => isPointInSelectionRect(point, rect));
 }
 
 function drawWeatherMaskPreview(ctx: CanvasRenderingContext2D, preview: WeatherMaskDrag, camera: Camera) {
