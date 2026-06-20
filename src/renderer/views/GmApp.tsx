@@ -440,7 +440,9 @@ export function GmApp() {
     setEnvironmentEffectEditorId(null);
   }, [activeScene?.environment.effects, environmentEffectEditorId]);
 
-  const updateEnvironmentEffectAcidTuning = (effectId: string, acidTuning: AcidEffectTuning) => {
+  type SceneEnvironmentEffect = Scene["environment"]["effects"][number];
+
+  const updateEnvironmentEffect = (effectId: string, updateEffect: (effect: SceneEnvironmentEffect) => SceneEnvironmentEffect) => {
     if (!activeScene) {
       return;
     }
@@ -448,301 +450,55 @@ export function GmApp() {
       ...activeScene,
       environment: {
         ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, acidTuning } : effect))
+        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? updateEffect(effect) : effect))
       },
       updatedAt: new Date().toISOString()
     });
   };
 
-  const updateEnvironmentEffectPoisonTuning = (effectId: string, poisonTuning: PoisonEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, poisonTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectColdTuning = (effectId: string, coldTuning: ColdEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, coldTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectDarknessTuning = (effectId: string, darknessTuning: DarknessEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, darknessTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectWaterTuning = (effectId: string, waterTuning: WaterEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, waterTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectLavaTuning = (effectId: string, lavaTuning: LavaEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, lavaTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectFireTuning = (effectId: string, fireTuning: FireEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, fireTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectLightningTuning = (effectId: string, lightningTuning: LightningEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, lightningTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectArcaneTuning = (effectId: string, arcaneTuning: ArcaneEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, arcaneTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectChaosTuning = (effectId: string, chaosTuning: ChaosEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, chaosTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectVoidTuning = (effectId: string, voidTuning: VoidEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, voidTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectNatureTuning = (effectId: string, natureTuning: NatureEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, natureTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectDistortionTuning = (effectId: string, distortionTuning: DistortionEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, distortionTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectRadiantTuning = (effectId: string, radiantTuning: RadiantEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, radiantTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectForceFieldTuning = (effectId: string, fieldTuning: ForceFieldEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, fieldTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectShockwaveTuning = (effectId: string, shockwaveTuning: ShockwaveEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, shockwaveTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectSmokeTuning = (effectId: string, smokeTuning: SmokeEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, smokeTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectFogTuning = (effectId: string, fogTuning: FogEffectTuning) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, fogTuning } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
-
-  const updateEnvironmentEffectFeather = (effectId: string, feather: number) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, feather } : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
-  };
+  const updateEnvironmentEffectAcidTuning = (effectId: string, acidTuning: AcidEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, acidTuning }));
+  const updateEnvironmentEffectPoisonTuning = (effectId: string, poisonTuning: PoisonEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, poisonTuning }));
+  const updateEnvironmentEffectColdTuning = (effectId: string, coldTuning: ColdEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, coldTuning }));
+  const updateEnvironmentEffectDarknessTuning = (effectId: string, darknessTuning: DarknessEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, darknessTuning }));
+  const updateEnvironmentEffectWaterTuning = (effectId: string, waterTuning: WaterEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, waterTuning }));
+  const updateEnvironmentEffectLavaTuning = (effectId: string, lavaTuning: LavaEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, lavaTuning }));
+  const updateEnvironmentEffectFireTuning = (effectId: string, fireTuning: FireEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, fireTuning }));
+  const updateEnvironmentEffectLightningTuning = (effectId: string, lightningTuning: LightningEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, lightningTuning }));
+  const updateEnvironmentEffectArcaneTuning = (effectId: string, arcaneTuning: ArcaneEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, arcaneTuning }));
+  const updateEnvironmentEffectChaosTuning = (effectId: string, chaosTuning: ChaosEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, chaosTuning }));
+  const updateEnvironmentEffectVoidTuning = (effectId: string, voidTuning: VoidEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, voidTuning }));
+  const updateEnvironmentEffectNatureTuning = (effectId: string, natureTuning: NatureEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, natureTuning }));
+  const updateEnvironmentEffectDistortionTuning = (effectId: string, distortionTuning: DistortionEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, distortionTuning }));
+  const updateEnvironmentEffectRadiantTuning = (effectId: string, radiantTuning: RadiantEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, radiantTuning }));
+  const updateEnvironmentEffectForceFieldTuning = (effectId: string, fieldTuning: ForceFieldEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, fieldTuning }));
+  const updateEnvironmentEffectShockwaveTuning = (effectId: string, shockwaveTuning: ShockwaveEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, shockwaveTuning }));
+  const updateEnvironmentEffectSmokeTuning = (effectId: string, smokeTuning: SmokeEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, smokeTuning }));
+  const updateEnvironmentEffectFogTuning = (effectId: string, fogTuning: FogEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, fogTuning }));
+  const updateEnvironmentEffectFeather = (effectId: string, feather: number) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, feather }));
 
   const updateEnvironmentEffectType = (effectId: string, effectType: EnvironmentEffectType) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) =>
-          effect.id === effectId
-            ? {
-                ...effect,
-                effect: effectType,
-                acidTuning: effectType === "acid" ? (effect.acidTuning ?? { ...DEFAULT_ACID_EFFECT_TUNING }) : undefined,
-                coldTuning: effectType === "cold" ? (effect.coldTuning ?? { ...DEFAULT_COLD_EFFECT_TUNING }) : undefined,
-                darknessTuning: effectType === "darkness" ? (effect.darknessTuning ?? { ...DEFAULT_DARKNESS_EFFECT_TUNING }) : undefined,
-                poisonTuning: effectType === "poison" ? (effect.poisonTuning ?? { ...DEFAULT_POISON_EFFECT_TUNING }) : undefined,
-                waterTuning: effectType === "water" ? (effect.waterTuning ?? { ...DEFAULT_WATER_EFFECT_TUNING }) : undefined,
-                lavaTuning: effectType === "lava" ? (effect.lavaTuning ?? { ...DEFAULT_LAVA_EFFECT_TUNING }) : undefined,
-                fireTuning: effectType === "fire" ? (effect.fireTuning ?? { ...DEFAULT_FIRE_EFFECT_TUNING }) : undefined,
-                lightningTuning: effectType === "electric" ? (effect.lightningTuning ?? { ...DEFAULT_LIGHTNING_EFFECT_TUNING }) : undefined,
-                arcaneTuning: effectType === "arcane" ? (effect.arcaneTuning ?? { ...DEFAULT_ARCANE_EFFECT_TUNING }) : undefined,
-                chaosTuning: effectType === "chaos" ? (effect.chaosTuning ?? { ...DEFAULT_CHAOS_EFFECT_TUNING }) : undefined,
-                voidTuning: effectType === "void" ? (effect.voidTuning ?? { ...DEFAULT_VOID_EFFECT_TUNING }) : undefined,
-                natureTuning: effectType === "nature" ? (effect.natureTuning ?? { ...DEFAULT_NATURE_EFFECT_TUNING }) : undefined,
-                distortionTuning: effectType === "distortion" ? (effect.distortionTuning ?? { ...DEFAULT_DISTORTION_EFFECT_TUNING }) : undefined,
-                radiantTuning: effectType === "radiant" ? (effect.radiantTuning ?? { ...DEFAULT_RADIANT_EFFECT_TUNING }) : undefined,
-                fieldTuning: effectType === "field" ? (effect.fieldTuning ?? { ...DEFAULT_FORCE_FIELD_EFFECT_TUNING }) : undefined,
-                shockwaveTuning: effectType === "shockwave" ? (effect.shockwaveTuning ?? { ...DEFAULT_SHOCKWAVE_EFFECT_TUNING }) : undefined,
-                smokeTuning: effectType === "smoke" ? (effect.smokeTuning ?? { ...DEFAULT_SMOKE_EFFECT_TUNING }) : undefined,
-                fogTuning: effectType === "fog" ? (effect.fogTuning ?? { ...DEFAULT_FOG_EFFECT_TUNING }) : undefined
-              }
-            : effect
-        )
-      },
-      updatedAt: new Date().toISOString()
-    });
+    updateEnvironmentEffect(effectId, (effect) => ({
+      ...effect,
+      effect: effectType,
+      acidTuning: effectType === "acid" ? (effect.acidTuning ?? { ...DEFAULT_ACID_EFFECT_TUNING }) : undefined,
+      coldTuning: effectType === "cold" ? (effect.coldTuning ?? { ...DEFAULT_COLD_EFFECT_TUNING }) : undefined,
+      darknessTuning: effectType === "darkness" ? (effect.darknessTuning ?? { ...DEFAULT_DARKNESS_EFFECT_TUNING }) : undefined,
+      poisonTuning: effectType === "poison" ? (effect.poisonTuning ?? { ...DEFAULT_POISON_EFFECT_TUNING }) : undefined,
+      waterTuning: effectType === "water" ? (effect.waterTuning ?? { ...DEFAULT_WATER_EFFECT_TUNING }) : undefined,
+      lavaTuning: effectType === "lava" ? (effect.lavaTuning ?? { ...DEFAULT_LAVA_EFFECT_TUNING }) : undefined,
+      fireTuning: effectType === "fire" ? (effect.fireTuning ?? { ...DEFAULT_FIRE_EFFECT_TUNING }) : undefined,
+      lightningTuning: effectType === "electric" ? (effect.lightningTuning ?? { ...DEFAULT_LIGHTNING_EFFECT_TUNING }) : undefined,
+      arcaneTuning: effectType === "arcane" ? (effect.arcaneTuning ?? { ...DEFAULT_ARCANE_EFFECT_TUNING }) : undefined,
+      chaosTuning: effectType === "chaos" ? (effect.chaosTuning ?? { ...DEFAULT_CHAOS_EFFECT_TUNING }) : undefined,
+      voidTuning: effectType === "void" ? (effect.voidTuning ?? { ...DEFAULT_VOID_EFFECT_TUNING }) : undefined,
+      natureTuning: effectType === "nature" ? (effect.natureTuning ?? { ...DEFAULT_NATURE_EFFECT_TUNING }) : undefined,
+      distortionTuning: effectType === "distortion" ? (effect.distortionTuning ?? { ...DEFAULT_DISTORTION_EFFECT_TUNING }) : undefined,
+      radiantTuning: effectType === "radiant" ? (effect.radiantTuning ?? { ...DEFAULT_RADIANT_EFFECT_TUNING }) : undefined,
+      fieldTuning: effectType === "field" ? (effect.fieldTuning ?? { ...DEFAULT_FORCE_FIELD_EFFECT_TUNING }) : undefined,
+      shockwaveTuning: effectType === "shockwave" ? (effect.shockwaveTuning ?? { ...DEFAULT_SHOCKWAVE_EFFECT_TUNING }) : undefined,
+      smokeTuning: effectType === "smoke" ? (effect.smokeTuning ?? { ...DEFAULT_SMOKE_EFFECT_TUNING }) : undefined,
+      fogTuning: effectType === "fog" ? (effect.fogTuning ?? { ...DEFAULT_FOG_EFFECT_TUNING }) : undefined
+    }));
   };
 
   const updateSelectedPlayerVisibility = (visibleInPlayer: boolean) => {
