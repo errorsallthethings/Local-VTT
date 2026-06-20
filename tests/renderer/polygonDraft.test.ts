@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint } from "../../src/renderer/canvas/polygonDraft";
+import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint, updatePolygonDraftCurrent } from "../../src/renderer/canvas/polygonDraft";
 
 describe("polygon draft helpers", () => {
   it("starts a new generic draft with the first point", () => {
@@ -47,6 +47,14 @@ describe("polygon draft helpers", () => {
       operation: "reveal",
       points: [{ x: 3, y: 4 }],
       current: { x: 3, y: 4 }
+    });
+  });
+
+  it("updates the current preview point while preserving draft fields", () => {
+    expect(updatePolygonDraftCurrent({ operation: "hide" as const, points: [{ x: 1, y: 2 }], current: { x: 1, y: 2 } }, { x: 7, y: 8 })).toEqual({
+      operation: "hide",
+      points: [{ x: 1, y: 2 }],
+      current: { x: 7, y: 8 }
     });
   });
 

@@ -20,6 +20,10 @@ export function appendScopedPolygonDraftPoint<TDraft extends PointPolygonDraft, 
     : ({ [scopeKey]: scopeValue, points: [point], current: point } as TDraft);
 }
 
+export function updatePolygonDraftCurrent<TDraft extends PointPolygonDraft>(draft: TDraft, point: Point): TDraft {
+  return { ...draft, current: point };
+}
+
 export function removeLastPolygonDraftPoint<TDraft extends PointPolygonDraft>(draft: TDraft): TDraft | null {
   const nextPoints = draft.points.slice(0, -1);
   return nextPoints.length > 0 ? { ...draft, points: nextPoints, current: nextPoints[nextPoints.length - 1] } : null;

@@ -81,7 +81,7 @@ import {
   type RulerDrag
 } from "../canvas/measurement";
 import { getPointAlongPath, removeLastWaypoint } from "../canvas/movementPath";
-import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint } from "../canvas/polygonDraft";
+import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint, updatePolygonDraftCurrent } from "../canvas/polygonDraft";
 import {
   formatDefaultEnvironmentEffectName,
   formatDefaultWeatherMaskName,
@@ -1841,22 +1841,22 @@ export function SceneCanvas({
     }
 
     if (drawingTool === "polygon" && drawingPolygonDraftRef.current) {
-      setDrawingPolygonDraft({ ...drawingPolygonDraftRef.current, current: getDrawingToolPoint(event, "polygon") });
+      setDrawingPolygonDraft(updatePolygonDraftCurrent(drawingPolygonDraftRef.current, getDrawingToolPoint(event, "polygon")));
       return;
     }
 
     if (polygonDraftRef.current) {
-      setPolygonDraft({ ...polygonDraftRef.current, current: getToolPoint(event) });
+      setPolygonDraft(updatePolygonDraftCurrent(polygonDraftRef.current, getToolPoint(event)));
       return;
     }
 
     if (weatherMaskTool === "polygon" && weatherPolygonDraftRef.current) {
-      setWeatherPolygonDraft({ ...weatherPolygonDraftRef.current, current: getToolPoint(event) });
+      setWeatherPolygonDraft(updatePolygonDraftCurrent(weatherPolygonDraftRef.current, getToolPoint(event)));
       return;
     }
 
     if (environmentEffectTool === "polygon" && environmentPolygonDraftRef.current) {
-      setEnvironmentPolygonDraft({ ...environmentPolygonDraftRef.current, current: getToolPoint(event) });
+      setEnvironmentPolygonDraft(updatePolygonDraftCurrent(environmentPolygonDraftRef.current, getToolPoint(event)));
       return;
     }
 
