@@ -77,7 +77,7 @@ import {
 } from "../lib/recentCampaigns";
 import { createImportedToken } from "../lib/tokenDefaults";
 import { getSelectedTokenAssetIds, mergeTokenAssetUsage, removeSceneTokensByAsset } from "../lib/tokenLibrary";
-import { addTurnOrderEntry, createTurnOrderEntryFromToken, stopTurnOrder } from "../lib/turnOrder";
+import { addTurnOrderEntry, createTurnOrderEntryFromToken, removeTurnOrderEntriesForPlayer, stopTurnOrder, updateTurnOrderEntriesForPlayer } from "../lib/turnOrder";
 import {
   COLLAPSED_RAIL_WIDTH,
   COMPACT_RIGHT_PANEL_WIDTH,
@@ -1087,25 +1087,7 @@ export function GmApp() {
     const nextCampaign = { ...campaign, players, updatedAt };
     updateCampaignDraft(nextCampaign);
     if (activeScene && updatedPlayer && activeScene.turnOrder.entries.some((entry) => entry.playerId === playerId)) {
-      updateScene(
-        {
-          ...activeScene,
-          turnOrder: {
-            ...activeScene.turnOrder,
-            entries: activeScene.turnOrder.entries.map((entry) =>
-              entry.playerId === playerId
-                ? {
-                    ...entry,
-                    name: updatedPlayer.name,
-                    assetId: updatedPlayer.assetId
-                  }
-                : entry
-            )
-          },
-          updatedAt
-        },
-        nextCampaign
-      );
+      updateScene(updateTurnOrderEntriesForPlayer(activeScene, updatedPlayer, updatedAt), nextCampaign);
     }
   };
 
@@ -1121,17 +1103,7 @@ export function GmApp() {
     };
     updateCampaignDraft(nextCampaign);
     if (activeScene?.turnOrder.entries.some((entry) => entry.playerId === playerId)) {
-      updateScene(
-        {
-          ...activeScene,
-          turnOrder: {
-            ...activeScene.turnOrder,
-            entries: activeScene.turnOrder.entries.filter((entry) => entry.playerId !== playerId)
-          },
-          updatedAt
-        },
-        nextCampaign
-      );
+      updateScene(removeTurnOrderEntriesForPlayer(activeScene, playerId, updatedAt), nextCampaign);
     }
   };
 

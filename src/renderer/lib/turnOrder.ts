@@ -74,9 +74,49 @@ export function updateTurnOrderEntry(scene: Scene, entryId: string, patch: Parti
   );
 }
 
+export function updateTurnOrderEntriesForPlayer(scene: Scene, player: CampaignPlayer, updatedAt = new Date().toISOString()): Scene {
+  if (!scene.turnOrder.entries.some((entry) => entry.playerId === player.id)) {
+    return scene;
+  }
+  return patchTurnOrder(
+    scene,
+    {
+      entries: scene.turnOrder.entries.map((entry) =>
+        entry.playerId === player.id
+          ? {
+              ...entry,
+              name: player.name,
+              assetId: player.assetId
+            }
+          : entry
+      )
+    },
+    updatedAt
+  );
+}
+
 export function removeTurnOrderEntry(scene: Scene, entryId: string, updatedAt = new Date().toISOString()): Scene {
   const entries = scene.turnOrder.entries.filter((entry) => entry.id !== entryId);
   const currentEntryId = getValidCurrentEntryId(entries, scene.turnOrder.currentEntryId === entryId ? undefined : scene.turnOrder.currentEntryId) ?? entries[0]?.id;
+  return patchTurnOrder(
+    scene,
+    {
+      entries,
+      currentEntryId,
+      active: entries.length > 0 && scene.turnOrder.active,
+      playerViewVisible: entries.length > 0 && scene.turnOrder.playerViewVisible
+    },
+    updatedAt
+  );
+}
+
+export function removeTurnOrderEntriesForPlayer(scene: Scene, playerId: string, updatedAt = new Date().toISOString()): Scene {
+  const entriesToRemove = new Set(scene.turnOrder.entries.filter((entry) => entry.playerId === playerId).map((entry) => entry.id));
+  if (entriesToRemove.size === 0) {
+    return scene;
+  }
+  const entries = scene.turnOrder.entries.filter((entry) => !entriesToRemove.has(entry.id));
+  const currentEntryId = getValidCurrentEntryId(entries, entriesToRemove.has(scene.turnOrder.currentEntryId ?? "") ? undefined : scene.turnOrder.currentEntryId) ?? entries[0]?.id;
   return patchTurnOrder(
     scene,
     {
