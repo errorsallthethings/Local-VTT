@@ -71,7 +71,7 @@ import {
   type RulerDrag
 } from "../canvas/measurement";
 import { getPointAlongPath } from "../canvas/movementPath";
-import { removeLastPolygonDraftPoint } from "../canvas/polygonDraft";
+import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint } from "../canvas/polygonDraft";
 import {
   getDrawingContextLabel,
   getEnvironmentEffectContextLabel,
@@ -2608,31 +2608,28 @@ export function SceneCanvas({
   const updatePolygonDraft = (tool: FogTool, point: Point) => {
     const currentDraft = polygonDraftRef.current;
     const operation = getFogOperationForTool(tool);
-    const nextDraft =
-      currentDraft && currentDraft.operation === operation
-        ? { ...currentDraft, points: [...currentDraft.points, point], current: point }
-        : { operation, points: [point], current: point };
+    const nextDraft = appendScopedPolygonDraftPoint(currentDraft, point, "operation", operation);
     setPolygonDraft(nextDraft);
     polygonDraftRef.current = nextDraft;
   };
 
   const updateWeatherPolygonDraft = (point: Point) => {
     const currentDraft = weatherPolygonDraftRef.current;
-    const nextDraft = currentDraft ? { ...currentDraft, points: [...currentDraft.points, point], current: point } : { points: [point], current: point };
+    const nextDraft = appendPolygonDraftPoint(currentDraft, point);
     setWeatherPolygonDraft(nextDraft);
     weatherPolygonDraftRef.current = nextDraft;
   };
 
   const updateEnvironmentPolygonDraft = (point: Point) => {
     const currentDraft = environmentPolygonDraftRef.current;
-    const nextDraft = currentDraft ? { ...currentDraft, points: [...currentDraft.points, point], current: point } : { points: [point], current: point };
+    const nextDraft = appendPolygonDraftPoint(currentDraft, point);
     setEnvironmentPolygonDraft(nextDraft);
     environmentPolygonDraftRef.current = nextDraft;
   };
 
   const updateDrawingPolygonDraft = (point: Point) => {
     const currentDraft = drawingPolygonDraftRef.current;
-    const nextDraft = currentDraft ? { ...currentDraft, points: [...currentDraft.points, point], current: point } : { points: [point], current: point };
+    const nextDraft = appendPolygonDraftPoint(currentDraft, point);
     setDrawingPolygonDraft(nextDraft);
     drawingPolygonDraftRef.current = nextDraft;
   };
