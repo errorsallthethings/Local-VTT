@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Asset } from "../../src/shared/localvtt";
-import { filterTokenLibraryAssets, getSelectedTokenLibraryAsset, getSelectedTokenLibraryAssetIds } from "../../src/renderer/lib/tokenLibrary";
+import type { Asset, Token } from "../../src/shared/localvtt";
+import { filterTokenLibraryAssets, getSelectedTokenAssetIds, getSelectedTokenLibraryAsset, getSelectedTokenLibraryAssetIds } from "../../src/renderer/lib/tokenLibrary";
 
 function tokenAsset(id: string, name: string, originalFileName: string, createdAt: string): Asset {
   return {
@@ -11,6 +11,19 @@ function tokenAsset(id: string, name: string, originalFileName: string, createdA
     relativePath: `tokens/${id}.png`,
     originalFileName,
     createdAt
+  };
+}
+
+function sceneToken(id: string, assetId?: string): Token {
+  return {
+    id,
+    assetId,
+    name: id,
+    position: { x: 0, y: 0 },
+    size: { width: 1, height: 1 },
+    rotation: 0,
+    hidden: false,
+    visibleInPlayer: true
   };
 }
 
@@ -42,5 +55,25 @@ describe("token library helpers", () => {
     expect(getSelectedTokenLibraryAsset(assets, "zombie")?.name).toBe("zombie");
     expect(getSelectedTokenLibraryAsset(assets, "missing")).toBeNull();
     expect(getSelectedTokenLibraryAsset(assets, undefined)).toBeNull();
+  });
+
+  it("derives selected token asset ids from scene token selections", () => {
+    const selected = getSelectedTokenAssetIds(
+      [sceneToken("token-1", "asset-1"), sceneToken("token-2"), sceneToken("token-3", "asset-3")],
+      "token-1",
+      ["token-1", "token-2", "token-3"]
+    );
+
+    expect(selected).toEqual({
+      selectedTokenAssetId: "asset-1",
+      selectedTokenAssetIds: ["asset-1", "asset-3"]
+    });
+  });
+
+  it("returns empty selected token asset ids without tokens", () => {
+    expect(getSelectedTokenAssetIds(undefined, "token-1", ["token-1"])).toEqual({
+      selectedTokenAssetId: undefined,
+      selectedTokenAssetIds: []
+    });
   });
 });

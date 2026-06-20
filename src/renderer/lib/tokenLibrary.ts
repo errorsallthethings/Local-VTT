@@ -1,4 +1,4 @@
-import type { Asset } from "../../shared/localvtt";
+import type { Asset, Token } from "../../shared/localvtt";
 import { getSelectedItemIds } from "./selectionIds";
 
 export type TokenLibrarySort = "name-asc" | "newest" | "oldest";
@@ -16,6 +16,29 @@ export function getSelectedTokenLibraryAssetIds(selectedTokenAssetId: string | u
 
 export function getSelectedTokenLibraryAsset(assets: Asset[], selectedTokenAssetId: string | undefined): Asset | null {
   return selectedTokenAssetId ? (assets.find((asset) => asset.id === selectedTokenAssetId) ?? null) : null;
+}
+
+export interface SelectedTokenAssetIds {
+  selectedTokenAssetId: string | undefined;
+  selectedTokenAssetIds: string[];
+}
+
+export function getSelectedTokenAssetIds(tokens: readonly Token[] | undefined, selectedTokenId: string | null, selectedTokenIds: readonly string[]): SelectedTokenAssetIds {
+  if (!tokens || tokens.length === 0) {
+    return { selectedTokenAssetId: undefined, selectedTokenAssetIds: [] };
+  }
+  const selectedTokenIdSet = new Set(selectedTokenIds);
+  let selectedTokenAssetId: string | undefined;
+  const selectedTokenAssetIds: string[] = [];
+  for (const token of tokens) {
+    if (token.id === selectedTokenId) {
+      selectedTokenAssetId = token.assetId;
+    }
+    if (selectedTokenIdSet.has(token.id) && token.assetId) {
+      selectedTokenAssetIds.push(token.assetId);
+    }
+  }
+  return { selectedTokenAssetId, selectedTokenAssetIds };
 }
 
 function sortTokenAssets(a: Asset, b: Asset, sort: TokenLibrarySort): number {

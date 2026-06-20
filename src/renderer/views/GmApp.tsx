@@ -67,6 +67,7 @@ import {
   type RecentCampaign
 } from "../lib/recentCampaigns";
 import { createImportedToken } from "../lib/tokenDefaults";
+import { getSelectedTokenAssetIds } from "../lib/tokenLibrary";
 import { addTurnOrderEntry, createTurnOrderEntryFromToken, stopTurnOrder } from "../lib/turnOrder";
 import { ENVIRONMENT_EFFECT_FEATHER_OPTIONS, ENVIRONMENT_EFFECT_OPTIONS, applyEnvironmentEffectPreset, formatEnvironmentEffectOptionLabel, getEnvironmentEffectFeatherSelectValue, getEnvironmentEffectPresetOptions, getEnvironmentEffectPresetSelectValue } from "../lib/environmentEffectOptions";
 import {
@@ -260,6 +261,10 @@ export function GmApp() {
   const activeMapIsVideo = mapAsset?.mediaType === "video";
   const tokenAssets = useMemo(() => buildAssetsByKind(campaignAssets, "token"), [campaignAssets]);
   const tokenLibraryAssets = useMemo(() => [...tokenAssets.values()], [tokenAssets]);
+  const selectedTokenAssetIds = useMemo(
+    () => getSelectedTokenAssetIds(activeScene?.tokens, selectedTokenId, selectedTokenIds),
+    [activeScene?.tokens, selectedTokenId, selectedTokenIds]
+  );
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const selectorSelectionCounts = useMemo<SelectorSelectionCounts>(() => {
     const selectedDrawingIdSet = new Set(selectedDrawingIds);
@@ -2431,8 +2436,8 @@ export function GmApp() {
           onResetHeight={resetTokenLibraryHeight}
           onImportToken={() => void importToken("library")}
           onAddToken={addLibraryTokenToScene}
-          selectedTokenAssetId={activeScene?.tokens.find((token) => token.id === selectedTokenId)?.assetId}
-          selectedTokenAssetIds={activeScene?.tokens.filter((token) => selectedTokenIds.includes(token.id)).map((token) => token.assetId).filter((assetId): assetId is string => Boolean(assetId))}
+          selectedTokenAssetId={selectedTokenAssetIds.selectedTokenAssetId}
+          selectedTokenAssetIds={selectedTokenAssetIds.selectedTokenAssetIds}
           onSetTokenDefaults={openTokenDefaultsDialog}
           onRenameToken={openRenameTokenAssetDialog}
           onDeleteToken={(asset) => void openDeleteTokenAssetDialog(asset)}
