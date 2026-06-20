@@ -29,10 +29,10 @@ import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType }
 import type { FogTool } from "../../canvas/fogRenderer";
 import { DrawingSettings, type DrawingTemplateSize, type DrawingTemplateWidth } from "./DrawingToolSettings";
 import { AcidEffectTuningPanel, ArcaneEffectTuningPanel, ChaosEffectTuningPanel, ColdEffectTuningPanel, DarknessEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, NatureEffectTuningPanel, PoisonEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, VoidEffectTuningPanel, WaterEffectTuningPanel } from "./EnvironmentEffectTuningPanels";
+import { FogBrushSettings } from "./FogBrushSettings";
 import { SelectorFilterCheckbox, SelectorSelectionActions, SelectorSelectionSummary, type SelectorSelectionCounts, type SelectorSelectionFilters } from "./SelectorToolControls";
 import { TableToolSettings } from "./TableToolSettings";
 import { ToolHelpCard, type ToolHelpTopic } from "./ToolHelpCard";
-import { getPresetSelectValue, hasPresetValue } from "./toolPresetOptions";
 import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DarknessEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
 import {
   ENVIRONMENT_EFFECT_FEATHER_OPTIONS,
@@ -52,14 +52,6 @@ export type { SelectorSelectionCounts, SelectorSelectionFilters } from "./Select
 type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
 type ToolCategory = "mouse" | "drawing" | "templates" | "text" | "table" | "dice" | "turn-order" | "pin" | "fog" | "effects" | "lighting";
 export type MouseBehavior = "selector" | "grabber";
-
-const BRUSH_SIZE_PRESETS = [
-  { label: "Extra Thin", value: 20 },
-  { label: "Thin", value: 40 },
-  { label: "Medium", value: 80 },
-  { label: "Thick", value: 160 },
-  { label: "Extra Thick", value: 240 }
-];
 
 const DEFAULT_DRAWING_COLOR = "#ff0000";
 const DEFAULT_TEMPLATE_COLOR = "#7dd3fc";
@@ -913,37 +905,12 @@ export function ToolsMenu({
                 )}
               </div>
               {maskSettingsOpen && activeFogShape === "brush" && (
-                <div className="tools-brush-size">
-                  <div className="tools-strip-select-field">
-                    <strong>Brush Size</strong>
-                    <div>
-                      <select
-                        aria-label="Fog brush size"
-                        title="Fog brush size"
-                        value={getPresetSelectValue(BRUSH_SIZE_PRESETS, brushSize, fogBrushCustomOpen)}
-                        onChange={(event) => {
-                          if (event.target.value === "custom") {
-                            setFogBrushCustomOpen(true);
-                            return;
-                          }
-                          setFogBrushCustomOpen(false);
-                          onBrushSizeChange(Number(event.target.value));
-                        }}
-                      >
-                        {BRUSH_SIZE_PRESETS.map((preset) => (
-                          <option key={preset.label} value={preset.value}>{preset.label}</option>
-                        ))}
-                        <option value="custom">Custom</option>
-                      </select>
-                    </div>
-                  </div>
-                  {(fogBrushCustomOpen || !hasPresetValue(BRUSH_SIZE_PRESETS, brushSize)) && (
-                    <div className="tools-strip-advanced-slider tools-fog-brush-slider">
-                      <input aria-label="Fine tune fog brush size" title="Fine tune fog brush size" type="range" min={8} max={400} step={4} value={brushSize} onChange={(event) => onBrushSizeChange(Number(event.target.value))} />
-                      <span aria-label={`Fog brush size ${brushSize} pixels`}>{brushSize}px</span>
-                    </div>
-                  )}
-                </div>
+                <FogBrushSettings
+                  brushSize={brushSize}
+                  customOpen={fogBrushCustomOpen}
+                  onBrushSizeChange={onBrushSizeChange}
+                  onCustomOpenChange={setFogBrushCustomOpen}
+                />
               )}
               {helpTopic === "fog" && <ToolHelpCard topic="fog" />}
             </div>
