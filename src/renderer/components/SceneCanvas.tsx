@@ -72,6 +72,12 @@ import {
 } from "../canvas/measurement";
 import { getPointAlongPath } from "../canvas/movementPath";
 import {
+  getDrawingContextLabel,
+  getEnvironmentEffectContextLabel,
+  getFogShapeContextLabel,
+  getWeatherMaskContextLabel
+} from "../canvas/sceneContextLabels";
+import {
   isDrawingInSelectionRect,
   isFogShapeInSelectionRect,
   isTokenInSelectionRect,
@@ -2506,7 +2512,7 @@ export function SceneCanvas({
             setEnvironmentEffectContextMenu(null);
             setDrawingContextMenu({
               drawingId: drawingHit.id,
-              label: drawingHit.name?.trim() || formatDefaultDrawingName(drawingHit.kind, Math.max(0, drawingIndex)),
+              label: getDrawingContextLabel(drawingHit, drawingIndex),
               isTemplate: drawingHit.measurementLabelVisible === true,
               templateFootprintVisible: drawingHit.templateFootprintVisible === true,
               visibleInPlayer: drawingHit.visibleInPlayer,
@@ -2530,14 +2536,14 @@ export function SceneCanvas({
               setMaskContextMenu({
                 kind: "effects",
                 maskId: maskHit.mask.id,
-                label: maskHit.mask.name?.trim() || "Weather Effect Mask",
+                label: getWeatherMaskContextLabel(maskHit.mask),
                 visible: maskHit.mask.visible ?? true,
                 x: frameRect ? event.clientX - frameRect.left : event.clientX,
                 y: frameRect ? event.clientY - frameRect.top : event.clientY
               });
             } else {
               const shapeIndex = scene.fog.shapes.findIndex((shape) => shape.id === maskHit.shape.id);
-              const label = maskHit.shape.name?.trim() || formatDefaultFogShapeName(maskHit.shape.operation, maskHit.shape.kind, Math.max(0, shapeIndex));
+              const label = getFogShapeContextLabel(maskHit.shape, shapeIndex);
               const visibleInPlayer = maskHit.shape.visibleInPlayer ?? maskHit.shape.visible ?? true;
               onSelectFogShape?.(maskHit.shape.id);
               onSelectWeatherMask?.(null);
@@ -2570,7 +2576,7 @@ export function SceneCanvas({
             setDrawingContextMenu(null);
             setEnvironmentEffectContextMenu({
               effectId: environmentEffectHit.id,
-              label: environmentEffectHit.name?.trim() || `${formatEnvironmentEffectLabel(environmentEffectHit.effect)} Effect ${Math.max(0, effectIndex) + 1}`,
+              label: getEnvironmentEffectContextLabel(environmentEffectHit, effectIndex),
               x: frameRect ? event.clientX - frameRect.left : event.clientX,
               y: frameRect ? event.clientY - frameRect.top : event.clientY
             });
