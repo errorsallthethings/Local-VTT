@@ -62,6 +62,33 @@ export function getTemplatePreviewDrawing(preview: DrawingPreview): DrawingEleme
   };
 }
 
+export function getDrawingElementFromPreview(preview: DrawingPreview, id: string, index: number): DrawingElement {
+  const points = getDrawingPreviewPoints(preview);
+  const kind = preview.kind === "circle" && points.length === 2 ? "circle" : getDrawingKindForTool(preview.kind);
+  const isTemplate = preview.measurementLabelVisible === true;
+  return {
+    id,
+    name: isTemplateDrawingTool(preview.kind) ? formatDefaultTemplateDrawingName(preview.kind, index, preview.templateEffect ?? "plain") : formatDefaultDrawingName(kind, index),
+    kind,
+    points,
+    color: preview.color,
+    opacity: preview.opacity,
+    strokeColor: preview.strokeColor ?? preview.color,
+    strokeOpacity: preview.strokeOpacity ?? preview.opacity,
+    strokeWidth: preview.strokeWidth,
+    fill: preview.fillColor,
+    fillColor: preview.fillColor,
+    fillOpacity: isTemplate ? 0 : (preview.fillOpacity ?? 0),
+    strokeStyle: isTemplate ? "dashed" : (preview.strokeStyle ?? "solid"),
+    templateEffect: isTemplate ? (preview.templateEffect ?? "plain") : "plain",
+    templateWidth: isTemplate ? (preview.templateWidth ?? 5) : 5,
+    templateFootprintVisible: isTemplate ? false : undefined,
+    measurementLabelVisible: isTemplate,
+    visibleInGm: true,
+    visibleInPlayer: true
+  };
+}
+
 export function isTemplateDrawingTool(tool: DrawingTool | null): tool is Extract<DrawingTool, "template-line" | "template-rectangle" | "template-circle" | "template-cone"> {
   return tool === "template-line" || tool === "template-rectangle" || tool === "template-circle" || tool === "template-cone";
 }

@@ -7,7 +7,6 @@ import { getCanvasInteractionClass, type DrawingResizeHandle, type DrawingTransf
 import {
   drawDrawings,
   getDrawingHitRadius,
-  getDrawingPreviewPoints,
   getDrawingAtPoint,
   isMeaningfulDrawingPreview,
   shouldAddDrawingPoint,
@@ -103,8 +102,7 @@ import { getEnvironmentEffectAtPoint, getMaskHitAtPoint, isMaskHitVisibleForLaye
 import { getSceneLayerVisibility } from "../canvas/sceneLayerVisibility";
 import { getNearestSceneSnapPoint, getRulerSnapPoint } from "../canvas/sceneSnapping";
 import {
-  formatDefaultTemplateDrawingName,
-  getDrawingKindForTool,
+  getDrawingElementFromPreview,
   getDrawingTemplateCurrentPoint,
   getTemplatePreviewDrawing,
   isTemplateDrawingTool
@@ -2047,34 +2045,11 @@ export function SceneCanvas({
       setDrawingPreview(null);
       onTemplatePreviewChange?.(null);
       if (scene && onSceneChange && isMeaningfulDrawingPreview(drawingDrag)) {
-        const drawingPoints = getDrawingPreviewPoints(drawingDrag);
-        const kind = drawingDrag.kind === "circle" && drawingPoints.length === 2 ? "circle" : getDrawingKindForTool(drawingDrag.kind);
-        const isTemplate = drawingDrag.measurementLabelVisible === true;
         onSceneChange({
           ...scene,
           drawings: [
             ...scene.drawings,
-            {
-              id: crypto.randomUUID(),
-              name: isTemplateDrawingTool(drawingDrag.kind) ? formatDefaultTemplateDrawingName(drawingDrag.kind, scene.drawings.length, drawingDrag.templateEffect ?? "plain") : formatDefaultDrawingName(kind, scene.drawings.length),
-              kind,
-              points: drawingPoints,
-              color: drawingDrag.color,
-              opacity: drawingDrag.opacity,
-              strokeColor: drawingDrag.strokeColor ?? drawingDrag.color,
-              strokeOpacity: drawingDrag.strokeOpacity ?? drawingDrag.opacity,
-              strokeWidth: drawingDrag.strokeWidth,
-              fill: drawingDrag.fillColor,
-              fillColor: drawingDrag.fillColor,
-              fillOpacity: isTemplate ? 0 : (drawingDrag.fillOpacity ?? 0),
-              strokeStyle: isTemplate ? "dashed" : (drawingDrag.strokeStyle ?? "solid"),
-              templateEffect: isTemplate ? (drawingDrag.templateEffect ?? "plain") : "plain",
-              templateWidth: isTemplate ? (drawingDrag.templateWidth ?? 5) : 5,
-              templateFootprintVisible: isTemplate ? false : undefined,
-              measurementLabelVisible: isTemplate,
-              visibleInGm: true,
-              visibleInPlayer: true
-            }
+            getDrawingElementFromPreview(drawingDrag, crypto.randomUUID(), scene.drawings.length)
           ],
           updatedAt: new Date().toISOString()
         });

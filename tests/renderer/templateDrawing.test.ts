@@ -3,6 +3,7 @@ import { createDefaultScene, type DrawingTemplateEffect } from "../../src/shared
 import type { DrawingPreview } from "../../src/renderer/canvas/drawingRenderer";
 import {
   formatDefaultTemplateDrawingName,
+  getDrawingElementFromPreview,
   getDrawingKindForTool,
   getDrawingTemplateCurrentPoint,
   getTemplateDistancePixels,
@@ -92,5 +93,75 @@ describe("template drawing helpers", () => {
     });
     expect(getTemplatePreviewDrawing({ ...preview, kind: "line" })).toBeNull();
     expect(getTemplatePreviewDrawing({ ...preview, measurementLabelVisible: false })).toBeNull();
+  });
+
+  it("creates persisted drawing elements from non-template previews", () => {
+    const preview: DrawingPreview = {
+      pointerId: 1,
+      kind: "rectangle",
+      points: [{ x: 0, y: 0 }],
+      current: { x: 20, y: 30 },
+      color: "#ff0000",
+      opacity: 0.75,
+      strokeWidth: 12,
+      fillColor: "#00ff00",
+      fillOpacity: 0.25,
+      strokeStyle: "dotted",
+      measurementLabelVisible: false
+    };
+
+    expect(getDrawingElementFromPreview(preview, "drawing-1", 2)).toMatchObject({
+      id: "drawing-1",
+      name: "Rectangle 3",
+      kind: "rectangle",
+      points: [{ x: 0, y: 0 }, { x: 20, y: 30 }],
+      color: "#ff0000",
+      opacity: 0.75,
+      strokeColor: "#ff0000",
+      strokeOpacity: 0.75,
+      strokeWidth: 12,
+      fill: "#00ff00",
+      fillColor: "#00ff00",
+      fillOpacity: 0.25,
+      strokeStyle: "dotted",
+      templateEffect: "plain",
+      templateWidth: 5,
+      measurementLabelVisible: false,
+      visibleInGm: true,
+      visibleInPlayer: true
+    });
+  });
+
+  it("creates persisted template elements from template previews", () => {
+    const preview: DrawingPreview = {
+      pointerId: 1,
+      kind: "template-circle",
+      points: [{ x: 0, y: 0 }],
+      current: { x: 40, y: 0 },
+      color: "#93c5fd",
+      opacity: 0.9,
+      strokeWidth: 8,
+      fillColor: "#93c5fd",
+      fillOpacity: 0.5,
+      strokeStyle: "solid",
+      templateEffect: "fire",
+      templateWidth: 10,
+      measurementLabelVisible: true
+    };
+
+    expect(getDrawingElementFromPreview(preview, "template-1", 0)).toMatchObject({
+      id: "template-1",
+      name: "Template Radius - Fire 1",
+      kind: "circle",
+      points: [{ x: 0, y: 0 }, { x: 40, y: 0 }],
+      fillOpacity: 0,
+      strokeStyle: "dashed",
+      templateEffect: "fire",
+      templateWidth: 10,
+      templateFootprintVisible: false,
+      measurementLabelVisible: true,
+      visibleInGm: true,
+      visibleInPlayer: true
+    });
   });
 });
