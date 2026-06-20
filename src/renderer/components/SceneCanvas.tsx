@@ -141,9 +141,12 @@ import {
   type WaterEffectTuning
 } from "../canvas/environmentEffectsRenderer";
 import {
+  getEnvironmentEffectFromDrag,
+  getEnvironmentEffectFromPolygonDraft,
   isMeaningfulEnvironmentEffectDrag,
   shouldAnimateEnvironmentEffects,
-  type EnvironmentEffectDrag
+  type EnvironmentEffectDrag,
+  type EnvironmentPolygonDraft
 } from "../canvas/environmentEffectGeometry";
 import { getEnvironmentEffectTuningFields } from "../canvas/environmentEffectTuning";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
@@ -454,7 +457,7 @@ export function SceneCanvas({
   const [polygonDraft, setPolygonDraft] = useState<FogPolygonDraft | null>(null);
   const [drawingPolygonDraft, setDrawingPolygonDraft] = useState<DrawingPolygonDraft | null>(null);
   const [weatherPolygonDraft, setWeatherPolygonDraft] = useState<WeatherPolygonDraft | null>(null);
-  const [environmentPolygonDraft, setEnvironmentPolygonDraft] = useState<WeatherPolygonDraft | null>(null);
+  const [environmentPolygonDraft, setEnvironmentPolygonDraft] = useState<EnvironmentPolygonDraft | null>(null);
   const [mapCalibrationDrag, setMapCalibrationDrag] = useState<MapCalibrationDrag | null>(null);
   const [selectionDrag, setSelectionDrag] = useState<SelectionDrag | null>(null);
   const [drawingTransformHover, setDrawingTransformHover] = useState<DrawingTransformHover>(null);
@@ -484,7 +487,7 @@ export function SceneCanvas({
   const polygonDraftRef = useRef<FogPolygonDraft | null>(null);
   const drawingPolygonDraftRef = useRef<DrawingPolygonDraft | null>(null);
   const weatherPolygonDraftRef = useRef<WeatherPolygonDraft | null>(null);
-  const environmentPolygonDraftRef = useRef<WeatherPolygonDraft | null>(null);
+  const environmentPolygonDraftRef = useRef<EnvironmentPolygonDraft | null>(null);
   const previousSceneRef = useRef<Scene | null>(null);
   const fittedSceneCameraRef = useRef<string | null>(null);
   const autoFitCameraRef = useRef(true);
@@ -2102,13 +2105,11 @@ export function SceneCanvas({
             ...scene.environment,
             effects: [
               ...scene.environment.effects,
-              {
-                id: crypto.randomUUID(),
-                name: formatDefaultEnvironmentEffectName(environmentEffectDrag.effect, scene.environment.effects.length),
-                kind: environmentEffectDrag.kind,
-                effect: environmentEffectDrag.effect,
-                feather: environmentEffectDrag.feather,
-                ...getEnvironmentEffectTuningFields(environmentEffectDrag.effect, environmentEffectDrag, {
+              getEnvironmentEffectFromDrag(
+                environmentEffectDrag,
+                crypto.randomUUID(),
+                formatDefaultEnvironmentEffectName(environmentEffectDrag.effect, scene.environment.effects.length),
+                {
                   acidTuning: acidEffectTuning,
                   coldTuning: coldEffectTuning,
                   darknessTuning: darknessEffectTuning,
@@ -2127,12 +2128,8 @@ export function SceneCanvas({
                   shockwaveTuning: shockwaveEffectTuning,
                   smokeTuning: smokeEffectTuning,
                   fogTuning: fogEffectTuning
-                }),
-                points: environmentEffectDrag.kind === "circle" ? [environmentEffectDrag.start] : [environmentEffectDrag.start, environmentEffectDrag.current],
-                radius: environmentEffectDrag.kind === "circle" ? distanceBetween(environmentEffectDrag.start, environmentEffectDrag.current) : undefined,
-                visibleInGm: true,
-                visibleInPlayer: true
-              }
+                }
+              )
             ]
           },
           updatedAt: new Date().toISOString()
@@ -2755,13 +2752,13 @@ export function SceneCanvas({
         ...scene.environment,
         effects: [
           ...scene.environment.effects,
-          {
-            id: crypto.randomUUID(),
-            name: formatDefaultEnvironmentEffectName(environmentEffectType, scene.environment.effects.length),
-            kind: "polygon",
-            effect: environmentEffectType,
-            feather: environmentEffectFeather,
-            ...getEnvironmentEffectTuningFields(environmentEffectType, {}, {
+          getEnvironmentEffectFromPolygonDraft(
+            draft,
+            crypto.randomUUID(),
+            formatDefaultEnvironmentEffectName(environmentEffectType, scene.environment.effects.length),
+            environmentEffectType,
+            environmentEffectFeather,
+            {
               acidTuning: acidEffectTuning,
               coldTuning: coldEffectTuning,
               darknessTuning: darknessEffectTuning,
@@ -2780,11 +2777,8 @@ export function SceneCanvas({
               shockwaveTuning: shockwaveEffectTuning,
               smokeTuning: smokeEffectTuning,
               fogTuning: fogEffectTuning
-            }),
-            points: draft.points,
-            visibleInGm: true,
-            visibleInPlayer: true
-          }
+            }
+          )
         ]
       },
       updatedAt: new Date().toISOString()

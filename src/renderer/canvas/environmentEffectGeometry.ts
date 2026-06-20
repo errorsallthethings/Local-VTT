@@ -21,6 +21,7 @@ import type {
 } from "./environmentEffectsRenderer";
 import { distanceBetween } from "./tokenGeometry";
 import type { Camera } from "./camera";
+import { getEnvironmentEffectTuningFields } from "./environmentEffectTuning";
 import { worldToScreenPoint } from "./viewportGeometry";
 
 export type EnvironmentEffectShapeKind = "rectangle" | "polygon" | "circle";
@@ -52,6 +53,13 @@ export interface EnvironmentEffectDrag {
   current: Point;
 }
 
+export type EnvironmentPolygonDraft = {
+  points: Point[];
+  current?: Point;
+};
+
+type EnvironmentEffectTuningFallback = Partial<EnvironmentEffectMask>;
+
 export function environmentDragToMask(drag: EnvironmentEffectDrag): EnvironmentEffectMask {
   return {
     id: "preview",
@@ -60,6 +68,41 @@ export function environmentDragToMask(drag: EnvironmentEffectDrag): EnvironmentE
     feather: drag.feather,
     points: drag.kind === "circle" ? [drag.start] : [drag.start, drag.current],
     radius: drag.kind === "circle" ? distanceBetween(drag.start, drag.current) : undefined,
+    visibleInGm: true,
+    visibleInPlayer: true
+  };
+}
+
+export function getEnvironmentEffectFromDrag(
+  drag: EnvironmentEffectDrag,
+  id: string,
+  name: string,
+  fallbackTuning: EnvironmentEffectTuningFallback = {}
+): EnvironmentEffectMask {
+  return {
+    ...environmentDragToMask(drag),
+    id,
+    name,
+    ...getEnvironmentEffectTuningFields(drag.effect, drag, fallbackTuning)
+  };
+}
+
+export function getEnvironmentEffectFromPolygonDraft(
+  draft: EnvironmentPolygonDraft,
+  id: string,
+  name: string,
+  effect: EnvironmentEffectType,
+  feather: number,
+  fallbackTuning: EnvironmentEffectTuningFallback = {}
+): EnvironmentEffectMask {
+  return {
+    id,
+    name,
+    kind: "polygon",
+    effect,
+    feather,
+    ...getEnvironmentEffectTuningFields(effect, {}, fallbackTuning),
+    points: draft.points,
     visibleInGm: true,
     visibleInPlayer: true
   };

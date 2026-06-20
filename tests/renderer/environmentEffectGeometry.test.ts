@@ -3,6 +3,8 @@ import { createDefaultScene } from "../../src/shared/localvtt";
 import {
   environmentDragToMask,
   getClampedEnvironmentEffectFeather,
+  getEnvironmentEffectFromDrag,
+  getEnvironmentEffectFromPolygonDraft,
   getEnvironmentEffectPathCommands,
   isEnvironmentEffectVisibleForMode,
   isMeaningfulEnvironmentEffectDrag,
@@ -48,6 +50,51 @@ describe("environment effect geometry", () => {
       feather: 0.5,
       points: [{ x: 0, y: 0 }],
       radius: 5
+    });
+  });
+
+  it("creates finished rectangle effects from drag state", () => {
+    expect(getEnvironmentEffectFromDrag(drag(), "effect-1", "Water 1")).toMatchObject({
+      id: "effect-1",
+      name: "Water 1",
+      kind: "rectangle",
+      effect: "water",
+      feather: 0,
+      points: [{ x: 10, y: 20 }, { x: 40, y: 70 }],
+      radius: undefined,
+      visibleInGm: true,
+      visibleInPlayer: true
+    });
+  });
+
+  it("creates finished circle effects from drag state", () => {
+    expect(
+      getEnvironmentEffectFromDrag(drag({ kind: "circle", start: { x: 0, y: 0 }, current: { x: 3, y: 4 }, feather: 0.25 }), "effect-2", "Water 2")
+    ).toMatchObject({
+      id: "effect-2",
+      name: "Water 2",
+      kind: "circle",
+      effect: "water",
+      feather: 0.25,
+      points: [{ x: 0, y: 0 }],
+      radius: 5,
+      visibleInGm: true,
+      visibleInPlayer: true
+    });
+  });
+
+  it("creates finished polygon effects from draft points", () => {
+    const points = [{ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 20, y: 20 }];
+
+    expect(getEnvironmentEffectFromPolygonDraft({ points }, "effect-3", "Fire 1", "fire", 0.5)).toMatchObject({
+      id: "effect-3",
+      name: "Fire 1",
+      kind: "polygon",
+      effect: "fire",
+      feather: 0.5,
+      points,
+      visibleInGm: true,
+      visibleInPlayer: true
     });
   });
 
