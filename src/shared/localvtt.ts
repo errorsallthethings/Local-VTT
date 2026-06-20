@@ -9,6 +9,10 @@ export type TokenMask = "none" | "circle" | "square";
 export type TokenBorderStyle = "none" | "solid" | "dashed" | "dotted" | "double-line" | "embossed" | "inner-shadow" | "glow";
 export type TokenBorderWidthPreset = "thin" | "medium" | "thick" | "custom";
 
+export const CURRENT_CAMPAIGN_SCHEMA_VERSION = 1;
+export const CURRENT_SCENE_SCHEMA_VERSION = 1;
+const LEGACY_SCHEMA_VERSION = 0;
+
 export interface TokenPresentationDefaults {
   sizePreset?: TokenSizePreset;
   customSizeCells?: { width: number; height: number };
@@ -1175,6 +1179,7 @@ export interface TurnOrderSettings {
 }
 
 export interface Scene {
+  schemaVersion: number;
   id: string;
   name: string;
   mapAssetId?: string;
@@ -1236,6 +1241,7 @@ export interface SceneLibrarySettings {
 }
 
 export interface Campaign {
+  schemaVersion: number;
   id: string;
   name: string;
   description: string;
@@ -1796,6 +1802,7 @@ export const DEFAULT_LAYERS: Layer[] = [
 export function createDefaultCampaign(name: string): Campaign {
   const now = new Date().toISOString();
   return {
+    schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION,
     id: crypto.randomUUID(),
     name,
     description: "",
@@ -1817,6 +1824,7 @@ export function createDefaultCampaign(name: string): Campaign {
 export function createDefaultScene(name: string): Scene {
   const now = new Date().toISOString();
   return {
+    schemaVersion: CURRENT_SCENE_SCHEMA_VERSION,
     id: crypto.randomUUID(),
     name,
     createdAt: now,
@@ -1892,6 +1900,9 @@ export function assertValidCampaign(value: unknown): asserts value is Campaign {
   if (!isRecord(value) || !isNonEmptyString(value.id) || !isNonEmptyString(value.name) || !Array.isArray(value.scenes)) {
     throw new Error("Invalid campaign.json file.");
   }
+  if (!isSupportedSchemaVersion(value.schemaVersion, CURRENT_CAMPAIGN_SCHEMA_VERSION)) {
+    throw new Error(`Unsupported campaign schema version. This app supports campaign schema version ${CURRENT_CAMPAIGN_SCHEMA_VERSION}.`);
+  }
   if ("assets" in value && !Array.isArray(value.assets)) {
     throw new Error("Invalid campaign assets list.");
   }
@@ -1903,6 +1914,9 @@ export function assertValidCampaign(value: unknown): asserts value is Campaign {
 export function assertValidScene(value: unknown): asserts value is Scene {
   if (!isRecord(value) || !isNonEmptyString(value.id) || !isNonEmptyString(value.name) || !Array.isArray(value.layers)) {
     throw new Error("Invalid scene file.");
+  }
+  if (!isSupportedSchemaVersion(value.schemaVersion, CURRENT_SCENE_SCHEMA_VERSION)) {
+    throw new Error(`Unsupported scene schema version. This app supports scene schema version ${CURRENT_SCENE_SCHEMA_VERSION}.`);
   }
 }
 
@@ -2074,6 +2088,20 @@ function normalizeSceneOverlays(overlays?: SceneOverlay[]): SceneOverlay[] {
   }));
 }
 
+function migrateSceneToCurrent(scene: Scene): Scene {
+  const schemaVersion = normalizeSchemaVersion(scene.schemaVersion, CURRENT_SCENE_SCHEMA_VERSION);
+  if (schemaVersion === LEGACY_SCHEMA_VERSION) {
+    return {
+      ...scene,
+      schemaVersion: CURRENT_SCENE_SCHEMA_VERSION
+    };
+  }
+  return {
+    ...scene,
+    schemaVersion: CURRENT_SCENE_SCHEMA_VERSION
+  };
+}
+
 function isUnitNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
@@ -2083,7 +2111,8 @@ function isPoint(value: unknown): value is Point {
 }
 
 export function normalizeScene(scene: Scene): Scene {
-  const migratedLayers = (scene.layers ?? []).map(normalizeLayerIdentity);
+  const migratedScene = migrateSceneToCurrent(scene);
+  const migratedLayers = (migratedScene.layers ?? []).map(normalizeLayerIdentity);
   const layerById = new Map(migratedLayers.map((layer) => [layer.id, layer]));
   // Default layer names/order are application-owned so old scene files pick up current layer labels safely.
   const normalizedLayers = DEFAULT_LAYERS.map((defaultLayer) => ({
@@ -2095,26 +2124,27 @@ export function normalizeScene(scene: Scene): Scene {
   const customLayers = migratedLayers.filter((layer) => !DEFAULT_LAYERS.some((defaultLayer) => defaultLayer.id === layer.id));
 
   return {
-    ...scene,
-    grid: { ...DEFAULT_GRID, ...(scene.grid ?? {}), measurement: { ...DEFAULT_MEASUREMENT, ...(scene.grid?.measurement ?? {}) } },
-    calibration: { ...DEFAULT_CALIBRATION, ...(scene.calibration ?? {}) },
+    ...migratedScene,
+    schemaVersion: CURRENT_SCENE_SCHEMA_VERSION,
+    grid: { ...DEFAULT_GRID, ...(migratedScene.grid ?? {}), measurement: { ...DEFAULT_MEASUREMENT, ...(migratedScene.grid?.measurement ?? {}) } },
+    calibration: { ...DEFAULT_CALIBRATION, ...(migratedScene.calibration ?? {}) },
     layers: [...normalizedLayers, ...customLayers],
-    layerOrderLocked: scene.layerOrderLocked ?? true,
-    mapTransform: { ...DEFAULT_MAP_TRANSFORM, ...(scene.mapTransform ?? {}) },
-    fog: normalizeFog(scene.fog),
-    weather: normalizeWeather(scene.weather),
-    environment: normalizeEnvironment(scene.environment),
-    tokens: normalizeTokens(scene.tokens),
-    tokenMovementPath: normalizeTokenMovementPath(scene.tokenMovementPath),
-    walls: scene.walls ?? [],
-    lights: scene.lights ?? [],
-    drawings: normalizeDrawings(scene.drawings),
-    overlays: normalizeSceneOverlays(scene.overlays),
-    turnOrder: normalizeTurnOrder(scene.turnOrder),
-    videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(scene.videoPlayback ?? {}) },
-    tableTools: normalizeTableTools(scene.tableTools),
-    notes: scene.notes ?? "",
-    playerView: { ...DEFAULT_PLAYER_VIEW, ...(scene.playerView ?? {}) }
+    layerOrderLocked: migratedScene.layerOrderLocked ?? true,
+    mapTransform: { ...DEFAULT_MAP_TRANSFORM, ...(migratedScene.mapTransform ?? {}) },
+    fog: normalizeFog(migratedScene.fog),
+    weather: normalizeWeather(migratedScene.weather),
+    environment: normalizeEnvironment(migratedScene.environment),
+    tokens: normalizeTokens(migratedScene.tokens),
+    tokenMovementPath: normalizeTokenMovementPath(migratedScene.tokenMovementPath),
+    walls: migratedScene.walls ?? [],
+    lights: migratedScene.lights ?? [],
+    drawings: normalizeDrawings(migratedScene.drawings),
+    overlays: normalizeSceneOverlays(migratedScene.overlays),
+    turnOrder: normalizeTurnOrder(migratedScene.turnOrder),
+    videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(migratedScene.videoPlayback ?? {}) },
+    tableTools: normalizeTableTools(migratedScene.tableTools),
+    notes: migratedScene.notes ?? "",
+    playerView: { ...DEFAULT_PLAYER_VIEW, ...(migratedScene.playerView ?? {}) }
   };
 }
 
@@ -2777,6 +2807,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isSupportedSchemaVersion(value: unknown, currentVersion: number): boolean {
+  if (value === undefined) {
+    return true;
+  }
+  return typeof value === "number" && Number.isInteger(value) && value >= LEGACY_SCHEMA_VERSION && value <= currentVersion;
+}
+
+function normalizeSchemaVersion(value: unknown, currentVersion: number): number {
+  return isSupportedSchemaVersion(value, currentVersion) && typeof value === "number" ? value : LEGACY_SCHEMA_VERSION;
+}
+
 function normalizeFog(fog?: Partial<FogSettings>): FogSettings {
   const legacyOpacity = fog?.opacity ?? DEFAULT_FOG.opacity;
   const usedShapeIds = new Set<string>();
@@ -3035,25 +3076,41 @@ function normalizeDiceSettings(settings?: Partial<DiceSettings>): DiceSettings {
   };
 }
 
+function migrateCampaignToCurrent(campaign: Campaign): Campaign {
+  const schemaVersion = normalizeSchemaVersion(campaign.schemaVersion, CURRENT_CAMPAIGN_SCHEMA_VERSION);
+  if (schemaVersion === LEGACY_SCHEMA_VERSION) {
+    return {
+      ...campaign,
+      schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION
+    };
+  }
+  return {
+    ...campaign,
+    schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION
+  };
+}
+
 export function normalizeCampaign(campaign: Campaign): Campaign {
-  const sceneFolders = (campaign.sceneFolders ?? []).map((folder) => ({
+  const migratedCampaign = migrateCampaignToCurrent(campaign);
+  const sceneFolders = (migratedCampaign.sceneFolders ?? []).map((folder) => ({
     ...folder,
     color: normalizeColor(folder.color)
   }));
   const folderIds = new Set(sceneFolders.map((folder) => folder.id));
   // Drop collapsed folder ids that no longer exist so deleted folders do not linger in UI state.
-  const collapsedFolderIds = (campaign.sceneLibrary?.collapsedFolderIds ?? []).filter((folderId) => folderIds.has(folderId));
+  const collapsedFolderIds = (migratedCampaign.sceneLibrary?.collapsedFolderIds ?? []).filter((folderId) => folderIds.has(folderId));
 
   return {
-    ...campaign,
-    defaultGrid: { ...DEFAULT_GRID, ...(campaign.defaultGrid ?? {}), measurement: { ...DEFAULT_MEASUREMENT, ...(campaign.defaultGrid?.measurement ?? {}) } },
-    defaultMeasurement: { ...DEFAULT_MEASUREMENT, ...(campaign.defaultMeasurement ?? {}) },
-    defaultCalibration: { ...DEFAULT_CALIBRATION, ...(campaign.defaultCalibration ?? {}) },
-    playerDisplay: { ...DEFAULT_CALIBRATION, ...(campaign.playerDisplay ?? campaign.defaultCalibration ?? {}) },
-    diceSettings: normalizeDiceSettings(campaign.diceSettings),
+    ...migratedCampaign,
+    schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION,
+    defaultGrid: { ...DEFAULT_GRID, ...(migratedCampaign.defaultGrid ?? {}), measurement: { ...DEFAULT_MEASUREMENT, ...(migratedCampaign.defaultGrid?.measurement ?? {}) } },
+    defaultMeasurement: { ...DEFAULT_MEASUREMENT, ...(migratedCampaign.defaultMeasurement ?? {}) },
+    defaultCalibration: { ...DEFAULT_CALIBRATION, ...(migratedCampaign.defaultCalibration ?? {}) },
+    playerDisplay: { ...DEFAULT_CALIBRATION, ...(migratedCampaign.playerDisplay ?? migratedCampaign.defaultCalibration ?? {}) },
+    diceSettings: normalizeDiceSettings(migratedCampaign.diceSettings),
     sceneLibrary: { collapsedFolderIds },
     sceneFolders,
-    scenes: (campaign.scenes ?? []).map((scene) => {
+    scenes: (migratedCampaign.scenes ?? []).map((scene) => {
       const { folderId, ...sceneWithoutFolder } = scene;
       return {
         ...sceneWithoutFolder,
@@ -3061,7 +3118,7 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
         weather: scene.weather ? normalizeWeather(scene.weather) : undefined
       };
     }),
-    players: (campaign.players ?? []).map((player, index) => ({
+    players: (migratedCampaign.players ?? []).map((player, index) => ({
       ...player,
       id: typeof player.id === "string" && player.id.trim() ? player.id : `player-${index + 1}`,
       name: typeof player.name === "string" && player.name.trim() ? player.name : `Player ${index + 1}`,
@@ -3072,7 +3129,7 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
       defaultSeatPosition: clampNumber(player.defaultSeatPosition, 0, 1, 0.5),
       visibleInPlayer: player.visibleInPlayer ?? true
     })),
-    assets: (campaign.assets ?? []).map(normalizeAsset)
+    assets: (migratedCampaign.assets ?? []).map(normalizeAsset)
   };
 }
 

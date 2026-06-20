@@ -278,7 +278,8 @@ async function writeCampaign(campaignPath: string, campaign: Campaign): Promise<
 async function writeScene(campaignPath: string, scene: Scene): Promise<void> {
   await ensureCampaignFolders(campaignPath);
   await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, scene.id), sceneBackupFolder(campaignPath, scene.id), `${scene.id}.scene.json`);
-  await writeFile(sceneFile(campaignPath, scene.id), `${JSON.stringify(scene, null, 2)}\n`, "utf8");
+  const normalizedScene = normalizeScene(scene);
+  await writeFile(sceneFile(campaignPath, normalizedScene.id), `${JSON.stringify(normalizedScene, null, 2)}\n`, "utf8");
 }
 
 async function pauseActiveTurnOrders(campaignPath: string): Promise<void> {

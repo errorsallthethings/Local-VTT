@@ -1,6 +1,15 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Map as MapIcon } from "lucide-react";
-import { DEFAULT_DICE_SETTINGS, isLiveTableEvent, isPlayerIdleState, isPlayerSceneProjection, type LiveTableEvent, type PlayerIdleState, type PlayerSceneProjection } from "../../shared/localvtt";
+import {
+  CURRENT_CAMPAIGN_SCHEMA_VERSION,
+  DEFAULT_DICE_SETTINGS,
+  isLiveTableEvent,
+  isPlayerIdleState,
+  isPlayerSceneProjection,
+  type LiveTableEvent,
+  type PlayerIdleState,
+  type PlayerSceneProjection
+} from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { DICE_HISTORY_DURATION_MS } from "../lib/dice";
 
@@ -248,7 +257,12 @@ function PlayerScene({
   onReady?: () => void;
 }) {
   const campaign = useMemo(
-    () => ({ ...emptyCampaign(projection.campaignName), assets: projection.assets, players: projection.players ?? [], playerDisplay: projection.playerDisplay }),
+    () => ({
+      ...emptyCampaign(projection.campaignName),
+      assets: projection.assets,
+      players: projection.players ?? [],
+      playerDisplay: projection.playerDisplay
+    }),
     [projection]
   );
 
@@ -323,6 +337,7 @@ function shouldShowPlayerDiceOverlay(event: Extract<LiveTableEvent, { type: "dic
 
 function emptyCampaign(name: string) {
   return {
+    schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION,
     id: "player-projection",
     name,
     description: "",

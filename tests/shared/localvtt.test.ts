@@ -4,6 +4,8 @@ import {
   assertValidScene,
   createDefaultCampaign,
   createDefaultScene,
+  CURRENT_CAMPAIGN_SCHEMA_VERSION,
+  CURRENT_SCENE_SCHEMA_VERSION,
   duplicateScene,
   DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS,
   DEFAULT_CALIBRATION,
@@ -46,6 +48,26 @@ function asset(id: string): Asset {
 }
 
 describe("LocalVTT shared model helpers", () => {
+it("default campaign and scene files include the current schema version", () => {
+  expect(createDefaultCampaign("Versioned Campaign").schemaVersion).toBe(CURRENT_CAMPAIGN_SCHEMA_VERSION);
+  expect(createDefaultScene("Versioned Scene").schemaVersion).toBe(CURRENT_SCENE_SCHEMA_VERSION);
+});
+
+it("normalizes legacy campaign and scene files without schema versions to the current schema version", () => {
+  const legacyCampaign = createDefaultCampaign("Legacy Campaign") as Campaign & { schemaVersion?: number };
+  delete legacyCampaign.schemaVersion;
+  const legacyScene = createDefaultScene("Legacy Scene") as Scene & { schemaVersion?: number };
+  delete legacyScene.schemaVersion;
+
+  expect(normalizeCampaign(legacyCampaign as Campaign).schemaVersion).toBe(CURRENT_CAMPAIGN_SCHEMA_VERSION);
+  expect(normalizeScene(legacyScene as Scene).schemaVersion).toBe(CURRENT_SCENE_SCHEMA_VERSION);
+});
+
+it("rejects campaign and scene files from a newer schema version", () => {
+  expect(() => assertValidCampaign({ ...createDefaultCampaign("Future"), schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION + 1 })).toThrow(/Unsupported campaign schema version/);
+  expect(() => assertValidScene({ ...createDefaultScene("Future"), schemaVersion: CURRENT_SCENE_SCHEMA_VERSION + 1 })).toThrow(/Unsupported scene schema version/);
+});
+
 it("normalizeScene fills default settings for older scene files", () => {
   const partialScene = {
     id: "scene-1",
