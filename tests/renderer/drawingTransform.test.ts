@@ -3,11 +3,15 @@ import type { DrawingElement } from "../../src/shared/localvtt";
 import {
   getDrawingGroupBounds,
   getDrawingGroupSnapAnchor,
+  getDrawingMoveDelta,
   getDrawingPointSnapshot,
+  getMovedDrawingPointSnapshot,
   getDrawingResizeHandleAtPoint,
   getDrawingResizeHandles,
   getDrawingRotationHandle,
   getDrawingRotationHandleAtPoint,
+  getResizedDrawingPointSnapshot,
+  getRotatedDrawingPointSnapshot,
   getEllipseAxisPoints,
   getRectangleDrawingPoints,
   getSelectedResizableDrawingBounds,
@@ -81,6 +85,38 @@ describe("drawing transform geometry", () => {
 
     expect(getDrawingGroupSnapAnchor(drawings, ["a", "b"], { x: 99, y: 99 })).toEqual({ x: 10, y: 20 });
     expect(getDrawingGroupSnapAnchor(drawings, ["missing"], { x: 99, y: 99 })).toEqual({ x: 99, y: 99 });
+  });
+
+  it("moves drawing point snapshots by a delta", () => {
+    const snapshot = new Map([["a", [{ x: 1, y: 2 }, { x: 3, y: 4 }]]]);
+
+    expect(getMovedDrawingPointSnapshot(snapshot, { x: 5, y: -2 }).get("a")).toEqual([{ x: 6, y: 0 }, { x: 8, y: 2 }]);
+  });
+
+  it("prefers snap anchor delta when calculating drawing movement", () => {
+    expect(getDrawingMoveDelta({ x: 10, y: 20 }, { x: 50, y: 60 }, { x: 20, y: 25 }, null)).toEqual({ x: 10, y: 5 });
+    expect(getDrawingMoveDelta({ x: 10, y: 20 }, { x: 50, y: 60 }, { x: 20, y: 25 }, { x: 80, y: 100 })).toEqual({ x: 30, y: 40 });
+  });
+
+  it("resizes drawing point snapshots and skips missing drawings", () => {
+    const drawings = [drawing({ id: "box", kind: "rectangle", points: [{ x: 0, y: 0 }, { x: 100, y: 100 }] })];
+    const snapshot = new Map([
+      ["box", [{ x: 0, y: 0 }, { x: 100, y: 100 }]],
+      ["missing", [{ x: 0, y: 0 }, { x: 10, y: 10 }]]
+    ]);
+
+    expect(getResizedDrawingPointSnapshot(drawings, snapshot, { left: 0, top: 0, right: 100, bottom: 100 }, "e", { x: 150, y: 100 }, false)).toEqual(
+      new Map([["box", [{ x: 0, y: 0 }, { x: 150, y: 100 }]]])
+    );
+  });
+
+  it("rotates drawing point snapshots around a center", () => {
+    const drawings = [drawing({ id: "line", kind: "line", points: [{ x: 10, y: 0 }] })];
+    const snapshot = new Map([["line", [{ x: 10, y: 0 }]]]);
+    const rotated = getRotatedDrawingPointSnapshot(drawings, snapshot, { x: 0, y: 0 }, 0, { x: 0, y: 10 }).get("line");
+
+    expect(rotated?.[0].x).toBeCloseTo(0);
+    expect(rotated?.[0].y).toBeCloseTo(10);
   });
 
   it("returns resize handles around a bounds rectangle", () => {

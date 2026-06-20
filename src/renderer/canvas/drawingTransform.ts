@@ -97,6 +97,78 @@ export function getDrawingGroupSnapAnchor(drawings: Scene["drawings"], drawingId
     : fallback;
 }
 
+export function getMovedDrawingPointSnapshot(groupStartPoints: DrawingPointSnapshot, delta: Point): DrawingPointSnapshot {
+  return new Map(
+    [...groupStartPoints.entries()].map(([drawingId, points]) => [
+      drawingId,
+      points.map((point) => ({
+        x: point.x + delta.x,
+        y: point.y + delta.y
+      }))
+    ])
+  );
+}
+
+export function getDrawingMoveDelta(start: Point, snapAnchor: Point, current: Point, snappedPoint: Point | null): Point {
+  const pointerDelta = {
+    x: current.x - start.x,
+    y: current.y - start.y
+  };
+  return snappedPoint
+    ? {
+        x: snappedPoint.x - snapAnchor.x,
+        y: snappedPoint.y - snapAnchor.y
+      }
+    : pointerDelta;
+}
+
+export function getResizedDrawingPointSnapshot(
+  drawings: Scene["drawings"],
+  groupStartPoints: DrawingPointSnapshot,
+  bounds: DrawingBounds,
+  handle: DrawingResizeHandle,
+  current: Point,
+  aspectLocked: boolean
+): DrawingPointSnapshot {
+  return new Map(
+    [...groupStartPoints.entries()].flatMap(([drawingId, points]) => {
+      const drawing = drawings.find((candidate) => candidate.id === drawingId);
+      return drawing
+        ? [
+            [
+              drawingId,
+              resizeDrawingPoints({ ...drawing, points }, bounds, handle, current, aspectLocked)
+            ] as const
+          ]
+        : [];
+    })
+  );
+}
+
+export function getRotatedDrawingPointSnapshot(
+  drawings: Scene["drawings"],
+  groupStartPoints: DrawingPointSnapshot,
+  center: Point,
+  startAngle: number,
+  current: Point
+): DrawingPointSnapshot {
+  const currentAngle = Math.atan2(current.y - center.y, current.x - center.x);
+  const angle = currentAngle - startAngle;
+  return new Map(
+    [...groupStartPoints.entries()].flatMap(([drawingId, points]) => {
+      const drawing = drawings.find((candidate) => candidate.id === drawingId);
+      return drawing
+        ? [
+            [
+              drawingId,
+              rotateDrawingPoints({ ...drawing, points }, center, angle)
+            ] as const
+          ]
+        : [];
+    })
+  );
+}
+
 function getCombinedDrawingBounds(bounds: DrawingBounds[]): DrawingBounds {
   return {
     left: Math.min(...bounds.map((drawingBounds) => drawingBounds.left)),

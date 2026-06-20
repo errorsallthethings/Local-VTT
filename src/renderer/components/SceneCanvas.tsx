@@ -22,11 +22,13 @@ import {
 } from "../canvas/drawingRenderer";
 import {
   getDrawingGroupSnapAnchor,
+  getDrawingMoveDelta,
   getDrawingPointSnapshot,
   getDrawingResizeHandleAtPoint,
   getDrawingRotationHandleAtPoint,
-  resizeDrawingPoints,
-  rotateDrawingPoints
+  getMovedDrawingPointSnapshot,
+  getResizedDrawingPointSnapshot,
+  getRotatedDrawingPointSnapshot
 } from "../canvas/drawingTransform";
 import {
   drawFog,
@@ -1777,43 +1779,13 @@ export function SceneCanvas({
 
     if (drawingResizeValue?.pointerId === event.pointerId) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      setDrawingDragPreview(
-        new Map(
-          [...drawingResizeValue.groupStartPoints.entries()].flatMap(([drawingId, points]) => {
-            const drawing = scene?.drawings.find((candidate) => candidate.id === drawingId);
-            return drawing
-              ? [
-                  [
-                    drawingId,
-                    resizeDrawingPoints({ ...drawing, points }, drawingResizeValue.bounds, drawingResizeValue.handle, point, event.shiftKey)
-                  ] as const
-                ]
-              : [];
-          })
-        )
-      );
+      setDrawingDragPreview(scene ? getResizedDrawingPointSnapshot(scene.drawings, drawingResizeValue.groupStartPoints, drawingResizeValue.bounds, drawingResizeValue.handle, point, event.shiftKey) : new Map());
       return;
     }
 
     if (drawingRotateValue?.pointerId === event.pointerId) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const currentAngle = Math.atan2(point.y - drawingRotateValue.center.y, point.x - drawingRotateValue.center.x);
-      const angle = currentAngle - drawingRotateValue.startAngle;
-      setDrawingDragPreview(
-        new Map(
-          [...drawingRotateValue.groupStartPoints.entries()].flatMap(([drawingId, points]) => {
-            const drawing = scene?.drawings.find((candidate) => candidate.id === drawingId);
-            return drawing
-              ? [
-                  [
-                    drawingId,
-                    rotateDrawingPoints({ ...drawing, points }, drawingRotateValue.center, angle)
-                  ] as const
-                ]
-              : [];
-          })
-        )
-      );
+      setDrawingDragPreview(scene ? getRotatedDrawingPointSnapshot(scene.drawings, drawingRotateValue.groupStartPoints, drawingRotateValue.center, drawingRotateValue.startAngle, point) : new Map());
       return;
     }
 
@@ -1829,23 +1801,7 @@ export function SceneCanvas({
       };
       const snappedPoint = scene && isSnapModifier(event) ? getNearestSceneSnapPoint(projectedAnchor, scene) : null;
       setSnapPoint(snappedPoint);
-      const delta = snappedPoint
-        ? {
-            x: snappedPoint.x - drawingDragValue.snapAnchor.x,
-            y: snappedPoint.y - drawingDragValue.snapAnchor.y
-          }
-        : pointerDelta;
-      setDrawingDragPreview(
-        new Map(
-          [...drawingDragValue.groupStartPoints.entries()].map(([drawingId, points]) => [
-            drawingId,
-            points.map((candidatePoint) => ({
-              x: candidatePoint.x + delta.x,
-              y: candidatePoint.y + delta.y
-            }))
-          ])
-        )
-      );
+      setDrawingDragPreview(getMovedDrawingPointSnapshot(drawingDragValue.groupStartPoints, getDrawingMoveDelta(drawingDragValue.start, drawingDragValue.snapAnchor, worldPoint, snappedPoint)));
       return;
     }
 
