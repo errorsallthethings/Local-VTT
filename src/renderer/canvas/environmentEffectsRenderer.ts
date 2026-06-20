@@ -10,6 +10,7 @@ import {
   DEFAULT_LAVA_EFFECT_TUNING_SETTINGS,
   DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
   DEFAULT_NATURE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_POISON_EFFECT_TUNING_SETTINGS,
   DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS,
   DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS,
   DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS,
@@ -25,6 +26,7 @@ import {
   type LavaEffectTuningSettings,
   type LightningEffectTuningSettings,
   type NatureEffectTuningSettings,
+  type PoisonEffectTuningSettings,
   type RadiantEffectTuningSettings,
   type ShockwaveEffectTuningSettings,
   type SmokeEffectTuningSettings,
@@ -41,6 +43,7 @@ export interface ScreenBounds {
 
 export type WaterEffectTuning = WaterEffectTuningSettings;
 export type AcidEffectTuning = AcidEffectTuningSettings;
+export type PoisonEffectTuning = PoisonEffectTuningSettings;
 export type LavaEffectTuning = LavaEffectTuningSettings;
 export type FireEffectTuning = FireEffectTuningSettings;
 export type ForceFieldEffectTuning = ForceFieldEffectTuningSettings;
@@ -57,6 +60,7 @@ export type FogEffectTuning = FogEffectTuningSettings;
 
 export const DEFAULT_WATER_EFFECT_TUNING: WaterEffectTuning = DEFAULT_WATER_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_ACID_EFFECT_TUNING: AcidEffectTuning = DEFAULT_ACID_EFFECT_TUNING_SETTINGS;
+export const DEFAULT_POISON_EFFECT_TUNING: PoisonEffectTuning = DEFAULT_POISON_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_LAVA_EFFECT_TUNING: LavaEffectTuning = DEFAULT_LAVA_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FIRE_EFFECT_TUNING: FireEffectTuning = DEFAULT_FIRE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FORCE_FIELD_EFFECT_TUNING: ForceFieldEffectTuning = DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS;
@@ -155,6 +159,48 @@ export const ACID_EFFECT_PRESETS = {
     foamColor: "#f7fee7"
   }
 } as const satisfies Record<string, AcidEffectTuning>;
+
+export const POISON_EFFECT_PRESETS = {
+  poisonCloud: { ...DEFAULT_POISON_EFFECT_TUNING },
+  toxicFog: {
+    opacity: 0.78,
+    cloudScale: 6.2,
+    speed: 0.08,
+    directionDegrees: 284,
+    turbulence: 0.92,
+    density: 0.82,
+    pocketDensity: 0.42,
+    pocketSize: 0.72,
+    softness: 0.92,
+    drift: 0.72,
+    glow: 0.28,
+    panFollow: 1,
+    zoomScale: 0.1,
+    baseAlpha: 0.34,
+    shadowColor: "#10250b",
+    poisonColor: "#4d7c0f",
+    highlightColor: "#bef264"
+  },
+  sicklyMiasma: {
+    opacity: 0.68,
+    cloudScale: 3.8,
+    speed: 0.18,
+    directionDegrees: 262,
+    turbulence: 1.2,
+    density: 0.58,
+    pocketDensity: 0.86,
+    pocketSize: 0.5,
+    softness: 0.74,
+    drift: 0.88,
+    glow: 0.72,
+    panFollow: 1,
+    zoomScale: -0.15,
+    baseAlpha: 0.2,
+    shadowColor: "#052e16",
+    poisonColor: "#84cc16",
+    highlightColor: "#ecfccb"
+  }
+} as const satisfies Record<string, PoisonEffectTuning>;
 
 export const LAVA_EFFECT_PRESETS = {
   moltenFlow: { ...DEFAULT_LAVA_EFFECT_TUNING },
@@ -775,6 +821,7 @@ type WaterRuntime = {
 
 let waterRuntime: WaterRuntime | null = null;
 let acidRuntime: WaterRuntime | null = null;
+let poisonRuntime: WaterRuntime | null = null;
 let lavaRuntime: WaterRuntime | null = null;
 let fireRuntime: WaterRuntime | null = null;
 let lightningRuntime: WaterRuntime | null = null;
@@ -885,6 +932,50 @@ export function drawEnvironmentAcidEffect(
   updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateAcidMaterialTuning(runtime.meshA.material, tuning);
   updateAcidMaterialTuning(runtime.meshB.material, tuning);
+
+  runtime.renderer.setSize(width, height, false);
+  runtime.renderer.setClearColor(0x000000, 0);
+  runtime.renderer.clear();
+  runtime.renderer.render(runtime.scene, runtime.camera);
+
+  ctx.save();
+  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
+  ctx.restore();
+}
+
+export function drawEnvironmentPoisonEffect(
+  ctx: CanvasRenderingContext2D,
+  bounds: ScreenBounds,
+  timestamp: number,
+  layerOpacity: number,
+  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
+  tuning: PoisonEffectTuning = DEFAULT_POISON_EFFECT_TUNING
+) {
+  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
+    return;
+  }
+
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
+  const height = ctx.canvas.clientHeight || ctx.canvas.height;
+  const runtime = getPoisonRuntime(width, height);
+  if (!runtime) {
+    drawPoisonFallback(ctx, bounds, layerOpacity);
+    return;
+  }
+
+  const time = (timestamp - runtime.startedAt) / 1000;
+  positionWaterMesh(runtime.meshA, width, height, 1);
+  positionWaterMesh(runtime.meshB, width, height, 1);
+  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
+  runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.34;
+  runtime.meshA.material.uniforms.time.value = time;
+  runtime.meshB.material.uniforms.time.value = time * 0.63 + 18.1;
+  runtime.meshA.material.uniforms.resolution.value.set(width, height);
+  runtime.meshB.material.uniforms.resolution.value.set(width, height);
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updatePoisonMaterialTuning(runtime.meshA.material, tuning);
+  updatePoisonMaterialTuning(runtime.meshB.material, tuning);
 
   runtime.renderer.setSize(width, height, false);
   runtime.renderer.setClearColor(0x000000, 0);
@@ -1564,6 +1655,55 @@ function getAcidRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   return acidRuntime;
+}
+
+function getPoisonRuntime(width: number, height: number): WaterRuntime | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!poisonRuntime) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+    camera.position.set(0, 0, 2400);
+    camera.lookAt(0, 0, 0);
+
+    const material = createPoisonMaterial(0.72);
+    const materialB = createPoisonMaterial(0.34);
+    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    meshA.position.z = 1280;
+    meshB.position.z = 1281;
+    scene.add(meshA, meshB);
+
+    poisonRuntime = {
+      renderer,
+      scene,
+      camera,
+      meshA,
+      meshB,
+      startedAt: Date.now(),
+      width: 0,
+      height: 0
+    };
+  }
+
+  if (poisonRuntime.width !== width || poisonRuntime.height !== height) {
+    poisonRuntime.width = width;
+    poisonRuntime.height = height;
+    poisonRuntime.camera.left = 0;
+    poisonRuntime.camera.right = width;
+    poisonRuntime.camera.top = 0;
+    poisonRuntime.camera.bottom = height;
+    poisonRuntime.camera.near = 0.1;
+    poisonRuntime.camera.far = 5000;
+    poisonRuntime.camera.updateProjectionMatrix();
+  }
+
+  return poisonRuntime;
 }
 
 function getLavaRuntime(width: number, height: number): WaterRuntime | null {
@@ -2524,6 +2664,160 @@ function updateAcidMaterialTuning(material: THREE.ShaderMaterial, tuning: AcidEf
   material.uniforms.darkColor.value.set(tuning.darkColor);
   material.uniforms.acidColor.value.set(tuning.acidColor);
   material.uniforms.foamColor.value.set(tuning.foamColor);
+}
+
+function createPoisonMaterial(opacity: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+    blending: THREE.NormalBlending,
+    uniforms: {
+      cloudScale: { value: DEFAULT_POISON_EFFECT_TUNING.cloudScale },
+      speed: { value: DEFAULT_POISON_EFFECT_TUNING.speed },
+      directionRadians: { value: degreesToRadians(DEFAULT_POISON_EFFECT_TUNING.directionDegrees) },
+      turbulence: { value: DEFAULT_POISON_EFFECT_TUNING.turbulence },
+      density: { value: DEFAULT_POISON_EFFECT_TUNING.density },
+      pocketDensity: { value: DEFAULT_POISON_EFFECT_TUNING.pocketDensity },
+      pocketSize: { value: DEFAULT_POISON_EFFECT_TUNING.pocketSize },
+      softness: { value: DEFAULT_POISON_EFFECT_TUNING.softness },
+      drift: { value: DEFAULT_POISON_EFFECT_TUNING.drift },
+      glow: { value: DEFAULT_POISON_EFFECT_TUNING.glow },
+      panFollow: { value: DEFAULT_POISON_EFFECT_TUNING.panFollow },
+      zoomScale: { value: DEFAULT_POISON_EFFECT_TUNING.zoomScale },
+      baseAlpha: { value: DEFAULT_POISON_EFFECT_TUNING.baseAlpha },
+      shadowColor: { value: new THREE.Color(DEFAULT_POISON_EFFECT_TUNING.shadowColor) },
+      poisonColor: { value: new THREE.Color(DEFAULT_POISON_EFFECT_TUNING.poisonColor) },
+      highlightColor: { value: new THREE.Color(DEFAULT_POISON_EFFECT_TUNING.highlightColor) },
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2(1, 1) },
+      cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
+      cameraZoom: { value: 1 },
+      opacity: { value: opacity }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float cloudScale;
+      uniform float speed;
+      uniform float directionRadians;
+      uniform float turbulence;
+      uniform float density;
+      uniform float pocketDensity;
+      uniform float pocketSize;
+      uniform float softness;
+      uniform float drift;
+      uniform float glow;
+      uniform float panFollow;
+      uniform float zoomScale;
+      uniform float baseAlpha;
+      uniform vec3 shadowColor;
+      uniform vec3 poisonColor;
+      uniform vec3 highlightColor;
+      uniform float time;
+      uniform vec2 resolution;
+      uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
+      uniform float cameraZoom;
+      uniform float opacity;
+
+      float randomValue(vec2 value) {
+        return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float valueNoise(vec2 value) {
+        vec2 base = floor(value);
+        vec2 fraction = fract(value);
+        vec2 blend = fraction * fraction * (3.0 - 2.0 * fraction);
+        float a = randomValue(base);
+        float b = randomValue(base + vec2(1.0, 0.0));
+        float c = randomValue(base + vec2(0.0, 1.0));
+        float d = randomValue(base + vec2(1.0, 1.0));
+        return mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y);
+      }
+
+      float fbm(vec2 value) {
+        float total = 0.0;
+        float amplitude = 0.5;
+        for (int i = 0; i < 6; i++) {
+          total += valueNoise(value) * amplitude;
+          value *= 2.02;
+          amplitude *= 0.5;
+        }
+        return total;
+      }
+
+      mat2 rotate2d(float angle) {
+        float s = sin(angle);
+        float c = cos(angle);
+        return mat2(c, -s, s, c);
+      }
+
+      void main() {
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
+        vec2 pixelUv = anchoredCoord / 190.0 * zoomFactor;
+        vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
+        vec2 perpendicular = vec2(-direction.y, direction.x);
+        vec2 uv = vec2(dot(pixelUv, direction), dot(pixelUv, perpendicular));
+        float localTime = time * speed;
+
+        vec2 flow = uv * max(0.2, cloudScale / 4.0);
+        flow.x -= localTime * (0.22 + drift * 0.7);
+        flow.y += sin(flow.x * 1.4 + localTime * 1.7) * drift * 0.18;
+        float broad = fbm(flow * 0.78 + vec2(localTime * 0.08, -localTime * 0.03));
+        float curl = fbm(flow * 1.55 - vec2(localTime * 0.06, localTime * 0.1));
+        flow += vec2(broad - 0.5, curl - 0.5) * turbulence * 0.9;
+        float largeCloud = fbm(flow * 0.95 + vec2(localTime * 0.06, 4.0));
+        float mediumCloud = fbm(rotate2d(0.9) * flow * 1.85 - vec2(localTime * 0.08, localTime * 0.03));
+        float fineCloud = fbm(flow * 4.4 + vec2(7.0, -localTime * 0.12));
+        float cloud = largeCloud * 0.58 + mediumCloud * 0.32 + fineCloud * 0.1;
+        float cloudMask = smoothstep(0.56 - density * 0.44, mix(0.96, 0.72, softness), cloud);
+
+        float pocketNoise = fbm(flow * mix(2.6, 7.8, pocketDensity) + vec2(localTime * 0.18, -9.0));
+        float pocketShape = smoothstep(0.74 - pocketDensity * 0.38, 0.98, pocketNoise);
+        float pocketBreakup = smoothstep(0.24, 0.86, fbm(flow * vec2(3.7, 1.4) - vec2(localTime * 0.09, 0.0)));
+        float pockets = pocketShape * pocketBreakup * mix(0.45, 1.35, pocketSize);
+
+        float edgeWisps = smoothstep(0.22, 0.88, fbm(flow * vec2(6.0, 2.0) + vec2(localTime * 0.03, localTime * 0.11)));
+        vec3 color = mix(shadowColor, poisonColor, cloudMask + pockets * 0.25);
+        color = mix(color, highlightColor, clamp(pockets * 0.5 + edgeWisps * glow * 0.24, 0.0, 1.0));
+        color += poisonColor * glow * (pockets * 0.26 + cloudMask * 0.12);
+        float alpha = (baseAlpha + cloudMask * density * 0.64 + pockets * 0.34 + edgeWisps * glow * 0.12) * opacity;
+        gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+      }
+    `
+  });
+}
+
+function updatePoisonMaterialTuning(material: THREE.ShaderMaterial, tuning: PoisonEffectTuning) {
+  material.uniforms.cloudScale.value = tuning.cloudScale;
+  material.uniforms.speed.value = tuning.speed;
+  material.uniforms.directionRadians.value = degreesToRadians(tuning.directionDegrees);
+  material.uniforms.turbulence.value = tuning.turbulence;
+  material.uniforms.density.value = tuning.density;
+  material.uniforms.pocketDensity.value = tuning.pocketDensity;
+  material.uniforms.pocketSize.value = tuning.pocketSize;
+  material.uniforms.softness.value = tuning.softness;
+  material.uniforms.drift.value = tuning.drift;
+  material.uniforms.glow.value = tuning.glow;
+  material.uniforms.panFollow.value = 1;
+  material.uniforms.zoomScale.value = tuning.zoomScale;
+  material.uniforms.baseAlpha.value = tuning.baseAlpha;
+  material.uniforms.shadowColor.value.set(tuning.shadowColor);
+  material.uniforms.poisonColor.value.set(tuning.poisonColor);
+  material.uniforms.highlightColor.value.set(tuning.highlightColor);
 }
 
 function createLavaMaterial(opacity: number): THREE.ShaderMaterial {
@@ -4827,6 +5121,14 @@ function drawAcidFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, l
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.36;
   ctx.fillStyle = "rgb(132, 204, 22)";
+  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  ctx.restore();
+}
+
+function drawPoisonFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.32;
+  ctx.fillStyle = "rgb(101, 163, 13)";
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }

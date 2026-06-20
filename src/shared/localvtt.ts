@@ -171,7 +171,7 @@ export interface WeatherMask {
   visible?: boolean;
 }
 
-export type EnvironmentEffectType = "acid" | "water" | "lava" | "smoke" | "fog" | "fire" | "electric" | "arcane" | "radiant" | "field" | "shockwave" | "distortion" | "chaos" | "void" | "nature";
+export type EnvironmentEffectType = "acid" | "poison" | "water" | "lava" | "smoke" | "fog" | "fire" | "electric" | "arcane" | "radiant" | "field" | "shockwave" | "distortion" | "chaos" | "void" | "nature";
 
 export interface WaterEffectTuningSettings {
   opacity: number;
@@ -253,6 +253,46 @@ export const DEFAULT_ACID_EFFECT_TUNING_SETTINGS: AcidEffectTuningSettings = {
   darkColor: "#14330b",
   acidColor: "#84cc16",
   foamColor: "#ecfccb"
+};
+
+export interface PoisonEffectTuningSettings {
+  opacity: number;
+  cloudScale: number;
+  speed: number;
+  directionDegrees: number;
+  turbulence: number;
+  density: number;
+  pocketDensity: number;
+  pocketSize: number;
+  softness: number;
+  drift: number;
+  glow: number;
+  panFollow: number;
+  zoomScale: number;
+  baseAlpha: number;
+  shadowColor: string;
+  poisonColor: string;
+  highlightColor: string;
+}
+
+export const DEFAULT_POISON_EFFECT_TUNING_SETTINGS: PoisonEffectTuningSettings = {
+  opacity: 0.72,
+  cloudScale: 4.8,
+  speed: 0.12,
+  directionDegrees: 276,
+  turbulence: 0.78,
+  density: 0.68,
+  pocketDensity: 0.54,
+  pocketSize: 0.58,
+  softness: 0.82,
+  drift: 0.62,
+  glow: 0.38,
+  panFollow: 1,
+  zoomScale: 0,
+  baseAlpha: 0.24,
+  shadowColor: "#12300c",
+  poisonColor: "#65a30d",
+  highlightColor: "#d9f99d"
 };
 
 export interface LavaEffectTuningSettings {
@@ -795,6 +835,7 @@ export interface EnvironmentEffectMask {
   radius?: number;
   feather?: number;
   acidTuning?: AcidEffectTuningSettings;
+  poisonTuning?: PoisonEffectTuningSettings;
   waterTuning?: WaterEffectTuningSettings;
   lavaTuning?: LavaEffectTuningSettings;
   fireTuning?: FireEffectTuningSettings;
@@ -1654,7 +1695,7 @@ const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "sandstorm"
 ]);
 
-const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["acid", "water", "lava", "smoke", "fog", "fire", "electric", "arcane", "radiant", "field", "shockwave", "distortion", "chaos", "void", "nature"]);
+const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["acid", "poison", "water", "lava", "smoke", "fog", "fire", "electric", "arcane", "radiant", "field", "shockwave", "distortion", "chaos", "void", "nature"]);
 
 export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
@@ -2144,6 +2185,7 @@ function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): Env
         points,
         feather: clampNumber(effect.feather, 0, 1, 0),
         acidTuning: effectType === "acid" ? normalizeAcidEffectTuning(effect.acidTuning) : undefined,
+        poisonTuning: effectType === "poison" ? normalizePoisonEffectTuning(effect.poisonTuning) : undefined,
         waterTuning: effectType === "water" ? normalizeWaterEffectTuning(effect.waterTuning) : undefined,
         lavaTuning: effectType === "lava" ? normalizeLavaEffectTuning(effect.lavaTuning) : undefined,
         fireTuning: effectType === "fire" ? normalizeFireEffectTuning(effect.fireTuning) : undefined,
@@ -2206,6 +2248,28 @@ function normalizeAcidEffectTuning(tuning?: AcidEffectTuningSettings): AcidEffec
     darkColor: normalizeColorValue(tuning?.darkColor, DEFAULT_ACID_EFFECT_TUNING_SETTINGS.darkColor),
     acidColor: normalizeColorValue(tuning?.acidColor, DEFAULT_ACID_EFFECT_TUNING_SETTINGS.acidColor),
     foamColor: normalizeColorValue(tuning?.foamColor, DEFAULT_ACID_EFFECT_TUNING_SETTINGS.foamColor)
+  };
+}
+
+function normalizePoisonEffectTuning(tuning?: PoisonEffectTuningSettings): PoisonEffectTuningSettings {
+  return {
+    opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.opacity),
+    cloudScale: clampNumber(tuning?.cloudScale, 0.5, 20, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.cloudScale),
+    speed: clampNumber(tuning?.speed, 0, 2, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.speed),
+    directionDegrees: clampNumber(tuning?.directionDegrees, 0, 360, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.directionDegrees),
+    turbulence: clampNumber(tuning?.turbulence, 0, 2, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.turbulence),
+    density: clampNumber(tuning?.density, 0, 1, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.density),
+    pocketDensity: clampNumber(tuning?.pocketDensity, 0, 1, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.pocketDensity),
+    pocketSize: clampNumber(tuning?.pocketSize, 0, 1, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.pocketSize),
+    softness: clampNumber(tuning?.softness, 0, 1, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.softness),
+    drift: clampNumber(tuning?.drift, 0, 1, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.drift),
+    glow: clampNumber(tuning?.glow, 0, 1, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.glow),
+    panFollow: 1,
+    zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.zoomScale),
+    baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.baseAlpha),
+    shadowColor: normalizeColorValue(tuning?.shadowColor, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.shadowColor),
+    poisonColor: normalizeColorValue(tuning?.poisonColor, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.poisonColor),
+    highlightColor: normalizeColorValue(tuning?.highlightColor, DEFAULT_POISON_EFFECT_TUNING_SETTINGS.highlightColor)
   };
 }
 
@@ -2513,7 +2577,7 @@ function normalizeColorValue(value: unknown, fallback: string): string {
 }
 
 function formatEnvironmentEffectName(effect: EnvironmentEffectType): string {
-  return effect === "acid" ? "Acid" : effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "chaos" ? "Chaos Field" : effect === "void" ? "Void Tendrils" : effect === "nature" ? "Nature Growth" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "acid" ? "Acid" : effect === "poison" ? "Poison Cloud" : effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "chaos" ? "Chaos Field" : effect === "void" ? "Void Tendrils" : effect === "nature" ? "Nature Growth" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function normalizeWeatherEffectSettings(settings?: WeatherSettings["effectSettings"]): WeatherSettings["effectSettings"] {

@@ -10,6 +10,7 @@ import {
   LAVA_EFFECT_PRESETS,
   LIGHTNING_EFFECT_PRESETS,
   NATURE_EFFECT_PRESETS,
+  POISON_EFFECT_PRESETS,
   RADIANT_EFFECT_PRESETS,
   SHOCKWAVE_EFFECT_PRESETS,
   SMOKE_EFFECT_PRESETS,
@@ -25,6 +26,7 @@ import {
   type LavaEffectTuning,
   type LightningEffectTuning,
   type NatureEffectTuning,
+  type PoisonEffectTuning,
   type RadiantEffectTuning,
   type ShockwaveEffectTuning,
   type SmokeEffectTuning,
@@ -50,6 +52,7 @@ export const ENVIRONMENT_EFFECT_OPTIONS: Array<{ label: string; value: Environme
   { label: "Lava", value: "lava" },
   { label: "Mist", value: "fog" },
   { label: "Nature Growth", value: "nature" },
+  { label: "Poison Cloud", value: "poison" },
   { label: "Radiant", value: "radiant" },
   { label: "Shockwave", value: "shockwave" },
   { label: "Smoke", value: "smoke" },
@@ -68,6 +71,7 @@ const ENVIRONMENT_EFFECT_LABELS: Record<EnvironmentEffectType, string> = {
   fog: "Mist",
   lava: "Lava",
   nature: "Nature Growth",
+  poison: "Poison Cloud",
   radiant: "Radiant",
   shockwave: "Shockwave",
   smoke: "Smoke",
@@ -135,6 +139,12 @@ const ENVIRONMENT_EFFECT_PRESET_OPTIONS: Record<EnvironmentEffectType, Array<{ l
     { label: "Thorn Field", value: "thornField" },
     { label: "Entangling Vines", value: "entanglingVines" }
   ],
+  poison: [
+    { label: "Custom", value: "custom" },
+    { label: "Poison Cloud", value: "poisonCloud" },
+    { label: "Toxic Fog", value: "toxicFog" },
+    { label: "Sickly Miasma", value: "sicklyMiasma" }
+  ],
   radiant: [
     { label: "Custom", value: "custom" },
     { label: "Divine Rays", value: "divineRays" },
@@ -176,6 +186,7 @@ const ENVIRONMENT_EFFECT_CANVAS_STYLES: Record<EnvironmentEffectType, { previewF
   fog: { previewFill: "rgba(226, 232, 240, 0.14)", stroke: "rgba(226, 232, 240, 0.82)" },
   lava: { previewFill: "rgba(255, 129, 52, 0.2)", stroke: "rgba(255, 129, 52, 0.95)" },
   nature: { previewFill: "rgba(132, 204, 22, 0.16)", stroke: "rgba(132, 204, 22, 0.95)" },
+  poison: { previewFill: "rgba(101, 163, 13, 0.18)", stroke: "rgba(190, 242, 100, 0.95)" },
   radiant: { previewFill: "rgba(253, 230, 138, 0.16)", stroke: "rgba(253, 230, 138, 0.95)" },
   shockwave: { previewFill: "rgba(147, 197, 253, 0.16)", stroke: "rgba(147, 197, 253, 0.95)" },
   smoke: { previewFill: "rgba(210, 220, 226, 0.18)", stroke: "rgba(210, 220, 226, 0.88)" },
@@ -186,6 +197,7 @@ const ENVIRONMENT_EFFECT_CANVAS_STYLES: Record<EnvironmentEffectType, { previewF
 export function getEnvironmentEffectPresetSelectValue(
   effect: EnvironmentEffectType,
   acidEffectTuning: AcidEffectTuning,
+  poisonEffectTuning: PoisonEffectTuning,
   waterEffectTuning: WaterEffectTuning,
   lavaEffectTuning: LavaEffectTuning,
   fireEffectTuning: FireEffectTuning,
@@ -203,6 +215,9 @@ export function getEnvironmentEffectPresetSelectValue(
 ): string {
   if (effect === "acid") {
     return getAcidPresetSelectValue(acidEffectTuning);
+  }
+  if (effect === "poison") {
+    return getPoisonPresetSelectValue(poisonEffectTuning);
   }
   if (effect === "lava") {
     return getLavaPresetSelectValue(lavaEffectTuning);
@@ -255,6 +270,7 @@ export function applyEnvironmentEffectPreset(
   value: string,
   handlers: {
     onAcidEffectTuningChange: (tuning: AcidEffectTuning) => void;
+    onPoisonEffectTuningChange: (tuning: PoisonEffectTuning) => void;
     onWaterEffectTuningChange: (tuning: WaterEffectTuning) => void;
     onLavaEffectTuningChange: (tuning: LavaEffectTuning) => void;
     onFireEffectTuningChange: (tuning: FireEffectTuning) => void;
@@ -275,6 +291,13 @@ export function applyEnvironmentEffectPreset(
     const preset = ACID_EFFECT_PRESETS[value as keyof typeof ACID_EFFECT_PRESETS];
     if (preset) {
       handlers.onAcidEffectTuningChange({ ...preset });
+    }
+    return;
+  }
+  if (effect === "poison") {
+    const preset = POISON_EFFECT_PRESETS[value as keyof typeof POISON_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onPoisonEffectTuningChange({ ...preset });
     }
     return;
   }
@@ -405,6 +428,15 @@ function getAcidPresetSelectValue(tuning: AcidEffectTuning): keyof typeof ACID_E
   for (const [presetName, preset] of Object.entries(ACID_EFFECT_PRESETS)) {
     if (isAcidTuningMatch(tuning, preset)) {
       return presetName as keyof typeof ACID_EFFECT_PRESETS;
+    }
+  }
+  return "custom";
+}
+
+function getPoisonPresetSelectValue(tuning: PoisonEffectTuning): keyof typeof POISON_EFFECT_PRESETS | "custom" {
+  for (const [presetName, preset] of Object.entries(POISON_EFFECT_PRESETS)) {
+    if (isPoisonTuningMatch(tuning, preset)) {
+      return presetName as keyof typeof POISON_EFFECT_PRESETS;
     }
   }
   return "custom";
@@ -567,6 +599,27 @@ function isAcidTuningMatch(tuning: AcidEffectTuning, preset: AcidEffectTuning): 
     tuning.darkColor === preset.darkColor &&
     tuning.acidColor === preset.acidColor &&
     tuning.foamColor === preset.foamColor
+  );
+}
+
+function isPoisonTuningMatch(tuning: PoisonEffectTuning, preset: PoisonEffectTuning): boolean {
+  return (
+    tuning.opacity === preset.opacity &&
+    tuning.cloudScale === preset.cloudScale &&
+    tuning.speed === preset.speed &&
+    tuning.directionDegrees === preset.directionDegrees &&
+    tuning.turbulence === preset.turbulence &&
+    tuning.density === preset.density &&
+    tuning.pocketDensity === preset.pocketDensity &&
+    tuning.pocketSize === preset.pocketSize &&
+    tuning.softness === preset.softness &&
+    tuning.drift === preset.drift &&
+    tuning.glow === preset.glow &&
+    tuning.zoomScale === preset.zoomScale &&
+    tuning.baseAlpha === preset.baseAlpha &&
+    tuning.shadowColor === preset.shadowColor &&
+    tuning.poisonColor === preset.poisonColor &&
+    tuning.highlightColor === preset.highlightColor
   );
 }
 
