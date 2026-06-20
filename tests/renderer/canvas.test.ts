@@ -3,6 +3,9 @@ import { areCamerasEqual, getRenderCamera } from "../../src/renderer/canvas/came
 import {
   getFogDragKindForTool,
   getFogOperationForTool,
+  getFogShapeFromDrag,
+  getFogShapeFromPolygonDraft,
+  getFogVisibilityPatchForNewShape,
   isMeaningfulFogDrag,
   isMeaningfulPolygon,
   isPolygonTool,
@@ -142,6 +145,67 @@ it("fog tool helpers classify operation, shape, and polygon tools", () => {
   expect(isPolygonTool("hide-brush")).toBe(false);
   expect(isMeaningfulPolygon([{ x: 0, y: 0 }, { x: 1, y: 1 }])).toBe(false);
   expect(isMeaningfulPolygon([{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 0 }])).toBe(true);
+});
+
+it("fog visibility patch makes newly hidden fog visible when opacity is zeroed", () => {
+  const scene = createDefaultScene("Fog");
+
+  expect(getFogVisibilityPatchForNewShape({ ...scene.fog, gmOpacity: 0, playerOpacity: 0 }, "hide")).toEqual({
+    gmOpacity: 0.5,
+    playerOpacity: 1,
+    opacity: 1
+  });
+  expect(getFogVisibilityPatchForNewShape({ ...scene.fog, gmOpacity: 0, playerOpacity: 0 }, "reveal")).toEqual({});
+  expect(getFogVisibilityPatchForNewShape({ ...scene.fog, gmOpacity: 0.5, playerOpacity: 0 }, "hide")).toEqual({});
+});
+
+it("builds committed fog shapes from drag and polygon draft state", () => {
+  expect(
+    getFogShapeFromDrag(
+      {
+        pointerId: 1,
+        kind: "circle",
+        start: { x: 10, y: 12 },
+        current: { x: 13, y: 16 },
+        points: [],
+        operation: "hide"
+      },
+      "fog-1",
+      "Hide Circle 1",
+      false
+    )
+  ).toEqual({
+    id: "fog-1",
+    name: "Hide Circle 1",
+    operation: "hide",
+    kind: "circle",
+    points: [{ x: 10, y: 12 }, { x: 13, y: 16 }],
+    radius: 5,
+    visibleInGm: true,
+    visibleInPlayer: false,
+    visible: true
+  });
+
+  expect(
+    getFogShapeFromPolygonDraft(
+      {
+        operation: "reveal",
+        points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 5, y: 8 }]
+      },
+      "fog-2",
+      "Reveal Polygon 1",
+      true
+    )
+  ).toEqual({
+    id: "fog-2",
+    name: "Reveal Polygon 1",
+    operation: "reveal",
+    kind: "polygon",
+    points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 5, y: 8 }],
+    visibleInGm: true,
+    visibleInPlayer: true,
+    visible: true
+  });
 });
 
 it("brush fog helpers avoid redundant points and tiny movements", () => {

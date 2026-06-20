@@ -171,6 +171,39 @@ export function isMeaningfulPolygon(points: Point[]): boolean {
   return points.length >= 3;
 }
 
+export function getFogVisibilityPatchForNewShape(fog: Scene["fog"], operation: FogShape["operation"]): Partial<Scene["fog"]> {
+  return operation === "hide" && fog.gmOpacity === 0 && fog.playerOpacity === 0
+    ? { gmOpacity: 0.5, playerOpacity: 1, opacity: 1 }
+    : {};
+}
+
+export function getFogShapeFromDrag(drag: FogDrag, id: string, name: string, visibleInPlayer: boolean): FogShape {
+  return {
+    id,
+    name,
+    operation: drag.operation,
+    kind: drag.kind,
+    points: drag.kind === "brush" ? normalizeBrushPoints(drag.points, drag.current) : [drag.start, drag.current],
+    radius: drag.kind === "circle" ? distanceBetween(drag.start, drag.current) : drag.radius,
+    visibleInGm: true,
+    visibleInPlayer,
+    visible: true
+  };
+}
+
+export function getFogShapeFromPolygonDraft(draft: FogPolygonDraft, id: string, name: string, visibleInPlayer: boolean): FogShape {
+  return {
+    id,
+    name,
+    operation: draft.operation,
+    kind: "polygon",
+    points: draft.points,
+    visibleInGm: true,
+    visibleInPlayer,
+    visible: true
+  };
+}
+
 function getPreviewFogShapes(preview: FogDrag | null, polygonDraft: FogPolygonDraft | null): FogShape[] {
   const shapes: FogShape[] = [];
   if (preview) {

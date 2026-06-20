@@ -25,11 +25,13 @@ import {
 import {
   drawFog,
   getFogDragKindForTool,
+  getFogShapeFromDrag,
+  getFogShapeFromPolygonDraft,
+  getFogVisibilityPatchForNewShape,
   getFogOperationForTool,
   isMeaningfulFogDrag,
   isMeaningfulPolygon,
   isPolygonTool,
-  normalizeBrushPoints,
   shouldAddBrushPoint,
   type FogDrag,
   type FogPolygonDraft,
@@ -2145,22 +2147,15 @@ export function SceneCanvas({
           ...scene,
           fog: {
             ...scene.fog,
-            ...(fogDrag.operation === "hide" && scene.fog.gmOpacity === 0 && scene.fog.playerOpacity === 0
-              ? { gmOpacity: 0.5, playerOpacity: 1, opacity: 1 }
-              : {}),
+            ...getFogVisibilityPatchForNewShape(scene.fog, fogDrag.operation),
             shapes: [
               ...scene.fog.shapes,
-              {
-                id: crypto.randomUUID(),
-                name: formatDefaultFogShapeName(fogDrag.operation, fogDrag.kind, scene.fog.shapes.length),
-                operation: fogDrag.operation,
-                kind: fogDrag.kind,
-                points: fogDrag.kind === "brush" ? normalizeBrushPoints(fogDrag.points, fogDrag.current) : [fogDrag.start, fogDrag.current],
-                radius: fogDrag.kind === "circle" ? distanceBetween(fogDrag.start, fogDrag.current) : fogDrag.radius,
-                visibleInGm: true,
-                visibleInPlayer: scene.fog.newShapesVisibleInPlayer,
-                visible: true
-              }
+              getFogShapeFromDrag(
+                fogDrag,
+                crypto.randomUUID(),
+                formatDefaultFogShapeName(fogDrag.operation, fogDrag.kind, scene.fog.shapes.length),
+                scene.fog.newShapesVisibleInPlayer
+              )
             ]
           },
           updatedAt: new Date().toISOString()
@@ -2672,21 +2667,15 @@ export function SceneCanvas({
       ...scene,
       fog: {
         ...scene.fog,
-        ...(draft.operation === "hide" && scene.fog.gmOpacity === 0 && scene.fog.playerOpacity === 0
-          ? { gmOpacity: 0.5, playerOpacity: 1, opacity: 1 }
-          : {}),
+        ...getFogVisibilityPatchForNewShape(scene.fog, draft.operation),
         shapes: [
           ...scene.fog.shapes,
-          {
-            id: crypto.randomUUID(),
-            name: formatDefaultFogShapeName(draft.operation, "polygon", scene.fog.shapes.length),
-            operation: draft.operation,
-            kind: "polygon",
-            points: draft.points,
-            visibleInGm: true,
-            visibleInPlayer: scene.fog.newShapesVisibleInPlayer,
-            visible: true
-          }
+          getFogShapeFromPolygonDraft(
+            draft,
+            crypto.randomUUID(),
+            formatDefaultFogShapeName(draft.operation, "polygon", scene.fog.shapes.length),
+            scene.fog.newShapesVisibleInPlayer
+          )
         ]
       },
       updatedAt: new Date().toISOString()
