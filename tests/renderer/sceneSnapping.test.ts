@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene } from "../../src/shared/localvtt";
 import { constrainSquarePoint } from "../../src/renderer/canvas/gridMath";
-import { getNearestSceneSnapPoint, getRulerSnapPoint } from "../../src/renderer/canvas/sceneSnapping";
+import {
+  getNearestSceneSnapPoint,
+  getRulerSnapPoint,
+  resolveDrawingToolPoint,
+  resolveSceneToolPoint,
+  shouldShowSceneSnapPreview
+} from "../../src/renderer/canvas/sceneSnapping";
 
 describe("scene snapping", () => {
   it("returns null for gridless scenes or invalid grid sizes", () => {
@@ -36,6 +42,43 @@ describe("scene snapping", () => {
 
     expect(getNearestSceneSnapPoint({ x: 35, y: 19 }, scene)).toEqual({ x: 35, y: 20 });
     expect(getNearestSceneSnapPoint({ x: 11, y: 21 }, scene)).toEqual({ x: 10, y: 20 });
+  });
+
+  it("resolves scene tool points with snap marker state", () => {
+    const scene = createDefaultScene("Square");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 50;
+    scene.grid.offsetX = 10;
+    scene.grid.offsetY = 20;
+
+    expect(resolveSceneToolPoint({ x: 11, y: 21 }, scene, true, true)).toEqual({
+      point: { x: 10, y: 20 },
+      snapPoint: { x: 10, y: 20 }
+    });
+    expect(resolveSceneToolPoint({ x: 11, y: 21 }, scene, false, true)).toEqual({
+      point: { x: 11, y: 21 },
+      snapPoint: null
+    });
+  });
+
+  it("keeps freehand drawing points unsnapped", () => {
+    const scene = createDefaultScene("Square");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 50;
+
+    expect(resolveDrawingToolPoint({ x: 1, y: 1 }, scene, false, true)).toEqual({
+      point: { x: 1, y: 1 },
+      snapPoint: null
+    });
+  });
+
+  it("only previews scene snap points for active snap-capable tools", () => {
+    const scene = createDefaultScene("Square");
+
+    expect(shouldShowSceneSnapPreview({ scene, snapModifierActive: true, canSnapDrawing: true })).toBe(true);
+    expect(shouldShowSceneSnapPreview({ scene, snapModifierActive: false, canSnapDrawing: true })).toBe(false);
+    expect(shouldShowSceneSnapPreview({ scene, snapModifierActive: true, canSnapDrawing: false })).toBe(false);
+    expect(shouldShowSceneSnapPreview({ scene: null, snapModifierActive: true, canSnapDrawing: true })).toBe(false);
   });
 
   it("snaps hex rulers to centers and scene tools to the nearest center or vertex", () => {

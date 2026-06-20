@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
-import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings } from "../../shared/localvtt";
+import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings } from "../../shared/localvtt";
 import { areCamerasEqual, getRenderCamera, type Camera } from "../canvas/camera";
 import { getCanvasInteractionClass, type DrawingResizeHandle, type DrawingTransformHover } from "../canvas/canvasInteraction";
 import {
@@ -97,7 +97,7 @@ import {
 import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/environmentEffectLayerRenderer";
 import { getEnvironmentEffectAtPoint, getMaskHitAtPoint, isMaskHitVisibleForLayers } from "../canvas/sceneHitTesting";
 import { getSceneLayerVisibility } from "../canvas/sceneLayerVisibility";
-import { getNearestSceneSnapPoint, getRulerSnapPoint } from "../canvas/sceneSnapping";
+import { getNearestSceneSnapPoint, getRulerSnapPoint, resolveDrawingToolPoint, resolveSceneToolPoint, shouldShowSceneSnapPreview } from "../canvas/sceneSnapping";
 import { getSelectedItemIdList, getSelectedItemIds } from "../lib/selectionIds";
 import {
   getDrawingElementFromPreview,
@@ -642,6 +642,48 @@ export function SceneCanvas({
   const effectiveSelectedDrawingIdSet = useMemo(() => getSelectedItemIds(selectedDrawingId, selectedDrawingIds), [selectedDrawingId, selectedDrawingIds]);
   const effectiveSelectedFogShapeIds = useMemo(() => getSelectedItemIdList(selectedFogShapeId, selectedFogShapeIds), [selectedFogShapeId, selectedFogShapeIds]);
   const effectiveSelectedWeatherMaskIds = useMemo(() => getSelectedItemIdList(selectedWeatherMaskId, selectedWeatherMaskIds), [selectedWeatherMaskId, selectedWeatherMaskIds]);
+  const currentEnvironmentEffectTuning = useMemo<Partial<EnvironmentEffectMask>>(
+    () => ({
+      acidTuning: acidEffectTuning,
+      coldTuning: coldEffectTuning,
+      darknessTuning: darknessEffectTuning,
+      poisonTuning: poisonEffectTuning,
+      waterTuning: waterEffectTuning,
+      lavaTuning: lavaEffectTuning,
+      fireTuning: fireEffectTuning,
+      lightningTuning: lightningEffectTuning,
+      arcaneTuning: arcaneEffectTuning,
+      chaosTuning: chaosEffectTuning,
+      voidTuning: voidEffectTuning,
+      natureTuning: natureEffectTuning,
+      distortionTuning: distortionEffectTuning,
+      radiantTuning: radiantEffectTuning,
+      fieldTuning: forceFieldEffectTuning,
+      shockwaveTuning: shockwaveEffectTuning,
+      smokeTuning: smokeEffectTuning,
+      fogTuning: fogEffectTuning
+    }),
+    [
+      acidEffectTuning,
+      arcaneEffectTuning,
+      chaosEffectTuning,
+      coldEffectTuning,
+      darknessEffectTuning,
+      distortionEffectTuning,
+      fireEffectTuning,
+      fogEffectTuning,
+      forceFieldEffectTuning,
+      lavaEffectTuning,
+      lightningEffectTuning,
+      natureEffectTuning,
+      poisonEffectTuning,
+      radiantEffectTuning,
+      shockwaveEffectTuning,
+      smokeEffectTuning,
+      voidEffectTuning,
+      waterEffectTuning
+    ]
+  );
 
   const {
     mapLayer,
@@ -1549,26 +1591,7 @@ export function SceneCanvas({
         kind: environmentEffectTool,
         effect: environmentEffectType,
         feather: environmentEffectFeather,
-        ...getEnvironmentEffectTuningFields(environmentEffectType, {}, {
-          acidTuning: acidEffectTuning,
-          coldTuning: coldEffectTuning,
-          darknessTuning: darknessEffectTuning,
-          poisonTuning: poisonEffectTuning,
-          waterTuning: waterEffectTuning,
-          lavaTuning: lavaEffectTuning,
-          fireTuning: fireEffectTuning,
-          lightningTuning: lightningEffectTuning,
-          arcaneTuning: arcaneEffectTuning,
-          chaosTuning: chaosEffectTuning,
-          voidTuning: voidEffectTuning,
-          natureTuning: natureEffectTuning,
-          distortionTuning: distortionEffectTuning,
-          radiantTuning: radiantEffectTuning,
-          fieldTuning: forceFieldEffectTuning,
-          shockwaveTuning: shockwaveEffectTuning,
-          smokeTuning: smokeEffectTuning,
-          fogTuning: fogEffectTuning
-        }),
+        ...getEnvironmentEffectTuningFields(environmentEffectType, {}, currentEnvironmentEffectTuning),
         start: point,
         current: point
       } satisfies EnvironmentEffectDrag;
@@ -2063,26 +2086,7 @@ export function SceneCanvas({
               environmentEffectDrag,
               crypto.randomUUID(),
               formatDefaultEnvironmentEffectName(environmentEffectDrag.effect, scene.environment.effects.length),
-              {
-                acidTuning: acidEffectTuning,
-                coldTuning: coldEffectTuning,
-                darknessTuning: darknessEffectTuning,
-                poisonTuning: poisonEffectTuning,
-                waterTuning: waterEffectTuning,
-                lavaTuning: lavaEffectTuning,
-                fireTuning: fireEffectTuning,
-                lightningTuning: lightningEffectTuning,
-                arcaneTuning: arcaneEffectTuning,
-                chaosTuning: chaosEffectTuning,
-                voidTuning: voidEffectTuning,
-                natureTuning: natureEffectTuning,
-                distortionTuning: distortionEffectTuning,
-                radiantTuning: radiantEffectTuning,
-                fieldTuning: forceFieldEffectTuning,
-                shockwaveTuning: shockwaveEffectTuning,
-                smokeTuning: smokeEffectTuning,
-                fogTuning: fogEffectTuning
-              }
+              currentEnvironmentEffectTuning
             )
           )
         );
@@ -2529,9 +2533,9 @@ export function SceneCanvas({
 
   const getToolPoint = (event: React.PointerEvent<HTMLCanvasElement>, snapEnabled = true): Point => {
     const worldPoint = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-    const snappedPoint = scene && snapEnabled && isSnapModifier(event) ? getNearestSceneSnapPoint(worldPoint, scene) : null;
-    setSnapPoint(snappedPoint);
-    return snappedPoint ?? worldPoint;
+    const result = resolveSceneToolPoint(worldPoint, scene, snapEnabled, isSnapModifier(event));
+    setSnapPoint(result.snapPoint);
+    return result.point;
   };
 
   const getRulerPoint = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
@@ -2544,13 +2548,9 @@ export function SceneCanvas({
 
   const getDrawingToolPoint = (event: React.PointerEvent<HTMLCanvasElement>, tool: DrawingTool): Point => {
     const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-    if (!scene || tool === "freehand" || !isSnapModifier(event)) {
-      setSnapPoint(null);
-      return point;
-    }
-    const snappedPoint = getNearestSceneSnapPoint(point, scene) ?? point;
-    setSnapPoint(snappedPoint);
-    return snappedPoint;
+    const result = resolveDrawingToolPoint(point, scene, tool !== "freehand", isSnapModifier(event));
+    setSnapPoint(result.snapPoint);
+    return result.point;
   };
 
   const updateSnapPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -2558,7 +2558,7 @@ export function SceneCanvas({
     const canSnapFog = fogTool && !fogTool.includes("brush");
     const canSnapWeather = Boolean(weatherMaskTool);
     const canSnapEnvironment = Boolean(environmentEffectTool);
-    if (!scene || (!canSnapFog && !canSnapDrawing && !canSnapWeather && !canSnapEnvironment) || !isSnapModifier(event)) {
+    if (!scene || !shouldShowSceneSnapPreview({ scene, snapModifierActive: isSnapModifier(event), canSnapDrawing, canSnapFog, canSnapWeather, canSnapEnvironment })) {
       setSnapPoint(null);
       return;
     }
@@ -2644,26 +2644,7 @@ export function SceneCanvas({
           formatDefaultEnvironmentEffectName(environmentEffectType, scene.environment.effects.length),
           environmentEffectType,
           environmentEffectFeather,
-          {
-            acidTuning: acidEffectTuning,
-            coldTuning: coldEffectTuning,
-            darknessTuning: darknessEffectTuning,
-            poisonTuning: poisonEffectTuning,
-            waterTuning: waterEffectTuning,
-            lavaTuning: lavaEffectTuning,
-            fireTuning: fireEffectTuning,
-            lightningTuning: lightningEffectTuning,
-            arcaneTuning: arcaneEffectTuning,
-            chaosTuning: chaosEffectTuning,
-            voidTuning: voidEffectTuning,
-            natureTuning: natureEffectTuning,
-            distortionTuning: distortionEffectTuning,
-            radiantTuning: radiantEffectTuning,
-            fieldTuning: forceFieldEffectTuning,
-            shockwaveTuning: shockwaveEffectTuning,
-            smokeTuning: smokeEffectTuning,
-            fogTuning: fogEffectTuning
-          }
+          currentEnvironmentEffectTuning
         )
       )
     );
