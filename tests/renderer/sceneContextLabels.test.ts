@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { DrawingElement, EnvironmentEffectMask, FogShape, WeatherMask } from "../../src/shared/localvtt";
 import {
+  formatDefaultEnvironmentEffectName,
+  formatDefaultWeatherMaskName,
   getDrawingContextLabel,
   getEnvironmentEffectContextLabel,
   getFogShapeContextLabel,
@@ -50,6 +52,18 @@ function environmentEffect(overrides: Partial<EnvironmentEffectMask> = {}): Envi
 }
 
 describe("scene context menu labels", () => {
+  it("formats default weather mask names for creation", () => {
+    expect(formatDefaultWeatherMaskName(0)).toBe("Weather Effect Mask 1");
+    expect(formatDefaultWeatherMaskName(4)).toBe("Weather Effect Mask 5");
+    expect(formatDefaultWeatherMaskName(-2)).toBe("Weather Effect Mask 1");
+  });
+
+  it("formats default environment effect names for creation", () => {
+    expect(formatDefaultEnvironmentEffectName("water", 0)).toBe("Water Effect 1");
+    expect(formatDefaultEnvironmentEffectName("electric", 2)).toBe("Electric Effect 3");
+    expect(formatDefaultEnvironmentEffectName("fog", -2)).toBe("Mist Effect 1");
+  });
+
   it("uses trimmed custom names when present", () => {
     expect(getDrawingContextLabel(drawing({ name: "  Bridge  " }), 4)).toBe("Bridge");
     expect(getFogShapeContextLabel(fogShape({ name: "  Hidden Room  " }), 2)).toBe("Hidden Room");

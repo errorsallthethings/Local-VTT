@@ -74,6 +74,8 @@ import {
 import { getPointAlongPath } from "../canvas/movementPath";
 import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint } from "../canvas/polygonDraft";
 import {
+  formatDefaultEnvironmentEffectName,
+  formatDefaultWeatherMaskName,
   getDrawingContextLabel,
   getEnvironmentEffectContextLabel,
   getFogShapeContextLabel,
@@ -171,7 +173,6 @@ import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { duplicateDrawingElement } from "../lib/drawingDefaults";
 import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/dragTypes";
-import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../lib/environmentEffectOptions";
 import { duplicateToken } from "../lib/tokenDefaults";
 import { TokenSettings } from "./layers/TokenSettings";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
@@ -2086,7 +2087,7 @@ export function SceneCanvas({
               ...scene.weather.masks,
               {
                 id: crypto.randomUUID(),
-                name: `Weather Effect Mask ${scene.weather.masks.length + 1}`,
+                name: formatDefaultWeatherMaskName(scene.weather.masks.length),
                 kind: weatherMaskDrag.kind,
                 points: weatherMaskDrag.kind === "circle" ? [weatherMaskDrag.start] : [weatherMaskDrag.start, weatherMaskDrag.current],
                 radius: weatherMaskDrag.kind === "circle" ? distanceBetween(weatherMaskDrag.start, weatherMaskDrag.current) : undefined,
@@ -2113,7 +2114,7 @@ export function SceneCanvas({
               ...scene.environment.effects,
               {
                 id: crypto.randomUUID(),
-                name: `${formatEnvironmentEffectLabel(environmentEffectDrag.effect)} Effect ${scene.environment.effects.length + 1}`,
+                name: formatDefaultEnvironmentEffectName(environmentEffectDrag.effect, scene.environment.effects.length),
                 kind: environmentEffectDrag.kind,
                 effect: environmentEffectDrag.effect,
                 feather: environmentEffectDrag.feather,
@@ -2753,7 +2754,7 @@ export function SceneCanvas({
           ...scene.weather.masks,
           {
             id: crypto.randomUUID(),
-            name: `Weather Effect Mask ${scene.weather.masks.length + 1}`,
+            name: formatDefaultWeatherMaskName(scene.weather.masks.length),
             kind: "polygon",
             points: draft.points,
             visible: true
@@ -2779,7 +2780,7 @@ export function SceneCanvas({
           ...scene.environment.effects,
           {
             id: crypto.randomUUID(),
-            name: `${formatEnvironmentEffectLabel(environmentEffectType)} Effect ${scene.environment.effects.length + 1}`,
+            name: formatDefaultEnvironmentEffectName(environmentEffectType, scene.environment.effects.length),
             kind: "polygon",
             effect: environmentEffectType,
             feather: environmentEffectFeather,
