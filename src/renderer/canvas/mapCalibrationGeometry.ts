@@ -36,6 +36,11 @@ export function getVisibleMapCalibrationBox(drag: MapCalibrationDrag | null, fal
   return getSquareCalibrationBox(drag.start, drag.current);
 }
 
+export function getCompletedMapCalibrationBox(drag: MapCalibrationDrag, fallback: MapCalibrationBox | null, minimumSize = 4): MapCalibrationBox | null {
+  const box = getVisibleMapCalibrationBox(drag, fallback);
+  return box && box.width >= minimumSize && box.height >= minimumSize ? box : null;
+}
+
 export function getSquareCalibrationBox(start: Point, current: Point): MapCalibrationBox {
   const width = current.x - start.x;
   const height = current.y - start.y;

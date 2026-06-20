@@ -55,6 +55,7 @@ import {
 } from "../canvas/liveTableRenderer";
 import { getPlayerDisplayScale, getRulerLabel, isDuplicateRulerWaypoint, isVisibleDiceOverlayEvent } from "../canvas/liveTableState";
 import {
+  getCompletedMapCalibrationBox,
   getMapCalibrationDragFromPoint,
   getUpdatedMapCalibrationDrag,
   getVisibleMapCalibrationBox,
@@ -1875,8 +1876,8 @@ export function SceneCanvas({
     if (mapCalibrationDragValue?.pointerId === event.pointerId) {
       mapCalibrationDragRef.current = null;
       setMapCalibrationDrag(null);
-      const box = getVisibleMapCalibrationBox(mapCalibrationDragValue, mapCalibrationDraftBox);
-      if (box && box.width >= 4 && box.height >= 4) {
+      const box = getCompletedMapCalibrationBox(mapCalibrationDragValue, mapCalibrationDraftBox);
+      if (box) {
         setMapCalibrationDraftBox(box);
       }
       return;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getBoxCalibrationGridPatch,
+  getCompletedMapCalibrationBox,
   getMapCalibrationBoxHit,
   getMapCalibrationDragFromPoint,
   getSquareCalibrationBox,
@@ -64,6 +65,31 @@ describe("map calibration geometry", () => {
       width: 20,
       height: 20
     });
+  });
+
+  it("returns completed calibration boxes only when they meet minimum size", () => {
+    expect(
+      getCompletedMapCalibrationBox(
+        {
+          pointerId: 1,
+          mode: "draw",
+          start: { x: 0, y: 0 },
+          current: { x: 3, y: 3 }
+        },
+        null
+      )
+    ).toBeNull();
+    expect(
+      getCompletedMapCalibrationBox(
+        {
+          pointerId: 1,
+          mode: "draw",
+          start: { x: 0, y: 0 },
+          current: { x: 4, y: 4 }
+        },
+        null
+      )
+    ).toEqual({ x: 0, y: 0, width: 4, height: 4 });
   });
 
   it("detects resize handles before box moves", () => {
