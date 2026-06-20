@@ -671,7 +671,7 @@
 
 .water-tuning-colors {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
   gap: 8px;
   padding-top: 2px;
 }

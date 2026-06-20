@@ -34,7 +34,7 @@ import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType }
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
-import type { ArcaneEffectTuning, ChaosEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
+import type { ArcaneEffectTuning, ChaosEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
 import {
   ENVIRONMENT_EFFECT_FEATHER_OPTIONS,
   ENVIRONMENT_EFFECT_OPTIONS,
@@ -153,6 +153,7 @@ const TEMPLATE_EFFECT_OPTIONS: Array<{ label: string; value: DrawingTemplateEffe
 const DEFAULT_DRAWING_COLOR = "#ff0000";
 const DEFAULT_TEMPLATE_COLOR = "#7dd3fc";
 const DEFAULT_SONAR_COLOR = "#ffd84d";
+const DEFAULT_ENVIRONMENT_EFFECT_TYPE = ENVIRONMENT_EFFECT_OPTIONS[0]?.value ?? "arcane";
 
 interface ToolsMenuProps {
   activeCanvasTool: CanvasTool | null;
@@ -169,6 +170,7 @@ interface ToolsMenuProps {
   arcaneEffectTuning: ArcaneEffectTuning;
   chaosEffectTuning: ChaosEffectTuning;
   voidEffectTuning: VoidEffectTuning;
+  natureEffectTuning: NatureEffectTuning;
   distortionEffectTuning: DistortionEffectTuning;
   radiantEffectTuning: RadiantEffectTuning;
   forceFieldEffectTuning: ForceFieldEffectTuning;
@@ -224,6 +226,8 @@ interface ToolsMenuProps {
   onChaosEffectTuningReset: () => void;
   onVoidEffectTuningChange: (tuning: VoidEffectTuning) => void;
   onVoidEffectTuningReset: () => void;
+  onNatureEffectTuningChange: (tuning: NatureEffectTuning) => void;
+  onNatureEffectTuningReset: () => void;
   onDistortionEffectTuningChange: (tuning: DistortionEffectTuning) => void;
   onDistortionEffectTuningReset: () => void;
   onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
@@ -301,6 +305,7 @@ export function ToolsMenu({
   arcaneEffectTuning,
   chaosEffectTuning,
   voidEffectTuning,
+  natureEffectTuning,
   distortionEffectTuning,
   radiantEffectTuning,
   forceFieldEffectTuning,
@@ -356,6 +361,8 @@ export function ToolsMenu({
   onChaosEffectTuningReset,
   onVoidEffectTuningChange,
   onVoidEffectTuningReset,
+  onNatureEffectTuningChange,
+  onNatureEffectTuningReset,
   onDistortionEffectTuningChange,
   onDistortionEffectTuningReset,
   onRadiantEffectTuningChange,
@@ -429,6 +436,7 @@ export function ToolsMenu({
         onArcaneEffectTuningChange,
         onChaosEffectTuningChange,
         onVoidEffectTuningChange,
+        onNatureEffectTuningChange,
         onDistortionEffectTuningChange,
         onRadiantEffectTuningChange,
         onForceFieldEffectTuningChange,
@@ -453,6 +461,8 @@ export function ToolsMenu({
       onChaosEffectTuningReset();
     } else if (environmentEffectType === "void") {
       onVoidEffectTuningReset();
+    } else if (environmentEffectType === "nature") {
+      onNatureEffectTuningReset();
     } else if (environmentEffectType === "distortion") {
       onDistortionEffectTuningReset();
     } else if (environmentEffectType === "radiant") {
@@ -551,6 +561,8 @@ export function ToolsMenu({
       onCanvasToolChange(null);
       onFogToolChange(null);
       onDrawingToolChange(null);
+      onEnvironmentEffectTypeChange(DEFAULT_ENVIRONMENT_EFFECT_TYPE);
+      setEnvironmentEffectPresetValue("custom");
     } else {
       clearActiveTools();
     }
@@ -1126,6 +1138,7 @@ export function ToolsMenu({
                           onArcaneEffectTuningChange,
                           onChaosEffectTuningChange,
                           onVoidEffectTuningChange,
+                          onNatureEffectTuningChange,
                           onDistortionEffectTuningChange,
                           onRadiantEffectTuningChange,
                           onForceFieldEffectTuningChange,
@@ -1225,6 +1238,16 @@ export function ToolsMenu({
                   <VoidEffectTuningPanel
                     tuning={voidEffectTuning}
                     onChange={onVoidEffectTuningChange}
+                    onReset={resetEnvironmentEffectTuning}
+                  />
+                </>
+              )}
+              {environmentEffectType === "nature" && (
+                <>
+                  <div className="tools-section-divider" />
+                  <NatureEffectTuningPanel
+                    tuning={natureEffectTuning}
+                    onChange={onNatureEffectTuningChange}
                     onReset={resetEnvironmentEffectTuning}
                   />
                 </>
@@ -1742,6 +1765,75 @@ export function VoidEffectTuningPanel({
           <div className="water-tuning-readout-row">
             <div className="water-tuning-readout" title={readout}>{readout}</div>
             <button className="icon-button no-chrome" type="button" title="Copy void tendrils tuning JSON" aria-label="Copy void tendrils tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
+              <Copy size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function NatureEffectTuningPanel({
+  tuning,
+  title = "Advanced Settings",
+  defaultOpen = false,
+  onChange,
+  onReset
+}: {
+  tuning: NatureEffectTuning;
+  title?: string;
+  defaultOpen?: boolean;
+  onChange: (tuning: NatureEffectTuning) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const update = (patch: Partial<NatureEffectTuning>) => onChange({ ...tuning, ...patch });
+  const readout = JSON.stringify(tuning);
+
+  return (
+    <div className="water-tuning-panel" aria-label="Nature Growth effect tuning">
+      <div className="tools-section-label-row">
+        <SettingsToggle open={open} label={title} onToggle={() => setOpen((current) => !current)} />
+        {open && (
+          <button className="icon-button no-chrome" type="button" title="Reset nature growth tuning" aria-label="Reset nature growth tuning" onClick={onReset}>
+            <Undo2 size={15} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      {open && (
+        <>
+          <div className="water-tuning-sliders">
+            <WaterTuningSlider label="Opacity" value={tuning.opacity} min={0} max={1} step={0.01} onChange={(opacity) => update({ opacity })} />
+            <WaterTuningSlider label="Vine Scale" value={tuning.vineScale} min={0.5} max={20} step={0.1} onChange={(vineScale) => update({ vineScale })} />
+            <WaterTuningSlider label="Animation Speed" value={tuning.speed} min={0} max={2} step={0.01} onChange={(speed) => update({ speed })} />
+            <WaterTuningSlider label="Growth Direction" value={tuning.directionDegrees} min={0} max={360} step={1} suffix="deg" onChange={(directionDegrees) => update({ directionDegrees })} />
+            <WaterTuningSlider label="Vine Density" value={tuning.vineDensity} min={0} max={1} step={0.01} onChange={(vineDensity) => update({ vineDensity })} />
+            <WaterTuningSlider label="Vine Width" value={tuning.vineWidth} min={0} max={1} step={0.01} onChange={(vineWidth) => update({ vineWidth })} />
+            <WaterTuningSlider label="Vine Brightness" value={tuning.vineBrightness} min={0} max={2} step={0.02} onChange={(vineBrightness) => update({ vineBrightness })} />
+            <WaterTuningSlider label="Curl" value={tuning.curl} min={0} max={1} step={0.01} onChange={(curl) => update({ curl })} />
+            <WaterTuningSlider label="Thorn Density" value={tuning.thornDensity} min={0} max={1} step={0.01} onChange={(thornDensity) => update({ thornDensity })} />
+            <WaterTuningSlider label="Thorn Size" value={tuning.thornSize} min={0} max={1} step={0.01} onChange={(thornSize) => update({ thornSize })} />
+            <WaterTuningSlider label="Thorn Brightness" value={tuning.thornBrightness} min={0} max={3} step={0.03} onChange={(thornBrightness) => update({ thornBrightness })} />
+            <WaterTuningSlider label="Thorn Irregularity" value={tuning.thornIrregularity} min={0} max={1} step={0.01} onChange={(thornIrregularity) => update({ thornIrregularity })} />
+            <WaterTuningSlider label="Leaf Density" value={tuning.leafDensity} min={0} max={1} step={0.01} onChange={(leafDensity) => update({ leafDensity })} />
+            <WaterTuningSlider label="Leaf Size" value={tuning.leafSize} min={0} max={1} step={0.01} onChange={(leafSize) => update({ leafSize })} />
+            <WaterTuningSlider label="Leaf Sharpness" value={tuning.leafSharpness} min={0} max={1} step={0.01} onChange={(leafSharpness) => update({ leafSharpness })} />
+            <WaterTuningSlider label="Growth Motion" value={tuning.growth} min={0} max={1} step={0.01} onChange={(growth) => update({ growth })} />
+            <WaterTuningSlider label="Glow" value={tuning.glow} min={0} max={1} step={0.01} onChange={(glow) => update({ glow })} />
+            <WaterTuningSlider label="Instability" value={tuning.instability} min={0} max={1} step={0.01} onChange={(instability) => update({ instability })} />
+            <WaterTuningSlider label="Zoom Response" value={tuning.zoomScale} min={-3} max={3} step={0.05} onChange={(zoomScale) => update({ zoomScale })} />
+            <WaterTuningSlider label="Ground Tint" value={tuning.baseAlpha} min={0} max={1} step={0.01} onChange={(baseAlpha) => update({ baseAlpha })} />
+          </div>
+          <div className="water-tuning-colors">
+            <WaterTuningColor label="Ground" value={tuning.soilColor} onChange={(soilColor) => update({ soilColor })} />
+            <WaterTuningColor label="Vines" value={tuning.vineColor} onChange={(vineColor) => update({ vineColor })} />
+            <WaterTuningColor label="Leaves" value={tuning.leafColor} onChange={(leafColor) => update({ leafColor })} />
+            <WaterTuningColor label="Thorns" value={tuning.thornColor} onChange={(thornColor) => update({ thornColor })} />
+          </div>
+          <div className="water-tuning-readout-row">
+            <div className="water-tuning-readout" title={readout}>{readout}</div>
+            <button className="icon-button no-chrome" type="button" title="Copy nature growth tuning JSON" aria-label="Copy nature growth tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
               <Copy size={15} aria-hidden="true" />
             </button>
           </div>

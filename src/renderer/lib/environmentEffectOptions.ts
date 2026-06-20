@@ -8,6 +8,7 @@ import {
   DISTORTION_EFFECT_PRESETS,
   LAVA_EFFECT_PRESETS,
   LIGHTNING_EFFECT_PRESETS,
+  NATURE_EFFECT_PRESETS,
   RADIANT_EFFECT_PRESETS,
   SHOCKWAVE_EFFECT_PRESETS,
   SMOKE_EFFECT_PRESETS,
@@ -21,6 +22,7 @@ import {
   type DistortionEffectTuning,
   type LavaEffectTuning,
   type LightningEffectTuning,
+  type NatureEffectTuning,
   type RadiantEffectTuning,
   type ShockwaveEffectTuning,
   type SmokeEffectTuning,
@@ -44,6 +46,7 @@ export const ENVIRONMENT_EFFECT_OPTIONS: Array<{ label: string; value: Environme
   { label: "Force Field", value: "field" },
   { label: "Lava", value: "lava" },
   { label: "Mist", value: "fog" },
+  { label: "Nature Growth", value: "nature" },
   { label: "Radiant", value: "radiant" },
   { label: "Shockwave", value: "shockwave" },
   { label: "Smoke", value: "smoke" },
@@ -60,6 +63,7 @@ const ENVIRONMENT_EFFECT_LABELS: Record<EnvironmentEffectType, string> = {
   fire: "Fire",
   fog: "Mist",
   lava: "Lava",
+  nature: "Nature Growth",
   radiant: "Radiant",
   shockwave: "Shockwave",
   smoke: "Smoke",
@@ -115,6 +119,12 @@ const ENVIRONMENT_EFFECT_PRESET_OPTIONS: Record<EnvironmentEffectType, Array<{ l
     { label: "Molten Flow", value: "moltenFlow" },
     { label: "Magma Pool", value: "magmaPool" }
   ],
+  nature: [
+    { label: "Custom", value: "custom" },
+    { label: "Overgrowth", value: "overgrowth" },
+    { label: "Thorn Field", value: "thornField" },
+    { label: "Entangling Vines", value: "entanglingVines" }
+  ],
   radiant: [
     { label: "Custom", value: "custom" },
     { label: "Divine Rays", value: "divineRays" },
@@ -154,6 +164,7 @@ const ENVIRONMENT_EFFECT_CANVAS_STYLES: Record<EnvironmentEffectType, { previewF
   fire: { previewFill: "rgba(249, 115, 22, 0.2)", stroke: "rgba(251, 146, 60, 0.95)" },
   fog: { previewFill: "rgba(226, 232, 240, 0.14)", stroke: "rgba(226, 232, 240, 0.82)" },
   lava: { previewFill: "rgba(255, 129, 52, 0.2)", stroke: "rgba(255, 129, 52, 0.95)" },
+  nature: { previewFill: "rgba(132, 204, 22, 0.16)", stroke: "rgba(132, 204, 22, 0.95)" },
   radiant: { previewFill: "rgba(253, 230, 138, 0.16)", stroke: "rgba(253, 230, 138, 0.95)" },
   shockwave: { previewFill: "rgba(147, 197, 253, 0.16)", stroke: "rgba(147, 197, 253, 0.95)" },
   smoke: { previewFill: "rgba(210, 220, 226, 0.18)", stroke: "rgba(210, 220, 226, 0.88)" },
@@ -170,6 +181,7 @@ export function getEnvironmentEffectPresetSelectValue(
   arcaneEffectTuning: ArcaneEffectTuning,
   chaosEffectTuning: ChaosEffectTuning,
   voidEffectTuning: VoidEffectTuning,
+  natureEffectTuning: NatureEffectTuning,
   distortionEffectTuning: DistortionEffectTuning,
   radiantEffectTuning: RadiantEffectTuning,
   forceFieldEffectTuning: ForceFieldEffectTuning,
@@ -194,6 +206,9 @@ export function getEnvironmentEffectPresetSelectValue(
   }
   if (effect === "void") {
     return getVoidPresetSelectValue(voidEffectTuning);
+  }
+  if (effect === "nature") {
+    return getNaturePresetSelectValue(natureEffectTuning);
   }
   if (effect === "distortion") {
     return getDistortionPresetSelectValue(distortionEffectTuning);
@@ -231,6 +246,7 @@ export function applyEnvironmentEffectPreset(
     onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
     onChaosEffectTuningChange: (tuning: ChaosEffectTuning) => void;
     onVoidEffectTuningChange: (tuning: VoidEffectTuning) => void;
+    onNatureEffectTuningChange: (tuning: NatureEffectTuning) => void;
     onDistortionEffectTuningChange: (tuning: DistortionEffectTuning) => void;
     onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
     onForceFieldEffectTuningChange: (tuning: ForceFieldEffectTuning) => void;
@@ -278,6 +294,13 @@ export function applyEnvironmentEffectPreset(
     const preset = VOID_EFFECT_PRESETS[value as keyof typeof VOID_EFFECT_PRESETS];
     if (preset) {
       handlers.onVoidEffectTuningChange({ ...preset });
+    }
+    return;
+  }
+  if (effect === "nature") {
+    const preset = NATURE_EFFECT_PRESETS[value as keyof typeof NATURE_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onNatureEffectTuningChange({ ...preset });
     }
     return;
   }
@@ -404,6 +427,15 @@ function getVoidPresetSelectValue(tuning: VoidEffectTuning): keyof typeof VOID_E
   for (const [presetName, preset] of Object.entries(VOID_EFFECT_PRESETS)) {
     if (isVoidTuningMatch(tuning, preset)) {
       return presetName as keyof typeof VOID_EFFECT_PRESETS;
+    }
+  }
+  return "custom";
+}
+
+function getNaturePresetSelectValue(tuning: NatureEffectTuning): keyof typeof NATURE_EFFECT_PRESETS | "custom" {
+  for (const [presetName, preset] of Object.entries(NATURE_EFFECT_PRESETS)) {
+    if (isNatureTuningMatch(tuning, preset)) {
+      return presetName as keyof typeof NATURE_EFFECT_PRESETS;
     }
   }
   return "custom";
@@ -612,6 +644,35 @@ function isVoidTuningMatch(tuning: VoidEffectTuning, preset: VoidEffectTuning): 
     tuning.tendrilColor === preset.tendrilColor &&
     tuning.voidColor === preset.voidColor &&
     tuning.accentColor === preset.accentColor
+  );
+}
+
+function isNatureTuningMatch(tuning: NatureEffectTuning, preset: NatureEffectTuning): boolean {
+  return (
+    tuning.opacity === preset.opacity &&
+    tuning.vineScale === preset.vineScale &&
+    tuning.speed === preset.speed &&
+    tuning.directionDegrees === preset.directionDegrees &&
+    tuning.vineDensity === preset.vineDensity &&
+    tuning.vineWidth === preset.vineWidth &&
+    tuning.vineBrightness === preset.vineBrightness &&
+    tuning.curl === preset.curl &&
+    tuning.thornDensity === preset.thornDensity &&
+    tuning.thornSize === preset.thornSize &&
+    tuning.thornBrightness === preset.thornBrightness &&
+    tuning.thornIrregularity === preset.thornIrregularity &&
+    tuning.leafDensity === preset.leafDensity &&
+    tuning.leafSize === preset.leafSize &&
+    tuning.leafSharpness === preset.leafSharpness &&
+    tuning.growth === preset.growth &&
+    tuning.glow === preset.glow &&
+    tuning.instability === preset.instability &&
+    tuning.zoomScale === preset.zoomScale &&
+    tuning.baseAlpha === preset.baseAlpha &&
+    tuning.soilColor === preset.soilColor &&
+    tuning.vineColor === preset.vineColor &&
+    tuning.leafColor === preset.leafColor &&
+    tuning.thornColor === preset.thornColor
   );
 }
 

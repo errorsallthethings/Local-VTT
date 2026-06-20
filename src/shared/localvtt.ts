@@ -171,7 +171,7 @@ export interface WeatherMask {
   visible?: boolean;
 }
 
-export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire" | "electric" | "arcane" | "radiant" | "field" | "shockwave" | "distortion" | "chaos" | "void";
+export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire" | "electric" | "arcane" | "radiant" | "field" | "shockwave" | "distortion" | "chaos" | "void" | "nature";
 
 export interface WaterEffectTuningSettings {
   opacity: number;
@@ -637,6 +637,62 @@ export const DEFAULT_VOID_EFFECT_TUNING_SETTINGS: VoidEffectTuningSettings = {
   accentColor: "#e9d5ff"
 };
 
+export interface NatureEffectTuningSettings {
+  opacity: number;
+  vineScale: number;
+  speed: number;
+  directionDegrees: number;
+  vineDensity: number;
+  vineWidth: number;
+  vineBrightness: number;
+  curl: number;
+  thornDensity: number;
+  thornSize: number;
+  thornBrightness: number;
+  thornIrregularity: number;
+  leafDensity: number;
+  leafSize: number;
+  leafSharpness: number;
+  growth: number;
+  glow: number;
+  instability: number;
+  panFollow: number;
+  zoomScale: number;
+  baseAlpha: number;
+  soilColor: string;
+  vineColor: string;
+  leafColor: string;
+  thornColor: string;
+}
+
+export const DEFAULT_NATURE_EFFECT_TUNING_SETTINGS: NatureEffectTuningSettings = {
+  opacity: 0.95,
+  vineScale: 3.4,
+  speed: 0.16,
+  directionDegrees: 258,
+  vineDensity: 0.8,
+  vineWidth: 0.68,
+  vineBrightness: 1.45,
+  curl: 0.66,
+  thornDensity: 0.68,
+  thornSize: 0.78,
+  thornBrightness: 1.5,
+  thornIrregularity: 0.82,
+  leafDensity: 0.5,
+  leafSize: 0.78,
+  leafSharpness: 0.72,
+  growth: 0.62,
+  glow: 0.36,
+  instability: 0.55,
+  panFollow: 1,
+  zoomScale: 0.2,
+  baseAlpha: 0.34,
+  soilColor: "#10200c",
+  vineColor: "#22c55e",
+  leafColor: "#bef264",
+  thornColor: "#d97706"
+};
+
 export interface SmokeEffectTuningSettings {
   opacity: number;
   cloudScale: number;
@@ -709,6 +765,7 @@ export interface EnvironmentEffectMask {
   distortionTuning?: DistortionEffectTuningSettings;
   chaosTuning?: ChaosEffectTuningSettings;
   voidTuning?: VoidEffectTuningSettings;
+  natureTuning?: NatureEffectTuningSettings;
   smokeTuning?: SmokeEffectTuningSettings;
   fogTuning?: FogEffectTuningSettings;
   visibleInGm?: boolean;
@@ -1556,7 +1613,7 @@ const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "sandstorm"
 ]);
 
-const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire", "electric", "arcane", "radiant", "field", "shockwave", "distortion", "chaos", "void"]);
+const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire", "electric", "arcane", "radiant", "field", "shockwave", "distortion", "chaos", "void", "nature"]);
 
 export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
@@ -2056,6 +2113,7 @@ function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): Env
         distortionTuning: effectType === "distortion" ? normalizeDistortionEffectTuning(effect.distortionTuning) : undefined,
         chaosTuning: effectType === "chaos" ? normalizeChaosEffectTuning(effect.chaosTuning) : undefined,
         voidTuning: effectType === "void" ? normalizeVoidEffectTuning(effect.voidTuning) : undefined,
+        natureTuning: effectType === "nature" ? normalizeNatureEffectTuning(effect.natureTuning) : undefined,
         smokeTuning: effectType === "smoke" ? normalizeSmokeEffectTuning(effect.smokeTuning) : undefined,
         fogTuning: effectType === "fog" ? normalizeFogEffectTuning(effect.fogTuning) : undefined,
         visibleInGm: effect.visibleInGm ?? true,
@@ -2318,6 +2376,36 @@ function normalizeVoidEffectTuning(tuning?: VoidEffectTuningSettings): VoidEffec
   };
 }
 
+function normalizeNatureEffectTuning(tuning?: NatureEffectTuningSettings): NatureEffectTuningSettings {
+  return {
+    opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.opacity),
+    vineScale: clampNumber(tuning?.vineScale, 0.5, 20, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.vineScale),
+    speed: clampNumber(tuning?.speed, 0, 2, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.speed),
+    directionDegrees: clampNumber(tuning?.directionDegrees, 0, 360, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.directionDegrees),
+    vineDensity: clampNumber(tuning?.vineDensity, 0, 1, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.vineDensity),
+    vineWidth: clampNumber(tuning?.vineWidth, 0, 1, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.vineWidth),
+    vineBrightness: clampNumber(tuning?.vineBrightness, 0, 2, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.vineBrightness),
+    curl: clampNumber(tuning?.curl, 0, 1, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.curl),
+    thornDensity: clampNumber(tuning?.thornDensity, 0, 1, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.thornDensity),
+    thornSize: clampNumber(tuning?.thornSize, 0, 1, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.thornSize),
+    thornBrightness: clampNumber(tuning?.thornBrightness, 0, 3, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.thornBrightness),
+    thornIrregularity: clampNumber(tuning?.thornIrregularity, 0, 1, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.thornIrregularity),
+    leafDensity: clampNumber(tuning?.leafDensity, 0, 1, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.leafDensity),
+    leafSize: clampNumber(tuning?.leafSize, 0, 1, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.leafSize),
+    leafSharpness: clampNumber(tuning?.leafSharpness, 0, 1, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.leafSharpness),
+    growth: clampNumber(tuning?.growth, 0, 1, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.growth),
+    glow: clampNumber(tuning?.glow, 0, 1, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.glow),
+    instability: clampNumber(tuning?.instability, 0, 1, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.instability),
+    panFollow: 1,
+    zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.zoomScale),
+    baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.baseAlpha),
+    soilColor: normalizeColorValue(tuning?.soilColor, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.soilColor),
+    vineColor: normalizeColorValue(tuning?.vineColor, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.vineColor),
+    leafColor: normalizeColorValue(tuning?.leafColor, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.leafColor),
+    thornColor: normalizeColorValue(tuning?.thornColor, DEFAULT_NATURE_EFFECT_TUNING_SETTINGS.thornColor)
+  };
+}
+
 function normalizeSmokeEffectTuning(tuning?: SmokeEffectTuningSettings): SmokeEffectTuningSettings {
   return {
     opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.opacity),
@@ -2361,7 +2449,7 @@ function normalizeColorValue(value: unknown, fallback: string): string {
 }
 
 function formatEnvironmentEffectName(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "chaos" ? "Chaos Field" : effect === "void" ? "Void Tendrils" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "chaos" ? "Chaos Field" : effect === "void" ? "Void Tendrils" : effect === "nature" ? "Nature Growth" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function normalizeWeatherEffectSettings(settings?: WeatherSettings["effectSettings"]): WeatherSettings["effectSettings"] {

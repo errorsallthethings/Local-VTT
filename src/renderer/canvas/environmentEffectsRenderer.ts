@@ -8,6 +8,7 @@ import {
   DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS,
   DEFAULT_LAVA_EFFECT_TUNING_SETTINGS,
   DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
+  DEFAULT_NATURE_EFFECT_TUNING_SETTINGS,
   DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS,
   DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS,
   DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS,
@@ -21,6 +22,7 @@ import {
   type ForceFieldEffectTuningSettings,
   type LavaEffectTuningSettings,
   type LightningEffectTuningSettings,
+  type NatureEffectTuningSettings,
   type RadiantEffectTuningSettings,
   type ShockwaveEffectTuningSettings,
   type SmokeEffectTuningSettings,
@@ -45,6 +47,7 @@ export type LightningEffectTuning = LightningEffectTuningSettings;
 export type ArcaneEffectTuning = ArcaneEffectTuningSettings;
 export type ChaosEffectTuning = ChaosEffectTuningSettings;
 export type VoidEffectTuning = VoidEffectTuningSettings;
+export type NatureEffectTuning = NatureEffectTuningSettings;
 export type RadiantEffectTuning = RadiantEffectTuningSettings;
 export type SmokeEffectTuning = SmokeEffectTuningSettings;
 export type FogEffectTuning = FogEffectTuningSettings;
@@ -59,6 +62,7 @@ export const DEFAULT_LIGHTNING_EFFECT_TUNING: LightningEffectTuning = DEFAULT_LI
 export const DEFAULT_ARCANE_EFFECT_TUNING: ArcaneEffectTuning = DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_CHAOS_EFFECT_TUNING: ChaosEffectTuning = DEFAULT_CHAOS_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_VOID_EFFECT_TUNING: VoidEffectTuning = DEFAULT_VOID_EFFECT_TUNING_SETTINGS;
+export const DEFAULT_NATURE_EFFECT_TUNING: NatureEffectTuning = DEFAULT_NATURE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_RADIANT_EFFECT_TUNING: RadiantEffectTuning = DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_SMOKE_EFFECT_TUNING: SmokeEffectTuning = DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FOG_EFFECT_TUNING: FogEffectTuning = DEFAULT_FOG_EFFECT_TUNING_SETTINGS;
@@ -349,6 +353,90 @@ export const VOID_EFFECT_PRESETS = {
     accentColor: "#67e8f9"
   }
 } as const satisfies Record<string, VoidEffectTuning>;
+
+export const NATURE_EFFECT_PRESETS = {
+  overgrowth: {
+    opacity: 0.43,
+    vineScale: 12,
+    speed: 0.16,
+    directionDegrees: 258,
+    vineDensity: 1,
+    vineWidth: 1,
+    vineBrightness: 1.42,
+    curl: 0.53,
+    thornDensity: 0.68,
+    thornSize: 0.78,
+    thornBrightness: 1.65,
+    thornIrregularity: 0.82,
+    leafDensity: 1,
+    leafSize: 1,
+    leafSharpness: 1,
+    growth: 0.62,
+    glow: 0.22,
+    instability: 0.87,
+    panFollow: 1,
+    zoomScale: 1.7,
+    baseAlpha: 0.34,
+    soilColor: "#10200c",
+    vineColor: "#22c55e",
+    leafColor: "#bef264",
+    thornColor: "#d97706"
+  },
+  thornField: {
+    opacity: 0.96,
+    vineScale: 0.7,
+    speed: 0.12,
+    directionDegrees: 246,
+    vineDensity: 1,
+    vineWidth: 1,
+    vineBrightness: 2,
+    curl: 0.44,
+    thornDensity: 0.36,
+    thornSize: 1,
+    thornBrightness: 3,
+    thornIrregularity: 0.92,
+    leafDensity: 0.96,
+    leafSize: 0.27,
+    leafSharpness: 0,
+    growth: 0.73,
+    glow: 0.2,
+    instability: 1,
+    panFollow: 1,
+    zoomScale: 0.15,
+    baseAlpha: 0.32,
+    soilColor: "#1c1207",
+    vineColor: "#4d7c0f",
+    leafColor: "#a3e635",
+    thornColor: "#d97706"
+  },
+  entanglingVines: {
+    opacity: 0.3,
+    vineScale: 8.5,
+    speed: 0.22,
+    directionDegrees: 276,
+    vineDensity: 1,
+    vineWidth: 1,
+    vineBrightness: 1.62,
+    curl: 0.92,
+    thornDensity: 0.43,
+    thornSize: 0.72,
+    thornBrightness: 1.55,
+    thornIrregularity: 0.93,
+    leafDensity: 1,
+    leafSize: 0.86,
+    leafSharpness: 1,
+    growth: 0.88,
+    glow: 0.83,
+    instability: 0.86,
+    panFollow: 1,
+    zoomScale: 1.3,
+    baseAlpha: 0.34,
+    soilColor: "#052e16",
+    vineColor: "#22c55e",
+    leafColor: "#bef264",
+    thornColor: "#b45309"
+  }
+} as const satisfies Record<string, NatureEffectTuning>;
 
 export const RADIANT_EFFECT_PRESETS = {
   holyLight: {
@@ -646,6 +734,7 @@ let lightningRuntime: WaterRuntime | null = null;
 let arcaneRuntime: WaterRuntime | null = null;
 let chaosRuntime: WaterRuntime | null = null;
 let voidRuntime: WaterRuntime | null = null;
+let natureRuntime: WaterRuntime | null = null;
 let radiantRuntime: WaterRuntime | null = null;
 let forceFieldRuntime: WaterRuntime | null = null;
 let shockwaveRuntime: WaterRuntime | null = null;
@@ -969,6 +1058,50 @@ export function drawEnvironmentVoidEffect(
   updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateVoidMaterialTuning(runtime.meshA.material, tuning);
   updateVoidMaterialTuning(runtime.meshB.material, tuning);
+
+  runtime.renderer.setSize(width, height, false);
+  runtime.renderer.setClearColor(0x000000, 0);
+  runtime.renderer.clear();
+  runtime.renderer.render(runtime.scene, runtime.camera);
+
+  ctx.save();
+  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
+  ctx.restore();
+}
+
+export function drawEnvironmentNatureEffect(
+  ctx: CanvasRenderingContext2D,
+  bounds: ScreenBounds,
+  timestamp: number,
+  layerOpacity: number,
+  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
+  tuning: NatureEffectTuning = DEFAULT_NATURE_EFFECT_TUNING
+) {
+  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
+    return;
+  }
+
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
+  const height = ctx.canvas.clientHeight || ctx.canvas.height;
+  const runtime = getNatureRuntime(width, height);
+  if (!runtime) {
+    drawNatureFallback(ctx, bounds, layerOpacity);
+    return;
+  }
+
+  const time = (timestamp - runtime.startedAt) / 1000;
+  positionWaterMesh(runtime.meshA, width, height, 1);
+  positionWaterMesh(runtime.meshB, width, height, 1);
+  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
+  runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.38;
+  runtime.meshA.material.uniforms.time.value = time;
+  runtime.meshB.material.uniforms.time.value = time * 0.64 + 15.7;
+  runtime.meshA.material.uniforms.resolution.value.set(width, height);
+  runtime.meshB.material.uniforms.resolution.value.set(width, height);
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateNatureMaterialTuning(runtime.meshA.material, tuning);
+  updateNatureMaterialTuning(runtime.meshB.material, tuning);
 
   runtime.renderer.setSize(width, height, false);
   runtime.renderer.setClearColor(0x000000, 0);
@@ -1585,6 +1718,55 @@ function getVoidRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   return voidRuntime;
+}
+
+function getNatureRuntime(width: number, height: number): WaterRuntime | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!natureRuntime) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+    camera.position.set(0, 0, 2400);
+    camera.lookAt(0, 0, 0);
+
+    const material = createNatureMaterial(0.82);
+    const materialB = createNatureMaterial(0.32);
+    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    meshA.position.z = 1280;
+    meshB.position.z = 1281;
+    scene.add(meshA, meshB);
+
+    natureRuntime = {
+      renderer,
+      scene,
+      camera,
+      meshA,
+      meshB,
+      startedAt: Date.now(),
+      width: 0,
+      height: 0
+    };
+  }
+
+  if (natureRuntime.width !== width || natureRuntime.height !== height) {
+    natureRuntime.width = width;
+    natureRuntime.height = height;
+    natureRuntime.camera.left = 0;
+    natureRuntime.camera.right = width;
+    natureRuntime.camera.top = 0;
+    natureRuntime.camera.bottom = height;
+    natureRuntime.camera.near = 0.1;
+    natureRuntime.camera.far = 5000;
+    natureRuntime.camera.updateProjectionMatrix();
+  }
+
+  return natureRuntime;
 }
 
 function getRadiantRuntime(width: number, height: number): WaterRuntime | null {
@@ -3092,6 +3274,262 @@ function updateVoidMaterialTuning(material: THREE.ShaderMaterial, tuning: VoidEf
   material.uniforms.accentColor.value.set(tuning.accentColor);
 }
 
+function createNatureMaterial(opacity: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+    blending: THREE.NormalBlending,
+    uniforms: {
+      vineScale: { value: DEFAULT_NATURE_EFFECT_TUNING.vineScale },
+      speed: { value: DEFAULT_NATURE_EFFECT_TUNING.speed },
+      directionRadians: { value: degreesToRadians(DEFAULT_NATURE_EFFECT_TUNING.directionDegrees) },
+      vineDensity: { value: DEFAULT_NATURE_EFFECT_TUNING.vineDensity },
+      vineWidth: { value: DEFAULT_NATURE_EFFECT_TUNING.vineWidth },
+      vineBrightness: { value: DEFAULT_NATURE_EFFECT_TUNING.vineBrightness },
+      curl: { value: DEFAULT_NATURE_EFFECT_TUNING.curl },
+      thornDensity: { value: DEFAULT_NATURE_EFFECT_TUNING.thornDensity },
+      thornSize: { value: DEFAULT_NATURE_EFFECT_TUNING.thornSize },
+      thornBrightness: { value: DEFAULT_NATURE_EFFECT_TUNING.thornBrightness },
+      thornIrregularity: { value: DEFAULT_NATURE_EFFECT_TUNING.thornIrregularity },
+      leafDensity: { value: DEFAULT_NATURE_EFFECT_TUNING.leafDensity },
+      leafSize: { value: DEFAULT_NATURE_EFFECT_TUNING.leafSize },
+      leafSharpness: { value: DEFAULT_NATURE_EFFECT_TUNING.leafSharpness },
+      growth: { value: DEFAULT_NATURE_EFFECT_TUNING.growth },
+      glow: { value: DEFAULT_NATURE_EFFECT_TUNING.glow },
+      instability: { value: DEFAULT_NATURE_EFFECT_TUNING.instability },
+      panFollow: { value: DEFAULT_NATURE_EFFECT_TUNING.panFollow },
+      zoomScale: { value: DEFAULT_NATURE_EFFECT_TUNING.zoomScale },
+      baseAlpha: { value: DEFAULT_NATURE_EFFECT_TUNING.baseAlpha },
+      soilColor: { value: new THREE.Color(DEFAULT_NATURE_EFFECT_TUNING.soilColor) },
+      vineColor: { value: new THREE.Color(DEFAULT_NATURE_EFFECT_TUNING.vineColor) },
+      leafColor: { value: new THREE.Color(DEFAULT_NATURE_EFFECT_TUNING.leafColor) },
+      thornColor: { value: new THREE.Color(DEFAULT_NATURE_EFFECT_TUNING.thornColor) },
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2(1, 1) },
+      cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
+      effectSize: { value: new THREE.Vector2(1, 1) },
+      cameraZoom: { value: 1 },
+      opacity: { value: opacity }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float vineScale;
+      uniform float speed;
+      uniform float directionRadians;
+      uniform float vineDensity;
+      uniform float vineWidth;
+      uniform float vineBrightness;
+      uniform float curl;
+      uniform float thornDensity;
+      uniform float thornSize;
+      uniform float thornBrightness;
+      uniform float thornIrregularity;
+      uniform float leafDensity;
+      uniform float leafSize;
+      uniform float leafSharpness;
+      uniform float growth;
+      uniform float glow;
+      uniform float instability;
+      uniform float panFollow;
+      uniform float zoomScale;
+      uniform float baseAlpha;
+      uniform vec3 soilColor;
+      uniform vec3 vineColor;
+      uniform vec3 leafColor;
+      uniform vec3 thornColor;
+      uniform float time;
+      uniform vec2 resolution;
+      uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
+      uniform vec2 effectSize;
+      uniform float cameraZoom;
+      uniform float opacity;
+
+      float randomValue(vec2 value) {
+        return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float valueNoise(vec2 value) {
+        vec2 base = floor(value);
+        vec2 fraction = fract(value);
+        vec2 blend = fraction * fraction * (3.0 - 2.0 * fraction);
+        float a = randomValue(base);
+        float b = randomValue(base + vec2(1.0, 0.0));
+        float c = randomValue(base + vec2(0.0, 1.0));
+        float d = randomValue(base + vec2(1.0, 1.0));
+        return mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y);
+      }
+
+      float fbm(vec2 value) {
+        float total = 0.0;
+        float amplitude = 0.5;
+        for (int i = 0; i < 5; i++) {
+          total += valueNoise(value) * amplitude;
+          value *= 2.04;
+          amplitude *= 0.52;
+        }
+        return total;
+      }
+
+      mat2 rotate2d(float angle) {
+        float s = sin(angle);
+        float c = cos(angle);
+        return mat2(c, -s, s, c);
+      }
+
+      float vineLayer(vec2 uv, float localTime, float seedOffset) {
+        vec2 warped = uv;
+        float broad = fbm(warped * 0.58 + vec2(seedOffset, localTime * 0.08));
+        float fine = fbm(warped * 1.9 - vec2(localTime * 0.04, seedOffset));
+        warped += vec2(broad - 0.5, fine - 0.5) * (0.32 + instability * 0.95);
+        warped += vec2(sin(warped.y * (2.0 + curl * 5.0) + localTime * 0.9 + seedOffset), cos(warped.x * (1.8 + curl * 4.2) - localTime * 0.7)) * curl * 0.26;
+        float lanes = mix(2.0, 10.0, vineDensity);
+        float path = warped.x * lanes + sin(warped.y * (2.8 + vineScale * 0.18) + seedOffset + localTime * 1.1) * (0.16 + curl * 0.5);
+        path += fbm(warped * (1.4 + vineScale * 0.12) + seedOffset) * (0.5 + instability);
+        float width = mix(0.035, 0.17, vineWidth);
+        float strand = 1.0 - smoothstep(0.015, width, abs(fract(path) - 0.5));
+        float segment = smoothstep(0.16, 0.86, fbm(warped * vec2(2.5, 7.5) + vec2(localTime * 0.12, seedOffset)));
+        float growthWave = mix(0.72, 1.0, growth) + sin(localTime * 5.0 + broad * 6.0) * 0.12 * growth;
+        return pow(strand, mix(1.7, 0.68, vineWidth)) * segment * growthWave;
+      }
+
+      float pointedLeafMask(vec2 point, float sharpness) {
+        float lengthLimit = 1.0 - smoothstep(0.86, 1.0, abs(point.y));
+        float bladeWidth = (1.0 - pow(abs(point.y), mix(1.25, 0.62, sharpness))) * mix(0.42, 0.28, sharpness);
+        float blade = 1.0 - smoothstep(bladeWidth, bladeWidth + mix(0.08, 0.018, sharpness), abs(point.x));
+        float vein = (1.0 - smoothstep(0.006, 0.018, abs(point.x))) * (1.0 - smoothstep(0.2, 0.92, abs(point.y)));
+        return clamp(blade * lengthLimit + vein * 0.12 * sharpness, 0.0, 1.0);
+      }
+
+      float triangleThornMask(vec2 point) {
+        float spine = smoothstep(0.0, 0.08, point.y) * (1.0 - smoothstep(0.72, 1.0, point.y));
+        float halfWidth = (1.0 - point.y) * 0.36;
+        float body = 1.0 - smoothstep(halfWidth, halfWidth + 0.035, abs(point.x));
+        return clamp(body * spine, 0.0, 1.0);
+      }
+
+      float leafField(vec2 uv, float vineMask, float localTime) {
+        float field = 0.0;
+        float cells = mix(2.2, 7.0, leafDensity) * mix(0.62, 1.16, leafSize);
+        for (int layer = 0; layer < 3; layer++) {
+          float layerSeed = float(layer) * 29.37;
+          vec2 layerUv = rotate2d(float(layer) * 1.91 + 0.28) * uv * (cells + float(layer) * 0.83);
+          vec2 cell = floor(layerUv);
+          vec2 fraction = fract(layerUv);
+          float seed = randomValue(cell + layerSeed);
+          float placed = smoothstep(0.82 - leafDensity * 0.64, 0.98, seed);
+          vec2 jitter = vec2(randomValue(cell + vec2(7.1, layerSeed)), randomValue(cell + vec2(13.9, layerSeed))) - 0.5;
+          vec2 center = vec2(0.5) + jitter * mix(0.18, 0.42, instability);
+          vec2 localPoint = fraction - center;
+          float angle = randomValue(cell + vec2(23.7, layerSeed)) * 6.2831853 + directionRadians + (randomValue(cell + vec2(5.0, 9.0)) - 0.5) * 1.5;
+          localPoint = rotate2d(angle) * localPoint;
+          localPoint /= vec2(mix(0.12, 0.28, leafSize), mix(0.24, 0.56, leafSize));
+          float leaf = pointedLeafMask(localPoint, leafSharpness);
+          float veinBreakup = smoothstep(0.2, 0.92, fbm((cell + fraction) * 1.7 + layerSeed + localTime * 0.03));
+          field = max(field, leaf * placed * veinBreakup);
+        }
+        return field * smoothstep(0.05, 0.34, vineMask + leafDensity * 0.52);
+      }
+
+      float thornField(vec2 uv, float vineMask, float localTime) {
+        float field = 0.0;
+        float cells = mix(3.2, 10.5, thornDensity) * mix(0.84, 1.28, thornSize);
+        for (int layer = 0; layer < 3; layer++) {
+          float layerSeed = float(layer) * 41.19;
+          vec2 layerUv = rotate2d(float(layer) * 2.17 - 0.34) * uv * (cells + float(layer) * 1.15);
+          vec2 cell = floor(layerUv);
+          vec2 fraction = fract(layerUv);
+          float seed = randomValue(cell + vec2(layerSeed, 6.0));
+          float placed = smoothstep(0.86 - thornDensity * 0.66, 0.99, seed);
+          vec2 jitter = vec2(randomValue(cell + vec2(2.3, layerSeed)), randomValue(cell + vec2(19.4, layerSeed))) - 0.5;
+          vec2 center = vec2(0.5) + jitter * mix(0.12, 0.46, thornIrregularity);
+          vec2 localPoint = fraction - center;
+          float angle = randomValue(cell + vec2(31.0, layerSeed)) * 6.2831853 + (randomValue(cell + vec2(8.0, 14.0)) - 0.5) * thornIrregularity * 1.8;
+          localPoint = rotate2d(angle) * localPoint;
+          localPoint /= vec2(mix(0.045, 0.13, thornSize), mix(0.13, 0.34, thornSize));
+          float thorn = triangleThornMask(localPoint);
+          float breakup = smoothstep(0.12, 0.78, fbm((cell + fraction) * 1.2 + layerSeed - localTime * 0.02));
+          field = max(field, thorn * placed * breakup);
+        }
+        return field * smoothstep(0.04, 0.28, vineMask + thornDensity * 0.48);
+      }
+
+      void main() {
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 size = max(effectSize, vec2(1.0));
+        vec2 effectCenter = effectOrigin + size * 0.5;
+        vec2 effectScreenCenter = cameraOffset + effectCenter * zoomBase;
+        vec2 anchoredCoord = mix(screenCoord - effectScreenCenter, worldCoord - effectCenter, panFollow);
+        vec2 localCoord = (worldCoord - effectOrigin) / size;
+        vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
+        vec2 perpendicular = vec2(-direction.y, direction.x);
+        vec2 uv = anchoredCoord / 150.0 * zoomFactor;
+        vec2 flowUv = vec2(dot(uv, direction), dot(uv, perpendicular));
+        float localTime = time * speed;
+        flowUv.x += localTime * 0.16 * growth;
+
+        float scale = max(0.25, vineScale / 5.0);
+        float vineA = vineLayer(flowUv * scale, localTime, 4.7);
+        float vineB = vineLayer(rotate2d(1.42) * flowUv.yx * max(0.25, vineScale / 6.5), localTime * 0.82 + 2.3, 17.9) * 0.72;
+        float vines = clamp(vineA + vineB, 0.0, 1.0);
+        float leaves = leafField(flowUv * max(0.22, vineScale / 5.8) + vec2(localTime * 0.025, -localTime * 0.018), vines, localTime) * leafDensity;
+        float thorns = thornField(flowUv * max(0.25, vineScale / 5.5), vines, localTime) * thornDensity;
+        float ground = fbm(flowUv * 0.48 + vec2(localTime * 0.03, 6.0));
+        float energy = clamp(vines * vineBrightness * (0.92 + vineWidth * 0.42) + leaves * 1.15 + thorns * 1.25 + ground * baseAlpha * 0.42, 0.0, 1.0);
+        vec3 color = mix(soilColor, vineColor, clamp(vines * vineBrightness * (1.05 + glow * 0.32), 0.0, 1.0));
+        color = mix(color, leafColor, clamp(leaves * (1.28 + glow * 0.42), 0.0, 1.0));
+        float thornStrength = clamp(thorns * thornBrightness * 2.2, 0.0, 1.0);
+        color = mix(color, thornColor, thornStrength);
+        color += vineColor * glow * smoothstep(0.56, 1.0, vines) * 0.22;
+        color += leafColor * glow * smoothstep(0.72, 1.0, vines + leaves) * 0.16;
+        float alpha = (baseAlpha * 0.68 + vines * vineBrightness * (0.76 + vineWidth * 0.46) + leaves * 0.7 + thorns * thornBrightness * 1.05 + ground * baseAlpha * 0.24) * opacity;
+        alpha *= smoothstep(0.02, 0.12, energy + baseAlpha);
+        gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+      }
+    `
+  });
+}
+
+function updateNatureMaterialTuning(material: THREE.ShaderMaterial, tuning: NatureEffectTuning) {
+  material.uniforms.vineScale.value = tuning.vineScale;
+  material.uniforms.speed.value = tuning.speed;
+  material.uniforms.directionRadians.value = degreesToRadians(tuning.directionDegrees);
+  material.uniforms.vineDensity.value = tuning.vineDensity;
+  material.uniforms.vineWidth.value = tuning.vineWidth;
+  material.uniforms.vineBrightness.value = tuning.vineBrightness;
+  material.uniforms.curl.value = tuning.curl;
+  material.uniforms.thornDensity.value = tuning.thornDensity;
+  material.uniforms.thornSize.value = tuning.thornSize;
+  material.uniforms.thornBrightness.value = tuning.thornBrightness;
+  material.uniforms.thornIrregularity.value = tuning.thornIrregularity;
+  material.uniforms.leafDensity.value = tuning.leafDensity;
+  material.uniforms.leafSize.value = tuning.leafSize;
+  material.uniforms.leafSharpness.value = tuning.leafSharpness;
+  material.uniforms.growth.value = tuning.growth;
+  material.uniforms.glow.value = tuning.glow;
+  material.uniforms.instability.value = tuning.instability;
+  material.uniforms.panFollow.value = 1;
+  material.uniforms.zoomScale.value = tuning.zoomScale;
+  material.uniforms.baseAlpha.value = tuning.baseAlpha;
+  material.uniforms.soilColor.value.set(tuning.soilColor);
+  material.uniforms.vineColor.value.set(tuning.vineColor);
+  material.uniforms.leafColor.value.set(tuning.leafColor);
+  material.uniforms.thornColor.value.set(tuning.thornColor);
+}
+
 function createRadiantMaterial(opacity: number): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     transparent: true,
@@ -4125,6 +4563,14 @@ function drawVoidFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, l
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.36;
   ctx.fillStyle = "rgb(76, 29, 149)";
+  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  ctx.restore();
+}
+
+function drawNatureFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.36;
+  ctx.fillStyle = "rgb(22, 101, 52)";
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }
