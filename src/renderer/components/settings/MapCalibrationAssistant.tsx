@@ -1,13 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Asset, DisplayCalibration, GridSettings, MapTransform, Scene } from "../../../shared/localvtt";
+import type { MapCalibrationBox } from "../../canvas/mapCalibrationGeometry";
 import { CollapsibleSettingsSection, SettingsField, SettingsReadout } from "./SettingsSection";
 
-export interface MapCalibrationBox {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+export type { MapCalibrationBox } from "../../canvas/mapCalibrationGeometry";
 
 export interface MapCalibrationDraft {
   fitMode: MapTransform["fitMode"];
