@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { areCamerasEqual, getRenderCamera } from "../../src/renderer/canvas/camera";
+import { areCamerasEqual, getCameraForWheelZoom, getRenderCamera } from "../../src/renderer/canvas/camera";
 import {
   getFogDragKindForTool,
   getFogOperationForTool,
@@ -29,6 +29,20 @@ it("areCamerasEqual tolerates tiny floating point drift", () => {
   expect(areCamerasEqual({ x: 1, y: 2, zoom: 3 }, { x: 1.0005, y: 1.9995, zoom: 3.00005 })).toBe(true);
   expect(areCamerasEqual({ x: 1, y: 2, zoom: 3 }, { x: 1.01, y: 2, zoom: 3 })).toBe(false);
   expect(areCamerasEqual({ x: 1, y: 2, zoom: 3 }, { x: 1, y: 2, zoom: 3.001 })).toBe(false);
+});
+
+it("getCameraForWheelZoom keeps the world point under the cursor anchored", () => {
+  const camera = { x: 20, y: -10, zoom: 2 };
+  const nextCamera = getCameraForWheelZoom({ camera, mouseX: 120, mouseY: 90, deltaY: -1 });
+
+  expect(nextCamera.zoom).toBeCloseTo(2.16);
+  expect((120 - nextCamera.x) / nextCamera.zoom).toBeCloseTo((120 - camera.x) / camera.zoom);
+  expect((90 - nextCamera.y) / nextCamera.zoom).toBeCloseTo((90 - camera.y) / camera.zoom);
+});
+
+it("getCameraForWheelZoom clamps zoom bounds", () => {
+  expect(getCameraForWheelZoom({ camera: { x: 0, y: 0, zoom: 10 }, mouseX: 0, mouseY: 0, deltaY: -1 }).zoom).toBe(6);
+  expect(getCameraForWheelZoom({ camera: { x: 0, y: 0, zoom: 0.01 }, mouseX: 0, mouseY: 0, deltaY: 1 }).zoom).toBe(0.08);
 });
 
 it("getNearestGridPoint snaps to the configured grid offset", () => {

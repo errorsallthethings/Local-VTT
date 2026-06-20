@@ -2,7 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings } from "../../shared/localvtt";
-import { areCamerasEqual, getRenderCamera, type Camera } from "../canvas/camera";
+import { areCamerasEqual, getCameraForWheelZoom, getRenderCamera, type Camera } from "../canvas/camera";
 import {
   getCanvasInteractionClass,
   getDrawingTransformHoverAtPoint,
@@ -1441,17 +1441,9 @@ export function SceneCanvas({
     const rect = event.currentTarget.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
-    const zoomFactor = event.deltaY < 0 ? 1.08 : 0.92;
-    const nextZoom = Math.min(6, Math.max(0.08, camera.zoom * zoomFactor));
-    const worldX = (mouseX - camera.x) / camera.zoom;
-    const worldY = (mouseY - camera.y) / camera.zoom;
 
     autoFitCameraRef.current = false;
-    setCamera({
-      zoom: nextZoom,
-      x: mouseX - worldX * nextZoom,
-      y: mouseY - worldY * nextZoom
-    });
+    setCamera(getCameraForWheelZoom({ camera, mouseX, mouseY, deltaY: event.deltaY }));
   };
 
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
