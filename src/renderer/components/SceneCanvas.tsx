@@ -186,8 +186,12 @@ import { TokenSettings } from "./layers/TokenSettings";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools/ToolsMenu";
 import {
   FOG_GRID_SNAP_HINT,
+  getEnvironmentEffectStatusHint,
+  getEnvironmentEffectStatusLabel,
   getDrawingToolHint,
   getDrawingToolLabel,
+  getWeatherMaskStatusHint,
+  getWeatherMaskStatusLabel,
   RULER_CLEAR_HINT,
   RULER_GRID_SNAP_HINT,
   SHIFT_WAYPOINT_HINT,
@@ -3749,17 +3753,10 @@ function MapCalibrationStatusStrip() {
 }
 
 function WeatherMaskStatusStrip({ weatherMaskTool, pointCount }: { weatherMaskTool: WeatherMaskTool; pointCount: number }) {
-  const label = weatherMaskTool === "polygon" ? "Weather Effect Mask Polygon" : weatherMaskTool === "circle" ? "Weather Effect Mask Circle" : "Weather Effect Mask Rectangle";
-  const hint =
-    weatherMaskTool === "polygon"
-      ? `Click to place points.${pointCount >= 3 ? " Enter or double-click finishes." : ""}${pointCount > 0 ? " Right-click removes last point." : ""} Escape cancels.`
-      : weatherMaskTool === "circle"
-        ? "Left-drag from center to set the excluded weather radius."
-        : "Left-drag to draw an excluded weather area. Hold Shift for square.";
   return (
     <div className="fog-tool-status" aria-live="polite">
-      <strong>{label}</strong>
-      <span>{hint}</span>
+      <strong>{getWeatherMaskStatusLabel(weatherMaskTool)}</strong>
+      <span>{getWeatherMaskStatusHint(weatherMaskTool, pointCount)}</span>
       <span>{FOG_GRID_SNAP_HINT}</span>
     </div>
   );
@@ -3774,17 +3771,10 @@ function EnvironmentEffectStatusStrip({
   effect: EnvironmentEffectType;
   pointCount: number;
 }) {
-  const shapeLabel = environmentEffectTool === "polygon" ? "Polygon" : environmentEffectTool === "circle" ? "Radius" : "Rectangle";
-  const hint =
-    environmentEffectTool === "polygon"
-      ? `Click to place points.${pointCount >= 3 ? " Enter or double-click finishes." : ""}${pointCount > 0 ? " Right-click removes last point." : ""} Escape cancels.`
-      : environmentEffectTool === "circle"
-        ? "Left-drag from center to set the animated effect radius."
-        : "Left-drag to draw an animated effect area. Hold Shift for square.";
   return (
     <div className="fog-tool-status" aria-live="polite">
-      <strong>{formatEnvironmentEffectLabel(effect)} {shapeLabel}</strong>
-      <span>{hint}</span>
+      <strong>{getEnvironmentEffectStatusLabel(formatEnvironmentEffectLabel(effect), environmentEffectTool)}</strong>
+      <span>{getEnvironmentEffectStatusHint(environmentEffectTool, pointCount)}</span>
       <span>{FOG_GRID_SNAP_HINT}</span>
     </div>
   );

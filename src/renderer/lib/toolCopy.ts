@@ -7,6 +7,9 @@ export const SHIFT_WAYPOINT_HINT = "Shift adds a waypoint.";
 export const RULER_CLEAR_HINT = "Right-click removes last waypoint. Escape clears.";
 export const TOKEN_MOVE_COMPLETE_HINT = "Release to move. Right-click removes last waypoint. Escape cancels.";
 
+export type WeatherMaskShapeTool = "rectangle" | "circle" | "polygon";
+export type EnvironmentEffectShapeTool = "rectangle" | "circle" | "polygon";
+
 export function getFogToolLabel(fogTool: FogTool): string {
   const action = fogTool.startsWith("reveal") ? "Reveal" : "Hide";
   return `${action} ${getFogToolShapeLabel(fogTool)}`;
@@ -136,6 +139,50 @@ export function getWeatherHelpLines(): string[] {
     "Polygon: click points, Enter or double-click to finish, right-click to remove the last point.",
     "Animated effect shape tools draw scene-specific animated areas inside the Effects layer."
   ];
+}
+
+export function getWeatherMaskStatusLabel(weatherMaskTool: WeatherMaskShapeTool): string {
+  if (weatherMaskTool === "polygon") {
+    return "Weather Effect Mask Polygon";
+  }
+  if (weatherMaskTool === "circle") {
+    return "Weather Effect Mask Circle";
+  }
+  return "Weather Effect Mask Rectangle";
+}
+
+export function getWeatherMaskStatusHint(weatherMaskTool: WeatherMaskShapeTool, pointCount: number): string {
+  if (weatherMaskTool === "polygon") {
+    return `Click to place points.${pointCount >= 3 ? " Enter or double-click finishes." : ""}${pointCount > 0 ? " Right-click removes last point." : ""} Escape cancels.`;
+  }
+  if (weatherMaskTool === "circle") {
+    return "Left-drag from center to set the excluded weather radius.";
+  }
+  return "Left-drag to draw an excluded weather area. Hold Shift for square.";
+}
+
+export function getEnvironmentEffectShapeLabel(environmentEffectTool: EnvironmentEffectShapeTool): string {
+  if (environmentEffectTool === "polygon") {
+    return "Polygon";
+  }
+  if (environmentEffectTool === "circle") {
+    return "Radius";
+  }
+  return "Rectangle";
+}
+
+export function getEnvironmentEffectStatusLabel(effectLabel: string, environmentEffectTool: EnvironmentEffectShapeTool): string {
+  return `${effectLabel} ${getEnvironmentEffectShapeLabel(environmentEffectTool)}`;
+}
+
+export function getEnvironmentEffectStatusHint(environmentEffectTool: EnvironmentEffectShapeTool, pointCount: number): string {
+  if (environmentEffectTool === "polygon") {
+    return `Click to place points.${pointCount >= 3 ? " Enter or double-click finishes." : ""}${pointCount > 0 ? " Right-click removes last point." : ""} Escape cancels.`;
+  }
+  if (environmentEffectTool === "circle") {
+    return "Left-drag from center to set the animated effect radius.";
+  }
+  return "Left-drag to draw an animated effect area. Hold Shift for square.";
 }
 
 function getFogToolShapeLabel(fogTool: FogTool): string {

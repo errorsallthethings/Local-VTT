@@ -6,10 +6,15 @@ import {
   getDrawingHelpLines,
   getDrawingToolHint,
   getDrawingToolLabel,
+  getEnvironmentEffectShapeLabel,
+  getEnvironmentEffectStatusHint,
+  getEnvironmentEffectStatusLabel,
   getFogHelpLines,
   getFogToolHint,
   getFogToolLabel,
-  getRulerHelpLines
+  getRulerHelpLines,
+  getWeatherMaskStatusHint,
+  getWeatherMaskStatusLabel
 } from "../../src/renderer/lib/toolCopy";
 
 describe("tool copy helpers", () => {
@@ -46,5 +51,26 @@ describe("tool copy helpers", () => {
     expect(getDrawingHelpLines()).toContain("Rectangle: left-drag to draw a rectangle; hold Shift for a square.");
     expect(getDrawingHelpLines()).toContain("Ellipse: left-drag from the center to set width and height; hold Shift for a circle.");
     expect(getDrawingHelpLines()).toContain("Drawings are saved as sub-layers under the Drawing layer.");
+  });
+
+  it("describes weather mask status strips", () => {
+    expect(getWeatherMaskStatusLabel("rectangle")).toBe("Weather Effect Mask Rectangle");
+    expect(getWeatherMaskStatusLabel("circle")).toBe("Weather Effect Mask Circle");
+    expect(getWeatherMaskStatusLabel("polygon")).toBe("Weather Effect Mask Polygon");
+    expect(getWeatherMaskStatusHint("rectangle", 0)).toBe("Left-drag to draw an excluded weather area. Hold Shift for square.");
+    expect(getWeatherMaskStatusHint("circle", 0)).toBe("Left-drag from center to set the excluded weather radius.");
+    expect(getWeatherMaskStatusHint("polygon", 2)).toBe("Click to place points. Right-click removes last point. Escape cancels.");
+    expect(getWeatherMaskStatusHint("polygon", 3)).toBe("Click to place points. Enter or double-click finishes. Right-click removes last point. Escape cancels.");
+  });
+
+  it("describes environment effect status strips", () => {
+    expect(getEnvironmentEffectShapeLabel("rectangle")).toBe("Rectangle");
+    expect(getEnvironmentEffectShapeLabel("circle")).toBe("Radius");
+    expect(getEnvironmentEffectShapeLabel("polygon")).toBe("Polygon");
+    expect(getEnvironmentEffectStatusLabel("Water", "circle")).toBe("Water Radius");
+    expect(getEnvironmentEffectStatusHint("rectangle", 0)).toBe("Left-drag to draw an animated effect area. Hold Shift for square.");
+    expect(getEnvironmentEffectStatusHint("circle", 0)).toBe("Left-drag from center to set the animated effect radius.");
+    expect(getEnvironmentEffectStatusHint("polygon", 2)).toBe("Click to place points. Right-click removes last point. Escape cancels.");
+    expect(getEnvironmentEffectStatusHint("polygon", 3)).toBe("Click to place points. Enter or double-click finishes. Right-click removes last point. Escape cancels.");
   });
 });
