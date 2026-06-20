@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Asset, Token } from "../../src/shared/localvtt";
 import {
+  areTokenImagesReady,
   getTokenAssetIds,
   getTokenImageAssets,
+  getRequiredTokenImageAssetIds,
   getTokenImageSourceKey,
   parseTokenImageSourceKey
 } from "../../src/renderer/canvas/tokenImageSource";
@@ -55,6 +57,37 @@ describe("token image source parsing", () => {
       { id: "asset-1", path: "C:/tokens/one-thumb.png" },
       { id: "asset-2", path: "C:/tokens/two.png" }
     ]);
+  });
+
+  it("returns required token image asset ids from source keys", () => {
+    const key = JSON.stringify([
+      { id: "asset-1", path: "C:/tokens/one.png" },
+      { id: "asset-2", path: "C:/tokens/two.png" }
+    ]);
+
+    expect(getRequiredTokenImageAssetIds(key)).toEqual(["asset-1", "asset-2"]);
+  });
+
+  it("treats token images as ready when token rendering is hidden", () => {
+    expect(areTokenImagesReady(false, JSON.stringify([{ id: "asset-1", path: "C:/tokens/one.png" }]), new Map(), new Set())).toBe(true);
+  });
+
+  it("treats token images as ready when each required asset loaded or failed", () => {
+    const key = JSON.stringify([
+      { id: "asset-1", path: "C:/tokens/one.png" },
+      { id: "asset-2", path: "C:/tokens/two.png" }
+    ]);
+
+    expect(areTokenImagesReady(true, key, new Map([["asset-1", {}]]), new Set(["asset-2"]))).toBe(true);
+  });
+
+  it("waits while any required visible token image is still pending", () => {
+    const key = JSON.stringify([
+      { id: "asset-1", path: "C:/tokens/one.png" },
+      { id: "asset-2", path: "C:/tokens/two.png" }
+    ]);
+
+    expect(areTokenImagesReady(true, key, new Map([["asset-1", {}]]), new Set())).toBe(false);
   });
 
   it("returns valid image sources from a JSON array", () => {

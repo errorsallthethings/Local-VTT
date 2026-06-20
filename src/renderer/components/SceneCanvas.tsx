@@ -86,7 +86,7 @@ import {
   isTemplateDrawingTool
 } from "../canvas/templateDrawing";
 import { distanceBetween, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
-import { getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey, parseTokenImageSourceKey } from "../canvas/tokenImageSource";
+import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey, parseTokenImageSourceKey } from "../canvas/tokenImageSource";
 import {
   getTokenMovementPath,
   getTokenMovementTweens,
@@ -634,8 +634,7 @@ export function SceneCanvas({
       paused: videoPaused
     });
 
-  const requiredTokenAssetIds = useMemo(() => parseTokenImageSourceKey(tokenImageSourceKey).map((source) => source.id), [tokenImageSourceKey]);
-  const tokensReady = !canShowTokens || requiredTokenAssetIds.every((assetId) => loadedTokenImages.has(assetId) || failedTokenImageIds.has(assetId));
+  const tokensReady = areTokenImagesReady(canShowTokens, tokenImageSourceKey, loadedTokenImages, failedTokenImageIds);
   const mapReady =
     !canShowMap ||
     !mapAsset ||

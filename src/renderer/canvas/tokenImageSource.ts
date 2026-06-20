@@ -32,6 +32,22 @@ export function getTokenImageSourceKey(assets: readonly Asset[]): string {
   return JSON.stringify(sources);
 }
 
+export function getRequiredTokenImageAssetIds(tokenImageSourceKey: string): string[] {
+  return parseTokenImageSourceKey(tokenImageSourceKey).map((source) => source.id);
+}
+
+export function areTokenImagesReady(
+  canShowTokens: boolean | undefined,
+  tokenImageSourceKey: string,
+  loadedTokenImages: ReadonlyMap<string, unknown>,
+  failedTokenImageIds: ReadonlySet<string>
+): boolean {
+  if (!canShowTokens) {
+    return true;
+  }
+  return getRequiredTokenImageAssetIds(tokenImageSourceKey).every((assetId) => loadedTokenImages.has(assetId) || failedTokenImageIds.has(assetId));
+}
+
 export function parseTokenImageSourceKey(key: string): TokenImageSource[] {
   try {
     const parsed = JSON.parse(key);
