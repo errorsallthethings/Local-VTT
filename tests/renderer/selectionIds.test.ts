@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getSelectedItemIdList, getSelectedItemIds } from "../../src/renderer/lib/selectionIds";
+import { applySelectionMode, getSelectedItemIdList, getSelectedItemIds } from "../../src/renderer/lib/selectionIds";
 
 describe("selection id helpers", () => {
   it("uses multi-selected ids when present", () => {
@@ -19,5 +19,11 @@ describe("selection id helpers", () => {
     expect(getSelectedItemIdList("single", ["a", "b"])).toEqual(["a", "b"]);
     expect(getSelectedItemIdList("single", [])).toEqual(["single"]);
     expect(getSelectedItemIdList(null, [])).toEqual([]);
+  });
+
+  it("replaces, adds, and subtracts selected ids", () => {
+    expect(applySelectionMode(["a", "b"], ["c"], "replace")).toEqual(["c"]);
+    expect(applySelectionMode(["a", "b"], ["b", "c"], "add")).toEqual(["a", "b", "c"]);
+    expect(applySelectionMode(["a", "b", "c"], ["b"], "subtract")).toEqual(["a", "c"]);
   });
 });

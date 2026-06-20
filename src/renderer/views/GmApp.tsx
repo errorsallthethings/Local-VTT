@@ -63,6 +63,7 @@ import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type D
 import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/diceSettingsPreference";
 import { loadImageDimensions } from "../lib/imageDimensions";
 import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/liveTableEvents";
+import { applySelectionMode, type SelectionMode } from "../lib/selectionIds";
 import {
   RECENT_CAMPAIGNS_STORAGE_KEY,
   addRecentCampaign,
@@ -122,7 +123,6 @@ const DEFAULT_SELECTOR_SELECTION_FILTERS: SelectorSelectionFilters = {
   weatherMasks: false,
   drawings: true
 };
-type SceneSelectionMode = "replace" | "add" | "subtract";
 
 export function GmApp() {
   const workspace = useCampaignWorkspace();
@@ -357,12 +357,12 @@ export function GmApp() {
     drawingIds?: string[];
     fogShapeIds?: string[];
     weatherMaskIds?: string[];
-    mode?: SceneSelectionMode;
+    mode?: SelectionMode;
   }) => {
-    selectTokens(applySceneSelectionMode(selectedTokenIds, tokenIds, mode));
-    selectDrawings(applySceneSelectionMode(selectedDrawingIds, drawingIds, mode));
-    selectFogShapes(applySceneSelectionMode(selectedFogShapeIds, fogShapeIds, mode));
-    selectWeatherMasks(applySceneSelectionMode(selectedWeatherMaskIds, weatherMaskIds, mode));
+    selectTokens(applySelectionMode(selectedTokenIds, tokenIds, mode));
+    selectDrawings(applySelectionMode(selectedDrawingIds, drawingIds, mode));
+    selectFogShapes(applySelectionMode(selectedFogShapeIds, fogShapeIds, mode));
+    selectWeatherMasks(applySelectionMode(selectedWeatherMaskIds, weatherMaskIds, mode));
     setSelectedEnvironmentEffectId(null);
   };
 
@@ -3278,17 +3278,6 @@ function clampTurnOrderModalPosition(x: number, y: number, bounds: DOMRect): { x
     x: Math.min(Math.max(margin, x), Math.max(margin, window.innerWidth - bounds.width - margin)),
     y: Math.min(Math.max(margin, y), Math.max(margin, window.innerHeight - bounds.height - margin))
   };
-}
-
-function applySceneSelectionMode(currentIds: string[], nextIds: string[], mode: SceneSelectionMode): string[] {
-  if (mode === "add") {
-    return [...currentIds, ...nextIds.filter((id) => !currentIds.includes(id))];
-  }
-  if (mode === "subtract") {
-    const removedIds = new Set(nextIds);
-    return currentIds.filter((id) => !removedIds.has(id));
-  }
-  return nextIds;
 }
 
 function formatSaveStatus({
