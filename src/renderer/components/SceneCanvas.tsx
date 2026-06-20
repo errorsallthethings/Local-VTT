@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { ArrowRight, Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultDrawingName, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings, Token, WeatherMask } from "../../shared/localvtt";
+import { getEnvironmentEffectBounds, getPointBounds, getWeatherMaskBounds } from "../canvas/boundsGeometry";
 import { getRenderCamera, type Camera } from "../canvas/camera";
 import { getCanvasInteractionClass, type DrawingResizeHandle, type DrawingTransformHover } from "../canvas/canvasInteraction";
 import {
@@ -4988,21 +4989,6 @@ function roundMaskValue(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-function getPointBounds(points: Point[]): { x: number; y: number; width: number; height: number } {
-  const xs = points.map((point) => point.x);
-  const ys = points.map((point) => point.y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  return {
-    x: minX,
-    y: minY,
-    width: maxX - minX,
-    height: maxY - minY
-  };
-}
-
 function isPointInPolygon(point: Point, polygon: Point[]): boolean {
   let inside = false;
   for (let index = 0, previousIndex = polygon.length - 1; index < polygon.length; previousIndex = index, index += 1) {
@@ -5381,27 +5367,6 @@ function getEnvironmentEffectPath(effect: EnvironmentEffectMask, camera: Camera)
   return path;
 }
 
-function getEnvironmentEffectBounds(effect: EnvironmentEffectMask): { x: number; y: number; width: number; height: number } | null {
-  if (effect.kind === "circle" && effect.points[0] && effect.radius) {
-    return {
-      x: effect.points[0].x - effect.radius,
-      y: effect.points[0].y - effect.radius,
-      width: effect.radius * 2,
-      height: effect.radius * 2
-    };
-  }
-  if (effect.points.length === 0) {
-    return null;
-  }
-  const xs = effect.points.map((point) => point.x);
-  const ys = effect.points.map((point) => point.y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-}
-
 function worldRectToScreen(bounds: { x: number; y: number; width: number; height: number }, camera: Camera): { x: number; y: number; width: number; height: number } {
   const topLeft = worldToScreenPoint({ x: bounds.x, y: bounds.y }, camera);
   return {
@@ -5537,40 +5502,6 @@ function drawWeatherMaskShape(ctx: CanvasRenderingContext2D, mask: WeatherMask, 
     ctx.stroke();
   }
   ctx.restore();
-}
-
-function getWeatherMaskBounds(mask: WeatherMask): { x: number; y: number; width: number; height: number } | null {
-  if (mask.kind === "circle" && mask.points[0] && mask.radius) {
-    return {
-      x: mask.points[0].x - mask.radius,
-      y: mask.points[0].y - mask.radius,
-      width: mask.radius * 2,
-      height: mask.radius * 2
-    };
-  }
-  if (mask.kind === "rectangle" && mask.points.length >= 2) {
-    return {
-      x: Math.min(mask.points[0].x, mask.points[1].x),
-      y: Math.min(mask.points[0].y, mask.points[1].y),
-      width: Math.max(1, Math.abs(mask.points[1].x - mask.points[0].x)),
-      height: Math.max(1, Math.abs(mask.points[1].y - mask.points[0].y))
-    };
-  }
-  if (mask.points.length === 0) {
-    return null;
-  }
-  const xs = mask.points.map((point) => point.x);
-  const ys = mask.points.map((point) => point.y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  return {
-    x: minX,
-    y: minY,
-    width: Math.max(1, maxX - minX),
-    height: Math.max(1, maxY - minY)
-  };
 }
 
 function isMeaningfulWeatherMaskDrag(drag: WeatherMaskDrag): boolean {
