@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPathDistance, getPathMidpoint, getPointAlongPath, hasMeaningfulPath, normalizeMovementPath, removeLastWaypoint } from "../../src/renderer/canvas/movementPath";
+import { appendWaypoint, getPathDistance, getPathMidpoint, getPointAlongPath, hasMeaningfulPath, normalizeMovementPath, removeLastWaypoint } from "../../src/renderer/canvas/movementPath";
 
 describe("movement path helpers", () => {
   it("removes near-duplicate points while preserving meaningful turns", () => {
@@ -36,6 +36,15 @@ describe("movement path helpers", () => {
       waypoints: [{ x: 1, y: 1 }]
     });
     expect(removeLastWaypoint({ id: "path-1", waypoints: [] })).toBeNull();
+  });
+
+  it("appends waypoints unless the next point is a duplicate", () => {
+    const path = { id: "path-1", waypoints: [{ x: 1, y: 1 }] };
+    const duplicate = appendWaypoint(path, { x: 2, y: 2 }, { x: 1, y: 1 }, () => true);
+    const appended = appendWaypoint(path, { x: 2, y: 2 }, { x: 1, y: 1 }, () => false);
+
+    expect(duplicate).toBe(path);
+    expect(appended).toEqual({ id: "path-1", waypoints: [{ x: 1, y: 1 }, { x: 2, y: 2 }] });
   });
 
   it("ignores tiny movement when deciding whether a path is meaningful", () => {

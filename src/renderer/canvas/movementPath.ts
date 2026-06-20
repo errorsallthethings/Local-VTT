@@ -64,6 +64,16 @@ export function removeLastWaypoint<TPath extends { waypoints: Point[] }>(path: T
   };
 }
 
+export function appendWaypoint<TPath extends { waypoints: Point[] }>(path: TPath, waypoint: Point, previousPosition: Point, isDuplicate: (previousPosition: Point, waypoint: Point) => boolean): TPath {
+  if (isDuplicate(previousPosition, waypoint)) {
+    return path;
+  }
+  return {
+    ...path,
+    waypoints: [...path.waypoints, waypoint]
+  };
+}
+
 export function drawDashedMovementPath(ctx: CanvasRenderingContext2D, points: Point[], scale = 1) {
   ctx.save();
   ctx.lineCap = "round";

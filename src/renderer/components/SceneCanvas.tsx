@@ -80,7 +80,7 @@ import {
   getRulerPathPoints,
   type RulerDrag
 } from "../canvas/measurement";
-import { getPointAlongPath, removeLastWaypoint } from "../canvas/movementPath";
+import { appendWaypoint, getPointAlongPath, removeLastWaypoint } from "../canvas/movementPath";
 import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint, updatePolygonDraftCurrent } from "../canvas/polygonDraft";
 import {
   formatDefaultEnvironmentEffectName,
@@ -965,13 +965,13 @@ export function SceneCanvas({
       event.preventDefault();
       const waypoint = getTokenWaypointPosition(tokenDragPreview.currentPosition, token, scene);
       const previousRoutePosition = tokenDrag.waypoints[tokenDrag.waypoints.length - 1] ?? tokenDrag.startPosition;
-      if (isDuplicateTokenWaypoint(previousRoutePosition, waypoint, token, scene)) {
+      const nextTokenDrag = appendWaypoint(tokenDrag, waypoint, previousRoutePosition, (previousPosition, nextWaypoint) => isDuplicateTokenWaypoint(previousPosition, nextWaypoint, token, scene));
+      if (nextTokenDrag === tokenDrag) {
         return;
       }
 
-      const waypoints = [...tokenDrag.waypoints, waypoint];
-      tokenDrag.waypoints = waypoints;
-      setTokenDragPreview((preview) => (preview?.tokenId === token.id ? { ...preview, waypoints } : preview));
+      tokenDragRef.current = nextTokenDrag;
+      setTokenDragPreview((preview) => (preview?.tokenId === token.id ? { ...preview, waypoints: nextTokenDrag.waypoints } : preview));
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -995,12 +995,12 @@ export function SceneCanvas({
       event.preventDefault();
       const waypoint = event.ctrlKey || event.metaKey ? (getRulerSnapPoint(activeRulerDrag.current, scene) ?? activeRulerDrag.current) : activeRulerDrag.current;
       const previousRoutePosition = activeRulerDrag.waypoints[activeRulerDrag.waypoints.length - 1] ?? activeRulerDrag.start;
-      if (isDuplicateRulerWaypoint(previousRoutePosition, waypoint, scene)) {
+      const nextRulerPath = appendWaypoint(activeRulerDrag, waypoint, previousRoutePosition, (previousPosition, nextWaypoint) => isDuplicateRulerWaypoint(previousPosition, nextWaypoint, scene));
+      if (nextRulerPath === activeRulerDrag) {
         return;
       }
 
-      const waypoints = [...activeRulerDrag.waypoints, waypoint];
-      const nextRulerDrag = { ...activeRulerDrag, current: waypoint, waypoints };
+      const nextRulerDrag = { ...nextRulerPath, current: waypoint };
       rulerDragRef.current = nextRulerDrag;
       setRulerDrag(nextRulerDrag);
       emitRulerEvent(nextRulerDrag);
