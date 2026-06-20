@@ -200,6 +200,10 @@ export function shouldAddDrawingPoint(previous: Point | undefined, current: Poin
   return !previous || distanceBetweenPoints(previous, current) >= DRAWING_POINT_MIN_DISTANCE;
 }
 
+export function getDrawingHitRadius(cameraZoom: number): number {
+  return Math.max(8, 8 / cameraZoom);
+}
+
 function drawDrawingSelection(ctx: CanvasRenderingContext2D, drawing: DrawingElement, grid: GridSettings, zoom: number) {
   const bounds = getDrawingBounds(drawing, grid);
   if (!bounds) {

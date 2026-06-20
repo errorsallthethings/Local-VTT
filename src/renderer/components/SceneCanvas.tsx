@@ -6,6 +6,7 @@ import { areCamerasEqual, getRenderCamera, type Camera } from "../canvas/camera"
 import { getCanvasInteractionClass, type DrawingResizeHandle, type DrawingTransformHover } from "../canvas/canvasInteraction";
 import {
   drawDrawings,
+  getDrawingHitRadius,
   getDrawingPreviewPoints,
   getDrawingAtPoint,
   isMeaningfulDrawingPreview,
@@ -1671,7 +1672,7 @@ export function SceneCanvas({
             return;
           }
         }
-        const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, Math.max(8, 8 / getRenderCamera(camera, playerDisplayScale).zoom), scene.grid) : null;
+        const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, getDrawingHitRadius(getRenderCamera(camera, playerDisplayScale).zoom), scene.grid) : null;
         if (drawingHit) {
           const selectedDrawingIdSet = new Set(selectedDrawingIds);
           const shouldDragSelectedGroup = mouseBehavior === "grabber" && selectedDrawingIdSet.has(drawingHit.id) && selectedDrawingIds.length > 1;
@@ -2408,7 +2409,7 @@ export function SceneCanvas({
           return;
         }
         if (!canvasTool && !drawingTool && !fogTool && !weatherMaskTool && !environmentEffectTool) {
-          const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, Math.max(8, 8 / getRenderCamera(camera, playerDisplayScale).zoom), scene.grid) : null;
+          const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, getDrawingHitRadius(getRenderCamera(camera, playerDisplayScale).zoom), scene.grid) : null;
           if (drawingHit) {
             const frameRect = frameRef.current?.getBoundingClientRect();
             const drawingIndex = scene.drawings.findIndex((drawing) => drawing.id === drawingHit.id);
@@ -2595,7 +2596,7 @@ export function SceneCanvas({
       setSceneItemHover(true);
       return;
     }
-    const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, Math.max(8, 8 / cameraState.zoom), scene.grid) : null;
+    const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, getDrawingHitRadius(cameraState.zoom), scene.grid) : null;
     if (drawingHit) {
       setSceneItemHover(true);
       return;

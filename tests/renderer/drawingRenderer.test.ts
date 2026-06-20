@@ -4,6 +4,7 @@ import {
   getConeTriangle,
   getDrawingPreviewPoints,
   getDrawingAtPoint,
+  getDrawingHitRadius,
   isMeaningfulDrawingPreview,
   shouldAddDrawingPoint,
   type DrawingPreview
@@ -11,6 +12,12 @@ import {
 import { createDefaultScene } from "../../src/shared/localvtt";
 
 describe("drawing renderer helpers", () => {
+  it("keeps drawing hit radius usable across zoom levels", () => {
+    expect(getDrawingHitRadius(2)).toBe(8);
+    expect(getDrawingHitRadius(1)).toBe(8);
+    expect(getDrawingHitRadius(0.5)).toBe(16);
+  });
+
   it("keeps line previews to start and current points", () => {
     const preview: DrawingPreview = {
       pointerId: 1,
