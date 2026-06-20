@@ -177,7 +177,8 @@ import {
   setDrawingTemplateFootprintVisibility,
   setFogShapePlayerVisibility,
   setWeatherMaskVisibility,
-  updateSceneDrawingPoints
+  updateSceneDrawingPoints,
+  updateSceneTokenPositions
 } from "../lib/sceneEditing";
 import { TokenSettings } from "./layers/TokenSettings";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
@@ -2239,23 +2240,7 @@ export function SceneCanvas({
           x: finalPosition.x - tokenDrag.startPosition.x,
           y: finalPosition.y - tokenDrag.startPosition.y
         };
-        const nextScene = {
-          ...scene,
-          tokens: scene.tokens.map((candidate) => {
-            const groupStartPosition = tokenDrag.groupStartPositions.get(candidate.id);
-            if (!groupStartPosition) {
-              return candidate;
-            }
-            return {
-              ...candidate,
-              position: {
-                x: groupStartPosition.x + snappedDelta.x,
-                y: groupStartPosition.y + snappedDelta.y
-              }
-            };
-          }),
-          updatedAt: new Date().toISOString()
-        };
+        const nextScene = updateSceneTokenPositions(scene, tokenDrag.groupStartPositions, snappedDelta);
         const tokenMovementPath = getTokenMovementPath(tokenDrag.startPosition, tokenDrag.waypoints, finalPosition);
         onSceneChange(
           nextScene,

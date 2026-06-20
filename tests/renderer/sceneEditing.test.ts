@@ -20,7 +20,8 @@ import {
   setFogShapePlayerVisibility,
   setWeatherMaskVisibility,
   setSceneLayerOrderLocked,
-  updateSceneDrawingPoints
+  updateSceneDrawingPoints,
+  updateSceneTokenPositions
 } from "../../src/renderer/lib/sceneEditing";
 
 describe("scene editing helpers", () => {
@@ -149,6 +150,28 @@ describe("scene editing helpers", () => {
 
     expect(next.tokens[0]).toMatchObject({ id: "token-1", name: "Changed" });
     expect(next.tokens[1]).toMatchObject({ id: "token-2", name: "Two" });
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("updates token positions from start positions and a delta", () => {
+    const scene = createDefaultScene("Tokens");
+    scene.tokens = [
+      { id: "token-1", name: "One", assetId: "asset-1", position: { x: 0, y: 0 }, size: { width: 50, height: 50 }, order: 0, visibleInPlayer: true },
+      { id: "token-2", name: "Two", assetId: "asset-2", position: { x: 10, y: 10 }, size: { width: 50, height: 50 }, order: 1, visibleInPlayer: true },
+      { id: "token-3", name: "Three", assetId: "asset-3", position: { x: 20, y: 20 }, size: { width: 50, height: 50 }, order: 2, visibleInPlayer: true }
+    ];
+
+    const next = updateSceneTokenPositions(
+      scene,
+      new Map([
+        ["token-1", { x: 0, y: 0 }],
+        ["token-2", { x: 10, y: 10 }]
+      ]),
+      { x: 5, y: -3 },
+      "updated"
+    );
+
+    expect(next.tokens.map((token) => token.position)).toEqual([{ x: 5, y: -3 }, { x: 15, y: 7 }, { x: 20, y: 20 }]);
     expect(next.updatedAt).toBe("updated");
   });
 

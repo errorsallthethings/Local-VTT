@@ -46,6 +46,26 @@ export function patchSceneToken(scene: Scene, tokenId: string, patch: Partial<To
   };
 }
 
+export function updateSceneTokenPositions(scene: Scene, startPositions: ReadonlyMap<string, Point>, delta: Point, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    tokens: scene.tokens.map((token) => {
+      const startPosition = startPositions.get(token.id);
+      if (!startPosition) {
+        return token;
+      }
+      return {
+        ...token,
+        position: {
+          x: startPosition.x + delta.x,
+          y: startPosition.y + delta.y
+        }
+      };
+    }),
+    updatedAt
+  };
+}
+
 export function duplicateSceneToken(scene: Scene, tokenId: string, duplicateId: string, updatedAt = new Date().toISOString()): DuplicateSceneTokenResult {
   const tokens = duplicateToken(scene.tokens, tokenId, duplicateId);
   if (tokens.length === scene.tokens.length) {
