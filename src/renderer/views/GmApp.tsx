@@ -61,6 +61,7 @@ import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from ".
 import { moveSceneFolder } from "../lib/campaignActions";
 import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/diceSettingsPreference";
+import { loadImageDimensions } from "../lib/imageDimensions";
 import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/liveTableEvents";
 import {
   RECENT_CAMPAIGNS_STORAGE_KEY,
@@ -3314,15 +3315,6 @@ function formatCleanSaveState(saveState: string): string {
     return "Saved";
   }
   return saveState[0].toUpperCase() + saveState.slice(1);
-}
-
-function loadImageDimensions(src: string): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
-    image.onerror = () => reject(new Error("Unable to read the selected map image dimensions."));
-    image.src = src;
-  });
 }
 
 function removeSceneTokensByAsset(scene: Scene, assetId: string): Scene {
