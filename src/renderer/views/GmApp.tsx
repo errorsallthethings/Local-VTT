@@ -10,7 +10,6 @@ import {
 import {
   DEFAULT_DICE_SETTINGS,
   DEFAULT_FOG,
-  DEFAULT_MAP_TRANSFORM,
   PLAYER_INDICATOR_THEMES,
   DEFAULT_TABLE_TOOLS,
   DEFAULT_SCENE_FOLDER_COLOR,
@@ -42,12 +41,12 @@ import type {
 import { SceneCanvas } from "../components/SceneCanvas";
 import { CampaignBusyOverlay } from "../components/modals/CampaignBusyOverlay";
 import { EnvironmentEffectEditorModal } from "../components/layers/EnvironmentEffectEditorModal";
-import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
+import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
 import { DEFAULT_ACID_EFFECT_TUNING, DEFAULT_ARCANE_EFFECT_TUNING, DEFAULT_CHAOS_EFFECT_TUNING, DEFAULT_COLD_EFFECT_TUNING, DEFAULT_DARKNESS_EFFECT_TUNING, DEFAULT_DISTORTION_EFFECT_TUNING, DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_FORCE_FIELD_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_NATURE_EFFECT_TUNING, DEFAULT_POISON_EFFECT_TUNING, DEFAULT_RADIANT_EFFECT_TUNING, DEFAULT_SHOCKWAVE_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_VOID_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type AcidEffectTuning, type ArcaneEffectTuning, type ChaosEffectTuning, type ColdEffectTuning, type DarknessEffectTuning, type DistortionEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type NatureEffectTuning, type PoisonEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type VoidEffectTuning, type WaterEffectTuning } from "../canvas/environmentEffectsRenderer";
 import type { DrawingTool } from "../canvas/drawingRenderer";
-import { getBoxCalibrationGridPatch } from "../canvas/mapCalibrationGeometry";
+import { applyMapCalibrationDraft, type MapCalibrationDraft } from "../lib/mapCalibration";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderModal } from "../components/turn-order/TurnOrderModal";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -1189,55 +1188,13 @@ export function GmApp() {
       if (!activeScene) {
         return;
       }
-      const columns = Math.max(1, draft.mapGridColumns);
-      const rows = Math.max(1, draft.mapGridRows);
-      const boxGridPatch = getBoxCalibrationGridPatch(draft, mapCalibrationBox);
-      if (boxGridPatch) {
-        updateScene({
-          ...activeScene,
-          grid: {
-            ...activeScene.grid,
-            mapGridColumns: columns,
-            mapGridRows: rows,
-            ...boxGridPatch
-          },
-          mapTransform: {
-            ...activeScene.mapTransform,
-            fitMode: "manual"
-          },
-          updatedAt: new Date().toISOString()
-        });
+      if (mapCalibrationBox) {
+        updateScene(applyMapCalibrationDraft(activeScene, draft, { calibrationBox: mapCalibrationBox }));
       } else if (draft.alignGridToMap && mapAsset?.absolutePath && mapAsset.mediaType === "image") {
         const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath));
-        const cellWidth = dimensions.width / columns;
-        const cellHeight = dimensions.height / rows;
-        updateScene({
-          ...activeScene,
-          grid: {
-            ...activeScene.grid,
-            mapGridColumns: columns,
-            mapGridRows: rows,
-            sizePx: Math.max(1, Math.round(((cellWidth + cellHeight) / 2) * 100) / 100),
-            offsetX: 0,
-            offsetY: 0
-          },
-          mapTransform: { ...DEFAULT_MAP_TRANSFORM },
-          updatedAt: new Date().toISOString()
-        });
+        updateScene(applyMapCalibrationDraft(activeScene, draft, { imageDimensions: dimensions }));
       } else {
-        updateScene({
-          ...activeScene,
-          grid: {
-            ...activeScene.grid,
-            mapGridColumns: columns,
-            mapGridRows: rows
-          },
-          mapTransform: {
-            ...activeScene.mapTransform,
-            fitMode: draft.fitMode
-          },
-          updatedAt: new Date().toISOString()
-        });
+        updateScene(applyMapCalibrationDraft(activeScene, draft));
       }
       setMapCalibrationBox(null);
       setMapCalibrationAssistantOpen(false);
