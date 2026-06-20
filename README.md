@@ -218,6 +218,7 @@ npm run check
 ## Project Documentation
 
 - [`docs/architecture.md`](docs/architecture.md): runtime structure, data flow, and layer ownership rules.
+- [`docs/codebase-audit.md`](docs/codebase-audit.md): audit progress, current hotspots, and recommended refactor sequence.
 - [`docs/release-process.md`](docs/release-process.md): release branch flow, packaging notes, and smoke test checklist.
 
 ## Known Limitations
