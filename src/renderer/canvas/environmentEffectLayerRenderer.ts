@@ -74,6 +74,27 @@ import {
 import { worldRectToScreen, worldToScreenPoint } from "./viewportGeometry";
 import { getEnvironmentEffectPreviewFill, getEnvironmentEffectStroke } from "../lib/environmentEffectOptions";
 
+interface EnvironmentEffectTuningOverrides {
+  acidEffectTuning?: AcidEffectTuning;
+  coldEffectTuning?: ColdEffectTuning;
+  darknessEffectTuning?: DarknessEffectTuning;
+  poisonEffectTuning?: PoisonEffectTuning;
+  waterEffectTuning?: WaterEffectTuning;
+  lavaEffectTuning?: LavaEffectTuning;
+  fireEffectTuning?: FireEffectTuning;
+  lightningEffectTuning?: LightningEffectTuning;
+  arcaneEffectTuning?: ArcaneEffectTuning;
+  chaosEffectTuning?: ChaosEffectTuning;
+  voidEffectTuning?: VoidEffectTuning;
+  natureEffectTuning?: NatureEffectTuning;
+  distortionEffectTuning?: DistortionEffectTuning;
+  radiantEffectTuning?: RadiantEffectTuning;
+  forceFieldEffectTuning?: ForceFieldEffectTuning;
+  shockwaveEffectTuning?: ShockwaveEffectTuning;
+  smokeEffectTuning?: SmokeEffectTuning;
+  fogEffectTuning?: FogEffectTuning;
+}
+
 export function drawEnvironmentEffectPreview(ctx: CanvasRenderingContext2D, preview: EnvironmentEffectDrag, camera: Camera) {
   const effectMask = environmentDragToMask(preview);
   drawEnvironmentEffectShape(ctx, effectMask, camera, { fill: true, selected: false });
@@ -105,19 +126,39 @@ export function drawEnvironmentEffects(
   smokeEffectTuning?: SmokeEffectTuning,
   fogEffectTuning?: FogEffectTuning
 ) {
+  const tuningOverrides: EnvironmentEffectTuningOverrides = {
+    acidEffectTuning,
+    coldEffectTuning,
+    darknessEffectTuning,
+    poisonEffectTuning,
+    waterEffectTuning,
+    lavaEffectTuning,
+    fireEffectTuning,
+    lightningEffectTuning,
+    arcaneEffectTuning,
+    chaosEffectTuning,
+    voidEffectTuning,
+    natureEffectTuning,
+    distortionEffectTuning,
+    radiantEffectTuning,
+    forceFieldEffectTuning,
+    shockwaveEffectTuning,
+    smokeEffectTuning,
+    fogEffectTuning
+  };
   for (const effect of effects) {
     if (!isEnvironmentEffectVisibleForMode(effect, mode)) {
       continue;
     }
     const feather = getClampedEnvironmentEffectFeather(effect);
     if (feather > 0) {
-      drawFeatheredEnvironmentEffect(ctx, effect, camera, timestamp, layerOpacity, feather, acidEffectTuning, coldEffectTuning, darknessEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
+      drawFeatheredEnvironmentEffect(ctx, effect, camera, timestamp, layerOpacity, feather, tuningOverrides);
       continue;
     }
     ctx.save();
     const path = getEnvironmentEffectPath(effect, camera);
     ctx.clip(path);
-    drawEnvironmentEffectContent(ctx, effect, camera, timestamp, layerOpacity, acidEffectTuning, coldEffectTuning, darknessEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
+    drawEnvironmentEffectContent(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides);
     ctx.restore();
   }
 }
@@ -129,24 +170,7 @@ function drawFeatheredEnvironmentEffect(
   timestamp: number,
   layerOpacity: number,
   feather: number,
-  acidEffectTuning?: AcidEffectTuning,
-  coldEffectTuning?: ColdEffectTuning,
-  darknessEffectTuning?: DarknessEffectTuning,
-  poisonEffectTuning?: PoisonEffectTuning,
-  waterEffectTuning?: WaterEffectTuning,
-  lavaEffectTuning?: LavaEffectTuning,
-  fireEffectTuning?: FireEffectTuning,
-  lightningEffectTuning?: LightningEffectTuning,
-  arcaneEffectTuning?: ArcaneEffectTuning,
-  chaosEffectTuning?: ChaosEffectTuning,
-  voidEffectTuning?: VoidEffectTuning,
-  natureEffectTuning?: NatureEffectTuning,
-  distortionEffectTuning?: DistortionEffectTuning,
-  radiantEffectTuning?: RadiantEffectTuning,
-  forceFieldEffectTuning?: ForceFieldEffectTuning,
-  shockwaveEffectTuning?: ShockwaveEffectTuning,
-  smokeEffectTuning?: SmokeEffectTuning,
-  fogEffectTuning?: FogEffectTuning
+  tuningOverrides: EnvironmentEffectTuningOverrides
 ) {
   const width = Math.max(1, Math.round(ctx.canvas.width / (window.devicePixelRatio || 1)));
   const height = Math.max(1, Math.round(ctx.canvas.height / (window.devicePixelRatio || 1)));
@@ -161,7 +185,7 @@ function drawFeatheredEnvironmentEffect(
   const path = getEnvironmentEffectPath(effect, camera);
   effectCtx.save();
   effectCtx.clip(path);
-  drawEnvironmentEffectContent(effectCtx, effect, camera, timestamp, layerOpacity, acidEffectTuning, coldEffectTuning, darknessEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
+  drawEnvironmentEffectContent(effectCtx, effect, camera, timestamp, layerOpacity, tuningOverrides);
   effectCtx.restore();
 
   applyEnvironmentEffectFeather(effectCtx, effect, camera, feather);
@@ -174,61 +198,44 @@ function drawEnvironmentEffectContent(
   camera: Camera,
   timestamp: number,
   layerOpacity: number,
-  acidEffectTuning?: AcidEffectTuning,
-  coldEffectTuning?: ColdEffectTuning,
-  darknessEffectTuning?: DarknessEffectTuning,
-  poisonEffectTuning?: PoisonEffectTuning,
-  waterEffectTuning?: WaterEffectTuning,
-  lavaEffectTuning?: LavaEffectTuning,
-  fireEffectTuning?: FireEffectTuning,
-  lightningEffectTuning?: LightningEffectTuning,
-  arcaneEffectTuning?: ArcaneEffectTuning,
-  chaosEffectTuning?: ChaosEffectTuning,
-  voidEffectTuning?: VoidEffectTuning,
-  natureEffectTuning?: NatureEffectTuning,
-  distortionEffectTuning?: DistortionEffectTuning,
-  radiantEffectTuning?: RadiantEffectTuning,
-  forceFieldEffectTuning?: ForceFieldEffectTuning,
-  shockwaveEffectTuning?: ShockwaveEffectTuning,
-  smokeEffectTuning?: SmokeEffectTuning,
-  fogEffectTuning?: FogEffectTuning
+  tuningOverrides: EnvironmentEffectTuningOverrides
 ) {
   if (effect.effect === "acid") {
-    drawAcidEffect(ctx, effect, camera, timestamp, layerOpacity, acidEffectTuning);
+    drawAcidEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.acidEffectTuning);
   } else if (effect.effect === "cold") {
-    drawColdEffect(ctx, effect, camera, timestamp, layerOpacity, coldEffectTuning);
+    drawColdEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.coldEffectTuning);
   } else if (effect.effect === "darkness") {
-    drawDarknessEffect(ctx, effect, camera, timestamp, layerOpacity, darknessEffectTuning);
+    drawDarknessEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.darknessEffectTuning);
   } else if (effect.effect === "poison") {
-    drawPoisonEffect(ctx, effect, camera, timestamp, layerOpacity, poisonEffectTuning);
+    drawPoisonEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.poisonEffectTuning);
   } else if (effect.effect === "lava") {
-    drawLavaEffect(ctx, effect, camera, timestamp, layerOpacity, lavaEffectTuning);
+    drawLavaEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.lavaEffectTuning);
   } else if (effect.effect === "fire") {
-    drawFireEffect(ctx, effect, camera, timestamp, layerOpacity, fireEffectTuning);
+    drawFireEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.fireEffectTuning);
   } else if (effect.effect === "electric") {
-    drawLightningEffect(ctx, effect, camera, timestamp, layerOpacity, lightningEffectTuning);
+    drawLightningEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.lightningEffectTuning);
   } else if (effect.effect === "arcane") {
-    drawArcaneEffect(ctx, effect, camera, timestamp, layerOpacity, arcaneEffectTuning);
+    drawArcaneEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.arcaneEffectTuning);
   } else if (effect.effect === "chaos") {
-    drawChaosEffect(ctx, effect, camera, timestamp, layerOpacity, chaosEffectTuning);
+    drawChaosEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.chaosEffectTuning);
   } else if (effect.effect === "void") {
-    drawVoidEffect(ctx, effect, camera, timestamp, layerOpacity, voidEffectTuning);
+    drawVoidEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.voidEffectTuning);
   } else if (effect.effect === "nature") {
-    drawNatureEffect(ctx, effect, camera, timestamp, layerOpacity, natureEffectTuning);
+    drawNatureEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.natureEffectTuning);
   } else if (effect.effect === "distortion") {
-    drawDistortionEffect(ctx, effect, camera, timestamp, layerOpacity, distortionEffectTuning);
+    drawDistortionEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.distortionEffectTuning);
   } else if (effect.effect === "radiant") {
-    drawRadiantEffect(ctx, effect, camera, timestamp, layerOpacity, radiantEffectTuning);
+    drawRadiantEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.radiantEffectTuning);
   } else if (effect.effect === "field") {
-    drawForceFieldEffect(ctx, effect, camera, timestamp, layerOpacity, forceFieldEffectTuning);
+    drawForceFieldEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.forceFieldEffectTuning);
   } else if (effect.effect === "shockwave") {
-    drawShockwaveEffect(ctx, effect, camera, timestamp, layerOpacity, shockwaveEffectTuning);
+    drawShockwaveEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.shockwaveEffectTuning);
   } else if (effect.effect === "fog") {
-    drawFogMistEffect(ctx, effect, camera, timestamp, layerOpacity, fogEffectTuning);
+    drawFogMistEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.fogEffectTuning);
   } else if (effect.effect === "smoke") {
-    drawSmokeEffect(ctx, effect, camera, timestamp, layerOpacity, smokeEffectTuning);
+    drawSmokeEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.smokeEffectTuning);
   } else {
-    drawWaterEffect(ctx, effect, camera, timestamp, layerOpacity, waterEffectTuning);
+    drawWaterEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.waterEffectTuning);
   }
 }
 
