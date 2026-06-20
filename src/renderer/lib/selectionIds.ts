@@ -18,3 +18,8 @@ export function applySelectionMode(currentIds: readonly string[], nextIds: reado
   }
   return [...nextIds];
 }
+
+export function retainExistingSelectionIds(selectedIds: readonly string[], existingIds: Iterable<string>): string[] {
+  const validIds = new Set(existingIds);
+  return selectedIds.filter((id) => validIds.has(id));
+}

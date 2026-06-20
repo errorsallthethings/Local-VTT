@@ -66,7 +66,7 @@ import { loadImageDimensions } from "../lib/imageDimensions";
 import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/liveTableEvents";
 import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/playerIdleState";
 import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/sceneCollectionActions";
-import { applySelectionMode, type SelectionMode } from "../lib/selectionIds";
+import { applySelectionMode, retainExistingSelectionIds, type SelectionMode } from "../lib/selectionIds";
 import { removeSelectedSceneItems, setSelectedSceneItemsPlayerVisibility } from "../lib/sceneEditing";
 import {
   addRecentCampaign,
@@ -403,14 +403,10 @@ export function GmApp() {
       setEnvironmentEffectEditorId(null);
       return;
     }
-    const tokenIds = new Set(activeScene.tokens.map((token) => token.id));
-    const drawingIds = new Set(activeScene.drawings.map((drawing) => drawing.id));
-    const fogShapeIds = new Set(activeScene.fog.shapes.map((shape) => shape.id));
-    const weatherMaskIds = new Set(activeScene.weather.masks.map((mask) => mask.id));
-    const nextTokenIds = selectedTokenIds.filter((id) => tokenIds.has(id));
-    const nextDrawingIds = selectedDrawingIds.filter((id) => drawingIds.has(id));
-    const nextFogShapeIds = selectedFogShapeIds.filter((id) => fogShapeIds.has(id));
-    const nextWeatherMaskIds = selectedWeatherMaskIds.filter((id) => weatherMaskIds.has(id));
+    const nextTokenIds = retainExistingSelectionIds(selectedTokenIds, activeScene.tokens.map((token) => token.id));
+    const nextDrawingIds = retainExistingSelectionIds(selectedDrawingIds, activeScene.drawings.map((drawing) => drawing.id));
+    const nextFogShapeIds = retainExistingSelectionIds(selectedFogShapeIds, activeScene.fog.shapes.map((shape) => shape.id));
+    const nextWeatherMaskIds = retainExistingSelectionIds(selectedWeatherMaskIds, activeScene.weather.masks.map((mask) => mask.id));
     if (
       nextTokenIds.length !== selectedTokenIds.length ||
       nextDrawingIds.length !== selectedDrawingIds.length ||
@@ -800,8 +796,7 @@ export function GmApp() {
   }, [activeScene?.fog.shapes, selectedFogShapeId]);
 
   useEffect(() => {
-    const validIds = new Set(activeScene?.fog.shapes.map((shape) => shape.id) ?? []);
-    setSelectedFogShapeIds((ids) => ids.filter((id) => validIds.has(id)));
+    setSelectedFogShapeIds((ids) => retainExistingSelectionIds(ids, activeScene?.fog.shapes.map((shape) => shape.id) ?? []));
   }, [activeScene?.fog.shapes]);
 
   useEffect(() => {
@@ -812,8 +807,7 @@ export function GmApp() {
   }, [activeScene?.weather.masks, selectedWeatherMaskId]);
 
   useEffect(() => {
-    const validIds = new Set(activeScene?.weather.masks.map((mask) => mask.id) ?? []);
-    setSelectedWeatherMaskIds((ids) => ids.filter((id) => validIds.has(id)));
+    setSelectedWeatherMaskIds((ids) => retainExistingSelectionIds(ids, activeScene?.weather.masks.map((mask) => mask.id) ?? []));
   }, [activeScene?.weather.masks]);
 
   useEffect(() => {
@@ -824,8 +818,7 @@ export function GmApp() {
   }, [activeScene?.drawings, selectedDrawingId]);
 
   useEffect(() => {
-    const validIds = new Set(activeScene?.drawings.map((drawing) => drawing.id) ?? []);
-    setSelectedDrawingIds((ids) => ids.filter((id) => validIds.has(id)));
+    setSelectedDrawingIds((ids) => retainExistingSelectionIds(ids, activeScene?.drawings.map((drawing) => drawing.id) ?? []));
   }, [activeScene?.drawings]);
 
   useEffect(() => {
@@ -852,8 +845,7 @@ export function GmApp() {
   }, [activeScene?.tokens, selectedTokenId]);
 
   useEffect(() => {
-    const validIds = new Set(activeScene?.tokens.map((token) => token.id) ?? []);
-    setSelectedTokenIds((ids) => ids.filter((id) => validIds.has(id)));
+    setSelectedTokenIds((ids) => retainExistingSelectionIds(ids, activeScene?.tokens.map((token) => token.id) ?? []));
   }, [activeScene?.tokens]);
 
   useEffect(() => {
