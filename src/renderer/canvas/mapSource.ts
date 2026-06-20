@@ -6,6 +6,8 @@ const LARGE_MAP_CACHE_MAX_PIXELS = 16_000_000;
 const GM_FULL_QUALITY_MAP_SCALE_THRESHOLD = 1.12;
 const MEDIA_HAVE_METADATA_READY_STATE = 1;
 
+export type MapLoadStatus = "idle" | "loading" | "ready" | "error";
+
 export interface LoadedMap {
   assetId: string;
   originalSource: HTMLImageElement;
@@ -27,6 +29,25 @@ export interface ReadyMapSource {
 export interface PreparedLoadedImageMap {
   optimizedSource: CanvasImageSource | null;
   optimizedScale: number;
+}
+
+export function getInitialMapLoadStatus(mediaType: "image" | "video" | undefined, assetUrl: string | null): MapLoadStatus {
+  return mediaType === "video" && assetUrl ? "loading" : "idle";
+}
+
+export function isMapReady(canShowMap: boolean | undefined, hasMapAsset: boolean, mapLoadStatus: MapLoadStatus): boolean {
+  return !canShowMap || !hasMapAsset || mapLoadStatus === "ready" || mapLoadStatus === "error";
+}
+
+export function isMapOverlayActive(canShowMap: boolean | undefined, hasMapAsset: boolean, mapLoadStatus: MapLoadStatus): boolean {
+  return Boolean(canShowMap && hasMapAsset && (mapLoadStatus === "loading" || mapLoadStatus === "error"));
+}
+
+export function getMapOverlayMessage(mapLoadStatus: MapLoadStatus, mediaType: "image" | "video" | undefined): string {
+  if (mapLoadStatus === "error") {
+    return "Map asset unavailable";
+  }
+  return mediaType === "video" ? "Loading video map..." : "Loading map...";
 }
 
 export function getLargeMapCacheScale(width: number, height: number): number {

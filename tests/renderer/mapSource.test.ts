@@ -1,6 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import { createDefaultScene } from "../../src/shared/localvtt";
-import { closeCanvasImageSource, getLargeMapCacheScale, getMapDrawSource, getReadyMapSourceForFit, prepareLoadedImageMap, type LoadedMap } from "../../src/renderer/canvas/mapSource";
+import {
+  closeCanvasImageSource,
+  getInitialMapLoadStatus,
+  getLargeMapCacheScale,
+  getMapDrawSource,
+  getMapOverlayMessage,
+  getReadyMapSourceForFit,
+  isMapOverlayActive,
+  isMapReady,
+  prepareLoadedImageMap,
+  type LoadedMap
+} from "../../src/renderer/canvas/mapSource";
 
 function imageSource(id: string): HTMLImageElement {
   return { id } as unknown as HTMLImageElement;
@@ -36,6 +47,35 @@ function loadedMap(overrides: Partial<LoadedMap> = {}): LoadedMap {
 }
 
 describe("map source helpers", () => {
+  it("derives initial map load status for missing, image, and video maps", () => {
+    expect(getInitialMapLoadStatus(undefined, null)).toBe("idle");
+    expect(getInitialMapLoadStatus("image", "asset://map")).toBe("idle");
+    expect(getInitialMapLoadStatus("video", null)).toBe("idle");
+    expect(getInitialMapLoadStatus("video", "asset://map")).toBe("loading");
+  });
+
+  it("treats maps as ready when hidden, absent, loaded, or failed", () => {
+    expect(isMapReady(false, true, "loading")).toBe(true);
+    expect(isMapReady(true, false, "loading")).toBe(true);
+    expect(isMapReady(true, true, "ready")).toBe(true);
+    expect(isMapReady(true, true, "error")).toBe(true);
+    expect(isMapReady(true, true, "loading")).toBe(false);
+  });
+
+  it("shows map overlays only while visible maps are loading or failed", () => {
+    expect(isMapOverlayActive(true, true, "loading")).toBe(true);
+    expect(isMapOverlayActive(true, true, "error")).toBe(true);
+    expect(isMapOverlayActive(false, true, "loading")).toBe(false);
+    expect(isMapOverlayActive(true, false, "loading")).toBe(false);
+    expect(isMapOverlayActive(true, true, "ready")).toBe(false);
+  });
+
+  it("returns map overlay copy for image, video, and error states", () => {
+    expect(getMapOverlayMessage("loading", "image")).toBe("Loading map...");
+    expect(getMapOverlayMessage("loading", "video")).toBe("Loading video map...");
+    expect(getMapOverlayMessage("error", "video")).toBe("Map asset unavailable");
+  });
+
   it("keeps small maps at full scale and downscales by edge or pixel limits", () => {
     expect(getLargeMapCacheScale(1000, 1000)).toBe(1);
     expect(getLargeMapCacheScale(8192, 2000)).toBe(0.5);

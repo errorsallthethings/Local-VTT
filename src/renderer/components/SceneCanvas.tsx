@@ -52,7 +52,19 @@ import {
   type MapCalibrationDrag
 } from "../canvas/mapCalibrationGeometry";
 import { drawMapSource, getCameraForMapFit } from "../canvas/mapRenderer";
-import { closeCanvasImageSource, getMapDrawSource, getReadyMapSourceForFit, prepareLoadedImageMap, type LoadedMap, type ReadyMapSource } from "../canvas/mapSource";
+import {
+  closeCanvasImageSource,
+  getInitialMapLoadStatus,
+  getMapDrawSource,
+  getMapOverlayMessage,
+  getReadyMapSourceForFit,
+  isMapOverlayActive,
+  isMapReady,
+  prepareLoadedImageMap,
+  type LoadedMap,
+  type MapLoadStatus,
+  type ReadyMapSource
+} from "../canvas/mapSource";
 import {
   drawRuler,
   getRulerPathPoints,
@@ -246,8 +258,6 @@ interface SceneCanvasProps {
   onReady?: () => void;
   showPlayerSeatIndicators?: boolean;
 }
-
-type MapLoadStatus = "idle" | "loading" | "ready" | "error";
 
 type TokenDragState = {
   pointerId: number;
@@ -621,7 +631,7 @@ export function SceneCanvas({
     canShowTokens
   } = getSceneLayerVisibility(scene?.layers, mode);
   const isVideoMap = Boolean(canShowMap && mapAsset?.mediaType === "video" && assetUrl);
-  const mapOverlayActive = Boolean(canShowMap && mapAsset && (mapLoadStatus === "loading" || mapLoadStatus === "error"));
+  const mapOverlayActive = isMapOverlayActive(canShowMap, Boolean(mapAsset), mapLoadStatus);
   const playerDisplayScale = getPlayerDisplayScale(campaign, scene, mode);
   const videoPlayback = scene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const videoPaused = videoPlayback.paused;
@@ -635,11 +645,7 @@ export function SceneCanvas({
     });
 
   const tokensReady = areTokenImagesReady(canShowTokens, tokenImageSourceKey, loadedTokenImages, failedTokenImageIds);
-  const mapReady =
-    !canShowMap ||
-    !mapAsset ||
-    mapLoadStatus === "ready" ||
-    mapLoadStatus === "error";
+  const mapReady = isMapReady(canShowMap, Boolean(mapAsset), mapLoadStatus);
 
   const getCurrentReadyMapSourceForFit = useCallback((): ReadyMapSource | null => {
     if (!mapAsset || !canShowMap) {
@@ -1051,7 +1057,7 @@ export function SceneCanvas({
   useEffect(() => {
     if (!assetUrl || !mapAsset?.id || mapAsset.mediaType === "video") {
       setLoadedMap(null);
-      setMapLoadStatus(mapAsset?.mediaType === "video" && assetUrl ? "loading" : "idle");
+      setMapLoadStatus(getInitialMapLoadStatus(mapAsset?.mediaType, assetUrl));
       return;
     }
 
@@ -2919,7 +2925,7 @@ export function SceneCanvas({
   };
 
   const showMapOverlay = mapOverlayActive;
-  const mapOverlayMessage = mapLoadStatus === "error" ? "Map asset unavailable" : mapAsset?.mediaType === "video" ? "Loading video map..." : "Loading map...";
+  const mapOverlayMessage = getMapOverlayMessage(mapLoadStatus, mapAsset?.mediaType);
   const activeCalibrationBox = onMapCalibrationBox ? mapCalibrationDraftBox : null;
   const activeCalibrationBoxCamera = getRenderCamera(camera, playerDisplayScale);
   const calibrationSizeControlStyle =
