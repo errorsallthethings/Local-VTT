@@ -47,7 +47,7 @@ import {
   LASER_POINT_LIFETIME_MS,
   RULER_RELEASE_LINGER_MS
 } from "../canvas/liveTableRenderer";
-import { getPlayerDisplayScale, getRulerLabel, getTokenMoveLabel, isDuplicateRulerWaypoint, isVisibleDiceOverlayEvent } from "../canvas/liveTableState";
+import { getPlayerDisplayScale, getRulerLabel, isDuplicateRulerWaypoint, isVisibleDiceOverlayEvent } from "../canvas/liveTableState";
 import {
   getMapCalibrationBoxHit,
   getSquareCalibrationBox,
@@ -202,22 +202,18 @@ import {
 } from "../lib/playerViewTurnOrder";
 import { duplicateToken } from "../lib/tokenDefaults";
 import { TokenSettings } from "./layers/TokenSettings";
-import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools/ToolsMenu";
 import {
-  FOG_GRID_SNAP_HINT,
-  getEnvironmentEffectStatusHint,
-  getEnvironmentEffectStatusLabel,
-  getDrawingToolHint,
-  getDrawingToolLabel,
-  getWeatherMaskStatusHint,
-  getWeatherMaskStatusLabel,
-  RULER_CLEAR_HINT,
-  RULER_GRID_SNAP_HINT,
-  SHIFT_WAYPOINT_HINT,
-  TOKEN_MOVE_COMPLETE_HINT,
-  getFogToolHint,
-  getFogToolLabel
-} from "../lib/toolCopy";
+  DrawingToolStatusStrip,
+  EnvironmentEffectStatusStrip,
+  FogToolStatusStrip,
+  MapCalibrationStatusStrip,
+  MapLoadOverlay,
+  RulerStatusStrip,
+  TableToolStatusStrip,
+  TokenMoveStatusStrip,
+  WeatherMaskStatusStrip
+} from "./scene/SceneCanvasStatusStrips";
+import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools/ToolsMenu";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
 const WEATHER_ONLY_FRAME_INTERVAL_MS = 50;
@@ -3676,127 +3672,6 @@ function useLastPresentValue<T>(value: T, active: boolean): T {
     lastValueRef.current = value;
   }
   return active ? value : lastValueRef.current;
-}
-
-function MapLoadOverlay({ message, showSpinner }: { message: string; showSpinner: boolean }) {
-  return (
-    <div className="map-load-overlay" role="status" aria-live="polite">
-      {showSpinner && <span className="map-load-spinner" aria-hidden="true" />}
-      <span>{message}</span>
-    </div>
-  );
-}
-
-function FogToolStatusStrip({
-  fogTool,
-  polygonPointCount,
-  brushSize
-}: {
-  fogTool: FogTool;
-  polygonPointCount: number;
-  brushSize: number;
-}) {
-  const primaryHint = getFogToolHint(fogTool, polygonPointCount, brushSize);
-
-  return (
-    <div className="fog-tool-status" aria-live="polite">
-      <strong>{getFogToolLabel(fogTool)}</strong>
-      <span>{primaryHint}</span>
-      <span>{FOG_GRID_SNAP_HINT}</span>
-      <span>Escape cancels active drawing.</span>
-      <span>Middle-click drag pans.</span>
-    </div>
-  );
-}
-
-function DrawingToolStatusStrip({ drawingTool, drawingTemplateSize }: { drawingTool: DrawingTool; drawingTemplateSize: DrawingTemplateSize }) {
-  const templateTool = isTemplateDrawingTool(drawingTool);
-  const sizeLabel = drawingTemplateSize === "custom" || !templateTool ? "Custom size" : `${drawingTemplateSize} ft preset`;
-  return (
-    <div className="fog-tool-status" aria-live="polite">
-      <strong>{getDrawingToolLabel(drawingTool)}</strong>
-      <span>{getDrawingToolHint(drawingTool)}</span>
-      {templateTool && <span>{sizeLabel}</span>}
-      <span>Escape cancels active drawing.</span>
-      <span>Middle-click drag pans.</span>
-    </div>
-  );
-}
-
-function TokenMoveStatusStrip({ scene, tokenDragPreview }: { scene: Scene | null; tokenDragPreview: TokenDragPreview }) {
-  const waypointCount = tokenDragPreview.waypoints.length;
-  const tokenMoveLabel = scene ? getTokenMoveLabel(scene, tokenDragPreview) : null;
-  return (
-    <div className="canvas-tool-status" aria-live="polite">
-      <strong>Token Move</strong>
-      <span>Drag to position.</span>
-      <span>{SHIFT_WAYPOINT_HINT}</span>
-      <span>{waypointCount === 1 ? "1 waypoint" : `${waypointCount} waypoints`}</span>
-      {tokenMoveLabel && <span>{tokenMoveLabel}</span>}
-      <span>{TOKEN_MOVE_COMPLETE_HINT}</span>
-    </div>
-  );
-}
-
-function RulerStatusStrip({ rulerDrag, scene }: { rulerDrag: RulerDrag | null; scene: Scene | null }) {
-  const label = rulerDrag && scene ? getRulerLabel(rulerDrag, scene) : null;
-  return (
-    <div className="canvas-tool-status" aria-live="polite">
-      <strong>Ruler</strong>
-      <span>Left-drag to measure.</span>
-      <span>{RULER_GRID_SNAP_HINT}</span>
-      <span>{SHIFT_WAYPOINT_HINT}</span>
-      {rulerDrag && <span>{rulerDrag.waypoints.length === 1 ? "1 waypoint" : `${rulerDrag.waypoints.length} waypoints`}</span>}
-      {label && <span>{label.secondary ? `${label.primary} (${label.secondary})` : label.primary}</span>}
-      <span>{RULER_CLEAR_HINT}</span>
-    </div>
-  );
-}
-
-function TableToolStatusStrip({ canvasTool }: { canvasTool: "ping" | "laser" }) {
-  return (
-    <div className="fog-tool-status" aria-live="polite">
-      <strong>{canvasTool === "ping" ? "Ping" : "Laser Pointer"}</strong>
-      <span>{canvasTool === "ping" ? "Click the map to send a ping." : "Drag on the map to show a fading pointer trail."}</span>
-    </div>
-  );
-}
-
-function MapCalibrationStatusStrip() {
-  return (
-    <div className="fog-tool-status" aria-live="polite">
-      <strong>Map Calibration</strong>
-      <span>Drag over one printed grid square, or a larger block such as 5 x 5 squares.</span>
-    </div>
-  );
-}
-
-function WeatherMaskStatusStrip({ weatherMaskTool, pointCount }: { weatherMaskTool: WeatherMaskTool; pointCount: number }) {
-  return (
-    <div className="fog-tool-status" aria-live="polite">
-      <strong>{getWeatherMaskStatusLabel(weatherMaskTool)}</strong>
-      <span>{getWeatherMaskStatusHint(weatherMaskTool, pointCount)}</span>
-      <span>{FOG_GRID_SNAP_HINT}</span>
-    </div>
-  );
-}
-
-function EnvironmentEffectStatusStrip({
-  environmentEffectTool,
-  effect,
-  pointCount
-}: {
-  environmentEffectTool: EnvironmentEffectTool;
-  effect: EnvironmentEffectType;
-  pointCount: number;
-}) {
-  return (
-    <div className="fog-tool-status" aria-live="polite">
-      <strong>{getEnvironmentEffectStatusLabel(formatEnvironmentEffectLabel(effect), environmentEffectTool)}</strong>
-      <span>{getEnvironmentEffectStatusHint(environmentEffectTool, pointCount)}</span>
-      <span>{FOG_GRID_SNAP_HINT}</span>
-    </div>
-  );
 }
 
 function drawSnapMarker(ctx: CanvasRenderingContext2D, point: Point, camera: Camera, operation: "reveal" | "hide") {
