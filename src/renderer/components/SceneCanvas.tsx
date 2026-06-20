@@ -172,6 +172,15 @@ import {
   getEnvironmentEffectPreviewFill,
   getEnvironmentEffectStroke
 } from "../lib/environmentEffectOptions";
+import {
+  easeInCubic,
+  easeOutCubic,
+  getEdgeSlideTransform,
+  getPlayerSeatStyle,
+  getPlayerTurnStatusLabel,
+  getPlayerTurnStatusStyle,
+  getTurnOrderPlayerBarLayout
+} from "../lib/playerViewTurnOrder";
 import { duplicateToken } from "../lib/tokenDefaults";
 import { TokenSettings } from "./layers/TokenSettings";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools/ToolsMenu";
@@ -3462,25 +3471,6 @@ function PlayerSeatIndicators({ campaign }: { campaign: Campaign | null }) {
   );
 }
 
-function getPlayerSeatStyle(edge: "top" | "right" | "bottom" | "left", position: number, color: string): React.CSSProperties {
-  const clampedPosition = Math.min(1, Math.max(0, position)) * 100;
-  const baseStyle = {
-    "--player-seat-color": color
-  } as React.CSSProperties;
-  if (edge === "top" || edge === "bottom") {
-    return {
-      ...baseStyle,
-      left: `${clampedPosition}%`,
-      [edge]: "12px"
-    };
-  }
-  return {
-    ...baseStyle,
-    top: `${clampedPosition}%`,
-    [edge]: "12px"
-  };
-}
-
 function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign: Campaign | null }) {
   const turnOrder = scene.turnOrder;
   const entries = turnOrder.entries.filter((entry) => entry.visibleInPlayer);
@@ -3617,53 +3607,6 @@ function PlayerTurnStatusFrame() {
   );
 }
 
-function getPlayerTurnStatusLabel(status: "current" | "next" | "waiting"): string {
-  if (status === "current") {
-    return "Turn Now";
-  }
-  if (status === "next") {
-    return "Up Next";
-  }
-  return "Waiting";
-}
-
-function getPlayerTurnStatusStyle(edge: "top" | "right" | "bottom" | "left", position: number, color: string, progress: number): React.CSSProperties {
-  return {
-    ...getPlayerSeatStyle(edge, position, color),
-    transform: getEdgeSlideTransform(edge, progress, getPlayerTurnStatusRotation(edge))
-  };
-}
-
-function getPlayerTurnStatusRotation(edge: "top" | "right" | "bottom" | "left"): number {
-  if (edge === "top") {
-    return 180;
-  }
-  if (edge === "left") {
-    return 90;
-  }
-  if (edge === "right") {
-    return -90;
-  }
-  return 0;
-}
-
-function getEdgeSlideTransform(edge: "top" | "right" | "bottom" | "left", progress: number, rotation = 0): string {
-  const clamped = Math.min(1, Math.max(0, progress));
-  const hiddenPercent = (1 - clamped) * 100;
-  const hiddenPixels = (1 - clamped) * 36;
-  const rotationTransform = rotation ? ` rotate(${rotation}deg)` : "";
-  if (edge === "top") {
-    return `translate(-50%, calc(-${hiddenPercent}% - ${hiddenPixels}px))${rotationTransform}`;
-  }
-  if (edge === "bottom") {
-    return `translate(-50%, calc(${hiddenPercent}% + ${hiddenPixels}px))${rotationTransform}`;
-  }
-  if (edge === "left") {
-    return `translate(calc(-${hiddenPercent}% - ${hiddenPixels}px), -50%)${rotationTransform}`;
-  }
-  return `translate(calc(${hiddenPercent}% + ${hiddenPixels}px), -50%)${rotationTransform}`;
-}
-
 function useEdgeSlide(show: boolean, durationMs = 560) {
   const [present, setPresent] = useState(show);
   const [progress, setProgress] = useState(show ? 1 : 0);
@@ -3704,46 +3647,12 @@ function useEdgeSlide(show: boolean, durationMs = 560) {
   return { present, progress };
 }
 
-function easeOutCubic(value: number): number {
-  return 1 - Math.pow(1 - value, 3);
-}
-
-function easeInCubic(value: number): number {
-  return value * value * value;
-}
-
 function useLastPresentValue<T>(value: T, active: boolean): T {
   const lastValueRef = useRef(value);
   if (active) {
     lastValueRef.current = value;
   }
   return active ? value : lastValueRef.current;
-}
-
-function getTurnOrderPlayerBarLayout(edge: "top" | "right" | "bottom" | "left", facing: "inward" | "outward") {
-  const reverseEntries =
-    (edge === "top" && facing === "outward") ||
-    (edge === "right" && facing === "outward") ||
-    (edge === "bottom" && facing === "inward") ||
-    (edge === "left" && facing === "inward");
-  const vertical = edge === "left" || edge === "right";
-  return {
-    entryRotation: getTurnOrderFacingRotation(edge, facing),
-    reverseEntries,
-    arrowAtEnd: reverseEntries,
-    arrowRotation: vertical ? (reverseEntries ? -90 : 90) : reverseEntries ? 180 : 0
-  };
-}
-
-function getTurnOrderFacingRotation(edge: "top" | "right" | "bottom" | "left", facing: "inward" | "outward"): number {
-  const inwardRotation = {
-    top: 180,
-    right: -90,
-    bottom: 0,
-    left: 90
-  } satisfies Record<typeof edge, number>;
-  const rotation = inwardRotation[edge];
-  return facing === "inward" ? (rotation + 180) % 360 : rotation;
 }
 
 function MapLoadOverlay({ message, showSpinner }: { message: string; showSpinner: boolean }) {
