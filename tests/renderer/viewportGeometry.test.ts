@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clientToWorldPoint, getCanvasViewportCenter, worldRectToScreen, worldToScreenPoint } from "../../src/renderer/canvas/viewportGeometry";
+import { clientToWorldPoint, eventToWorldPoint, getCanvasViewportCenter, isSnapModifier, worldRectToScreen, worldToScreenPoint } from "../../src/renderer/canvas/viewportGeometry";
 
 function elementRect(rect: { left: number; top: number; width: number; height: number }) {
   return {
@@ -31,6 +31,21 @@ describe("viewport geometry", () => {
       x: 100,
       y: 90
     });
+  });
+
+  it("converts pointer events into world coordinates", () => {
+    const currentTarget = elementRect({ left: 20, top: 30, width: 400, height: 300 });
+
+    expect(eventToWorldPoint({ currentTarget, clientX: 170, clientY: 120, ctrlKey: false, metaKey: false }, { x: 50, y: 10, zoom: 5 })).toEqual({
+      x: 20,
+      y: 16
+    });
+  });
+
+  it("detects control or command snap modifiers", () => {
+    expect(isSnapModifier({ ctrlKey: true, metaKey: false })).toBe(true);
+    expect(isSnapModifier({ ctrlKey: false, metaKey: true })).toBe(true);
+    expect(isSnapModifier({ ctrlKey: false, metaKey: false })).toBe(false);
   });
 
   it("converts world points and rectangles to screen coordinates", () => {

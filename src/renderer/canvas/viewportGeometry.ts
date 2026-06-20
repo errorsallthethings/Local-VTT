@@ -8,6 +8,14 @@ export interface ScreenRect {
   height: number;
 }
 
+export type CanvasPointerLike = {
+  currentTarget: Pick<HTMLElement, "getBoundingClientRect">;
+  clientX: number;
+  clientY: number;
+  ctrlKey: boolean;
+  metaKey: boolean;
+};
+
 export function clientToWorldPoint(element: Pick<HTMLElement, "getBoundingClientRect">, clientX: number, clientY: number, camera: Camera): Point {
   const rect = element.getBoundingClientRect();
   return {
@@ -22,6 +30,14 @@ export function getCanvasViewportCenter(element: Pick<HTMLElement, "getBoundingC
     x: (rect.width / 2 - camera.x) / camera.zoom,
     y: (rect.height / 2 - camera.y) / camera.zoom
   };
+}
+
+export function eventToWorldPoint(event: CanvasPointerLike, camera: Camera): Point {
+  return clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, camera);
+}
+
+export function isSnapModifier(event: Pick<CanvasPointerLike, "ctrlKey" | "metaKey">): boolean {
+  return event.ctrlKey || event.metaKey;
 }
 
 export function worldToScreenPoint(point: Point, camera: Camera): Point {

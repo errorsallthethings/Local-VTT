@@ -90,7 +90,7 @@ import {
 } from "../canvas/tokenMovement";
 import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
-import { clientToWorldPoint, getCanvasViewportCenter, worldRectToScreen, worldToScreenPoint } from "../canvas/viewportGeometry";
+import { clientToWorldPoint, eventToWorldPoint, getCanvasViewportCenter, isSnapModifier, worldRectToScreen, worldToScreenPoint } from "../canvas/viewportGeometry";
 import {
   DEFAULT_ACID_EFFECT_TUNING,
   DEFAULT_ARCANE_EFFECT_TUNING,
@@ -3879,10 +3879,6 @@ function EnvironmentEffectStatusStrip({
   );
 }
 
-function eventToWorldPoint(event: React.PointerEvent<HTMLCanvasElement>, camera: Camera): Point {
-  return clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, camera);
-}
-
 async function prepareLoadedImageMap(image: HTMLImageElement, assetPath: string): Promise<{ optimizedSource: CanvasImageSource | null; optimizedScale: number }> {
   const sourceWidth = image.naturalWidth || image.width;
   const sourceHeight = image.naturalHeight || image.height;
@@ -3904,10 +3900,6 @@ async function prepareLoadedImageMap(image: HTMLImageElement, assetPath: string)
     resizeQuality: "high"
   });
   return { optimizedSource, optimizedScale: resizeScale };
-}
-
-function isSnapModifier(event: React.PointerEvent<HTMLCanvasElement>): boolean {
-  return event.ctrlKey || event.metaKey;
 }
 
 function drawSnapMarker(ctx: CanvasRenderingContext2D, point: Point, camera: Camera, operation: "reveal" | "hide") {
