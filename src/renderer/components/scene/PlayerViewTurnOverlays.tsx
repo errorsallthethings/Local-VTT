@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import type { Campaign, Scene } from "../../../shared/localvtt";
+import { buildAssetsById } from "../../lib/assetLibrary";
 import {
   easeInCubic,
   easeOutCubic,
@@ -13,11 +14,11 @@ import {
 
 export function PlayerSeatIndicators({ campaign }: { campaign: Campaign | null }) {
   const seats = (campaign?.players ?? []).filter((player) => player.visibleInPlayer);
+  const assetsById = useMemo(() => buildAssetsById(campaign?.assets ?? []), [campaign?.assets]);
   if (seats.length === 0) {
     return null;
   }
 
-  const assetsById = new Map((campaign?.assets ?? []).map((asset) => [asset.id, asset]));
   return (
     <>
       {seats.map((seat) => {
@@ -44,12 +45,12 @@ export function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign
   const reveal = useEdgeSlide(visible);
   const renderedEntries = useLastPresentValue(entries, visible && entries.length > 0);
   const renderedCampaign = useLastPresentValue(campaign, visible && Boolean(campaign));
+  const assetsById = useMemo(() => buildAssetsById(renderedCampaign?.assets ?? []), [renderedCampaign?.assets]);
+  const playersById = useMemo(() => new Map((renderedCampaign?.players ?? []).map((player) => [player.id, player])), [renderedCampaign?.players]);
   if (!reveal.present || renderedEntries.length === 0) {
     return null;
   }
 
-  const assetsById = new Map((renderedCampaign?.assets ?? []).map((asset) => [asset.id, asset]));
-  const playersById = new Map((renderedCampaign?.players ?? []).map((player) => [player.id, player]));
   const layout = getTurnOrderPlayerBarLayout(turnOrder.playerViewEdge, turnOrder.playerViewFacing);
   const displayedEntries = layout.reverseEntries ? [...renderedEntries].reverse() : renderedEntries;
   const currentIndex = Math.max(0, renderedEntries.findIndex((entry) => entry.id === turnOrder.currentEntryId));
@@ -101,6 +102,7 @@ export function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; 
   const renderedCampaign = useLastPresentValue(campaign, visible && Boolean(campaign));
   const entries = turnOrder.entries.filter((entry) => entry.visibleInPlayer);
   const renderedEntries = useLastPresentValue(entries, visible && entries.length > 0);
+  const assetsById = useMemo(() => buildAssetsById(renderedCampaign?.assets ?? []), [renderedCampaign?.assets]);
   if (!reveal.present || !renderedCampaign) {
     return null;
   }
@@ -117,7 +119,6 @@ export function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; 
       entriesByPlayerId.set(entry.playerId, entry);
     }
   }
-  const assetsById = new Map(renderedCampaign.assets.map((asset) => [asset.id, asset]));
   const players = renderedCampaign.players.filter((player) => entriesByPlayerId.has(player.id));
   if (players.length === 0) {
     return null;

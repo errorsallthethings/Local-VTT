@@ -56,6 +56,7 @@ import { useCampaignActions, type CampaignBusyState } from "../hooks/useCampaign
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
+import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assetLibrary";
 import { moveSceneFolder } from "../lib/campaignActions";
 import { DICE_HISTORY_DURATION_MS, getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import {
@@ -108,6 +109,8 @@ type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 const MAX_DICE_ROLL_HISTORY = 100;
 const DICE_SETTINGS_PREFERENCES_STORAGE_KEY = "localvtt.diceSettingsPreferences";
 const PLAYER_TEMPLATE_PREVIEW_ID = "template-preview";
+const EMPTY_ASSETS: Asset[] = [];
+const EMPTY_SCENE_ENTRIES: CampaignSceneEntry[] = [];
 const DEFAULT_SELECTOR_SELECTION_FILTERS: SelectorSelectionFilters = {
   tokens: true,
   templates: false,
@@ -250,14 +253,12 @@ export function GmApp() {
   const playerTemplatePreviewPublishedRef = useRef(false);
   const playerIdleClearedForNoCampaignRef = useRef(false);
 
-  const mapAsset = useMemo(() => {
-    if (!campaign || !activeScene?.mapAssetId) {
-      return null;
-    }
-    return campaign.assets.find((asset) => asset.id === activeScene.mapAssetId) ?? null;
-  }, [activeScene?.mapAssetId, campaign]);
+  const campaignAssets = campaign?.assets ?? EMPTY_ASSETS;
+  const campaignScenes = campaign?.scenes ?? EMPTY_SCENE_ENTRIES;
+  const assetsById = useMemo(() => buildAssetsById(campaignAssets), [campaignAssets]);
+  const mapAsset = useMemo(() => (activeScene?.mapAssetId ? (assetsById.get(activeScene.mapAssetId) ?? null) : null), [activeScene?.mapAssetId, assetsById]);
   const activeMapIsVideo = mapAsset?.mediaType === "video";
-  const tokenAssets = useMemo(() => new Map((campaign?.assets ?? []).filter((asset) => asset.kind === "token").map((asset) => [asset.id, asset])), [campaign?.assets]);
+  const tokenAssets = useMemo(() => buildAssetsByKind(campaignAssets, "token"), [campaignAssets]);
   const tokenLibraryAssets = useMemo(() => [...tokenAssets.values()], [tokenAssets]);
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const selectorSelectionCounts = useMemo<SelectorSelectionCounts>(() => {
@@ -278,16 +279,10 @@ export function GmApp() {
     () => new Set((campaign?.sceneFolders ?? []).filter((folder) => !expandedFolderIds.has(folder.id)).map((folder) => folder.id)),
     [campaign?.sceneFolders, expandedFolderIds]
   );
-  const sceneThumbnailAssets = useMemo(() => {
-    const assetsById = new Map((campaign?.assets ?? []).map((asset) => [asset.id, asset]));
-    return new Map(
-      (campaign?.scenes ?? []).map((sceneEntry) => {
-        const draftScene = sceneDrafts[sceneEntry.id] ?? (activeScene?.id === sceneEntry.id ? activeScene : null);
-        const mapAssetId = draftScene?.mapAssetId ?? sceneEntry.mapAssetId;
-        return [sceneEntry.id, mapAssetId ? (assetsById.get(mapAssetId) ?? null) : null];
-      })
-    );
-  }, [activeScene, campaign?.assets, campaign?.scenes, sceneDrafts]);
+  const sceneThumbnailAssets = useMemo(
+    () => buildSceneThumbnailAssets(campaignScenes, sceneDrafts, activeScene, assetsById),
+    [activeScene, assetsById, campaignScenes, sceneDrafts]
+  );
   const environmentEffectEditorEffect = useMemo(
     () => activeScene?.environment.effects.find((effect) => effect.id === environmentEffectEditorId) ?? null,
     [activeScene?.environment.effects, environmentEffectEditorId]
