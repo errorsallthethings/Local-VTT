@@ -11,6 +11,11 @@ export interface WeatherMaskDrag {
   current: Point;
 }
 
+export type WeatherPolygonDraft = {
+  points: Point[];
+  current?: Point;
+};
+
 export function isMeaningfulWeatherMaskDrag(drag: WeatherMaskDrag): boolean {
   if (drag.kind === "circle") {
     return distanceBetween(drag.start, drag.current) >= 4;

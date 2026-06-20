@@ -1,8 +1,8 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultDrawingName, formatDefaultFogShapeName } from "../../shared/localvtt";
-import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings, WeatherMask } from "../../shared/localvtt";
-import { getEnvironmentEffectBounds, getPointBounds, getWeatherMaskBounds } from "../canvas/boundsGeometry";
+import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings } from "../../shared/localvtt";
+import { getEnvironmentEffectBounds, getPointBounds } from "../canvas/boundsGeometry";
 import { areCamerasEqual, getRenderCamera, type Camera } from "../canvas/camera";
 import { getCanvasInteractionClass, type DrawingResizeHandle, type DrawingTransformHover } from "../canvas/canvasInteraction";
 import {
@@ -67,7 +67,6 @@ import {
   isWeatherMaskInSelectionRect,
   pointsToSelectionRect
 } from "../canvas/selectionGeometry";
-import { drawSelectionBox } from "../canvas/selectionRenderer";
 import {
   drawBrushHoverPreview,
   drawDrawingBrushHoverPreview,
@@ -187,7 +186,13 @@ import {
   type EnvironmentEffectDrag
 } from "../canvas/environmentEffectGeometry";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
-import { getVisibleWeatherMasks, getWeatherMaskDragRect, getWeatherMaskRect, isMeaningfulWeatherMaskDrag, type WeatherMaskDrag } from "../canvas/weatherMaskGeometry";
+import {
+  drawWeatherMaskOutlines,
+  drawWeatherMaskPreview,
+  drawWeatherMaskSelection,
+  drawWeatherPolygonDraft
+} from "../canvas/weatherMaskRenderer";
+import { isMeaningfulWeatherMaskDrag, type WeatherMaskDrag, type WeatherPolygonDraft } from "../canvas/weatherMaskGeometry";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { duplicateDrawingElement } from "../lib/drawingDefaults";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
@@ -329,11 +334,6 @@ type LaserDragState = {
   pointerId: number;
   eventId: string;
   points: LiveTablePoint[];
-};
-
-type WeatherPolygonDraft = {
-  points: Point[];
-  current?: Point;
 };
 
 type SelectionMode = "replace" | "add" | "subtract";
@@ -3461,27 +3461,6 @@ export function SceneCanvas({
   );
 }
 
-function drawWeatherMaskPreview(ctx: CanvasRenderingContext2D, preview: WeatherMaskDrag, camera: Camera) {
-  ctx.save();
-  ctx.translate(camera.x, camera.y);
-  ctx.scale(camera.zoom, camera.zoom);
-  ctx.strokeStyle = "#8bc6ff";
-  ctx.fillStyle = "rgb(139 198 255 / 0.12)";
-  ctx.lineWidth = Math.max(1.5, 2 / camera.zoom);
-  ctx.setLineDash([8 / camera.zoom, 5 / camera.zoom]);
-  if (preview.kind === "circle") {
-    ctx.beginPath();
-    ctx.arc(preview.start.x, preview.start.y, distanceBetween(preview.start, preview.current), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  } else {
-    const { x, y, width, height } = getWeatherMaskDragRect(preview);
-    ctx.fillRect(x, y, width, height);
-    ctx.strokeRect(x, y, width, height);
-  }
-  ctx.restore();
-}
-
 function drawEnvironmentEffectPreview(ctx: CanvasRenderingContext2D, preview: EnvironmentEffectDrag, camera: Camera) {
   const effectMask = environmentDragToMask(preview);
   drawEnvironmentEffectShape(ctx, effectMask, camera, { fill: true, selected: false });
@@ -3962,104 +3941,4 @@ function getEnvironmentEffectPath(effect: EnvironmentEffectMask, camera: Camera)
   return path;
 }
 
-function drawWeatherPolygonDraft(ctx: CanvasRenderingContext2D, draft: WeatherPolygonDraft, camera: Camera) {
-  if (draft.points.length === 0) {
-    return;
-  }
-
-  ctx.save();
-  ctx.translate(camera.x, camera.y);
-  ctx.scale(camera.zoom, camera.zoom);
-  ctx.strokeStyle = "#8bc6ff";
-  ctx.fillStyle = "#8bc6ff";
-  ctx.lineWidth = Math.max(1.5, 2 / camera.zoom);
-  ctx.setLineDash([8 / camera.zoom, 5 / camera.zoom]);
-  ctx.beginPath();
-  ctx.moveTo(draft.points[0].x, draft.points[0].y);
-  for (const point of draft.points.slice(1)) {
-    ctx.lineTo(point.x, point.y);
-  }
-  if (draft.current) {
-    ctx.lineTo(draft.current.x, draft.current.y);
-  }
-  ctx.stroke();
-  ctx.setLineDash([]);
-  for (const point of draft.points) {
-    ctx.beginPath();
-    ctx.arc(point.x, point.y, 8 / camera.zoom, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.lineWidth = Math.max(1, 2 / camera.zoom);
-    ctx.strokeStyle = "#0b1118";
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-function drawWeatherMaskSelection(ctx: CanvasRenderingContext2D, mask: WeatherMask, camera: Camera) {
-  const bounds = getWeatherMaskBounds(mask);
-  if (!bounds) {
-    return;
-  }
-  ctx.save();
-  ctx.translate(camera.x, camera.y);
-  ctx.scale(camera.zoom, camera.zoom);
-  drawSelectionBox(ctx, bounds, camera.zoom, 10);
-  ctx.restore();
-}
-
-function drawWeatherMaskOutlines(ctx: CanvasRenderingContext2D, masks: WeatherMask[], camera: Camera) {
-  for (const mask of getVisibleWeatherMasks(masks)) {
-    drawWeatherMaskShape(ctx, mask, camera, { fill: false, selected: false });
-  }
-}
-
-function drawWeatherMaskShape(ctx: CanvasRenderingContext2D, mask: WeatherMask, camera: Camera, options: { fill: boolean; selected: boolean }) {
-  ctx.save();
-  ctx.translate(camera.x, camera.y);
-  ctx.scale(camera.zoom, camera.zoom);
-  ctx.globalAlpha = options.selected ? 1 : 0.78;
-  if (options.selected) {
-    const bounds = getWeatherMaskBounds(mask);
-    if (bounds) {
-      drawSelectionBox(ctx, bounds, camera.zoom, 10);
-    }
-    ctx.restore();
-    return;
-  } else {
-    ctx.strokeStyle = "#8bc6ff";
-    ctx.fillStyle = options.fill ? "rgb(139 198 255 / 0.16)" : "transparent";
-    ctx.lineWidth = Math.max(1.75, 2 / camera.zoom);
-    ctx.setLineDash([9 / camera.zoom, 5 / camera.zoom]);
-  }
-  if (mask.kind === "circle" && mask.points[0] && mask.radius) {
-    ctx.beginPath();
-    ctx.arc(mask.points[0].x, mask.points[0].y, mask.radius, 0, Math.PI * 2);
-    if (options.fill || options.selected) {
-      ctx.fill();
-    }
-    ctx.stroke();
-  } else if (mask.kind === "rectangle" && mask.points.length >= 2) {
-    const rect = getWeatherMaskRect(mask);
-    if (!rect) {
-      ctx.restore();
-      return;
-    }
-    if (options.fill || options.selected) {
-      ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
-    }
-    ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
-  } else if (mask.kind === "polygon" && mask.points.length >= 3) {
-    ctx.beginPath();
-    ctx.moveTo(mask.points[0].x, mask.points[0].y);
-    for (const point of mask.points.slice(1)) {
-      ctx.lineTo(point.x, point.y);
-    }
-    ctx.closePath();
-    if (options.fill || options.selected) {
-      ctx.fill();
-    }
-    ctx.stroke();
-  }
-  ctx.restore();
-}
 
