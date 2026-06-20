@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { getCanvasInteractionClass, type CanvasInteractionState } from "../../src/renderer/canvas/canvasInteraction";
+import {
+  getCanvasInteractionClass,
+  getDrawingTransformHoverAtPoint,
+  hasSceneItemHoverAtPoint,
+  type CanvasInteractionState
+} from "../../src/renderer/canvas/canvasInteraction";
+import { createDefaultScene, type Token } from "../../src/shared/localvtt";
 
 function state(overrides: Partial<CanvasInteractionState> = {}): CanvasInteractionState {
   return {
@@ -54,5 +60,102 @@ describe("canvas interaction class", () => {
     expect(getCanvasInteractionClass(state({ sceneItemHover: true, mouseBehavior: "grabber" }))).toBe("scene-canvas-item-hover");
     expect(getCanvasInteractionClass(state({ mouseBehavior: "grabber" }))).toBe("scene-canvas-grabber");
     expect(getCanvasInteractionClass(state())).toBe("");
+  });
+});
+
+describe("canvas interaction hover", () => {
+  const camera = { x: 0, y: 0, zoom: 1 };
+
+  function token(patch: Partial<Token> = {}): Token {
+    return {
+      id: "token-1",
+      name: "Token",
+      position: { x: 10, y: 10 },
+      size: { width: 20, height: 20 },
+      hidden: false,
+      visibleInPlayer: true,
+      ...patch
+    };
+  }
+
+  it("detects token hover when token layer is visible", () => {
+    const scene = createDefaultScene("Hover");
+    scene.tokens = [token()];
+
+    expect(
+      hasSceneItemHoverAtPoint({
+        mode: "gm",
+        scene,
+        point: { x: 15, y: 15 },
+        camera,
+        canShowTokens: true
+      })
+    ).toBe(true);
+  });
+
+  it("suppresses scene item hover during active interactions", () => {
+    const scene = createDefaultScene("Hover");
+    scene.tokens = [token()];
+
+    expect(
+      hasSceneItemHoverAtPoint({
+        mode: "gm",
+        scene,
+        point: { x: 15, y: 15 },
+        camera,
+        canShowTokens: true,
+        hasActiveInteraction: true
+      })
+    ).toBe(false);
+  });
+
+  it("respects mask layer visibility for hover", () => {
+    const scene = createDefaultScene("Masks");
+    scene.fog.shapes = [
+      {
+        id: "fog-1",
+        operation: "hide",
+        kind: "rectangle",
+        points: [
+          { x: 0, y: 0 },
+          { x: 40, y: 40 }
+        ],
+        visibleInGm: true
+      }
+    ];
+
+    expect(
+      hasSceneItemHoverAtPoint({
+        mode: "gm",
+        scene,
+        point: { x: 20, y: 20 },
+        camera,
+        canShowFog: true
+      })
+    ).toBe(true);
+    expect(
+      hasSceneItemHoverAtPoint({
+        mode: "gm",
+        scene,
+        point: { x: 20, y: 20 },
+        camera,
+        canShowFog: false
+      })
+    ).toBe(false);
+  });
+
+  it("returns no drawing transform hover without selected drawings", () => {
+    const scene = createDefaultScene("Drawings");
+
+    expect(
+      getDrawingTransformHoverAtPoint({
+        mode: "gm",
+        scene,
+        point: { x: 0, y: 0 },
+        camera,
+        selectedDrawingIds: [],
+        canShowDrawings: true
+      })
+    ).toBeNull();
   });
 });

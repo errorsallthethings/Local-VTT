@@ -3,7 +3,7 @@ import { Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings } from "../../shared/localvtt";
 import { areCamerasEqual, getRenderCamera, type Camera } from "../canvas/camera";
-import { getCanvasInteractionClass, type DrawingResizeHandle, type DrawingTransformHover } from "../canvas/canvasInteraction";
+import { getCanvasInteractionClass, getDrawingTransformHoverAtPoint, hasSceneItemHoverAtPoint, type DrawingResizeHandle, type DrawingTransformHover } from "../canvas/canvasInteraction";
 import {
   drawDrawings,
   getDrawingHitRadius,
@@ -95,7 +95,7 @@ import {
   drawSnapMarker
 } from "../canvas/sceneOverlayRenderer";
 import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/environmentEffectLayerRenderer";
-import { getEnvironmentEffectAtPoint, getMaskHitAtPoint, isMaskHitVisibleForLayers } from "../canvas/sceneHitTesting";
+import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/sceneHitTesting";
 import { getSceneLayerVisibility } from "../canvas/sceneLayerVisibility";
 import { getNearestSceneSnapPoint, getRulerSnapPoint, resolveDrawingToolPoint, resolveSceneToolPoint, shouldShowSceneSnapPreview } from "../canvas/sceneSnapping";
 import { getSelectedItemIdList, getSelectedItemIds } from "../lib/selectionIds";
@@ -2446,60 +2446,35 @@ export function SceneCanvas({
   };
 
   const updateDrawingTransformHover = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (
-      mode !== "gm" ||
-      !scene ||
-      !canShowDrawings ||
-      drawingDragPreview ||
-      canvasTool ||
-      drawingTool ||
-      fogTool ||
-      weatherMaskTool ||
-      environmentEffectTool ||
-      selectedDrawingIds.length === 0
-    ) {
-      setDrawingTransformHover(null);
-      return;
-    }
     const cameraState = getRenderCamera(camera, playerDisplayScale);
-    const point = eventToWorldPoint(event, cameraState);
-    if (getDrawingRotationHandleAtPoint(scene.drawings, selectedDrawingIds, point, cameraState)) {
-      setDrawingTransformHover("rotate");
-      return;
-    }
-    const resizeTarget = getDrawingResizeHandleAtPoint(scene.drawings, selectedDrawingIds, point, cameraState);
-    setDrawingTransformHover(resizeTarget?.handle ?? null);
+    setDrawingTransformHover(
+      getDrawingTransformHoverAtPoint({
+        mode,
+        scene,
+        point: eventToWorldPoint(event, cameraState),
+        camera: cameraState,
+        selectedDrawingIds,
+        canShowDrawings,
+        hasActiveInteraction: Boolean(drawingDragPreview || canvasTool || drawingTool || fogTool || weatherMaskTool || environmentEffectTool)
+      })
+    );
   };
 
   const updateSceneItemHover = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (
-      mode !== "gm" ||
-      !scene ||
-      drawingDragPreview ||
-      canvasTool ||
-      drawingTool ||
-      fogTool ||
-      weatherMaskTool ||
-      environmentEffectTool ||
-      selectionDragRef.current
-    ) {
-      setSceneItemHover(false);
-      return;
-    }
     const cameraState = getRenderCamera(camera, playerDisplayScale);
-    const point = eventToWorldPoint(event, cameraState);
-    const tokenHit = canShowTokens ? getTokenAtPoint(scene.tokens, point) : null;
-    if (tokenHit) {
-      setSceneItemHover(true);
-      return;
-    }
-    const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, getDrawingHitRadius(cameraState.zoom), scene.grid) : null;
-    if (drawingHit) {
-      setSceneItemHover(true);
-      return;
-    }
-    const maskHit = getMaskHitAtPoint(scene, point);
-    setSceneItemHover(isMaskHitVisibleForLayers(maskHit, canShowWeather, canShowFog));
+    setSceneItemHover(
+      hasSceneItemHoverAtPoint({
+        mode,
+        scene,
+        point: eventToWorldPoint(event, cameraState),
+        camera: cameraState,
+        canShowTokens,
+        canShowDrawings,
+        canShowWeather,
+        canShowFog,
+        hasActiveInteraction: Boolean(drawingDragPreview || canvasTool || drawingTool || fogTool || weatherMaskTool || environmentEffectTool || selectionDragRef.current)
+      })
+    );
   };
 
   const updatePolygonDraft = (tool: FogTool, point: Point) => {

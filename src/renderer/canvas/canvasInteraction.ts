@@ -1,3 +1,10 @@
+import type { Point, Scene } from "../../shared/localvtt";
+import type { Camera } from "./camera";
+import { getDrawingAtPoint, getDrawingHitRadius } from "./drawingRenderer";
+import { getDrawingResizeHandleAtPoint, getDrawingRotationHandleAtPoint } from "./drawingTransform";
+import { getMaskHitAtPoint, isMaskHitVisibleForLayers } from "./sceneHitTesting";
+import { getTokenAtPoint } from "./tokenGeometry";
+
 export type DrawingResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 export type DrawingTransformHover = DrawingResizeHandle | "rotate" | null;
 
@@ -99,4 +106,67 @@ export function getCanvasInteractionClass({
     return "scene-canvas-grabber";
   }
   return "";
+}
+
+export interface DrawingTransformHoverInput {
+  mode: "gm" | "player";
+  scene: Scene | null;
+  point: Point;
+  camera: Camera;
+  selectedDrawingIds: string[];
+  canShowDrawings?: boolean;
+  hasActiveInteraction?: boolean;
+}
+
+export function getDrawingTransformHoverAtPoint({
+  mode,
+  scene,
+  point,
+  camera,
+  selectedDrawingIds,
+  canShowDrawings,
+  hasActiveInteraction
+}: DrawingTransformHoverInput): DrawingTransformHover {
+  if (mode !== "gm" || !scene || !canShowDrawings || hasActiveInteraction || selectedDrawingIds.length === 0) {
+    return null;
+  }
+  if (getDrawingRotationHandleAtPoint(scene.drawings, selectedDrawingIds, point, camera)) {
+    return "rotate";
+  }
+  return getDrawingResizeHandleAtPoint(scene.drawings, selectedDrawingIds, point, camera)?.handle ?? null;
+}
+
+export interface SceneItemHoverInput {
+  mode: "gm" | "player";
+  scene: Scene | null;
+  point: Point;
+  camera: Camera;
+  canShowTokens?: boolean;
+  canShowDrawings?: boolean;
+  canShowWeather?: boolean;
+  canShowFog?: boolean;
+  hasActiveInteraction?: boolean;
+}
+
+export function hasSceneItemHoverAtPoint({
+  mode,
+  scene,
+  point,
+  camera,
+  canShowTokens,
+  canShowDrawings,
+  canShowWeather,
+  canShowFog,
+  hasActiveInteraction
+}: SceneItemHoverInput): boolean {
+  if (mode !== "gm" || !scene || hasActiveInteraction) {
+    return false;
+  }
+  if (canShowTokens && getTokenAtPoint(scene.tokens, point)) {
+    return true;
+  }
+  if (canShowDrawings && getDrawingAtPoint(scene.drawings, point, getDrawingHitRadius(camera.zoom), scene.grid)) {
+    return true;
+  }
+  return isMaskHitVisibleForLayers(getMaskHitAtPoint(scene, point), canShowWeather, canShowFog);
 }
