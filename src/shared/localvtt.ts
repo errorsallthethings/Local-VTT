@@ -1,3 +1,8 @@
+import { formatEnvironmentEffectName, isEnvironmentEffectType } from "./environmentEffectCatalog";
+import type { EnvironmentEffectType } from "./environmentEffectCatalog";
+
+export type { EnvironmentEffectType } from "./environmentEffectCatalog";
+
 export type AssetKind = "map" | "token" | "overlay" | "effect" | "handout";
 export type AssetMediaType = "image" | "video";
 export type GridType = "square" | "hex" | "gridless";
@@ -174,8 +179,6 @@ export interface WeatherMask {
   radius?: number;
   visible?: boolean;
 }
-
-export type EnvironmentEffectType = "acid" | "cold" | "darkness" | "poison" | "water" | "lava" | "smoke" | "fog" | "fire" | "electric" | "arcane" | "radiant" | "field" | "shockwave" | "distortion" | "chaos" | "void" | "nature";
 
 export interface WaterEffectTuningSettings {
   opacity: number;
@@ -1783,8 +1786,6 @@ const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "sandstorm"
 ]);
 
-const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["acid", "cold", "darkness", "poison", "water", "lava", "smoke", "fog", "fire", "electric", "arcane", "radiant", "field", "shockwave", "distortion", "chaos", "void", "nature"]);
-
 export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
   { id: "gm", name: "GM", kind: "gm", order: 90, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
@@ -2288,7 +2289,7 @@ function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): Env
       const points = effect.kind === "circle" ? effect.points.slice(0, 1) : effect.points;
       const incomingEffectType = (effect as { effect?: unknown }).effect;
       const rawEffectType = incomingEffectType === "lightning" ? "electric" : incomingEffectType;
-      const effectType = ENVIRONMENT_EFFECTS.has(rawEffectType as EnvironmentEffectType) ? (rawEffectType as EnvironmentEffectType) : "water";
+      const effectType = isEnvironmentEffectType(rawEffectType) ? rawEffectType : "water";
       return {
         ...effect,
         id,
@@ -2732,10 +2733,6 @@ function normalizeFogEffectTuning(tuning?: FogEffectTuningSettings): FogEffectTu
 
 function normalizeColorValue(value: unknown, fallback: string): string {
   return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
-}
-
-function formatEnvironmentEffectName(effect: EnvironmentEffectType): string {
-  return effect === "acid" ? "Acid" : effect === "cold" ? "Cold" : effect === "darkness" ? "Darkness" : effect === "poison" ? "Poison Cloud" : effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "chaos" ? "Chaos Field" : effect === "void" ? "Void Tendrils" : effect === "nature" ? "Nature Growth" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function normalizeWeatherEffectSettings(settings?: WeatherSettings["effectSettings"]): WeatherSettings["effectSettings"] {
