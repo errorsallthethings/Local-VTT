@@ -83,6 +83,78 @@ export const DEFAULT_RADIANT_EFFECT_TUNING: RadiantEffectTuning = DEFAULT_RADIAN
 export const DEFAULT_SMOKE_EFFECT_TUNING: SmokeEffectTuning = DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FOG_EFFECT_TUNING: FogEffectTuning = DEFAULT_FOG_EFFECT_TUNING_SETTINGS;
 
+export function cloneWaterEffectTuning(tuning?: WaterEffectTuning): WaterEffectTuning {
+  return { ...(tuning ?? DEFAULT_WATER_EFFECT_TUNING) };
+}
+
+export function cloneAcidEffectTuning(tuning?: AcidEffectTuning): AcidEffectTuning {
+  return { ...(tuning ?? DEFAULT_ACID_EFFECT_TUNING) };
+}
+
+export function clonePoisonEffectTuning(tuning?: PoisonEffectTuning): PoisonEffectTuning {
+  return { ...(tuning ?? DEFAULT_POISON_EFFECT_TUNING) };
+}
+
+export function cloneColdEffectTuning(tuning?: ColdEffectTuning): ColdEffectTuning {
+  return { ...(tuning ?? DEFAULT_COLD_EFFECT_TUNING) };
+}
+
+export function cloneDarknessEffectTuning(tuning?: DarknessEffectTuning): DarknessEffectTuning {
+  return { ...(tuning ?? DEFAULT_DARKNESS_EFFECT_TUNING) };
+}
+
+export function cloneLavaEffectTuning(tuning?: LavaEffectTuning): LavaEffectTuning {
+  return { ...(tuning ?? DEFAULT_LAVA_EFFECT_TUNING) };
+}
+
+export function cloneFireEffectTuning(tuning?: FireEffectTuning): FireEffectTuning {
+  return { ...(tuning ?? DEFAULT_FIRE_EFFECT_TUNING) };
+}
+
+export function cloneLightningEffectTuning(tuning?: LightningEffectTuning): LightningEffectTuning {
+  return { ...(tuning ?? DEFAULT_LIGHTNING_EFFECT_TUNING) };
+}
+
+export function cloneArcaneEffectTuning(tuning?: ArcaneEffectTuning): ArcaneEffectTuning {
+  return { ...(tuning ?? DEFAULT_ARCANE_EFFECT_TUNING) };
+}
+
+export function cloneChaosEffectTuning(tuning?: ChaosEffectTuning): ChaosEffectTuning {
+  return { ...(tuning ?? DEFAULT_CHAOS_EFFECT_TUNING) };
+}
+
+export function cloneVoidEffectTuning(tuning?: VoidEffectTuning): VoidEffectTuning {
+  return { ...(tuning ?? DEFAULT_VOID_EFFECT_TUNING) };
+}
+
+export function cloneNatureEffectTuning(tuning?: NatureEffectTuning): NatureEffectTuning {
+  return { ...(tuning ?? DEFAULT_NATURE_EFFECT_TUNING) };
+}
+
+export function cloneDistortionEffectTuning(tuning?: DistortionEffectTuning): DistortionEffectTuning {
+  return { ...(tuning ?? DEFAULT_DISTORTION_EFFECT_TUNING) };
+}
+
+export function cloneRadiantEffectTuning(tuning?: RadiantEffectTuning): RadiantEffectTuning {
+  return { ...(tuning ?? DEFAULT_RADIANT_EFFECT_TUNING) };
+}
+
+export function cloneForceFieldEffectTuning(tuning?: ForceFieldEffectTuning): ForceFieldEffectTuning {
+  return { ...(tuning ?? DEFAULT_FORCE_FIELD_EFFECT_TUNING) };
+}
+
+export function cloneShockwaveEffectTuning(tuning?: ShockwaveEffectTuning): ShockwaveEffectTuning {
+  return { ...(tuning ?? DEFAULT_SHOCKWAVE_EFFECT_TUNING) };
+}
+
+export function cloneSmokeEffectTuning(tuning?: SmokeEffectTuning): SmokeEffectTuning {
+  return { ...(tuning ?? DEFAULT_SMOKE_EFFECT_TUNING) };
+}
+
+export function cloneFogEffectTuning(tuning?: FogEffectTuning): FogEffectTuning {
+  return { ...(tuning ?? DEFAULT_FOG_EFFECT_TUNING) };
+}
+
 export const WATER_EFFECT_PRESETS = {
   stream: {
     opacity: 0.92,

@@ -110,6 +110,24 @@ import {
   DEFAULT_SMOKE_EFFECT_TUNING,
   DEFAULT_VOID_EFFECT_TUNING,
   DEFAULT_WATER_EFFECT_TUNING,
+  cloneAcidEffectTuning,
+  cloneArcaneEffectTuning,
+  cloneChaosEffectTuning,
+  cloneColdEffectTuning,
+  cloneDarknessEffectTuning,
+  cloneDistortionEffectTuning,
+  cloneFireEffectTuning,
+  cloneFogEffectTuning,
+  cloneForceFieldEffectTuning,
+  cloneLavaEffectTuning,
+  cloneLightningEffectTuning,
+  cloneNatureEffectTuning,
+  clonePoisonEffectTuning,
+  cloneRadiantEffectTuning,
+  cloneShockwaveEffectTuning,
+  cloneSmokeEffectTuning,
+  cloneVoidEffectTuning,
+  cloneWaterEffectTuning,
   drawEnvironmentAcidEffect,
   drawEnvironmentArcaneEffect,
   drawEnvironmentChaosEffect,
@@ -4258,78 +4276,6 @@ function drawDarknessEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEf
   const screenBounds = worldRectToScreen(bounds, camera);
   const tuning = effect.darknessTuning ? { ...DEFAULT_DARKNESS_EFFECT_TUNING, ...effect.darknessTuning } : darknessEffectTuning;
   drawEnvironmentDarknessEffect(ctx, screenBounds, timestamp, layerOpacity, camera, tuning);
-}
-
-function cloneWaterEffectTuning(tuning?: WaterEffectTuning): WaterEffectTuning {
-  return { ...(tuning ?? DEFAULT_WATER_EFFECT_TUNING) };
-}
-
-function cloneAcidEffectTuning(tuning?: AcidEffectTuning): AcidEffectTuning {
-  return { ...(tuning ?? DEFAULT_ACID_EFFECT_TUNING) };
-}
-
-function clonePoisonEffectTuning(tuning?: PoisonEffectTuning): PoisonEffectTuning {
-  return { ...(tuning ?? DEFAULT_POISON_EFFECT_TUNING) };
-}
-
-function cloneColdEffectTuning(tuning?: ColdEffectTuning): ColdEffectTuning {
-  return { ...(tuning ?? DEFAULT_COLD_EFFECT_TUNING) };
-}
-
-function cloneDarknessEffectTuning(tuning?: DarknessEffectTuning): DarknessEffectTuning {
-  return { ...(tuning ?? DEFAULT_DARKNESS_EFFECT_TUNING) };
-}
-
-function cloneLavaEffectTuning(tuning?: LavaEffectTuning): LavaEffectTuning {
-  return { ...(tuning ?? DEFAULT_LAVA_EFFECT_TUNING) };
-}
-
-function cloneFireEffectTuning(tuning?: FireEffectTuning): FireEffectTuning {
-  return { ...(tuning ?? DEFAULT_FIRE_EFFECT_TUNING) };
-}
-
-function cloneLightningEffectTuning(tuning?: LightningEffectTuning): LightningEffectTuning {
-  return { ...(tuning ?? DEFAULT_LIGHTNING_EFFECT_TUNING) };
-}
-
-function cloneArcaneEffectTuning(tuning?: ArcaneEffectTuning): ArcaneEffectTuning {
-  return { ...(tuning ?? DEFAULT_ARCANE_EFFECT_TUNING) };
-}
-
-function cloneChaosEffectTuning(tuning?: ChaosEffectTuning): ChaosEffectTuning {
-  return { ...(tuning ?? DEFAULT_CHAOS_EFFECT_TUNING) };
-}
-
-function cloneVoidEffectTuning(tuning?: VoidEffectTuning): VoidEffectTuning {
-  return { ...(tuning ?? DEFAULT_VOID_EFFECT_TUNING) };
-}
-
-function cloneNatureEffectTuning(tuning?: NatureEffectTuning): NatureEffectTuning {
-  return { ...(tuning ?? DEFAULT_NATURE_EFFECT_TUNING) };
-}
-
-function cloneDistortionEffectTuning(tuning?: DistortionEffectTuning): DistortionEffectTuning {
-  return { ...(tuning ?? DEFAULT_DISTORTION_EFFECT_TUNING) };
-}
-
-function cloneRadiantEffectTuning(tuning?: RadiantEffectTuning): RadiantEffectTuning {
-  return { ...(tuning ?? DEFAULT_RADIANT_EFFECT_TUNING) };
-}
-
-function cloneForceFieldEffectTuning(tuning?: ForceFieldEffectTuning): ForceFieldEffectTuning {
-  return { ...(tuning ?? DEFAULT_FORCE_FIELD_EFFECT_TUNING) };
-}
-
-function cloneShockwaveEffectTuning(tuning?: ShockwaveEffectTuning): ShockwaveEffectTuning {
-  return { ...(tuning ?? DEFAULT_SHOCKWAVE_EFFECT_TUNING) };
-}
-
-function cloneSmokeEffectTuning(tuning?: SmokeEffectTuning): SmokeEffectTuning {
-  return { ...(tuning ?? DEFAULT_SMOKE_EFFECT_TUNING) };
-}
-
-function cloneFogEffectTuning(tuning?: FogEffectTuning): FogEffectTuning {
-  return { ...(tuning ?? DEFAULT_FOG_EFFECT_TUNING) };
 }
 
 function drawLavaEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, lavaEffectTuning?: LavaEffectTuning) {
