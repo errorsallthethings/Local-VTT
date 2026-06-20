@@ -1,4 +1,16 @@
-import { DEFAULT_VIDEO_PLAYBACK, type GridSettings, type Layer, type MapTransform, type Point, type Scene, type Token } from "../../shared/localvtt";
+import {
+  DEFAULT_VIDEO_PLAYBACK,
+  type DrawingElement,
+  type EnvironmentEffectMask,
+  type FogShape,
+  type GridSettings,
+  type Layer,
+  type MapTransform,
+  type Point,
+  type Scene,
+  type Token,
+  type WeatherMask
+} from "../../shared/localvtt";
 import { duplicateDrawingElement } from "./drawingDefaults";
 import { duplicateToken } from "./tokenDefaults";
 
@@ -35,6 +47,18 @@ export function patchSceneFog(scene: Scene, patch: Partial<Scene["fog"]>): Scene
     ...scene,
     fog: { ...scene.fog, ...patch },
     updatedAt: new Date().toISOString()
+  };
+}
+
+export function addSceneFogShape(scene: Scene, shape: FogShape, fogPatch: Partial<Scene["fog"]> = {}, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    fog: {
+      ...scene.fog,
+      ...fogPatch,
+      shapes: [...scene.fog.shapes, shape]
+    },
+    updatedAt
   };
 }
 
@@ -120,10 +144,29 @@ export function setWeatherMaskVisibility(scene: Scene, maskId: string, visible: 
   };
 }
 
+export function addSceneWeatherMask(scene: Scene, mask: WeatherMask, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    weather: {
+      ...scene.weather,
+      masks: [...scene.weather.masks, mask]
+    },
+    updatedAt
+  };
+}
+
 export function patchSceneDrawing(scene: Scene, drawingId: string, patch: Partial<Scene["drawings"][number]>, updatedAt = new Date().toISOString()): Scene {
   return {
     ...scene,
     drawings: scene.drawings.map((drawing) => (drawing.id === drawingId ? { ...drawing, ...patch } : drawing)),
+    updatedAt
+  };
+}
+
+export function addSceneDrawing(scene: Scene, drawing: DrawingElement, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    drawings: [...scene.drawings, drawing],
     updatedAt
   };
 }
@@ -184,6 +227,17 @@ export function removeEnvironmentEffect(scene: Scene, effectId: string, updatedA
     environment: {
       ...scene.environment,
       effects: scene.environment.effects.filter((effect) => effect.id !== effectId)
+    },
+    updatedAt
+  };
+}
+
+export function addEnvironmentEffect(scene: Scene, effect: EnvironmentEffectMask, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    environment: {
+      ...scene.environment,
+      effects: [...scene.environment.effects, effect]
     },
     updatedAt
   };

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene } from "../../src/shared/localvtt";
 import {
+  addEnvironmentEffect,
+  addSceneDrawing,
+  addSceneFogShape,
+  addSceneWeatherMask,
   duplicateSceneDrawing,
   duplicateSceneToken,
   getFitGridPatch,
@@ -118,6 +122,21 @@ describe("scene editing helpers", () => {
     });
   });
 
+  it("adds a fog shape with an optional fog patch", () => {
+    const scene = createDefaultScene("Fog");
+
+    const next = addSceneFogShape(
+      scene,
+      { id: "fog-1", kind: "rectangle", points: [{ x: 0, y: 0 }, { x: 100, y: 100 }], visibleInPlayer: true },
+      { mode: "hidden" },
+      "updated"
+    );
+
+    expect(next.fog.mode).toBe("hidden");
+    expect(next.fog.shapes.map((shape) => shape.id)).toEqual(["fog-1"]);
+    expect(next.updatedAt).toBe("updated");
+  });
+
   it("sets weather mask visibility", () => {
     const scene = createDefaultScene("Weather");
     scene.weather.masks = [
@@ -136,6 +155,15 @@ describe("scene editing helpers", () => {
       id: "weather-1",
       visible: false
     });
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("adds a weather mask", () => {
+    const scene = createDefaultScene("Weather");
+
+    const next = addSceneWeatherMask(scene, { id: "weather-1", kind: "circle", points: [{ x: 20, y: 20 }], radius: 10 }, "updated");
+
+    expect(next.weather.masks.map((mask) => mask.id)).toEqual(["weather-1"]);
     expect(next.updatedAt).toBe("updated");
   });
 
@@ -219,6 +247,19 @@ describe("scene editing helpers", () => {
 
     expect(next.drawings[0]).toMatchObject({ id: "drawing-1", opacity: 0.5 });
     expect(next.drawings[1]).toMatchObject({ id: "drawing-2", opacity: 1 });
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("adds a drawing", () => {
+    const scene = createDefaultScene("Drawings");
+
+    const next = addSceneDrawing(
+      scene,
+      { id: "drawing-1", kind: "line", points: [], color: "#fff", opacity: 1, strokeWidth: 8, visibleInPlayer: true },
+      "updated"
+    );
+
+    expect(next.drawings.map((drawing) => drawing.id)).toEqual(["drawing-1"]);
     expect(next.updatedAt).toBe("updated");
   });
 
@@ -330,6 +371,15 @@ describe("scene editing helpers", () => {
     const next = removeEnvironmentEffect(scene, "effect-1", "updated");
 
     expect(next.environment.effects.map((effect) => effect.id)).toEqual(["effect-2"]);
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("adds an environment effect", () => {
+    const scene = createDefaultScene("Effects");
+
+    const next = addEnvironmentEffect(scene, { id: "effect-1", kind: "rectangle", effect: "water", points: [{ x: 0, y: 0 }, { x: 100, y: 100 }] }, "updated");
+
+    expect(next.environment.effects.map((effect) => effect.id)).toEqual(["effect-1"]);
     expect(next.updatedAt).toBe("updated");
   });
 });

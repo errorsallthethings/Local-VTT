@@ -166,6 +166,10 @@ import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/dragTypes";
 import {
+  addEnvironmentEffect,
+  addSceneDrawing,
+  addSceneFogShape,
+  addSceneWeatherMask,
   duplicateSceneDrawing,
   duplicateSceneToken,
   removeEnvironmentEffect,
@@ -2046,14 +2050,7 @@ export function SceneCanvas({
       setDrawingPreview(null);
       onTemplatePreviewChange?.(null);
       if (scene && onSceneChange && isMeaningfulDrawingPreview(drawingDrag)) {
-        onSceneChange({
-          ...scene,
-          drawings: [
-            ...scene.drawings,
-            getDrawingElementFromPreview(drawingDrag, crypto.randomUUID(), scene.drawings.length)
-          ],
-          updatedAt: new Date().toISOString()
-        });
+        onSceneChange(addSceneDrawing(scene, getDrawingElementFromPreview(drawingDrag, crypto.randomUUID(), scene.drawings.length)));
       }
       return;
     }
@@ -2063,21 +2060,16 @@ export function SceneCanvas({
       weatherMaskDragRef.current = null;
       setWeatherMaskPreview(null);
       if (scene && onSceneChange && isMeaningfulWeatherMaskDrag(weatherMaskDrag)) {
-        onSceneChange({
-          ...scene,
-          weather: {
-            ...scene.weather,
-            masks: [
-              ...scene.weather.masks,
-              getWeatherMaskFromDrag(
-                weatherMaskDrag,
-                crypto.randomUUID(),
-                formatDefaultWeatherMaskName(scene.weather.masks.length)
-              )
-            ]
-          },
-          updatedAt: new Date().toISOString()
-        });
+        onSceneChange(
+          addSceneWeatherMask(
+            scene,
+            getWeatherMaskFromDrag(
+              weatherMaskDrag,
+              crypto.randomUUID(),
+              formatDefaultWeatherMaskName(scene.weather.masks.length)
+            )
+          )
+        );
       }
       return;
     }
@@ -2087,41 +2079,36 @@ export function SceneCanvas({
       environmentEffectDragRef.current = null;
       setEnvironmentEffectPreview(null);
       if (scene && onSceneChange && isMeaningfulEnvironmentEffectDrag(environmentEffectDrag)) {
-        onSceneChange({
-          ...scene,
-          environment: {
-            ...scene.environment,
-            effects: [
-              ...scene.environment.effects,
-              getEnvironmentEffectFromDrag(
-                environmentEffectDrag,
-                crypto.randomUUID(),
-                formatDefaultEnvironmentEffectName(environmentEffectDrag.effect, scene.environment.effects.length),
-                {
-                  acidTuning: acidEffectTuning,
-                  coldTuning: coldEffectTuning,
-                  darknessTuning: darknessEffectTuning,
-                  poisonTuning: poisonEffectTuning,
-                  waterTuning: waterEffectTuning,
-                  lavaTuning: lavaEffectTuning,
-                  fireTuning: fireEffectTuning,
-                  lightningTuning: lightningEffectTuning,
-                  arcaneTuning: arcaneEffectTuning,
-                  chaosTuning: chaosEffectTuning,
-                  voidTuning: voidEffectTuning,
-                  natureTuning: natureEffectTuning,
-                  distortionTuning: distortionEffectTuning,
-                  radiantTuning: radiantEffectTuning,
-                  fieldTuning: forceFieldEffectTuning,
-                  shockwaveTuning: shockwaveEffectTuning,
-                  smokeTuning: smokeEffectTuning,
-                  fogTuning: fogEffectTuning
-                }
-              )
-            ]
-          },
-          updatedAt: new Date().toISOString()
-        });
+        onSceneChange(
+          addEnvironmentEffect(
+            scene,
+            getEnvironmentEffectFromDrag(
+              environmentEffectDrag,
+              crypto.randomUUID(),
+              formatDefaultEnvironmentEffectName(environmentEffectDrag.effect, scene.environment.effects.length),
+              {
+                acidTuning: acidEffectTuning,
+                coldTuning: coldEffectTuning,
+                darknessTuning: darknessEffectTuning,
+                poisonTuning: poisonEffectTuning,
+                waterTuning: waterEffectTuning,
+                lavaTuning: lavaEffectTuning,
+                fireTuning: fireEffectTuning,
+                lightningTuning: lightningEffectTuning,
+                arcaneTuning: arcaneEffectTuning,
+                chaosTuning: chaosEffectTuning,
+                voidTuning: voidEffectTuning,
+                natureTuning: natureEffectTuning,
+                distortionTuning: distortionEffectTuning,
+                radiantTuning: radiantEffectTuning,
+                fieldTuning: forceFieldEffectTuning,
+                shockwaveTuning: shockwaveEffectTuning,
+                smokeTuning: smokeEffectTuning,
+                fogTuning: fogEffectTuning
+              }
+            )
+          )
+        );
       }
       return;
     }
@@ -2131,23 +2118,18 @@ export function SceneCanvas({
       fogDragRef.current = null;
       setFogPreview(null);
       if (scene && onSceneChange && isMeaningfulFogDrag(fogDrag)) {
-        onSceneChange({
-          ...scene,
-          fog: {
-            ...scene.fog,
-            ...getFogVisibilityPatchForNewShape(scene.fog, fogDrag.operation),
-            shapes: [
-              ...scene.fog.shapes,
-              getFogShapeFromDrag(
-                fogDrag,
-                crypto.randomUUID(),
-                formatDefaultFogShapeName(fogDrag.operation, fogDrag.kind, scene.fog.shapes.length),
-                scene.fog.newShapesVisibleInPlayer
-              )
-            ]
-          },
-          updatedAt: new Date().toISOString()
-        });
+        onSceneChange(
+          addSceneFogShape(
+            scene,
+            getFogShapeFromDrag(
+              fogDrag,
+              crypto.randomUUID(),
+              formatDefaultFogShapeName(fogDrag.operation, fogDrag.kind, scene.fog.shapes.length),
+              scene.fog.newShapesVisibleInPlayer
+            ),
+            getFogVisibilityPatchForNewShape(scene.fog, fogDrag.operation)
+          )
+        );
       }
       return;
     }
@@ -2614,23 +2596,18 @@ export function SceneCanvas({
     }
     polygonDraftRef.current = null;
     setPolygonDraft(null);
-    onSceneChange({
-      ...scene,
-      fog: {
-        ...scene.fog,
-        ...getFogVisibilityPatchForNewShape(scene.fog, draft.operation),
-        shapes: [
-          ...scene.fog.shapes,
-          getFogShapeFromPolygonDraft(
-            draft,
-            crypto.randomUUID(),
-            formatDefaultFogShapeName(draft.operation, "polygon", scene.fog.shapes.length),
-            scene.fog.newShapesVisibleInPlayer
-          )
-        ]
-      },
-      updatedAt: new Date().toISOString()
-    });
+    onSceneChange(
+      addSceneFogShape(
+        scene,
+        getFogShapeFromPolygonDraft(
+          draft,
+          crypto.randomUUID(),
+          formatDefaultFogShapeName(draft.operation, "polygon", scene.fog.shapes.length),
+          scene.fog.newShapesVisibleInPlayer
+        ),
+        getFogVisibilityPatchForNewShape(scene.fog, draft.operation)
+      )
+    );
   };
 
   const commitDrawingPolygonDraft = () => {
@@ -2640,10 +2617,9 @@ export function SceneCanvas({
     }
     drawingPolygonDraftRef.current = null;
     setDrawingPolygonDraft(null);
-    onSceneChange({
-      ...scene,
-      drawings: [
-        ...scene.drawings,
+    onSceneChange(
+      addSceneDrawing(
+        scene,
         getDrawingPolygonElementFromDraft(draft.points, crypto.randomUUID(), scene.drawings.length, {
           color: drawingColor,
           opacity: drawingOpacity,
@@ -2652,9 +2628,8 @@ export function SceneCanvas({
           strokeStyle: drawingStrokeStyle,
           strokeWidth: drawingStrokeWidth
         })
-      ],
-      updatedAt: new Date().toISOString()
-    });
+      )
+    );
   };
 
   const commitWeatherPolygonDraft = () => {
@@ -2664,21 +2639,16 @@ export function SceneCanvas({
     }
     weatherPolygonDraftRef.current = null;
     setWeatherPolygonDraft(null);
-    onSceneChange({
-      ...scene,
-      weather: {
-        ...scene.weather,
-        masks: [
-          ...scene.weather.masks,
-          getWeatherMaskFromPolygonDraft(
-            draft,
-            crypto.randomUUID(),
-            formatDefaultWeatherMaskName(scene.weather.masks.length)
-          )
-        ]
-      },
-      updatedAt: new Date().toISOString()
-    });
+    onSceneChange(
+      addSceneWeatherMask(
+        scene,
+        getWeatherMaskFromPolygonDraft(
+          draft,
+          crypto.randomUUID(),
+          formatDefaultWeatherMaskName(scene.weather.masks.length)
+        )
+      )
+    );
   };
 
   const commitEnvironmentPolygonDraft = () => {
@@ -2688,43 +2658,38 @@ export function SceneCanvas({
     }
     environmentPolygonDraftRef.current = null;
     setEnvironmentPolygonDraft(null);
-    onSceneChange({
-      ...scene,
-      environment: {
-        ...scene.environment,
-        effects: [
-          ...scene.environment.effects,
-          getEnvironmentEffectFromPolygonDraft(
-            draft,
-            crypto.randomUUID(),
-            formatDefaultEnvironmentEffectName(environmentEffectType, scene.environment.effects.length),
-            environmentEffectType,
-            environmentEffectFeather,
-            {
-              acidTuning: acidEffectTuning,
-              coldTuning: coldEffectTuning,
-              darknessTuning: darknessEffectTuning,
-              poisonTuning: poisonEffectTuning,
-              waterTuning: waterEffectTuning,
-              lavaTuning: lavaEffectTuning,
-              fireTuning: fireEffectTuning,
-              lightningTuning: lightningEffectTuning,
-              arcaneTuning: arcaneEffectTuning,
-              chaosTuning: chaosEffectTuning,
-              voidTuning: voidEffectTuning,
-              natureTuning: natureEffectTuning,
-              distortionTuning: distortionEffectTuning,
-              radiantTuning: radiantEffectTuning,
-              fieldTuning: forceFieldEffectTuning,
-              shockwaveTuning: shockwaveEffectTuning,
-              smokeTuning: smokeEffectTuning,
-              fogTuning: fogEffectTuning
-            }
-          )
-        ]
-      },
-      updatedAt: new Date().toISOString()
-    });
+    onSceneChange(
+      addEnvironmentEffect(
+        scene,
+        getEnvironmentEffectFromPolygonDraft(
+          draft,
+          crypto.randomUUID(),
+          formatDefaultEnvironmentEffectName(environmentEffectType, scene.environment.effects.length),
+          environmentEffectType,
+          environmentEffectFeather,
+          {
+            acidTuning: acidEffectTuning,
+            coldTuning: coldEffectTuning,
+            darknessTuning: darknessEffectTuning,
+            poisonTuning: poisonEffectTuning,
+            waterTuning: waterEffectTuning,
+            lavaTuning: lavaEffectTuning,
+            fireTuning: fireEffectTuning,
+            lightningTuning: lightningEffectTuning,
+            arcaneTuning: arcaneEffectTuning,
+            chaosTuning: chaosEffectTuning,
+            voidTuning: voidEffectTuning,
+            natureTuning: natureEffectTuning,
+            distortionTuning: distortionEffectTuning,
+            radiantTuning: radiantEffectTuning,
+            fieldTuning: forceFieldEffectTuning,
+            shockwaveTuning: shockwaveEffectTuning,
+            smokeTuning: smokeEffectTuning,
+            fogTuning: fogEffectTuning
+          }
+        )
+      )
+    );
   };
 
   usePolygonDraftKeyboard({
