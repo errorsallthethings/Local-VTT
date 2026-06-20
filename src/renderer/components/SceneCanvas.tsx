@@ -146,7 +146,13 @@ import {
   type VoidEffectTuning,
   type WaterEffectTuning
 } from "../canvas/environmentEffectsRenderer";
+import {
+  environmentDragToMask,
+  isMeaningfulEnvironmentEffectDrag,
+  type EnvironmentEffectDrag
+} from "../canvas/environmentEffectGeometry";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
+import { isMeaningfulWeatherMaskDrag, type WeatherMaskDrag } from "../canvas/weatherMaskGeometry";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { duplicateDrawingElement } from "../lib/drawingDefaults";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
@@ -287,40 +293,6 @@ type LaserDragState = {
   pointerId: number;
   eventId: string;
   points: LiveTablePoint[];
-};
-
-type WeatherMaskDrag = {
-  pointerId: number;
-  kind: WeatherMaskTool;
-  start: Point;
-  current: Point;
-};
-
-type EnvironmentEffectDrag = {
-  pointerId: number;
-  kind: EnvironmentEffectTool;
-  effect: EnvironmentEffectType;
-  feather: number;
-  acidTuning?: AcidEffectTuning;
-  coldTuning?: ColdEffectTuning;
-  darknessTuning?: DarknessEffectTuning;
-  poisonTuning?: PoisonEffectTuning;
-  waterTuning?: WaterEffectTuning;
-  lavaTuning?: LavaEffectTuning;
-  fireTuning?: FireEffectTuning;
-  lightningTuning?: LightningEffectTuning;
-  arcaneTuning?: ArcaneEffectTuning;
-  chaosTuning?: ChaosEffectTuning;
-  voidTuning?: VoidEffectTuning;
-  natureTuning?: NatureEffectTuning;
-  distortionTuning?: DistortionEffectTuning;
-  radiantTuning?: RadiantEffectTuning;
-  fieldTuning?: ForceFieldEffectTuning;
-  shockwaveTuning?: ShockwaveEffectTuning;
-  smokeTuning?: SmokeEffectTuning;
-  fogTuning?: FogEffectTuning;
-  start: Point;
-  current: Point;
 };
 
 type WeatherPolygonDraft = {
@@ -4769,23 +4741,6 @@ function getEnvironmentEffectPath(effect: EnvironmentEffectMask, camera: Camera)
   return path;
 }
 
-function environmentDragToMask(drag: EnvironmentEffectDrag): EnvironmentEffectMask {
-  return {
-    id: "preview",
-    kind: drag.kind,
-    effect: drag.effect,
-    feather: drag.feather,
-    points: drag.kind === "circle" ? [drag.start] : [drag.start, drag.current],
-    radius: drag.kind === "circle" ? distanceBetween(drag.start, drag.current) : undefined,
-    visibleInGm: true,
-    visibleInPlayer: true
-  };
-}
-
-function isMeaningfulEnvironmentEffectDrag(drag: EnvironmentEffectDrag): boolean {
-  return drag.kind === "circle" ? distanceBetween(drag.start, drag.current) > 8 : Math.abs(drag.current.x - drag.start.x) > 8 && Math.abs(drag.current.y - drag.start.y) > 8;
-}
-
 function drawWeatherPolygonDraft(ctx: CanvasRenderingContext2D, draft: WeatherPolygonDraft, camera: Camera) {
   if (draft.points.length === 0) {
     return;
@@ -4887,13 +4842,6 @@ function drawWeatherMaskShape(ctx: CanvasRenderingContext2D, mask: WeatherMask, 
     ctx.stroke();
   }
   ctx.restore();
-}
-
-function isMeaningfulWeatherMaskDrag(drag: WeatherMaskDrag): boolean {
-  if (drag.kind === "circle") {
-    return distanceBetween(drag.start, drag.current) >= 4;
-  }
-  return Math.abs(drag.current.x - drag.start.x) >= 4 && Math.abs(drag.current.y - drag.start.y) >= 4;
 }
 
 function isDuplicateRulerWaypoint(existingPosition: Point, waypoint: Point, scene: Scene) {
