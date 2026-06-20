@@ -3,7 +3,14 @@ import { Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings } from "../../shared/localvtt";
 import { areCamerasEqual, getRenderCamera, type Camera } from "../canvas/camera";
-import { getCanvasInteractionClass, getDrawingTransformHoverAtPoint, hasSceneItemHoverAtPoint, type DrawingResizeHandle, type DrawingTransformHover } from "../canvas/canvasInteraction";
+import {
+  getCanvasInteractionClass,
+  getDrawingTransformHoverAtPoint,
+  hasAuthoringToolActive,
+  hasSceneItemHoverAtPoint,
+  type DrawingResizeHandle,
+  type DrawingTransformHover
+} from "../canvas/canvasInteraction";
 import {
   drawDrawings,
   getDrawingHitRadius,
@@ -642,6 +649,10 @@ export function SceneCanvas({
   const effectiveSelectedDrawingIdSet = useMemo(() => getSelectedItemIds(selectedDrawingId, selectedDrawingIds), [selectedDrawingId, selectedDrawingIds]);
   const effectiveSelectedFogShapeIds = useMemo(() => getSelectedItemIdList(selectedFogShapeId, selectedFogShapeIds), [selectedFogShapeId, selectedFogShapeIds]);
   const effectiveSelectedWeatherMaskIds = useMemo(() => getSelectedItemIdList(selectedWeatherMaskId, selectedWeatherMaskIds), [selectedWeatherMaskId, selectedWeatherMaskIds]);
+  const authoringToolActive = useMemo(
+    () => hasAuthoringToolActive({ canvasTool, drawingTool, fogTool, weatherMaskTool, environmentEffectTool }),
+    [canvasTool, drawingTool, environmentEffectTool, fogTool, weatherMaskTool]
+  );
   const currentEnvironmentEffectTuning = useMemo<Partial<EnvironmentEffectMask>>(
     () => ({
       acidTuning: acidEffectTuning,
@@ -1599,7 +1610,7 @@ export function SceneCanvas({
       setEnvironmentEffectPreview(effectDrag);
       return;
     }
-    if (mode === "gm" && mouseBehavior === "selector" && scene && !canvasTool && !drawingTool && !fogTool && !weatherMaskTool && !environmentEffectTool && event.button === 0 && (event.shiftKey || event.ctrlKey || event.metaKey)) {
+    if (mode === "gm" && mouseBehavior === "selector" && scene && !authoringToolActive && event.button === 0 && (event.shiftKey || event.ctrlKey || event.metaKey)) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const selectionMode: SelectionMode = event.ctrlKey || event.metaKey ? "subtract" : "add";
       const nextSelectionDrag = { pointerId: event.pointerId, start: point, current: point, mode: selectionMode };
@@ -1650,7 +1661,7 @@ export function SceneCanvas({
         return;
       }
       onSelectToken?.(null);
-      if (!canvasTool && !drawingTool && !fogTool && !weatherMaskTool && !environmentEffectTool) {
+      if (!authoringToolActive) {
         if ((mouseBehavior === "grabber" || mouseBehavior === "selector") && canShowDrawings && effectiveSelectedDrawingIds.length > 0) {
           const rotateTarget = getDrawingRotationHandleAtPoint(scene.drawings, effectiveSelectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
           if (rotateTarget) {
@@ -1749,7 +1760,7 @@ export function SceneCanvas({
         onSelectDrawing?.(null);
       }
     }
-    if (mode === "gm" && mouseBehavior === "selector" && scene && !canvasTool && !drawingTool && !fogTool && !weatherMaskTool && !environmentEffectTool && event.button === 0) {
+    if (mode === "gm" && mouseBehavior === "selector" && scene && !authoringToolActive && event.button === 0) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const selectionMode: SelectionMode = event.ctrlKey || event.metaKey ? "subtract" : event.shiftKey ? "add" : "replace";
       const nextSelectionDrag = { pointerId: event.pointerId, start: point, current: point, mode: selectionMode };
@@ -2250,7 +2261,7 @@ export function SceneCanvas({
   const onContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const activeRulerDrag = rulerDragRef.current;
     const tokenDrag = tokenDragRef.current;
-    if (canvasTool || drawingTool || fogTool || weatherMaskTool || environmentEffectTool) {
+    if (authoringToolActive) {
       event.preventDefault();
     }
     if (tokenDrag) {
@@ -2305,7 +2316,7 @@ export function SceneCanvas({
           });
           return;
         }
-        if (!canvasTool && !drawingTool && !fogTool && !weatherMaskTool && !environmentEffectTool) {
+        if (!authoringToolActive) {
           const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, getDrawingHitRadius(getRenderCamera(camera, playerDisplayScale).zoom), scene.grid) : null;
           if (drawingHit) {
             const frameRect = frameRef.current?.getBoundingClientRect();
@@ -2455,7 +2466,7 @@ export function SceneCanvas({
         camera: cameraState,
         selectedDrawingIds,
         canShowDrawings,
-        hasActiveInteraction: Boolean(drawingDragPreview || canvasTool || drawingTool || fogTool || weatherMaskTool || environmentEffectTool)
+        hasActiveInteraction: Boolean(drawingDragPreview || authoringToolActive)
       })
     );
   };
@@ -2472,7 +2483,7 @@ export function SceneCanvas({
         canShowDrawings,
         canShowWeather,
         canShowFog,
-        hasActiveInteraction: Boolean(drawingDragPreview || canvasTool || drawingTool || fogTool || weatherMaskTool || environmentEffectTool || selectionDragRef.current)
+        hasActiveInteraction: Boolean(drawingDragPreview || authoringToolActive || selectionDragRef.current)
       })
     );
   };

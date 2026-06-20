@@ -21,6 +21,24 @@ export interface CanvasInteractionState {
   sceneItemHover: boolean;
 }
 
+export interface AuthoringToolState {
+  canvasTool: "ruler" | "ping" | "laser" | null;
+  drawingTool: string | null;
+  fogTool: string | null;
+  weatherMaskTool: "rectangle" | "circle" | "polygon" | null;
+  environmentEffectTool: "rectangle" | "circle" | "polygon" | null;
+}
+
+export function hasAuthoringToolActive({
+  canvasTool,
+  drawingTool,
+  fogTool,
+  weatherMaskTool,
+  environmentEffectTool
+}: AuthoringToolState): boolean {
+  return Boolean(canvasTool || drawingTool || fogTool || weatherMaskTool || environmentEffectTool);
+}
+
 export function getCanvasInteractionClass({
   canvasTool,
   mouseBehavior,

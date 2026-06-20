@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getCanvasInteractionClass,
   getDrawingTransformHoverAtPoint,
+  hasAuthoringToolActive,
   hasSceneItemHoverAtPoint,
   type CanvasInteractionState
 } from "../../src/renderer/canvas/canvasInteraction";
@@ -24,6 +25,36 @@ function state(overrides: Partial<CanvasInteractionState> = {}): CanvasInteracti
 }
 
 describe("canvas interaction class", () => {
+  it("detects whether an authoring tool is active", () => {
+    expect(
+      hasAuthoringToolActive({
+        canvasTool: null,
+        drawingTool: null,
+        fogTool: null,
+        weatherMaskTool: null,
+        environmentEffectTool: null
+      })
+    ).toBe(false);
+    expect(
+      hasAuthoringToolActive({
+        canvasTool: null,
+        drawingTool: "line",
+        fogTool: null,
+        weatherMaskTool: null,
+        environmentEffectTool: null
+      })
+    ).toBe(true);
+    expect(
+      hasAuthoringToolActive({
+        canvasTool: null,
+        drawingTool: null,
+        fogTool: null,
+        weatherMaskTool: null,
+        environmentEffectTool: "polygon"
+      })
+    ).toBe(true);
+  });
+
   it("prioritizes active drag states over tool cursors", () => {
     expect(getCanvasInteractionClass(state({ isPanning: true, canvasTool: "ruler" }))).toBe("scene-canvas-panning");
     expect(getCanvasInteractionClass(state({ tokenDragPreview: {}, canvasTool: "laser" }))).toBe("scene-canvas-token-dragging");
