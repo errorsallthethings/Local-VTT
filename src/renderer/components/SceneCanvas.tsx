@@ -92,6 +92,7 @@ import {
 } from "../canvas/tokenMovement";
 import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
+import { clientToWorldPoint, getCanvasViewportCenter, worldRectToScreen, worldToScreenPoint } from "../canvas/viewportGeometry";
 import {
   DEFAULT_ACID_EFFECT_TUNING,
   DEFAULT_ARCANE_EFFECT_TUNING,
@@ -4006,22 +4007,6 @@ function eventToWorldPoint(event: React.PointerEvent<HTMLCanvasElement>, camera:
   return clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, camera);
 }
 
-function clientToWorldPoint(element: HTMLCanvasElement, clientX: number, clientY: number, camera: Camera): Point {
-  const rect = element.getBoundingClientRect();
-  return {
-    x: (clientX - rect.left - camera.x) / camera.zoom,
-    y: (clientY - rect.top - camera.y) / camera.zoom
-  };
-}
-
-function getCanvasViewportCenter(element: HTMLCanvasElement, camera: Camera): Point {
-  const rect = element.getBoundingClientRect();
-  return {
-    x: (rect.width / 2 - camera.x) / camera.zoom,
-    y: (rect.height / 2 - camera.y) / camera.zoom
-  };
-}
-
 async function prepareLoadedImageMap(image: HTMLImageElement, assetPath: string): Promise<{ optimizedSource: CanvasImageSource | null; optimizedScale: number }> {
   const sourceWidth = image.naturalWidth || image.width;
   const sourceHeight = image.naturalHeight || image.height;
@@ -4913,23 +4898,6 @@ function getEnvironmentEffectPath(effect: EnvironmentEffectMask, camera: Camera)
     path.closePath();
   }
   return path;
-}
-
-function worldRectToScreen(bounds: { x: number; y: number; width: number; height: number }, camera: Camera): { x: number; y: number; width: number; height: number } {
-  const topLeft = worldToScreenPoint({ x: bounds.x, y: bounds.y }, camera);
-  return {
-    x: topLeft.x,
-    y: topLeft.y,
-    width: bounds.width * camera.zoom,
-    height: bounds.height * camera.zoom
-  };
-}
-
-function worldToScreenPoint(point: Point, camera: Camera): Point {
-  return {
-    x: point.x * camera.zoom + camera.x,
-    y: point.y * camera.zoom + camera.y
-  };
 }
 
 function environmentDragToMask(drag: EnvironmentEffectDrag): EnvironmentEffectMask {
