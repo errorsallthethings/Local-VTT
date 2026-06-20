@@ -7,6 +7,7 @@ import {
   getRulerPathPoints,
   getStraightLineMeasurementDistance
 } from "./measurement";
+import { distanceBetween } from "./tokenGeometry";
 import type { TokenDragPreview } from "./tokenRenderer";
 
 export function getRulerLabel(rulerDrag: RulerDrag, scene: Scene): RulerLabel {
@@ -65,4 +66,9 @@ export function shouldShowDiceOverlay(event: Extract<LiveTableEvent, { type: "di
   }
   const presentation = mode === "gm" ? event.gmPresentation : event.playerPresentation;
   return presentation ? presentation === "3d" : event.presentation === "3d";
+}
+
+export function isDuplicateRulerWaypoint(existingPosition: Point, waypoint: Point, scene: Scene): boolean {
+  const duplicateDistance = scene.grid.type === "gridless" ? 12 : 2;
+  return distanceBetween(existingPosition, waypoint) <= duplicateDistance;
 }

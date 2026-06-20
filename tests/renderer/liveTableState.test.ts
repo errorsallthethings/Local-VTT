@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { Campaign, LiveTableEvent, Scene, Token } from "../../src/shared/localvtt";
 import { createDefaultCampaign, createDefaultScene } from "../../src/shared/localvtt";
-import { getPlayerDisplayScale, getRulerLabel, getTokenCenterPoint, getTokenMoveLabel, isVisibleDiceOverlayEvent, shouldShowDiceOverlay } from "../../src/renderer/canvas/liveTableState";
+import {
+  getPlayerDisplayScale,
+  getRulerLabel,
+  getTokenCenterPoint,
+  getTokenMoveLabel,
+  isDuplicateRulerWaypoint,
+  isVisibleDiceOverlayEvent,
+  shouldShowDiceOverlay
+} from "../../src/renderer/canvas/liveTableState";
 
 function token(overrides: Partial<Token> = {}): Token {
   return {
@@ -93,5 +101,21 @@ describe("live table state helpers", () => {
     expect(isVisibleDiceOverlayEvent(ping, "player")).toBe(false);
     expect(isVisibleDiceOverlayEvent(hiddenDice, "player")).toBe(false);
     expect(isVisibleDiceOverlayEvent(panelDice, "player")).toBe(true);
+  });
+
+  it("uses a forgiving duplicate ruler waypoint distance on gridless scenes", () => {
+    const scene = createDefaultScene("Gridless Ruler");
+    scene.grid.type = "gridless";
+
+    expect(isDuplicateRulerWaypoint({ x: 0, y: 0 }, { x: 12, y: 0 }, scene)).toBe(true);
+    expect(isDuplicateRulerWaypoint({ x: 0, y: 0 }, { x: 13, y: 0 }, scene)).toBe(false);
+  });
+
+  it("uses a strict duplicate ruler waypoint distance on gridded scenes", () => {
+    const scene = createDefaultScene("Square Ruler");
+    scene.grid.type = "square";
+
+    expect(isDuplicateRulerWaypoint({ x: 0, y: 0 }, { x: 2, y: 0 }, scene)).toBe(true);
+    expect(isDuplicateRulerWaypoint({ x: 0, y: 0 }, { x: 3, y: 0 }, scene)).toBe(false);
   });
 });

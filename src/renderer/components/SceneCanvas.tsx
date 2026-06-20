@@ -47,7 +47,7 @@ import {
   LASER_POINT_LIFETIME_MS,
   RULER_RELEASE_LINGER_MS
 } from "../canvas/liveTableRenderer";
-import { getPlayerDisplayScale, getRulerLabel, getTokenMoveLabel, isVisibleDiceOverlayEvent } from "../canvas/liveTableState";
+import { getPlayerDisplayScale, getRulerLabel, getTokenMoveLabel, isDuplicateRulerWaypoint, isVisibleDiceOverlayEvent } from "../canvas/liveTableState";
 import {
   getMapCalibrationBoxHit,
   getSquareCalibrationBox,
@@ -4743,7 +4743,3 @@ function drawWeatherMaskShape(ctx: CanvasRenderingContext2D, mask: WeatherMask, 
   ctx.restore();
 }
 
-function isDuplicateRulerWaypoint(existingPosition: Point, waypoint: Point, scene: Scene) {
-  const duplicateDistance = scene.grid.type === "gridless" ? 12 : 2;
-  return distanceBetween(existingPosition, waypoint) <= duplicateDistance;
-}
