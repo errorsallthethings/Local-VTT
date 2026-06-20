@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultDrawingName, formatDefaultFogShapeName } from "../../shared/localvtt";
-import type { Asset, Campaign, DrawingElement, DrawingKind, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings, Token, WeatherMask } from "../../shared/localvtt";
+import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings, Token, WeatherMask } from "../../shared/localvtt";
 import { getRenderCamera, type Camera } from "../canvas/camera";
 import { getCanvasInteractionClass, type DrawingResizeHandle, type DrawingTransformHover } from "../canvas/canvasInteraction";
 import {
@@ -57,6 +57,13 @@ import {
   pointsToSelectionRect
 } from "../canvas/selectionGeometry";
 import { drawSelectionBox } from "../canvas/selectionRenderer";
+import {
+  formatDefaultTemplateDrawingName,
+  getDrawingKindForTool,
+  getDrawingTemplateCurrentPoint,
+  getTemplatePreviewDrawing,
+  isTemplateDrawingTool
+} from "../canvas/templateDrawing";
 import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex, getSnappedTokenPosition, getTokenAtPoint, isPointInsideFogShape } from "../canvas/tokenGeometry";
 import {
   getTokenMovementPath,
@@ -4228,129 +4235,6 @@ function getNearestSceneSnapPoint(point: Point, scene: Scene): Point | null {
     }
     return distanceBetween(candidate, point) < distanceBetween(nearest, point) ? candidate : nearest;
   }, null);
-}
-
-function getDrawingTemplateCurrentPoint(start: Point, current: Point, tool: DrawingTool, scene: Scene | null, templateSize: DrawingTemplateSize): Point {
-  if (!isTemplateDrawingTool(tool) || templateSize === "custom") {
-    return tool === "template-rectangle" ? constrainSquarePoint(start, current) : current;
-  }
-
-  const distancePx = getTemplateDistancePixels(scene, templateSize);
-  if (!distancePx) {
-    return tool === "template-rectangle" ? constrainSquarePoint(start, current) : current;
-  }
-
-  if (tool === "template-rectangle") {
-    return {
-      x: start.x + distancePx * (current.x >= start.x ? 1 : -1),
-      y: start.y + distancePx * (current.y >= start.y ? 1 : -1)
-    };
-  }
-
-  const distance = Math.max(0.001, distanceBetween(start, current));
-  return {
-    x: start.x + ((current.x - start.x) / distance) * distancePx,
-    y: start.y + ((current.y - start.y) / distance) * distancePx
-  };
-}
-
-function getTemplateDistancePixels(scene: Scene | null, templateSize: Exclude<DrawingTemplateSize, "custom">): number | null {
-  if (!scene || scene.grid.type === "gridless" || scene.grid.sizePx <= 0 || scene.grid.measurement.unitsPerGridCell <= 0) {
-    return null;
-  }
-  return (templateSize / scene.grid.measurement.unitsPerGridCell) * scene.grid.sizePx;
-}
-
-function getTemplatePreviewDrawing(preview: DrawingPreview): DrawingElement | null {
-  if (!isTemplateDrawingTool(preview.kind) || !preview.measurementLabelVisible) {
-    return null;
-  }
-  return {
-    id: "template-preview",
-    name: "Template Preview",
-    kind: getDrawingKindForTool(preview.kind),
-    points: getDrawingPreviewPoints(preview),
-    color: preview.color,
-    opacity: preview.opacity,
-    strokeColor: preview.strokeColor ?? preview.color,
-    strokeOpacity: preview.strokeOpacity ?? preview.opacity,
-    strokeWidth: preview.strokeWidth,
-    fill: preview.fillColor ?? preview.color,
-    fillColor: preview.fillColor ?? preview.color,
-    fillOpacity: 0,
-    strokeStyle: "dashed",
-    templateEffect: "plain",
-    templateWidth: preview.templateWidth ?? 5,
-    templateFootprintVisible: true,
-    measurementLabelVisible: true,
-    visibleInGm: false,
-    visibleInPlayer: true
-  };
-}
-
-function isTemplateDrawingTool(tool: DrawingTool): boolean {
-  return tool === "template-line" || tool === "template-rectangle" || tool === "template-circle" || tool === "template-cone";
-}
-
-function getDrawingKindForTool(tool: DrawingTool): DrawingKind {
-  if (tool === "template-line") {
-    return "line";
-  }
-  if (tool === "template-rectangle") {
-    return "rectangle";
-  }
-  if (tool === "template-circle") {
-    return "circle";
-  }
-  if (tool === "template-cone") {
-    return "cone";
-  }
-  if (tool === "circle") {
-    return "ellipse";
-  }
-  return tool;
-}
-
-function formatDefaultTemplateDrawingName(tool: DrawingTool, index: number, effect: DrawingTemplateEffect = "plain"): string {
-  const effectLabel = getTemplateEffectNamePart(effect);
-  if (tool === "template-line") {
-    return `Template Line${effectLabel} ${index + 1}`;
-  }
-  if (tool === "template-circle") {
-    return `Template Radius${effectLabel} ${index + 1}`;
-  }
-  if (tool === "template-rectangle") {
-    return `Template Cube${effectLabel} ${index + 1}`;
-  }
-  if (tool === "template-cone") {
-    return `Template Cone${effectLabel} ${index + 1}`;
-  }
-  return formatDefaultDrawingName(getDrawingKindForTool(tool), index);
-}
-
-function getTemplateEffectNamePart(effect: DrawingTemplateEffect): string {
-  if (effect === "plain") {
-    return "";
-  }
-  const labels: Record<DrawingTemplateEffect, string> = {
-    acid: "Acid",
-    arcane: "Arcane",
-    cold: "Cold",
-    darkness: "Darkness",
-    fire: "Fire",
-    fog: "Fog",
-    lightning: "Electric",
-    nature: "Nature",
-    plain: "Plain",
-    poison: "Poison",
-    psychic: "Psychic",
-    radiant: "Radiant",
-    storm: "Storm",
-    thunder: "Thunder",
-    water: "Water",
-    web: "Web"
-  };
-  return ` - ${labels[effect]}`;
 }
 
 function isSnapModifier(event: React.PointerEvent<HTMLCanvasElement>): boolean {

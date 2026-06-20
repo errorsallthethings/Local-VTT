@@ -1,0 +1,96 @@
+import { describe, expect, it } from "vitest";
+import { createDefaultScene, type DrawingTemplateEffect } from "../../src/shared/localvtt";
+import type { DrawingPreview } from "../../src/renderer/canvas/drawingRenderer";
+import {
+  formatDefaultTemplateDrawingName,
+  getDrawingKindForTool,
+  getDrawingTemplateCurrentPoint,
+  getTemplateDistancePixels,
+  getTemplateEffectNamePart,
+  getTemplatePreviewDrawing,
+  isTemplateDrawingTool
+} from "../../src/renderer/canvas/templateDrawing";
+
+describe("template drawing helpers", () => {
+  it("identifies template drawing tools", () => {
+    expect(isTemplateDrawingTool("template-line")).toBe(true);
+    expect(isTemplateDrawingTool("template-rectangle")).toBe(true);
+    expect(isTemplateDrawingTool("template-circle")).toBe(true);
+    expect(isTemplateDrawingTool("template-cone")).toBe(true);
+    expect(isTemplateDrawingTool("line")).toBe(false);
+    expect(isTemplateDrawingTool(null)).toBe(false);
+  });
+
+  it("maps drawing tools to persisted drawing kinds", () => {
+    expect(getDrawingKindForTool("template-line")).toBe("line");
+    expect(getDrawingKindForTool("template-rectangle")).toBe("rectangle");
+    expect(getDrawingKindForTool("template-circle")).toBe("circle");
+    expect(getDrawingKindForTool("template-cone")).toBe("cone");
+    expect(getDrawingKindForTool("circle")).toBe("ellipse");
+    expect(getDrawingKindForTool("polygon")).toBe("polygon");
+  });
+
+  it("formats default template names with optional effect labels", () => {
+    expect(formatDefaultTemplateDrawingName("template-line", 0)).toBe("Template Line 1");
+    expect(formatDefaultTemplateDrawingName("template-circle", 1, "fire")).toBe("Template Radius - Fire 2");
+    expect(formatDefaultTemplateDrawingName("template-rectangle", 2, "lightning")).toBe("Template Cube - Electric 3");
+    expect(formatDefaultTemplateDrawingName("template-cone", 3, "web")).toBe("Template Cone - Web 4");
+  });
+
+  it("formats template effect name parts", () => {
+    expect(getTemplateEffectNamePart("plain")).toBe("");
+    expect(getTemplateEffectNamePart("radiant")).toBe(" - Radiant");
+    expect(getTemplateEffectNamePart("lightning" satisfies DrawingTemplateEffect)).toBe(" - Electric");
+  });
+
+  it("converts template feet to scene pixels when a measured grid is available", () => {
+    const scene = createDefaultScene("Measured");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 100;
+    scene.grid.measurement.unitsPerGridCell = 5;
+
+    expect(getTemplateDistancePixels(scene, 30)).toBe(600);
+    expect(getTemplateDistancePixels(null, 30)).toBeNull();
+  });
+
+  it("locks preset template current points to the selected distance", () => {
+    const scene = createDefaultScene("Measured");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 100;
+    scene.grid.measurement.unitsPerGridCell = 5;
+
+    expect(getDrawingTemplateCurrentPoint({ x: 0, y: 0 }, { x: 30, y: 40 }, "template-line", scene, 10)).toEqual({ x: 120, y: 160 });
+    expect(getDrawingTemplateCurrentPoint({ x: 10, y: 10 }, { x: 15, y: 30 }, "template-rectangle", scene, 5)).toEqual({ x: 110, y: 110 });
+    expect(getDrawingTemplateCurrentPoint({ x: 10, y: 10 }, { x: 15, y: 30 }, "template-rectangle", scene, "custom")).toEqual({ x: 30, y: 30 });
+  });
+
+  it("creates player-visible dashed template preview drawings", () => {
+    const preview: DrawingPreview = {
+      pointerId: 1,
+      kind: "template-circle",
+      points: [{ x: 0, y: 0 }],
+      current: { x: 20, y: 0 },
+      color: "#93c5fd",
+      opacity: 0.8,
+      strokeWidth: 8,
+      fillColor: "#93c5fd",
+      measurementLabelVisible: true,
+      templateWidth: 10
+    };
+
+    expect(getTemplatePreviewDrawing(preview)).toMatchObject({
+      id: "template-preview",
+      name: "Template Preview",
+      kind: "circle",
+      points: [{ x: 0, y: 0 }, { x: 20, y: 0 }],
+      strokeStyle: "dashed",
+      templateEffect: "plain",
+      templateWidth: 10,
+      templateFootprintVisible: true,
+      visibleInGm: false,
+      visibleInPlayer: true
+    });
+    expect(getTemplatePreviewDrawing({ ...preview, kind: "line" })).toBeNull();
+    expect(getTemplatePreviewDrawing({ ...preview, measurementLabelVisible: false })).toBeNull();
+  });
+});
