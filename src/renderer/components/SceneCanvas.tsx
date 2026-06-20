@@ -169,7 +169,7 @@ import { isMeaningfulWeatherMaskDrag, type WeatherMaskDrag, type WeatherPolygonD
 import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { duplicateDrawingElement } from "../lib/drawingDefaults";
-import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
+import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/dragTypes";
 import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../lib/environmentEffectOptions";
 import { duplicateToken } from "../lib/tokenDefaults";
 import { TokenSettings } from "./layers/TokenSettings";
@@ -2523,7 +2523,7 @@ export function SceneCanvas({
   };
 
   const canAcceptTokenAssetDrop = (event: React.DragEvent<HTMLCanvasElement>): boolean => {
-    return Boolean(mode === "gm" && scene && campaign && onDropTokenAsset && event.dataTransfer.types.includes(TOKEN_LIBRARY_ASSET_DRAG_TYPE));
+    return Boolean(mode === "gm" && scene && campaign && onDropTokenAsset && hasTokenLibraryAssetDrag(event.dataTransfer.types));
   };
 
   const onDragOver = (event: React.DragEvent<HTMLCanvasElement>) => {
@@ -2539,7 +2539,7 @@ export function SceneCanvas({
       return;
     }
     event.preventDefault();
-    const assetId = event.dataTransfer.getData(TOKEN_LIBRARY_ASSET_DRAG_TYPE);
+    const assetId = getTokenLibraryAssetDragId(event.dataTransfer);
     const asset = campaign?.assets.find((candidate) => candidate.id === assetId && candidate.kind === "token");
     if (!asset) {
       return;
