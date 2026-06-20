@@ -165,9 +165,10 @@ import {
 } from "../canvas/weatherMaskGeometry";
 import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
-import { duplicateDrawingElement } from "../lib/drawingDefaults";
 import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/dragTypes";
 import {
+  duplicateSceneDrawing,
+  removeSceneDrawing,
   setDrawingPlayerVisibility,
   setDrawingTemplateFootprintVisibility,
   setFogShapePlayerVisibility,
@@ -3193,18 +3194,13 @@ export function SceneCanvas({
                 setDrawingContextMenu(null);
                 return;
               }
-              const sourceDrawing = scene.drawings.find((drawing) => drawing.id === drawingContextMenu.drawingId);
-              if (!sourceDrawing) {
+              const result = duplicateSceneDrawing(scene, drawingContextMenu.drawingId, crypto.randomUUID(), drawingContextMenu.label);
+              if (!result.duplicatedDrawingId) {
                 setDrawingContextMenu(null);
                 return;
               }
-              const duplicatedDrawing = duplicateDrawingElement(sourceDrawing, scene.drawings, crypto.randomUUID(), drawingContextMenu.label);
-              onSceneChange({
-                ...scene,
-                drawings: [...scene.drawings, duplicatedDrawing],
-                updatedAt: new Date().toISOString()
-              });
-              onSelectDrawing?.(duplicatedDrawing.id);
+              onSceneChange(result.scene);
+              onSelectDrawing?.(result.duplicatedDrawingId);
               setDrawingContextMenu(null);
             }}
           >
@@ -3222,11 +3218,7 @@ export function SceneCanvas({
                 setDrawingContextMenu(null);
                 return;
               }
-              onSceneChange({
-                ...scene,
-                drawings: scene.drawings.filter((drawing) => drawing.id !== drawingContextMenu.drawingId),
-                updatedAt: new Date().toISOString()
-              });
+              onSceneChange(removeSceneDrawing(scene, drawingContextMenu.drawingId));
               onSelectDrawing?.(null);
               setDrawingContextMenu(null);
             }}

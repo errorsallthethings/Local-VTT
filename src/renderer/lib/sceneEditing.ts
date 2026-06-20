@@ -1,6 +1,12 @@
 import { DEFAULT_VIDEO_PLAYBACK, type GridSettings, type Layer, type MapTransform, type Scene } from "../../shared/localvtt";
+import { duplicateDrawingElement } from "./drawingDefaults";
 
 export type LayerMoveDirection = "up" | "down";
+
+export type DuplicateSceneDrawingResult = {
+  scene: Scene;
+  duplicatedDrawingId?: string;
+};
 
 export function patchSceneVideoPlayback(scene: Scene, patch: Partial<Scene["videoPlayback"]>): Scene {
   return {
@@ -70,6 +76,37 @@ export function setDrawingTemplateFootprintVisibility(scene: Scene, drawingId: s
 
 export function setDrawingPlayerVisibility(scene: Scene, drawingId: string, visibleInPlayer: boolean, updatedAt = new Date().toISOString()): Scene {
   return patchSceneDrawing(scene, drawingId, { visibleInPlayer }, updatedAt);
+}
+
+export function duplicateSceneDrawing(
+  scene: Scene,
+  drawingId: string,
+  duplicateId: string,
+  sourceLabel?: string,
+  updatedAt = new Date().toISOString()
+): DuplicateSceneDrawingResult {
+  const sourceDrawing = scene.drawings.find((drawing) => drawing.id === drawingId);
+  if (!sourceDrawing) {
+    return { scene };
+  }
+
+  const duplicatedDrawing = duplicateDrawingElement(sourceDrawing, scene.drawings, duplicateId, sourceLabel);
+  return {
+    scene: {
+      ...scene,
+      drawings: [...scene.drawings, duplicatedDrawing],
+      updatedAt
+    },
+    duplicatedDrawingId: duplicatedDrawing.id
+  };
+}
+
+export function removeSceneDrawing(scene: Scene, drawingId: string, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    drawings: scene.drawings.filter((drawing) => drawing.id !== drawingId),
+    updatedAt
+  };
 }
 
 export function patchSceneMapTransform(scene: Scene, patch: Partial<MapTransform>): Scene {

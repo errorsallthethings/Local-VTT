@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene } from "../../src/shared/localvtt";
 import {
+  duplicateSceneDrawing,
   getFitGridPatch,
   moveLayerOrder,
   moveSceneLayer,
@@ -9,6 +10,7 @@ import {
   patchSceneGrid,
   patchSceneMapTransform,
   patchSceneVideoPlayback,
+  removeSceneDrawing,
   setDrawingPlayerVisibility,
   setDrawingTemplateFootprintVisibility,
   setFogShapePlayerVisibility,
@@ -173,6 +175,52 @@ describe("scene editing helpers", () => {
     const next = setDrawingTemplateFootprintVisibility(scene, "drawing-1", false, "updated");
 
     expect(next.drawings[0]).toMatchObject({ templateFootprintVisible: false });
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("duplicates a drawing and returns the new drawing id", () => {
+    const scene = createDefaultScene("Drawings");
+    scene.drawings = [
+      {
+        id: "drawing-1",
+        name: "Template Line",
+        kind: "line",
+        points: [{ x: 10, y: 20 }, { x: 30, y: 40 }],
+        color: "#fff",
+        opacity: 1,
+        strokeWidth: 8,
+        visibleInPlayer: true
+      }
+    ];
+
+    const result = duplicateSceneDrawing(scene, "drawing-1", "drawing-2", "Template Line", "updated");
+
+    expect(result.duplicatedDrawingId).toBe("drawing-2");
+    expect(result.scene.drawings).toHaveLength(2);
+    expect(result.scene.drawings[1]).toMatchObject({
+      id: "drawing-2",
+      name: "Template Line Copy"
+    });
+    expect(result.scene.drawings[1].points).toEqual([{ x: 34, y: 44 }, { x: 54, y: 64 }]);
+    expect(result.scene.updatedAt).toBe("updated");
+  });
+
+  it("returns the original scene when duplicating a missing drawing", () => {
+    const scene = createDefaultScene("Drawings");
+
+    expect(duplicateSceneDrawing(scene, "missing", "drawing-2")).toEqual({ scene });
+  });
+
+  it("removes a drawing", () => {
+    const scene = createDefaultScene("Drawings");
+    scene.drawings = [
+      { id: "drawing-1", kind: "line", points: [], color: "#fff", opacity: 1, strokeWidth: 8, visibleInPlayer: true },
+      { id: "drawing-2", kind: "line", points: [], color: "#fff", opacity: 1, strokeWidth: 8, visibleInPlayer: true }
+    ];
+
+    const next = removeSceneDrawing(scene, "drawing-1", "updated");
+
+    expect(next.drawings.map((drawing) => drawing.id)).toEqual(["drawing-2"]);
     expect(next.updatedAt).toBe("updated");
   });
 });
