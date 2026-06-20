@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { projectSceneForPlayer } from "../../shared/localvtt";
 import type { Campaign, CampaignSummary, Scene } from "../../shared/localvtt";
 import { mergeCampaignDraft } from "../lib/campaignDraft";
@@ -25,7 +25,7 @@ export function useCampaignWorkspace() {
     return () => window.localVtt.setUnsavedChanges(false);
   }, [hasUnsavedChanges]);
 
-  const run = async (action: () => Promise<void>) => {
+  const run = useCallback(async (action: () => Promise<void>) => {
     setError(null);
     try {
       await action();
@@ -35,7 +35,7 @@ export function useCampaignWorkspace() {
       setError(formatUserFacingError(caught));
       return false;
     }
-  };
+  }, []);
 
   const applySummary = (summary: CampaignSummary, preserveCampaignDraft = false) => {
     setCampaignPath(summary.campaignPath);

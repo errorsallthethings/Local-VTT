@@ -924,10 +924,10 @@ export function GmApp() {
     });
   };
 
-  const refreshDisplays = () =>
+  const refreshDisplays = useCallback(() =>
     run(async () => {
       setDisplays(await window.localVtt.getDisplays());
-    });
+    }), [run]);
 
   const cancelTokenCrop = useCallback(() =>
     run(async () => {
@@ -1063,8 +1063,7 @@ export function GmApp() {
   useEffect(() => {
     void refreshDisplays();
     // Displays are refreshed once on mount; later updates happen when the GM opens display settings.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refreshDisplays]);
 
   useEffect(() => {
     if (!selectedFogShapeId || activeScene?.fog.shapes.some((shape) => shape.id === selectedFogShapeId)) {
