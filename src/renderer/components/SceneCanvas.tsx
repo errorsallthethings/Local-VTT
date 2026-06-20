@@ -86,7 +86,7 @@ import {
   isTemplateDrawingTool
 } from "../canvas/templateDrawing";
 import { distanceBetween, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
-import { parseTokenImageSourceKey, type TokenImageSource } from "../canvas/tokenImageSource";
+import { getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey, parseTokenImageSourceKey } from "../canvas/tokenImageSource";
 import {
   getTokenMovementPath,
   getTokenMovementTweens,
@@ -598,30 +598,15 @@ export function SceneCanvas({
   const campaignAssets = campaign?.assets;
 
   const tokenAssetIds = useMemo(() => {
-    // Keep image loading keyed by asset identity, not token presentation/position changes.
-    return [...new Set(scene?.tokens.map((token) => token.assetId).filter(Boolean) ?? [])].join("|");
+    return getTokenAssetIds(scene?.tokens);
   }, [scene?.tokens]);
 
   const tokenAssets = useMemo(() => {
-    if (!campaignAssets) {
-      return [];
-    }
-    const assetsById = new Map(campaignAssets.map((asset) => [asset.id, asset]));
-    return tokenAssetIds
-      .split("|")
-      .filter(Boolean)
-      .map((assetId) => assetsById.get(assetId) ?? null)
-      .filter((asset): asset is NonNullable<typeof asset> => Boolean(asset?.absolutePath));
+    return getTokenImageAssets(campaignAssets, tokenAssetIds);
   }, [campaignAssets, tokenAssetIds]);
 
   const tokenImageSourceKey = useMemo(() => {
-    const sources = tokenAssets
-      .map((asset) => ({
-        id: asset.id,
-        path: asset.thumbnailAbsolutePath ?? asset.absolutePath
-      }))
-      .filter((source): source is TokenImageSource => Boolean(source.path));
-    return JSON.stringify(sources);
+    return getTokenImageSourceKey(tokenAssets);
   }, [tokenAssets]);
 
   const {
