@@ -31,10 +31,10 @@ import {
 import type { DrawingTool } from "../../canvas/drawingRenderer";
 import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType } from "../../../shared/localvtt";
 import type { FogTool } from "../../canvas/fogRenderer";
-import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
 import { DrawingSettings, type DrawingTemplateSize, type DrawingTemplateWidth } from "./DrawingToolSettings";
 import { AcidEffectTuningPanel, ArcaneEffectTuningPanel, ChaosEffectTuningPanel, ColdEffectTuningPanel, DarknessEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, NatureEffectTuningPanel, PoisonEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, VoidEffectTuningPanel, WaterEffectTuningPanel } from "./EnvironmentEffectTuningPanels";
+import { ToolHelpCard, type ToolHelpTopic } from "./ToolHelpCard";
 import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DarknessEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
 import {
   ENVIRONMENT_EFFECT_FEATHER_OPTIONS,
@@ -380,7 +380,7 @@ export function ToolsMenu({
   const [laserThicknessCustomOpen, setLaserThicknessCustomOpen] = useState(false);
   const [drawingThicknessCustomOpen, setDrawingThicknessCustomOpen] = useState(false);
   const [drawingOpacityCustomOpen, setDrawingOpacityCustomOpen] = useState(false);
-  const [helpTopic, setHelpTopic] = useState<"drawing" | "templates" | "fog" | "effects" | "table" | null>(null);
+  const [helpTopic, setHelpTopic] = useState<ToolHelpTopic | null>(null);
   const [drawingSettingsOpen, setDrawingSettingsOpen] = useState(false);
   const [templateSettingsOpen, setTemplateSettingsOpen] = useState(false);
   const [tableSettingsOpen, setTableSettingsOpen] = useState(false);
@@ -1449,61 +1449,6 @@ function formatSelectorSelectionPart(count: number, label: string): string | nul
 
 function Placeholder({ message }: { message: string }) {
   return <div className="tools-placeholder">{message}</div>;
-}
-
-function ToolHelpCard({ topic }: { topic: "drawing" | "templates" | "fog" | "effects" | "table" }) {
-  if (topic === "drawing") {
-    return (
-      <div className="tools-help-card" role="dialog" aria-label="Drawing tools help">
-        <strong>Drawing Tools</strong>
-        <ul>
-          {getDrawingHelpLines().map((line) => <li key={line}>{line}</li>)}
-        </ul>
-      </div>
-    );
-  }
-
-  if (topic === "templates") {
-    return (
-      <div className="tools-help-card" role="dialog" aria-label="Template tools help">
-        <strong>Template Tools</strong>
-        <ul>
-          {getTemplateHelpLines().map((line) => <li key={line}>{line}</li>)}
-        </ul>
-      </div>
-    );
-  }
-
-  if (topic === "fog") {
-    return (
-      <div className="tools-help-card" role="dialog" aria-label="Fog of War tools help">
-        <strong>Fog Of War Tools</strong>
-        <ul>
-          {getFogHelpLines().map((line) => <li key={line}>{line}</li>)}
-        </ul>
-      </div>
-    );
-  }
-
-  if (topic === "effects") {
-    return (
-      <div className="tools-help-card" role="dialog" aria-label="Effects tools help">
-        <strong>Effects Tools</strong>
-        <ul>
-          {getWeatherHelpLines().map((line) => <li key={line}>{line}</li>)}
-        </ul>
-      </div>
-    );
-  }
-
-  return (
-    <div className="tools-help-card" role="dialog" aria-label="Table tools help">
-      <strong>Table Tools</strong>
-      <ul>
-        {getTableHelpLines().map((line) => <li key={line}>{line}</li>)}
-      </ul>
-    </div>
-  );
 }
 
 function createFogTool(operation: FogOperation, shape: FogToolShape): FogTool {
