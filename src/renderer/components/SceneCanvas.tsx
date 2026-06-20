@@ -168,6 +168,7 @@ import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/dragTypes";
 import {
   duplicateSceneDrawing,
+  removeEnvironmentEffect,
   removeSceneDrawing,
   setDrawingPlayerVisibility,
   setDrawingTemplateFootprintVisibility,
@@ -3262,14 +3263,7 @@ export function SceneCanvas({
               if (!scene || !onSceneChange) {
                 return;
               }
-              onSceneChange({
-                ...scene,
-                environment: {
-                  ...scene.environment,
-                  effects: scene.environment.effects.filter((effect) => effect.id !== environmentEffectContextMenu.effectId)
-                },
-                updatedAt: new Date().toISOString()
-              });
+              onSceneChange(removeEnvironmentEffect(scene, environmentEffectContextMenu.effectId));
               onSelectEnvironmentEffect?.(null);
               setEnvironmentEffectContextMenu(null);
             }}

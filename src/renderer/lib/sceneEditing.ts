@@ -109,6 +109,17 @@ export function removeSceneDrawing(scene: Scene, drawingId: string, updatedAt = 
   };
 }
 
+export function removeEnvironmentEffect(scene: Scene, effectId: string, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    environment: {
+      ...scene.environment,
+      effects: scene.environment.effects.filter((effect) => effect.id !== effectId)
+    },
+    updatedAt
+  };
+}
+
 export function patchSceneMapTransform(scene: Scene, patch: Partial<MapTransform>): Scene {
   return {
     ...scene,

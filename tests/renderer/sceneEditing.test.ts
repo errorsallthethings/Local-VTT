@@ -10,6 +10,7 @@ import {
   patchSceneGrid,
   patchSceneMapTransform,
   patchSceneVideoPlayback,
+  removeEnvironmentEffect,
   removeSceneDrawing,
   setDrawingPlayerVisibility,
   setDrawingTemplateFootprintVisibility,
@@ -221,6 +222,19 @@ describe("scene editing helpers", () => {
     const next = removeSceneDrawing(scene, "drawing-1", "updated");
 
     expect(next.drawings.map((drawing) => drawing.id)).toEqual(["drawing-2"]);
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("removes an environment effect", () => {
+    const scene = createDefaultScene("Effects");
+    scene.environment.effects = [
+      { id: "effect-1", kind: "rectangle", effect: "water", points: [{ x: 0, y: 0 }, { x: 100, y: 100 }] },
+      { id: "effect-2", kind: "circle", effect: "fire", points: [{ x: 20, y: 20 }], radius: 10 }
+    ];
+
+    const next = removeEnvironmentEffect(scene, "effect-1", "updated");
+
+    expect(next.environment.effects.map((effect) => effect.id)).toEqual(["effect-2"]);
     expect(next.updatedAt).toBe("updated");
   });
 });
