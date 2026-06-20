@@ -44,8 +44,8 @@ import type {
 import { SceneCanvas } from "../components/SceneCanvas";
 import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ArcaneEffectTuningPanel, ChaosEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, NatureEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, ToolsMenu, VoidEffectTuningPanel, WaterEffectTuningPanel, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
-import { DEFAULT_ARCANE_EFFECT_TUNING, DEFAULT_CHAOS_EFFECT_TUNING, DEFAULT_DISTORTION_EFFECT_TUNING, DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_FORCE_FIELD_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_NATURE_EFFECT_TUNING, DEFAULT_RADIANT_EFFECT_TUNING, DEFAULT_SHOCKWAVE_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_VOID_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type ArcaneEffectTuning, type ChaosEffectTuning, type DistortionEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type NatureEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type VoidEffectTuning, type WaterEffectTuning } from "../canvas/environmentEffectsRenderer";
+import { AcidEffectTuningPanel, ArcaneEffectTuningPanel, ChaosEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, NatureEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, ToolsMenu, VoidEffectTuningPanel, WaterEffectTuningPanel, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools/ToolsMenu";
+import { DEFAULT_ACID_EFFECT_TUNING, DEFAULT_ARCANE_EFFECT_TUNING, DEFAULT_CHAOS_EFFECT_TUNING, DEFAULT_DISTORTION_EFFECT_TUNING, DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_FORCE_FIELD_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_NATURE_EFFECT_TUNING, DEFAULT_RADIANT_EFFECT_TUNING, DEFAULT_SHOCKWAVE_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_VOID_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type AcidEffectTuning, type ArcaneEffectTuning, type ChaosEffectTuning, type DistortionEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type NatureEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type VoidEffectTuning, type WaterEffectTuning } from "../canvas/environmentEffectsRenderer";
 import type { DrawingTool } from "../canvas/drawingRenderer";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -169,6 +169,7 @@ export function GmApp() {
   const [activeEnvironmentEffectTool, setActiveEnvironmentEffectTool] = useState<EnvironmentEffectTool | null>(null);
   const [environmentEffectType, setEnvironmentEffectType] = useState<EnvironmentEffectType>("water");
   const [environmentEffectFeather, setEnvironmentEffectFeather] = useState(0);
+  const [acidEffectTuning, setAcidEffectTuning] = useState<AcidEffectTuning>(DEFAULT_ACID_EFFECT_TUNING);
   const [waterEffectTuning, setWaterEffectTuning] = useState<WaterEffectTuning>(DEFAULT_WATER_EFFECT_TUNING);
   const [lavaEffectTuning, setLavaEffectTuning] = useState<LavaEffectTuning>(DEFAULT_LAVA_EFFECT_TUNING);
   const [fireEffectTuning, setFireEffectTuning] = useState<FireEffectTuning>(DEFAULT_FIRE_EFFECT_TUNING);
@@ -433,6 +434,20 @@ export function GmApp() {
     setEnvironmentEffectEditorId(null);
   }, [activeScene?.environment.effects, environmentEffectEditorId]);
 
+  const updateEnvironmentEffectAcidTuning = (effectId: string, acidTuning: AcidEffectTuning) => {
+    if (!activeScene) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      environment: {
+        ...activeScene.environment,
+        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? { ...effect, acidTuning } : effect))
+      },
+      updatedAt: new Date().toISOString()
+    });
+  };
+
   const updateEnvironmentEffectWaterTuning = (effectId: string, waterTuning: WaterEffectTuning) => {
     if (!activeScene) {
       return;
@@ -656,6 +671,7 @@ export function GmApp() {
             ? {
                 ...effect,
                 effect: effectType,
+                acidTuning: effectType === "acid" ? (effect.acidTuning ?? { ...DEFAULT_ACID_EFFECT_TUNING }) : undefined,
                 waterTuning: effectType === "water" ? (effect.waterTuning ?? { ...DEFAULT_WATER_EFFECT_TUNING }) : undefined,
                 lavaTuning: effectType === "lava" ? (effect.lavaTuning ?? { ...DEFAULT_LAVA_EFFECT_TUNING }) : undefined,
                 fireTuning: effectType === "fire" ? (effect.fireTuning ?? { ...DEFAULT_FIRE_EFFECT_TUNING }) : undefined,
@@ -2155,6 +2171,7 @@ export function GmApp() {
               activeDrawingTool={activeDrawingTool}
               environmentEffectType={environmentEffectType}
               environmentEffectFeather={environmentEffectFeather}
+              acidEffectTuning={acidEffectTuning}
               waterEffectTuning={waterEffectTuning}
               lavaEffectTuning={lavaEffectTuning}
               fireEffectTuning={fireEffectTuning}
@@ -2207,6 +2224,8 @@ export function GmApp() {
               onDrawingToolChange={setActiveDrawingTool}
               onEnvironmentEffectTypeChange={setEnvironmentEffectType}
               onEnvironmentEffectFeatherChange={setEnvironmentEffectFeather}
+              onAcidEffectTuningChange={setAcidEffectTuning}
+              onAcidEffectTuningReset={() => setAcidEffectTuning(DEFAULT_ACID_EFFECT_TUNING)}
               onWaterEffectTuningChange={setWaterEffectTuning}
               onWaterEffectTuningReset={() => setWaterEffectTuning(DEFAULT_WATER_EFFECT_TUNING)}
               onLavaEffectTuningChange={setLavaEffectTuning}
@@ -2297,6 +2316,7 @@ export function GmApp() {
             environmentEffectTool={activeEnvironmentEffectTool}
             environmentEffectType={environmentEffectType}
             environmentEffectFeather={environmentEffectFeather}
+            acidEffectTuning={acidEffectTuning}
             waterEffectTuning={waterEffectTuning}
             lavaEffectTuning={lavaEffectTuning}
             fireEffectTuning={fireEffectTuning}
@@ -2442,6 +2462,8 @@ export function GmApp() {
           position={environmentEffectEditorPosition}
           onClose={() => setEnvironmentEffectEditorId(null)}
           onPositionChange={setEnvironmentEffectEditorPosition}
+          onAcidTuningChange={(acidTuning) => updateEnvironmentEffectAcidTuning(environmentEffectEditorEffect.id, acidTuning)}
+          onAcidTuningReset={() => updateEnvironmentEffectAcidTuning(environmentEffectEditorEffect.id, { ...DEFAULT_ACID_EFFECT_TUNING })}
           onWaterTuningChange={(waterTuning) => updateEnvironmentEffectWaterTuning(environmentEffectEditorEffect.id, waterTuning)}
           onWaterTuningReset={() => updateEnvironmentEffectWaterTuning(environmentEffectEditorEffect.id, { ...DEFAULT_WATER_EFFECT_TUNING })}
           onLavaTuningChange={(lavaTuning) => updateEnvironmentEffectLavaTuning(environmentEffectEditorEffect.id, lavaTuning)}
@@ -2605,6 +2627,8 @@ function EnvironmentEffectEditorModal({
   position,
   onClose,
   onPositionChange,
+  onAcidTuningChange,
+  onAcidTuningReset,
   onWaterTuningChange,
   onWaterTuningReset,
   onLavaTuningChange,
@@ -2640,6 +2664,8 @@ function EnvironmentEffectEditorModal({
   position: { x: number; y: number } | null;
   onClose: () => void;
   onPositionChange: (position: { x: number; y: number }) => void;
+  onAcidTuningChange: (tuning: AcidEffectTuning) => void;
+  onAcidTuningReset: () => void;
   onWaterTuningChange: (tuning: WaterEffectTuning) => void;
   onWaterTuningReset: () => void;
   onLavaTuningChange: (tuning: LavaEffectTuning) => void;
@@ -2675,6 +2701,7 @@ function EnvironmentEffectEditorModal({
   const dragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
   const label = effect.name?.trim() || `${formatEnvironmentEffectOptionLabel(effect.effect)} Effect`;
   const style = position ? ({ left: position.x, top: position.y } as CSSProperties) : undefined;
+  const activeAcidTuning = { ...DEFAULT_ACID_EFFECT_TUNING, ...(effect.acidTuning ?? {}) };
   const activeWaterTuning = { ...DEFAULT_WATER_EFFECT_TUNING, ...(effect.waterTuning ?? {}) };
   const activeLavaTuning = { ...DEFAULT_LAVA_EFFECT_TUNING, ...(effect.lavaTuning ?? {}) };
   const activeFireTuning = { ...DEFAULT_FIRE_EFFECT_TUNING, ...(effect.fireTuning ?? {}) };
@@ -2689,12 +2716,13 @@ function EnvironmentEffectEditorModal({
   const activeShockwaveTuning = { ...DEFAULT_SHOCKWAVE_EFFECT_TUNING, ...(effect.shockwaveTuning ?? {}) };
   const activeSmokeTuning = { ...DEFAULT_SMOKE_EFFECT_TUNING, ...(effect.smokeTuning ?? {}) };
   const activeFogTuning = { ...DEFAULT_FOG_EFFECT_TUNING, ...(effect.fogTuning ?? {}) };
-  const defaultPresetValue = getEnvironmentEffectPresetSelectValue(effect.effect, activeWaterTuning, activeLavaTuning, activeFireTuning, activeLightningTuning, activeArcaneTuning, activeChaosTuning, activeVoidTuning, activeNatureTuning, activeDistortionTuning, activeRadiantTuning, activeForceFieldTuning, activeShockwaveTuning, activeSmokeTuning, activeFogTuning);
+  const defaultPresetValue = getEnvironmentEffectPresetSelectValue(effect.effect, activeAcidTuning, activeWaterTuning, activeLavaTuning, activeFireTuning, activeLightningTuning, activeArcaneTuning, activeChaosTuning, activeVoidTuning, activeNatureTuning, activeDistortionTuning, activeRadiantTuning, activeForceFieldTuning, activeShockwaveTuning, activeSmokeTuning, activeFogTuning);
   const [presetSelection, setPresetSelection] = useState(() => ({ effectId: effect.id, value: defaultPresetValue }));
   const presetValue = presetSelection.effectId === effect.id ? presetSelection.value : defaultPresetValue;
   const resetActiveTuning = () => {
     if (presetValue !== "custom") {
       applyEnvironmentEffectPreset(effect.effect, presetValue, {
+        onAcidEffectTuningChange: onAcidTuningChange,
         onWaterEffectTuningChange: onWaterTuningChange,
         onLavaEffectTuningChange: onLavaTuningChange,
         onFireEffectTuningChange: onFireTuningChange,
@@ -2713,7 +2741,9 @@ function EnvironmentEffectEditorModal({
       return;
     }
 
-    if (effect.effect === "water") {
+    if (effect.effect === "acid") {
+      onAcidTuningReset();
+    } else if (effect.effect === "water") {
       onWaterTuningReset();
     } else if (effect.effect === "lava") {
       onLavaTuningReset();
@@ -2837,6 +2867,7 @@ function EnvironmentEffectEditorModal({
                     return;
                   }
                   applyEnvironmentEffectPreset(effect.effect, nextPreset, {
+                    onAcidEffectTuningChange: onAcidTuningChange,
                     onWaterEffectTuningChange: onWaterTuningChange,
                     onLavaEffectTuningChange: onLavaTuningChange,
                     onFireEffectTuningChange: onFireTuningChange,
@@ -2879,7 +2910,15 @@ function EnvironmentEffectEditorModal({
           </div>
         </div>
         <div className="tools-section-divider" />
-        {effect.effect === "water" ? (
+        {effect.effect === "acid" ? (
+          <AcidEffectTuningPanel
+            key={effect.id}
+            tuning={activeAcidTuning}
+            defaultOpen
+            onChange={onAcidTuningChange}
+            onReset={resetActiveTuning}
+          />
+        ) : effect.effect === "water" ? (
           <WaterEffectTuningPanel
             key={effect.id}
             tuning={activeWaterTuning}

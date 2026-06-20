@@ -1,5 +1,6 @@
 import type { EnvironmentEffectType } from "../../shared/localvtt";
 import {
+  ACID_EFFECT_PRESETS,
   ARCANE_EFFECT_PRESETS,
   CHAOS_EFFECT_PRESETS,
   FIRE_EFFECT_PRESETS,
@@ -14,6 +15,7 @@ import {
   SMOKE_EFFECT_PRESETS,
   VOID_EFFECT_PRESETS,
   WATER_EFFECT_PRESETS,
+  type AcidEffectTuning,
   type ArcaneEffectTuning,
   type ChaosEffectTuning,
   type FireEffectTuning,
@@ -38,6 +40,7 @@ export const ENVIRONMENT_EFFECT_FEATHER_OPTIONS = [
 ] as const;
 
 export const ENVIRONMENT_EFFECT_OPTIONS: Array<{ label: string; value: EnvironmentEffectType }> = [
+  { label: "Acid", value: "acid" },
   { label: "Arcane", value: "arcane" },
   { label: "Chaos Field", value: "chaos" },
   { label: "Distortion", value: "distortion" },
@@ -55,6 +58,7 @@ export const ENVIRONMENT_EFFECT_OPTIONS: Array<{ label: string; value: Environme
 ];
 
 const ENVIRONMENT_EFFECT_LABELS: Record<EnvironmentEffectType, string> = {
+  acid: "Acid",
   arcane: "Arcane",
   chaos: "Chaos Field",
   distortion: "Distortion",
@@ -72,6 +76,12 @@ const ENVIRONMENT_EFFECT_LABELS: Record<EnvironmentEffectType, string> = {
 };
 
 const ENVIRONMENT_EFFECT_PRESET_OPTIONS: Record<EnvironmentEffectType, Array<{ label: string; value: string }>> = {
+  acid: [
+    { label: "Custom", value: "custom" },
+    { label: "Acid Pool", value: "acidPool" },
+    { label: "Caustic Sludge", value: "causticSludge" },
+    { label: "Bubbling Acid", value: "bubblingAcid" }
+  ],
   arcane: [
     { label: "Custom", value: "custom" },
     { label: "Ritual Circle", value: "ritualCircle" },
@@ -156,6 +166,7 @@ const ENVIRONMENT_EFFECT_PRESET_OPTIONS: Record<EnvironmentEffectType, Array<{ l
 };
 
 const ENVIRONMENT_EFFECT_CANVAS_STYLES: Record<EnvironmentEffectType, { previewFill: string; stroke: string }> = {
+  acid: { previewFill: "rgba(132, 204, 22, 0.18)", stroke: "rgba(190, 242, 100, 0.95)" },
   arcane: { previewFill: "rgba(168, 85, 247, 0.18)", stroke: "rgba(192, 132, 252, 0.95)" },
   chaos: { previewFill: "rgba(244, 114, 182, 0.16)", stroke: "rgba(244, 114, 182, 0.95)" },
   distortion: { previewFill: "rgba(103, 232, 249, 0.14)", stroke: "rgba(103, 232, 249, 0.95)" },
@@ -174,6 +185,7 @@ const ENVIRONMENT_EFFECT_CANVAS_STYLES: Record<EnvironmentEffectType, { previewF
 
 export function getEnvironmentEffectPresetSelectValue(
   effect: EnvironmentEffectType,
+  acidEffectTuning: AcidEffectTuning,
   waterEffectTuning: WaterEffectTuning,
   lavaEffectTuning: LavaEffectTuning,
   fireEffectTuning: FireEffectTuning,
@@ -189,6 +201,9 @@ export function getEnvironmentEffectPresetSelectValue(
   smokeEffectTuning: SmokeEffectTuning,
   fogEffectTuning: FogEffectTuning
 ): string {
+  if (effect === "acid") {
+    return getAcidPresetSelectValue(acidEffectTuning);
+  }
   if (effect === "lava") {
     return getLavaPresetSelectValue(lavaEffectTuning);
   }
@@ -239,6 +254,7 @@ export function applyEnvironmentEffectPreset(
   effect: EnvironmentEffectType,
   value: string,
   handlers: {
+    onAcidEffectTuningChange: (tuning: AcidEffectTuning) => void;
     onWaterEffectTuningChange: (tuning: WaterEffectTuning) => void;
     onLavaEffectTuningChange: (tuning: LavaEffectTuning) => void;
     onFireEffectTuningChange: (tuning: FireEffectTuning) => void;
@@ -255,6 +271,13 @@ export function applyEnvironmentEffectPreset(
     onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
   }
 ) {
+  if (effect === "acid") {
+    const preset = ACID_EFFECT_PRESETS[value as keyof typeof ACID_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onAcidEffectTuningChange({ ...preset });
+    }
+    return;
+  }
   if (effect === "lava") {
     const preset = LAVA_EFFECT_PRESETS[value as keyof typeof LAVA_EFFECT_PRESETS];
     if (preset) {
@@ -373,6 +396,15 @@ function getWaterPresetSelectValue(tuning: WaterEffectTuning): keyof typeof WATE
   for (const [presetName, preset] of Object.entries(WATER_EFFECT_PRESETS)) {
     if (isWaterTuningMatch(tuning, preset)) {
       return presetName as keyof typeof WATER_EFFECT_PRESETS;
+    }
+  }
+  return "custom";
+}
+
+function getAcidPresetSelectValue(tuning: AcidEffectTuning): keyof typeof ACID_EFFECT_PRESETS | "custom" {
+  for (const [presetName, preset] of Object.entries(ACID_EFFECT_PRESETS)) {
+    if (isAcidTuningMatch(tuning, preset)) {
+      return presetName as keyof typeof ACID_EFFECT_PRESETS;
     }
   }
   return "custom";
@@ -514,6 +546,27 @@ function isWaterTuningMatch(tuning: WaterEffectTuning, preset: WaterEffectTuning
     tuning.deepColor === preset.deepColor &&
     tuning.waterColor === preset.waterColor &&
     tuning.highlightColor === preset.highlightColor
+  );
+}
+
+function isAcidTuningMatch(tuning: AcidEffectTuning, preset: AcidEffectTuning): boolean {
+  return (
+    tuning.opacity === preset.opacity &&
+    tuning.acidScale === preset.acidScale &&
+    tuning.speed === preset.speed &&
+    tuning.directionDegrees === preset.directionDegrees &&
+    tuning.corrosion === preset.corrosion &&
+    tuning.bubbleDensity === preset.bubbleDensity &&
+    tuning.bubbleSize === preset.bubbleSize &&
+    tuning.streakDensity === preset.streakDensity &&
+    tuning.streakWarp === preset.streakWarp &&
+    tuning.foam === preset.foam &&
+    tuning.glow === preset.glow &&
+    tuning.zoomScale === preset.zoomScale &&
+    tuning.baseAlpha === preset.baseAlpha &&
+    tuning.darkColor === preset.darkColor &&
+    tuning.acidColor === preset.acidColor &&
+    tuning.foamColor === preset.foamColor
   );
 }
 
