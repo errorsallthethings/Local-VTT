@@ -1,6 +1,7 @@
 import { ColorInput } from "../controls/ColorPickerField";
 import { getPresetSelectValue, hasPresetValue } from "./toolPresetOptions";
-import type { CanvasTool } from "./ToolsMenu";
+
+type CanvasTool = "ruler" | "ping" | "laser";
 
 const PING_SIZE_PRESETS = [
   { label: "Extra Small", value: 0.65 },

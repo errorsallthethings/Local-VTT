@@ -1290,18 +1290,6 @@ function createFogTool(operation: FogOperation, shape: FogToolShape): FogTool {
   return `${operation}-${shape}` as FogTool;
 }
 
-function hasPresetValue(presets: { value: number }[], value: number): boolean {
-  return presets.some((preset) => Math.abs(preset.value - value) < 0.001);
-}
-
-function getPresetSelectValue(presets: { value: number }[], value: number, customOpen: boolean): string {
-  if (customOpen) {
-    return "custom";
-  }
-  const preset = presets.find((candidate) => Math.abs(candidate.value - value) < 0.001);
-  return preset ? String(preset.value) : "custom";
-}
-
 function getActiveFogShape(tool: FogTool | null): FogToolShape | null {
   if (!tool) {
     return null;
