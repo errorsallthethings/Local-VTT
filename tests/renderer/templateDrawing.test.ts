@@ -5,6 +5,7 @@ import {
   formatDefaultTemplateDrawingName,
   getDrawingElementFromPreview,
   getDrawingKindForTool,
+  getDrawingPolygonElementFromDraft,
   getDrawingTemplateCurrentPoint,
   getTemplateDistancePixels,
   getTemplateEffectNamePart,
@@ -160,6 +161,37 @@ describe("template drawing helpers", () => {
       templateWidth: 10,
       templateFootprintVisible: false,
       measurementLabelVisible: true,
+      visibleInGm: true,
+      visibleInPlayer: true
+    });
+  });
+
+  it("creates persisted polygon elements from draft points", () => {
+    const points = [{ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 10, y: 20 }];
+
+    expect(
+      getDrawingPolygonElementFromDraft(points, "polygon-1", 3, {
+        color: "#ff0000",
+        opacity: 0.8,
+        fillColor: "#00ff00",
+        fillOpacity: 0.25,
+        strokeStyle: "dashed",
+        strokeWidth: 16
+      })
+    ).toMatchObject({
+      id: "polygon-1",
+      name: "Polygon 4",
+      kind: "polygon",
+      points,
+      color: "#ff0000",
+      opacity: 0.8,
+      strokeColor: "#ff0000",
+      strokeOpacity: 0.8,
+      fillColor: "#00ff00",
+      fillOpacity: 0.25,
+      strokeStyle: "dashed",
+      strokeWidth: 16,
+      measurementLabelVisible: false,
       visibleInGm: true,
       visibleInPlayer: true
     });

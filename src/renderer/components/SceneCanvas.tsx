@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
-import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultDrawingName, formatDefaultFogShapeName } from "../../shared/localvtt";
+import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings } from "../../shared/localvtt";
 import { areCamerasEqual, getRenderCamera, type Camera } from "../canvas/camera";
 import { getCanvasInteractionClass, type DrawingResizeHandle, type DrawingTransformHover } from "../canvas/canvasInteraction";
@@ -103,6 +103,7 @@ import { getSceneLayerVisibility } from "../canvas/sceneLayerVisibility";
 import { getNearestSceneSnapPoint, getRulerSnapPoint } from "../canvas/sceneSnapping";
 import {
   getDrawingElementFromPreview,
+  getDrawingPolygonElementFromDraft,
   getDrawingTemplateCurrentPoint,
   getTemplatePreviewDrawing,
   isTemplateDrawingTool
@@ -2643,23 +2644,14 @@ export function SceneCanvas({
       ...scene,
       drawings: [
         ...scene.drawings,
-        {
-          id: crypto.randomUUID(),
-          name: formatDefaultDrawingName("polygon", scene.drawings.length),
-          kind: "polygon",
-          points: draft.points,
+        getDrawingPolygonElementFromDraft(draft.points, crypto.randomUUID(), scene.drawings.length, {
           color: drawingColor,
           opacity: drawingOpacity,
-          strokeColor: drawingColor,
-          strokeOpacity: drawingOpacity,
           fillColor: drawingFillColor,
           fillOpacity: drawingFillOpacity,
           strokeStyle: drawingStrokeStyle,
-          strokeWidth: drawingStrokeWidth,
-          measurementLabelVisible: false,
-          visibleInGm: true,
-          visibleInPlayer: true
-        }
+          strokeWidth: drawingStrokeWidth
+        })
       ],
       updatedAt: new Date().toISOString()
     });

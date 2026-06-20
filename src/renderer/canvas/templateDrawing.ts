@@ -1,8 +1,17 @@
-import { formatDefaultDrawingName, type DrawingElement, type DrawingKind, type DrawingTemplateEffect, type Point, type Scene } from "../../shared/localvtt";
+import { formatDefaultDrawingName, type DrawingElement, type DrawingKind, type DrawingStrokeStyle, type DrawingTemplateEffect, type Point, type Scene } from "../../shared/localvtt";
 import { getDrawingPreviewPoints, type DrawingPreview, type DrawingTool } from "./drawingRenderer";
 import { constrainSquarePoint } from "./gridMath";
 
 export type DrawingTemplateSize = "custom" | 5 | 10 | 15 | 20 | 30 | 60 | 100;
+
+export type DrawingPolygonElementStyle = {
+  color: string;
+  opacity: number;
+  fillColor?: string;
+  fillOpacity?: number;
+  strokeStyle?: DrawingStrokeStyle;
+  strokeWidth: number;
+};
 
 export function getDrawingTemplateCurrentPoint(start: Point, current: Point, tool: DrawingTool, scene: Scene | null, templateSize: DrawingTemplateSize): Point {
   if (!isTemplateDrawingTool(tool) || templateSize === "custom") {
@@ -84,6 +93,26 @@ export function getDrawingElementFromPreview(preview: DrawingPreview, id: string
     templateWidth: isTemplate ? (preview.templateWidth ?? 5) : 5,
     templateFootprintVisible: isTemplate ? false : undefined,
     measurementLabelVisible: isTemplate,
+    visibleInGm: true,
+    visibleInPlayer: true
+  };
+}
+
+export function getDrawingPolygonElementFromDraft(points: Point[], id: string, index: number, style: DrawingPolygonElementStyle): DrawingElement {
+  return {
+    id,
+    name: formatDefaultDrawingName("polygon", index),
+    kind: "polygon",
+    points,
+    color: style.color,
+    opacity: style.opacity,
+    strokeColor: style.color,
+    strokeOpacity: style.opacity,
+    fillColor: style.fillColor,
+    fillOpacity: style.fillOpacity,
+    strokeStyle: style.strokeStyle,
+    strokeWidth: style.strokeWidth,
+    measurementLabelVisible: false,
     visibleInGm: true,
     visibleInPlayer: true
   };
