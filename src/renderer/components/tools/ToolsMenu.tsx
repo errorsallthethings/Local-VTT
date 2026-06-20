@@ -1101,7 +1101,7 @@ export function ToolsMenu({
           {activeCategory === "effects" && (
             <div className="tools-panel-section">
               <HelpButton active={helpTopic === "effects"} label="Effects Tools Help" onClick={() => setHelpTopic((topic) => (topic === "effects" ? null : "effects"))} />
-              <div className="tools-section-label">Weather Effect Masks</div>
+              <div className="tools-section-label">Weather Masks</div>
               {!weatherToolsEnabled && <span className="tools-section-note">Enable a weather effect to use weather effect masks.</span>}
               <div className="tools-button-row">
                 <ToolButton active={activeWeatherMaskTool === "rectangle"} label="Rectangle Weather Effect Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("rectangle")}>
@@ -1119,7 +1119,7 @@ export function ToolsMenu({
                 </ToolButton>
               </div>
               <div className="tools-section-divider" />
-              <div className="tools-section-label">Environmental Effects</div>
+              <div className="tools-section-label">Animated Effects</div>
               <div className="tools-button-row">
                 <ToolButton active={activeEnvironmentEffectTool === "circle"} label="Radius Environmental Effect" onClick={() => setEnvironmentEffectTool("circle")}>
                   <Circle size={17} aria-hidden="true" />
@@ -1142,8 +1142,8 @@ export function ToolsMenu({
                   <strong>Effect</strong>
                   <div>
                     <select
-                      aria-label="Environmental effect type"
-                      title="Environmental effect type"
+                      aria-label="Animated effect type"
+                      title="Animated effect type"
                       value={environmentEffectType}
                       onChange={(event) => onEnvironmentEffectTypeChange(event.target.value as EnvironmentEffectType)}
                     >
@@ -1200,8 +1200,8 @@ export function ToolsMenu({
                   <strong>Feather</strong>
                   <div>
                     <select
-                      aria-label="Environmental effect feather"
-                      title="Environmental effect feather"
+                      aria-label="Animated effect feather"
+                      title="Animated effect feather"
                       value={getEnvironmentEffectFeatherSelectValue(environmentEffectFeather)}
                       onChange={(event) => onEnvironmentEffectFeatherChange(Number(event.target.value))}
                     >

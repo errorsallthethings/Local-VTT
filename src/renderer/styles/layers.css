@@ -306,6 +306,34 @@
   white-space: nowrap;
 }
 
+.effect-row-name {
+  display: grid;
+  gap: 2px;
+  align-items: center;
+  line-height: 1.1;
+}
+
+.effect-row-name strong,
+.effect-row-name small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.effect-row-name strong {
+  color: #dfe6ef;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.effect-row-name small {
+  color: var(--color-text-faint);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 .fog-shape-action-button {
   width: 24px;
   min-width: 24px;

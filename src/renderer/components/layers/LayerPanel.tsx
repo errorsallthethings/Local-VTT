@@ -1290,13 +1290,16 @@ function EnvironmentEffectList({
   });
 
   return (
-    <div className="layer-detail-controls weather-mask-list" onClick={(event) => event.stopPropagation()}>
+    <div className="layer-detail-controls weather-mask-list effects-layer-list" onClick={(event) => event.stopPropagation()}>
       <div className="fog-shape-list-header">
-        <span>Environmental Effects</span>
+        <span>Animated Effects</span>
+        <small>{scene.environment.effects.length}</small>
       </div>
       {scene.environment.effects.length > 0 ? (
         scene.environment.effects.map((effect) => {
           const label = effect.name?.trim() || `${formatEnvironmentEffectLabel(effect.effect)} Effect`;
+          const effectLabel = formatEnvironmentEffectLabel(effect.effect);
+          const shapeLabel = formatEnvironmentShapeLabel(effect.kind);
           const isVisibleInGm = effect.visibleInGm !== false;
           const isVisibleInPlayer = effect.visibleInPlayer !== false;
           const isSelected = selectedEnvironmentEffectId === effect.id;
@@ -1316,11 +1319,12 @@ function EnvironmentEffectList({
                   }
                 }}
               >
-                <span className="fog-shape-kind-icon" title={`${effect.kind} environmental effect`} aria-hidden="true">
+                <span className="fog-shape-kind-icon" title={`${effect.kind} animated effect`} aria-hidden="true">
                   {effect.kind === "circle" ? <Circle size={13} /> : effect.kind === "polygon" ? <Pentagon size={13} /> : <Square size={13} />}
                 </span>
-                <span className="fog-shape-name" title={label} onDoubleClick={() => onRenameEnvironmentEffect(effect.id, label)}>
-                  {label}
+                <span className="fog-shape-name effect-row-name" title={label} onDoubleClick={() => onRenameEnvironmentEffect(effect.id, label)}>
+                  <strong>{label}</strong>
+                  <small>{effectLabel} - {shapeLabel}</small>
                 </span>
                 <button
                   className={isVisibleInGm ? "icon-button fog-shape-action-button fog-shape-action-active" : "icon-button fog-shape-action-button"}
@@ -1370,8 +1374,8 @@ function EnvironmentEffectList({
         })
       ) : (
         <div className="layer-empty-state">
-          <strong>No Environmental Effects</strong>
-          <span>Draw water, lava, or smoke areas from Effects Tools.</span>
+          <strong>No Animated Effects</strong>
+          <span>Draw water, fire, fog, darkness, and other animated areas from Effects Tools.</span>
         </div>
       )}
     </div>
@@ -1493,13 +1497,15 @@ function WeatherMaskList({
 }) {
   const selectedIds = new Set(selectedWeatherMaskIds.length > 0 ? selectedWeatherMaskIds : selectedWeatherMaskId ? [selectedWeatherMaskId] : []);
   return (
-    <div className="layer-detail-controls weather-mask-list" onClick={(event) => event.stopPropagation()}>
+    <div className="layer-detail-controls weather-mask-list effects-layer-list" onClick={(event) => event.stopPropagation()}>
       <div className="fog-shape-list-header">
-        <span>Weather Effect Masks</span>
+        <span>Weather Masks</span>
+        <small>{scene.weather.masks.length}</small>
       </div>
       {scene.weather.masks.length > 0 ? (
         scene.weather.masks.map((mask) => {
           const label = mask.name?.trim() || "Weather Effect Mask";
+          const shapeLabel = formatEnvironmentShapeLabel(mask.kind);
           const isVisible = mask.visible ?? true;
           const isSelected = selectedIds.has(mask.id);
           return (
@@ -1512,8 +1518,9 @@ function WeatherMaskList({
               <span className="fog-shape-kind-icon" title={`${mask.kind} mask`} aria-hidden="true">
                 {mask.kind === "circle" ? <Circle size={13} /> : mask.kind === "polygon" ? <Pentagon size={13} /> : <Square size={13} />}
               </span>
-              <span className="fog-shape-name" title={label}>
-                {label}
+              <span className="fog-shape-name effect-row-name" title={label}>
+                <strong>{label}</strong>
+                <small>Weather exclusion - {shapeLabel}</small>
               </span>
               <button
                 className={isVisible ? "icon-button fog-shape-action-button fog-shape-action-active" : "icon-button fog-shape-action-button"}
@@ -1559,16 +1566,20 @@ function WeatherMaskList({
         })
       ) : (
         <div className="layer-empty-state">
-          <strong>No Weather Effect Masks</strong>
+          <strong>No Weather Masks</strong>
           <span>
             {scene.weather.enabled && hasEnabledWeatherEffect(scene.weather.effects)
-              ? "Draw masks from Effects Tools to keep weather out of interiors."
-              : "Choose a weather pattern in settings to enable weather effect masks, then draw masks from the canvas."}
+              ? "Draw masks from Effects Tools to keep global weather out of interiors."
+              : "Choose a weather pattern in settings, then draw masks to exclude weather from covered areas."}
           </span>
         </div>
       )}
     </div>
   );
+}
+
+function formatEnvironmentShapeLabel(kind: "rectangle" | "polygon" | "circle"): string {
+  return kind === "circle" ? "Radius" : kind === "polygon" ? "Polygon" : "Rectangle";
 }
 
 function getWeatherEffectSettingsWithCurrent(weather: WeatherSettings): WeatherSettings["effectSettings"] {
