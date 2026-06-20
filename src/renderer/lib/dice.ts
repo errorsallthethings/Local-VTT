@@ -13,6 +13,7 @@ export type EffectiveDiceDisplayModes = {
 export const DICE_TYPES: DiceType[] = ["coin", "d4", "d6", "d8", "d10", "d00", "d12", "d20"];
 export const DICE_EVENT_DURATION_MS = 5200;
 export const DICE_HISTORY_DURATION_MS = 10000;
+export const MAX_DICE_ROLL_HISTORY = 100;
 export const MAX_COMPOSER_DICE = 12;
 const MAX_INLINE_BREAKDOWN_DICE = 6;
 const MAX_COMPACT_BREAKDOWN_DICE = 6;
@@ -122,6 +123,14 @@ export function rollDiceExpression(expression: string, random = Math.random): Om
     seed: random(),
     dice
   };
+}
+
+export function updateDiceRollHistory(
+  history: readonly Extract<LiveTableEvent, { type: "dice" }>[],
+  event: Extract<LiveTableEvent, { type: "dice" }>,
+  maxHistory = MAX_DICE_ROLL_HISTORY
+): Extract<LiveTableEvent, { type: "dice" }>[] {
+  return [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, maxHistory);
 }
 
 function rollDiceTerm(term: DiceExpressionDiceTerm, random: () => number): { die: DiceType; total: number; dice: DiceVisualRoll[] } {

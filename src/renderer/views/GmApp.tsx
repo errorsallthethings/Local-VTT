@@ -60,7 +60,7 @@ import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assetLibrary";
 import { moveSceneFolder } from "../lib/campaignActions";
-import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
+import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, updateDiceRollHistory as updateDiceRollHistoryList, type DiceType } from "../lib/dice";
 import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/diceSettingsPreference";
 import { loadImageDimensions } from "../lib/imageDimensions";
 import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/liveTableEvents";
@@ -116,7 +116,6 @@ import { GmSidebar } from "./GmSidebar";
 type PlayerDisplayMode = "scene" | "hold" | "blackout";
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 
-const MAX_DICE_ROLL_HISTORY = 100;
 const PLAYER_TEMPLATE_PREVIEW_ID = "template-preview";
 const EMPTY_ASSETS: Asset[] = [];
 const EMPTY_SCENE_ENTRIES: CampaignSceneEntry[] = [];
@@ -531,7 +530,7 @@ export function GmApp() {
   };
 
   const updateDiceRollHistory = useCallback((event: DiceRollEvent) => {
-    setDiceRollHistory((history) => [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, MAX_DICE_ROLL_HISTORY));
+    setDiceRollHistory((history) => updateDiceRollHistoryList(history, event));
   }, []);
 
   const emitLiveTableEvent = useCallback((event: LiveTableEvent) => {
