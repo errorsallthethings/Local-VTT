@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { areCamerasEqual, getCameraForWheelZoom, getRenderCamera } from "../../src/renderer/canvas/camera";
+import { areCamerasEqual, getCameraForPanDrag, getCameraForWheelZoom, getRenderCamera } from "../../src/renderer/canvas/camera";
 import {
   getFogDragKindForTool,
   getFogOperationForTool,
@@ -30,6 +30,14 @@ it("areCamerasEqual tolerates tiny floating point drift", () => {
   expect(areCamerasEqual({ x: 1, y: 2, zoom: 3 }, { x: 1.0005, y: 1.9995, zoom: 3.00005 })).toBe(true);
   expect(areCamerasEqual({ x: 1, y: 2, zoom: 3 }, { x: 1.01, y: 2, zoom: 3 })).toBe(false);
   expect(areCamerasEqual({ x: 1, y: 2, zoom: 3 }, { x: 1, y: 2, zoom: 3.001 })).toBe(false);
+});
+
+it("getCameraForPanDrag offsets the starting camera by pointer movement", () => {
+  expect(getCameraForPanDrag({ x: 100, y: 80, camera: { x: 20, y: -10, zoom: 2 } }, 130, 50)).toEqual({
+    x: 50,
+    y: -40,
+    zoom: 2
+  });
 });
 
 it("getCameraForWheelZoom keeps the world point under the cursor anchored", () => {

@@ -2,7 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings } from "../../shared/localvtt";
-import { areCamerasEqual, getCameraForWheelZoom, getRenderCamera, type Camera } from "../canvas/camera";
+import { areCamerasEqual, getCameraForPanDrag, getCameraForWheelZoom, getRenderCamera, type Camera, type CameraPanDrag } from "../canvas/camera";
 import {
   getCanvasInteractionClass,
   getDrawingTransformHoverAtPoint,
@@ -457,7 +457,7 @@ export function SceneCanvas({
   const [drawingContextMenu, setDrawingContextMenu] = useState<DrawingContextMenu | null>(null);
   const [environmentEffectContextMenu, setEnvironmentEffectContextMenu] = useState<EnvironmentEffectContextMenu | null>(null);
   const [isPanning, setIsPanning] = useState(false);
-  const dragRef = useRef<{ pointerId: number; x: number; y: number; camera: Camera } | null>(null);
+  const dragRef = useRef<(CameraPanDrag & { pointerId: number }) | null>(null);
   const rulerDragRef = useRef<(RulerDrag & { pointerId: number }) | null>(null);
   const releasedRulerTimeoutRef = useRef<number | null>(null);
   const tokenDragRef = useRef<TokenDragState | null>(null);
@@ -1832,11 +1832,7 @@ export function SceneCanvas({
     const drag = dragRef.current;
     if (drag?.pointerId === event.pointerId) {
       autoFitCameraRef.current = false;
-      setCamera({
-        ...drag.camera,
-        x: drag.camera.x + event.clientX - drag.x,
-        y: drag.camera.y + event.clientY - drag.y
-      });
+      setCamera(getCameraForPanDrag(drag, event.clientX, event.clientY));
       return;
     }
 

@@ -4,6 +4,12 @@ export interface Camera {
   zoom: number;
 }
 
+export interface CameraPanDrag {
+  x: number;
+  y: number;
+  camera: Camera;
+}
+
 export function getRenderCamera(camera: Camera, displayScale: number): Camera {
   return {
     x: camera.x,
@@ -14,6 +20,14 @@ export function getRenderCamera(camera: Camera, displayScale: number): Camera {
 
 export function areCamerasEqual(a: Camera, b: Camera): boolean {
   return Math.abs(a.x - b.x) < 0.001 && Math.abs(a.y - b.y) < 0.001 && Math.abs(a.zoom - b.zoom) < 0.0001;
+}
+
+export function getCameraForPanDrag(drag: CameraPanDrag, clientX: number, clientY: number): Camera {
+  return {
+    ...drag.camera,
+    x: drag.camera.x + clientX - drag.x,
+    y: drag.camera.y + clientY - drag.y
+  };
 }
 
 export interface WheelZoomCameraOptions {
