@@ -125,7 +125,7 @@ import {
 import { distanceBetween, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
 import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey, parseTokenImageSourceKey } from "../canvas/tokenImageSource";
 import {
-  getTokenMovementPath,
+  getSceneAfterTokenDrag,
   getTokenMovementTweens,
   getTokenWaypointPosition,
   isDuplicateTokenWaypoint
@@ -195,7 +195,6 @@ import {
   setFogShapePlayerVisibility,
   setWeatherMaskVisibility,
   updateSceneDrawingPoints,
-  updateSceneTokenPositions
 } from "../lib/sceneEditing";
 import { TokenSettings } from "./layers/TokenSettings";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
@@ -2102,25 +2101,8 @@ export function SceneCanvas({
       const tokenDrag = tokenDragRef.current;
       const token = scene?.tokens.find((candidate) => candidate.id === tokenDrag.tokenId);
       if (scene && token && onSceneChange) {
-        const finalPosition = tokenDragPreview?.tokenId === token.id ? tokenDragPreview.snappedPosition : getSnappedTokenPosition(token.position, token, scene);
-        const snappedDelta = {
-          x: finalPosition.x - tokenDrag.startPosition.x,
-          y: finalPosition.y - tokenDrag.startPosition.y
-        };
-        const nextScene = updateSceneTokenPositions(scene, tokenDrag.groupStartPositions, snappedDelta);
-        const tokenMovementPath = getTokenMovementPath(tokenDrag.startPosition, tokenDrag.waypoints, finalPosition);
-        onSceneChange(
-          nextScene,
-          tokenMovementPath
-            ? {
-                ...nextScene,
-                tokenMovementPath: {
-                  tokenId: token.id,
-                  points: tokenMovementPath
-                }
-              }
-            : nextScene
-        );
+        const result = getSceneAfterTokenDrag(scene, tokenDrag, token, tokenDragPreview);
+        onSceneChange(result.scene, result.syncScene ?? result.scene);
       }
       cancelTokenDrag();
     }

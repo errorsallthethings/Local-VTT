@@ -1,6 +1,9 @@
 import type { Point, Scene, Token } from "../../shared/localvtt";
 import { getNearestGridCellCenter, getNearestHexCenter, distanceBetween } from "./tokenGeometry";
 import { getPathDistance, normalizeMovementPath } from "./movementPath";
+import { updateSceneTokenPositions } from "../lib/sceneEditing";
+import type { TokenDragState } from "./sceneInteractionTypes";
+import type { TokenDragPreview } from "./tokenRenderer";
 
 export type TokenTween = {
   id: string;
@@ -12,6 +15,28 @@ export type TokenTween = {
 export function getTokenMovementPath(startPosition: Point, waypoints: Point[], finalPosition: Point): Point[] | null {
   const points = normalizeMovementPath([startPosition, ...waypoints, finalPosition]);
   return points.length > 1 ? points : null;
+}
+
+export function getSceneAfterTokenDrag(scene: Scene, tokenDrag: TokenDragState, token: Token, tokenDragPreview: TokenDragPreview | null): { scene: Scene; syncScene?: Scene } {
+  const finalPosition = tokenDragPreview?.tokenId === token.id ? tokenDragPreview.snappedPosition : token.position;
+  const snappedDelta = {
+    x: finalPosition.x - tokenDrag.startPosition.x,
+    y: finalPosition.y - tokenDrag.startPosition.y
+  };
+  const nextScene = updateSceneTokenPositions(scene, tokenDrag.groupStartPositions, snappedDelta);
+  const tokenMovementPath = getTokenMovementPath(tokenDrag.startPosition, tokenDrag.waypoints, finalPosition);
+  return {
+    scene: nextScene,
+    syncScene: tokenMovementPath
+      ? {
+          ...nextScene,
+          tokenMovementPath: {
+            tokenId: token.id,
+            points: tokenMovementPath
+          }
+        }
+      : undefined
+  };
 }
 
 export function getTokenMovementTweens(previousTokens: Token[], nextTokens: Token[], scene: Scene): TokenTween[] {

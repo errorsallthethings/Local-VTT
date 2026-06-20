@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene, type Token } from "../../src/shared/localvtt";
 import {
+  getSceneAfterTokenDrag,
   getTokenMovementPath,
   getTokenMovementTweens,
   getTokenWaypointPosition,
@@ -41,6 +42,66 @@ describe("token movement helpers", () => {
 
   it("returns null for tiny token movement paths", () => {
     expect(getTokenMovementPath({ x: 0, y: 0 }, [], { x: 1, y: 1 })).toBeNull();
+  });
+
+  it("builds scene updates and sync movement paths after token drags", () => {
+    const scene = createDefaultScene("Drag");
+    const sceneToken = token({ position: { x: 0, y: 0 } });
+    scene.tokens = [sceneToken];
+
+    const result = getSceneAfterTokenDrag(
+      scene,
+      {
+        pointerId: 1,
+        tokenId: sceneToken.id,
+        offset: { x: 0, y: 0 },
+        startPosition: { x: 0, y: 0 },
+        waypoints: [{ x: 50, y: 0 }],
+        groupStartPositions: new Map([[sceneToken.id, { x: 0, y: 0 }]])
+      },
+      sceneToken,
+      {
+        tokenId: sceneToken.id,
+        startPosition: { x: 0, y: 0 },
+        currentPosition: { x: 100, y: 100 },
+        snappedPosition: { x: 100, y: 100 },
+        waypoints: [{ x: 50, y: 0 }],
+        tokenPositions: new Map([[sceneToken.id, { x: 100, y: 100 }]])
+      }
+    );
+
+    expect(result.scene.tokens[0].position).toEqual({ x: 100, y: 100 });
+    expect(result.syncScene?.tokenMovementPath).toEqual({
+      tokenId: sceneToken.id,
+      points: [
+        { x: 0, y: 0 },
+        { x: 50, y: 0 },
+        { x: 100, y: 100 }
+      ]
+    });
+  });
+
+  it("falls back to current token position when there is no matching drag preview", () => {
+    const scene = createDefaultScene("Drag");
+    const sceneToken = token({ position: { x: 25, y: 40 } });
+    scene.tokens = [sceneToken];
+
+    const result = getSceneAfterTokenDrag(
+      scene,
+      {
+        pointerId: 1,
+        tokenId: sceneToken.id,
+        offset: { x: 0, y: 0 },
+        startPosition: { x: 0, y: 0 },
+        waypoints: [],
+        groupStartPositions: new Map([[sceneToken.id, { x: 0, y: 0 }]])
+      },
+      sceneToken,
+      null
+    );
+
+    expect(result.scene.tokens[0].position).toEqual({ x: 25, y: 40 });
+    expect(result.syncScene?.tokenMovementPath?.points).toEqual([{ x: 0, y: 0 }, { x: 25, y: 40 }]);
   });
 
   it("preserves GM-authored waypoint routes when creating Player View tweens", () => {
