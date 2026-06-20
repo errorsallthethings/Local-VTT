@@ -58,6 +58,7 @@ import {
   pointsToSelectionRect
 } from "../canvas/selectionGeometry";
 import { drawSelectionBox } from "../canvas/selectionRenderer";
+import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/sceneHitTesting";
 import {
   formatDefaultTemplateDrawingName,
   getDrawingKindForTool,
@@ -65,7 +66,7 @@ import {
   getTemplatePreviewDrawing,
   isTemplateDrawingTool
 } from "../canvas/templateDrawing";
-import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex, getSnappedTokenPosition, getTokenAtPoint, isPointInsideFogShape } from "../canvas/tokenGeometry";
+import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
 import {
   getTokenMovementPath,
   getTokenMovementTweens,
@@ -3985,78 +3986,6 @@ function getPlayerDisplayScale(campaign: Campaign | null, scene: Scene | null, m
     return 1;
   }
   return targetCellSize / scene.grid.sizePx;
-}
-
-function getMaskHitAtPoint(scene: Scene, point: Point): { kind: "weather"; mask: WeatherMask } | { kind: "fog"; shape: Scene["fog"]["shapes"][number] } | null {
-  for (const mask of [...scene.weather.masks].reverse()) {
-    if ((mask.visible ?? true) && isPointInsideWeatherMask(point, mask)) {
-      return { kind: "weather", mask };
-    }
-  }
-  for (const shape of [...scene.fog.shapes].reverse()) {
-    if ((shape.visibleInGm ?? shape.visible ?? true) && isPointInsideFogShape(point, shape)) {
-      return { kind: "fog", shape };
-    }
-  }
-  return null;
-}
-
-function getEnvironmentEffectAtPoint(scene: Scene, point: Point): EnvironmentEffectMask | null {
-  for (const effect of [...scene.environment.effects].reverse()) {
-    if ((effect.visibleInGm ?? true) && isPointInsideEnvironmentEffect(point, effect)) {
-      return effect;
-    }
-  }
-  return null;
-}
-
-function isPointInsideEnvironmentEffect(point: Point, effect: EnvironmentEffectMask): boolean {
-  if (effect.kind === "circle") {
-    return Boolean(effect.points[0] && distanceBetween(point, effect.points[0]) <= (effect.radius ?? 0));
-  }
-  if (effect.kind === "rectangle") {
-    if (effect.points.length < 2) {
-      return false;
-    }
-    const minX = Math.min(effect.points[0].x, effect.points[1].x);
-    const maxX = Math.max(effect.points[0].x, effect.points[1].x);
-    const minY = Math.min(effect.points[0].y, effect.points[1].y);
-    const maxY = Math.max(effect.points[0].y, effect.points[1].y);
-    return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
-  }
-  return isPointInsidePolygon(point, effect.points);
-}
-
-function isPointInsideWeatherMask(point: Point, mask: WeatherMask): boolean {
-  if (mask.kind === "circle") {
-    return Boolean(mask.points[0] && distanceBetween(point, mask.points[0]) <= (mask.radius ?? 0));
-  }
-  if (mask.kind === "rectangle") {
-    if (mask.points.length < 2) {
-      return false;
-    }
-    const minX = Math.min(mask.points[0].x, mask.points[1].x);
-    const maxX = Math.max(mask.points[0].x, mask.points[1].x);
-    const minY = Math.min(mask.points[0].y, mask.points[1].y);
-    const maxY = Math.max(mask.points[0].y, mask.points[1].y);
-    return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
-  }
-  return isPointInsidePolygon(point, mask.points);
-}
-
-function isPointInsidePolygon(point: Point, polygon: Point[]): boolean {
-  if (polygon.length < 3) {
-    return false;
-  }
-  let inside = false;
-  for (let index = 0, previousIndex = polygon.length - 1; index < polygon.length; previousIndex = index, index += 1) {
-    const current = polygon[index];
-    const previous = polygon[previousIndex];
-    if ((current.y > point.y) !== (previous.y > point.y) && point.x < ((previous.x - current.x) * (point.y - current.y)) / (previous.y - current.y) + current.x) {
-      inside = !inside;
-    }
-  }
-  return inside;
 }
 
 function isVisibleDiceOverlayEvent(event: LiveTableEvent, mode: "gm" | "player"): event is Extract<LiveTableEvent, { type: "dice" }> {
