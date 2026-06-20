@@ -1,4 +1,5 @@
 import type { Point, WeatherMask } from "../../shared/localvtt";
+import { constrainSquarePoint } from "./gridMath";
 import { distanceBetween } from "./tokenGeometry";
 import type { ScreenRect } from "./viewportGeometry";
 
@@ -62,6 +63,13 @@ export function getWeatherMaskFromPolygonDraft(draft: WeatherPolygonDraft, id: s
     kind: "polygon",
     points: draft.points,
     visible: true
+  };
+}
+
+export function getUpdatedWeatherMaskDrag(drag: WeatherMaskDrag, point: Point, squareConstrained: boolean): WeatherMaskDrag {
+  return {
+    ...drag,
+    current: drag.kind === "rectangle" && squareConstrained ? constrainSquarePoint(drag.start, point) : point
   };
 }
 

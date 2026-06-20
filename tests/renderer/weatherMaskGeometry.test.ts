@@ -6,6 +6,7 @@ import {
   getWeatherMaskFromPolygonDraft,
   getWeatherMaskDragRect,
   getWeatherMaskRect,
+  getUpdatedWeatherMaskDrag,
   isMeaningfulWeatherMaskDrag,
   type WeatherMaskDrag
 } from "../../src/renderer/canvas/weatherMaskGeometry";
@@ -93,6 +94,11 @@ describe("weather mask geometry", () => {
       points,
       visible: true
     });
+  });
+
+  it("updates weather mask drags and constrains rectangles when requested", () => {
+    expect(getUpdatedWeatherMaskDrag(drag(), { x: 20, y: 5 }, true).current).toEqual({ x: 20, y: 20 });
+    expect(getUpdatedWeatherMaskDrag(drag({ kind: "circle" }), { x: 20, y: 5 }, true).current).toEqual({ x: 20, y: 5 });
   });
 
   it("filters hidden weather masks", () => {

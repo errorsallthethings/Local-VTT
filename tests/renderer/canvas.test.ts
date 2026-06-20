@@ -6,6 +6,7 @@ import {
   getFogShapeFromDrag,
   getFogShapeFromPolygonDraft,
   getFogVisibilityPatchForNewShape,
+  getUpdatedFogDrag,
   isMeaningfulFogDrag,
   isMeaningfulPolygon,
   isPolygonTool,
@@ -229,6 +230,53 @@ it("brush fog helpers avoid redundant points and tiny movements", () => {
   expect(shouldAddBrushPoint(undefined, { x: 0, y: 0 }, 20)).toBe(true);
   expect(shouldAddBrushPoint({ x: 0, y: 0 }, { x: 4, y: 0 }, 20)).toBe(false);
   expect(shouldAddBrushPoint({ x: 0, y: 0 }, { x: 8, y: 0 }, 20)).toBe(true);
+});
+
+it("updates fog drag previews and constrains rectangles when requested", () => {
+  expect(
+    getUpdatedFogDrag(
+      {
+        pointerId: 1,
+        kind: "rectangle",
+        start: { x: 0, y: 0 },
+        current: { x: 10, y: 10 },
+        points: [{ x: 0, y: 0 }],
+        operation: "hide"
+      },
+      { x: 20, y: 5 },
+      true
+    ).current
+  ).toEqual({ x: 20, y: 20 });
+
+  expect(
+    getUpdatedFogDrag(
+      {
+        pointerId: 1,
+        kind: "circle",
+        start: { x: 0, y: 0 },
+        current: { x: 10, y: 10 },
+        points: [{ x: 0, y: 0 }],
+        operation: "reveal"
+      },
+      { x: 20, y: 5 },
+      true
+    ).current
+  ).toEqual({ x: 20, y: 5 });
+});
+
+it("updates fog brush drag previews when movement exceeds brush spacing", () => {
+  const drag = {
+    pointerId: 1,
+    kind: "brush" as const,
+    start: { x: 0, y: 0 },
+    current: { x: 0, y: 0 },
+    points: [{ x: 0, y: 0 }],
+    radius: 10,
+    operation: "reveal" as const
+  };
+
+  expect(getUpdatedFogDrag(drag, { x: 1, y: 0 }, false).points).toEqual([{ x: 0, y: 0 }]);
+  expect(getUpdatedFogDrag(drag, { x: 5, y: 0 }, false).points).toEqual([{ x: 0, y: 0 }, { x: 5, y: 0 }]);
 });
 
 it("isMeaningfulFogDrag rejects tiny rectangles and accepts real brush strokes", () => {

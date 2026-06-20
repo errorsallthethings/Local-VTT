@@ -37,10 +37,10 @@ import {
   getFogShapeFromPolygonDraft,
   getFogVisibilityPatchForNewShape,
   getFogOperationForTool,
+  getUpdatedFogDrag,
   isMeaningfulFogDrag,
   isMeaningfulPolygon,
   isPolygonTool,
-  shouldAddBrushPoint,
   type FogDrag,
   type FogPolygonDraft,
   type FogTool
@@ -159,6 +159,7 @@ import {
 import {
   getEnvironmentEffectFromDrag,
   getEnvironmentEffectFromPolygonDraft,
+  getUpdatedEnvironmentEffectDrag,
   isMeaningfulEnvironmentEffectDrag,
   shouldAnimateEnvironmentEffects,
   type EnvironmentEffectDrag,
@@ -175,6 +176,7 @@ import {
 import {
   getWeatherMaskFromDrag,
   getWeatherMaskFromPolygonDraft,
+  getUpdatedWeatherMaskDrag,
   isMeaningfulWeatherMaskDrag,
   type WeatherMaskDrag,
   type WeatherPolygonDraft
@@ -1819,13 +1821,7 @@ export function SceneCanvas({
 
     const fogDrag = fogDragRef.current;
     if (fogDrag?.pointerId === event.pointerId) {
-      const point = getToolPoint(event, fogDrag.kind !== "brush");
-      const current = fogDrag.kind === "rectangle" && event.shiftKey ? constrainSquarePoint(fogDrag.start, point) : point;
-      const nextPoints =
-        fogDrag.kind === "brush" && shouldAddBrushPoint(fogDrag.points[fogDrag.points.length - 1], current, fogDrag.radius ?? 1)
-          ? [...fogDrag.points, current]
-          : fogDrag.points;
-      const nextDrag = { ...fogDrag, current, points: nextPoints };
+      const nextDrag = getUpdatedFogDrag(fogDrag, getToolPoint(event, fogDrag.kind !== "brush"), event.shiftKey);
       fogDragRef.current = nextDrag;
       setFogPreview(nextDrag);
       return;
@@ -1833,9 +1829,7 @@ export function SceneCanvas({
 
     const weatherMaskDrag = weatherMaskDragRef.current;
     if (weatherMaskDrag?.pointerId === event.pointerId) {
-      const point = getToolPoint(event);
-      const current = weatherMaskDrag.kind === "rectangle" && event.shiftKey ? constrainSquarePoint(weatherMaskDrag.start, point) : point;
-      const nextDrag = { ...weatherMaskDrag, current };
+      const nextDrag = getUpdatedWeatherMaskDrag(weatherMaskDrag, getToolPoint(event), event.shiftKey);
       weatherMaskDragRef.current = nextDrag;
       setWeatherMaskPreview(nextDrag);
       return;
@@ -1843,9 +1837,7 @@ export function SceneCanvas({
 
     const environmentEffectDrag = environmentEffectDragRef.current;
     if (environmentEffectDrag?.pointerId === event.pointerId) {
-      const point = getToolPoint(event);
-      const current = environmentEffectDrag.kind === "rectangle" && event.shiftKey ? constrainSquarePoint(environmentEffectDrag.start, point) : point;
-      const nextDrag = { ...environmentEffectDrag, current };
+      const nextDrag = getUpdatedEnvironmentEffectDrag(environmentEffectDrag, getToolPoint(event), event.shiftKey);
       environmentEffectDragRef.current = nextDrag;
       setEnvironmentEffectPreview(nextDrag);
       return;

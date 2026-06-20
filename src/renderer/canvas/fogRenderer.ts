@@ -1,5 +1,6 @@
 import type { FogShape, Point, Scene } from "../../shared/localvtt";
 import type { Camera } from "./camera";
+import { constrainSquarePoint } from "./gridMath";
 import { drawSelectionBox } from "./selectionRenderer";
 
 export type FogTool =
@@ -202,6 +203,15 @@ export function getFogShapeFromPolygonDraft(draft: FogPolygonDraft, id: string, 
     visibleInPlayer,
     visible: true
   };
+}
+
+export function getUpdatedFogDrag(drag: FogDrag, point: Point, squareConstrained: boolean): FogDrag {
+  const current = drag.kind === "rectangle" && squareConstrained ? constrainSquarePoint(drag.start, point) : point;
+  const nextPoints =
+    drag.kind === "brush" && shouldAddBrushPoint(drag.points[drag.points.length - 1], current, drag.radius ?? 1)
+      ? [...drag.points, current]
+      : drag.points;
+  return { ...drag, current, points: nextPoints };
 }
 
 function getPreviewFogShapes(preview: FogDrag | null, polygonDraft: FogPolygonDraft | null): FogShape[] {

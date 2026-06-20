@@ -22,6 +22,7 @@ import type {
 import { distanceBetween } from "./tokenGeometry";
 import type { Camera } from "./camera";
 import { getEnvironmentEffectTuningFields } from "./environmentEffectTuning";
+import { constrainSquarePoint } from "./gridMath";
 import { worldToScreenPoint } from "./viewportGeometry";
 
 export type EnvironmentEffectShapeKind = "rectangle" | "polygon" | "circle";
@@ -110,6 +111,13 @@ export function getEnvironmentEffectFromPolygonDraft(
 
 export function isMeaningfulEnvironmentEffectDrag(drag: EnvironmentEffectDrag): boolean {
   return drag.kind === "circle" ? distanceBetween(drag.start, drag.current) > 8 : Math.abs(drag.current.x - drag.start.x) > 8 && Math.abs(drag.current.y - drag.start.y) > 8;
+}
+
+export function getUpdatedEnvironmentEffectDrag(drag: EnvironmentEffectDrag, point: Point, squareConstrained: boolean): EnvironmentEffectDrag {
+  return {
+    ...drag,
+    current: drag.kind === "rectangle" && squareConstrained ? constrainSquarePoint(drag.start, point) : point
+  };
 }
 
 export function isEnvironmentEffectVisibleForMode(effect: EnvironmentEffectMask, mode: "gm" | "player"): boolean {

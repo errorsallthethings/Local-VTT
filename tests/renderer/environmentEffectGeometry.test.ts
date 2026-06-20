@@ -6,6 +6,7 @@ import {
   getEnvironmentEffectFromDrag,
   getEnvironmentEffectFromPolygonDraft,
   getEnvironmentEffectPathCommands,
+  getUpdatedEnvironmentEffectDrag,
   isEnvironmentEffectVisibleForMode,
   isMeaningfulEnvironmentEffectDrag,
   shouldAnimateEnvironmentEffects,
@@ -103,6 +104,11 @@ describe("environment effect geometry", () => {
     expect(isMeaningfulEnvironmentEffectDrag(drag({ kind: "circle", start: { x: 0, y: 0 }, current: { x: 9, y: 0 } }))).toBe(true);
     expect(isMeaningfulEnvironmentEffectDrag(drag({ start: { x: 0, y: 0 }, current: { x: 9, y: 8 } }))).toBe(false);
     expect(isMeaningfulEnvironmentEffectDrag(drag({ start: { x: 0, y: 0 }, current: { x: 9, y: 9 } }))).toBe(true);
+  });
+
+  it("updates environment effect drags and constrains rectangles when requested", () => {
+    expect(getUpdatedEnvironmentEffectDrag(drag({ start: { x: 10, y: 20 } }), { x: 40, y: 30 }, true).current).toEqual({ x: 40, y: 50 });
+    expect(getUpdatedEnvironmentEffectDrag(drag({ kind: "circle" }), { x: 40, y: 30 }, true).current).toEqual({ x: 40, y: 30 });
   });
 
   it("checks environment effect visibility for each view", () => {
