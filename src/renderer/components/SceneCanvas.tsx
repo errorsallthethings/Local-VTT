@@ -91,8 +91,8 @@ import {
   getWeatherMaskContextLabel
 } from "../canvas/sceneContextLabels";
 import {
-  getSceneMarqueeSelection,
-  pointsToSelectionRect
+  getCompletedSceneMarqueeSelection,
+  getUpdatedSelectionDrag
 } from "../canvas/selectionGeometry";
 import type {
   DrawingDragState,
@@ -1387,15 +1387,14 @@ export function SceneCanvas({
   };
 
   const selectFromMarquee = (currentScene: Scene, drag: SelectionDrag) => {
-    const rect = pointsToSelectionRect(drag.start, drag.current);
-    if (rect.width < 4 && rect.height < 4) {
-      return;
-    }
-    const { tokenIds, drawingIds, fogShapeIds, weatherMaskIds } = getSceneMarqueeSelection(currentScene, rect, selectorSelectionFilters, {
+    const selection = getCompletedSceneMarqueeSelection(currentScene, drag, selectorSelectionFilters, {
       tokens: Boolean(canShowTokens),
       drawings: Boolean(canShowDrawings)
     });
-    onSelectSceneItems?.({ tokenIds, drawingIds, fogShapeIds, weatherMaskIds, mode: drag.mode });
+    if (!selection) {
+      return;
+    }
+    onSelectSceneItems?.({ ...selection, mode: drag.mode });
   };
 
   const onWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
@@ -1745,7 +1744,7 @@ export function SceneCanvas({
 
     if (selectionDragValue?.pointerId === event.pointerId) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const nextSelectionDrag = { ...selectionDragValue, current: point };
+      const nextSelectionDrag = getUpdatedSelectionDrag(selectionDragValue, point);
       selectionDragRef.current = nextSelectionDrag;
       setSelectionDrag(nextSelectionDrag);
       return;

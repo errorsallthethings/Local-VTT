@@ -27,6 +27,29 @@ export type SceneMarqueeSelection = {
   weatherMaskIds: string[];
 };
 
+export type SelectionDragLike = {
+  start: Point;
+  current: Point;
+};
+
+export function getUpdatedSelectionDrag<TDrag extends { current: Point }>(drag: TDrag, point: Point): TDrag {
+  return { ...drag, current: point };
+}
+
+export function getCompletedSceneMarqueeSelection(
+  scene: Scene,
+  drag: SelectionDragLike,
+  filters: SceneMarqueeSelectionFilters,
+  visibility: SceneMarqueeVisibility,
+  minimumSize = 4
+): SceneMarqueeSelection | null {
+  const rect = pointsToSelectionRect(drag.start, drag.current);
+  if (rect.width < minimumSize && rect.height < minimumSize) {
+    return null;
+  }
+  return getSceneMarqueeSelection(scene, rect, filters, visibility);
+}
+
 export function getSceneMarqueeSelection(
   scene: Scene,
   rect: SelectionRect,

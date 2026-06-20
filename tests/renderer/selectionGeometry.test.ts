@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene, type Scene, type Token, type WeatherMask } from "../../src/shared/localvtt";
 import {
+  getCompletedSceneMarqueeSelection,
   getSceneMarqueeSelection,
+  getUpdatedSelectionDrag,
   isDrawingInSelectionRect,
   isFogShapeInSelectionRect,
   isPointInSelectionRect,
@@ -17,6 +19,14 @@ describe("selection geometry", () => {
       y: 10,
       width: 15,
       height: 20
+    });
+  });
+
+  it("updates selection drags without changing other drag fields", () => {
+    expect(getUpdatedSelectionDrag({ pointerId: 4, mode: "add", current: { x: 0, y: 0 } }, { x: 12, y: 18 })).toEqual({
+      pointerId: 4,
+      mode: "add",
+      current: { x: 12, y: 18 }
     });
   });
 
@@ -105,6 +115,35 @@ describe("selection geometry", () => {
       fogShapeIds: ["fog-1"],
       weatherMaskIds: ["weather-1"]
     });
+  });
+
+  it("returns null for tiny completed marquee selections", () => {
+    const scene = createDefaultScene("Selection");
+
+    expect(
+      getCompletedSceneMarqueeSelection(
+        scene,
+        { start: { x: 0, y: 0 }, current: { x: 3, y: 3 } },
+        { tokens: true, templates: true, fogMasks: true, weatherMasks: true, drawings: true },
+        { tokens: true, drawings: true }
+      )
+    ).toBeNull();
+  });
+
+  it("builds completed marquee selections for meaningful drags", () => {
+    const scene = createDefaultScene("Selection");
+    scene.tokens = [
+      { id: "token-1", name: "Token", position: { x: 10, y: 10 }, size: { width: 20, height: 20 }, hidden: false, visibleInPlayer: true }
+    ];
+
+    expect(
+      getCompletedSceneMarqueeSelection(
+        scene,
+        { start: { x: 0, y: 0 }, current: { x: 40, y: 40 } },
+        { tokens: true, templates: false, fogMasks: false, weatherMasks: false, drawings: false },
+        { tokens: true, drawings: true }
+      )?.tokenIds
+    ).toEqual(["token-1"]);
   });
 
   it("honors marquee drawing/template filters and layer visibility gates", () => {
