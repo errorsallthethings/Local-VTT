@@ -64,6 +64,7 @@ import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type D
 import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/diceSettingsPreference";
 import { loadImageDimensions } from "../lib/imageDimensions";
 import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/liveTableEvents";
+import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/playerIdleState";
 import { applySelectionMode, type SelectionMode } from "../lib/selectionIds";
 import {
   addRecentCampaign,
@@ -896,7 +897,7 @@ export function GmApp() {
       return;
     }
     playerIdleClearedForNoCampaignRef.current = true;
-    void window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.", "hold");
+    void showDefaultPlayerHold();
     setPlayerSceneId(null);
     setPlayerDisplayMode("hold");
   }, [campaign]);
@@ -905,7 +906,7 @@ export function GmApp() {
     if (!playerSceneId || campaign?.scenes.some((scene) => scene.id === playerSceneId)) {
       return;
     }
-    void window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.", "hold");
+    void showDefaultPlayerHold();
     setPlayerSceneId(null);
     setPlayerDisplayMode("hold");
   }, [campaign?.scenes, playerSceneId]);
@@ -1717,7 +1718,7 @@ export function GmApp() {
 
   const showPlayerHold = () =>
     run(async () => {
-      await window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.", "hold");
+      await showDefaultPlayerHold();
       setPlayerSceneId(null);
       setPlayerDisplayMode("hold");
       setPlayerMenuOpen(false);
@@ -1725,14 +1726,14 @@ export function GmApp() {
 
   const showPlayerBlackout = () =>
     run(async () => {
-      await window.localVtt.showPlayerIdle("", "", "blackout");
+      await sendPlayerBlackout();
       setPlayerSceneId(null);
       setPlayerDisplayMode("blackout");
       setPlayerMenuOpen(false);
     });
 
   const showPlayerIdle = async () => {
-    await window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.", "hold");
+    await showDefaultPlayerHold();
     setPlayerSceneId(null);
     setPlayerDisplayMode("hold");
     setPlayerMenuOpen(false);

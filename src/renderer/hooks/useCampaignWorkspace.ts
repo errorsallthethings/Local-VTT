@@ -3,6 +3,7 @@ import { projectSceneForPlayer } from "../../shared/localvtt";
 import type { Campaign, CampaignSummary, Scene } from "../../shared/localvtt";
 import { mergeCampaignDraft } from "../lib/campaignDraft";
 import { formatUserFacingError } from "../lib/errorMessages";
+import { showDefaultPlayerHold } from "../lib/playerIdleState";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -46,7 +47,7 @@ export function useCampaignWorkspace() {
   };
 
   const clearWorkspaceState = () => {
-    void window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.");
+    void showDefaultPlayerHold();
     setActiveScene(null);
     setSceneDrafts({});
     setDirtySceneIds(new Set());
