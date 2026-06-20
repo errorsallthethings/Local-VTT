@@ -3,6 +3,7 @@ import { ArrowRight, Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultDrawingName, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingKind, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings, Token, WeatherMask } from "../../shared/localvtt";
 import { getRenderCamera, type Camera } from "../canvas/camera";
+import { getCanvasInteractionClass, type DrawingResizeHandle, type DrawingTransformHover } from "../canvas/canvasInteraction";
 import {
   drawDrawings,
   getDrawingBounds,
@@ -264,9 +265,6 @@ type DrawingDragState = {
   snapAnchor: Point;
   groupStartPoints: DrawingPointOverrides;
 };
-
-type DrawingResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
-type DrawingTransformHover = DrawingResizeHandle | "rotate" | null;
 
 type DrawingResizeState = {
   pointerId: number;
@@ -4230,116 +4228,6 @@ function getNearestSceneSnapPoint(point: Point, scene: Scene): Point | null {
     }
     return distanceBetween(candidate, point) < distanceBetween(nearest, point) ? candidate : nearest;
   }, null);
-}
-
-function getCanvasInteractionClass({
-  canvasTool,
-  mouseBehavior,
-  drawingTool,
-  fogTool,
-  weatherMaskTool,
-  environmentEffectTool,
-  isPanning,
-  tokenDragPreview,
-  drawingTransformHover,
-  sceneItemHover
-}: {
-  canvasTool: "ruler" | "ping" | "laser" | null;
-  mouseBehavior: MouseBehavior;
-  drawingTool: DrawingTool | null;
-  fogTool: FogTool | null;
-  weatherMaskTool: WeatherMaskTool | null;
-  environmentEffectTool: EnvironmentEffectTool | null;
-  isPanning: boolean;
-  tokenDragPreview: TokenDragPreview | null;
-  drawingTransformHover: DrawingTransformHover;
-  sceneItemHover: boolean;
-}): string {
-  if (isPanning) {
-    return "scene-canvas-panning";
-  }
-  if (tokenDragPreview) {
-    return "scene-canvas-token-dragging";
-  }
-  if (drawingTransformHover === "rotate") {
-    return "scene-canvas-transform-rotate";
-  }
-  if (drawingTransformHover === "n" || drawingTransformHover === "s") {
-    return "scene-canvas-transform-resize-y";
-  }
-  if (drawingTransformHover === "e" || drawingTransformHover === "w") {
-    return "scene-canvas-transform-resize-x";
-  }
-  if (drawingTransformHover === "nw" || drawingTransformHover === "se") {
-    return "scene-canvas-transform-resize-nwse";
-  }
-  if (drawingTransformHover === "ne" || drawingTransformHover === "sw") {
-    return "scene-canvas-transform-resize-nesw";
-  }
-  if (canvasTool === "ruler") {
-    return "scene-canvas-tool-ruler";
-  }
-  if (canvasTool === "ping") {
-    return "scene-canvas-tool-ping";
-  }
-  if (canvasTool === "laser") {
-    return "scene-canvas-tool-laser";
-  }
-  if (drawingTool === "freehand") {
-    return "scene-canvas-tool-brush";
-  }
-  if (drawingTool === "line") {
-    return "scene-canvas-tool-line";
-  }
-  if (drawingTool === "circle" || drawingTool === "template-circle") {
-    return "scene-canvas-tool-circle";
-  }
-  if (drawingTool === "rectangle" || drawingTool === "template-rectangle") {
-    return "scene-canvas-tool-rectangle";
-  }
-  if (drawingTool === "triangle" || drawingTool === "polygon" || drawingTool === "template-cone") {
-    return "scene-canvas-tool-polygon";
-  }
-  if (drawingTool === "template-line") {
-    return "scene-canvas-tool-line";
-  }
-  if (weatherMaskTool === "circle") {
-    return "scene-canvas-tool-circle";
-  }
-  if (weatherMaskTool === "rectangle") {
-    return "scene-canvas-tool-rectangle";
-  }
-  if (weatherMaskTool === "polygon") {
-    return "scene-canvas-tool-polygon";
-  }
-  if (environmentEffectTool === "circle") {
-    return "scene-canvas-tool-circle";
-  }
-  if (environmentEffectTool === "rectangle") {
-    return "scene-canvas-tool-rectangle";
-  }
-  if (environmentEffectTool === "polygon") {
-    return "scene-canvas-tool-polygon";
-  }
-  if (fogTool?.includes("brush")) {
-    return "scene-canvas-tool-brush";
-  }
-  if (fogTool?.includes("polygon")) {
-    return "scene-canvas-tool-polygon";
-  }
-  if (fogTool?.includes("circle")) {
-    return "scene-canvas-tool-circle";
-  }
-  if (fogTool) {
-    return "scene-canvas-tool-rectangle";
-  }
-  if (sceneItemHover) {
-    return "scene-canvas-item-hover";
-  }
-  if (mouseBehavior === "grabber") {
-    return "scene-canvas-grabber";
-  }
-  return "";
 }
 
 function getDrawingTemplateCurrentPoint(start: Point, current: Point, tool: DrawingTool, scene: Scene | null, templateSize: DrawingTemplateSize): Point {
