@@ -167,6 +167,7 @@ import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { duplicateDrawingElement } from "../lib/drawingDefaults";
 import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/dragTypes";
+import { setFogShapePlayerVisibility, setWeatherMaskVisibility } from "../lib/sceneEditing";
 import { duplicateToken } from "../lib/tokenDefaults";
 import { TokenSettings } from "./layers/TokenSettings";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
@@ -3108,28 +3109,10 @@ export function SceneCanvas({
                     }
                     if (maskContextMenu.kind === "fog") {
                       const nextVisibleInPlayer = !event.target.checked;
-                      onSceneChange({
-                        ...scene,
-                        fog: {
-                          ...scene.fog,
-                          shapes: scene.fog.shapes.map((shape) =>
-                            shape.id === maskContextMenu.shapeId
-                              ? { ...shape, visibleInPlayer: nextVisibleInPlayer, visible: (shape.visibleInGm ?? shape.visible ?? true) || nextVisibleInPlayer }
-                              : shape
-                          )
-                        },
-                        updatedAt: new Date().toISOString()
-                      });
+                      onSceneChange(setFogShapePlayerVisibility(scene, maskContextMenu.shapeId, nextVisibleInPlayer));
                     } else {
                       const nextVisible = !event.target.checked;
-                      onSceneChange({
-                        ...scene,
-                        weather: {
-                          ...scene.weather,
-                          masks: scene.weather.masks.map((mask) => (mask.id === maskContextMenu.maskId ? { ...mask, visible: nextVisible } : mask))
-                        },
-                        updatedAt: new Date().toISOString()
-                      });
+                      onSceneChange(setWeatherMaskVisibility(scene, maskContextMenu.maskId, nextVisible));
                     }
                     setMaskContextMenu(null);
                   }}

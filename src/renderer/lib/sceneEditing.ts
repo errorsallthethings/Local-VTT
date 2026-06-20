@@ -26,6 +26,36 @@ export function patchSceneFog(scene: Scene, patch: Partial<Scene["fog"]>): Scene
   };
 }
 
+export function setFogShapePlayerVisibility(scene: Scene, shapeId: string, visibleInPlayer: boolean, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    fog: {
+      ...scene.fog,
+      shapes: scene.fog.shapes.map((shape) =>
+        shape.id === shapeId
+          ? {
+              ...shape,
+              visibleInPlayer,
+              visible: (shape.visibleInGm ?? shape.visible ?? true) || visibleInPlayer
+            }
+          : shape
+      )
+    },
+    updatedAt
+  };
+}
+
+export function setWeatherMaskVisibility(scene: Scene, maskId: string, visible: boolean, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    weather: {
+      ...scene.weather,
+      masks: scene.weather.masks.map((mask) => (mask.id === maskId ? { ...mask, visible } : mask))
+    },
+    updatedAt
+  };
+}
+
 export function patchSceneMapTransform(scene: Scene, patch: Partial<MapTransform>): Scene {
   return {
     ...scene,

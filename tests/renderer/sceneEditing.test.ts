@@ -8,6 +8,8 @@ import {
   patchSceneGrid,
   patchSceneMapTransform,
   patchSceneVideoPlayback,
+  setFogShapePlayerVisibility,
+  setWeatherMaskVisibility,
   setSceneLayerOrderLocked
 } from "../../src/renderer/lib/sceneEditing";
 
@@ -59,5 +61,70 @@ describe("scene editing helpers", () => {
       offsetX: 42,
       offsetY: 18
     });
+  });
+
+  it("sets fog shape Player View visibility while preserving GM-visible shapes", () => {
+    const scene = createDefaultScene("Fog");
+    scene.fog.shapes = [
+      {
+        id: "fog-1",
+        kind: "rectangle",
+        points: [{ x: 0, y: 0 }, { x: 100, y: 100 }],
+        visible: true,
+        visibleInGm: true,
+        visibleInPlayer: true
+      }
+    ];
+
+    const next = setFogShapePlayerVisibility(scene, "fog-1", false, "updated");
+
+    expect(next.fog.shapes[0]).toMatchObject({
+      id: "fog-1",
+      visible: true,
+      visibleInPlayer: false
+    });
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("sets fog shape visibility false when hidden everywhere", () => {
+    const scene = createDefaultScene("Fog");
+    scene.fog.shapes = [
+      {
+        id: "fog-1",
+        kind: "rectangle",
+        points: [{ x: 0, y: 0 }, { x: 100, y: 100 }],
+        visible: false,
+        visibleInGm: false,
+        visibleInPlayer: true
+      }
+    ];
+
+    const next = setFogShapePlayerVisibility(scene, "fog-1", false, "updated");
+
+    expect(next.fog.shapes[0]).toMatchObject({
+      visible: false,
+      visibleInPlayer: false
+    });
+  });
+
+  it("sets weather mask visibility", () => {
+    const scene = createDefaultScene("Weather");
+    scene.weather.masks = [
+      {
+        id: "weather-1",
+        kind: "circle",
+        points: [{ x: 20, y: 20 }],
+        radius: 10,
+        visible: true
+      }
+    ];
+
+    const next = setWeatherMaskVisibility(scene, "weather-1", false, "updated");
+
+    expect(next.weather.masks[0]).toMatchObject({
+      id: "weather-1",
+      visible: false
+    });
+    expect(next.updatedAt).toBe("updated");
   });
 });
