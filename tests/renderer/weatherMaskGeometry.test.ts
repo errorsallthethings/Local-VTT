@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { WeatherMask } from "../../src/shared/localvtt";
 import {
   getVisibleWeatherMasks,
+  getWeatherMaskFromDrag,
+  getWeatherMaskFromPolygonDraft,
   getWeatherMaskDragRect,
   getWeatherMaskRect,
   isMeaningfulWeatherMaskDrag,
@@ -55,6 +57,42 @@ describe("weather mask geometry", () => {
     expect(getWeatherMaskRect(rectangle)).toEqual({ x: 10, y: 20, width: 20, height: 60 });
     expect(getWeatherMaskRect({ ...rectangle, points: [{ x: 30, y: 80 }] })).toBeNull();
     expect(getWeatherMaskRect(circle)).toBeNull();
+  });
+
+  it("creates rectangle weather masks from drag state", () => {
+    expect(getWeatherMaskFromDrag(drag(), "weather-1", "Weather Mask 1")).toEqual({
+      id: "weather-1",
+      name: "Weather Mask 1",
+      kind: "rectangle",
+      points: [{ x: 0, y: 0 }, { x: 10, y: 10 }],
+      radius: undefined,
+      visible: true
+    });
+  });
+
+  it("creates circle weather masks from drag state", () => {
+    expect(
+      getWeatherMaskFromDrag(drag({ kind: "circle", start: { x: 5, y: 5 }, current: { x: 8, y: 9 } }), "weather-2", "Weather Mask 2")
+    ).toEqual({
+      id: "weather-2",
+      name: "Weather Mask 2",
+      kind: "circle",
+      points: [{ x: 5, y: 5 }],
+      radius: 5,
+      visible: true
+    });
+  });
+
+  it("creates polygon weather masks from draft points", () => {
+    const points = [{ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 20, y: 20 }];
+
+    expect(getWeatherMaskFromPolygonDraft({ points }, "weather-3", "Weather Mask 3")).toEqual({
+      id: "weather-3",
+      name: "Weather Mask 3",
+      kind: "polygon",
+      points,
+      visible: true
+    });
   });
 
   it("filters hidden weather masks", () => {

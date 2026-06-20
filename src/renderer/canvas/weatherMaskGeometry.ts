@@ -44,6 +44,27 @@ export function getWeatherMaskRect(mask: WeatherMask): ScreenRect | null {
   };
 }
 
+export function getWeatherMaskFromDrag(drag: WeatherMaskDrag, id: string, name: string): WeatherMask {
+  return {
+    id,
+    name,
+    kind: drag.kind,
+    points: drag.kind === "circle" ? [drag.start] : [drag.start, drag.current],
+    radius: drag.kind === "circle" ? distanceBetween(drag.start, drag.current) : undefined,
+    visible: true
+  };
+}
+
+export function getWeatherMaskFromPolygonDraft(draft: WeatherPolygonDraft, id: string, name: string): WeatherMask {
+  return {
+    id,
+    name,
+    kind: "polygon",
+    points: draft.points,
+    visible: true
+  };
+}
+
 export function getVisibleWeatherMasks(masks: WeatherMask[]): WeatherMask[] {
   return masks.filter((mask) => mask.visible !== false);
 }

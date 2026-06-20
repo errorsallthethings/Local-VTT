@@ -153,7 +153,13 @@ import {
   drawWeatherMaskSelection,
   drawWeatherPolygonDraft
 } from "../canvas/weatherMaskRenderer";
-import { isMeaningfulWeatherMaskDrag, type WeatherMaskDrag, type WeatherPolygonDraft } from "../canvas/weatherMaskGeometry";
+import {
+  getWeatherMaskFromDrag,
+  getWeatherMaskFromPolygonDraft,
+  isMeaningfulWeatherMaskDrag,
+  type WeatherMaskDrag,
+  type WeatherPolygonDraft
+} from "../canvas/weatherMaskGeometry";
 import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { duplicateDrawingElement } from "../lib/drawingDefaults";
@@ -2072,14 +2078,11 @@ export function SceneCanvas({
             ...scene.weather,
             masks: [
               ...scene.weather.masks,
-              {
-                id: crypto.randomUUID(),
-                name: formatDefaultWeatherMaskName(scene.weather.masks.length),
-                kind: weatherMaskDrag.kind,
-                points: weatherMaskDrag.kind === "circle" ? [weatherMaskDrag.start] : [weatherMaskDrag.start, weatherMaskDrag.current],
-                radius: weatherMaskDrag.kind === "circle" ? distanceBetween(weatherMaskDrag.start, weatherMaskDrag.current) : undefined,
-                visible: true
-              }
+              getWeatherMaskFromDrag(
+                weatherMaskDrag,
+                crypto.randomUUID(),
+                formatDefaultWeatherMaskName(scene.weather.masks.length)
+              )
             ]
           },
           updatedAt: new Date().toISOString()
@@ -2728,13 +2731,11 @@ export function SceneCanvas({
         ...scene.weather,
         masks: [
           ...scene.weather.masks,
-          {
-            id: crypto.randomUUID(),
-            name: formatDefaultWeatherMaskName(scene.weather.masks.length),
-            kind: "polygon",
-            points: draft.points,
-            visible: true
-          }
+          getWeatherMaskFromPolygonDraft(
+            draft,
+            crypto.randomUUID(),
+            formatDefaultWeatherMaskName(scene.weather.masks.length)
+          )
         ]
       },
       updatedAt: new Date().toISOString()
