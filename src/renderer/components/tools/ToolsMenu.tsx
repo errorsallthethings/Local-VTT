@@ -34,7 +34,7 @@ import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType }
 import type { FogTool } from "../../canvas/fogRenderer";
 import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
 import { ColorInput } from "../controls/ColorPickerField";
-import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
+import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DarknessEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
 import {
   ENVIRONMENT_EFFECT_FEATHER_OPTIONS,
   ENVIRONMENT_EFFECT_OPTIONS,
@@ -165,6 +165,7 @@ interface ToolsMenuProps {
   environmentEffectFeather: number;
   acidEffectTuning: AcidEffectTuning;
   coldEffectTuning: ColdEffectTuning;
+  darknessEffectTuning: DarknessEffectTuning;
   poisonEffectTuning: PoisonEffectTuning;
   waterEffectTuning: WaterEffectTuning;
   lavaEffectTuning: LavaEffectTuning;
@@ -219,6 +220,8 @@ interface ToolsMenuProps {
   onAcidEffectTuningReset: () => void;
   onColdEffectTuningChange: (tuning: ColdEffectTuning) => void;
   onColdEffectTuningReset: () => void;
+  onDarknessEffectTuningChange: (tuning: DarknessEffectTuning) => void;
+  onDarknessEffectTuningReset: () => void;
   onPoisonEffectTuningChange: (tuning: PoisonEffectTuning) => void;
   onPoisonEffectTuningReset: () => void;
   onWaterEffectTuningChange: (tuning: WaterEffectTuning) => void;
@@ -309,6 +312,7 @@ export function ToolsMenu({
   environmentEffectFeather,
   acidEffectTuning,
   coldEffectTuning,
+  darknessEffectTuning,
   poisonEffectTuning,
   waterEffectTuning,
   lavaEffectTuning,
@@ -363,6 +367,8 @@ export function ToolsMenu({
   onAcidEffectTuningReset,
   onColdEffectTuningChange,
   onColdEffectTuningReset,
+  onDarknessEffectTuningChange,
+  onDarknessEffectTuningReset,
   onPoisonEffectTuningChange,
   onPoisonEffectTuningReset,
   onWaterEffectTuningChange,
@@ -449,6 +455,7 @@ export function ToolsMenu({
       applyEnvironmentEffectPreset(environmentEffectType, environmentEffectPresetValue, {
         onAcidEffectTuningChange,
         onColdEffectTuningChange,
+        onDarknessEffectTuningChange,
         onPoisonEffectTuningChange,
         onWaterEffectTuningChange,
         onLavaEffectTuningChange,
@@ -472,6 +479,8 @@ export function ToolsMenu({
       onAcidEffectTuningReset();
     } else if (environmentEffectType === "cold") {
       onColdEffectTuningReset();
+    } else if (environmentEffectType === "darkness") {
+      onDarknessEffectTuningReset();
     } else if (environmentEffectType === "poison") {
       onPoisonEffectTuningReset();
     } else if (environmentEffectType === "water") {
@@ -1160,6 +1169,7 @@ export function ToolsMenu({
                         applyEnvironmentEffectPreset(environmentEffectType, nextPreset, {
                           onAcidEffectTuningChange,
                           onColdEffectTuningChange,
+                          onDarknessEffectTuningChange,
                           onPoisonEffectTuningChange,
                           onWaterEffectTuningChange,
                           onLavaEffectTuningChange,
@@ -1218,6 +1228,16 @@ export function ToolsMenu({
                   <ColdEffectTuningPanel
                     tuning={coldEffectTuning}
                     onChange={onColdEffectTuningChange}
+                    onReset={resetEnvironmentEffectTuning}
+                  />
+                </>
+              )}
+              {environmentEffectType === "darkness" && (
+                <>
+                  <div className="tools-section-divider" />
+                  <DarknessEffectTuningPanel
+                    tuning={darknessEffectTuning}
+                    onChange={onDarknessEffectTuningChange}
                     onReset={resetEnvironmentEffectTuning}
                   />
                 </>
@@ -1638,6 +1658,67 @@ export function ColdEffectTuningPanel({
           <div className="water-tuning-readout-row">
             <div className="water-tuning-readout" title={readout}>{readout}</div>
             <button className="icon-button no-chrome" type="button" title="Copy cold tuning JSON" aria-label="Copy cold tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
+              <Copy size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function DarknessEffectTuningPanel({
+  tuning,
+  title = "Advanced Settings",
+  defaultOpen = false,
+  onChange,
+  onReset
+}: {
+  tuning: DarknessEffectTuning;
+  title?: string;
+  defaultOpen?: boolean;
+  onChange: (tuning: DarknessEffectTuning) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const update = (patch: Partial<DarknessEffectTuning>) => onChange({ ...tuning, ...patch });
+  const readout = JSON.stringify(tuning);
+
+  return (
+    <div className="water-tuning-panel" aria-label="Darkness effect tuning">
+      <div className="tools-section-label-row">
+        <SettingsToggle open={open} label={title} onToggle={() => setOpen((current) => !current)} />
+        {open && (
+          <button className="icon-button no-chrome" type="button" title="Reset darkness tuning" aria-label="Reset darkness tuning" onClick={onReset}>
+            <Undo2 size={15} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      {open && (
+        <>
+          <div className="water-tuning-sliders">
+            <WaterTuningSlider label="Opacity" value={tuning.opacity} min={0} max={1} step={0.01} onChange={(opacity) => update({ opacity })} />
+            <WaterTuningSlider label="Shadow Scale" value={tuning.darknessScale} min={0.5} max={20} step={0.1} onChange={(darknessScale) => update({ darknessScale })} />
+            <WaterTuningSlider label="Animation Speed" value={tuning.speed} min={0} max={2} step={0.01} onChange={(speed) => update({ speed })} />
+            <WaterTuningSlider label="Drift Direction" value={tuning.directionDegrees} min={0} max={360} step={1} suffix="deg" onChange={(directionDegrees) => update({ directionDegrees })} />
+            <WaterTuningSlider label="Void Depth" value={tuning.depth} min={0} max={1} step={0.01} onChange={(depth) => update({ depth })} />
+            <WaterTuningSlider label="Tendril Density" value={tuning.tendrilDensity} min={0} max={1} step={0.01} onChange={(tendrilDensity) => update({ tendrilDensity })} />
+            <WaterTuningSlider label="Tendril Reach" value={tuning.tendrilReach} min={0} max={1} step={0.01} onChange={(tendrilReach) => update({ tendrilReach })} />
+            <WaterTuningSlider label="Edge Softness" value={tuning.edgeSoftness} min={0} max={1} step={0.01} onChange={(edgeSoftness) => update({ edgeSoftness })} />
+            <WaterTuningSlider label="Wisp Density" value={tuning.wispDensity} min={0} max={1} step={0.01} onChange={(wispDensity) => update({ wispDensity })} />
+            <WaterTuningSlider label="Drift Curl" value={tuning.drift} min={0} max={1} step={0.01} onChange={(drift) => update({ drift })} />
+            <WaterTuningSlider label="Void Highlights" value={tuning.voidHighlight} min={0} max={1} step={0.01} onChange={(voidHighlight) => update({ voidHighlight })} />
+            <WaterTuningSlider label="Zoom Response" value={tuning.zoomScale} min={-3} max={3} step={0.05} onChange={(zoomScale) => update({ zoomScale })} />
+            <WaterTuningSlider label="Base Tint" value={tuning.baseAlpha} min={0} max={1} step={0.01} onChange={(baseAlpha) => update({ baseAlpha })} />
+          </div>
+          <div className="water-tuning-colors">
+            <WaterTuningColor label="Shadow" value={tuning.shadowColor} onChange={(shadowColor) => update({ shadowColor })} />
+            <WaterTuningColor label="Void" value={tuning.voidColor} onChange={(voidColor) => update({ voidColor })} />
+            <WaterTuningColor label="Highlight" value={tuning.highlightColor} onChange={(highlightColor) => update({ highlightColor })} />
+          </div>
+          <div className="water-tuning-readout-row">
+            <div className="water-tuning-readout" title={readout}>{readout}</div>
+            <button className="icon-button no-chrome" type="button" title="Copy darkness tuning JSON" aria-label="Copy darkness tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
               <Copy size={15} aria-hidden="true" />
             </button>
           </div>
