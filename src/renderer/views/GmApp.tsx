@@ -59,8 +59,9 @@ import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assetLibrary";
 import { moveSceneFolder } from "../lib/campaignActions";
-import { DICE_HISTORY_DURATION_MS, getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
+import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/diceSettingsPreference";
+import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/liveTableEvents";
 import {
   RECENT_CAMPAIGNS_STORAGE_KEY,
   addRecentCampaign,
@@ -3287,46 +3288,6 @@ function applySceneSelectionMode(currentIds: string[], nextIds: string[], mode: 
     return currentIds.filter((id) => !removedIds.has(id));
   }
   return nextIds;
-}
-
-const LIVE_TABLE_PING_DURATION_MS = 1600;
-const LIVE_TABLE_LASER_POINT_LIFETIME_MS = 1100;
-const LIVE_TABLE_RULER_DURATION_MS = 8000;
-function mergeLiveTableEvent(events: LiveTableEvent[], event: LiveTableEvent): LiveTableEvent[] {
-  const filteredEvents = filterActiveLiveTableEvents(events);
-  if (event.type === "dice-clear") {
-    return filteredEvents.filter((candidate) => candidate.type !== "dice");
-  }
-  if (event.type === "ruler-clear") {
-    return filteredEvents.filter((candidate) => candidate.type !== "ruler");
-  }
-  return [event, ...filteredEvents.filter((candidate) => candidate.id !== event.id)];
-}
-
-function filterActiveLiveTableEvents(events: LiveTableEvent[]): LiveTableEvent[] {
-  const now = Date.now();
-  const activeEvents: LiveTableEvent[] = [];
-  for (const event of events) {
-    if (event.type === "ping") {
-      if (now - event.createdAt <= LIVE_TABLE_PING_DURATION_MS) {
-        activeEvents.push(event);
-      }
-    } else if (event.type === "dice") {
-      if (now - event.createdAt <= DICE_HISTORY_DURATION_MS) {
-        activeEvents.push(event);
-      }
-    } else if (event.type === "laser") {
-      const points = event.points.filter((point) => now - point.createdAt <= LIVE_TABLE_LASER_POINT_LIFETIME_MS);
-      if (points.length > 0) {
-        activeEvents.push({ ...event, points });
-      }
-    } else if (event.type === "ruler") {
-      if (now <= (event.expiresAt ?? event.createdAt + LIVE_TABLE_RULER_DURATION_MS)) {
-        activeEvents.push(event);
-      }
-    }
-  }
-  return activeEvents;
 }
 
 function formatSaveStatus({
