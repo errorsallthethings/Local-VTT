@@ -1,14 +1,13 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
-import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, LiveTablePoint, Point, Scene, TableToolSettings } from "../../shared/localvtt";
+import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings } from "../../shared/localvtt";
 import { areCamerasEqual, getCameraForWheelZoom, getRenderCamera, type Camera } from "../canvas/camera";
 import {
   getCanvasInteractionClass,
   getDrawingTransformHoverAtPoint,
   hasAuthoringToolActive,
   hasSceneItemHoverAtPoint,
-  type DrawingResizeHandle,
   type DrawingTransformHover
 } from "../canvas/canvasInteraction";
 import {
@@ -94,6 +93,15 @@ import {
   getSceneMarqueeSelection,
   pointsToSelectionRect
 } from "../canvas/selectionGeometry";
+import type {
+  DrawingDragState,
+  DrawingResizeState,
+  DrawingRotateState,
+  LaserDragState,
+  SelectionDrag,
+  SelectionMode,
+  TokenDragState
+} from "../canvas/sceneInteractionTypes";
 import {
   drawBrushHoverPreview,
   drawDrawingBrushHoverPreview,
@@ -284,52 +292,6 @@ interface SceneCanvasProps {
   onReady?: () => void;
   showPlayerSeatIndicators?: boolean;
 }
-
-type TokenDragState = {
-  pointerId: number;
-  tokenId: string;
-  offset: Point;
-  startPosition: Point;
-  waypoints: Point[];
-  groupStartPositions: Map<string, Point>;
-};
-
-type DrawingDragState = {
-  pointerId: number;
-  drawingId: string;
-  start: Point;
-  snapAnchor: Point;
-  groupStartPoints: DrawingPointOverrides;
-};
-
-type DrawingResizeState = {
-  pointerId: number;
-  handle: DrawingResizeHandle;
-  bounds: { left: number; top: number; right: number; bottom: number };
-  groupStartPoints: DrawingPointOverrides;
-};
-
-type DrawingRotateState = {
-  pointerId: number;
-  center: Point;
-  startAngle: number;
-  groupStartPoints: DrawingPointOverrides;
-};
-
-type LaserDragState = {
-  pointerId: number;
-  eventId: string;
-  points: LiveTablePoint[];
-};
-
-type SelectionMode = "replace" | "add" | "subtract";
-
-type SelectionDrag = {
-  pointerId: number;
-  start: Point;
-  current: Point;
-  mode: SelectionMode;
-};
 
 type DrawingPolygonDraft = {
   points: Point[];
