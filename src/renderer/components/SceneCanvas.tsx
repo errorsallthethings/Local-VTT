@@ -523,6 +523,21 @@ export function SceneCanvas({
     onTemplatePreviewChange?.(null);
   }, [onTemplatePreviewChange]);
 
+  const clearFogPreview = useCallback(() => {
+    fogDragRef.current = null;
+    setFogPreview(null);
+  }, []);
+
+  const clearWeatherMaskPreview = useCallback(() => {
+    weatherMaskDragRef.current = null;
+    setWeatherMaskPreview(null);
+  }, []);
+
+  const clearEnvironmentEffectPreview = useCallback(() => {
+    environmentEffectDragRef.current = null;
+    setEnvironmentEffectPreview(null);
+  }, []);
+
   const emitRulerEvent = useCallback((nextRulerDrag: RulerDrag) => {
     if (!scene) {
       return;
@@ -828,26 +843,21 @@ export function SceneCanvas({
     drawingPolygonDraftRef.current = null;
     weatherPolygonDraftRef.current = null;
     environmentPolygonDraftRef.current = null;
-    fogDragRef.current = null;
-    drawingPreviewRef.current = null;
-    setFogPreview(null);
-    setDrawingPreview(null);
-    onTemplatePreviewChange?.(null);
+    clearFogPreview();
+    clearDrawingPreview();
     setDrawingPolygonDraft(null);
     setWeatherPolygonDraft(null);
     setEnvironmentPolygonDraft(null);
     setBrushHoverPoint(null);
     setSnapPoint(null);
     setSceneItemHover(false);
-  }, [fogTool, onTemplatePreviewChange, scene?.id]);
+  }, [clearDrawingPreview, clearFogPreview, fogTool, scene?.id]);
 
   useEffect(() => {
-    drawingPreviewRef.current = null;
-    setDrawingPreview(null);
-    onTemplatePreviewChange?.(null);
+    clearDrawingPreview();
     setBrushHoverPoint(null);
     setSnapPoint(null);
-  }, [drawingTool, onTemplatePreviewChange, scene?.id]);
+  }, [clearDrawingPreview, drawingTool, scene?.id]);
 
   useEffect(() => {
     if (rulerDragRef.current) {
@@ -871,30 +881,26 @@ export function SceneCanvas({
     tokenDragRef.current = null;
     setTokenDragPreview(null);
     dragRef.current = null;
-    weatherMaskDragRef.current = null;
-    setWeatherMaskPreview(null);
-    environmentEffectDragRef.current = null;
-    setEnvironmentEffectPreview(null);
+    clearWeatherMaskPreview();
+    clearEnvironmentEffectPreview();
     setIsPanning(false);
     selectionDragRef.current = null;
     setSelectionDrag(null);
     setSnapPoint(null);
     setBrushHoverPoint(null);
-  }, [mode, scene?.id]);
+  }, [clearEnvironmentEffectPreview, clearWeatherMaskPreview, mode, scene?.id]);
 
   useEffect(() => {
-    weatherMaskDragRef.current = null;
-    setWeatherMaskPreview(null);
+    clearWeatherMaskPreview();
     weatherPolygonDraftRef.current = null;
     setWeatherPolygonDraft(null);
-  }, [weatherMaskTool, scene?.id]);
+  }, [clearWeatherMaskPreview, weatherMaskTool, scene?.id]);
 
   useEffect(() => {
-    environmentEffectDragRef.current = null;
-    setEnvironmentEffectPreview(null);
+    clearEnvironmentEffectPreview();
     environmentPolygonDraftRef.current = null;
     setEnvironmentPolygonDraft(null);
-  }, [environmentEffectTool, scene?.id]);
+  }, [clearEnvironmentEffectPreview, environmentEffectTool, scene?.id]);
 
   useEffect(() => {
     const previousScene = previousSceneRef.current;
@@ -966,15 +972,14 @@ export function SceneCanvas({
       cancelTokenDrag();
       cancelDrawingDrag();
       cancelRulerDrag();
-      cancelFogDrag();
-      environmentEffectDragRef.current = null;
-      setEnvironmentEffectPreview(null);
+      clearFogPreview();
+      clearEnvironmentEffectPreview();
       clearDrawingPreview();
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelRulerDrag, clearDrawingPreview, drawingDragPreview, drawingPreview, environmentEffectPreview, fogPreview, mode, rulerDrag, tokenDragPreview]);
+  }, [cancelRulerDrag, clearDrawingPreview, clearEnvironmentEffectPreview, clearFogPreview, drawingDragPreview, drawingPreview, environmentEffectPreview, fogPreview, mode, rulerDrag, tokenDragPreview]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !tokenDragPreview) {
@@ -1413,11 +1418,6 @@ export function SceneCanvas({
     drawingResizeRef.current = null;
     drawingRotateRef.current = null;
     setDrawingDragPreview(null);
-  };
-
-  const cancelFogDrag = () => {
-    fogDragRef.current = null;
-    setFogPreview(null);
   };
 
   const selectFromMarquee = (currentScene: Scene, drag: SelectionDrag) => {
@@ -2057,9 +2057,7 @@ export function SceneCanvas({
 
     const drawingDrag = drawingPreviewRef.current;
     if (drawingDrag?.pointerId === event.pointerId) {
-      drawingPreviewRef.current = null;
-      setDrawingPreview(null);
-      onTemplatePreviewChange?.(null);
+      clearDrawingPreview();
       if (scene && onSceneChange && isMeaningfulDrawingPreview(drawingDrag)) {
         onSceneChange(addSceneDrawing(scene, getDrawingElementFromPreview(drawingDrag, crypto.randomUUID(), scene.drawings.length)));
       }
@@ -2068,8 +2066,7 @@ export function SceneCanvas({
 
     const weatherMaskDrag = weatherMaskDragRef.current;
     if (weatherMaskDrag?.pointerId === event.pointerId) {
-      weatherMaskDragRef.current = null;
-      setWeatherMaskPreview(null);
+      clearWeatherMaskPreview();
       if (scene && onSceneChange && isMeaningfulWeatherMaskDrag(weatherMaskDrag)) {
         onSceneChange(
           addSceneWeatherMask(
@@ -2087,8 +2084,7 @@ export function SceneCanvas({
 
     const environmentEffectDrag = environmentEffectDragRef.current;
     if (environmentEffectDrag?.pointerId === event.pointerId) {
-      environmentEffectDragRef.current = null;
-      setEnvironmentEffectPreview(null);
+      clearEnvironmentEffectPreview();
       if (scene && onSceneChange && isMeaningfulEnvironmentEffectDrag(environmentEffectDrag)) {
         onSceneChange(
           addEnvironmentEffect(
@@ -2107,8 +2103,7 @@ export function SceneCanvas({
 
     const fogDrag = fogDragRef.current;
     if (fogDrag?.pointerId === event.pointerId) {
-      fogDragRef.current = null;
-      setFogPreview(null);
+      clearFogPreview();
       if (scene && onSceneChange && isMeaningfulFogDrag(fogDrag)) {
         onSceneChange(
           addSceneFogShape(
