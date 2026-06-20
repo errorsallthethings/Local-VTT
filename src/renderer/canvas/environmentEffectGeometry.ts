@@ -1,4 +1,4 @@
-import type { EnvironmentEffectMask, EnvironmentEffectType, Point } from "../../shared/localvtt";
+import type { EnvironmentEffectMask, EnvironmentEffectType, Point, Scene } from "../../shared/localvtt";
 import type {
   AcidEffectTuning,
   ArcaneEffectTuning,
@@ -65,4 +65,12 @@ export function environmentDragToMask(drag: EnvironmentEffectDrag): EnvironmentE
 
 export function isMeaningfulEnvironmentEffectDrag(drag: EnvironmentEffectDrag): boolean {
   return drag.kind === "circle" ? distanceBetween(drag.start, drag.current) > 8 : Math.abs(drag.current.x - drag.start.x) > 8 && Math.abs(drag.current.y - drag.start.y) > 8;
+}
+
+export function shouldAnimateEnvironmentEffects(scene: Scene | null, mode: "gm" | "player", layerVisible: boolean): boolean {
+  return Boolean(
+    scene &&
+      layerVisible &&
+      scene.environment.effects.some((effect) => (mode === "gm" ? effect.visibleInGm !== false : effect.visibleInPlayer !== false))
+  );
 }

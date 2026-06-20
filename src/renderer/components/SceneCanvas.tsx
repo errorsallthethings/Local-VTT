@@ -157,6 +157,7 @@ import {
 import {
   environmentDragToMask,
   isMeaningfulEnvironmentEffectDrag,
+  shouldAnimateEnvironmentEffects,
   type EnvironmentEffectDrag
 } from "../canvas/environmentEffectGeometry";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
@@ -4338,14 +4339,6 @@ function applyPolygonEnvironmentFeather(ctx: CanvasRenderingContext2D, effect: E
     return getEnvironmentFeatherAlpha(distanceToEdge / featherPx);
   });
   ctx.drawImage(mask, bounds.x, bounds.y, bounds.width, bounds.height);
-}
-
-function shouldAnimateEnvironmentEffects(scene: Scene | null, mode: "gm" | "player", layerVisible: boolean): boolean {
-  return Boolean(
-    scene &&
-      layerVisible &&
-      scene.environment.effects.some((effect) => (mode === "gm" ? effect.visibleInGm !== false : effect.visibleInPlayer !== false))
-  );
 }
 
 function drawWaterEffect(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, timestamp: number, layerOpacity: number, waterEffectTuning?: WaterEffectTuning) {
