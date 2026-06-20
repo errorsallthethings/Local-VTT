@@ -181,7 +181,7 @@ import {
   type EnvironmentEffectDrag
 } from "../canvas/environmentEffectGeometry";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
-import { isMeaningfulWeatherMaskDrag, type WeatherMaskDrag } from "../canvas/weatherMaskGeometry";
+import { getVisibleWeatherMasks, getWeatherMaskDragRect, getWeatherMaskRect, isMeaningfulWeatherMaskDrag, type WeatherMaskDrag } from "../canvas/weatherMaskGeometry";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { duplicateDrawingElement } from "../lib/drawingDefaults";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
@@ -3914,10 +3914,7 @@ function drawWeatherMaskPreview(ctx: CanvasRenderingContext2D, preview: WeatherM
     ctx.fill();
     ctx.stroke();
   } else {
-    const x = Math.min(preview.start.x, preview.current.x);
-    const y = Math.min(preview.start.y, preview.current.y);
-    const width = Math.abs(preview.current.x - preview.start.x);
-    const height = Math.abs(preview.current.y - preview.start.y);
+    const { x, y, width, height } = getWeatherMaskDragRect(preview);
     ctx.fillRect(x, y, width, height);
     ctx.strokeRect(x, y, width, height);
   }
@@ -4494,10 +4491,7 @@ function drawWeatherMaskSelection(ctx: CanvasRenderingContext2D, mask: WeatherMa
 }
 
 function drawWeatherMaskOutlines(ctx: CanvasRenderingContext2D, masks: WeatherMask[], camera: Camera) {
-  for (const mask of masks) {
-    if (mask.visible === false) {
-      continue;
-    }
+  for (const mask of getVisibleWeatherMasks(masks)) {
     drawWeatherMaskShape(ctx, mask, camera, { fill: false, selected: false });
   }
 }
@@ -4528,14 +4522,15 @@ function drawWeatherMaskShape(ctx: CanvasRenderingContext2D, mask: WeatherMask, 
     }
     ctx.stroke();
   } else if (mask.kind === "rectangle" && mask.points.length >= 2) {
-    const x = Math.min(mask.points[0].x, mask.points[1].x);
-    const y = Math.min(mask.points[0].y, mask.points[1].y);
-    const width = Math.abs(mask.points[1].x - mask.points[0].x);
-    const height = Math.abs(mask.points[1].y - mask.points[0].y);
-    if (options.fill || options.selected) {
-      ctx.fillRect(x, y, width, height);
+    const rect = getWeatherMaskRect(mask);
+    if (!rect) {
+      ctx.restore();
+      return;
     }
-    ctx.strokeRect(x, y, width, height);
+    if (options.fill || options.selected) {
+      ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+    }
+    ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
   } else if (mask.kind === "polygon" && mask.points.length >= 3) {
     ctx.beginPath();
     ctx.moveTo(mask.points[0].x, mask.points[0].y);
