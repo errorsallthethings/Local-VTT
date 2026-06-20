@@ -83,10 +83,7 @@ import {
   getWeatherMaskContextLabel
 } from "../canvas/sceneContextLabels";
 import {
-  isDrawingInSelectionRect,
-  isFogShapeInSelectionRect,
-  isTokenInSelectionRect,
-  isWeatherMaskInSelectionRect,
+  getSceneMarqueeSelection,
   pointsToSelectionRect
 } from "../canvas/selectionGeometry";
 import {
@@ -1376,25 +1373,10 @@ export function SceneCanvas({
     if (rect.width < 4 && rect.height < 4) {
       return;
     }
-    const tokenIds = selectorSelectionFilters.tokens
-      ? currentScene.tokens.filter((candidate) => canShowTokens && isTokenInSelectionRect(candidate, rect)).map((token) => token.id)
-      : [];
-    const drawingIds =
-      selectorSelectionFilters.drawings || selectorSelectionFilters.templates
-        ? currentScene.drawings
-            .filter((candidate) => canShowDrawings && isDrawingInSelectionRect(candidate, rect))
-            .filter((drawing) => {
-              const isTemplate = Boolean(drawing.measurementLabelVisible);
-              return isTemplate ? selectorSelectionFilters.templates : selectorSelectionFilters.drawings;
-            })
-            .map((drawing) => drawing.id)
-        : [];
-    const weatherMaskIds = selectorSelectionFilters.weatherMasks
-      ? currentScene.weather.masks.filter((candidate) => (candidate.visible ?? true) && isWeatherMaskInSelectionRect(candidate, rect)).map((mask) => mask.id)
-      : [];
-    const fogShapeIds = selectorSelectionFilters.fogMasks
-      ? currentScene.fog.shapes.filter((candidate) => (candidate.visibleInGm ?? candidate.visible ?? true) && isFogShapeInSelectionRect(candidate, rect)).map((shape) => shape.id)
-      : [];
+    const { tokenIds, drawingIds, fogShapeIds, weatherMaskIds } = getSceneMarqueeSelection(currentScene, rect, selectorSelectionFilters, {
+      tokens: Boolean(canShowTokens),
+      drawings: Boolean(canShowDrawings)
+    });
     onSelectSceneItems?.({ tokenIds, drawingIds, fogShapeIds, weatherMaskIds, mode: drag.mode });
   };
 

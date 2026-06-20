@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { Scene, Token, WeatherMask } from "../../src/shared/localvtt";
+import { createDefaultScene, type Scene, type Token, type WeatherMask } from "../../src/shared/localvtt";
 import {
+  getSceneMarqueeSelection,
   isDrawingInSelectionRect,
   isFogShapeInSelectionRect,
   isPointInSelectionRect,
@@ -71,5 +72,72 @@ describe("selection geometry", () => {
 
     expect(isFogShapeInSelectionRect(shape, { x: 45, y: 45, width: 10, height: 10 })).toBe(true);
     expect(isFogShapeInSelectionRect(shape, { x: 20, y: 20, width: 10, height: 10 })).toBe(false);
+  });
+
+  it("builds marquee selections from enabled filters and visible scene items", () => {
+    const scene = createDefaultScene("Selection");
+    scene.tokens = [
+      { id: "token-1", name: "Token", position: { x: 10, y: 10 }, size: { width: 20, height: 20 }, hidden: false, visibleInPlayer: true }
+    ];
+    scene.drawings = [
+      { id: "drawing-1", kind: "line", points: [{ x: 20, y: 20 }], color: "#fff", opacity: 1, strokeWidth: 8, visibleInPlayer: true },
+      { id: "template-1", kind: "circle", points: [{ x: 25, y: 25 }], color: "#fff", opacity: 1, strokeWidth: 8, visibleInPlayer: true, measurementLabelVisible: true }
+    ];
+    scene.weather.masks = [
+      { id: "weather-1", kind: "circle", points: [{ x: 25, y: 25 }], radius: 10, visible: true },
+      { id: "weather-hidden", kind: "circle", points: [{ x: 25, y: 25 }], radius: 10, visible: false }
+    ];
+    scene.fog.shapes = [
+      { id: "fog-1", operation: "reveal", kind: "polygon", points: [{ x: 25, y: 25 }], visibleInGm: true },
+      { id: "fog-hidden", operation: "reveal", kind: "polygon", points: [{ x: 25, y: 25 }], visibleInGm: false, visible: false }
+    ];
+
+    expect(
+      getSceneMarqueeSelection(
+        scene,
+        { x: 0, y: 0, width: 40, height: 40 },
+        { tokens: true, templates: true, fogMasks: true, weatherMasks: true, drawings: true },
+        { tokens: true, drawings: true }
+      )
+    ).toEqual({
+      tokenIds: ["token-1"],
+      drawingIds: ["drawing-1", "template-1"],
+      fogShapeIds: ["fog-1"],
+      weatherMaskIds: ["weather-1"]
+    });
+  });
+
+  it("honors marquee drawing/template filters and layer visibility gates", () => {
+    const scene = createDefaultScene("Selection");
+    scene.tokens = [
+      { id: "token-1", name: "Token", position: { x: 10, y: 10 }, size: { width: 20, height: 20 }, hidden: false, visibleInPlayer: true }
+    ];
+    scene.drawings = [
+      { id: "drawing-1", kind: "line", points: [{ x: 20, y: 20 }], color: "#fff", opacity: 1, strokeWidth: 8, visibleInPlayer: true },
+      { id: "template-1", kind: "circle", points: [{ x: 25, y: 25 }], color: "#fff", opacity: 1, strokeWidth: 8, visibleInPlayer: true, measurementLabelVisible: true }
+    ];
+
+    expect(
+      getSceneMarqueeSelection(
+        scene,
+        { x: 0, y: 0, width: 40, height: 40 },
+        { tokens: true, templates: true, fogMasks: false, weatherMasks: false, drawings: false },
+        { tokens: false, drawings: true }
+      )
+    ).toEqual({
+      tokenIds: [],
+      drawingIds: ["template-1"],
+      fogShapeIds: [],
+      weatherMaskIds: []
+    });
+
+    expect(
+      getSceneMarqueeSelection(
+        scene,
+        { x: 0, y: 0, width: 40, height: 40 },
+        { tokens: false, templates: true, fogMasks: false, weatherMasks: false, drawings: true },
+        { tokens: true, drawings: false }
+      ).drawingIds
+    ).toEqual([]);
   });
 });

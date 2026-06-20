@@ -7,6 +7,55 @@ export interface SelectionRect {
   height: number;
 }
 
+export type SceneMarqueeSelectionFilters = {
+  tokens: boolean;
+  templates: boolean;
+  fogMasks: boolean;
+  weatherMasks: boolean;
+  drawings: boolean;
+};
+
+export type SceneMarqueeVisibility = {
+  tokens: boolean;
+  drawings: boolean;
+};
+
+export type SceneMarqueeSelection = {
+  tokenIds: string[];
+  drawingIds: string[];
+  fogShapeIds: string[];
+  weatherMaskIds: string[];
+};
+
+export function getSceneMarqueeSelection(
+  scene: Scene,
+  rect: SelectionRect,
+  filters: SceneMarqueeSelectionFilters,
+  visibility: SceneMarqueeVisibility
+): SceneMarqueeSelection {
+  const tokenIds = filters.tokens
+    ? scene.tokens.filter((candidate) => visibility.tokens && isTokenInSelectionRect(candidate, rect)).map((token) => token.id)
+    : [];
+  const drawingIds =
+    filters.drawings || filters.templates
+      ? scene.drawings
+          .filter((candidate) => visibility.drawings && isDrawingInSelectionRect(candidate, rect))
+          .filter((drawing) => {
+            const isTemplate = Boolean(drawing.measurementLabelVisible);
+            return isTemplate ? filters.templates : filters.drawings;
+          })
+          .map((drawing) => drawing.id)
+      : [];
+  const weatherMaskIds = filters.weatherMasks
+    ? scene.weather.masks.filter((candidate) => (candidate.visible ?? true) && isWeatherMaskInSelectionRect(candidate, rect)).map((mask) => mask.id)
+    : [];
+  const fogShapeIds = filters.fogMasks
+    ? scene.fog.shapes.filter((candidate) => (candidate.visibleInGm ?? candidate.visible ?? true) && isFogShapeInSelectionRect(candidate, rect)).map((shape) => shape.id)
+    : [];
+
+  return { tokenIds, drawingIds, fogShapeIds, weatherMaskIds };
+}
+
 export function pointsToSelectionRect(start: Point, end: Point): SelectionRect {
   return {
     x: Math.min(start.x, end.x),
