@@ -65,6 +65,7 @@ import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/d
 import { loadImageDimensions } from "../lib/imageDimensions";
 import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/liveTableEvents";
 import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/playerIdleState";
+import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/sceneCollectionActions";
 import { applySelectionMode, type SelectionMode } from "../lib/selectionIds";
 import {
   addRecentCampaign,
@@ -1054,39 +1055,21 @@ export function GmApp() {
     if (!activeScene || activeScene.weather.masks.length === 0) {
       return;
     }
-    updateScene({
-      ...activeScene,
-      weather: {
-        ...activeScene.weather,
-        masks: activeScene.weather.masks.slice(0, -1)
-      },
-      updatedAt: new Date().toISOString()
-    });
+    updateScene(removeLastWeatherMask(activeScene));
   };
 
   const undoEnvironmentEffect = () => {
     if (!activeScene || activeScene.environment.effects.length === 0) {
       return;
     }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.slice(0, -1)
-      },
-      updatedAt: new Date().toISOString()
-    });
+    updateScene(removeLastEnvironmentEffect(activeScene));
   };
 
   const undoDrawing = () => {
     if (!activeScene || activeScene.drawings.length === 0) {
       return;
     }
-    updateScene({
-      ...activeScene,
-      drawings: activeScene.drawings.slice(0, -1),
-      updatedAt: new Date().toISOString()
-    });
+    updateScene(removeLastDrawing(activeScene));
   };
 
   const reopenRecentCampaign = async (recentCampaignPath: string) => {
