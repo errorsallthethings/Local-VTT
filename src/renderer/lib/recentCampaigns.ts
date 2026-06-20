@@ -24,6 +24,14 @@ export function parseRecentCampaigns(rawValue: string | null): RecentCampaign[] 
   }
 }
 
+export function loadRecentCampaigns(storage: Pick<Storage, "getItem"> = window.localStorage): RecentCampaign[] {
+  return parseRecentCampaigns(storage.getItem(RECENT_CAMPAIGNS_STORAGE_KEY));
+}
+
+export function saveRecentCampaigns(recents: RecentCampaign[], storage: Pick<Storage, "setItem"> = window.localStorage): void {
+  storage.setItem(RECENT_CAMPAIGNS_STORAGE_KEY, JSON.stringify(recents));
+}
+
 export function addRecentCampaign(
   recents: RecentCampaign[],
   campaign: { name: string },

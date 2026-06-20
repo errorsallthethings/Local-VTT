@@ -40,6 +40,7 @@ import type {
   TokenPresentationDefaults
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
+import { CampaignBusyOverlay } from "../components/modals/CampaignBusyOverlay";
 import { EnvironmentEffectEditorModal } from "../components/layers/EnvironmentEffectEditorModal";
 import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
@@ -65,10 +66,10 @@ import { loadImageDimensions } from "../lib/imageDimensions";
 import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/liveTableEvents";
 import { applySelectionMode, type SelectionMode } from "../lib/selectionIds";
 import {
-  RECENT_CAMPAIGNS_STORAGE_KEY,
   addRecentCampaign,
-  parseRecentCampaigns,
+  loadRecentCampaigns,
   removeRecentCampaign,
+  saveRecentCampaigns,
   type RecentCampaign
 } from "../lib/recentCampaigns";
 import { createImportedToken } from "../lib/tokenDefaults";
@@ -78,14 +79,14 @@ import {
   COLLAPSED_RAIL_WIDTH,
   COMPACT_RIGHT_PANEL_WIDTH,
   DEFAULT_TOKEN_LIBRARY_HEIGHT,
-  TOKEN_LIBRARY_HEIGHT_STORAGE_KEY,
-  WORKSPACE_LAYOUT_STORAGE_KEY,
   getWorkspacePanelWidth,
   loadTokenLibraryHeight,
   loadWorkspaceLayout,
   normalizeTokenLibraryHeight,
   resetPanelWidth as resetWorkspacePanelWidth,
   resizePanelWidth,
+  saveTokenLibraryHeight,
+  saveWorkspaceLayout,
   toggleWorkspacePanel as toggleWorkspacePanelLayout,
   type WorkspaceLayout,
   type WorkspacePanelSide
@@ -249,9 +250,7 @@ export function GmApp() {
   const [gmCanvasCenter, setGmCanvasCenter] = useState<Point | null>(null);
   const [tokenLibraryHeight, setTokenLibraryHeight] = useState(() => loadTokenLibraryHeight());
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
-  const [recentCampaigns, setRecentCampaigns] = useState<RecentCampaign[]>(() =>
-    parseRecentCampaigns(window.localStorage.getItem(RECENT_CAMPAIGNS_STORAGE_KEY))
-  );
+  const [recentCampaigns, setRecentCampaigns] = useState<RecentCampaign[]>(() => loadRecentCampaigns());
   const [busyState, setBusyState] = useState<CampaignBusyState | null>(null);
   const skipNextPlayerSceneAutoSyncRef = useRef(false);
   const playerTemplatePreviewPublishedRef = useRef(false);
@@ -961,15 +960,15 @@ export function GmApp() {
   }, [activeScene, campaign, playerDisplayMode, playerSceneId, playerTemplatePreviewDrawing, playersPanelOpen, templatePreviewVisibleInPlayer]);
 
   useEffect(() => {
-    window.localStorage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(workspaceLayout));
+    saveWorkspaceLayout(workspaceLayout);
   }, [workspaceLayout]);
 
   useEffect(() => {
-    window.localStorage.setItem(TOKEN_LIBRARY_HEIGHT_STORAGE_KEY, String(tokenLibraryHeight));
+    saveTokenLibraryHeight(tokenLibraryHeight);
   }, [tokenLibraryHeight]);
 
   useEffect(() => {
-    window.localStorage.setItem(RECENT_CAMPAIGNS_STORAGE_KEY, JSON.stringify(recentCampaigns));
+    saveRecentCampaigns(recentCampaigns);
   }, [recentCampaigns]);
 
   const rememberCampaign = useCallback((summary: CampaignSummary) => {
@@ -2426,22 +2425,3 @@ export function GmApp() {
   );
 }
 
-function CampaignBusyOverlay({ busyState }: { busyState: CampaignBusyState }) {
-  const progress = busyState.total > 0 ? Math.min(100, Math.max(0, (busyState.current / busyState.total) * 100)) : 100;
-  return (
-    <div className="modal-backdrop busy-backdrop" role="status" aria-live="polite" aria-busy="true">
-      <div className="modal busy-modal">
-        <h2>{busyState.title}</h2>
-        <p>{busyState.message}</p>
-        <div className="busy-progress" aria-label={`${busyState.current} of ${busyState.total}`}>
-          <span style={{ width: `${progress}%` }} />
-        </div>
-        {busyState.total > 0 && (
-          <span className="busy-progress-label">
-            {busyState.current} of {busyState.total} scenes
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}

@@ -37,6 +37,10 @@ export function loadWorkspaceLayout(storage: Pick<Storage, "getItem"> = window.l
   }
 }
 
+export function saveWorkspaceLayout(layout: WorkspaceLayout, storage: Pick<Storage, "setItem"> = window.localStorage): void {
+  storage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(layout));
+}
+
 export function loadTokenLibraryHeight(storage: Pick<Storage, "getItem"> = window.localStorage): number {
   const storedValue = storage.getItem(TOKEN_LIBRARY_HEIGHT_STORAGE_KEY);
   if (!storedValue) {
@@ -47,6 +51,10 @@ export function loadTokenLibraryHeight(storage: Pick<Storage, "getItem"> = windo
     return DEFAULT_TOKEN_LIBRARY_HEIGHT;
   }
   return normalizeTokenLibraryHeight(storedHeight);
+}
+
+export function saveTokenLibraryHeight(height: number, storage: Pick<Storage, "setItem"> = window.localStorage): void {
+  storage.setItem(TOKEN_LIBRARY_HEIGHT_STORAGE_KEY, String(height));
 }
 
 export function normalizeWorkspaceLayout(layout: Partial<WorkspaceLayout>): WorkspaceLayout {
