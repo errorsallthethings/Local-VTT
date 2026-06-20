@@ -19,7 +19,8 @@ import {
   setDrawingTemplateFootprintVisibility,
   setFogShapePlayerVisibility,
   setWeatherMaskVisibility,
-  setSceneLayerOrderLocked
+  setSceneLayerOrderLocked,
+  updateSceneDrawingPoints
 } from "../../src/renderer/lib/sceneEditing";
 
 describe("scene editing helpers", () => {
@@ -195,6 +196,27 @@ describe("scene editing helpers", () => {
 
     expect(next.drawings[0]).toMatchObject({ id: "drawing-1", opacity: 0.5 });
     expect(next.drawings[1]).toMatchObject({ id: "drawing-2", opacity: 1 });
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("updates drawing points from a drawing id map", () => {
+    const scene = createDefaultScene("Drawings");
+    scene.drawings = [
+      { id: "drawing-1", kind: "line", points: [{ x: 0, y: 0 }], color: "#fff", opacity: 1, strokeWidth: 8, visibleInPlayer: true },
+      { id: "drawing-2", kind: "line", points: [{ x: 5, y: 5 }], color: "#fff", opacity: 1, strokeWidth: 8, visibleInPlayer: true }
+    ];
+
+    const next = updateSceneDrawingPoints(
+      scene,
+      new Map([
+        ["drawing-1", [{ x: 10, y: 20 }]],
+        ["missing", [{ x: 100, y: 200 }]]
+      ]),
+      "updated"
+    );
+
+    expect(next.drawings[0].points).toEqual([{ x: 10, y: 20 }]);
+    expect(next.drawings[1].points).toEqual([{ x: 5, y: 5 }]);
     expect(next.updatedAt).toBe("updated");
   });
 

@@ -176,7 +176,8 @@ import {
   setDrawingPlayerVisibility,
   setDrawingTemplateFootprintVisibility,
   setFogShapePlayerVisibility,
-  setWeatherMaskVisibility
+  setWeatherMaskVisibility,
+  updateSceneDrawingPoints
 } from "../lib/sceneEditing";
 import { TokenSettings } from "./layers/TokenSettings";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
@@ -2192,14 +2193,7 @@ export function SceneCanvas({
     if (drawingDragRef.current?.pointerId === event.pointerId) {
       const movedPoints = drawingDragPreview;
       if (scene && onSceneChange && movedPoints) {
-        onSceneChange({
-          ...scene,
-          drawings: scene.drawings.map((drawing) => {
-            const points = movedPoints.get(drawing.id);
-            return points ? { ...drawing, points } : drawing;
-          }),
-          updatedAt: new Date().toISOString()
-        });
+        onSceneChange(updateSceneDrawingPoints(scene, movedPoints));
       }
       drawingDragRef.current = null;
       setDrawingDragPreview(null);
@@ -2210,14 +2204,7 @@ export function SceneCanvas({
     if (drawingResizeRef.current?.pointerId === event.pointerId) {
       const resizedPoints = drawingDragPreview;
       if (scene && onSceneChange && resizedPoints) {
-        onSceneChange({
-          ...scene,
-          drawings: scene.drawings.map((drawing) => {
-            const points = resizedPoints.get(drawing.id);
-            return points ? { ...drawing, points } : drawing;
-          }),
-          updatedAt: new Date().toISOString()
-        });
+        onSceneChange(updateSceneDrawingPoints(scene, resizedPoints));
       }
       drawingResizeRef.current = null;
       setDrawingDragPreview(null);
@@ -2227,14 +2214,7 @@ export function SceneCanvas({
     if (drawingRotateRef.current?.pointerId === event.pointerId) {
       const rotatedPoints = drawingDragPreview;
       if (scene && onSceneChange && rotatedPoints) {
-        onSceneChange({
-          ...scene,
-          drawings: scene.drawings.map((drawing) => {
-            const points = rotatedPoints.get(drawing.id);
-            return points ? { ...drawing, points } : drawing;
-          }),
-          updatedAt: new Date().toISOString()
-        });
+        onSceneChange(updateSceneDrawingPoints(scene, rotatedPoints));
       }
       drawingRotateRef.current = null;
       setDrawingDragPreview(null);

@@ -1,4 +1,4 @@
-import { DEFAULT_VIDEO_PLAYBACK, type GridSettings, type Layer, type MapTransform, type Scene, type Token } from "../../shared/localvtt";
+import { DEFAULT_VIDEO_PLAYBACK, type GridSettings, type Layer, type MapTransform, type Point, type Scene, type Token } from "../../shared/localvtt";
 import { duplicateDrawingElement } from "./drawingDefaults";
 import { duplicateToken } from "./tokenDefaults";
 
@@ -104,6 +104,17 @@ export function patchSceneDrawing(scene: Scene, drawingId: string, patch: Partia
   return {
     ...scene,
     drawings: scene.drawings.map((drawing) => (drawing.id === drawingId ? { ...drawing, ...patch } : drawing)),
+    updatedAt
+  };
+}
+
+export function updateSceneDrawingPoints(scene: Scene, drawingPoints: ReadonlyMap<string, Point[]>, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    drawings: scene.drawings.map((drawing) => {
+      const points = drawingPoints.get(drawing.id);
+      return points ? { ...drawing, points } : drawing;
+    }),
     updatedAt
   };
 }
