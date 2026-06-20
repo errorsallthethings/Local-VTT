@@ -171,7 +171,7 @@ export interface WeatherMask {
   visible?: boolean;
 }
 
-export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire" | "electric" | "arcane" | "radiant" | "field" | "shockwave" | "distortion" | "chaos";
+export type EnvironmentEffectType = "water" | "lava" | "smoke" | "fog" | "fire" | "electric" | "arcane" | "radiant" | "field" | "shockwave" | "distortion" | "chaos" | "void";
 
 export interface WaterEffectTuningSettings {
   opacity: number;
@@ -589,6 +589,54 @@ export const DEFAULT_CHAOS_EFFECT_TUNING_SETTINGS: ChaosEffectTuningSettings = {
   accentColor: "#facc15"
 };
 
+export interface VoidEffectTuningSettings {
+  opacity: number;
+  tendrilScale: number;
+  speed: number;
+  directionDegrees: number;
+  tendrilDensity: number;
+  tendrilWidth: number;
+  curl: number;
+  reach: number;
+  voidDepth: number;
+  moteDensity: number;
+  moteSize: number;
+  pulse: number;
+  glow: number;
+  instability: number;
+  panFollow: number;
+  zoomScale: number;
+  baseAlpha: number;
+  backgroundColor: string;
+  tendrilColor: string;
+  voidColor: string;
+  accentColor: string;
+}
+
+export const DEFAULT_VOID_EFFECT_TUNING_SETTINGS: VoidEffectTuningSettings = {
+  opacity: 0.95,
+  tendrilScale: 3.8,
+  speed: 0.24,
+  directionDegrees: 268,
+  tendrilDensity: 0.78,
+  tendrilWidth: 0.56,
+  curl: 0.82,
+  reach: 0.8,
+  voidDepth: 0.86,
+  moteDensity: 0.36,
+  moteSize: 2.4,
+  pulse: 0.6,
+  glow: 0.9,
+  instability: 0.7,
+  panFollow: 1,
+  zoomScale: 0.8,
+  baseAlpha: 0.34,
+  backgroundColor: "#05030a",
+  tendrilColor: "#a78bfa",
+  voidColor: "#02010a",
+  accentColor: "#e9d5ff"
+};
+
 export interface SmokeEffectTuningSettings {
   opacity: number;
   cloudScale: number;
@@ -660,6 +708,7 @@ export interface EnvironmentEffectMask {
   shockwaveTuning?: ShockwaveEffectTuningSettings;
   distortionTuning?: DistortionEffectTuningSettings;
   chaosTuning?: ChaosEffectTuningSettings;
+  voidTuning?: VoidEffectTuningSettings;
   smokeTuning?: SmokeEffectTuningSettings;
   fogTuning?: FogEffectTuningSettings;
   visibleInGm?: boolean;
@@ -1507,7 +1556,7 @@ const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "sandstorm"
 ]);
 
-const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire", "electric", "arcane", "radiant", "field", "shockwave", "distortion", "chaos"]);
+const ENVIRONMENT_EFFECTS = new Set<EnvironmentEffectType>(["water", "lava", "smoke", "fog", "fire", "electric", "arcane", "radiant", "field", "shockwave", "distortion", "chaos", "void"]);
 
 export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
@@ -2006,6 +2055,7 @@ function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): Env
         shockwaveTuning: effectType === "shockwave" ? normalizeShockwaveEffectTuning(effect.shockwaveTuning) : undefined,
         distortionTuning: effectType === "distortion" ? normalizeDistortionEffectTuning(effect.distortionTuning) : undefined,
         chaosTuning: effectType === "chaos" ? normalizeChaosEffectTuning(effect.chaosTuning) : undefined,
+        voidTuning: effectType === "void" ? normalizeVoidEffectTuning(effect.voidTuning) : undefined,
         smokeTuning: effectType === "smoke" ? normalizeSmokeEffectTuning(effect.smokeTuning) : undefined,
         fogTuning: effectType === "fog" ? normalizeFogEffectTuning(effect.fogTuning) : undefined,
         visibleInGm: effect.visibleInGm ?? true,
@@ -2242,6 +2292,32 @@ function normalizeChaosEffectTuning(tuning?: ChaosEffectTuningSettings): ChaosEf
   };
 }
 
+function normalizeVoidEffectTuning(tuning?: VoidEffectTuningSettings): VoidEffectTuningSettings {
+  return {
+    opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.opacity),
+    tendrilScale: clampNumber(tuning?.tendrilScale, 0.5, 20, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.tendrilScale),
+    speed: clampNumber(tuning?.speed, 0, 2, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.speed),
+    directionDegrees: clampNumber(tuning?.directionDegrees, 0, 360, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.directionDegrees),
+    tendrilDensity: clampNumber(tuning?.tendrilDensity, 0, 1, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.tendrilDensity),
+    tendrilWidth: clampNumber(tuning?.tendrilWidth, 0, 1, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.tendrilWidth),
+    curl: clampNumber(tuning?.curl, 0, 1, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.curl),
+    reach: clampNumber(tuning?.reach, 0, 1, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.reach),
+    voidDepth: clampNumber(tuning?.voidDepth, 0, 1, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.voidDepth),
+    moteDensity: clampNumber(tuning?.moteDensity, 0, 1, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.moteDensity),
+    moteSize: clampNumber(tuning?.moteSize, 0, 5, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.moteSize),
+    pulse: clampNumber(tuning?.pulse, 0, 1, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.pulse),
+    glow: clampNumber(tuning?.glow, 0, 1, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.glow),
+    instability: clampNumber(tuning?.instability, 0, 1, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.instability),
+    panFollow: 1,
+    zoomScale: clampNumber(tuning?.zoomScale, -3, 3, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.zoomScale),
+    baseAlpha: clampNumber(tuning?.baseAlpha, 0, 1, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.baseAlpha),
+    backgroundColor: normalizeColorValue(tuning?.backgroundColor, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.backgroundColor),
+    tendrilColor: normalizeColorValue(tuning?.tendrilColor, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.tendrilColor),
+    voidColor: normalizeColorValue(tuning?.voidColor, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.voidColor),
+    accentColor: normalizeColorValue(tuning?.accentColor, DEFAULT_VOID_EFFECT_TUNING_SETTINGS.accentColor)
+  };
+}
+
 function normalizeSmokeEffectTuning(tuning?: SmokeEffectTuningSettings): SmokeEffectTuningSettings {
   return {
     opacity: clampNumber(tuning?.opacity, 0, 1, DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS.opacity),
@@ -2285,7 +2361,7 @@ function normalizeColorValue(value: unknown, fallback: string): string {
 }
 
 function formatEnvironmentEffectName(effect: EnvironmentEffectType): string {
-  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "chaos" ? "Chaos Field" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
+  return effect === "water" ? "Water" : effect === "lava" ? "Lava" : effect === "fire" ? "Fire" : effect === "electric" ? "Electric" : effect === "arcane" ? "Arcane" : effect === "distortion" ? "Distortion" : effect === "chaos" ? "Chaos Field" : effect === "void" ? "Void Tendrils" : effect === "radiant" ? "Radiant" : effect === "field" ? "Force Field" : effect === "shockwave" ? "Shockwave" : effect === "fog" ? "Mist" : "Smoke";
 }
 
 function normalizeWeatherEffectSettings(settings?: WeatherSettings["effectSettings"]): WeatherSettings["effectSettings"] {

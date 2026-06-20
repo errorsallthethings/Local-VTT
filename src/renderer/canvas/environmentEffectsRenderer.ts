@@ -11,6 +11,7 @@ import {
   DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS,
   DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS,
   DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_VOID_EFFECT_TUNING_SETTINGS,
   DEFAULT_WATER_EFFECT_TUNING_SETTINGS,
   type ArcaneEffectTuningSettings,
   type ChaosEffectTuningSettings,
@@ -23,6 +24,7 @@ import {
   type RadiantEffectTuningSettings,
   type ShockwaveEffectTuningSettings,
   type SmokeEffectTuningSettings,
+  type VoidEffectTuningSettings,
   type WaterEffectTuningSettings
 } from "../../shared/localvtt";
 
@@ -42,6 +44,7 @@ export type DistortionEffectTuning = DistortionEffectTuningSettings;
 export type LightningEffectTuning = LightningEffectTuningSettings;
 export type ArcaneEffectTuning = ArcaneEffectTuningSettings;
 export type ChaosEffectTuning = ChaosEffectTuningSettings;
+export type VoidEffectTuning = VoidEffectTuningSettings;
 export type RadiantEffectTuning = RadiantEffectTuningSettings;
 export type SmokeEffectTuning = SmokeEffectTuningSettings;
 export type FogEffectTuning = FogEffectTuningSettings;
@@ -55,6 +58,7 @@ export const DEFAULT_DISTORTION_EFFECT_TUNING: DistortionEffectTuning = DEFAULT_
 export const DEFAULT_LIGHTNING_EFFECT_TUNING: LightningEffectTuning = DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_ARCANE_EFFECT_TUNING: ArcaneEffectTuning = DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_CHAOS_EFFECT_TUNING: ChaosEffectTuning = DEFAULT_CHAOS_EFFECT_TUNING_SETTINGS;
+export const DEFAULT_VOID_EFFECT_TUNING: VoidEffectTuning = DEFAULT_VOID_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_RADIANT_EFFECT_TUNING: RadiantEffectTuning = DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_SMOKE_EFFECT_TUNING: SmokeEffectTuning = DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS;
 export const DEFAULT_FOG_EFFECT_TUNING: FogEffectTuning = DEFAULT_FOG_EFFECT_TUNING_SETTINGS;
@@ -295,6 +299,56 @@ export const CHAOS_EFFECT_PRESETS = {
     accentColor: "#fb7185"
   }
 } as const satisfies Record<string, ChaosEffectTuning>;
+
+export const VOID_EFFECT_PRESETS = {
+  creepingVoid: { ...DEFAULT_VOID_EFFECT_TUNING },
+  graspingTendrils: {
+    opacity: 0.98,
+    tendrilScale: 3.2,
+    speed: 0.34,
+    directionDegrees: 252,
+    tendrilDensity: 0.88,
+    tendrilWidth: 0.72,
+    curl: 0.9,
+    reach: 0.86,
+    voidDepth: 0.82,
+    moteDensity: 0.18,
+    moteSize: 2.1,
+    pulse: 0.62,
+    glow: 0.96,
+    instability: 0.78,
+    panFollow: 1,
+    zoomScale: 0.85,
+    baseAlpha: 0.32,
+    backgroundColor: "#04020a",
+    tendrilColor: "#c4b5fd",
+    voidColor: "#010108",
+    accentColor: "#f5d0fe"
+  },
+  abyssalBloom: {
+    opacity: 0.86,
+    tendrilScale: 6.4,
+    speed: 0.16,
+    directionDegrees: 286,
+    tendrilDensity: 0.58,
+    tendrilWidth: 0.46,
+    curl: 0.56,
+    reach: 0.52,
+    voidDepth: 0.92,
+    moteDensity: 0.54,
+    moteSize: 3.2,
+    pulse: 0.44,
+    glow: 0.7,
+    instability: 0.5,
+    panFollow: 1,
+    zoomScale: 0.35,
+    baseAlpha: 0.42,
+    backgroundColor: "#020617",
+    tendrilColor: "#8b5cf6",
+    voidColor: "#000000",
+    accentColor: "#67e8f9"
+  }
+} as const satisfies Record<string, VoidEffectTuning>;
 
 export const RADIANT_EFFECT_PRESETS = {
   holyLight: {
@@ -591,6 +645,7 @@ let fireRuntime: WaterRuntime | null = null;
 let lightningRuntime: WaterRuntime | null = null;
 let arcaneRuntime: WaterRuntime | null = null;
 let chaosRuntime: WaterRuntime | null = null;
+let voidRuntime: WaterRuntime | null = null;
 let radiantRuntime: WaterRuntime | null = null;
 let forceFieldRuntime: WaterRuntime | null = null;
 let shockwaveRuntime: WaterRuntime | null = null;
@@ -870,6 +925,50 @@ export function drawEnvironmentChaosEffect(
   updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateChaosMaterialTuning(runtime.meshA.material, tuning);
   updateChaosMaterialTuning(runtime.meshB.material, tuning);
+
+  runtime.renderer.setSize(width, height, false);
+  runtime.renderer.setClearColor(0x000000, 0);
+  runtime.renderer.clear();
+  runtime.renderer.render(runtime.scene, runtime.camera);
+
+  ctx.save();
+  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
+  ctx.restore();
+}
+
+export function drawEnvironmentVoidEffect(
+  ctx: CanvasRenderingContext2D,
+  bounds: ScreenBounds,
+  timestamp: number,
+  layerOpacity: number,
+  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
+  tuning: VoidEffectTuning = DEFAULT_VOID_EFFECT_TUNING
+) {
+  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
+    return;
+  }
+
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
+  const height = ctx.canvas.clientHeight || ctx.canvas.height;
+  const runtime = getVoidRuntime(width, height);
+  if (!runtime) {
+    drawVoidFallback(ctx, bounds, layerOpacity);
+    return;
+  }
+
+  const time = (timestamp - runtime.startedAt) / 1000;
+  positionWaterMesh(runtime.meshA, width, height, 1);
+  positionWaterMesh(runtime.meshB, width, height, 1);
+  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
+  runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.42;
+  runtime.meshA.material.uniforms.time.value = time;
+  runtime.meshB.material.uniforms.time.value = time * 0.67 + 31.2;
+  runtime.meshA.material.uniforms.resolution.value.set(width, height);
+  runtime.meshB.material.uniforms.resolution.value.set(width, height);
+  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateVoidMaterialTuning(runtime.meshA.material, tuning);
+  updateVoidMaterialTuning(runtime.meshB.material, tuning);
 
   runtime.renderer.setSize(width, height, false);
   runtime.renderer.setClearColor(0x000000, 0);
@@ -1437,6 +1536,55 @@ function getChaosRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   return chaosRuntime;
+}
+
+function getVoidRuntime(width: number, height: number): WaterRuntime | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!voidRuntime) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
+    camera.position.set(0, 0, 2400);
+    camera.lookAt(0, 0, 0);
+
+    const material = createVoidMaterial(0.82);
+    const materialB = createVoidMaterial(0.34);
+    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    meshA.position.z = 1280;
+    meshB.position.z = 1281;
+    scene.add(meshA, meshB);
+
+    voidRuntime = {
+      renderer,
+      scene,
+      camera,
+      meshA,
+      meshB,
+      startedAt: Date.now(),
+      width: 0,
+      height: 0
+    };
+  }
+
+  if (voidRuntime.width !== width || voidRuntime.height !== height) {
+    voidRuntime.width = width;
+    voidRuntime.height = height;
+    voidRuntime.camera.left = 0;
+    voidRuntime.camera.right = width;
+    voidRuntime.camera.top = 0;
+    voidRuntime.camera.bottom = height;
+    voidRuntime.camera.near = 0.1;
+    voidRuntime.camera.far = 5000;
+    voidRuntime.camera.updateProjectionMatrix();
+  }
+
+  return voidRuntime;
 }
 
 function getRadiantRuntime(width: number, height: number): WaterRuntime | null {
@@ -2738,6 +2886,212 @@ function updateChaosMaterialTuning(material: THREE.ShaderMaterial, tuning: Chaos
   material.uniforms.accentColor.value.set(tuning.accentColor);
 }
 
+function createVoidMaterial(opacity: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+    blending: THREE.NormalBlending,
+    uniforms: {
+      tendrilScale: { value: DEFAULT_VOID_EFFECT_TUNING.tendrilScale },
+      speed: { value: DEFAULT_VOID_EFFECT_TUNING.speed },
+      directionRadians: { value: degreesToRadians(DEFAULT_VOID_EFFECT_TUNING.directionDegrees) },
+      tendrilDensity: { value: DEFAULT_VOID_EFFECT_TUNING.tendrilDensity },
+      tendrilWidth: { value: DEFAULT_VOID_EFFECT_TUNING.tendrilWidth },
+      curl: { value: DEFAULT_VOID_EFFECT_TUNING.curl },
+      reach: { value: DEFAULT_VOID_EFFECT_TUNING.reach },
+      voidDepth: { value: DEFAULT_VOID_EFFECT_TUNING.voidDepth },
+      moteDensity: { value: DEFAULT_VOID_EFFECT_TUNING.moteDensity },
+      moteSize: { value: DEFAULT_VOID_EFFECT_TUNING.moteSize },
+      pulse: { value: DEFAULT_VOID_EFFECT_TUNING.pulse },
+      glow: { value: DEFAULT_VOID_EFFECT_TUNING.glow },
+      instability: { value: DEFAULT_VOID_EFFECT_TUNING.instability },
+      panFollow: { value: DEFAULT_VOID_EFFECT_TUNING.panFollow },
+      zoomScale: { value: DEFAULT_VOID_EFFECT_TUNING.zoomScale },
+      baseAlpha: { value: DEFAULT_VOID_EFFECT_TUNING.baseAlpha },
+      backgroundColor: { value: new THREE.Color(DEFAULT_VOID_EFFECT_TUNING.backgroundColor) },
+      tendrilColor: { value: new THREE.Color(DEFAULT_VOID_EFFECT_TUNING.tendrilColor) },
+      voidColor: { value: new THREE.Color(DEFAULT_VOID_EFFECT_TUNING.voidColor) },
+      accentColor: { value: new THREE.Color(DEFAULT_VOID_EFFECT_TUNING.accentColor) },
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2(1, 1) },
+      cameraOffset: { value: new THREE.Vector2(0, 0) },
+      effectOrigin: { value: new THREE.Vector2(0, 0) },
+      effectSize: { value: new THREE.Vector2(1, 1) },
+      cameraZoom: { value: 1 },
+      opacity: { value: opacity }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float tendrilScale;
+      uniform float speed;
+      uniform float directionRadians;
+      uniform float tendrilDensity;
+      uniform float tendrilWidth;
+      uniform float curl;
+      uniform float reach;
+      uniform float voidDepth;
+      uniform float moteDensity;
+      uniform float moteSize;
+      uniform float pulse;
+      uniform float glow;
+      uniform float instability;
+      uniform float panFollow;
+      uniform float zoomScale;
+      uniform float baseAlpha;
+      uniform vec3 backgroundColor;
+      uniform vec3 tendrilColor;
+      uniform vec3 voidColor;
+      uniform vec3 accentColor;
+      uniform float time;
+      uniform vec2 resolution;
+      uniform vec2 cameraOffset;
+      uniform vec2 effectOrigin;
+      uniform vec2 effectSize;
+      uniform float cameraZoom;
+      uniform float opacity;
+
+      float randomValue(vec2 value) {
+        return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float valueNoise(vec2 value) {
+        vec2 base = floor(value);
+        vec2 fraction = fract(value);
+        vec2 blend = fraction * fraction * (3.0 - 2.0 * fraction);
+        float a = randomValue(base);
+        float b = randomValue(base + vec2(1.0, 0.0));
+        float c = randomValue(base + vec2(0.0, 1.0));
+        float d = randomValue(base + vec2(1.0, 1.0));
+        return mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y);
+      }
+
+      float fbm(vec2 value) {
+        float total = 0.0;
+        float amplitude = 0.5;
+        for (int i = 0; i < 5; i++) {
+          total += valueNoise(value) * amplitude;
+          value *= 2.03;
+          amplitude *= 0.52;
+        }
+        return total;
+      }
+
+      mat2 rotate2d(float angle) {
+        float s = sin(angle);
+        float c = cos(angle);
+        return mat2(c, -s, s, c);
+      }
+
+      float tendrilLayer(vec2 uv, vec2 centered, float localTime, float seedOffset) {
+        vec2 curlUv = uv;
+        float swirl = atan(centered.y, centered.x);
+        float radius = length(centered);
+        curlUv += vec2(cos(swirl * (2.2 + curl * 4.4) - radius * 5.0 + localTime * 0.7), sin(swirl * (1.6 + curl * 3.2) + radius * 4.0 - localTime * 0.5)) * curl * 0.42;
+        float coarse = fbm(curlUv * 0.8 + vec2(seedOffset, localTime * 0.12));
+        float fine = fbm(curlUv * 2.2 - vec2(localTime * 0.09, seedOffset * 1.4));
+        curlUv += vec2(coarse - 0.5, fine - 0.5) * instability * 0.92;
+
+        float lanes = mix(2.2, 9.5, tendrilDensity);
+        float path = curlUv.x * lanes + sin(curlUv.y * (2.2 + tendrilScale * 0.22) + localTime * 2.1 + seedOffset) * (0.18 + curl * 0.64);
+        path += fbm(curlUv * (1.8 + tendrilScale * 0.16) + seedOffset) * (0.8 + instability * 1.6);
+        float strandWidth = mix(0.04, 0.18, tendrilWidth);
+        float strand = 1.0 - smoothstep(0.018, strandWidth, abs(fract(path) - 0.5));
+        float broken = smoothstep(0.18, 0.9, fbm(curlUv * vec2(3.2, 6.8) + vec2(localTime * 0.18, seedOffset)));
+        float reachMask = smoothstep(0.72 + reach * 0.22, 0.02, radius);
+        float tipFlicker = 0.65 + 0.35 * sin(localTime * 4.2 + seedOffset + coarse * 5.0);
+        float core = pow(strand, mix(1.8, 0.72, tendrilWidth));
+        return core * broken * reachMask * tipFlicker;
+      }
+
+      float voidPocket(vec2 centered, vec2 uv, float localTime) {
+        float radius = length(centered);
+        float ringWarp = fbm(uv * (1.3 + tendrilScale * 0.09) + vec2(localTime * 0.05, -localTime * 0.04));
+        float depth = smoothstep(0.82, 0.08, radius + (ringWarp - 0.5) * voidDepth * 0.42);
+        float pits = smoothstep(0.62, 1.0, fbm(uv * 2.4 - vec2(localTime * 0.08, 7.0))) * voidDepth;
+        return clamp(depth * (0.58 + voidDepth * 0.55) + pits * 0.24, 0.0, 1.0);
+      }
+
+      float motes(vec2 uv, float localTime) {
+        float density = mix(2.0, 16.0, moteDensity);
+        vec2 grid = uv * density;
+        vec2 cell = floor(grid);
+        float seed = randomValue(cell);
+        vec2 drift = vec2(sin(localTime * (0.6 + seed) + seed * 9.0), cos(localTime * (0.48 + seed) + seed * 13.0)) * 0.2;
+        vec2 local = fract(grid) - 0.5 - drift;
+        float visible = step(1.0 - moteDensity, seed) * smoothstep(0.02, 0.12, moteDensity);
+        float normalizedSize = clamp(moteSize / 5.0, 0.0, 1.0);
+        float core = smoothstep(mix(0.045, 0.18, normalizedSize), 0.0, length(local));
+        float halo = smoothstep(mix(0.16, 0.42, normalizedSize), 0.0, length(local)) * 0.28 * glow;
+        return (core + halo) * visible;
+      }
+
+      void main() {
+        float zoomBase = max(cameraZoom, 0.01);
+        float zoomFactor = pow(zoomBase, zoomScale);
+        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
+        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
+        vec2 size = max(effectSize, vec2(1.0));
+        vec2 localCoord = (worldCoord - effectOrigin) / size;
+        vec2 centered = localCoord - 0.5;
+        centered.x *= size.x / max(size.y, 1.0);
+        vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
+        vec2 perpendicular = vec2(-direction.y, direction.x);
+        vec2 uv = anchoredCoord / 150.0 * zoomFactor;
+        vec2 flowUv = vec2(dot(uv, direction), dot(uv, perpendicular));
+        float localTime = time * speed;
+        flowUv.x += localTime * 0.22;
+
+        float pocket = voidPocket(centered, flowUv, localTime);
+        float tendrilA = tendrilLayer(flowUv * max(0.25, tendrilScale / 5.0), centered, localTime, 6.2);
+        float tendrilB = tendrilLayer(rotate2d(1.12) * flowUv.yx * max(0.25, tendrilScale / 6.0), centered.yx, localTime * 0.82 + 3.0, 19.4) * 0.68;
+        float mote = motes(localCoord * (1.4 + tendrilScale * 0.08) + vec2(localTime * 0.04, -localTime * 0.05), localTime) * moteDensity;
+        float pulseWave = 0.76 + 0.24 * sin(localTime * 6.2831 + fbm(flowUv * 0.5) * 5.0) * pulse;
+        float tendrils = clamp((tendrilA + tendrilB) * pulseWave, 0.0, 1.0);
+        float energy = clamp(tendrils * (0.94 + glow * 0.55) + mote * 0.86 + pocket * baseAlpha * 0.5, 0.0, 1.0);
+        vec3 color = mix(backgroundColor, voidColor, pocket * voidDepth);
+        color = mix(color, tendrilColor, clamp(tendrils * (1.1 + glow * 0.55), 0.0, 1.0));
+        color = mix(color, accentColor, clamp(mote + smoothstep(0.66, 1.0, energy) * glow * 0.5, 0.0, 1.0));
+        float alpha = (baseAlpha * 0.6 + pocket * voidDepth * 0.42 + tendrils * (0.68 + glow * 0.52) + mote * 0.42) * opacity;
+        alpha *= smoothstep(0.015, 0.12, energy + baseAlpha + pocket * 0.32);
+        gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+      }
+    `
+  });
+}
+
+function updateVoidMaterialTuning(material: THREE.ShaderMaterial, tuning: VoidEffectTuning) {
+  material.uniforms.tendrilScale.value = tuning.tendrilScale;
+  material.uniforms.speed.value = tuning.speed;
+  material.uniforms.directionRadians.value = degreesToRadians(tuning.directionDegrees);
+  material.uniforms.tendrilDensity.value = tuning.tendrilDensity;
+  material.uniforms.tendrilWidth.value = tuning.tendrilWidth;
+  material.uniforms.curl.value = tuning.curl;
+  material.uniforms.reach.value = tuning.reach;
+  material.uniforms.voidDepth.value = tuning.voidDepth;
+  material.uniforms.moteDensity.value = tuning.moteDensity;
+  material.uniforms.moteSize.value = tuning.moteSize;
+  material.uniforms.pulse.value = tuning.pulse;
+  material.uniforms.glow.value = tuning.glow;
+  material.uniforms.instability.value = tuning.instability;
+  material.uniforms.panFollow.value = 1;
+  material.uniforms.zoomScale.value = tuning.zoomScale;
+  material.uniforms.baseAlpha.value = tuning.baseAlpha;
+  material.uniforms.backgroundColor.value.set(tuning.backgroundColor);
+  material.uniforms.tendrilColor.value.set(tuning.tendrilColor);
+  material.uniforms.voidColor.value.set(tuning.voidColor);
+  material.uniforms.accentColor.value.set(tuning.accentColor);
+}
+
 function createRadiantMaterial(opacity: number): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     transparent: true,
@@ -3763,6 +4117,14 @@ function drawChaosFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, 
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.34;
   ctx.fillStyle = "rgb(244, 114, 182)";
+  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  ctx.restore();
+}
+
+function drawVoidFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.36;
+  ctx.fillStyle = "rgb(76, 29, 149)";
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }

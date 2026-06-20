@@ -11,6 +11,7 @@ import {
   RADIANT_EFFECT_PRESETS,
   SHOCKWAVE_EFFECT_PRESETS,
   SMOKE_EFFECT_PRESETS,
+  VOID_EFFECT_PRESETS,
   WATER_EFFECT_PRESETS,
   type ArcaneEffectTuning,
   type ChaosEffectTuning,
@@ -23,6 +24,7 @@ import {
   type RadiantEffectTuning,
   type ShockwaveEffectTuning,
   type SmokeEffectTuning,
+  type VoidEffectTuning,
   type WaterEffectTuning
 } from "../canvas/environmentEffectsRenderer";
 
@@ -45,6 +47,7 @@ export const ENVIRONMENT_EFFECT_OPTIONS: Array<{ label: string; value: Environme
   { label: "Radiant", value: "radiant" },
   { label: "Shockwave", value: "shockwave" },
   { label: "Smoke", value: "smoke" },
+  { label: "Void Tendrils", value: "void" },
   { label: "Water", value: "water" }
 ];
 
@@ -60,6 +63,7 @@ const ENVIRONMENT_EFFECT_LABELS: Record<EnvironmentEffectType, string> = {
   radiant: "Radiant",
   shockwave: "Shockwave",
   smoke: "Smoke",
+  void: "Void Tendrils",
   water: "Water"
 };
 
@@ -128,6 +132,12 @@ const ENVIRONMENT_EFFECT_PRESET_OPTIONS: Record<EnvironmentEffectType, Array<{ l
     { label: "Drifting Smoke", value: "driftingSmoke" },
     { label: "Heavy Smoke", value: "heavySmoke" }
   ],
+  void: [
+    { label: "Custom", value: "custom" },
+    { label: "Creeping Void", value: "creepingVoid" },
+    { label: "Grasping Tendrils", value: "graspingTendrils" },
+    { label: "Abyssal Bloom", value: "abyssalBloom" }
+  ],
   water: [
     { label: "Custom", value: "custom" },
     { label: "Stream", value: "stream" },
@@ -147,6 +157,7 @@ const ENVIRONMENT_EFFECT_CANVAS_STYLES: Record<EnvironmentEffectType, { previewF
   radiant: { previewFill: "rgba(253, 230, 138, 0.16)", stroke: "rgba(253, 230, 138, 0.95)" },
   shockwave: { previewFill: "rgba(147, 197, 253, 0.16)", stroke: "rgba(147, 197, 253, 0.95)" },
   smoke: { previewFill: "rgba(210, 220, 226, 0.18)", stroke: "rgba(210, 220, 226, 0.88)" },
+  void: { previewFill: "rgba(124, 58, 237, 0.16)", stroke: "rgba(167, 139, 250, 0.95)" },
   water: { previewFill: "rgba(56, 189, 248, 0.2)", stroke: "rgba(125, 211, 252, 0.95)" }
 };
 
@@ -158,6 +169,7 @@ export function getEnvironmentEffectPresetSelectValue(
   lightningEffectTuning: LightningEffectTuning,
   arcaneEffectTuning: ArcaneEffectTuning,
   chaosEffectTuning: ChaosEffectTuning,
+  voidEffectTuning: VoidEffectTuning,
   distortionEffectTuning: DistortionEffectTuning,
   radiantEffectTuning: RadiantEffectTuning,
   forceFieldEffectTuning: ForceFieldEffectTuning,
@@ -179,6 +191,9 @@ export function getEnvironmentEffectPresetSelectValue(
   }
   if (effect === "chaos") {
     return getChaosPresetSelectValue(chaosEffectTuning);
+  }
+  if (effect === "void") {
+    return getVoidPresetSelectValue(voidEffectTuning);
   }
   if (effect === "distortion") {
     return getDistortionPresetSelectValue(distortionEffectTuning);
@@ -215,6 +230,7 @@ export function applyEnvironmentEffectPreset(
     onLightningEffectTuningChange: (tuning: LightningEffectTuning) => void;
     onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
     onChaosEffectTuningChange: (tuning: ChaosEffectTuning) => void;
+    onVoidEffectTuningChange: (tuning: VoidEffectTuning) => void;
     onDistortionEffectTuningChange: (tuning: DistortionEffectTuning) => void;
     onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
     onForceFieldEffectTuningChange: (tuning: ForceFieldEffectTuning) => void;
@@ -255,6 +271,13 @@ export function applyEnvironmentEffectPreset(
     const preset = CHAOS_EFFECT_PRESETS[value as keyof typeof CHAOS_EFFECT_PRESETS];
     if (preset) {
       handlers.onChaosEffectTuningChange({ ...preset });
+    }
+    return;
+  }
+  if (effect === "void") {
+    const preset = VOID_EFFECT_PRESETS[value as keyof typeof VOID_EFFECT_PRESETS];
+    if (preset) {
+      handlers.onVoidEffectTuningChange({ ...preset });
     }
     return;
   }
@@ -372,6 +395,15 @@ function getChaosPresetSelectValue(tuning: ChaosEffectTuning): keyof typeof CHAO
   for (const [presetName, preset] of Object.entries(CHAOS_EFFECT_PRESETS)) {
     if (isChaosTuningMatch(tuning, preset)) {
       return presetName as keyof typeof CHAOS_EFFECT_PRESETS;
+    }
+  }
+  return "custom";
+}
+
+function getVoidPresetSelectValue(tuning: VoidEffectTuning): keyof typeof VOID_EFFECT_PRESETS | "custom" {
+  for (const [presetName, preset] of Object.entries(VOID_EFFECT_PRESETS)) {
+    if (isVoidTuningMatch(tuning, preset)) {
+      return presetName as keyof typeof VOID_EFFECT_PRESETS;
     }
   }
   return "custom";
@@ -554,6 +586,31 @@ function isChaosTuningMatch(tuning: ChaosEffectTuning, preset: ChaosEffectTuning
     tuning.backgroundColor === preset.backgroundColor &&
     tuning.riftColor === preset.riftColor &&
     tuning.moteColor === preset.moteColor &&
+    tuning.accentColor === preset.accentColor
+  );
+}
+
+function isVoidTuningMatch(tuning: VoidEffectTuning, preset: VoidEffectTuning): boolean {
+  return (
+    tuning.opacity === preset.opacity &&
+    tuning.tendrilScale === preset.tendrilScale &&
+    tuning.speed === preset.speed &&
+    tuning.directionDegrees === preset.directionDegrees &&
+    tuning.tendrilDensity === preset.tendrilDensity &&
+    tuning.tendrilWidth === preset.tendrilWidth &&
+    tuning.curl === preset.curl &&
+    tuning.reach === preset.reach &&
+    tuning.voidDepth === preset.voidDepth &&
+    tuning.moteDensity === preset.moteDensity &&
+    tuning.moteSize === preset.moteSize &&
+    tuning.pulse === preset.pulse &&
+    tuning.glow === preset.glow &&
+    tuning.instability === preset.instability &&
+    tuning.zoomScale === preset.zoomScale &&
+    tuning.baseAlpha === preset.baseAlpha &&
+    tuning.backgroundColor === preset.backgroundColor &&
+    tuning.tendrilColor === preset.tendrilColor &&
+    tuning.voidColor === preset.voidColor &&
     tuning.accentColor === preset.accentColor
   );
 }
