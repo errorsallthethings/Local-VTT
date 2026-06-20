@@ -91,6 +91,7 @@ import {
   type WorkspaceLayout,
   type WorkspacePanelSide
 } from "../lib/workspaceLayout";
+import { formatSaveStatus } from "../lib/workspaceStatus";
 import {
   GmDialogs,
   type EnvironmentEffectNameDialog,
@@ -3278,31 +3279,5 @@ function clampTurnOrderModalPosition(x: number, y: number, bounds: DOMRect): { x
     x: Math.min(Math.max(margin, x), Math.max(margin, window.innerWidth - bounds.width - margin)),
     y: Math.min(Math.max(margin, y), Math.max(margin, window.innerHeight - bounds.height - margin))
   };
-}
-
-function formatSaveStatus({
-  dirtySceneCount,
-  campaignDirty,
-  saveState
-}: {
-  dirtySceneCount: number;
-  campaignDirty: boolean;
-  saveState: string;
-}): string {
-  const parts = [];
-  if (dirtySceneCount > 0) {
-    parts.push(`Unsaved scenes: ${dirtySceneCount}`);
-  }
-  if (campaignDirty) {
-    parts.push("Unsaved campaign changes");
-  }
-  return parts.length > 0 ? parts.join(" | ") : formatCleanSaveState(saveState);
-}
-
-function formatCleanSaveState(saveState: string): string {
-  if (saveState === "idle") {
-    return "Saved";
-  }
-  return saveState[0].toUpperCase() + saveState.slice(1);
 }
 
