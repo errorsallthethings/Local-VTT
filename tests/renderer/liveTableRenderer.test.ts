@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { LiveTableEvent, LiveTablePoint } from "../../src/shared/localvtt";
-import { getActiveLaserPoints, hasActiveLiveTableEvents, LASER_POINT_LIFETIME_MS, PING_DURATION_MS, RULER_RELEASE_LINGER_MS } from "../../src/renderer/canvas/liveTableRenderer";
+import {
+  getActiveLaserPoints,
+  getUpdatedLaserDrag,
+  hasActiveLiveTableEvents,
+  LASER_POINT_LIFETIME_MS,
+  PING_DURATION_MS,
+  RULER_RELEASE_LINGER_MS
+} from "../../src/renderer/canvas/liveTableRenderer";
 
 describe("liveTableRenderer", () => {
   it("keeps ping events active until their duration expires", () => {
@@ -46,6 +53,42 @@ describe("liveTableRenderer", () => {
     ];
 
     expect(getActiveLaserPoints(points, now).map((point) => point.point.x)).toEqual([1, 2]);
+  });
+
+  it("skips laser drag updates until the pointer moves far enough", () => {
+    expect(
+      getUpdatedLaserDrag(
+        {
+          pointerId: 1,
+          eventId: "laser-1",
+          points: [{ point: { x: 0, y: 0 }, createdAt: 100 }]
+        },
+        { x: 4, y: 0 },
+        200
+      )
+    ).toBeNull();
+  });
+
+  it("adds laser drag points and drops expired trail points", () => {
+    const now = 2_000;
+
+    expect(
+      getUpdatedLaserDrag(
+        {
+          pointerId: 1,
+          eventId: "laser-1",
+          points: [
+            { point: { x: 0, y: 0 }, createdAt: now - LASER_POINT_LIFETIME_MS - 1 },
+            { point: { x: 5, y: 0 }, createdAt: now - 100 }
+          ]
+        },
+        { x: 20, y: 0 },
+        now
+      )?.points
+    ).toEqual([
+      { point: { x: 5, y: 0 }, createdAt: now - 100 },
+      { point: { x: 20, y: 0 }, createdAt: now }
+    ]);
   });
 
   it("treats fully expired laser events as inactive", () => {

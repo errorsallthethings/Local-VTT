@@ -2,6 +2,8 @@ import type { LiveTableEvent, LiveTablePoint, Point } from "../../shared/localvt
 import type { GridSettings } from "../../shared/localvtt";
 import type { Camera } from "./camera";
 import { drawRuler, type RulerDrag, type RulerLabel } from "./measurement";
+import type { LaserDragState } from "./sceneInteractionTypes";
+import { distanceBetween } from "./tokenGeometry";
 
 export const PING_DURATION_MS = 1600;
 export const LASER_POINT_LIFETIME_MS = 1100;
@@ -11,6 +13,18 @@ export const RULER_RELEASE_LINGER_MS = 2500;
 
 export function getActiveLaserPoints(points: LiveTablePoint[], now: number): LiveTablePoint[] {
   return points.filter((point) => now - point.createdAt <= LASER_POINT_LIFETIME_MS);
+}
+
+export function getUpdatedLaserDrag(drag: LaserDragState, point: Point, now: number): LaserDragState | null {
+  const previousPoint = drag.points[drag.points.length - 1]?.point;
+  if (previousPoint && distanceBetween(previousPoint, point) < LASER_MIN_POINT_DISTANCE) {
+    return null;
+  }
+
+  return {
+    ...drag,
+    points: [...drag.points, { point, createdAt: now }].filter((entry) => now - entry.createdAt <= LASER_POINT_LIFETIME_MS)
+  };
 }
 
 export function hasActiveLiveTableEvents(events: LiveTableEvent[], now = Date.now()): boolean {

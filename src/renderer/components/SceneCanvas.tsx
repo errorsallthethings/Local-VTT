@@ -49,9 +49,8 @@ import { drawHexGrid, drawSquareGrid } from "../canvas/gridRenderer";
 import { constrainSquarePoint } from "../canvas/gridMath";
 import {
   drawLiveTableEvents,
+  getUpdatedLaserDrag,
   hasActiveLiveTableEvents,
-  LASER_MIN_POINT_DISTANCE,
-  LASER_POINT_LIFETIME_MS,
   RULER_RELEASE_LINGER_MS
 } from "../canvas/liveTableRenderer";
 import { getPlayerDisplayScale, getRulerLabel, isDuplicateRulerWaypoint, isVisibleDiceOverlayEvent } from "../canvas/liveTableState";
@@ -124,7 +123,7 @@ import {
   getTemplatePreviewDrawing,
   isTemplateDrawingTool
 } from "../canvas/templateDrawing";
-import { distanceBetween, getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
+import { getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
 import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey, parseTokenImageSourceKey } from "../canvas/tokenImageSource";
 import {
   getSceneAfterTokenDrag,
@@ -1721,16 +1720,14 @@ export function SceneCanvas({
     }
     if (laserDrag?.pointerId === event.pointerId) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const previousPoint = laserDrag.points[laserDrag.points.length - 1]?.point;
-      if (!previousPoint || distanceBetween(previousPoint, point) >= LASER_MIN_POINT_DISTANCE) {
-        const now = Date.now();
-        const nextPoints = [...laserDrag.points, { point, createdAt: now }].filter((entry) => now - entry.createdAt <= LASER_POINT_LIFETIME_MS);
-        laserDragRef.current = { ...laserDrag, points: nextPoints };
+      const nextLaserDrag = getUpdatedLaserDrag(laserDrag, point, Date.now());
+      if (nextLaserDrag) {
+        laserDragRef.current = nextLaserDrag;
         onLiveTableEvent?.({
           id: laserDrag.eventId,
           type: "laser",
           createdAt: laserDrag.points[0]?.createdAt ?? Date.now(),
-          points: nextPoints,
+          points: nextLaserDrag.points,
           thickness: activeTableTools.laserThickness,
           color: activeTableTools.laserColor,
           visibleInPlayer: tableToolsVisibleInPlayer
