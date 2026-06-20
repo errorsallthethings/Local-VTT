@@ -1,13 +1,16 @@
+import { useMemo } from "react";
 import { Circle, Crown, Eye, EyeOff, GripVertical, Paintbrush, Pentagon, Square, Trash2, User } from "lucide-react";
 import { formatDefaultFogShapeName, type FogSettings, type Scene } from "../../../shared/localvtt";
 import type { DropPlacement } from "../../lib/reorder";
+import { getSelectedItemIds } from "../../lib/selectionIds";
 
 export type FogShapeDropTarget = { shapeId: string; placement: DropPlacement } | null;
+const EMPTY_SELECTED_IDS: string[] = [];
 
 export function FogShapeList({
   scene,
   selectedFogShapeId,
-  selectedFogShapeIds = [],
+  selectedFogShapeIds = EMPTY_SELECTED_IDS,
   draggedFogShapeId,
   fogShapeDropTarget,
   onDraggedFogShapeIdChange,
@@ -29,7 +32,7 @@ export function FogShapeList({
   onRenameFogShape: (shapeId: string, fallbackName: string) => void;
   onUpdateFog: (patch: Partial<FogSettings>) => void;
 }) {
-  const selectedIds = new Set(selectedFogShapeIds.length > 0 ? selectedFogShapeIds : selectedFogShapeId ? [selectedFogShapeId] : []);
+  const selectedIds = useMemo(() => getSelectedItemIds(selectedFogShapeId, selectedFogShapeIds), [selectedFogShapeId, selectedFogShapeIds]);
   return (
     <div className="layer-detail-controls fog-shape-list" onClick={(event) => event.stopPropagation()}>
       <div className="fog-shape-list-header">

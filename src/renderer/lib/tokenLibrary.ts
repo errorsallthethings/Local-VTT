@@ -1,4 +1,5 @@
 import type { Asset } from "../../shared/localvtt";
+import { getSelectedItemIds } from "./selectionIds";
 
 export type TokenLibrarySort = "name-asc" | "newest" | "oldest";
 
@@ -10,7 +11,7 @@ export function filterTokenLibraryAssets(assets: Asset[], query: string, sort: T
 }
 
 export function getSelectedTokenLibraryAssetIds(selectedTokenAssetId: string | undefined, selectedTokenAssetIds: string[]): Set<string> {
-  return new Set(selectedTokenAssetIds.length > 0 ? selectedTokenAssetIds : selectedTokenAssetId ? [selectedTokenAssetId] : []);
+  return getSelectedItemIds(selectedTokenAssetId, selectedTokenAssetIds);
 }
 
 export function getSelectedTokenLibraryAsset(assets: Asset[], selectedTokenAssetId: string | undefined): Asset | null {

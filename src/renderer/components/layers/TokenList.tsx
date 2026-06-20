@@ -1,20 +1,22 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Copy, Crown, Eye, EyeOff, GripVertical, MoreVertical, Trash2, User, UsersRound } from "lucide-react";
 import type { Asset, Scene, Token } from "../../../shared/localvtt";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
+import { getSelectedItemIds } from "../../lib/selectionIds";
 import { duplicateToken } from "../../lib/tokenDefaults";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
 import { TokenSettings } from "./TokenSettings";
 
 type TokenDropTarget = { tokenId: string; placement: DropPlacement } | null;
+const EMPTY_SELECTED_IDS: string[] = [];
 
 export function TokenList({
   scene,
   tokenAssets,
   selectedTokenId,
-  selectedTokenIds = [],
+  selectedTokenIds = EMPTY_SELECTED_IDS,
   onSelectToken,
   onRenameToken,
   onUpdateToken,
@@ -34,7 +36,7 @@ export function TokenList({
   const [draggedTokenId, setDraggedTokenId] = useState<string | null>(null);
   const [tokenDropTarget, setTokenDropTarget] = useState<TokenDropTarget>(null);
   const [openTokenMenuId, setOpenTokenMenuId] = useState<string | null>(null);
-  const selectedIds = new Set(selectedTokenIds.length > 0 ? selectedTokenIds : selectedTokenId ? [selectedTokenId] : []);
+  const selectedIds = useMemo(() => getSelectedItemIds(selectedTokenId, selectedTokenIds), [selectedTokenId, selectedTokenIds]);
 
   useDismissableMenu({
     enabled: Boolean(openTokenMenuId),

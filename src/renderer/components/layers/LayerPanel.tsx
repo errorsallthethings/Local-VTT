@@ -1,4 +1,4 @@
-import { useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import { useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowDown,
@@ -49,6 +49,7 @@ import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../../lib/environmentEffectOptions";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
+import { getSelectedItemIds } from "../../lib/selectionIds";
 import {
   WEATHER_CATEGORY_OPTIONS,
   getWeatherCategoryLabel,
@@ -63,6 +64,7 @@ import { TokenList } from "./TokenList";
 
 type WeatherTuningKey = keyof WeatherTuningSettings;
 type DrawingDropTarget = { drawingId: string; placement: DropPlacement } | null;
+const EMPTY_SELECTED_IDS: string[] = [];
 
 export function LayerPanel({
   scene,
@@ -73,10 +75,10 @@ export function LayerPanel({
   selectedEnvironmentEffectId,
   selectedDrawingId,
   selectedTokenId,
-  selectedFogShapeIds = [],
-  selectedWeatherMaskIds = [],
-  selectedDrawingIds = [],
-  selectedTokenIds = [],
+  selectedFogShapeIds = EMPTY_SELECTED_IDS,
+  selectedWeatherMaskIds = EMPTY_SELECTED_IDS,
+  selectedDrawingIds = EMPTY_SELECTED_IDS,
+  selectedTokenIds = EMPTY_SELECTED_IDS,
   onChange,
   onUpdateGrid,
   onUpdateFog,
@@ -1106,7 +1108,7 @@ function WeatherRangeRow({
 function DrawingList({
   drawings,
   selectedDrawingId,
-  selectedDrawingIds = [],
+  selectedDrawingIds = EMPTY_SELECTED_IDS,
   draggedDrawingId,
   drawingDropTarget,
   onDraggedDrawingIdChange,
@@ -1126,7 +1128,7 @@ function DrawingList({
   onSelectDrawing: (drawingId: string | null) => void;
   onUpdateDrawings: (drawings: DrawingElement[]) => void;
 }) {
-  const selectedIds = new Set(selectedDrawingIds.length > 0 ? selectedDrawingIds : selectedDrawingId ? [selectedDrawingId] : []);
+  const selectedIds = useMemo(() => getSelectedItemIds(selectedDrawingId, selectedDrawingIds), [selectedDrawingId, selectedDrawingIds]);
   return (
     <div className="layer-detail-controls fog-shape-list" onClick={(event) => event.stopPropagation()}>
       <div className="fog-shape-list-header">
@@ -1485,7 +1487,7 @@ function FloatingEnvironmentEffectMenu({
 function WeatherMaskList({
   scene,
   selectedWeatherMaskId,
-  selectedWeatherMaskIds = [],
+  selectedWeatherMaskIds = EMPTY_SELECTED_IDS,
   onSelectWeatherMask,
   onUpdateWeather
 }: {
@@ -1495,7 +1497,7 @@ function WeatherMaskList({
   onSelectWeatherMask: (maskId: string | null) => void;
   onUpdateWeather: (patch: Partial<WeatherSettings>) => void;
 }) {
-  const selectedIds = new Set(selectedWeatherMaskIds.length > 0 ? selectedWeatherMaskIds : selectedWeatherMaskId ? [selectedWeatherMaskId] : []);
+  const selectedIds = useMemo(() => getSelectedItemIds(selectedWeatherMaskId, selectedWeatherMaskIds), [selectedWeatherMaskId, selectedWeatherMaskIds]);
   return (
     <div className="layer-detail-controls weather-mask-list effects-layer-list" onClick={(event) => event.stopPropagation()}>
       <div className="fog-shape-list-header">
