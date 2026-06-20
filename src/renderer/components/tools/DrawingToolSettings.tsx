@@ -1,6 +1,7 @@
 import type { DrawingStrokeStyle, DrawingTemplateEffect } from "../../../shared/localvtt";
 import type { DrawingTool } from "../../canvas/drawingRenderer";
 import { ColorInput } from "../controls/ColorPickerField";
+import { getPresetSelectValue, hasPresetValue } from "./toolPresetOptions";
 
 export type DrawingTemplateSize = "custom" | 5 | 10 | 15 | 20 | 30 | 60 | 100;
 export type DrawingTemplateWidth = 0 | 5 | 10 | 15 | 20;
@@ -293,16 +294,4 @@ function SettingsCheckbox({ label, checked, onChange }: { label: string; checked
       <span>{label}</span>
     </label>
   );
-}
-
-function hasPresetValue(presets: { value: number }[], value: number): boolean {
-  return presets.some((preset) => Math.abs(preset.value - value) < 0.001);
-}
-
-function getPresetSelectValue(presets: { value: number }[], value: number, customOpen: boolean): string {
-  if (customOpen) {
-    return "custom";
-  }
-  const preset = presets.find((candidate) => Math.abs(candidate.value - value) < 0.001);
-  return preset ? String(preset.value) : "custom";
 }
