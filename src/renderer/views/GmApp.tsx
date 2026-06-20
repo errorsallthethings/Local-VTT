@@ -67,7 +67,7 @@ import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/liveTab
 import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/playerIdleState";
 import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/sceneCollectionActions";
 import { applySelectionMode, retainExistingSelectionIds, type SelectionMode } from "../lib/selectionIds";
-import { removeSelectedSceneItems, setSelectedSceneItemsPlayerVisibility } from "../lib/sceneEditing";
+import { patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/sceneEditing";
 import {
   addRecentCampaign,
   loadRecentCampaigns,
@@ -444,14 +444,7 @@ export function GmApp() {
     if (!activeScene) {
       return;
     }
-    updateScene({
-      ...activeScene,
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === effectId ? updateEffect(effect) : effect))
-      },
-      updatedAt: new Date().toISOString()
-    });
+    updateScene(patchSceneEnvironmentEffect(activeScene, effectId, updateEffect));
   };
 
   const updateEnvironmentEffectAcidTuning = (effectId: string, acidTuning: AcidEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, acidTuning }));
@@ -475,28 +468,10 @@ export function GmApp() {
   const updateEnvironmentEffectFeather = (effectId: string, feather: number) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, feather }));
 
   const updateEnvironmentEffectType = (effectId: string, effectType: EnvironmentEffectType) => {
-    updateEnvironmentEffect(effectId, (effect) => ({
-      ...effect,
-      effect: effectType,
-      acidTuning: effectType === "acid" ? (effect.acidTuning ?? { ...DEFAULT_ACID_EFFECT_TUNING }) : undefined,
-      coldTuning: effectType === "cold" ? (effect.coldTuning ?? { ...DEFAULT_COLD_EFFECT_TUNING }) : undefined,
-      darknessTuning: effectType === "darkness" ? (effect.darknessTuning ?? { ...DEFAULT_DARKNESS_EFFECT_TUNING }) : undefined,
-      poisonTuning: effectType === "poison" ? (effect.poisonTuning ?? { ...DEFAULT_POISON_EFFECT_TUNING }) : undefined,
-      waterTuning: effectType === "water" ? (effect.waterTuning ?? { ...DEFAULT_WATER_EFFECT_TUNING }) : undefined,
-      lavaTuning: effectType === "lava" ? (effect.lavaTuning ?? { ...DEFAULT_LAVA_EFFECT_TUNING }) : undefined,
-      fireTuning: effectType === "fire" ? (effect.fireTuning ?? { ...DEFAULT_FIRE_EFFECT_TUNING }) : undefined,
-      lightningTuning: effectType === "electric" ? (effect.lightningTuning ?? { ...DEFAULT_LIGHTNING_EFFECT_TUNING }) : undefined,
-      arcaneTuning: effectType === "arcane" ? (effect.arcaneTuning ?? { ...DEFAULT_ARCANE_EFFECT_TUNING }) : undefined,
-      chaosTuning: effectType === "chaos" ? (effect.chaosTuning ?? { ...DEFAULT_CHAOS_EFFECT_TUNING }) : undefined,
-      voidTuning: effectType === "void" ? (effect.voidTuning ?? { ...DEFAULT_VOID_EFFECT_TUNING }) : undefined,
-      natureTuning: effectType === "nature" ? (effect.natureTuning ?? { ...DEFAULT_NATURE_EFFECT_TUNING }) : undefined,
-      distortionTuning: effectType === "distortion" ? (effect.distortionTuning ?? { ...DEFAULT_DISTORTION_EFFECT_TUNING }) : undefined,
-      radiantTuning: effectType === "radiant" ? (effect.radiantTuning ?? { ...DEFAULT_RADIANT_EFFECT_TUNING }) : undefined,
-      fieldTuning: effectType === "field" ? (effect.fieldTuning ?? { ...DEFAULT_FORCE_FIELD_EFFECT_TUNING }) : undefined,
-      shockwaveTuning: effectType === "shockwave" ? (effect.shockwaveTuning ?? { ...DEFAULT_SHOCKWAVE_EFFECT_TUNING }) : undefined,
-      smokeTuning: effectType === "smoke" ? (effect.smokeTuning ?? { ...DEFAULT_SMOKE_EFFECT_TUNING }) : undefined,
-      fogTuning: effectType === "fog" ? (effect.fogTuning ?? { ...DEFAULT_FOG_EFFECT_TUNING }) : undefined
-    }));
+    if (!activeScene) {
+      return;
+    }
+    updateScene(setSceneEnvironmentEffectType(activeScene, effectId, effectType));
   };
 
   const updateSelectedPlayerVisibility = (visibleInPlayer: boolean) => {

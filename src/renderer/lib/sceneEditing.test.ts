@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createDefaultScene, type Scene } from "../../shared/localvtt";
-import { removeSelectedSceneItems, setSelectedSceneItemsPlayerVisibility } from "./sceneEditing";
+import { DEFAULT_FIRE_EFFECT_TUNING_SETTINGS, DEFAULT_WATER_EFFECT_TUNING_SETTINGS, createDefaultScene, type Scene } from "../../shared/localvtt";
+import { removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "./sceneEditing";
 
 function createSceneWithSelectableItems(): Scene {
   return {
@@ -125,5 +125,51 @@ describe("scene editing selected item actions", () => {
     expect(scene.fog.shapes.map((shape) => shape.id)).toEqual(["fog-2"]);
     expect(scene.weather.masks.map((mask) => mask.id)).toEqual(["weather-2"]);
     expect(scene.environment.effects.map((effect) => effect.id)).toEqual(["effect-2"]);
+  });
+
+  it("switches environment effect type while preserving matching tuning", () => {
+    const source = {
+      ...createDefaultScene("Scene"),
+      environment: {
+        effects: [
+          {
+            id: "effect-1",
+            kind: "rectangle" as const,
+            effect: "water" as const,
+            points: [{ x: 0, y: 0 }, { x: 1, y: 1 }],
+            waterTuning: { ...DEFAULT_WATER_EFFECT_TUNING_SETTINGS, speed: 0.42 },
+            fireTuning: { ...DEFAULT_FIRE_EFFECT_TUNING_SETTINGS, speed: 0.84 }
+          }
+        ]
+      }
+    };
+
+    const scene = setSceneEnvironmentEffectType(source, "effect-1", "fire", "now");
+
+    expect(scene.environment.effects[0]).toMatchObject({
+      effect: "fire",
+      fireTuning: { speed: 0.84 },
+      waterTuning: undefined
+    });
+  });
+
+  it("adds default tuning when switching to a new environment effect type", () => {
+    const source = {
+      ...createDefaultScene("Scene"),
+      environment: {
+        effects: [
+          {
+            id: "effect-1",
+            kind: "rectangle" as const,
+            effect: "water" as const,
+            points: [{ x: 0, y: 0 }, { x: 1, y: 1 }]
+          }
+        ]
+      }
+    };
+
+    const scene = setSceneEnvironmentEffectType(source, "effect-1", "fire", "now");
+
+    expect(scene.environment.effects[0].fireTuning).toEqual(DEFAULT_FIRE_EFFECT_TUNING_SETTINGS);
   });
 });

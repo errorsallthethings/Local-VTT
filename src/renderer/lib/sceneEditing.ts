@@ -1,7 +1,26 @@
 import {
+  DEFAULT_ACID_EFFECT_TUNING_SETTINGS,
+  DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_CHAOS_EFFECT_TUNING_SETTINGS,
+  DEFAULT_COLD_EFFECT_TUNING_SETTINGS,
+  DEFAULT_DARKNESS_EFFECT_TUNING_SETTINGS,
+  DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS,
+  DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_FOG_EFFECT_TUNING_SETTINGS,
+  DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS,
+  DEFAULT_LAVA_EFFECT_TUNING_SETTINGS,
+  DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
+  DEFAULT_NATURE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_POISON_EFFECT_TUNING_SETTINGS,
+  DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS,
+  DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_VOID_EFFECT_TUNING_SETTINGS,
+  DEFAULT_WATER_EFFECT_TUNING_SETTINGS,
   DEFAULT_VIDEO_PLAYBACK,
   type DrawingElement,
   type EnvironmentEffectMask,
+  type EnvironmentEffectType,
   type FogShape,
   type GridSettings,
   type Layer,
@@ -103,6 +122,52 @@ export function removeSelectedSceneItems(scene: Scene, selection: SceneSelection
       effects: scene.environment.effects.filter((effect) => effect.id !== selection.environmentEffectId)
     }
   };
+}
+
+export function patchSceneEnvironmentEffect(
+  scene: Scene,
+  effectId: string,
+  updateEffect: (effect: EnvironmentEffectMask) => EnvironmentEffectMask,
+  updatedAt = new Date().toISOString()
+): Scene {
+  return {
+    ...scene,
+    environment: {
+      ...scene.environment,
+      effects: scene.environment.effects.map((effect) => (effect.id === effectId ? updateEffect(effect) : effect))
+    },
+    updatedAt
+  };
+}
+
+export function setSceneEnvironmentEffectType(
+  scene: Scene,
+  effectId: string,
+  effectType: EnvironmentEffectType,
+  updatedAt = new Date().toISOString()
+): Scene {
+  return patchSceneEnvironmentEffect(scene, effectId, (effect) => ({
+    ...effect,
+    effect: effectType,
+    acidTuning: effectType === "acid" ? (effect.acidTuning ?? { ...DEFAULT_ACID_EFFECT_TUNING_SETTINGS }) : undefined,
+    coldTuning: effectType === "cold" ? (effect.coldTuning ?? { ...DEFAULT_COLD_EFFECT_TUNING_SETTINGS }) : undefined,
+    darknessTuning: effectType === "darkness" ? (effect.darknessTuning ?? { ...DEFAULT_DARKNESS_EFFECT_TUNING_SETTINGS }) : undefined,
+    poisonTuning: effectType === "poison" ? (effect.poisonTuning ?? { ...DEFAULT_POISON_EFFECT_TUNING_SETTINGS }) : undefined,
+    waterTuning: effectType === "water" ? (effect.waterTuning ?? { ...DEFAULT_WATER_EFFECT_TUNING_SETTINGS }) : undefined,
+    lavaTuning: effectType === "lava" ? (effect.lavaTuning ?? { ...DEFAULT_LAVA_EFFECT_TUNING_SETTINGS }) : undefined,
+    fireTuning: effectType === "fire" ? (effect.fireTuning ?? { ...DEFAULT_FIRE_EFFECT_TUNING_SETTINGS }) : undefined,
+    lightningTuning: effectType === "electric" ? (effect.lightningTuning ?? { ...DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS }) : undefined,
+    arcaneTuning: effectType === "arcane" ? (effect.arcaneTuning ?? { ...DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS }) : undefined,
+    chaosTuning: effectType === "chaos" ? (effect.chaosTuning ?? { ...DEFAULT_CHAOS_EFFECT_TUNING_SETTINGS }) : undefined,
+    voidTuning: effectType === "void" ? (effect.voidTuning ?? { ...DEFAULT_VOID_EFFECT_TUNING_SETTINGS }) : undefined,
+    natureTuning: effectType === "nature" ? (effect.natureTuning ?? { ...DEFAULT_NATURE_EFFECT_TUNING_SETTINGS }) : undefined,
+    distortionTuning: effectType === "distortion" ? (effect.distortionTuning ?? { ...DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS }) : undefined,
+    radiantTuning: effectType === "radiant" ? (effect.radiantTuning ?? { ...DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS }) : undefined,
+    fieldTuning: effectType === "field" ? (effect.fieldTuning ?? { ...DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS }) : undefined,
+    shockwaveTuning: effectType === "shockwave" ? (effect.shockwaveTuning ?? { ...DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS }) : undefined,
+    smokeTuning: effectType === "smoke" ? (effect.smokeTuning ?? { ...DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS }) : undefined,
+    fogTuning: effectType === "fog" ? (effect.fogTuning ?? { ...DEFAULT_FOG_EFFECT_TUNING_SETTINGS }) : undefined
+  }), updatedAt);
 }
 
 export function patchSceneGrid(scene: Scene, patch: Partial<GridSettings>): Scene {
