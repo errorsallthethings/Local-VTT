@@ -94,6 +94,25 @@ export function getMapCalibrationDragFromPoint(pointerId: number, point: Point, 
   };
 }
 
+export function getUpdatedMapCalibrationDrag(drag: MapCalibrationDrag, point: Point): { drag: MapCalibrationDrag; draftBox: MapCalibrationBox } {
+  const nextDrag = { ...drag, current: point };
+  if (nextDrag.mode === "move" && nextDrag.box && nextDrag.offset) {
+    return {
+      drag: nextDrag,
+      draftBox: {
+        ...nextDrag.box,
+        x: point.x - nextDrag.offset.x,
+        y: point.y - nextDrag.offset.y
+      }
+    };
+  }
+
+  return {
+    drag: nextDrag,
+    draftBox: getSquareCalibrationBox(nextDrag.start, point)
+  };
+}
+
 export function getBoxCalibrationGridPatch(draft: MapCalibrationGridDraft, box: MapCalibrationBox | null): { sizePx: number; offsetX: number; offsetY: number } | null {
   if (!box || draft.boxColumns <= 0 || draft.boxRows <= 0) {
     return null;

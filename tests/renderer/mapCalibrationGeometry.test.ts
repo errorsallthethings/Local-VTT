@@ -4,6 +4,7 @@ import {
   getMapCalibrationBoxHit,
   getMapCalibrationDragFromPoint,
   getSquareCalibrationBox,
+  getUpdatedMapCalibrationDrag,
   getVisibleMapCalibrationBox,
   type MapCalibrationBox,
   type MapCalibrationDrag
@@ -109,6 +110,48 @@ describe("map calibration geometry", () => {
       current: { x: 110, y: 120 },
       box: { x: 10, y: 20, width: 100, height: 100 }
     });
+  });
+
+  it("updates move calibration drags and draft boxes", () => {
+    const result = getUpdatedMapCalibrationDrag(
+      {
+        pointerId: 1,
+        mode: "move",
+        start: { x: 30, y: 35 },
+        current: { x: 30, y: 35 },
+        box: { x: 10, y: 20, width: 100, height: 100 },
+        offset: { x: 20, y: 15 }
+      },
+      { x: 50, y: 70 }
+    );
+
+    expect(result.drag.current).toEqual({ x: 50, y: 70 });
+    expect(result.draftBox).toEqual({ x: 30, y: 55, width: 100, height: 100 });
+  });
+
+  it("updates draw and resize calibration drags with square draft boxes", () => {
+    const draw = getUpdatedMapCalibrationDrag(
+      {
+        pointerId: 1,
+        mode: "draw",
+        start: { x: 10, y: 20 },
+        current: { x: 10, y: 20 }
+      },
+      { x: 35, y: 30 }
+    );
+    const resize = getUpdatedMapCalibrationDrag(
+      {
+        pointerId: 1,
+        mode: "resize",
+        start: { x: 10, y: 20 },
+        current: { x: 10, y: 20 },
+        box: { x: 10, y: 20, width: 100, height: 100 }
+      },
+      { x: -10, y: -40 }
+    );
+
+    expect(draw.draftBox).toEqual({ x: 10, y: 20, width: 25, height: 25 });
+    expect(resize.draftBox).toEqual({ x: -50, y: -40, width: 60, height: 60 });
   });
 
   it("calculates grid size and offsets from a calibration box", () => {

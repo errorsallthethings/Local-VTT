@@ -57,7 +57,7 @@ import {
 import { getPlayerDisplayScale, getRulerLabel, isDuplicateRulerWaypoint, isVisibleDiceOverlayEvent } from "../canvas/liveTableState";
 import {
   getMapCalibrationDragFromPoint,
-  getSquareCalibrationBox,
+  getUpdatedMapCalibrationDrag,
   getVisibleMapCalibrationBox,
   type MapCalibrationBox,
   type MapCalibrationDrag
@@ -1713,20 +1713,10 @@ export function SceneCanvas({
     const mapCalibrationDragValue = mapCalibrationDragRef.current;
     if (mapCalibrationDragValue?.pointerId === event.pointerId) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const nextDrag = { ...mapCalibrationDragValue, current: point };
+      const { drag: nextDrag, draftBox } = getUpdatedMapCalibrationDrag(mapCalibrationDragValue, point);
       mapCalibrationDragRef.current = nextDrag;
       setMapCalibrationDrag(nextDrag);
-      if (nextDrag.mode === "move" && nextDrag.box && nextDrag.offset) {
-        setMapCalibrationDraftBox({
-          ...nextDrag.box,
-          x: point.x - nextDrag.offset.x,
-          y: point.y - nextDrag.offset.y
-        });
-      } else if (nextDrag.mode === "resize") {
-        setMapCalibrationDraftBox(getSquareCalibrationBox(nextDrag.start, point));
-      } else {
-        setMapCalibrationDraftBox(getSquareCalibrationBox(nextDrag.start, point));
-      }
+      setMapCalibrationDraftBox(draftBox);
       return;
     }
     if (laserDrag?.pointerId === event.pointerId) {
