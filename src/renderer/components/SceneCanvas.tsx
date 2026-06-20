@@ -55,7 +55,7 @@ import {
 } from "../canvas/liveTableRenderer";
 import { getPlayerDisplayScale, getRulerLabel, isDuplicateRulerWaypoint, isVisibleDiceOverlayEvent } from "../canvas/liveTableState";
 import {
-  getMapCalibrationBoxHit,
+  getMapCalibrationDragFromPoint,
   getSquareCalibrationBox,
   getVisibleMapCalibrationBox,
   type MapCalibrationBox,
@@ -1476,22 +1476,7 @@ export function SceneCanvas({
     if (mode === "gm" && scene && onMapCalibrationBox && event.button === 0) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const editableBox = mapCalibrationDraftBox ?? mapCalibrationBox;
-      const hit = editableBox ? getMapCalibrationBoxHit(point, editableBox, getRenderCamera(camera, playerDisplayScale)) : null;
-      let drag: MapCalibrationDrag;
-      if (hit === "resize" && editableBox) {
-        drag = { pointerId: event.pointerId, mode: "resize", start: { x: editableBox.x, y: editableBox.y }, current: point, box: editableBox };
-      } else if (hit === "move" && editableBox) {
-        drag = {
-          pointerId: event.pointerId,
-          mode: "move",
-          start: point,
-          current: point,
-          box: editableBox,
-          offset: { x: point.x - editableBox.x, y: point.y - editableBox.y }
-        };
-      } else {
-        drag = { pointerId: event.pointerId, mode: "draw", start: point, current: point };
-      }
+      const drag = getMapCalibrationDragFromPoint(event.pointerId, point, editableBox, getRenderCamera(camera, playerDisplayScale));
       mapCalibrationDragRef.current = drag;
       setMapCalibrationDrag(drag);
       return;

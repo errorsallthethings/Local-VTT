@@ -65,6 +65,35 @@ export function getMapCalibrationBoxHit(point: Point, box: MapCalibrationBox, ca
   return null;
 }
 
+export function getMapCalibrationDragFromPoint(pointerId: number, point: Point, editableBox: MapCalibrationBox | null, camera: Camera): MapCalibrationDrag {
+  const hit = editableBox ? getMapCalibrationBoxHit(point, editableBox, camera) : null;
+  if (hit === "resize" && editableBox) {
+    return {
+      pointerId,
+      mode: "resize",
+      start: { x: editableBox.x, y: editableBox.y },
+      current: point,
+      box: editableBox
+    };
+  }
+  if (hit === "move" && editableBox) {
+    return {
+      pointerId,
+      mode: "move",
+      start: point,
+      current: point,
+      box: editableBox,
+      offset: { x: point.x - editableBox.x, y: point.y - editableBox.y }
+    };
+  }
+  return {
+    pointerId,
+    mode: "draw",
+    start: point,
+    current: point
+  };
+}
+
 export function getBoxCalibrationGridPatch(draft: MapCalibrationGridDraft, box: MapCalibrationBox | null): { sizePx: number; offsetX: number; offsetY: number } | null {
   if (!box || draft.boxColumns <= 0 || draft.boxRows <= 0) {
     return null;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getBoxCalibrationGridPatch,
   getMapCalibrationBoxHit,
+  getMapCalibrationDragFromPoint,
   getSquareCalibrationBox,
   getVisibleMapCalibrationBox,
   type MapCalibrationBox,
@@ -78,6 +79,36 @@ describe("map calibration geometry", () => {
 
     expect(getMapCalibrationBoxHit({ x: 113, y: 123 }, box, { x: 0, y: 0, zoom: 0.5 })).toBe("resize");
     expect(getMapCalibrationBoxHit({ x: 113, y: 123 }, box, { x: 0, y: 0, zoom: 4 })).toBeNull();
+  });
+
+  it("starts drawing calibration when there is no editable box hit", () => {
+    expect(getMapCalibrationDragFromPoint(7, { x: 5, y: 6 }, null, { x: 0, y: 0, zoom: 1 })).toEqual({
+      pointerId: 7,
+      mode: "draw",
+      start: { x: 5, y: 6 },
+      current: { x: 5, y: 6 }
+    });
+  });
+
+  it("creates move calibration drags with pointer offset", () => {
+    expect(getMapCalibrationDragFromPoint(7, { x: 30, y: 35 }, { x: 10, y: 20, width: 100, height: 100 }, { x: 0, y: 0, zoom: 1 })).toEqual({
+      pointerId: 7,
+      mode: "move",
+      start: { x: 30, y: 35 },
+      current: { x: 30, y: 35 },
+      box: { x: 10, y: 20, width: 100, height: 100 },
+      offset: { x: 20, y: 15 }
+    });
+  });
+
+  it("creates resize calibration drags from the box origin", () => {
+    expect(getMapCalibrationDragFromPoint(7, { x: 110, y: 120 }, { x: 10, y: 20, width: 100, height: 100 }, { x: 0, y: 0, zoom: 1 })).toEqual({
+      pointerId: 7,
+      mode: "resize",
+      start: { x: 10, y: 20 },
+      current: { x: 110, y: 120 },
+      box: { x: 10, y: 20, width: 100, height: 100 }
+    });
   });
 
   it("calculates grid size and offsets from a calibration box", () => {
