@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPathDistance, getPathMidpoint, getPointAlongPath, hasMeaningfulPath, normalizeMovementPath } from "../../src/renderer/canvas/movementPath";
+import { getPathDistance, getPathMidpoint, getPointAlongPath, hasMeaningfulPath, normalizeMovementPath, removeLastWaypoint } from "../../src/renderer/canvas/movementPath";
 
 describe("movement path helpers", () => {
   it("removes near-duplicate points while preserving meaningful turns", () => {
@@ -28,6 +28,14 @@ describe("movement path helpers", () => {
 
   it("uses total path distance to find the midpoint", () => {
     expect(getPathMidpoint([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }])).toEqual({ x: 10, y: 0 });
+  });
+
+  it("removes the last waypoint while preserving other path fields", () => {
+    expect(removeLastWaypoint({ id: "path-1", waypoints: [{ x: 1, y: 1 }, { x: 2, y: 2 }] })).toEqual({
+      id: "path-1",
+      waypoints: [{ x: 1, y: 1 }]
+    });
+    expect(removeLastWaypoint({ id: "path-1", waypoints: [] })).toBeNull();
   });
 
   it("ignores tiny movement when deciding whether a path is meaningful", () => {

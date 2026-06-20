@@ -80,7 +80,7 @@ import {
   getRulerPathPoints,
   type RulerDrag
 } from "../canvas/measurement";
-import { getPointAlongPath } from "../canvas/movementPath";
+import { getPointAlongPath, removeLastWaypoint } from "../canvas/movementPath";
 import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint } from "../canvas/polygonDraft";
 import {
   formatDefaultEnvironmentEffectName,
@@ -2075,24 +2075,21 @@ export function SceneCanvas({
     }
     if (tokenDrag) {
       event.preventDefault();
-      if (tokenDrag.waypoints.length === 0) {
+      const nextTokenDrag = removeLastWaypoint(tokenDrag);
+      if (!nextTokenDrag) {
         return;
       }
-      const waypoints = tokenDrag.waypoints.slice(0, -1);
-      tokenDrag.waypoints = waypoints;
-      setTokenDragPreview((preview) => (preview?.tokenId === tokenDrag.tokenId ? { ...preview, waypoints } : preview));
+      tokenDragRef.current = nextTokenDrag;
+      setTokenDragPreview((preview) => (preview?.tokenId === nextTokenDrag.tokenId ? { ...preview, waypoints: nextTokenDrag.waypoints } : preview));
       return;
     }
 
     if (activeRulerDrag) {
       event.preventDefault();
-      if (activeRulerDrag.waypoints.length === 0) {
+      const nextRulerDrag = removeLastWaypoint(activeRulerDrag);
+      if (!nextRulerDrag) {
         return;
       }
-      const nextRulerDrag = {
-        ...activeRulerDrag,
-        waypoints: activeRulerDrag.waypoints.slice(0, -1)
-      };
       rulerDragRef.current = nextRulerDrag;
       setRulerDrag(nextRulerDrag);
       emitRulerEvent(nextRulerDrag);

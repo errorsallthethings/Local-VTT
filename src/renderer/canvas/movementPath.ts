@@ -54,6 +54,16 @@ export function getPathMidpoint(points: Point[]): Point {
   return getPointAlongPath(points, getPathDistance(points) / 2);
 }
 
+export function removeLastWaypoint<TPath extends { waypoints: Point[] }>(path: TPath): TPath | null {
+  if (path.waypoints.length === 0) {
+    return null;
+  }
+  return {
+    ...path,
+    waypoints: path.waypoints.slice(0, -1)
+  };
+}
+
 export function drawDashedMovementPath(ctx: CanvasRenderingContext2D, points: Point[], scale = 1) {
   ctx.save();
   ctx.lineCap = "round";
