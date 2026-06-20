@@ -67,6 +67,7 @@ import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/liveTab
 import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/playerIdleState";
 import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/sceneCollectionActions";
 import { applySelectionMode, type SelectionMode } from "../lib/selectionIds";
+import { removeSelectedSceneItems, setSelectedSceneItemsPlayerVisibility } from "../lib/sceneEditing";
 import {
   addRecentCampaign,
   loadRecentCampaigns,
@@ -506,60 +507,26 @@ export function GmApp() {
     if (!activeScene) {
       return;
     }
-    const selectedTokenIdSet = new Set(selectedTokenIds);
-    const selectedDrawingIdSet = new Set(selectedDrawingIds);
-    const selectedFogShapeIdSet = new Set(selectedFogShapeIds);
-    const selectedWeatherMaskIdSet = new Set(selectedWeatherMaskIds);
-    updateScene({
-      ...activeScene,
-      updatedAt: new Date().toISOString(),
-      tokens: activeScene.tokens.map((token) => (selectedTokenIdSet.has(token.id) ? { ...token, visibleInPlayer } : token)),
-      drawings: activeScene.drawings.map((drawing) => (selectedDrawingIdSet.has(drawing.id) ? { ...drawing, visibleInPlayer } : drawing)),
-      fog: {
-        ...activeScene.fog,
-        shapes: activeScene.fog.shapes.map((shape) =>
-          selectedFogShapeIdSet.has(shape.id)
-            ? { ...shape, visibleInPlayer, visible: (shape.visibleInGm ?? shape.visible ?? true) || visibleInPlayer }
-            : shape
-        )
-      },
-      weather: {
-        ...activeScene.weather,
-        masks: activeScene.weather.masks.map((mask) => (selectedWeatherMaskIdSet.has(mask.id) ? { ...mask, visibleInPlayer } : mask))
-      },
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.map((effect) => (effect.id === selectedEnvironmentEffectId ? { ...effect, visibleInPlayer } : effect))
-      }
-    });
+    updateScene(setSelectedSceneItemsPlayerVisibility(activeScene, {
+      tokenIds: selectedTokenIds,
+      drawingIds: selectedDrawingIds,
+      fogShapeIds: selectedFogShapeIds,
+      weatherMaskIds: selectedWeatherMaskIds,
+      environmentEffectId: selectedEnvironmentEffectId
+    }, visibleInPlayer));
   };
 
   const deleteSelectedSceneItems = () => {
     if (!activeScene) {
       return;
     }
-    const selectedTokenIdSet = new Set(selectedTokenIds);
-    const selectedDrawingIdSet = new Set(selectedDrawingIds);
-    const selectedFogShapeIdSet = new Set(selectedFogShapeIds);
-    const selectedWeatherMaskIdSet = new Set(selectedWeatherMaskIds);
-    updateScene({
-      ...activeScene,
-      updatedAt: new Date().toISOString(),
-      tokens: activeScene.tokens.filter((token) => !selectedTokenIdSet.has(token.id)),
-      drawings: activeScene.drawings.filter((drawing) => !selectedDrawingIdSet.has(drawing.id)),
-      fog: {
-        ...activeScene.fog,
-        shapes: activeScene.fog.shapes.filter((shape) => !selectedFogShapeIdSet.has(shape.id))
-      },
-      weather: {
-        ...activeScene.weather,
-        masks: activeScene.weather.masks.filter((mask) => !selectedWeatherMaskIdSet.has(mask.id))
-      },
-      environment: {
-        ...activeScene.environment,
-        effects: activeScene.environment.effects.filter((effect) => effect.id !== selectedEnvironmentEffectId)
-      }
-    });
+    updateScene(removeSelectedSceneItems(activeScene, {
+      tokenIds: selectedTokenIds,
+      drawingIds: selectedDrawingIds,
+      fogShapeIds: selectedFogShapeIds,
+      weatherMaskIds: selectedWeatherMaskIds,
+      environmentEffectId: selectedEnvironmentEffectId
+    }));
     clearSceneSelection();
   };
 

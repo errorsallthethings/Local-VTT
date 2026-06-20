@@ -26,11 +26,82 @@ export type DuplicateSceneTokenResult = {
   duplicatedTokenId?: string;
 };
 
+export type SceneSelectionIds = {
+  tokenIds?: string[];
+  drawingIds?: string[];
+  fogShapeIds?: string[];
+  weatherMaskIds?: string[];
+  environmentEffectId?: string | null;
+};
+
 export function patchSceneVideoPlayback(scene: Scene, patch: Partial<Scene["videoPlayback"]>): Scene {
   return {
     ...scene,
     videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(scene.videoPlayback ?? {}), ...patch },
     updatedAt: new Date().toISOString()
+  };
+}
+
+export function setSelectedSceneItemsPlayerVisibility(
+  scene: Scene,
+  selection: SceneSelectionIds,
+  visibleInPlayer: boolean,
+  updatedAt = new Date().toISOString()
+): Scene {
+  const selectedTokenIds = new Set(selection.tokenIds ?? []);
+  const selectedDrawingIds = new Set(selection.drawingIds ?? []);
+  const selectedFogShapeIds = new Set(selection.fogShapeIds ?? []);
+  const selectedWeatherMaskIds = new Set(selection.weatherMaskIds ?? []);
+
+  return {
+    ...scene,
+    updatedAt,
+    tokens: scene.tokens.map((token) => (selectedTokenIds.has(token.id) ? { ...token, visibleInPlayer } : token)),
+    drawings: scene.drawings.map((drawing) => (selectedDrawingIds.has(drawing.id) ? { ...drawing, visibleInPlayer } : drawing)),
+    fog: {
+      ...scene.fog,
+      shapes: scene.fog.shapes.map((shape) =>
+        selectedFogShapeIds.has(shape.id)
+          ? { ...shape, visibleInPlayer, visible: (shape.visibleInGm ?? shape.visible ?? true) || visibleInPlayer }
+          : shape
+      )
+    },
+    weather: {
+      ...scene.weather,
+      masks: scene.weather.masks.map((mask) => (selectedWeatherMaskIds.has(mask.id) ? { ...mask, visibleInPlayer } : mask))
+    },
+    environment: {
+      ...scene.environment,
+      effects: scene.environment.effects.map((effect) =>
+        effect.id === selection.environmentEffectId ? { ...effect, visibleInPlayer } : effect
+      )
+    }
+  };
+}
+
+export function removeSelectedSceneItems(scene: Scene, selection: SceneSelectionIds, updatedAt = new Date().toISOString()): Scene {
+  const selectedTokenIds = new Set(selection.tokenIds ?? []);
+  const selectedDrawingIds = new Set(selection.drawingIds ?? []);
+  const selectedFogShapeIds = new Set(selection.fogShapeIds ?? []);
+  const selectedWeatherMaskIds = new Set(selection.weatherMaskIds ?? []);
+
+  return {
+    ...scene,
+    updatedAt,
+    tokens: scene.tokens.filter((token) => !selectedTokenIds.has(token.id)),
+    drawings: scene.drawings.filter((drawing) => !selectedDrawingIds.has(drawing.id)),
+    fog: {
+      ...scene.fog,
+      shapes: scene.fog.shapes.filter((shape) => !selectedFogShapeIds.has(shape.id))
+    },
+    weather: {
+      ...scene.weather,
+      masks: scene.weather.masks.filter((mask) => !selectedWeatherMaskIds.has(mask.id))
+    },
+    environment: {
+      ...scene.environment,
+      effects: scene.environment.effects.filter((effect) => effect.id !== selection.environmentEffectId)
+    }
   };
 }
 
