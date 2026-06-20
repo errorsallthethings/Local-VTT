@@ -166,6 +166,7 @@ import {
   drawWeatherPolygonDraft
 } from "../canvas/weatherMaskRenderer";
 import { isMeaningfulWeatherMaskDrag, type WeatherMaskDrag, type WeatherPolygonDraft } from "../canvas/weatherMaskGeometry";
+import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { duplicateDrawingElement } from "../lib/drawingDefaults";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
@@ -882,98 +883,6 @@ export function SceneCanvas({
       }
     };
   }, [mode, scene]);
-
-  useEffect(() => {
-    if (!polygonDraft) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setPolygonDraft(null);
-        polygonDraftRef.current = null;
-      }
-      if (event.key === "Enter") {
-        event.preventDefault();
-        commitPolygonDraft();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // Polygon draft state is mirrored in polygonDraftRef so the handler can commit the latest draft without re-subscribing to commitPolygonDraft.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [polygonDraft, scene]);
-
-  useEffect(() => {
-    if (!drawingPolygonDraft) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setDrawingPolygonDraft(null);
-        drawingPolygonDraftRef.current = null;
-      }
-      if (event.key === "Enter") {
-        event.preventDefault();
-        commitDrawingPolygonDraft();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // Drawing polygon draft state is mirrored in drawingPolygonDraftRef so the handler can commit the latest draft.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawingPolygonDraft, scene]);
-
-  useEffect(() => {
-    if (!weatherPolygonDraft) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setWeatherPolygonDraft(null);
-        weatherPolygonDraftRef.current = null;
-      }
-      if (event.key === "Enter") {
-        event.preventDefault();
-        commitWeatherPolygonDraft();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // Weather polygon draft state is mirrored in weatherPolygonDraftRef so the handler can commit without re-subscribing.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weatherPolygonDraft, scene]);
-
-  useEffect(() => {
-    if (!environmentPolygonDraft) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setEnvironmentPolygonDraft(null);
-        environmentPolygonDraftRef.current = null;
-      }
-      if (event.key === "Enter") {
-        event.preventDefault();
-        commitEnvironmentPolygonDraft();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // Environment polygon draft state is mirrored in environmentPolygonDraftRef so the handler can commit without re-subscribing.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [environmentPolygonDraft, scene]);
 
   useEffect(() => {
     if (mode !== "gm" || (!tokenDragPreview && !drawingDragPreview && !rulerDrag && !fogPreview && !drawingPreview && !environmentEffectPreview)) {
@@ -2904,6 +2813,42 @@ export function SceneCanvas({
       updatedAt: new Date().toISOString()
     });
   };
+
+  usePolygonDraftKeyboard({
+    active: Boolean(polygonDraft),
+    onCancel: () => {
+      setPolygonDraft(null);
+      polygonDraftRef.current = null;
+    },
+    onCommit: commitPolygonDraft
+  });
+
+  usePolygonDraftKeyboard({
+    active: Boolean(drawingPolygonDraft),
+    onCancel: () => {
+      setDrawingPolygonDraft(null);
+      drawingPolygonDraftRef.current = null;
+    },
+    onCommit: commitDrawingPolygonDraft
+  });
+
+  usePolygonDraftKeyboard({
+    active: Boolean(weatherPolygonDraft),
+    onCancel: () => {
+      setWeatherPolygonDraft(null);
+      weatherPolygonDraftRef.current = null;
+    },
+    onCommit: commitWeatherPolygonDraft
+  });
+
+  usePolygonDraftKeyboard({
+    active: Boolean(environmentPolygonDraft),
+    onCancel: () => {
+      setEnvironmentPolygonDraft(null);
+      environmentPolygonDraftRef.current = null;
+    },
+    onCommit: commitEnvironmentPolygonDraft
+  });
 
   const fitGmCameraToVideoMap = (video: HTMLVideoElement) => {
     if (mode !== "gm" || !scene || !mapAsset || !isVideoMap || video.dataset.mapAssetId !== mapAsset.id) {
