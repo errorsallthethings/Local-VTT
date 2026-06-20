@@ -17,6 +17,11 @@ export interface MapCalibrationDrag {
   offset?: Point;
 }
 
+export interface MapCalibrationGridDraft {
+  boxColumns: number;
+  boxRows: number;
+}
+
 export function getVisibleMapCalibrationBox(drag: MapCalibrationDrag | null, fallback: MapCalibrationBox | null): MapCalibrationBox | null {
   if (!drag) {
     return fallback;
@@ -58,4 +63,25 @@ export function getMapCalibrationBoxHit(point: Point, box: MapCalibrationBox, ca
     return "move";
   }
   return null;
+}
+
+export function getBoxCalibrationGridPatch(draft: MapCalibrationGridDraft, box: MapCalibrationBox | null): { sizePx: number; offsetX: number; offsetY: number } | null {
+  if (!box || draft.boxColumns <= 0 || draft.boxRows <= 0) {
+    return null;
+  }
+  const cellWidth = box.width / draft.boxColumns;
+  const cellHeight = box.height / draft.boxRows;
+  if (!Number.isFinite(cellWidth) || !Number.isFinite(cellHeight) || cellWidth <= 0 || cellHeight <= 0) {
+    return null;
+  }
+  const sizePx = Math.max(1, Math.round(((cellWidth + cellHeight) / 2) * 100) / 100);
+  return {
+    sizePx,
+    offsetX: positiveModulo(box.x, sizePx),
+    offsetY: positiveModulo(box.y, sizePx)
+  };
+}
+
+function positiveModulo(value: number, divisor: number): number {
+  return ((value % divisor) + divisor) % divisor;
 }

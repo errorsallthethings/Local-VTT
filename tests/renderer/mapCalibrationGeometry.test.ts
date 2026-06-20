@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getBoxCalibrationGridPatch,
   getMapCalibrationBoxHit,
   getSquareCalibrationBox,
   getVisibleMapCalibrationBox,
@@ -77,5 +78,27 @@ describe("map calibration geometry", () => {
 
     expect(getMapCalibrationBoxHit({ x: 113, y: 123 }, box, { x: 0, y: 0, zoom: 0.5 })).toBe("resize");
     expect(getMapCalibrationBoxHit({ x: 113, y: 123 }, box, { x: 0, y: 0, zoom: 4 })).toBeNull();
+  });
+
+  it("calculates grid size and offsets from a calibration box", () => {
+    expect(getBoxCalibrationGridPatch({ boxColumns: 3, boxRows: 2 }, { x: 11, y: 7, width: 91, height: 59 })).toEqual({
+      sizePx: 29.92,
+      offsetX: 11,
+      offsetY: 7
+    });
+  });
+
+  it("wraps negative calibration offsets into the grid cell", () => {
+    expect(getBoxCalibrationGridPatch({ boxColumns: 4, boxRows: 4 }, { x: -5, y: -31, width: 80, height: 80 })).toEqual({
+      sizePx: 20,
+      offsetX: 15,
+      offsetY: 9
+    });
+  });
+
+  it("ignores invalid calibration box inputs", () => {
+    expect(getBoxCalibrationGridPatch({ boxColumns: 0, boxRows: 1 }, { x: 0, y: 0, width: 100, height: 100 })).toBeNull();
+    expect(getBoxCalibrationGridPatch({ boxColumns: 1, boxRows: 1 }, null)).toBeNull();
+    expect(getBoxCalibrationGridPatch({ boxColumns: 1, boxRows: 1 }, { x: 0, y: 0, width: 0, height: 100 })).toBeNull();
   });
 });
