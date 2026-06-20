@@ -76,6 +76,7 @@ import {
 } from "../canvas/sceneOverlayRenderer";
 import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/environmentEffectLayerRenderer";
 import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/sceneHitTesting";
+import { getSceneLayerVisibility } from "../canvas/sceneLayerVisibility";
 import { getNearestSceneSnapPoint, getRulerSnapPoint } from "../canvas/sceneSnapping";
 import {
   formatDefaultTemplateDrawingName,
@@ -623,20 +624,17 @@ export function SceneCanvas({
     return JSON.stringify(sources);
   }, [tokenAssets]);
 
-  const mapLayer = scene?.layers.find((layer) => layer.id === "map");
-  const gridLayer = scene?.layers.find((layer) => layer.id === "grid");
-  const fogLayer = scene?.layers.find((layer) => layer.id === "fog");
-  const drawingLayer = scene?.layers.find((layer) => layer.id === "drawing");
-  const weatherLayer =
-    scene?.layers.find((layer) => layer.id === "effects") ??
-    scene?.layers.find((layer) => layer.id === "weather");
-  const tokenLayer = scene?.layers.find((layer) => layer.id === "token");
-  const canShowMap = mode === "gm" ? mapLayer?.visibleInGm : mapLayer?.visibleInPlayer;
-  const canShowGrid = mode === "gm" ? gridLayer?.visibleInGm : gridLayer?.visibleInPlayer;
-  const canShowFog = mode === "gm" ? fogLayer?.visibleInGm : fogLayer?.visibleInPlayer;
-  const canShowDrawings = mode === "gm" ? drawingLayer?.visibleInGm : drawingLayer?.visibleInPlayer;
-  const canShowWeather = mode === "gm" ? weatherLayer?.visibleInGm : weatherLayer?.visibleInPlayer;
-  const canShowTokens = mode === "gm" ? tokenLayer?.visibleInGm : tokenLayer?.visibleInPlayer;
+  const {
+    mapLayer,
+    drawingLayer,
+    effectsLayer: weatherLayer,
+    canShowMap,
+    canShowGrid,
+    canShowFog,
+    canShowDrawings,
+    canShowWeather,
+    canShowTokens
+  } = getSceneLayerVisibility(scene?.layers, mode);
   const isVideoMap = Boolean(canShowMap && mapAsset?.mediaType === "video" && assetUrl);
   const mapOverlayActive = Boolean(canShowMap && mapAsset && (mapLoadStatus === "loading" || mapLoadStatus === "error"));
   const playerDisplayScale = getPlayerDisplayScale(campaign, scene, mode);
