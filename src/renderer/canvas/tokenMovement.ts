@@ -39,6 +39,36 @@ export function getSceneAfterTokenDrag(scene: Scene, tokenDrag: TokenDragState, 
   };
 }
 
+export function getTokenDragStart(scene: Scene, token: Token, point: Point, pointerId: number, groupTokenIds: string[]): { drag: TokenDragState; preview: TokenDragPreview } {
+  const groupStartPositions = new Map(
+    scene.tokens
+      .filter((candidate) => groupTokenIds.includes(candidate.id))
+      .map((candidate) => [candidate.id, candidate.position])
+  );
+  const snappedPosition = getSnappedTokenPosition(token.position, token, scene);
+  return {
+    drag: {
+      pointerId,
+      tokenId: token.id,
+      startPosition: token.position,
+      waypoints: [],
+      groupStartPositions,
+      offset: {
+        x: point.x - token.position.x,
+        y: point.y - token.position.y
+      }
+    },
+    preview: {
+      tokenId: token.id,
+      startPosition: token.position,
+      currentPosition: token.position,
+      snappedPosition,
+      waypoints: [],
+      tokenPositions: groupStartPositions
+    }
+  };
+}
+
 export function getTokenDragPreviewFromPoint(scene: Scene, tokenDrag: TokenDragState, token: Token, point: Point): TokenDragPreview {
   const currentPosition = {
     x: point.x - tokenDrag.offset.x,

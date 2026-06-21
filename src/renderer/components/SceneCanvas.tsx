@@ -125,10 +125,11 @@ import {
   getDrawingTemplateCurrentPoint,
   getTemplatePreviewDrawing
 } from "../canvas/templateDrawing";
-import { getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
+import { getTokenAtPoint } from "../canvas/tokenGeometry";
 import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey, parseTokenImageSourceKey } from "../canvas/tokenImageSource";
 import {
   getSceneAfterTokenDrag,
+  getTokenDragStart,
   getTokenDragPreviewFromPoint,
   getTokenMovementTweens,
   getTokenWaypointPosition,
@@ -1541,11 +1542,6 @@ export function SceneCanvas({
       if (token) {
         const shouldDragSelectedGroup = mouseBehavior === "grabber" && effectiveSelectedTokenIdSet.has(token.id) && effectiveSelectedTokenIds.length > 1;
         const groupTokenIds = shouldDragSelectedGroup ? effectiveSelectedTokenIds : [token.id];
-        const groupStartPositions = new Map(
-          scene.tokens
-            .filter((candidate) => groupTokenIds.includes(candidate.id))
-            .map((candidate) => [candidate.id, candidate.position])
-        );
         if (!shouldDragSelectedGroup) {
           onSelectToken?.(token.id);
         }
@@ -1554,26 +1550,9 @@ export function SceneCanvas({
         onSelectEnvironmentEffect?.(null);
         onSelectDrawing?.(null);
         if (mouseBehavior === "grabber") {
-          const snappedPosition = getSnappedTokenPosition(token.position, token, scene);
-          tokenDragRef.current = {
-            pointerId: event.pointerId,
-            tokenId: token.id,
-            startPosition: token.position,
-            waypoints: [],
-            groupStartPositions,
-            offset: {
-              x: point.x - token.position.x,
-              y: point.y - token.position.y
-            }
-          };
-          setTokenDragPreview({
-            tokenId: token.id,
-            startPosition: token.position,
-            currentPosition: token.position,
-            snappedPosition,
-            waypoints: [],
-            tokenPositions: groupStartPositions
-          });
+          const tokenDragStart = getTokenDragStart(scene, token, point, event.pointerId, groupTokenIds);
+          tokenDragRef.current = tokenDragStart.drag;
+          setTokenDragPreview(tokenDragStart.preview);
         }
         return;
       }

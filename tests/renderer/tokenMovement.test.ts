@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createDefaultScene, type Token } from "../../src/shared/localvtt";
 import {
   getSceneAfterTokenDrag,
+  getTokenDragStart,
   getTokenDragPreviewFromPoint,
   getTokenMovementPath,
   getTokenMovementTweens,
@@ -140,6 +141,37 @@ describe("token movement helpers", () => {
         ["token-2", { x: 60, y: 70 }]
       ])
     );
+  });
+
+  it("builds initial token drag state and preview from pointer position", () => {
+    const scene = createDefaultScene("Drag Start");
+    scene.grid.type = "gridless";
+    const sceneToken = token({ position: { x: 10, y: 20 } });
+    scene.tokens = [sceneToken, token({ id: "token-2", position: { x: 50, y: 60 } })];
+
+    const result = getTokenDragStart(scene, sceneToken, { x: 13, y: 24 }, 7, [sceneToken.id, "token-2"]);
+
+    expect(result.drag).toMatchObject({
+      pointerId: 7,
+      tokenId: sceneToken.id,
+      startPosition: { x: 10, y: 20 },
+      waypoints: [],
+      offset: { x: 3, y: 4 }
+    });
+    expect(result.drag.groupStartPositions).toEqual(
+      new Map([
+        [sceneToken.id, { x: 10, y: 20 }],
+        ["token-2", { x: 50, y: 60 }]
+      ])
+    );
+    expect(result.preview).toMatchObject({
+      tokenId: sceneToken.id,
+      startPosition: { x: 10, y: 20 },
+      currentPosition: { x: 10, y: 20 },
+      snappedPosition: { x: 10, y: 20 },
+      waypoints: []
+    });
+    expect(result.preview.tokenPositions).toBe(result.drag.groupStartPositions);
   });
 
   it("preserves GM-authored waypoint routes when creating Player View tweens", () => {
