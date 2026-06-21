@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings } from "../../shared/localvtt";
@@ -349,6 +350,35 @@ type EnvironmentEffectContextMenu = {
   x: number;
   y: number;
 };
+
+type CanvasContextMenuKind = "token" | "mask" | "drawing" | "environment";
+
+function getCanvasContextMenuPosition(event: React.MouseEvent<HTMLCanvasElement>, kind: CanvasContextMenuKind): { x: number; y: number } {
+  const menuSize = getEstimatedContextMenuSize(kind);
+  const margin = 12;
+  const offset = 8;
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+  const hasRoomRight = event.clientX + offset + menuSize.width + margin <= viewportWidth;
+  const hasRoomBelow = event.clientY + offset + menuSize.height + margin <= viewportHeight;
+  const preferredX = hasRoomRight ? event.clientX + offset : event.clientX - menuSize.width - offset;
+  const preferredY = hasRoomBelow ? event.clientY + offset : event.clientY - menuSize.height - offset;
+
+  return {
+    x: Math.max(margin, Math.min(preferredX, viewportWidth - menuSize.width - margin)),
+    y: Math.max(margin, Math.min(preferredY, viewportHeight - menuSize.height - margin))
+  };
+}
+
+function getEstimatedContextMenuSize(kind: CanvasContextMenuKind): { width: number; height: number } {
+  if (kind === "token") {
+    return { width: 300, height: 460 };
+  }
+  if (kind === "drawing") {
+    return { width: 260, height: 230 };
+  }
+  return { width: 230, height: 150 };
+}
 
 export function SceneCanvas({
   campaign,
@@ -1853,7 +1883,7 @@ export function SceneCanvas({
         const point = clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale));
         const token = canShowTokens ? getTokenAtPoint(scene.tokens, point) : null;
         if (token && onAddTokenToTurnOrder) {
-          const frameRect = frameRef.current?.getBoundingClientRect();
+          const menuPosition = getCanvasContextMenuPosition(event, "token");
           event.preventDefault();
           onSelectToken?.(token.id);
           onSelectFogShape?.(null);
@@ -1865,15 +1895,15 @@ export function SceneCanvas({
           setTokenContextMenu({
             tokenId: token.id,
             tokenName: token.name || "Token",
-            x: frameRect ? event.clientX - frameRect.left : event.clientX,
-            y: frameRect ? event.clientY - frameRect.top : event.clientY
+            x: menuPosition.x,
+            y: menuPosition.y
           });
           return;
         }
         if (!authoringToolActive) {
           const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, getDrawingHitRadius(getRenderCamera(camera, playerDisplayScale).zoom), scene.grid) : null;
           if (drawingHit) {
-            const frameRect = frameRef.current?.getBoundingClientRect();
+            const menuPosition = getCanvasContextMenuPosition(event, "drawing");
             const drawingIndex = scene.drawings.findIndex((drawing) => drawing.id === drawingHit.id);
             event.preventDefault();
             onSelectToken?.(null);
@@ -1889,14 +1919,14 @@ export function SceneCanvas({
               isTemplate: drawingHit.measurementLabelVisible === true,
               templateFootprintVisible: drawingHit.templateFootprintVisible === true,
               visibleInPlayer: drawingHit.visibleInPlayer,
-              x: frameRect ? event.clientX - frameRect.left : event.clientX,
-              y: frameRect ? event.clientY - frameRect.top : event.clientY
+              x: menuPosition.x,
+              y: menuPosition.y
             });
             return;
           }
           const maskHit = getMaskHitAtPoint(scene, point);
           if (maskHit) {
-            const frameRect = frameRef.current?.getBoundingClientRect();
+            const menuPosition = getCanvasContextMenuPosition(event, "mask");
             event.preventDefault();
             onSelectToken?.(null);
             onSelectDrawing?.(null);
@@ -1911,8 +1941,8 @@ export function SceneCanvas({
                 maskId: maskHit.mask.id,
                 label: getWeatherMaskContextLabel(maskHit.mask),
                 visible: maskHit.mask.visible ?? true,
-                x: frameRect ? event.clientX - frameRect.left : event.clientX,
-                y: frameRect ? event.clientY - frameRect.top : event.clientY
+                x: menuPosition.x,
+                y: menuPosition.y
               });
             } else {
               const shapeIndex = scene.fog.shapes.findIndex((shape) => shape.id === maskHit.shape.id);
@@ -1928,15 +1958,15 @@ export function SceneCanvas({
                 shapeId: maskHit.shape.id,
                 label,
                 visibleInPlayer,
-                x: frameRect ? event.clientX - frameRect.left : event.clientX,
-                y: frameRect ? event.clientY - frameRect.top : event.clientY
+                x: menuPosition.x,
+                y: menuPosition.y
               });
             }
             return;
           }
           const environmentEffectHit = getEnvironmentEffectAtPoint(scene, point);
           if (environmentEffectHit) {
-            const frameRect = frameRef.current?.getBoundingClientRect();
+            const menuPosition = getCanvasContextMenuPosition(event, "environment");
             event.preventDefault();
             const effectIndex = scene.environment.effects.findIndex((effect) => effect.id === environmentEffectHit.id);
             onSelectToken?.(null);
@@ -1950,8 +1980,8 @@ export function SceneCanvas({
             setEnvironmentEffectContextMenu({
               effectId: environmentEffectHit.id,
               label: getEnvironmentEffectContextLabel(environmentEffectHit, effectIndex),
-              x: frameRect ? event.clientX - frameRect.left : event.clientX,
-              y: frameRect ? event.clientY - frameRect.top : event.clientY
+              x: menuPosition.x,
+              y: menuPosition.y
             });
             return;
           }
@@ -2373,7 +2403,8 @@ export function SceneCanvas({
       {mode === "player" && scene && <TurnOrderPlayerBar scene={scene} campaign={campaign} />}
       {mode === "player" && scene && showPlayerSeatIndicators && <PlayerSeatIndicators campaign={campaign} />}
       {mode === "player" && scene && <PlayerTurnStatusIndicators scene={scene} campaign={campaign} />}
-      {mode === "gm" && tokenContextMenu && scene && (() => {
+      {mode === "gm" && createPortal(<>
+      {tokenContextMenu && scene && (() => {
         const token = scene.tokens.find((candidate) => candidate.id === tokenContextMenu.tokenId);
         if (!token) {
           return null;
@@ -2463,7 +2494,7 @@ export function SceneCanvas({
           </div>
         );
       })()}
-      {mode === "gm" && maskContextMenu && (
+      {maskContextMenu && (
         <div
           className="token-settings-menu canvas-context-menu"
           style={{ left: maskContextMenu.x, top: maskContextMenu.y }}
@@ -2513,7 +2544,7 @@ export function SceneCanvas({
           </div>
         </div>
       )}
-      {mode === "gm" && drawingContextMenu && (
+      {drawingContextMenu && (
         <div
           className="token-settings-menu canvas-context-menu"
           style={{ left: drawingContextMenu.x, top: drawingContextMenu.y }}
@@ -2612,7 +2643,7 @@ export function SceneCanvas({
           </button>
         </div>
       )}
-      {mode === "gm" && environmentEffectContextMenu && (
+      {environmentEffectContextMenu && (
         <div
           className="token-settings-menu canvas-context-menu"
           style={{ left: environmentEffectContextMenu.x, top: environmentEffectContextMenu.y }}
@@ -2656,6 +2687,7 @@ export function SceneCanvas({
           </button>
         </div>
       )}
+      </>, document.body)}
       {showMapOverlay && <MapLoadOverlay message={mapOverlayMessage} showSpinner={mapLoadStatus === "loading"} />}
       {mode === "gm" && showVideoDiagnostics && isVideoMap && videoDebug && <div className="video-debug">{videoDebug}</div>}
     </div>

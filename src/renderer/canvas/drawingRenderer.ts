@@ -311,21 +311,22 @@ function isPointNearDrawing(drawing: DrawingElement, point: Point, hitRadius: nu
   if (points.length < 2) {
     return false;
   }
+  const visualHitRadius = Math.max(hitRadius, drawing.strokeWidth / 2 + hitRadius);
   if (drawing.kind === "circle") {
     const radius = distanceBetweenPoints(points[0], points[1]);
-    return Math.abs(distanceBetweenPoints(points[0], point) - radius) <= hitRadius || distanceBetweenPoints(points[0], point) <= radius;
+    return Math.abs(distanceBetweenPoints(points[0], point) - radius) <= visualHitRadius || distanceBetweenPoints(points[0], point) <= radius;
   }
   if (drawing.kind === "ellipse") {
-    return isPointNearEllipse(drawing, point, hitRadius);
+    return isPointNearEllipse(drawing, point, visualHitRadius);
   }
   if (drawing.kind === "rectangle") {
     if (points.length >= 4) {
       return isPointInPolygon(point, points);
     }
-    const minX = Math.min(points[0].x, points[1].x) - hitRadius;
-    const maxX = Math.max(points[0].x, points[1].x) + hitRadius;
-    const minY = Math.min(points[0].y, points[1].y) - hitRadius;
-    const maxY = Math.max(points[0].y, points[1].y) + hitRadius;
+    const minX = Math.min(points[0].x, points[1].x) - visualHitRadius;
+    const maxX = Math.max(points[0].x, points[1].x) + visualHitRadius;
+    const minY = Math.min(points[0].y, points[1].y) - visualHitRadius;
+    const maxY = Math.max(points[0].y, points[1].y) + visualHitRadius;
     return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
   }
   if (drawing.kind === "cone") {
@@ -347,7 +348,7 @@ function isPointNearDrawing(drawing: DrawingElement, point: Point, hitRadius: nu
   }
   return points.some((candidate, index) => {
     const next = points[index + 1];
-    return next ? distanceToSegment(point, candidate, next) <= hitRadius : false;
+    return next ? distanceToSegment(point, candidate, next) <= visualHitRadius : false;
   });
 }
 
@@ -499,7 +500,7 @@ function drawCone(ctx: CanvasRenderingContext2D, points: Point[], drawing: Drawi
   ctx.lineTo(right.x, right.y);
   ctx.closePath();
   ctx.stroke();
-  if (drawing.measurementLabelVisible) {
+  if (drawing.measurementLabelVisible && drawing.id === "preview") {
     const oppositeCenter = { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2 };
     drawDashedGuide(ctx, origin, oppositeCenter, drawing);
   }
@@ -2847,21 +2848,22 @@ export function getDrawingBounds(drawing: DrawingElement, grid?: GridSettings): 
   if (points.length === 0) {
     return null;
   }
+  const strokeInset = Math.max(0, drawing.strokeWidth / 2);
   if (drawing.kind === "circle" && drawing.points[0] && drawing.points[1]) {
     const radiusX = distanceBetweenPoints(drawing.points[0], drawing.points[1]);
     const radiusY = radiusX;
     return {
-      left: drawing.points[0].x - radiusX,
-      top: drawing.points[0].y - radiusY,
-      right: drawing.points[0].x + radiusX,
-      bottom: drawing.points[0].y + radiusY
+      left: drawing.points[0].x - radiusX - strokeInset,
+      top: drawing.points[0].y - radiusY - strokeInset,
+      right: drawing.points[0].x + radiusX + strokeInset,
+      bottom: drawing.points[0].y + radiusY + strokeInset
     };
   }
   return {
-    left: Math.min(...points.map((point) => point.x)),
-    top: Math.min(...points.map((point) => point.y)),
-    right: Math.max(...points.map((point) => point.x)),
-    bottom: Math.max(...points.map((point) => point.y))
+    left: Math.min(...points.map((point) => point.x)) - strokeInset,
+    top: Math.min(...points.map((point) => point.y)) - strokeInset,
+    right: Math.max(...points.map((point) => point.x)) + strokeInset,
+    bottom: Math.max(...points.map((point) => point.y)) + strokeInset
   };
 }
 

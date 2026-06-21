@@ -743,13 +743,13 @@
 }
 
 .canvas-context-menu {
-  position: absolute;
-  z-index: 8;
+  position: fixed;
+  z-index: 90;
   top: auto;
   right: auto;
   min-width: 178px;
   max-width: min(300px, calc(100% - 24px));
-  transform: translate(4px, 4px);
+  transform: none;
 }
 
 .canvas-context-menu button svg {
@@ -960,6 +960,7 @@
   background:
     radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--turn-player-color, var(--color-accent)) 35%, transparent), transparent 58%),
     linear-gradient(180deg, color-mix(in srgb, var(--turn-player-color, var(--color-accent)) 20%, rgb(23 31 43 / 0.96)), rgb(10 14 20 / 0.94));
+  transform: rotate(var(--turn-entry-rotation)) scale(1.14);
   box-shadow:
     inset 0 0 0 1px rgb(255 255 255 / 0.1),
     0 0 0 1px color-mix(in srgb, var(--turn-player-color, var(--color-accent)) 30%, transparent),
@@ -980,6 +981,8 @@
 
 .turn-order-player-entry-next:not(.turn-order-player-entry-active) {
   border-color: color-mix(in srgb, var(--turn-player-color, var(--color-accent)) 44%, white 8%);
+  transform: rotate(var(--turn-entry-rotation)) scale(1.06);
+  opacity: 0.96;
 }
 
 .turn-order-player-entry-next:not(.turn-order-player-entry-active)::after {
@@ -1042,12 +1045,39 @@
 }
 
 .turn-order-player-bar-arrow-end .turn-order-player-direction {
-  order: 2;
+  order: 3;
+}
+
+.turn-order-player-bar-arrow-end .turn-order-player-overflow {
+  order: -1;
 }
 
 .turn-order-player-direction svg {
   width: calc(var(--turn-avatar-size) * 0.42);
   height: calc(var(--turn-avatar-size) * 0.42);
+}
+
+.turn-order-player-overflow {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  justify-self: center;
+  min-width: calc(var(--turn-avatar-size) * 0.74);
+  height: calc(var(--turn-avatar-size) * 0.58);
+  border: 1px solid rgb(215 177 91 / 0.34);
+  border-radius: var(--radius-pill);
+  background:
+    linear-gradient(180deg, rgb(23 30 40 / 0.82), rgb(7 10 15 / 0.8));
+  color: #f5d98a;
+  font-size: calc(var(--turn-initiative-size) * 0.78);
+  font-weight: 850;
+  line-height: 1;
+  transform: rotate(var(--turn-entry-rotation));
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.06),
+    0 8px 18px rgb(0 0 0 / 0.22);
 }
 
 .player-seat-indicator {

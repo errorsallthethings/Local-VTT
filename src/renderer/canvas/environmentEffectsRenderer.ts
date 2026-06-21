@@ -1001,7 +1001,21 @@ let shockwaveRuntime: WaterRuntime | null = null;
 let distortionRuntime: WaterRuntime | null = null;
 let smokeRuntime: WaterRuntime | null = null;
 let fogRuntime: WaterRuntime | null = null;
+let sharedEnvironmentEffectRenderer: THREE.WebGLRenderer | null = null;
 let sharedEffectPlaneGeometry: THREE.PlaneGeometry | null = null;
+
+function getSharedEnvironmentEffectRenderer(): THREE.WebGLRenderer | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  if (!sharedEnvironmentEffectRenderer) {
+    sharedEnvironmentEffectRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    sharedEnvironmentEffectRenderer.setPixelRatio(1);
+  }
+
+  return sharedEnvironmentEffectRenderer;
+}
 
 function getSharedEffectPlaneGeometry(): THREE.PlaneGeometry {
   if (!sharedEffectPlaneGeometry) {
@@ -1055,6 +1069,8 @@ export function disposeEnvironmentEffectRuntimes() {
 
   sharedEffectPlaneGeometry?.dispose();
   sharedEffectPlaneGeometry = null;
+  sharedEnvironmentEffectRenderer?.dispose();
+  sharedEnvironmentEffectRenderer = null;
 }
 
 function disposeEnvironmentEffectRuntime(runtime: WaterRuntime | null) {
@@ -1063,7 +1079,6 @@ function disposeEnvironmentEffectRuntime(runtime: WaterRuntime | null) {
   }
   runtime.meshA.material.dispose();
   runtime.meshB.material.dispose();
-  runtime.renderer.dispose();
 }
 
 function getEffectWorldOrigin(bounds: ScreenBounds, cameraState: { x: number; y: number; zoom: number }) {
@@ -1148,6 +1163,8 @@ export function drawEnvironmentAcidEffect(
     drawAcidFallback(ctx, bounds, layerOpacity);
     return;
   }
+
+  drawAcidFallback(ctx, bounds, layerOpacity * 0.45);
 
   const time = (timestamp - runtime.startedAt) / 1000;
   positionWaterMesh(runtime.meshA, width, height, 1);
@@ -1369,6 +1386,8 @@ export function drawEnvironmentFireEffect(
     return;
   }
 
+  drawFireFallback(ctx, bounds, layerOpacity * 0.36);
+
   const time = (timestamp - runtime.startedAt) / 1000;
   positionWaterMesh(runtime.meshA, width, height, 1);
   positionWaterMesh(runtime.meshB, width, height, 1);
@@ -1413,6 +1432,8 @@ export function drawEnvironmentLightningEffect(
     return;
   }
 
+  _drawLightningFallback(ctx, bounds, layerOpacity * 0.32);
+
   const time = (timestamp - runtime.startedAt) / 1000;
   positionWaterMesh(runtime.meshA, width, height, 1);
   positionWaterMesh(runtime.meshB, width, height, 1);
@@ -1456,6 +1477,8 @@ export function drawEnvironmentArcaneEffect(
     drawArcaneFallback(ctx, bounds, layerOpacity);
     return;
   }
+
+  drawArcaneFallback(ctx, bounds, layerOpacity * 0.45);
 
   const time = (timestamp - runtime.startedAt) / 1000;
   positionWaterMesh(runtime.meshA, width, height, 1);
@@ -1633,6 +1656,8 @@ export function drawEnvironmentRadiantEffect(
     return;
   }
 
+  drawRadiantFallback(ctx, bounds, layerOpacity * 0.26);
+
   const time = (timestamp - runtime.startedAt) / 1000;
   positionWaterMesh(runtime.meshA, width, height, 1);
   positionWaterMesh(runtime.meshB, width, height, 1);
@@ -1720,6 +1745,8 @@ export function drawEnvironmentShockwaveEffect(
     drawShockwaveFallback(ctx, bounds, layerOpacity);
     return;
   }
+
+  drawShockwaveFallback(ctx, bounds, layerOpacity * 0.28);
 
   const time = (timestamp - runtime.startedAt) / 1000;
   positionWaterMesh(runtime.meshA, width, height, 1);
@@ -1809,6 +1836,8 @@ export function drawEnvironmentSmokeEffect(
     return;
   }
 
+  drawSmokeFallback(ctx, bounds, layerOpacity * 0.28);
+
   const time = (timestamp - runtime.startedAt) / 1000;
   positionWaterMesh(runtime.meshA, width, height, 1);
   positionWaterMesh(runtime.meshB, width, height, 1);
@@ -1883,8 +1912,10 @@ function getWaterRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   if (!waterRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -1932,8 +1963,10 @@ function getAcidRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   if (!acidRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -1981,8 +2014,10 @@ function getPoisonRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   if (!poisonRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2030,8 +2065,10 @@ function getColdRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   if (!coldRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2079,8 +2116,10 @@ function getDarknessRuntime(width: number, height: number): WaterRuntime | null 
   }
 
   if (!darknessRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2128,8 +2167,10 @@ function getLavaRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   if (!lavaRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2177,8 +2218,10 @@ function getFireRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   if (!fireRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2226,8 +2269,10 @@ function getLightningRuntime(width: number, height: number): WaterRuntime | null
   }
 
   if (!lightningRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2275,8 +2320,10 @@ function getArcaneRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   if (!arcaneRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2324,8 +2371,10 @@ function getChaosRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   if (!chaosRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2373,8 +2422,10 @@ function getVoidRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   if (!voidRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2422,8 +2473,10 @@ function getNatureRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   if (!natureRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2471,8 +2524,10 @@ function getRadiantRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   if (!radiantRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2520,8 +2575,10 @@ function getForceFieldRuntime(width: number, height: number): WaterRuntime | nul
   }
 
   if (!forceFieldRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2569,8 +2626,10 @@ function getShockwaveRuntime(width: number, height: number): WaterRuntime | null
   }
 
   if (!shockwaveRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2618,8 +2677,10 @@ function getDistortionRuntime(width: number, height: number): WaterRuntime | nul
   }
 
   if (!distortionRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2667,8 +2728,10 @@ function getSmokeRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   if (!smokeRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -2716,8 +2779,10 @@ function getFogRuntime(width: number, height: number): WaterRuntime | null {
   }
 
   if (!fogRuntime) {
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(1);
+    const renderer = getSharedEnvironmentEffectRenderer();
+    if (!renderer) {
+      return null;
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
@@ -3867,8 +3932,9 @@ function createFireMaterial(opacity: number): THREE.ShaderMaterial {
         vec3 color = mix(emberColor, flameColor, flameBody);
         color = mix(color, hotColor, hotCore * heat);
         color = mix(color, hotColor, emberMask * ember);
-        float alpha = (baseAlpha + flameBody * 0.38 + hotCore * heat * 0.18 + emberMask * ember * 0.18) * opacity;
-        alpha *= smoothstep(0.04, 0.18, flameBody + emberMask * 0.4);
+        float alpha = (max(baseAlpha * 0.42, 0.08) + flameBody * 0.42 + hotCore * heat * 0.2 + emberMask * ember * 0.2) * opacity;
+        float alphaGate = smoothstep(0.01, 0.12, flameBody + emberMask * 0.45 + baseAlpha * 0.35);
+        alpha *= mix(0.48, 1.0, alphaGate);
         gl_FragColor = vec4(color, alpha);
       }
     `
@@ -4049,7 +4115,7 @@ function _createLightningMaterial(opacity: number): THREE.ShaderMaterial {
         uv += broadWarp * jitter * 0.34;
         uv.y += sin(uv.x * (0.55 + branchiness * 1.15) + motionTime) * jitter * 0.12;
 
-        vec3 electric = electricColor(uv) * arcColor;
+        vec3 electric = electricColor(uv) * arcColor * 1.55;
         float energy = max(max(electric.r, electric.g), electric.b);
         float normalizedEnergy = log(1.0 + energy * 0.82);
         normalizedEnergy = normalizedEnergy / (1.0 + normalizedEnergy);
@@ -4067,8 +4133,8 @@ function _createLightningMaterial(opacity: number): THREE.ShaderMaterial {
         vec3 color = mix(backgroundColor, electric, shapedEnergy);
         float coreShape = smoothstep(0.64, 1.0, shapedEnergy);
         color = mix(color, coreColor, coreShape * glow);
-        float alpha = (baseAlpha * survivors * 0.7 + shapedEnergy * (0.92 + glow * 0.55)) * opacity;
-        alpha *= smoothstep(0.01, 0.13, shapedEnergy);
+        float alpha = (baseAlpha * (0.32 + breakup * 0.18) + shapedEnergy * (0.98 + glow * 0.62)) * opacity;
+        alpha *= mix(0.5, 1.0, smoothstep(0.01, 0.13, shapedEnergy + baseAlpha * 0.28));
         gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
       }
     `
@@ -5069,8 +5135,8 @@ function createRadiantMaterial(opacity: number): THREE.ShaderMaterial {
         float energy = clamp(rays * (0.68 + bloom * 0.34) * pulseWave + bloomField * 0.58 + motes * 0.92, 0.0, 1.0);
         vec3 color = mix(backgroundColor, rayColor, energy);
         color = mix(color, coreColor, smoothstep(0.55, 1.0, energy) * (0.55 + bloom * 0.45));
-        float alpha = (baseAlpha * 0.45 + energy * (0.66 + bloom * 0.42)) * opacity;
-        alpha *= smoothstep(0.02, 0.12, energy + baseAlpha);
+        float alpha = (max(baseAlpha * 0.5, 0.07) + energy * (0.72 + bloom * 0.48)) * opacity;
+        alpha *= mix(0.48, 1.0, smoothstep(0.01, 0.12, energy + baseAlpha * 0.42));
         gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
       }
     `
@@ -5393,8 +5459,8 @@ function createShockwaveMaterial(opacity: number): THREE.ShaderMaterial {
         float energy = clamp((ringMask * edgeFade * pulseWave) + centerPulse + fieldNoise * baseAlpha * 0.62, 0.0, 1.0);
         vec3 color = mix(backgroundColor, ringColor, clamp(ringMask + fieldNoise * baseAlpha, 0.0, 1.0));
         color = mix(color, coreColor, clamp(centerPulse + energy * glow * 0.46, 0.0, 1.0));
-        float alpha = (baseAlpha * 0.35 + energy * (0.62 + glow * 0.58)) * opacity;
-        alpha *= smoothstep(0.01, 0.1, energy + baseAlpha);
+        float alpha = (max(baseAlpha * 0.42, 0.06) + energy * (0.68 + glow * 0.62)) * opacity;
+        alpha *= mix(0.5, 1.0, smoothstep(0.01, 0.1, energy + baseAlpha * 0.45));
         gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
       }
     `
@@ -5697,8 +5763,8 @@ function createSmokeMaterial(opacity: number): THREE.ShaderMaterial {
         float shadow = smoothstep(0.16, 0.62, 1.0 - cloudMedium);
         vec3 color = mix(shadowColor, smokeColor, body);
         color = mix(color, highlightColor, highlight * softness * 0.55);
-        float alpha = (baseAlpha + body * density * 0.44 + highlight * 0.08) * opacity;
-        alpha *= smoothstep(0.02, 0.12, body + density * 0.2);
+        float alpha = (max(baseAlpha * 0.68, 0.08) + body * density * 0.5 + highlight * 0.1) * opacity;
+        alpha *= mix(0.48, 1.0, smoothstep(0.01, 0.12, body + density * 0.24 + baseAlpha * 0.32));
         gl_FragColor = vec4(color, alpha);
       }
     `
@@ -6031,4 +6097,6 @@ function drawFogFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, la
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }
+
+
 

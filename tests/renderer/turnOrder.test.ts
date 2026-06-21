@@ -227,6 +227,7 @@ describe("turn order helpers", () => {
     expect(scene.turnOrder.playerViewEdge).toBe("top");
     expect(scene.turnOrder.playerViewFacing).toBe("inward");
     expect(scene.turnOrder.playerViewSize).toBe("md");
+    expect(scene.turnOrder.playerViewMaxEntries).toBe(9);
     expect(scene.turnOrder.playerTurnStatusSize).toBe("md");
     expect(scene.turnOrder.initiativeDiceCount).toBe(1);
     expect(scene.turnOrder.initiativeDiceSides).toBe(20);

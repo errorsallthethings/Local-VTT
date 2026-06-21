@@ -7,17 +7,35 @@ export type PlayerTurnStatus = "current" | "next" | "waiting";
 
 export interface VisibleTurnOrderState {
   entries: TurnOrderEntry[];
+  displayedEntries: TurnOrderEntry[];
+  hiddenEntryCount: number;
   currentIndex: number;
   currentEntry: TurnOrderEntry | null;
   nextEntry: TurnOrderEntry | null;
 }
 
-export function getVisibleTurnOrderState(turnOrder: Pick<TurnOrderSettings, "currentEntryId" | "entries">): VisibleTurnOrderState {
+export function getVisibleTurnOrderState(turnOrder: Pick<TurnOrderSettings, "currentEntryId" | "entries"> & Partial<Pick<TurnOrderSettings, "playerViewMaxEntries">>): VisibleTurnOrderState {
   const entries = turnOrder.entries.filter((entry) => entry.visibleInPlayer);
   const currentIndex = Math.max(0, entries.findIndex((entry) => entry.id === turnOrder.currentEntryId));
   const currentEntry = entries.find((entry) => entry.id === turnOrder.currentEntryId) ?? null;
   const nextEntry = entries.length > 1 ? entries[(currentIndex + 1) % entries.length] : null;
-  return { entries, currentIndex, currentEntry, nextEntry };
+  const maxEntries = getTurnOrderDisplayLimit(turnOrder.playerViewMaxEntries);
+  const displayedEntries = getCarouselEntries(entries, currentIndex, maxEntries);
+  const hiddenEntryCount = Math.max(0, entries.length - displayedEntries.length);
+  return { entries, displayedEntries, hiddenEntryCount, currentIndex, currentEntry, nextEntry };
+}
+
+function getTurnOrderDisplayLimit(value: number | undefined): number {
+  return Math.max(1, Math.min(30, Math.floor(value ?? 9)));
+}
+
+function getCarouselEntries(entries: TurnOrderEntry[], startIndex: number, maxEntries: number): TurnOrderEntry[] {
+  if (entries.length <= maxEntries) {
+    return entries;
+  }
+  const previousContextCount = Math.max(0, Math.min(startIndex, Math.floor((maxEntries - 1) / 3)));
+  const windowStart = startIndex - previousContextCount;
+  return Array.from({ length: maxEntries }, (_, offset) => entries[(windowStart + offset) % entries.length]);
 }
 
 export function getPlayerSeatStyle(edge: PlayerViewEdge, position: number, color: string): CSSProperties {

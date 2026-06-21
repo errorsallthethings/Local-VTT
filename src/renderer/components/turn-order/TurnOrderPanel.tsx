@@ -156,6 +156,17 @@ export function TurnOrderPanel({
                 </select>
               </label>
               <label>
+                <span>Visible Entries</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  step={1}
+                  value={turnOrder.playerViewMaxEntries}
+                  onChange={(event) => updateTurnOrder({ playerViewMaxEntries: Math.max(1, Math.min(30, Math.floor(Number(event.target.value) || 9))) })}
+                />
+              </label>
+              <label>
                 <span>Player Turn Size</span>
                 <select
                   value={turnOrder.playerTurnStatusSize}

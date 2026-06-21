@@ -1,6 +1,7 @@
 import type { EnvironmentEffectMask, EnvironmentEffectType } from "../../shared/localvtt";
 import { getEnvironmentEffectBounds, getPointBounds } from "./boundsGeometry";
 import type { Camera } from "./camera";
+import { drawSelectionBox } from "./selectionRenderer";
 import {
   DEFAULT_ACID_EFFECT_TUNING,
   DEFAULT_ARCANE_EFFECT_TUNING,
@@ -551,6 +552,14 @@ const ENVIRONMENT_EFFECT_DRAWERS: Record<EnvironmentEffectType, EnvironmentEffec
 };
 
 export function drawEnvironmentEffectShape(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, options: { fill: boolean; selected: boolean }) {
+  if (options.selected) {
+    const bounds = getEnvironmentEffectBounds(effect);
+    if (bounds) {
+      const screenBounds = worldRectToScreen(bounds, camera);
+      drawSelectionBox(ctx, screenBounds, 1, 10);
+    }
+    return;
+  }
   const path = getEnvironmentEffectPath(effect, camera);
   ctx.save();
   if (options.fill) {

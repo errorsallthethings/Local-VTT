@@ -119,7 +119,7 @@ export function useCampaignActions({
     if (!campaign) {
       return;
     }
-    updateCampaignDraft(moveSceneEntry(campaign, sceneId, target, new Date().toISOString()));
+    updateCampaignDraft(moveSceneEntry(campaign, sceneId, target, new Date().toISOString()), null);
   };
 
   const saveSceneById = async (sceneId: string) => {
@@ -397,7 +397,7 @@ export function useCampaignActions({
     if (!campaign || !folder) {
       return;
     }
-    updateCampaignDraft(removeFolderFromCampaign(campaign, folder.id, new Date().toISOString()));
+    updateCampaignDraft(removeFolderFromCampaign(campaign, folder.id, new Date().toISOString()), null);
     onFolderDeleteHandled();
     onCloseFolderMenu();
   };

@@ -504,8 +504,8 @@ export function GmApp() {
     setActiveWeatherMaskTool(null);
   };
 
-  const updateCampaignDraft = (nextCampaign: Campaign) => {
-    updateWorkspaceCampaignDraft(nextCampaign, activeScene?.id === playerSceneId ? activeScene : null);
+  const updateCampaignDraft = (nextCampaign: Campaign, syncActiveSceneToPlayer = true) => {
+    updateWorkspaceCampaignDraft(nextCampaign, syncActiveSceneToPlayer && activeScene?.id === playerSceneId ? activeScene : null);
   };
 
   const updateDiceSettings = (patch: Partial<DiceSettings>) => {
@@ -1414,7 +1414,7 @@ export function GmApp() {
     if (!campaign) {
       return;
     }
-    updateCampaignDraft(moveSceneFolder(campaign, folderId, direction, new Date().toISOString()));
+    updateCampaignDraft(moveSceneFolder(campaign, folderId, direction, new Date().toISOString()), false);
     setOpenFolderMenuId(null);
   };
 

@@ -43,10 +43,10 @@ describe("drawing transform geometry", () => {
     ];
 
     expect(getSelectedResizableDrawingBounds(drawings, ["a", "b", "template"])).toEqual({
-      left: -10,
-      top: 5,
-      right: 30,
-      bottom: 60
+      left: -12,
+      top: 3,
+      right: 32,
+      bottom: 62
     });
   });
 
@@ -56,7 +56,7 @@ describe("drawing transform geometry", () => {
         drawing({ kind: "rectangle", points: [{ x: 10, y: 20 }, { x: 30, y: 40 }] }),
         drawing({ kind: "line", points: [{ x: -5, y: 0 }, { x: 5, y: 80 }] })
       ])
-    ).toEqual({ left: -5, top: 0, right: 30, bottom: 80 });
+    ).toEqual({ left: -7, top: -2, right: 32, bottom: 82 });
   });
 
   it("captures cloned drawing points and skips templates by default", () => {

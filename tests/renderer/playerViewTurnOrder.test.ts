@@ -90,6 +90,7 @@ describe("player view turn order helpers", () => {
 
     expect(getVisibleTurnOrderState(turnOrder)).toMatchObject({
       entries: [turnOrder.entries[1], turnOrder.entries[2]],
+      displayedEntries: [turnOrder.entries[1], turnOrder.entries[2]],
       currentIndex: 0,
       currentEntry: turnOrder.entries[1],
       nextEntry: turnOrder.entries[2]
@@ -113,5 +114,30 @@ describe("player view turn order helpers", () => {
       currentEntry: null,
       nextEntry: entries[2]
     });
+  });
+
+  it("caps Player View tracker entries as a wrapping carousel", () => {
+    const entries = Array.from({ length: 12 }, (_, index) => ({
+      id: `entry-${index + 1}`,
+      name: `Entry ${index + 1}`,
+      initiative: 20 - index,
+      visibleInPlayer: true
+    }));
+
+    expect(getVisibleTurnOrderState({ currentEntryId: "entry-8", entries, playerViewMaxEntries: 5 }).displayedEntries.map((entry) => entry.id)).toEqual([
+      "entry-7",
+      "entry-8",
+      "entry-9",
+      "entry-10",
+      "entry-11"
+    ]);
+    expect(getVisibleTurnOrderState({ currentEntryId: "entry-11", entries, playerViewMaxEntries: 5 }).displayedEntries.map((entry) => entry.id)).toEqual([
+      "entry-10",
+      "entry-11",
+      "entry-12",
+      "entry-1",
+      "entry-2"
+    ]);
+    expect(getVisibleTurnOrderState({ currentEntryId: "entry-11", entries, playerViewMaxEntries: 5 }).hiddenEntryCount).toBe(7);
   });
 });

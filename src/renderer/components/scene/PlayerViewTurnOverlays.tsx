@@ -41,10 +41,10 @@ export function PlayerSeatIndicators({ campaign }: { campaign: Campaign | null }
 
 export function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign: Campaign | null }) {
   const turnOrder = scene.turnOrder;
-  const entries = getVisibleTurnOrderState(turnOrder).entries;
-  const visible = turnOrder.active && turnOrder.playerViewVisible && entries.length > 0;
+  const turnOrderState = getVisibleTurnOrderState(turnOrder);
+  const visible = turnOrder.active && turnOrder.playerViewVisible && turnOrderState.entries.length > 0;
   const reveal = useEdgeSlide(visible);
-  const renderedEntries = useLastPresentValue(entries, visible && entries.length > 0);
+  const renderedEntries = useLastPresentValue(turnOrderState.displayedEntries, visible && turnOrderState.displayedEntries.length > 0);
   const renderedCampaign = useLastPresentValue(campaign, visible && Boolean(campaign));
   const assetsById = useMemo(() => buildAssetsById(renderedCampaign?.assets ?? []), [renderedCampaign?.assets]);
   const playersById = useMemo(() => new Map((renderedCampaign?.players ?? []).map((player) => [player.id, player])), [renderedCampaign?.players]);
@@ -54,7 +54,7 @@ export function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign
 
   const layout = getTurnOrderPlayerBarLayout(turnOrder.playerViewEdge, turnOrder.playerViewFacing);
   const displayedEntries = layout.reverseEntries ? [...renderedEntries].reverse() : renderedEntries;
-  const { nextEntry } = getVisibleTurnOrderState({ currentEntryId: turnOrder.currentEntryId, entries: renderedEntries });
+  const { nextEntry } = getVisibleTurnOrderState({ currentEntryId: turnOrder.currentEntryId, entries: turnOrderState.entries, playerViewMaxEntries: turnOrder.playerViewMaxEntries });
   const nextEntryId = nextEntry?.id ?? null;
 
   return (
@@ -92,6 +92,11 @@ export function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign
           </article>
         );
       })}
+      {turnOrderState.hiddenEntryCount > 0 && (
+        <span className="turn-order-player-overflow" title={`${turnOrderState.hiddenEntryCount} more entries in turn order`}>
+          +{turnOrderState.hiddenEntryCount}
+        </span>
+      )}
     </div>
   );
 }
