@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Layer } from "../../src/shared/localvtt";
-import { getSceneLayerVisibility } from "../../src/renderer/canvas/sceneLayerVisibility";
+import { getSceneLayerVisibility } from "../../src/renderer/canvas/scene/sceneLayerVisibility";
 
 function layer(id: string, visibleInGm: boolean, visibleInPlayer: boolean): Layer {
   return {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene, type DrawingTemplateEffect } from "../../src/shared/localvtt";
-import type { DrawingPreview } from "../../src/renderer/canvas/drawingRenderer";
+import type { DrawingPreview } from "../../src/renderer/canvas/drawings/drawingRenderer";
 import {
   formatDefaultTemplateDrawingName,
   getDrawingElementFromPreview,
@@ -11,7 +11,7 @@ import {
   getTemplateEffectNamePart,
   getTemplatePreviewDrawing,
   isTemplateDrawingTool
-} from "../../src/renderer/canvas/templateDrawing";
+} from "../../src/renderer/canvas/drawings/templateDrawing";
 
 describe("template drawing helpers", () => {
   it("identifies template drawing tools", () => {

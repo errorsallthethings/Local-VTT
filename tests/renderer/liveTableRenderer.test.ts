@@ -7,7 +7,7 @@ import {
   LASER_POINT_LIFETIME_MS,
   PING_DURATION_MS,
   RULER_RELEASE_LINGER_MS
-} from "../../src/renderer/canvas/liveTableRenderer";
+} from "../../src/renderer/canvas/live-table/liveTableRenderer";
 
 describe("liveTableRenderer", () => {
   it("keeps ping events active until their duration expires", () => {

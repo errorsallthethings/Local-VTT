@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { LiveTableEvent } from "../../src/shared/localvtt";
 import { DICE_HISTORY_DURATION_MS } from "../../src/renderer/lib/dice";
 import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../../src/renderer/lib/liveTableEvents";
-import { LASER_POINT_LIFETIME_MS, PING_DURATION_MS, RULER_EVENT_LIFETIME_MS } from "../../src/renderer/canvas/liveTableRenderer";
+import { LASER_POINT_LIFETIME_MS, PING_DURATION_MS, RULER_EVENT_LIFETIME_MS } from "../../src/renderer/canvas/live-table/liveTableRenderer";
 
 describe("live table event lifecycle", () => {
   it("filters expired ping, dice, laser, and ruler events", () => {

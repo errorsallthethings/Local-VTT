@@ -16,7 +16,7 @@ import {
   type TokenPresentationDefaults,
   type TokenSizePreset
 } from "../../shared/localvtt";
-import { getSnappedTokenPosition } from "../canvas/tokenGeometry";
+import { getSnappedTokenPosition } from "../canvas/tokens/tokenGeometry";
 
 export function createImportedToken(scene: Scene, asset: Asset, tokenId: string, placementPoint?: Point): Token {
   const tokenLayer = scene.layers.find((layer) => layer.id === "token");

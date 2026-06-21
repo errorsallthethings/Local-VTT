@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clientToWorldPoint, eventToWorldPoint, getCanvasViewportCenter, isSnapModifier, worldRectToScreen, worldToScreenPoint } from "../../src/renderer/canvas/viewportGeometry";
+import { clientToWorldPoint, eventToWorldPoint, getCanvasViewportCenter, isSnapModifier, worldRectToScreen, worldToScreenPoint } from "../../src/renderer/canvas/core/viewportGeometry";
 
 function elementRect(rect: { left: number; top: number; width: number; height: number }) {
   return {

@@ -7,7 +7,7 @@ import {
   isPointInsideEnvironmentEffect,
   isPointInsidePolygon,
   isPointInsideWeatherMask
-} from "../../src/renderer/canvas/sceneHitTesting";
+} from "../../src/renderer/canvas/scene/sceneHitTesting";
 
 function makeScene(overrides: Partial<Scene>): Scene {
   return {

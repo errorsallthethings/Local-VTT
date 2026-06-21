@@ -11,7 +11,7 @@ import {
   isMapReady,
   prepareLoadedImageMap,
   type LoadedMap
-} from "../../src/renderer/canvas/mapSource";
+} from "../../src/renderer/canvas/map/mapSource";
 
 function imageSource(id: string): HTMLImageElement {
   return { id } as unknown as HTMLImageElement;

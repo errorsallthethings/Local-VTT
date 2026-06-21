@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { formatVideoDebug, shouldPrepareVideoBuffer, shouldRestartVideo } from "../canvas/videoMap";
+import { formatVideoDebug, shouldPrepareVideoBuffer, shouldRestartVideo } from "../canvas/map/videoMap";
 
 interface UseVideoMapPlaybackOptions {
   assetUrl: string | null;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { areCamerasEqual, getCameraForPanDrag, getCameraForWheelZoom, getRenderCamera } from "../../src/renderer/canvas/camera";
+import { areCamerasEqual, getCameraForPanDrag, getCameraForWheelZoom, getRenderCamera } from "../../src/renderer/canvas/core/camera";
 import {
   getFogDragKindForTool,
   getFogDragFromPoint,
@@ -13,9 +13,9 @@ import {
   isPolygonTool,
   normalizeBrushPoints,
   shouldAddBrushPoint
-} from "../../src/renderer/canvas/fogRenderer";
-import { getNearestGridPoint, getNearestSquareGridSnapPoint } from "../../src/renderer/canvas/gridMath";
-import { getCameraForMapFit, resolveMapTransform } from "../../src/renderer/canvas/mapRenderer";
+} from "../../src/renderer/canvas/fog/fogRenderer";
+import { getNearestGridPoint, getNearestSquareGridSnapPoint } from "../../src/renderer/canvas/grid/gridMath";
+import { getCameraForMapFit, resolveMapTransform } from "../../src/renderer/canvas/map/mapRenderer";
 import { createDefaultScene } from "../../src/shared/localvtt";
 
 describe("canvas helpers", () => {

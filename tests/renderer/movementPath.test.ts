@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendWaypoint, getPathDistance, getPathMidpoint, getPointAlongPath, hasMeaningfulPath, normalizeMovementPath, removeLastWaypoint } from "../../src/renderer/canvas/movementPath";
+import { appendWaypoint, getPathDistance, getPathMidpoint, getPointAlongPath, hasMeaningfulPath, normalizeMovementPath, removeLastWaypoint } from "../../src/renderer/canvas/tokens/movementPath";
 
 describe("movement path helpers", () => {
   it("removes near-duplicate points while preserving meaningful turns", () => {

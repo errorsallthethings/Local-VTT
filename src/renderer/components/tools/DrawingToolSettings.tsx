@@ -1,5 +1,5 @@
 import type { DrawingStrokeStyle, DrawingTemplateEffect } from "../../../shared/localvtt";
-import type { DrawingTool } from "../../canvas/drawingRenderer";
+import type { DrawingTool } from "../../canvas/drawings/drawingRenderer";
 import { ColorInput } from "../controls/ColorPickerField";
 import { getPresetSelectValue, hasPresetValue } from "./toolPresetOptions";
 

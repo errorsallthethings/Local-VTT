@@ -1,5 +1,5 @@
-import type { FogTool } from "../canvas/fogRenderer";
-import type { DrawingTool } from "../canvas/drawingRenderer";
+import type { FogTool } from "../canvas/fog/fogRenderer";
+import type { DrawingTool } from "../canvas/drawings/drawingRenderer";
 
 export const FOG_GRID_SNAP_HINT = "Ctrl/Cmd snaps to the nearest grid center, corner, or edge midpoint.";
 export const RULER_GRID_SNAP_HINT = "Ctrl/Cmd snaps to square or hex centers.";

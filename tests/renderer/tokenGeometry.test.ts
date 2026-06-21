@@ -3,7 +3,7 @@ import {
   getSnappedTokenPosition,
   getTokenHexFootprintCenters,
   isTokenRevealedByFog
-} from "../../src/renderer/canvas/tokenGeometry";
+} from "../../src/renderer/canvas/tokens/tokenGeometry";
 import { createDefaultScene, type Token } from "../../src/shared/localvtt";
 
 function token(patch: Partial<Token> = {}): Token {

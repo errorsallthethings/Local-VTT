@@ -5,7 +5,7 @@ import {
   prepareLoadedImageMap,
   type LoadedMap,
   type MapLoadStatus
-} from "../canvas/mapSource";
+} from "../canvas/map/mapSource";
 
 interface UseImageMapLoaderOptions {
   assetId: string | undefined;

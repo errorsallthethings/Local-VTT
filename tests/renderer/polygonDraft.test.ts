@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint, updatePolygonDraftCurrent } from "../../src/renderer/canvas/polygonDraft";
+import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint, updatePolygonDraftCurrent } from "../../src/renderer/canvas/scene/polygonDraft";
 
 describe("polygon draft helpers", () => {
   it("starts a new generic draft with the first point", () => {

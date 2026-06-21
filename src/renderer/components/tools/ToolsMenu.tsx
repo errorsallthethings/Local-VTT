@@ -24,16 +24,16 @@ import {
   Type,
   Undo2,
 } from "lucide-react";
-import type { DrawingTool } from "../../canvas/drawingRenderer";
+import type { DrawingTool } from "../../canvas/drawings/drawingRenderer";
 import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType } from "../../../shared/localvtt";
-import type { FogTool } from "../../canvas/fogRenderer";
+import type { FogTool } from "../../canvas/fog/fogRenderer";
 import { DrawingSettings, type DrawingTemplateSize, type DrawingTemplateWidth } from "./DrawingToolSettings";
 import { AcidEffectTuningPanel, ArcaneEffectTuningPanel, ChaosEffectTuningPanel, ColdEffectTuningPanel, DarknessEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, NatureEffectTuningPanel, PoisonEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, VoidEffectTuningPanel, WaterEffectTuningPanel } from "./EnvironmentEffectTuningPanels";
 import { FogBrushSettings } from "./FogBrushSettings";
 import { SelectorFilterCheckbox, SelectorSelectionActions, SelectorSelectionSummary, type SelectorSelectionCounts, type SelectorSelectionFilters } from "./SelectorToolControls";
 import { TableToolSettings } from "./TableToolSettings";
 import { ToolHelpCard, type ToolHelpTopic } from "./ToolHelpCard";
-import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DarknessEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../../canvas/environmentEffectsRenderer";
+import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DarknessEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../../canvas/effects/environmentEffectsRenderer";
 import {
   ENVIRONMENT_EFFECT_FEATHER_OPTIONS,
   ENVIRONMENT_EFFECT_OPTIONS,

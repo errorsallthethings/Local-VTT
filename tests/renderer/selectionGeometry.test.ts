@@ -12,7 +12,7 @@ import {
   isTokenInSelectionRect,
   isWeatherMaskInSelectionRect,
   pointsToSelectionRect
-} from "../../src/renderer/canvas/selectionGeometry";
+} from "../../src/renderer/canvas/selection/selectionGeometry";
 
 describe("selection geometry", () => {
   it("builds a positive selection rect from any drag direction", () => {

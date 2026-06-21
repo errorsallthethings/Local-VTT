@@ -36,7 +36,7 @@ import {
   type SmokeEffectTuning,
   type VoidEffectTuning,
   type WaterEffectTuning
-} from "../canvas/environmentEffectsRenderer";
+} from "../canvas/effects/environmentEffectsRenderer";
 
 export const ENVIRONMENT_EFFECT_FEATHER_OPTIONS = [
   { label: "None", value: 0 },
