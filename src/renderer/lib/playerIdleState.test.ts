@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { isPlayerIdleState } from "../../shared/localvtt";
 import { DEFAULT_PLAYER_HOLD_STATE, PLAYER_BLACKOUT_STATE, showDefaultPlayerHold, showPlayerBlackout } from "./playerIdleState";
 
 describe("player idle state helpers", () => {
@@ -7,6 +8,7 @@ describe("player idle state helpers", () => {
 
     await showDefaultPlayerHold(api);
 
+    expect(isPlayerIdleState(DEFAULT_PLAYER_HOLD_STATE)).toBe(true);
     expect(api.showPlayerIdle).toHaveBeenCalledWith(
       DEFAULT_PLAYER_HOLD_STATE.title,
       DEFAULT_PLAYER_HOLD_STATE.message,
@@ -19,6 +21,7 @@ describe("player idle state helpers", () => {
 
     await showPlayerBlackout(api);
 
+    expect(isPlayerIdleState(PLAYER_BLACKOUT_STATE)).toBe(true);
     expect(api.showPlayerIdle).toHaveBeenCalledWith(
       PLAYER_BLACKOUT_STATE.title,
       PLAYER_BLACKOUT_STATE.message,

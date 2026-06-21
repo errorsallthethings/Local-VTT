@@ -66,4 +66,17 @@ describe("player view sync", () => {
     expect(projection.players.map((player) => player.id)).toEqual(["player-1"]);
     expect(projection.showPlayerSeatIndicators).toBe(true);
   });
+
+  it("returns the IPC result when Player View is not open", async () => {
+    const campaign = createDefaultCampaign("Closed Player View");
+    const scene = createDefaultScene("Unsynced Scene");
+    const api: PlayerViewSceneSyncApi = {
+      updatePlayerSceneIfOpen: vi.fn().mockResolvedValue(false)
+    };
+
+    await expect(updatePlayerSceneIfOpen(api, campaign, scene)).resolves.toBe(false);
+
+    expect(api.updatePlayerSceneIfOpen).toHaveBeenCalledOnce();
+    expect(vi.mocked(api.updatePlayerSceneIfOpen).mock.calls[0][0].scene.name).toBe("Unsynced Scene");
+  });
 });
