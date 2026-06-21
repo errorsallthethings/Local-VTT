@@ -107,6 +107,11 @@ type EnvironmentEffectDrawFn = (
 
 let featherCompositeCanvas: HTMLCanvasElement | null = null;
 
+interface ViewportBounds {
+  width: number;
+  height: number;
+}
+
 export function drawEnvironmentEffectPreview(ctx: CanvasRenderingContext2D, preview: EnvironmentEffectDrag, camera: Camera) {
   const effectMask = environmentDragToMask(preview);
   drawEnvironmentEffectShape(ctx, effectMask, camera, { fill: true, selected: false });
@@ -158,13 +163,18 @@ export function drawEnvironmentEffects(
     smokeEffectTuning,
     fogEffectTuning
   };
+  const viewportBounds = getCanvasViewportBounds(ctx);
   for (const effect of effects) {
     if (!isEnvironmentEffectVisibleForMode(effect, mode)) {
       continue;
     }
+    const screenBounds = getEnvironmentEffectScreenBounds(effect, camera);
+    if (!screenBounds || !isScreenBoundsVisible(screenBounds, viewportBounds)) {
+      continue;
+    }
     const feather = getClampedEnvironmentEffectFeather(effect);
     if (feather > 0) {
-      drawFeatheredEnvironmentEffect(ctx, effect, camera, timestamp, layerOpacity, feather, tuningOverrides);
+      drawFeatheredEnvironmentEffect(ctx, effect, camera, timestamp, layerOpacity, feather, tuningOverrides, screenBounds);
       continue;
     }
     ctx.save();
@@ -182,7 +192,8 @@ function drawFeatheredEnvironmentEffect(
   timestamp: number,
   layerOpacity: number,
   feather: number,
-  tuningOverrides: EnvironmentEffectTuningOverrides
+  tuningOverrides: EnvironmentEffectTuningOverrides,
+  screenBounds: ScreenBounds
 ) {
   const width = Math.max(1, Math.round(ctx.canvas.width / (window.devicePixelRatio || 1)));
   const height = Math.max(1, Math.round(ctx.canvas.height / (window.devicePixelRatio || 1)));
@@ -194,11 +205,6 @@ function drawFeatheredEnvironmentEffect(
   resetFeatherCompositeContext(effectCtx, width, height);
 
   const path = getEnvironmentEffectPath(effect, camera);
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
-    return;
-  }
-  const screenBounds = worldRectToScreen(bounds, camera);
   effectCtx.save();
   effectCtx.clip(path);
   drawEnvironmentEffectContent(effectCtx, effect, camera, timestamp, layerOpacity, tuningOverrides);
@@ -217,6 +223,22 @@ function getFeatherCompositeCanvas(width: number, height: number): HTMLCanvasEle
     featherCompositeCanvas.height = height;
   }
   return featherCompositeCanvas;
+}
+
+function getCanvasViewportBounds(ctx: CanvasRenderingContext2D): ViewportBounds {
+  const pixelRatio = window.devicePixelRatio || 1;
+  return {
+    width: Math.max(1, ctx.canvas.width / pixelRatio),
+    height: Math.max(1, ctx.canvas.height / pixelRatio)
+  };
+}
+
+function isScreenBoundsVisible(bounds: ScreenBounds, viewport: ViewportBounds): boolean {
+  const left = Math.min(bounds.x, bounds.x + bounds.width);
+  const right = Math.max(bounds.x, bounds.x + bounds.width);
+  const top = Math.min(bounds.y, bounds.y + bounds.height);
+  const bottom = Math.max(bounds.y, bounds.y + bounds.height);
+  return right >= 0 && bottom >= 0 && left <= viewport.width && top <= viewport.height;
 }
 
 function resetFeatherCompositeContext(ctx: CanvasRenderingContext2D, width: number, height: number) {
