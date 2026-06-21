@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { areCamerasEqual, getCameraForPanDrag, getCameraForWheelZoom, getRenderCamera } from "../../src/renderer/canvas/camera";
 import {
   getFogDragKindForTool,
+  getFogDragFromPoint,
   getFogOperationForTool,
   getFogShapeFromDrag,
   getFogShapeFromPolygonDraft,
@@ -168,6 +169,20 @@ it("fog tool helpers classify operation, shape, and polygon tools", () => {
   expect(isPolygonTool("hide-brush")).toBe(false);
   expect(isMeaningfulPolygon([{ x: 0, y: 0 }, { x: 1, y: 1 }])).toBe(false);
   expect(isMeaningfulPolygon([{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 0 }])).toBe(true);
+});
+
+it("creates fog drags from tool state", () => {
+  expect(getFogDragFromPoint(7, "reveal-brush", { x: 10, y: 20 }, 30)).toEqual({
+    pointerId: 7,
+    kind: "brush",
+    start: { x: 10, y: 20 },
+    current: { x: 10, y: 20 },
+    points: [{ x: 10, y: 20 }],
+    radius: 15,
+    operation: "reveal"
+  });
+  expect(getFogDragFromPoint(7, "hide-rectangle", { x: 10, y: 20 }, 30).radius).toBeUndefined();
+  expect(getFogDragFromPoint(7, "hide-brush", { x: 10, y: 20 }, 4).radius).toBe(4);
 });
 
 it("fog visibility patch makes newly hidden fog visible when opacity is zeroed", () => {

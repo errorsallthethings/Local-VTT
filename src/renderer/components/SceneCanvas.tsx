@@ -32,7 +32,7 @@ import {
 } from "../canvas/drawingTransform";
 import {
   drawFog,
-  getFogDragKindForTool,
+  getFogDragFromPoint,
   getFogShapeFromDrag,
   getFogShapeFromPolygonDraft,
   getFogVisibilityPatchForNewShape,
@@ -1501,15 +1501,7 @@ export function SceneCanvas({
         updatePolygonDraft(fogTool, point);
         return;
       }
-      const fogDrag = {
-        pointerId: event.pointerId,
-        kind: getFogDragKindForTool(fogTool),
-        start: point,
-        current: point,
-        points: [point],
-        radius: fogTool.includes("brush") ? Math.max(4, activeFogBrushSize / 2) : undefined,
-        operation: getFogOperationForTool(fogTool)
-      } satisfies FogDrag;
+      const fogDrag = getFogDragFromPoint(event.pointerId, fogTool, point, activeFogBrushSize);
       fogDragRef.current = fogDrag;
       setFogPreview(fogDrag);
       return;

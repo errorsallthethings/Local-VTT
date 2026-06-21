@@ -168,6 +168,18 @@ export function getFogDragKindForTool(tool: FogTool): FogDrag["kind"] {
   return "rectangle";
 }
 
+export function getFogDragFromPoint(pointerId: number, tool: FogTool, point: Point, brushSize: number): FogDrag {
+  return {
+    pointerId,
+    kind: getFogDragKindForTool(tool),
+    start: point,
+    current: point,
+    points: [point],
+    radius: tool.includes("brush") ? Math.max(4, brushSize / 2) : undefined,
+    operation: getFogOperationForTool(tool)
+  };
+}
+
 export function isMeaningfulPolygon(points: Point[]): boolean {
   return points.length >= 3;
 }
