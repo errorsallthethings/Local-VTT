@@ -10,6 +10,14 @@ export interface TokenLibraryAssetIndexEntry {
   searchText: string;
 }
 
+export interface TokenLayerRow {
+  asset: Asset | null;
+  isVisibleInGm: boolean;
+  isVisibleInPlayer: boolean;
+  label: string;
+  token: Token;
+}
+
 const TOKEN_LABEL_COLLATOR = new Intl.Collator(undefined, { sensitivity: "base" });
 
 export function buildTokenLibraryAssetIndex(assets: Asset[]): TokenLibraryAssetIndexEntry[] {
@@ -42,6 +50,20 @@ export function getSelectedTokenLibraryAssetIds(selectedTokenAssetId: string | u
 
 export function getSelectedTokenLibraryAsset(assets: Asset[], selectedTokenAssetId: string | undefined): Asset | null {
   return selectedTokenAssetId ? (assets.find((asset) => asset.id === selectedTokenAssetId) ?? null) : null;
+}
+
+export function buildTokenLayerRows(tokens: Token[], tokenAssets: Map<string, Asset>): TokenLayerRow[] {
+  return tokens.map((token, index) => {
+    const asset = token.assetId ? (tokenAssets.get(token.assetId) ?? null) : null;
+    const label = token.name?.trim() || asset?.name || `Token ${index + 1}`;
+    return {
+      asset,
+      isVisibleInGm: token.visibleInGm ?? !token.hidden,
+      isVisibleInPlayer: token.visibleInPlayer,
+      label,
+      token
+    };
+  });
 }
 
 export interface SelectedTokenAssetIds {

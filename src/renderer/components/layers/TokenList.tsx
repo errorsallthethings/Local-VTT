@@ -5,6 +5,7 @@ import type { Asset, Scene, Token } from "../../../shared/localvtt";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { getSelectedItemIds } from "../../lib/selectionIds";
+import { buildTokenLayerRows } from "../../lib/tokenLibrary";
 import { duplicateToken } from "../../lib/tokenDefaults";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
 import { TokenSettings } from "./TokenSettings";
@@ -37,6 +38,7 @@ export function TokenList({
   const [tokenDropTarget, setTokenDropTarget] = useState<TokenDropTarget>(null);
   const [openTokenMenuId, setOpenTokenMenuId] = useState<string | null>(null);
   const selectedIds = useMemo(() => getSelectedItemIds(selectedTokenId, selectedTokenIds), [selectedTokenId, selectedTokenIds]);
+  const tokenRows = useMemo(() => buildTokenLayerRows(scene.tokens, tokenAssets), [scene.tokens, tokenAssets]);
 
   useDismissableMenu({
     enabled: Boolean(openTokenMenuId),
@@ -71,12 +73,7 @@ export function TokenList({
             </span>
             <span />
           </div>
-          {scene.tokens.map((token, tokenIndex) => {
-            const isVisibleInGm = token.visibleInGm ?? !token.hidden;
-            const isVisibleInPlayer = token.visibleInPlayer;
-            const asset = token.assetId ? tokenAssets.get(token.assetId) : null;
-            const assetName = asset?.name;
-            const label = token.name?.trim() || assetName || `Token ${tokenIndex + 1}`;
+          {tokenRows.map(({ token, asset, label, isVisibleInGm, isVisibleInPlayer }) => {
             const isSelected = selectedIds.has(token.id);
             const dropPlacement = tokenDropTarget?.tokenId === token.id && draggedTokenId !== token.id ? tokenDropTarget.placement : null;
             const gmVisibilityButtonClass = [

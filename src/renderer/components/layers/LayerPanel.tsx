@@ -135,7 +135,7 @@ export function LayerPanel({
   onOpenGridColor: () => void;
   onOpenTokenColor: (tokenId: string, value: string, kind: "border" | "glow") => void;
 }) {
-  const sortedLayers = [...scene.layers].sort((a, b) => b.order - a.order);
+  const sortedLayers = useMemo(() => [...scene.layers].sort((a, b) => b.order - a.order), [scene.layers]);
   const visualGridEnabled = scene.grid.type !== "gridless";
   const canFitGridToMap = mapAsset?.mediaType === "image";
   const fitModeHelp = getFitModeHelp(scene.mapTransform.fitMode);

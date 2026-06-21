@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Asset, Token } from "../../src/shared/localvtt";
 import { createDefaultCampaign, createDefaultScene } from "../../src/shared/localvtt";
 import {
+  buildTokenLayerRows,
   buildTokenLibraryAssetIndex,
   filterTokenLibraryAssetIndex,
   filterTokenLibraryAssets,
@@ -72,6 +73,22 @@ describe("token library helpers", () => {
     expect(getSelectedTokenLibraryAsset(assets, "zombie")?.name).toBe("zombie");
     expect(getSelectedTokenLibraryAsset(assets, "missing")).toBeNull();
     expect(getSelectedTokenLibraryAsset(assets, undefined)).toBeNull();
+  });
+
+  it("builds token layer row labels and visibility from tokens and assets", () => {
+    const rows = buildTokenLayerRows(
+      [
+        { ...sceneToken("token-1", "goblin"), name: "" },
+        { ...sceneToken("token-2"), name: "Named Token", hidden: true, visibleInPlayer: false },
+        { ...sceneToken("token-3"), name: "   ", hidden: false }
+      ],
+      new Map(assets.map((asset) => [asset.id, asset]))
+    );
+
+    expect(rows.map((row) => row.label)).toEqual(["Goblin", "Named Token", "Token 3"]);
+    expect(rows.map((row) => row.asset?.id ?? null)).toEqual(["goblin", null, null]);
+    expect(rows.map((row) => row.isVisibleInGm)).toEqual([true, false, true]);
+    expect(rows.map((row) => row.isVisibleInPlayer)).toEqual([true, false, true]);
   });
 
   it("derives selected token asset ids from scene token selections", () => {
