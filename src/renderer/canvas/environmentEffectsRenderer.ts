@@ -1001,6 +1001,14 @@ let shockwaveRuntime: WaterRuntime | null = null;
 let distortionRuntime: WaterRuntime | null = null;
 let smokeRuntime: WaterRuntime | null = null;
 let fogRuntime: WaterRuntime | null = null;
+let sharedEffectPlaneGeometry: THREE.PlaneGeometry | null = null;
+
+function getSharedEffectPlaneGeometry(): THREE.PlaneGeometry {
+  if (!sharedEffectPlaneGeometry) {
+    sharedEffectPlaneGeometry = new THREE.PlaneGeometry(1, 1);
+  }
+  return sharedEffectPlaneGeometry;
+}
 
 function getEffectWorldOrigin(bounds: ScreenBounds, cameraState: { x: number; y: number; zoom: number }) {
   const zoom = Math.max(cameraState.zoom, 0.01);
@@ -1829,8 +1837,8 @@ function getWaterRuntime(width: number, height: number): WaterRuntime | null {
 
     const material = createWaterMaterial(0.68);
     const materialB = createWaterMaterial(0.38);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -1878,8 +1886,8 @@ function getAcidRuntime(width: number, height: number): WaterRuntime | null {
 
     const material = createAcidMaterial(0.84);
     const materialB = createAcidMaterial(0.28);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -1927,8 +1935,8 @@ function getPoisonRuntime(width: number, height: number): WaterRuntime | null {
 
     const material = createPoisonMaterial(0.72);
     const materialB = createPoisonMaterial(0.34);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -1976,8 +1984,8 @@ function getColdRuntime(width: number, height: number): WaterRuntime | null {
 
     const material = createColdMaterial(0.72);
     const materialB = createColdMaterial(0.3);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -2025,8 +2033,8 @@ function getDarknessRuntime(width: number, height: number): WaterRuntime | null 
 
     const material = createDarknessMaterial(0.82);
     const materialB = createDarknessMaterial(0.34);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -2074,8 +2082,8 @@ function getLavaRuntime(width: number, height: number): WaterRuntime | null {
 
     const material = createLavaMaterial(0.9);
     const materialB = createLavaMaterial(0.35);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -2123,8 +2131,8 @@ function getFireRuntime(width: number, height: number): WaterRuntime | null {
 
     const material = createFireMaterial(0.86);
     const materialB = createFireMaterial(0.34);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -2172,8 +2180,8 @@ function getLightningRuntime(width: number, height: number): WaterRuntime | null
 
     const material = _createLightningMaterial(0.9);
     const materialB = _createLightningMaterial(0.35);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -2221,8 +2229,8 @@ function getArcaneRuntime(width: number, height: number): WaterRuntime | null {
 
     const material = createArcaneMaterial(0.82);
     const materialB = createArcaneMaterial(0.34);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -2270,8 +2278,8 @@ function getChaosRuntime(width: number, height: number): WaterRuntime | null {
 
     const material = createChaosMaterial(0.82);
     const materialB = createChaosMaterial(0.32);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -2319,8 +2327,8 @@ function getVoidRuntime(width: number, height: number): WaterRuntime | null {
 
     const material = createVoidMaterial(0.82);
     const materialB = createVoidMaterial(0.34);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -2368,8 +2376,8 @@ function getNatureRuntime(width: number, height: number): WaterRuntime | null {
 
     const material = createNatureMaterial(0.82);
     const materialB = createNatureMaterial(0.32);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -2417,8 +2425,8 @@ function getRadiantRuntime(width: number, height: number): WaterRuntime | null {
 
     const material = createRadiantMaterial(0.78);
     const materialB = createRadiantMaterial(0.28);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -2466,8 +2474,8 @@ function getForceFieldRuntime(width: number, height: number): WaterRuntime | nul
 
     const material = createForceFieldMaterial(0.78);
     const materialB = createForceFieldMaterial(0.32);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -2515,8 +2523,8 @@ function getShockwaveRuntime(width: number, height: number): WaterRuntime | null
 
     const material = createShockwaveMaterial(0.78);
     const materialB = createShockwaveMaterial(0.28);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -2564,8 +2572,8 @@ function getDistortionRuntime(width: number, height: number): WaterRuntime | nul
 
     const material = createDistortionMaterial(0.72);
     const materialB = createDistortionMaterial(0.28);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -2613,8 +2621,8 @@ function getSmokeRuntime(width: number, height: number): WaterRuntime | null {
 
     const material = createSmokeMaterial(0.82);
     const materialB = createSmokeMaterial(0.36);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -2662,8 +2670,8 @@ function getFogRuntime(width: number, height: number): WaterRuntime | null {
 
     const material = createFogMaterial(0.68);
     const materialB = createFogMaterial(0.28);
-    const meshA = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-    const meshB = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), materialB);
+    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
+    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
     meshA.position.z = 1280;
     meshB.position.z = 1281;
     scene.add(meshA, meshB);
@@ -5967,3 +5975,4 @@ function drawFogFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, la
   ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   ctx.restore();
 }
+
