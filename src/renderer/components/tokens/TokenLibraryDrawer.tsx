@@ -17,7 +17,7 @@ import {
   Upload
 } from "lucide-react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Asset } from "../../../shared/localvtt";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
@@ -30,8 +30,30 @@ import {
   getSelectedTokenLibraryAssetIds,
   type TokenLibrarySort
 } from "../../lib/tokenLibrary";
+import { calculateVirtualGridWindow } from "../../lib/virtualGrid";
 
 type TokenLibraryView = "list" | "small" | "medium" | "large";
+type TokenLibraryVirtualMetrics = {
+  gridOffsetTop: number;
+  gridWidth: number;
+  scrollTop: number;
+  viewportHeight: number;
+};
+
+const TOKEN_LIBRARY_GRID_GAP = 8;
+const TOKEN_LIBRARY_VIRTUAL_LAYOUT: Record<TokenLibraryView, { minColumnWidth: number; rowHeight: number }> = {
+  list: { minColumnWidth: 220, rowHeight: 54 },
+  small: { minColumnWidth: 108, rowHeight: 158 },
+  medium: { minColumnWidth: 136, rowHeight: 196 },
+  large: { minColumnWidth: 164, rowHeight: 228 }
+};
+
+const EMPTY_VIRTUAL_METRICS: TokenLibraryVirtualMetrics = {
+  gridOffsetTop: 0,
+  gridWidth: 0,
+  scrollTop: 0,
+  viewportHeight: 0
+};
 
 interface TokenLibraryDrawerProps {
   assets: Asset[];
@@ -74,18 +96,86 @@ export function TokenLibraryDrawer({
   const [openTokenMenuId, setOpenTokenMenuId] = useState<string | null>(null);
   const [splitPercent, setSplitPercent] = useState(62);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const tokenGridRef = useRef<HTMLDivElement | null>(null);
+  const [virtualMetrics, setVirtualMetrics] = useState<TokenLibraryVirtualMetrics>(EMPTY_VIRTUAL_METRICS);
   const assetIndex = useMemo(() => buildTokenLibraryAssetIndex(assets), [assets]);
   const filteredAssets = useMemo(() => filterTokenLibraryAssetIndex(assetIndex, query, sort), [assetIndex, query, sort]);
+  const virtualLayout = TOKEN_LIBRARY_VIRTUAL_LAYOUT[view];
+  const virtualWindow = useMemo(
+    () =>
+      calculateVirtualGridWindow({
+        gap: TOKEN_LIBRARY_GRID_GAP,
+        gridOffsetTop: virtualMetrics.gridOffsetTop,
+        gridWidth: virtualMetrics.gridWidth,
+        itemCount: filteredAssets.length,
+        minColumnWidth: virtualLayout.minColumnWidth,
+        rowHeight: virtualLayout.rowHeight,
+        scrollTop: virtualMetrics.scrollTop,
+        viewportHeight: virtualMetrics.viewportHeight
+      }),
+    [filteredAssets.length, virtualLayout.minColumnWidth, virtualLayout.rowHeight, virtualMetrics]
+  );
+  const visibleAssets = useMemo(() => filteredAssets.slice(virtualWindow.startIndex, virtualWindow.endIndex), [filteredAssets, virtualWindow.endIndex, virtualWindow.startIndex]);
   const selectedAssetIds = useMemo(
     () => getSelectedTokenLibraryAssetIds(selectedTokenAssetId, selectedTokenAssetIds),
     [selectedTokenAssetId, selectedTokenAssetIds]
   );
   const selectedTokenAsset = useMemo(() => getSelectedTokenLibraryAsset(assets, selectedTokenAssetId), [assets, selectedTokenAssetId]);
+  const virtualGridStyle = useMemo(
+    () =>
+      ({
+        paddingTop: virtualWindow.topPadding,
+        paddingBottom: virtualWindow.bottomPadding
+      }) as CSSProperties,
+    [virtualWindow.bottomPadding, virtualWindow.topPadding]
+  );
+
   useDismissableMenu({
     enabled: Boolean(openTokenMenuId),
     menuRootClass: "token-library-menu-wrap",
     onDismiss: () => setOpenTokenMenuId(null)
   });
+
+  useEffect(() => {
+    if (!expanded) {
+      setVirtualMetrics(EMPTY_VIRTUAL_METRICS);
+      return;
+    }
+    const content = contentRef.current;
+    const grid = tokenGridRef.current;
+    if (!content || !grid) {
+      return;
+    }
+
+    const measure = () => {
+      const contentBounds = content.getBoundingClientRect();
+      const gridBounds = grid.getBoundingClientRect();
+      const nextMetrics = {
+        gridOffsetTop: gridBounds.top - contentBounds.top + content.scrollTop,
+        gridWidth: grid.clientWidth,
+        scrollTop: content.scrollTop,
+        viewportHeight: content.clientHeight
+      };
+      setVirtualMetrics((currentMetrics) =>
+        currentMetrics.gridOffsetTop === nextMetrics.gridOffsetTop &&
+        currentMetrics.gridWidth === nextMetrics.gridWidth &&
+        currentMetrics.scrollTop === nextMetrics.scrollTop &&
+        currentMetrics.viewportHeight === nextMetrics.viewportHeight
+          ? currentMetrics
+          : nextMetrics
+      );
+    };
+
+    measure();
+    const resizeObserver = new ResizeObserver(measure);
+    resizeObserver.observe(content);
+    resizeObserver.observe(grid);
+    content.addEventListener("scroll", measure, { passive: true });
+    return () => {
+      resizeObserver.disconnect();
+      content.removeEventListener("scroll", measure);
+    };
+  }, [expanded, filteredAssets.length, selectedTokenAsset?.id, sidePanel, splitPercent, view]);
 
   const startSplitResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const content = contentRef.current;
@@ -229,8 +319,8 @@ export function TokenLibraryDrawer({
             <section className="token-library-section token-library-list-section">
               <TokenLibrarySectionLabel label="Token List" />
               {filteredAssets.length > 0 ? (
-                <div className="token-library-grid">
-                  {filteredAssets.map((asset) => (
+                <div ref={tokenGridRef} className="token-library-grid" style={virtualGridStyle}>
+                  {visibleAssets.map((asset) => (
                     <TokenLibraryItem
                       key={asset.id}
                       asset={asset}
