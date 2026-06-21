@@ -359,7 +359,7 @@ function TokenLibraryItem({
         <GripHorizontal size={14} />
       </span>
       <div className="token-library-thumb">
-        {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" loading="lazy" draggable={false} /> : <PackageOpen size={18} aria-hidden="true" />}
+        {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" loading="lazy" decoding="async" draggable={false} /> : <PackageOpen size={18} aria-hidden="true" />}
       </div>
       <div className="token-library-item-meta">
         <strong>{label}</strong>

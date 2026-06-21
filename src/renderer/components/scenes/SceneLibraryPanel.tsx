@@ -467,7 +467,7 @@ function SceneThumbnail({ asset, activeWeather }: { asset: Asset | null; activeW
   if (asset.thumbnailAbsolutePath) {
     return (
       <div className="scene-thumbnail">
-        <img src={window.localVtt.toAssetUrl(asset.thumbnailAbsolutePath)} alt="" draggable={false} />
+        <img src={window.localVtt.toAssetUrl(asset.thumbnailAbsolutePath)} alt="" loading="lazy" decoding="async" draggable={false} />
         <ThumbnailBadge mediaType={asset.mediaType} />
         <SceneWeatherBadges activeWeather={activeWeather} />
       </div>
