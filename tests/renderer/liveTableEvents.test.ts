@@ -54,4 +54,26 @@ describe("live table event lifecycle", () => {
     expect(mergeLiveTableEvent([ruler], hiddenRuler, { now, respectPlayerVisibility: true })).toEqual([]);
     expect(mergeLiveTableEvent([], ping, { now })).toEqual([ping]);
   });
+
+  it("removes existing hidden table events from Player View without filtering dice", () => {
+    const now = 10_000;
+    const visibleLaser: LiveTableEvent = {
+      id: "laser",
+      type: "laser",
+      createdAt: now,
+      visibleInPlayer: true,
+      points: [{ point: { x: 0, y: 0 }, createdAt: now }]
+    };
+    const hiddenLaser: LiveTableEvent = {
+      ...visibleLaser,
+      visibleInPlayer: false,
+      points: [{ point: { x: 1, y: 0 }, createdAt: now }]
+    };
+    const dice: LiveTableEvent = { id: "dice", type: "dice", die: "d20", result: 20, label: "20", seed: 1, createdAt: now };
+    const hiddenPing: LiveTableEvent = { id: "ping", type: "ping", point: { x: 0, y: 0 }, createdAt: now, visibleInPlayer: false };
+
+    expect(mergeLiveTableEvent([visibleLaser, dice], hiddenLaser, { now, respectPlayerVisibility: true })).toEqual([dice]);
+    expect(mergeLiveTableEvent([dice], hiddenPing, { now, respectPlayerVisibility: true })).toEqual([dice]);
+    expect(mergeLiveTableEvent([visibleLaser], dice, { now, respectPlayerVisibility: true })).toEqual([dice, visibleLaser]);
+  });
 });
