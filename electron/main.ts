@@ -21,6 +21,11 @@ import {
   normalizeScene,
   type PlayerSceneProjection
 } from "../src/shared/localvtt.js";
+import {
+  createAssetProtocolErrorResponse,
+  LOCALVTT_ASSET_MISSING_MESSAGE,
+  LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE
+} from "./assetProtocol.js";
 import { createImageMapThumbnail, createSquareImageThumbnail, createVideoMapThumbnail } from "./assets.js";
 import { formatMetadataReadError } from "./metadataErrors.js";
 
@@ -501,7 +506,16 @@ app.whenReady().then(() => {
 
     const filePath = path.resolve(decodeURIComponent(url.pathname.slice(1)));
     if (!isInsideOpenedCampaign(filePath) || !isKnownAssetPath(filePath)) {
-      return new Response("LocalVTT asset is not registered for an opened campaign.", { status: 403 });
+      return createAssetProtocolErrorResponse(LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE, 403);
+    }
+    try {
+      await stat(filePath);
+    } catch (caught) {
+      const error = caught as NodeJS.ErrnoException;
+      if (error.code === "ENOENT") {
+        return createAssetProtocolErrorResponse(LOCALVTT_ASSET_MISSING_MESSAGE, 404);
+      }
+      throw error;
     }
     return net.fetch(pathToFileURL(filePath).toString());
   });
