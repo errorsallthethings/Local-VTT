@@ -1,14 +1,14 @@
 import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Copy, Crown, Eye, EyeOff, GripVertical, MoreVertical, Trash2, User, UsersRound } from "lucide-react";
-import type { Asset, Scene, Token } from "../../../shared/localvtt";
-import { useDismissableMenu } from "../../hooks/useDismissableMenu";
-import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
-import { getSelectedItemIds } from "../../lib/selectionIds";
-import { buildTokenLayerRows } from "../../lib/tokenLibrary";
-import { duplicateToken } from "../../lib/tokenDefaults";
-import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
-import { TokenSettings } from "./TokenSettings";
+import type { Asset, Scene, Token } from "../../../../shared/localvtt";
+import { useDismissableMenu } from "../../../hooks/useDismissableMenu";
+import { useFloatingMenuPosition } from "../../../hooks/useFloatingMenuPosition";
+import { getSelectedItemIds } from "../../../lib/selectionIds";
+import { buildTokenLayerRows } from "../../../lib/tokenLibrary";
+import { duplicateToken } from "../../../lib/tokenDefaults";
+import { reorderByDropTarget, type DropPlacement } from "../../../lib/reorder";
+import { TokenSettings } from "../settings/TokenSettings";
 
 type TokenDropTarget = { tokenId: string; placement: DropPlacement } | null;
 const EMPTY_SELECTED_IDS: string[] = [];

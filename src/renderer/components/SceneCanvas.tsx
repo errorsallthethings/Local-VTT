@@ -220,7 +220,7 @@ import {
   updateSceneEnvironmentEffectPoints,
   updateSceneWeatherMaskPoints,
 } from "../lib/sceneEditing";
-import { TokenSettings } from "./layers/TokenSettings";
+import { TokenSettings } from "./layers";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
 import {
   DrawingToolStatusStrip,

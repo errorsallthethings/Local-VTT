@@ -1,7 +1,7 @@
 import { type PointerEvent as ReactPointerEvent } from "react";
 import { GripVertical, Lock, PanelRightClose, PanelRightOpen, Unlock } from "lucide-react";
 import type { Asset, FogSettings, GridSettings, MapTransform, Scene } from "../../shared/localvtt";
-import { LayerPanel } from "../components/layers/LayerPanel";
+import { LayerPanel } from "../components/layers";
 import type { WorkspaceLayout } from "../lib/workspaceLayout";
 
 export function GmInspector({

@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { Circle, Crown, Eye, EyeOff, GripVertical, Paintbrush, Pentagon, Square, Trash2, User } from "lucide-react";
-import { formatDefaultFogShapeName, type FogSettings, type Scene } from "../../../shared/localvtt";
-import type { DropPlacement } from "../../lib/reorder";
-import { getSelectedItemIds } from "../../lib/selectionIds";
+import { formatDefaultFogShapeName, type FogSettings, type Scene } from "../../../../shared/localvtt";
+import type { DropPlacement } from "../../../lib/reorder";
+import { getSelectedItemIds } from "../../../lib/selectionIds";
 
 export type FogShapeDropTarget = { shapeId: string; placement: DropPlacement } | null;
 const EMPTY_SELECTED_IDS: string[] = [];

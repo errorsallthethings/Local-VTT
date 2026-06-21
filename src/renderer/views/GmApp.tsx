@@ -37,7 +37,7 @@ import type {
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { CampaignBusyOverlay } from "../components/modals/CampaignBusyOverlay";
-import { EnvironmentEffectEditorModal } from "../components/layers/EnvironmentEffectEditorModal";
+import { EnvironmentEffectEditorModal } from "../components/layers";
 import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools";

@@ -43,26 +43,26 @@ import type {
   WeatherPatternEffectType,
   WeatherSettings,
   WeatherTuningSettings
-} from "../../../shared/localvtt";
-import { DEFAULT_GRID, DEFAULT_MAP_TRANSFORM, DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultDrawingName, formatDefaultFogShapeName, type Token } from "../../../shared/localvtt";
-import { getSnappedTokenPosition } from "../../canvas/tokens";
-import { useDismissableMenu } from "../../hooks/useDismissableMenu";
-import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
-import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../../lib/environmentEffectOptions";
-import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
-import { duplicateEnvironmentEffect } from "../../lib/sceneEditing";
-import { getSelectedItemIds } from "../../lib/selectionIds";
+} from "../../../../shared/localvtt";
+import { DEFAULT_GRID, DEFAULT_MAP_TRANSFORM, DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultDrawingName, formatDefaultFogShapeName, type Token } from "../../../../shared/localvtt";
+import { getSnappedTokenPosition } from "../../../canvas/tokens";
+import { useDismissableMenu } from "../../../hooks/useDismissableMenu";
+import { useFloatingMenuPosition } from "../../../hooks/useFloatingMenuPosition";
+import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../../../lib/environmentEffectOptions";
+import { reorderByDropTarget, type DropPlacement } from "../../../lib/reorder";
+import { duplicateEnvironmentEffect } from "../../../lib/sceneEditing";
+import { getSelectedItemIds } from "../../../lib/selectionIds";
 import {
   WEATHER_CATEGORY_OPTIONS,
   getWeatherCategoryLabel,
   getWeatherEffectOptions,
   type ActiveWeatherCategory
-} from "../../lib/weatherCatalog";
-import { ColorInput, ColorSettingRow } from "../controls/ColorPickerField";
-import { DebouncedNumberInput } from "../controls/DebouncedNumberInput";
-import { MeasurementPanel } from "../settings/MeasurementPanel";
-import { FogShapeList, type FogShapeDropTarget } from "./FogShapeList";
-import { TokenList } from "./TokenList";
+} from "../../../lib/weatherCatalog";
+import { ColorInput, ColorSettingRow } from "../../controls/ColorPickerField";
+import { DebouncedNumberInput } from "../../controls/DebouncedNumberInput";
+import { MeasurementPanel } from "../../settings/MeasurementPanel";
+import { FogShapeList, type FogShapeDropTarget } from "../lists/FogShapeList";
+import { TokenList } from "../lists/TokenList";
 
 type WeatherTuningKey = keyof WeatherTuningSettings;
 type DrawingDropTarget = { drawingId: string; placement: DropPlacement } | null;

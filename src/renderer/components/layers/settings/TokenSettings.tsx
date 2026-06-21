@@ -1,4 +1,4 @@
-import type { GridType } from "../../../shared/localvtt";
+import type { GridType } from "../../../../shared/localvtt";
 import {
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_TOKEN_BORDER_STYLE,
@@ -12,9 +12,9 @@ import {
   type TokenBorderWidthPreset,
   type TokenMask,
   type TokenSizePreset
-} from "../../../shared/localvtt";
-import { getBorderWidthForPreset, getBorderWidthPreset, getTokenSizeForPreset } from "../../lib/tokenDefaults";
-import { ColorSettingRow } from "../controls/ColorPickerField";
+} from "../../../../shared/localvtt";
+import { getBorderWidthForPreset, getBorderWidthPreset, getTokenSizeForPreset } from "../../../lib/tokenDefaults";
+import { ColorSettingRow } from "../../controls/ColorPickerField";
 
 export function TokenSettings({
   token,
