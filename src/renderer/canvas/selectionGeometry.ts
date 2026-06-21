@@ -27,6 +27,8 @@ export type SceneMarqueeSelection = {
   weatherMaskIds: string[];
 };
 
+export type SceneSelectionIds = SceneMarqueeSelection;
+
 export type SelectionDragLike = {
   start: Point;
   current: Point;
@@ -86,6 +88,10 @@ export function getSceneMarqueeSelection(
     : [];
 
   return { tokenIds, drawingIds, fogShapeIds, weatherMaskIds };
+}
+
+export function hasSelectedSceneItems(selection: SceneSelectionIds): boolean {
+  return selection.tokenIds.length > 0 || selection.drawingIds.length > 0 || selection.fogShapeIds.length > 0 || selection.weatherMaskIds.length > 0;
 }
 
 export function pointsToSelectionRect(start: Point, end: Point): SelectionRect {

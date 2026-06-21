@@ -91,6 +91,7 @@ import {
 } from "../canvas/sceneContextLabels";
 import {
   getCompletedSceneMarqueeSelection,
+  hasSelectedSceneItems,
   getSelectionDragFromPoint,
   getUpdatedSelectionDrag
 } from "../canvas/selectionGeometry";
@@ -1116,10 +1117,12 @@ export function SceneCanvas({
       const environmentAnimating = shouldAnimateEnvironmentEffects(scene, mode, Boolean(canShowWeather));
       const selectionAnimating =
         mode === "gm" &&
-        (effectiveSelectedDrawingIds.length > 0 ||
-          effectiveSelectedFogShapeIds.length > 0 ||
-          effectiveSelectedTokenIds.length > 0 ||
-          effectiveSelectedWeatherMaskIds.length > 0);
+        hasSelectedSceneItems({
+          drawingIds: effectiveSelectedDrawingIds,
+          fogShapeIds: effectiveSelectedFogShapeIds,
+          tokenIds: effectiveSelectedTokenIds,
+          weatherMaskIds: effectiveSelectedWeatherMaskIds
+        });
       const hasFullRateAnimation = mapAnimating || tokenAnimating || tableEventsAnimating || selectionAnimating;
       const effectAnimating = weatherAnimating || environmentAnimating;
       const shouldDrawFrame = !effectAnimating || hasFullRateAnimation || timestamp - lastWeatherOnlyFrameAt >= WEATHER_ONLY_FRAME_INTERVAL_MS;
@@ -1140,10 +1143,12 @@ export function SceneCanvas({
     resize();
     const selectionAnimating =
       mode === "gm" &&
-      (effectiveSelectedDrawingIds.length > 0 ||
-        effectiveSelectedFogShapeIds.length > 0 ||
-        effectiveSelectedTokenIds.length > 0 ||
-        effectiveSelectedWeatherMaskIds.length > 0);
+      hasSelectedSceneItems({
+        drawingIds: effectiveSelectedDrawingIds,
+        fogShapeIds: effectiveSelectedFogShapeIds,
+        tokenIds: effectiveSelectedTokenIds,
+        weatherMaskIds: effectiveSelectedWeatherMaskIds
+      });
     if (loadedMap?.animate || playerTokenTweenPositionsRef.current || hasActiveLiveTableEvents(liveTableEvents) || shouldAnimateWeather(scene, Boolean(canShowWeather)) || shouldAnimateEnvironmentEffects(scene, mode, Boolean(canShowWeather)) || selectionAnimating) {
       animationFrame = window.requestAnimationFrame(drawCurrentFrame);
     }

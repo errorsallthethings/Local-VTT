@@ -5,6 +5,7 @@ import {
   getSceneMarqueeSelection,
   getSelectionDragFromPoint,
   getUpdatedSelectionDrag,
+  hasSelectedSceneItems,
   isDrawingInSelectionRect,
   isFogShapeInSelectionRect,
   isPointInSelectionRect,
@@ -38,6 +39,14 @@ describe("selection geometry", () => {
       current: { x: 12, y: 18 },
       mode: "add"
     });
+  });
+
+  it("detects populated scene item selections", () => {
+    expect(hasSelectedSceneItems({ tokenIds: [], drawingIds: [], fogShapeIds: [], weatherMaskIds: [] })).toBe(false);
+    expect(hasSelectedSceneItems({ tokenIds: ["token-1"], drawingIds: [], fogShapeIds: [], weatherMaskIds: [] })).toBe(true);
+    expect(hasSelectedSceneItems({ tokenIds: [], drawingIds: ["drawing-1"], fogShapeIds: [], weatherMaskIds: [] })).toBe(true);
+    expect(hasSelectedSceneItems({ tokenIds: [], drawingIds: [], fogShapeIds: ["fog-1"], weatherMaskIds: [] })).toBe(true);
+    expect(hasSelectedSceneItems({ tokenIds: [], drawingIds: [], fogShapeIds: [], weatherMaskIds: ["weather-1"] })).toBe(true);
   });
 
   it("treats selection rect edges as inclusive", () => {
