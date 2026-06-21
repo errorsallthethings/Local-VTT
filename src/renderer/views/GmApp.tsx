@@ -387,13 +387,13 @@ export function GmApp() {
 
   useEffect(() => {
     if (!activeScene) {
-      setSelectedTokenIds([]);
+      setSelectedTokenIds((ids) => (ids.length === 0 ? ids : []));
       setSelectedTokenId(null);
-      setSelectedDrawingIds([]);
+      setSelectedDrawingIds((ids) => (ids.length === 0 ? ids : []));
       setSelectedDrawingId(null);
-      setSelectedFogShapeIds([]);
+      setSelectedFogShapeIds((ids) => (ids.length === 0 ? ids : []));
       setSelectedFogShapeId(null);
-      setSelectedWeatherMaskIds([]);
+      setSelectedWeatherMaskIds((ids) => (ids.length === 0 ? ids : []));
       setSelectedWeatherMaskId(null);
       setSelectedEnvironmentEffectId(null);
       setEnvironmentEffectEditorId(null);

@@ -16,4 +16,9 @@ describe("selection id helpers", () => {
   it("retains selected ids that still exist", () => {
     expect(retainExistingSelectionIds(["a", "b", "c"], ["b", "c", "d"])).toEqual(["b", "c"]);
   });
+
+  it("keeps the existing selection reference when no ids are removed", () => {
+    const selectedIds = ["a", "b"];
+    expect(retainExistingSelectionIds(selectedIds, ["a", "b", "c"])).toBe(selectedIds);
+  });
 });
