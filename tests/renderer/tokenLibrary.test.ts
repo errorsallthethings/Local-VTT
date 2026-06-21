@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Asset, Token } from "../../src/shared/localvtt";
 import { createDefaultCampaign, createDefaultScene } from "../../src/shared/localvtt";
 import {
+  buildTokenLibraryAssetIndex,
+  filterTokenLibraryAssetIndex,
   filterTokenLibraryAssets,
   getSelectedTokenAssetIds,
   getSelectedTokenLibraryAsset,
@@ -51,6 +53,13 @@ describe("token library helpers", () => {
     expect(filterTokenLibraryAssets(assets, "", "name-asc").map((asset) => asset.id)).toEqual(["archer", "goblin", "zombie"]);
     expect(filterTokenLibraryAssets(assets, "", "newest").map((asset) => asset.id)).toEqual(["archer", "zombie", "goblin"]);
     expect(filterTokenLibraryAssets(assets, "", "oldest").map((asset) => asset.id)).toEqual(["goblin", "zombie", "archer"]);
+  });
+
+  it("filters and sorts pre-indexed token assets", () => {
+    const index = buildTokenLibraryAssetIndex(assets);
+
+    expect(filterTokenLibraryAssetIndex(index, "bandit", "name-asc").map((asset) => asset.id)).toEqual(["archer"]);
+    expect(filterTokenLibraryAssetIndex(index, "", "newest").map((asset) => asset.id)).toEqual(["archer", "zombie", "goblin"]);
   });
 
   it("prefers multi-selected token ids over a single selected id", () => {

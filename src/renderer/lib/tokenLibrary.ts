@@ -3,11 +3,37 @@ import { getSelectedItemIds } from "./selectionIds";
 
 export type TokenLibrarySort = "name-asc" | "newest" | "oldest";
 
+export interface TokenLibraryAssetIndexEntry {
+  asset: Asset;
+  createdAtMs: number;
+  label: string;
+  searchText: string;
+}
+
+const TOKEN_LABEL_COLLATOR = new Intl.Collator(undefined, { sensitivity: "base" });
+
+export function buildTokenLibraryAssetIndex(assets: Asset[]): TokenLibraryAssetIndexEntry[] {
+  return assets.map((asset) => {
+    const label = getAssetLabel(asset);
+    return {
+      asset,
+      createdAtMs: Date.parse(asset.createdAt),
+      label,
+      searchText: `${label} ${asset.originalFileName}`.toLowerCase()
+    };
+  });
+}
+
 export function filterTokenLibraryAssets(assets: Asset[], query: string, sort: TokenLibrarySort): Asset[] {
+  return filterTokenLibraryAssetIndex(buildTokenLibraryAssetIndex(assets), query, sort);
+}
+
+export function filterTokenLibraryAssetIndex(entries: TokenLibraryAssetIndexEntry[], query: string, sort: TokenLibrarySort): Asset[] {
   const normalizedQuery = query.trim().toLowerCase();
-  return [...assets]
-    .filter((asset) => !normalizedQuery || `${asset.name} ${asset.originalFileName}`.toLowerCase().includes(normalizedQuery))
-    .sort((a, b) => sortTokenAssets(a, b, sort));
+  return entries
+    .filter((entry) => !normalizedQuery || entry.searchText.includes(normalizedQuery))
+    .sort((a, b) => sortTokenAssetIndexEntries(a, b, sort))
+    .map((entry) => entry.asset);
 }
 
 export function getSelectedTokenLibraryAssetIds(selectedTokenAssetId: string | undefined, selectedTokenAssetIds: string[]): Set<string> {
@@ -89,15 +115,15 @@ export function mergeTokenAssetUsage(
   return [...usageByScene.values()].sort((a, b) => (sceneOrder.get(a.sceneId) ?? Number.MAX_SAFE_INTEGER) - (sceneOrder.get(b.sceneId) ?? Number.MAX_SAFE_INTEGER));
 }
 
-function sortTokenAssets(a: Asset, b: Asset, sort: TokenLibrarySort): number {
+function sortTokenAssetIndexEntries(a: TokenLibraryAssetIndexEntry, b: TokenLibraryAssetIndexEntry, sort: TokenLibrarySort): number {
   if (sort === "newest" || sort === "oldest") {
     const direction = sort === "newest" ? -1 : 1;
-    const dateDelta = (Date.parse(a.createdAt) - Date.parse(b.createdAt)) * direction;
+    const dateDelta = (a.createdAtMs - b.createdAtMs) * direction;
     if (dateDelta !== 0) {
       return dateDelta;
     }
   }
-  return getAssetLabel(a).localeCompare(getAssetLabel(b), undefined, { sensitivity: "base" });
+  return TOKEN_LABEL_COLLATOR.compare(a.label, b.label);
 }
 
 function getAssetLabel(asset: Asset): string {

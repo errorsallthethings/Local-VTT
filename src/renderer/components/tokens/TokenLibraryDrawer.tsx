@@ -24,7 +24,8 @@ import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/dragTypes";
 import {
-  filterTokenLibraryAssets,
+  buildTokenLibraryAssetIndex,
+  filterTokenLibraryAssetIndex,
   getSelectedTokenLibraryAsset,
   getSelectedTokenLibraryAssetIds,
   type TokenLibrarySort
@@ -73,7 +74,8 @@ export function TokenLibraryDrawer({
   const [openTokenMenuId, setOpenTokenMenuId] = useState<string | null>(null);
   const [splitPercent, setSplitPercent] = useState(62);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const filteredAssets = useMemo(() => filterTokenLibraryAssets(assets, query, sort), [assets, query, sort]);
+  const assetIndex = useMemo(() => buildTokenLibraryAssetIndex(assets), [assets]);
+  const filteredAssets = useMemo(() => filterTokenLibraryAssetIndex(assetIndex, query, sort), [assetIndex, query, sort]);
   const selectedAssetIds = useMemo(
     () => getSelectedTokenLibraryAssetIds(selectedTokenAssetId, selectedTokenAssetIds),
     [selectedTokenAssetId, selectedTokenAssetIds]
