@@ -3,6 +3,7 @@ import type { Campaign, LiveTableEvent, Scene, Token } from "../../src/shared/lo
 import { createDefaultCampaign, createDefaultScene } from "../../src/shared/localvtt";
 import {
   getPlayerDisplayScale,
+  getRulerDragWithAppendedWaypoint,
   getRulerLabel,
   getTokenCenterPoint,
   getTokenMoveLabel,
@@ -117,5 +118,24 @@ describe("live table state helpers", () => {
 
     expect(isDuplicateRulerWaypoint({ x: 0, y: 0 }, { x: 2, y: 0 }, scene)).toBe(true);
     expect(isDuplicateRulerWaypoint({ x: 0, y: 0 }, { x: 3, y: 0 }, scene)).toBe(false);
+  });
+
+  it("appends snapped ruler waypoints", () => {
+    const scene = createDefaultScene("Square Ruler");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 100;
+    scene.grid.offsetX = 0;
+    scene.grid.offsetY = 0;
+    const rulerDrag = {
+      start: { x: 0, y: 0 },
+      current: { x: 130, y: 130 },
+      waypoints: []
+    };
+
+    const nextRulerDrag = getRulerDragWithAppendedWaypoint(scene, rulerDrag, true);
+
+    expect(nextRulerDrag).not.toBe(rulerDrag);
+    expect(nextRulerDrag.current).toEqual({ x: 150, y: 150 });
+    expect(nextRulerDrag.waypoints).toEqual([{ x: 150, y: 150 }]);
   });
 });

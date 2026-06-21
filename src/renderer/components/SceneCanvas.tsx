@@ -54,7 +54,7 @@ import {
   hasActiveLiveTableEvents,
   RULER_RELEASE_LINGER_MS
 } from "../canvas/liveTableRenderer";
-import { getPlayerDisplayScale, getRulerLabel, isDuplicateRulerWaypoint, isVisibleDiceOverlayEvent } from "../canvas/liveTableState";
+import { getPlayerDisplayScale, getRulerDragWithAppendedWaypoint, getRulerLabel, isVisibleDiceOverlayEvent } from "../canvas/liveTableState";
 import {
   getCompletedMapCalibrationBox,
   getMapCalibrationDragFromPoint,
@@ -79,7 +79,7 @@ import {
   getRulerPathPoints,
   type RulerDrag
 } from "../canvas/measurement";
-import { appendWaypoint, getPointAlongPath, removeLastWaypoint } from "../canvas/movementPath";
+import { getPointAlongPath, removeLastWaypoint } from "../canvas/movementPath";
 import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint, updatePolygonDraftCurrent } from "../canvas/polygonDraft";
 import {
   formatDefaultEnvironmentEffectName,
@@ -972,14 +972,11 @@ export function SceneCanvas({
       }
 
       event.preventDefault();
-      const waypoint = event.ctrlKey || event.metaKey ? (getRulerSnapPoint(activeRulerDrag.current, scene) ?? activeRulerDrag.current) : activeRulerDrag.current;
-      const previousRoutePosition = activeRulerDrag.waypoints[activeRulerDrag.waypoints.length - 1] ?? activeRulerDrag.start;
-      const nextRulerPath = appendWaypoint(activeRulerDrag, waypoint, previousRoutePosition, (previousPosition, nextWaypoint) => isDuplicateRulerWaypoint(previousPosition, nextWaypoint, scene));
-      if (nextRulerPath === activeRulerDrag) {
+      const nextRulerDrag = getRulerDragWithAppendedWaypoint(scene, activeRulerDrag, event.ctrlKey || event.metaKey);
+      if (nextRulerDrag === activeRulerDrag) {
         return;
       }
 
-      const nextRulerDrag = { ...nextRulerPath, current: waypoint };
       rulerDragRef.current = nextRulerDrag;
       setRulerDrag(nextRulerDrag);
       emitRulerEvent(nextRulerDrag);

@@ -7,6 +7,8 @@ import {
   getRulerPathPoints,
   getStraightLineMeasurementDistance
 } from "./measurement";
+import { appendWaypoint } from "./movementPath";
+import { getRulerSnapPoint } from "./sceneSnapping";
 import { distanceBetween } from "./tokenGeometry";
 import type { TokenDragPreview } from "./tokenRenderer";
 
@@ -71,4 +73,11 @@ export function shouldShowDiceOverlay(event: Extract<LiveTableEvent, { type: "di
 export function isDuplicateRulerWaypoint(existingPosition: Point, waypoint: Point, scene: Scene): boolean {
   const duplicateDistance = scene.grid.type === "gridless" ? 12 : 2;
   return distanceBetween(existingPosition, waypoint) <= duplicateDistance;
+}
+
+export function getRulerDragWithAppendedWaypoint<TRulerDrag extends RulerDrag>(scene: Scene, rulerDrag: TRulerDrag, snap: boolean): TRulerDrag {
+  const waypoint = snap ? (getRulerSnapPoint(rulerDrag.current, scene) ?? rulerDrag.current) : rulerDrag.current;
+  const previousRoutePosition = rulerDrag.waypoints[rulerDrag.waypoints.length - 1] ?? rulerDrag.start;
+  const nextRulerPath = appendWaypoint(rulerDrag, waypoint, previousRoutePosition, (previousPosition, nextWaypoint) => isDuplicateRulerWaypoint(previousPosition, nextWaypoint, scene));
+  return nextRulerPath === rulerDrag ? rulerDrag : { ...nextRulerPath, current: waypoint };
 }
