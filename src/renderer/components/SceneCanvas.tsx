@@ -65,15 +65,12 @@ import {
 } from "../canvas/mapCalibrationGeometry";
 import { drawMapSource, getCameraForMapFit } from "../canvas/mapRenderer";
 import {
-  closeCanvasImageSource,
   getInitialMapLoadStatus,
   getMapDrawSource,
   getMapOverlayMessage,
   getReadyMapSourceForFit,
   isMapOverlayActive,
   isMapReady,
-  prepareLoadedImageMap,
-  type LoadedMap,
   type MapLoadStatus,
   type ReadyMapSource
 } from "../canvas/mapSource";
@@ -184,6 +181,7 @@ import {
   type WeatherMaskDrag,
   type WeatherPolygonDraft
 } from "../canvas/weatherMaskGeometry";
+import { useImageMapLoader } from "../hooks/useImageMapLoader";
 import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
 import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
@@ -433,8 +431,7 @@ export function SceneCanvas({
   const frameRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, zoom: 1 });
-  const [loadedMap, setLoadedMap] = useState<LoadedMap | null>(null);
-  const [mapLoadStatus, setMapLoadStatus] = useState<MapLoadStatus>("idle");
+  const [videoMapLoadStatus, setVideoMapLoadStatus] = useState<MapLoadStatus>("idle");
   const [fogPreview, setFogPreview] = useState<FogDrag | null>(null);
   const [drawingPreview, setDrawingPreview] = useState<DrawingPreview | null>(null);
   const [weatherMaskPreview, setWeatherMaskPreview] = useState<WeatherMaskDrag | null>(null);
@@ -693,6 +690,13 @@ export function SceneCanvas({
     canShowTokens
   } = getSceneLayerVisibility(scene?.layers, mode);
   const isVideoMap = Boolean(canShowMap && mapAsset?.mediaType === "video" && assetUrl);
+  const { loadedMap, mapLoadStatus: imageMapLoadStatus } = useImageMapLoader({
+    assetId: mapAsset?.id,
+    assetRelativePath: mapAsset?.relativePath,
+    assetUrl,
+    mediaType: mapAsset?.mediaType
+  });
+  const mapLoadStatus = isVideoMap ? videoMapLoadStatus : imageMapLoadStatus;
   const mapOverlayActive = isMapOverlayActive(canShowMap, Boolean(mapAsset), mapLoadStatus);
   const playerDisplayScale = getPlayerDisplayScale(campaign, scene, mode);
   const videoPlayback = scene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
@@ -1015,74 +1019,8 @@ export function SceneCanvas({
   }, [emitRulerEvent, mode, rulerDrag, scene]);
 
   useEffect(() => {
-    if (!assetUrl || !mapAsset?.id || mapAsset.mediaType === "video") {
-      setLoadedMap(null);
-      setMapLoadStatus(getInitialMapLoadStatus(mapAsset?.mediaType, assetUrl));
-      return;
-    }
-
-    let cancelled = false;
-    const imageAssetId = mapAsset.id;
-    const imageAssetPath = mapAsset.relativePath;
-    const image = new Image();
-    image.decoding = "async";
-    setLoadedMap(null);
-    setMapLoadStatus("loading");
-    image.onload = () => {
-      void prepareLoadedImageMap(image, imageAssetPath)
-        .then((preparedMap) => {
-          if (cancelled) {
-            closeCanvasImageSource(preparedMap.optimizedSource);
-            return;
-          }
-          setLoadedMap({
-            assetId: imageAssetId,
-            originalSource: image,
-            optimizedSource: preparedMap.optimizedSource,
-            sourceWidth: image.naturalWidth || image.width,
-            sourceHeight: image.naturalHeight || image.height,
-            optimizedScale: preparedMap.optimizedScale,
-            animate: imageAssetPath.toLowerCase().endsWith(".gif"),
-            mediaType: "image",
-            ready: true
-          });
-          setMapLoadStatus("ready");
-        })
-        .catch(() => {
-          if (cancelled) {
-            return;
-          }
-          setLoadedMap(null);
-          setMapLoadStatus("error");
-        });
-    };
-    image.onerror = () => {
-      if (cancelled) {
-        return;
-      }
-      setLoadedMap(null);
-      setMapLoadStatus("error");
-    };
-    image.src = assetUrl;
-    return () => {
-      cancelled = true;
-    };
-  }, [assetUrl, mapAsset?.id, mapAsset?.mediaType, mapAsset?.relativePath]);
-
-  useEffect(() => {
-    return () => {
-      if (loadedMap) {
-        closeCanvasImageSource(loadedMap.optimizedSource);
-      }
-    };
-  }, [loadedMap]);
-
-  useEffect(() => {
-    if (!isVideoMap) {
-      return;
-    }
-    setMapLoadStatus("loading");
-  }, [isVideoMap, mapAsset?.id, assetUrl]);
+    setVideoMapLoadStatus(isVideoMap ? getInitialMapLoadStatus(mapAsset?.mediaType, assetUrl) : "idle");
+  }, [assetUrl, isVideoMap, mapAsset?.id, mapAsset?.mediaType]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -2446,7 +2384,7 @@ export function SceneCanvas({
                 transform: getVideoTransform(getRenderCamera(camera, playerDisplayScale), scene)
               }}
               onCanPlay={(event) => {
-                setMapLoadStatus("ready");
+                setVideoMapLoadStatus("ready");
                 fitGmCameraToVideoMap(event.currentTarget);
                 playActiveWhenReady(index);
               }}
@@ -2454,26 +2392,26 @@ export function SceneCanvas({
                 fitGmCameraToVideoMap(event.currentTarget);
               }}
               onLoadedData={(event) => {
-                setMapLoadStatus("ready");
+                setVideoMapLoadStatus("ready");
                 fitGmCameraToVideoMap(event.currentTarget);
               }}
               onPlaying={(event) => {
-                setMapLoadStatus("ready");
+                setVideoMapLoadStatus("ready");
                 fitGmCameraToVideoMap(event.currentTarget);
               }}
               onError={(event) => {
                 const video = event.currentTarget;
                 if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-                  setMapLoadStatus("ready");
+                  setVideoMapLoadStatus("ready");
                   return;
                 }
                 window.setTimeout(() => {
                   if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-                    setMapLoadStatus("ready");
+                    setVideoMapLoadStatus("ready");
                     return;
                   }
                   if (index === activeVideoIndex) {
-                    setMapLoadStatus((status) => (status === "ready" ? status : "error"));
+                    setVideoMapLoadStatus((status) => (status === "ready" ? status : "error"));
                   }
                 }, 180);
               }}
