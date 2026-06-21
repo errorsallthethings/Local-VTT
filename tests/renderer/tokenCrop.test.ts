@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampTokenCropOffset, getTokenCropLayout, getTokenCropSourceRect } from "../../src/renderer/lib/tokenCrop";
+import { clampTokenCropOffset, getTokenCropLayout, getTokenCropSourceRect } from "../../src/renderer/lib/tokens";
 
 describe("token crop helpers", () => {
   it("fits the shorter image edge to the square preview by default", () => {

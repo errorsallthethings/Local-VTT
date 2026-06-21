@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Asset, DisplayCalibration, GridSettings, Scene } from "../../../shared/localvtt";
 import type { MapCalibrationBox } from "../../canvas/map";
-import { getMapCalibrationDraftFromScene, type MapCalibrationDraft } from "../../lib/mapCalibration";
+import { getMapCalibrationDraftFromScene, type MapCalibrationDraft } from "../../lib/map";
 import { CollapsibleSettingsSection, SettingsField, SettingsReadout } from "./SettingsSection";
 
 export type { MapCalibrationBox } from "../../canvas/map";
-export type { MapCalibrationDraft } from "../../lib/mapCalibration";
+export type { MapCalibrationDraft } from "../../lib/map";
 
 interface MapCalibrationAssistantProps {
   scene: Scene;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateFloatingMenuPosition, type MenuRect } from "../../src/renderer/lib/menuPosition";
+import { calculateFloatingMenuPosition, type MenuRect } from "../../src/renderer/lib/ui";
 
 function rect(partial: Partial<MenuRect>): MenuRect {
   return {

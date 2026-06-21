@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Campaign, CampaignSummary, Scene } from "../../shared/localvtt";
-import { mergeCampaignDraft } from "../lib/campaignDraft";
-import { formatUserFacingError } from "../lib/errorMessages";
-import { showDefaultPlayerHold } from "../lib/playerIdleState";
-import { updatePlayerSceneIfOpen } from "../lib/playerViewSync";
+import { mergeCampaignDraft } from "../lib/campaign";
+import { formatUserFacingError } from "../lib/errors";
+import { showDefaultPlayerHold } from "../lib/player-view";
+import { updatePlayerSceneIfOpen } from "../lib/player-view";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 

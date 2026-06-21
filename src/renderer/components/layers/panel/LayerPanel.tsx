@@ -48,16 +48,16 @@ import { DEFAULT_GRID, DEFAULT_MAP_TRANSFORM, DEFAULT_WEATHER_EFFECT_SETTINGS, f
 import { getSnappedTokenPosition } from "../../../canvas/tokens";
 import { useDismissableMenu } from "../../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../../hooks/useFloatingMenuPosition";
-import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../../../lib/environmentEffectOptions";
-import { reorderByDropTarget, type DropPlacement } from "../../../lib/reorder";
-import { duplicateEnvironmentEffect } from "../../../lib/sceneEditing";
-import { getSelectedItemIds } from "../../../lib/selectionIds";
+import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../../../lib/effects";
+import { reorderByDropTarget, type DropPlacement } from "../../../lib/ui";
+import { duplicateEnvironmentEffect } from "../../../lib/scene";
+import { getSelectedItemIds } from "../../../lib/scene";
 import {
   WEATHER_CATEGORY_OPTIONS,
   getWeatherCategoryLabel,
   getWeatherEffectOptions,
   type ActiveWeatherCategory
-} from "../../../lib/weatherCatalog";
+} from "../../../lib/effects";
 import { ColorInput, ColorSettingRow } from "../../controls/ColorPickerField";
 import { DebouncedNumberInput } from "../../controls/DebouncedNumberInput";
 import { MeasurementPanel } from "../../settings/MeasurementPanel";

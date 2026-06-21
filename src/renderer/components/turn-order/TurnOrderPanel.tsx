@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Asset, CampaignPlayer, Scene, TurnOrderEntry, TurnOrderSettings } from "../../../shared/localvtt";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
-import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/dragTypes";
+import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
 import {
   addTurnOrderEntry,
   addPlayersToTurnOrder,
@@ -18,7 +18,7 @@ import {
   startTurnOrder,
   stopTurnOrder,
   updateTurnOrderEntry
-} from "../../lib/turnOrder";
+} from "../../lib/turn-order";
 
 interface TurnOrderPanelProps {
   scene: Scene | null;

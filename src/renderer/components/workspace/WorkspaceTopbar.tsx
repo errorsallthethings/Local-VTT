@@ -11,7 +11,7 @@ import {
   rollDiceExpression,
   type DiceType
 } from "../../lib/dice";
-import { getActiveWeatherEffects } from "../../lib/weatherCatalog";
+import { getActiveWeatherEffects } from "../../lib/effects";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 type CustomDicePreset = {

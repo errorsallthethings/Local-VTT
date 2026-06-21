@@ -1,6 +1,6 @@
 import type { DrawingElement, EnvironmentEffectMask, FogShape, WeatherMask } from "../../../shared/localvtt";
 import { formatDefaultDrawingName, formatDefaultFogShapeName } from "../../../shared/localvtt";
-import { formatEnvironmentEffectOptionLabel } from "../../lib/environmentEffectOptions";
+import { formatEnvironmentEffectOptionLabel } from "../../lib/effects";
 
 export function getDrawingContextLabel(drawing: DrawingElement, index: number): string {
   return drawing.name?.trim() || formatDefaultDrawingName(drawing.kind, Math.max(0, index));

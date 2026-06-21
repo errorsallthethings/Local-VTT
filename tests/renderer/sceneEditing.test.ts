@@ -26,7 +26,7 @@ import {
   setSceneLayerOrderLocked,
   updateSceneDrawingPoints,
   updateSceneTokenPositions
-} from "../../src/renderer/lib/sceneEditing";
+} from "../../src/renderer/lib/scene";
 
 describe("scene editing helpers", () => {
   it("patches nested scene settings without dropping existing values", () => {

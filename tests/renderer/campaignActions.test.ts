@@ -13,7 +13,7 @@ import {
   removeDirtySceneId,
   removeFolderFromCampaign,
   removeSceneDraft
-} from "../../src/renderer/lib/campaignActions";
+} from "../../src/renderer/lib/campaign";
 import { createDefaultCampaign, createDefaultScene } from "../../src/shared/localvtt";
 
 describe("campaign action helpers", () => {

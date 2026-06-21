@@ -11,7 +11,7 @@ import {
   resizePanelWidth,
   toggleWorkspacePanel,
   type WorkspaceLayout
-} from "../../src/renderer/lib/workspaceLayout";
+} from "../../src/renderer/lib/workspace";
 
 const layout: WorkspaceLayout = {
   leftWidth: 300,

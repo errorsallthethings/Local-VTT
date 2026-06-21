@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_DICE_SETTINGS, type DiceSettings } from "../../src/shared/localvtt";
-import { normalizeDiceSettingsPreference } from "../../src/renderer/lib/diceSettingsPreference";
+import { normalizeDiceSettingsPreference } from "../../src/renderer/lib/dice";
 
 describe("dice settings preferences", () => {
   it("normalizes valid stored dice display preferences", () => {

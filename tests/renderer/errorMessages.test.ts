@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatUserFacingError } from "../../src/renderer/lib/errorMessages";
+import { formatUserFacingError } from "../../src/renderer/lib/errors";
 
 describe("formatUserFacingError", () => {
   it("turns missing file errors into an actionable message", () => {

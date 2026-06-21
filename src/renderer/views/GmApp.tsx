@@ -43,7 +43,7 @@ import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel
 import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools";
 import { DEFAULT_ACID_EFFECT_TUNING, DEFAULT_ARCANE_EFFECT_TUNING, DEFAULT_CHAOS_EFFECT_TUNING, DEFAULT_COLD_EFFECT_TUNING, DEFAULT_DARKNESS_EFFECT_TUNING, DEFAULT_DISTORTION_EFFECT_TUNING, DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_FORCE_FIELD_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_NATURE_EFFECT_TUNING, DEFAULT_POISON_EFFECT_TUNING, DEFAULT_RADIANT_EFFECT_TUNING, DEFAULT_SHOCKWAVE_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_VOID_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type AcidEffectTuning, type ArcaneEffectTuning, type ChaosEffectTuning, type ColdEffectTuning, type DarknessEffectTuning, type DistortionEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type NatureEffectTuning, type PoisonEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type VoidEffectTuning, type WaterEffectTuning } from "../canvas/effects";
 import type { DrawingTool } from "../canvas/drawings";
-import { applyMapCalibrationDraft, type MapCalibrationDraft } from "../lib/mapCalibration";
+import { applyMapCalibrationDraft, type MapCalibrationDraft } from "../lib/map";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderModal } from "../components/turn-order/TurnOrderModal";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -54,28 +54,28 @@ import { useCampaignActions, type CampaignBusyState } from "../hooks/useCampaign
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
-import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assetLibrary";
-import { moveSceneFolder } from "../lib/campaignActions";
+import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assets";
+import { moveSceneFolder } from "../lib/campaign";
 import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, updateDiceRollHistory as updateDiceRollHistoryList, type DiceType } from "../lib/dice";
-import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/diceSettingsPreference";
-import { loadImageDimensions } from "../lib/imageDimensions";
-import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/liveTableEvents";
-import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/playerIdleState";
-import { getPlayerViewDisplayStateFromLastState, type PlayerDisplayMode } from "../lib/playerViewState";
-import { sendSceneToPlayer, updatePlayerSceneIfOpen } from "../lib/playerViewSync";
-import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/sceneCollectionActions";
-import { applySelectionMode, retainExistingSelectionIds, type SelectionMode } from "../lib/selectionIds";
-import { patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/sceneEditing";
+import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/dice";
+import { loadImageDimensions } from "../lib/assets";
+import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/player-view";
+import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/player-view";
+import { getPlayerViewDisplayStateFromLastState, type PlayerDisplayMode } from "../lib/player-view";
+import { sendSceneToPlayer, updatePlayerSceneIfOpen } from "../lib/player-view";
+import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/scene";
+import { applySelectionMode, retainExistingSelectionIds, type SelectionMode } from "../lib/scene";
+import { patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
 import {
   addRecentCampaign,
   loadRecentCampaigns,
   removeRecentCampaign,
   saveRecentCampaigns,
   type RecentCampaign
-} from "../lib/recentCampaigns";
-import { createImportedToken } from "../lib/tokenDefaults";
-import { getSelectedTokenAssetIds, mergeTokenAssetUsage, removeSceneTokensByAsset } from "../lib/tokenLibrary";
-import { addTurnOrderEntry, createTurnOrderEntryFromToken, removeTurnOrderEntriesForPlayer, stopTurnOrder, updateTurnOrderEntriesForPlayer } from "../lib/turnOrder";
+} from "../lib/campaign";
+import { createImportedToken } from "../lib/tokens";
+import { getSelectedTokenAssetIds, mergeTokenAssetUsage, removeSceneTokensByAsset } from "../lib/tokens";
+import { addTurnOrderEntry, createTurnOrderEntryFromToken, removeTurnOrderEntriesForPlayer, stopTurnOrder, updateTurnOrderEntriesForPlayer } from "../lib/turn-order";
 import {
   COLLAPSED_RAIL_WIDTH,
   COMPACT_RIGHT_PANEL_WIDTH,
@@ -91,8 +91,8 @@ import {
   toggleWorkspacePanel as toggleWorkspacePanelLayout,
   type WorkspaceLayout,
   type WorkspacePanelSide
-} from "../lib/workspaceLayout";
-import { formatSaveStatus } from "../lib/workspaceStatus";
+} from "../lib/workspace";
+import { formatSaveStatus } from "../lib/workspace";
 import {
   GmDialogs,
   type EnvironmentEffectNameDialog,

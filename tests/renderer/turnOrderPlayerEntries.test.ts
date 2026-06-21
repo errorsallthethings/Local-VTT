@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene, type CampaignPlayer } from "../../src/shared/localvtt";
-import { removeTurnOrderEntriesForPlayer, updateTurnOrderEntriesForPlayer } from "../../src/renderer/lib/turnOrder";
+import { removeTurnOrderEntriesForPlayer, updateTurnOrderEntriesForPlayer } from "../../src/renderer/lib/turn-order";
 
 const player: CampaignPlayer = {
   id: "player-1",

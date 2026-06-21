@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateVirtualGridWindow } from "../../src/renderer/lib/virtualGrid";
+import { calculateVirtualGridWindow } from "../../src/renderer/lib/ui";
 
 describe("virtual grid helpers", () => {
   it("calculates visible item indexes with row overscan", () => {

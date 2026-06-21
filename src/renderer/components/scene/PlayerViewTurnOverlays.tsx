@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import type { Campaign, Scene } from "../../../shared/localvtt";
-import { buildAssetsById } from "../../lib/assetLibrary";
+import { buildAssetsById } from "../../lib/assets";
 import {
   easeInCubic,
   easeOutCubic,
@@ -11,7 +11,7 @@ import {
   getPlayerTurnStatusStyle,
   getVisibleTurnOrderState,
   getTurnOrderPlayerBarLayout
-} from "../../lib/playerViewTurnOrder";
+} from "../../lib/player-view";
 
 export function PlayerSeatIndicators({ campaign }: { campaign: Campaign | null }) {
   const seats = (campaign?.players ?? []).filter((player) => player.visibleInPlayer);

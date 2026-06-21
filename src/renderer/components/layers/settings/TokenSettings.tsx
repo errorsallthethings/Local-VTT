@@ -13,7 +13,7 @@ import {
   type TokenMask,
   type TokenSizePreset
 } from "../../../../shared/localvtt";
-import { getBorderWidthForPreset, getBorderWidthPreset, getTokenSizeForPreset } from "../../../lib/tokenDefaults";
+import { getBorderWidthForPreset, getBorderWidthPreset, getTokenSizeForPreset } from "../../../lib/tokens";
 import { ColorSettingRow } from "../../controls/ColorPickerField";
 
 export function TokenSettings({

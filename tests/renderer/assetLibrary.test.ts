@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Asset, CampaignSceneEntry } from "../../src/shared/localvtt";
 import { createDefaultScene } from "../../src/shared/localvtt";
-import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../../src/renderer/lib/assetLibrary";
+import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../../src/renderer/lib/assets";
 
 function asset(id: string, kind: Asset["kind"]): Asset {
   return {

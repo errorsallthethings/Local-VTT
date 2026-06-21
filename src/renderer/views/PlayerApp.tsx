@@ -11,7 +11,7 @@ import {
   type PlayerSceneProjection
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
-import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/liveTableEvents";
+import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/player-view";
 
 const PLAYER_SCENE_SPLASH_FADE_MS = 320;
 const PLAYER_SCENE_SPLASH_MIN_MS = 2000;

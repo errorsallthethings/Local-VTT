@@ -20,8 +20,8 @@ import {
 } from "lucide-react";
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../../shared/localvtt";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
-import { buildSceneLibraryGroups } from "../../lib/sceneLibrary";
-import { getActiveWeatherEffects } from "../../lib/weatherCatalog";
+import { buildSceneLibraryGroups } from "../../lib/scene";
+import { getActiveWeatherEffects } from "../../lib/effects";
 
 interface SceneLibraryPanelProps {
   campaign: Campaign | null;

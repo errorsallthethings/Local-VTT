@@ -5,7 +5,7 @@ import type { FogTool } from "../../canvas/fog";
 import { getRulerLabel, getTokenMoveLabel } from "../../canvas/live-table";
 import type { RulerDrag } from "../../canvas/measurement";
 import type { TokenDragPreview } from "../../canvas/tokens";
-import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../../lib/environmentEffectOptions";
+import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../../lib/effects";
 import {
   FOG_GRID_SNAP_HINT,
   getDrawingToolHint,
@@ -20,7 +20,7 @@ import {
   RULER_GRID_SNAP_HINT,
   SHIFT_WAYPOINT_HINT,
   TOKEN_MOVE_COMPLETE_HINT
-} from "../../lib/toolCopy";
+} from "../../lib/tools";
 import type { DrawingTemplateSize, EnvironmentEffectTool, WeatherMaskTool } from "../tools";
 
 export function MapLoadOverlay({ message, showSpinner }: { message: string; showSpinner: boolean }) {

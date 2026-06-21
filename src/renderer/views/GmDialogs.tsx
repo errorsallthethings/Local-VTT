@@ -17,7 +17,7 @@ import { TokenCropDialog } from "../components/modals/TokenCropDialog";
 import { MapCalibrationAssistant, type MapCalibrationBox, type MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { TokenDefaultsPanel } from "../components/tokens/TokenDefaultsPanel";
-import { getFolderSceneDeleteDetail } from "../lib/sceneLibrary";
+import { getFolderSceneDeleteDetail } from "../lib/scene";
 
 export type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
 export type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };

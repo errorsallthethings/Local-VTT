@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatSaveStatus } from "../../src/renderer/lib/workspaceStatus";
+import { formatSaveStatus } from "../../src/renderer/lib/workspace";
 
 describe("workspace status", () => {
   it("formats a clean idle workspace as saved", () => {

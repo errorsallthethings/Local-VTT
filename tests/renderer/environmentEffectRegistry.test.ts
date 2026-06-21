@@ -8,7 +8,7 @@ import {
   getEnvironmentEffectPreviewFill,
   getEnvironmentEffectRegistryEntry,
   getEnvironmentEffectStroke
-} from "../../src/renderer/lib/environmentEffectOptions";
+} from "../../src/renderer/lib/effects";
 
 const EXPECTED_ENVIRONMENT_EFFECTS: EnvironmentEffectType[] = [
   "acid",

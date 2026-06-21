@@ -15,7 +15,7 @@ import {
   getRulerHelpLines,
   getWeatherMaskStatusHint,
   getWeatherMaskStatusLabel
-} from "../../src/renderer/lib/toolCopy";
+} from "../../src/renderer/lib/tools";
 
 describe("tool copy helpers", () => {
   it("labels fog tools by operation and shape", () => {

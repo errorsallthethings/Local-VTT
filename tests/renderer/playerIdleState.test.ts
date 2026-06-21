@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { isPlayerIdleState } from "../../src/shared/localvtt";
-import { DEFAULT_PLAYER_HOLD_STATE, PLAYER_BLACKOUT_STATE, showDefaultPlayerHold, showPlayerBlackout } from "../../src/renderer/lib/playerIdleState";
+import { DEFAULT_PLAYER_HOLD_STATE, PLAYER_BLACKOUT_STATE, showDefaultPlayerHold, showPlayerBlackout } from "../../src/renderer/lib/player-view";
 
 describe("player idle state helpers", () => {
   it("shows the default hold state", async () => {

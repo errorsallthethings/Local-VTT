@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene } from "../../src/shared/localvtt";
-import { applyMapCalibrationDraft, getMapCalibrationDraftFromScene, type MapCalibrationDraft } from "../../src/renderer/lib/mapCalibration";
+import { applyMapCalibrationDraft, getMapCalibrationDraftFromScene, type MapCalibrationDraft } from "../../src/renderer/lib/map";
 
 function draft(patch: Partial<MapCalibrationDraft> = {}): MapCalibrationDraft {
   return {

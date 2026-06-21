@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag, TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../src/renderer/lib/dragTypes";
+import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag, TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../src/renderer/lib/tokens";
 
 describe("drag type helpers", () => {
   it("detects token library asset drags from DataTransfer types", () => {

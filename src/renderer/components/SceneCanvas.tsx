@@ -118,7 +118,7 @@ import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEf
 import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/scene";
 import { getSceneLayerVisibility } from "../canvas/scene";
 import { getNearestSceneSnapPoint, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/scene";
-import { getSelectedItemIdList, getSelectedItemIds } from "../lib/selectionIds";
+import { getSelectedItemIdList, getSelectedItemIds } from "../lib/scene";
 import {
   getDrawingElementFromPreview,
   getDrawingPolygonElementFromDraft,
@@ -191,7 +191,7 @@ import { useSyncedRef } from "../hooks/useSyncedRef";
 import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { useWindowKeyDown } from "../hooks/useWindowKeyDown";
-import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/dragTypes";
+import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/tokens";
 import {
   addEnvironmentEffect,
   addSceneDrawing,
@@ -219,7 +219,7 @@ import {
   updateSceneDrawingPoints,
   updateSceneEnvironmentEffectPoints,
   updateSceneWeatherMaskPoints,
-} from "../lib/sceneEditing";
+} from "../lib/scene";
 import { TokenSettings } from "./layers";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
 import {

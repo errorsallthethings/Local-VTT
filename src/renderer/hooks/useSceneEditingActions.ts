@@ -8,8 +8,8 @@ import {
   patchSceneVideoPlayback,
   setSceneLayerOrderLocked,
   type LayerMoveDirection
-} from "../lib/sceneEditing";
-import { loadImageDimensions } from "../lib/imageDimensions";
+} from "../lib/scene";
+import { loadImageDimensions } from "../lib/assets";
 
 export function useSceneEditingActions({
   activeScene,

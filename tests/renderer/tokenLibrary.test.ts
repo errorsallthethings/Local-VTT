@@ -11,7 +11,7 @@ import {
   getSelectedTokenLibraryAssetIds,
   mergeTokenAssetUsage,
   removeSceneTokensByAsset
-} from "../../src/renderer/lib/tokenLibrary";
+} from "../../src/renderer/lib/tokens";
 
 function tokenAsset(id: string, name: string, originalFileName: string, createdAt: string): Asset {
   return {

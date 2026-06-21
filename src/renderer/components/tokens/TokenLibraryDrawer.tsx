@@ -22,15 +22,15 @@ import { createPortal } from "react-dom";
 import type { Asset } from "../../../shared/localvtt";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
-import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/dragTypes";
+import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
 import {
   buildTokenLibraryAssetIndex,
   filterTokenLibraryAssetIndex,
   getSelectedTokenLibraryAsset,
   getSelectedTokenLibraryAssetIds,
   type TokenLibrarySort
-} from "../../lib/tokenLibrary";
-import { calculateVirtualGridWindow } from "../../lib/virtualGrid";
+} from "../../lib/tokens";
+import { calculateVirtualGridWindow } from "../../lib/ui";
 
 type TokenLibraryView = "list" | "small" | "medium" | "large";
 type TokenLibraryVirtualMetrics = {

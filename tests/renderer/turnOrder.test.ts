@@ -17,7 +17,7 @@ import {
   startTurnOrder,
   stopTurnOrder,
   updateTurnOrderEntry
-} from "../../src/renderer/lib/turnOrder";
+} from "../../src/renderer/lib/turn-order";
 
 describe("turn order helpers", () => {
   it("adds, edits, sorts, and removes entries", () => {

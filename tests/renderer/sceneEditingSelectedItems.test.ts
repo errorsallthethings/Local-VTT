@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_FIRE_EFFECT_TUNING_SETTINGS, DEFAULT_WATER_EFFECT_TUNING_SETTINGS, createDefaultScene, type Scene } from "../../src/shared/localvtt";
-import { removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../../src/renderer/lib/sceneEditing";
+import { removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../../src/renderer/lib/scene";
 
 function createSceneWithSelectableItems(): Scene {
   return {

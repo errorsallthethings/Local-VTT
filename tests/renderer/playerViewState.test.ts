@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultCampaign, createDefaultScene, projectSceneForPlayer } from "../../src/shared/localvtt";
-import { getPlayerViewDisplayStateFromLastState } from "../../src/renderer/lib/playerViewState";
+import { getPlayerViewDisplayStateFromLastState } from "../../src/renderer/lib/player-view";
 
 describe("player view state reconciliation", () => {
   it("restores a Player View scene only when it belongs to the current campaign", () => {

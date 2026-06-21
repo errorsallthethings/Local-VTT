@@ -1,7 +1,7 @@
 import { Move } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Asset, Point, SquareCropRect } from "../../../shared/localvtt";
-import { clampTokenCropOffset, getTokenCropLayout, getTokenCropSourceRect } from "../../lib/tokenCrop";
+import { clampTokenCropOffset, getTokenCropLayout, getTokenCropSourceRect } from "../../lib/tokens";
 
 const PREVIEW_SIZE = 280;
 interface TokenCropDialogProps {

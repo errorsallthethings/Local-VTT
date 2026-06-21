@@ -1,7 +1,7 @@
 import type { Point, Scene, Token } from "../../../shared/localvtt";
 import { getNearestGridCellCenter, getNearestHexCenter, getSnappedTokenPosition, distanceBetween } from "../tokens/tokenGeometry";
 import { appendWaypoint, getPathDistance, normalizeMovementPath } from "../tokens/movementPath";
-import { updateSceneTokenPositions } from "../../lib/sceneEditing";
+import { updateSceneTokenPositions } from "../../lib/scene";
 import type { TokenDragState } from "../scene/sceneInteractionTypes";
 import type { TokenDragPreview } from "../tokens/tokenRenderer";
 

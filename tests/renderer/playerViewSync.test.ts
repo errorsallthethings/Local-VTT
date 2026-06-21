@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createDefaultCampaign, createDefaultScene, type Asset } from "../../src/shared/localvtt";
-import { sendSceneToPlayer, updatePlayerSceneIfOpen, type PlayerViewSceneSyncApi } from "../../src/renderer/lib/playerViewSync";
+import { sendSceneToPlayer, updatePlayerSceneIfOpen, type PlayerViewSceneSyncApi } from "../../src/renderer/lib/player-view";
 
 describe("player view sync", () => {
   it("sends a projected scene through the Player View IPC API", async () => {

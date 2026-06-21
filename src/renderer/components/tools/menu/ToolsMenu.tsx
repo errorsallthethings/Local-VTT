@@ -41,7 +41,7 @@ import {
   formatEnvironmentEffectOptionLabel,
   getEnvironmentEffectFeatherSelectValue,
   getEnvironmentEffectPresetOptions
-} from "../../../lib/environmentEffectOptions";
+} from "../../../lib/effects";
 
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";

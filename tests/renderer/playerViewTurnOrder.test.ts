@@ -9,7 +9,7 @@ import {
   getTurnOrderFacingRotation,
   getTurnOrderPlayerBarLayout,
   getVisibleTurnOrderState
-} from "../../src/renderer/lib/playerViewTurnOrder";
+} from "../../src/renderer/lib/player-view";
 
 describe("player view turn order helpers", () => {
   it("positions player seat indicators on the selected edge with clamped position", () => {

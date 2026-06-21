@@ -74,7 +74,7 @@ import {
   roundMaskValue
 } from "./environmentFeather";
 import { worldRectToScreen, worldToScreenPoint } from "../core/viewportGeometry";
-import { getEnvironmentEffectPreviewFill, getEnvironmentEffectStroke } from "../../lib/environmentEffectOptions";
+import { getEnvironmentEffectPreviewFill, getEnvironmentEffectStroke } from "../../lib/effects";
 
 interface EnvironmentEffectTuningOverrides {
   acidEffectTuning?: AcidEffectTuning;

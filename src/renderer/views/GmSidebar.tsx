@@ -3,8 +3,8 @@ import { CircleHelp, FilePlus, FolderPlus, GripVertical, PanelLeftClose, PanelLe
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../shared/localvtt";
 import { CampaignPanel } from "../components/campaign/CampaignPanel";
 import { SceneLibraryPanel } from "../components/scenes/SceneLibraryPanel";
-import type { RecentCampaign } from "../lib/recentCampaigns";
-import type { WorkspaceLayout } from "../lib/workspaceLayout";
+import type { RecentCampaign } from "../lib/campaign";
+import type { WorkspaceLayout } from "../lib/workspace";
 import packageJson from "../../../package.json";
 
 export function GmSidebar({

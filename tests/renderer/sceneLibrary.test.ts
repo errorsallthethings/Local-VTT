@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSceneLibraryGroups, getFolderSceneDeleteDetail } from "../../src/renderer/lib/sceneLibrary";
+import { buildSceneLibraryGroups, getFolderSceneDeleteDetail } from "../../src/renderer/lib/scene";
 import type { CampaignSceneEntry, CampaignSceneFolder } from "../../src/shared/localvtt";
 
 describe("scene library helpers", () => {

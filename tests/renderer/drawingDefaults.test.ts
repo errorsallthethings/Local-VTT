@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { duplicateDrawingElement, DUPLICATE_DRAWING_OFFSET_PX, getDuplicateDrawingName } from "../../src/renderer/lib/drawingDefaults";
+import { duplicateDrawingElement, DUPLICATE_DRAWING_OFFSET_PX, getDuplicateDrawingName } from "../../src/renderer/lib/drawings";
 import type { DrawingElement } from "../../src/shared/localvtt";
 
 describe("drawing defaults", () => {

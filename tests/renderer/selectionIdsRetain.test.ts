@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applySelectionMode, getSelectedItemIdList, getSelectedItemIds, retainExistingSelectionIds } from "../../src/renderer/lib/selectionIds";
+import { applySelectionMode, getSelectedItemIdList, getSelectedItemIds, retainExistingSelectionIds } from "../../src/renderer/lib/scene";
 
 describe("selection id helpers", () => {
   it("returns multi-selection ids when present", () => {
