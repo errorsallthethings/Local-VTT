@@ -14,8 +14,7 @@ import {
   DEFAULT_TABLE_TOOLS,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
-  DEFAULT_VIDEO_PLAYBACK,
-  isLiveTableEvent
+  DEFAULT_VIDEO_PLAYBACK
 } from "../../shared/localvtt";
 import type {
   Asset,
@@ -53,16 +52,15 @@ import type { FogTool } from "../canvas/fog";
 import { useCampaignActions, type CampaignBusyState } from "../hooks/useCampaignActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
+import { usePlayerViewState } from "../hooks/usePlayerViewState";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { useSceneSelection } from "../hooks/useSceneSelection";
 import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assets";
 import { moveSceneFolder } from "../lib/campaign";
-import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, updateDiceRollHistory as updateDiceRollHistoryList, type DiceType } from "../lib/dice";
+import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/dice";
 import { loadImageDimensions } from "../lib/assets";
-import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/player-view";
 import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/player-view";
-import { getPlayerViewDisplayStateFromLastState, type PlayerDisplayMode } from "../lib/player-view";
 import { sendSceneToPlayer, updatePlayerSceneIfOpen } from "../lib/player-view";
 import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/scene";
 import { patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
@@ -113,7 +111,6 @@ import { GmSidebar } from "./GmSidebar";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 
-const PLAYER_TEMPLATE_PREVIEW_ID = "template-preview";
 const EMPTY_ASSETS: Asset[] = [];
 const EMPTY_SCENE_ENTRIES: CampaignSceneEntry[] = [];
 const DEFAULT_SELECTOR_SELECTION_FILTERS: SelectorSelectionFilters = {
@@ -224,9 +221,6 @@ export function GmApp() {
   const [selectorSelectionFilters, setSelectorSelectionFilters] = useState<SelectorSelectionFilters>(DEFAULT_SELECTOR_SELECTION_FILTERS);
   const [mapCalibrationBox, setMapCalibrationBox] = useState<MapCalibrationBox | null>(null);
   const [mapCalibrationBoxPicking, setMapCalibrationBoxPicking] = useState(false);
-  const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
-  const [playerDisplayMode, setPlayerDisplayMode] = useState<PlayerDisplayMode>("scene");
-  const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
   const [diceRollHistory, setDiceRollHistory] = useState<DiceRollEvent[]>([]);
   const [dicePanelOpen, setDicePanelOpen] = useState(false);
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
@@ -241,10 +235,6 @@ export function GmApp() {
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
   const [recentCampaigns, setRecentCampaigns] = useState<RecentCampaign[]>(() => loadRecentCampaigns());
   const [busyState, setBusyState] = useState<CampaignBusyState | null>(null);
-  const skipNextPlayerSceneAutoSyncRef = useRef(false);
-  const playerTemplatePreviewPublishedRef = useRef(false);
-  const playerIdleClearedForNoCampaignRef = useRef(false);
-
   const campaignAssets = campaign?.assets ?? EMPTY_ASSETS;
   const campaignScenes = campaign?.scenes ?? EMPTY_SCENE_ENTRIES;
   const assetsById = useMemo(() => buildAssetsById(campaignAssets), [campaignAssets]);
@@ -289,6 +279,23 @@ export function GmApp() {
     () => buildSceneThumbnailAssets(campaignScenes, sceneDrafts, activeScene, assetsById),
     [activeScene, assetsById, campaignScenes, sceneDrafts]
   );
+  const {
+    playerSceneId,
+    setPlayerSceneId,
+    playerDisplayMode,
+    setPlayerDisplayMode,
+    liveTableEvents,
+    emitLiveTableEvent,
+    updateDiceRollHistory,
+    skipNextPlayerSceneAutoSync
+  } = usePlayerViewState({
+    activeScene,
+    campaign,
+    playersPanelOpen,
+    templatePreviewVisibleInPlayer,
+    playerTemplatePreviewDrawing,
+    onDiceRollHistoryChange: setDiceRollHistory
+  });
   useEffect(() => {
     diceSettingsDraftRef.current = diceSettings;
   }, [diceSettings]);
@@ -301,7 +308,9 @@ export function GmApp() {
 
   const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
     // Only sync the active edit to Player View when that same scene is already being shown to players.
-    skipNextPlayerSceneAutoSyncRef.current = syncScene !== nextScene;
+    if (syncScene !== nextScene) {
+      skipNextPlayerSceneAutoSync();
+    }
     updateWorkspaceScene(nextScene, nextScene.id === playerSceneId ? syncCampaign : null, syncScene);
   };
 
@@ -400,34 +409,6 @@ export function GmApp() {
       updatedAt: new Date().toISOString()
     });
   };
-
-  const updateDiceRollHistory = useCallback((event: DiceRollEvent) => {
-    setDiceRollHistory((history) => updateDiceRollHistoryList(history, event));
-  }, []);
-
-  const emitLiveTableEvent = useCallback((event: LiveTableEvent) => {
-    setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
-    if (event.type === "dice") {
-      updateDiceRollHistory(event);
-    } else if (event.type === "dice-clear") {
-      setDiceRollHistory([]);
-    }
-    void window.localVtt.sendLiveTableEvent(event);
-  }, [updateDiceRollHistory]);
-
-  useEffect(() => {
-    const removeListener = window.localVtt.onLiveTableEvent((event) => {
-      if (isLiveTableEvent(event)) {
-        setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
-        if (event.type === "dice") {
-          updateDiceRollHistory(event);
-        } else if (event.type === "dice-clear") {
-          setDiceRollHistory([]);
-        }
-      }
-    });
-    return removeListener;
-  }, [updateDiceRollHistory]);
 
   const rollTableDie = (die: DiceType) => {
     const roll = rollDiceEvent(die);
@@ -616,93 +597,9 @@ export function GmApp() {
   }, [activeScene]);
 
   useEffect(() => {
-    setLiveTableEvents([]);
-  }, [activeScene?.id]);
-
-  useEffect(() => {
-    if (liveTableEvents.length === 0) {
-      return;
-    }
-    const cleanupTimer = window.setTimeout(() => {
-      setLiveTableEvents((events) => filterActiveLiveTableEvents(events));
-    }, 250);
-    return () => window.clearTimeout(cleanupTimer);
-  }, [liveTableEvents]);
-
-  useEffect(() => {
     void refreshDisplays();
     // Displays are refreshed once on mount; later updates happen when the GM opens display settings.
   }, [refreshDisplays]);
-
-  useEffect(() => {
-    if (campaign) {
-      playerIdleClearedForNoCampaignRef.current = false;
-      return;
-    }
-    if (playerIdleClearedForNoCampaignRef.current) {
-      return;
-    }
-    playerIdleClearedForNoCampaignRef.current = true;
-    void showDefaultPlayerHold();
-    setPlayerSceneId(null);
-    setPlayerDisplayMode("hold");
-  }, [campaign]);
-
-  useEffect(() => {
-    if (!playerSceneId || campaign?.scenes.some((scene) => scene.id === playerSceneId)) {
-      return;
-    }
-    void showDefaultPlayerHold();
-    setPlayerSceneId(null);
-    setPlayerDisplayMode("hold");
-  }, [campaign?.scenes, playerSceneId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void window.localVtt.getLastPlayerState().then((state) => {
-      if (cancelled) {
-        return;
-      }
-      const displayState = getPlayerViewDisplayStateFromLastState(state, campaign?.scenes);
-      if (displayState) {
-        setPlayerSceneId(displayState.playerSceneId);
-        setPlayerDisplayMode(displayState.playerDisplayMode);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [campaign?.scenes]);
-
-  useEffect(() => {
-    if (!campaign || !activeScene || activeScene.id !== playerSceneId || playerDisplayMode !== "scene") {
-      return;
-    }
-    if (skipNextPlayerSceneAutoSyncRef.current) {
-      skipNextPlayerSceneAutoSyncRef.current = false;
-      return;
-    }
-    void updatePlayerSceneIfOpen(window.localVtt, campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
-  }, [activeScene, campaign, playerDisplayMode, playerSceneId, playersPanelOpen]);
-
-  useEffect(() => {
-    if (!campaign || !activeScene || activeScene.id !== playerSceneId || playerDisplayMode !== "scene") {
-      playerTemplatePreviewPublishedRef.current = false;
-      return;
-    }
-    const previewDrawing = templatePreviewVisibleInPlayer ? playerTemplatePreviewDrawing : null;
-    if (!previewDrawing && !playerTemplatePreviewPublishedRef.current) {
-      return;
-    }
-    const previewScene = previewDrawing
-      ? {
-          ...activeScene,
-          drawings: [...activeScene.drawings.filter((drawing) => drawing.id !== PLAYER_TEMPLATE_PREVIEW_ID), previewDrawing]
-        }
-      : activeScene;
-    playerTemplatePreviewPublishedRef.current = Boolean(previewDrawing);
-    void updatePlayerSceneIfOpen(window.localVtt, campaign, previewScene, { showPlayerSeatIndicators: playersPanelOpen });
-  }, [activeScene, campaign, playerDisplayMode, playerSceneId, playerTemplatePreviewDrawing, playersPanelOpen, templatePreviewVisibleInPlayer]);
 
   useEffect(() => {
     saveWorkspaceLayout(workspaceLayout);
