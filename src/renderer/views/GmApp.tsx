@@ -52,6 +52,7 @@ import type { FogTool } from "../canvas/fog";
 import { useCampaignActions, type CampaignBusyState } from "../hooks/useCampaignActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
+import { useGmDialogEscape, useGmDialogState } from "../hooks/useGmDialogState";
 import { usePlayerViewState } from "../hooks/usePlayerViewState";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { useSceneSelection } from "../hooks/useSceneSelection";
@@ -93,18 +94,8 @@ import {
 import { formatSaveStatus } from "../lib/workspace";
 import {
   GmDialogs,
-  type EnvironmentEffectNameDialog,
-  type FogShapeNameDialog,
-  type FolderColorDialog,
-  type FolderNameDialog,
   type SceneColorDialog,
-  type TokenAssetDeleteDialog,
-  type TokenAssetNameDialog,
   type TokenCropDialogState,
-  type TokenDefaultsDialog,
-  type SceneNameDialog,
-  type TokenColorDialog,
-  type TokenNameDialog
 } from "./GmDialogs";
 import { GmInspector } from "./GmInspector";
 import { GmSidebar } from "./GmSidebar";
@@ -145,27 +136,52 @@ export function GmApp() {
     updateScene: updateWorkspaceScene,
     updateCampaignDraft: updateWorkspaceCampaignDraft
   } = workspace;
-  const [sceneDialog, setSceneDialog] = useState<SceneNameDialog | null>(null);
-  const [folderDialog, setFolderDialog] = useState<FolderNameDialog | null>(null);
-  const [fogShapeDialog, setFogShapeDialog] = useState<FogShapeNameDialog | null>(null);
-  const [environmentEffectDialog, setEnvironmentEffectDialog] = useState<EnvironmentEffectNameDialog | null>(null);
-  const [tokenDialog, setTokenDialog] = useState<TokenNameDialog | null>(null);
-  const [tokenCropDialog, setTokenCropDialog] = useState<TokenCropDialogState | null>(null);
-  const [tokenAssetDialog, setTokenAssetDialog] = useState<TokenAssetNameDialog | null>(null);
-  const [tokenDefaultsDialog, setTokenDefaultsDialog] = useState<TokenDefaultsDialog | null>(null);
-  const [tokenColorDialog, setTokenColorDialog] = useState<TokenColorDialog | null>(null);
-  const [folderColorDialog, setFolderColorDialog] = useState<FolderColorDialog | null>(null);
-  const [sceneColorDialog, setSceneColorDialog] = useState<SceneColorDialog | null>(null);
-  const [campaignNameDialogOpen, setCampaignNameDialogOpen] = useState(false);
-  const [sceneToDelete, setSceneToDelete] = useState<CampaignSceneEntry | null>(null);
-  const [folderToDelete, setFolderToDelete] = useState<CampaignSceneFolder | null>(null);
-  const [mapAssetToDelete, setMapAssetToDelete] = useState<Asset | null>(null);
-  const [tokenAssetToDelete, setTokenAssetToDelete] = useState<TokenAssetDeleteDialog | null>(null);
+  const dialogs = useGmDialogState();
+  const {
+    sceneDialog,
+    setSceneDialog,
+    folderDialog,
+    setFolderDialog,
+    fogShapeDialog,
+    setFogShapeDialog,
+    environmentEffectDialog,
+    setEnvironmentEffectDialog,
+    tokenDialog,
+    setTokenDialog,
+    tokenCropDialog,
+    setTokenCropDialog,
+    tokenAssetDialog,
+    setTokenAssetDialog,
+    tokenDefaultsDialog,
+    setTokenDefaultsDialog,
+    tokenColorDialog,
+    setTokenColorDialog,
+    folderColorDialog,
+    setFolderColorDialog,
+    sceneColorDialog,
+    setSceneColorDialog,
+    campaignNameDialogOpen,
+    setCampaignNameDialogOpen,
+    sceneToDelete,
+    setSceneToDelete,
+    folderToDelete,
+    setFolderToDelete,
+    mapAssetToDelete,
+    setMapAssetToDelete,
+    tokenAssetToDelete,
+    setTokenAssetToDelete,
+    playerDisplayDialogOpen,
+    setPlayerDisplayDialogOpen,
+    mapCalibrationAssistantOpen,
+    setMapCalibrationAssistantOpen,
+    confirmClearFogOpen,
+    setConfirmClearFogOpen,
+    mapCalibrationBoxPicking,
+    setMapCalibrationBoxPicking
+  } = dialogs;
   const [openSceneMenuId, setOpenSceneMenuId] = useState<string | null>(null);
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null);
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
-  const [playerDisplayDialogOpen, setPlayerDisplayDialogOpen] = useState(false);
-  const [mapCalibrationAssistantOpen, setMapCalibrationAssistantOpen] = useState(false);
   const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasTool | null>(null);
   const [activeDrawingTool, setActiveDrawingTool] = useState<DrawingTool | null>(null);
   const [activeFogTool, setActiveFogTool] = useState<FogTool | null>(null);
@@ -207,7 +223,6 @@ export function GmApp() {
   const [drawingTemplateWidth, setDrawingTemplateWidth] = useState<DrawingTemplateWidth>(5);
   const [templatePreviewVisibleInPlayer, setTemplatePreviewVisibleInPlayer] = useState(false);
   const [playerTemplatePreviewDrawing, setPlayerTemplatePreviewDrawing] = useState<DrawingElement | null>(null);
-  const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
   const [newFolderName, setNewFolderName] = useState("New Folder");
   const [newFogShapeName, setNewFogShapeName] = useState("");
@@ -220,7 +235,6 @@ export function GmApp() {
   const [environmentEffectEditorPosition, setEnvironmentEffectEditorPosition] = useState<{ x: number; y: number } | null>(null);
   const [selectorSelectionFilters, setSelectorSelectionFilters] = useState<SelectorSelectionFilters>(DEFAULT_SELECTOR_SELECTION_FILTERS);
   const [mapCalibrationBox, setMapCalibrationBox] = useState<MapCalibrationBox | null>(null);
-  const [mapCalibrationBoxPicking, setMapCalibrationBoxPicking] = useState(false);
   const [diceRollHistory, setDiceRollHistory] = useState<DiceRollEvent[]>([]);
   const [dicePanelOpen, setDicePanelOpen] = useState(false);
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
@@ -304,7 +318,7 @@ export function GmApp() {
     setMapCalibrationBox(null);
     setMapCalibrationBoxPicking(false);
     setPlayerTemplatePreviewDrawing(null);
-  }, [activeScene?.id]);
+  }, [activeScene?.id, setMapCalibrationBoxPicking]);
 
   const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
     // Only sync the active edit to Player View when that same scene is already being shown to players.
@@ -488,90 +502,18 @@ export function GmApp() {
       const summary = await window.localVtt.discardTokenImport(campaignPath, tokenCropDialog.asset.id);
       applySummary(summary, campaignDirty);
       setTokenCropDialog(null);
-    }), [applySummary, campaignDirty, campaignPath, run, tokenCropDialog]);
+    }), [applySummary, campaignDirty, campaignPath, run, setTokenCropDialog, tokenCropDialog]);
 
-  useEffect(() => {
-    if (
-      !sceneDialog &&
-      !folderDialog &&
-      !fogShapeDialog &&
-      !tokenDialog &&
-      !tokenCropDialog &&
-      !tokenAssetDialog &&
-      !tokenDefaultsDialog &&
-      !folderColorDialog &&
-      !tokenColorDialog &&
-      !sceneColorDialog &&
-      !campaignNameDialogOpen &&
-      !playerDisplayDialogOpen &&
-      !mapCalibrationAssistantOpen &&
-      !mapCalibrationBoxPicking &&
-      !sceneToDelete &&
-      !folderToDelete &&
-      !mapAssetToDelete &&
-      !tokenAssetToDelete &&
-      !confirmClearFogOpen &&
-      !openSceneMenuId &&
-      !openFolderMenuId &&
-      !playerMenuOpen
-    ) {
-      return;
-    }
-
-    const closeModal = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSceneDialog(null);
-        setFolderDialog(null);
-        setFogShapeDialog(null);
-        setTokenDialog(null);
-        void cancelTokenCrop();
-        setTokenAssetDialog(null);
-        setTokenDefaultsDialog(null);
-        setFolderColorDialog(null);
-        setTokenColorDialog(null);
-        setSceneColorDialog(null);
-        setCampaignNameDialogOpen(false);
-        setPlayerDisplayDialogOpen(false);
-        setMapCalibrationAssistantOpen(false);
-        setMapCalibrationBoxPicking(false);
-        setSceneToDelete(null);
-        setFolderToDelete(null);
-        setMapAssetToDelete(null);
-        setTokenAssetToDelete(null);
-        setConfirmClearFogOpen(false);
-        setOpenSceneMenuId(null);
-        setOpenFolderMenuId(null);
-        setPlayerMenuOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", closeModal);
-    return () => window.removeEventListener("keydown", closeModal);
-  }, [
-    campaignNameDialogOpen,
-    cancelTokenCrop,
-    confirmClearFogOpen,
-    folderColorDialog,
-    folderDialog,
-    fogShapeDialog,
-    tokenDialog,
-    tokenCropDialog,
-    tokenAssetDialog,
-    tokenDefaultsDialog,
-    tokenColorDialog,
-    folderToDelete,
-    mapAssetToDelete,
-    tokenAssetToDelete,
-    openFolderMenuId,
+  useGmDialogEscape({
+    dialogs,
     openSceneMenuId,
-    mapCalibrationAssistantOpen,
-    mapCalibrationBoxPicking,
-    playerDisplayDialogOpen,
+    openFolderMenuId,
     playerMenuOpen,
-    sceneColorDialog,
-    sceneDialog,
-    sceneToDelete
-  ]);
+    onCancelTokenCrop: () => void cancelTokenCrop(),
+    onCloseSceneMenu: () => setOpenSceneMenuId(null),
+    onCloseFolderMenu: () => setOpenFolderMenuId(null),
+    onClosePlayerMenu: () => setPlayerMenuOpen(false)
+  });
 
   useDismissableMenu({
     enabled: Boolean(openSceneMenuId || openFolderMenuId),
