@@ -81,6 +81,8 @@ function createWindow(hash: "gm" | "player"): BrowserWindow {
     }
   });
 
+  installWindowDiagnostics(win, hash);
+
   if (isDev) {
     void win.loadURL(`${devServerUrl}/#/${hash}`);
   } else {
@@ -90,6 +92,35 @@ function createWindow(hash: "gm" | "player"): BrowserWindow {
   }
 
   return win;
+}
+
+function installWindowDiagnostics(win: BrowserWindow, hash: "gm" | "player"): void {
+  const label = hash === "gm" ? "GM" : "Player";
+
+  win.webContents.on("render-process-gone", (_event, details) => {
+    console.error(`LOCALVTT_${label}_RENDER_PROCESS_GONE`, details.reason, details.exitCode);
+  });
+
+  win.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (isMainFrame) {
+      console.error(`LOCALVTT_${label}_DID_FAIL_LOAD`, errorCode, errorDescription, validatedURL);
+    }
+  });
+
+  win.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    if (level >= 2) {
+      const log = level >= 3 ? console.error : console.warn;
+      log(`LOCALVTT_${label}_CONSOLE`, message, `${sourceId}:${line}`);
+    }
+  });
+
+  win.on("unresponsive", () => {
+    console.warn(`LOCALVTT_${label}_WINDOW_UNRESPONSIVE`);
+  });
+
+  win.on("responsive", () => {
+    console.info(`LOCALVTT_${label}_WINDOW_RESPONSIVE`);
+  });
 }
 
 function sendToPlayerWhenReady(payload: unknown): void {
