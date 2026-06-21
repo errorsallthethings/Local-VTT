@@ -15,9 +15,7 @@ import {
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
-  isLiveTableEvent,
-  isPlayerIdleState,
-  isPlayerSceneProjection
+  isLiveTableEvent
 } from "../../shared/localvtt";
 import type {
   Asset,
@@ -63,6 +61,7 @@ import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/d
 import { loadImageDimensions } from "../lib/imageDimensions";
 import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/liveTableEvents";
 import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/playerIdleState";
+import { getPlayerViewDisplayStateFromLastState, type PlayerDisplayMode } from "../lib/playerViewState";
 import { sendSceneToPlayer, updatePlayerSceneIfOpen } from "../lib/playerViewSync";
 import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/sceneCollectionActions";
 import { applySelectionMode, retainExistingSelectionIds, type SelectionMode } from "../lib/selectionIds";
@@ -112,7 +111,6 @@ import {
 import { GmInspector } from "./GmInspector";
 import { GmSidebar } from "./GmSidebar";
 
-type PlayerDisplayMode = "scene" | "hold" | "blackout";
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 
 const PLAYER_TEMPLATE_PREVIEW_ID = "template-preview";
@@ -850,12 +848,10 @@ export function GmApp() {
       if (cancelled) {
         return;
       }
-      if (isPlayerSceneProjection(state) && campaign?.scenes.some((scene) => scene.id === state.scene.id)) {
-        setPlayerSceneId(state.scene.id);
-        setPlayerDisplayMode("scene");
-      } else if (isPlayerIdleState(state)) {
-        setPlayerSceneId(null);
-        setPlayerDisplayMode(state.variant ?? "hold");
+      const displayState = getPlayerViewDisplayStateFromLastState(state, campaign?.scenes);
+      if (displayState) {
+        setPlayerSceneId(displayState.playerSceneId);
+        setPlayerDisplayMode(displayState.playerDisplayMode);
       }
     });
     return () => {
