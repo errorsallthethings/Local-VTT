@@ -22,7 +22,7 @@ Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog 
 
 ## Layer Ownership
 
-Layer responsibilities are intentionally narrow so tools, rendering, visibility, and persistence stay predictable as Local VTT grows.
+Layer responsibilities are intentionally narrow so tools, rendering, visibility, and persistence stay predictable as Local VTT grows. See [`layer-ownership-rules.md`](layer-ownership-rules.md) for detailed ownership rules, examples, visibility guidance, and feature-placement questions.
 
 - **GM Layer**: GM-only notes, markers, secret overlays, and private prep content. Content here should not be projected to Player View unless a future feature explicitly moves or reveals it.
 - **Fog of War Layer**: reveal/hide masks that control what parts of the map and player-visible tokens are visible to players.
@@ -43,3 +43,4 @@ Layer responsibilities are intentionally narrow so tools, rendering, visibility,
 - Put overhead cover art in Foreground.
 - Put movable creatures, NPCs, objects, and table markers in Tokens until the future Objects layer is implemented.
 - Keep Player View projection rules centralized so GM-only data does not leak through feature-specific code paths.
+- Do not overload reserved layers. GM, Foreground, Objects, and Dynamic Lighting exist to keep future features from being folded into the wrong data model.

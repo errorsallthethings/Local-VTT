@@ -173,7 +173,7 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 
 Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog of war, ruler measurement, and lightweight GM tokens. The scene model and renderer boundary are intentionally isolated so future versions can replace or augment the canvas layer with PixiJS/WebGL for very large maps, advanced vision, lighting, and overlays.
 
-See [`docs/architecture.md`](docs/architecture.md) for data flow notes and layer ownership rules.
+See [`docs/architecture.md`](docs/architecture.md) for data flow notes and [`docs/layer-ownership-rules.md`](docs/layer-ownership-rules.md) for layer ownership rules.
 
 ## Development
 
@@ -227,6 +227,7 @@ npm run smoke:electron
 
 - [`docs/architecture.md`](docs/architecture.md): runtime structure, data flow, and layer ownership rules.
 - [`docs/codebase-audit.md`](docs/codebase-audit.md): audit progress, current hotspots, and recommended refactor sequence.
+- [`docs/layer-ownership-rules.md`](docs/layer-ownership-rules.md): layer responsibilities, visibility rules, and guidance for placing new scene features.
 - [`docs/release-process.md`](docs/release-process.md): release branch flow, packaging notes, and smoke test checklist.
 
 ## Known Limitations
