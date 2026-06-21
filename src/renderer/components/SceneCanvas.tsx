@@ -3,14 +3,14 @@ import { createPortal } from "react-dom";
 import { Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
 import { DEFAULT_TABLE_TOOLS, DEFAULT_TOKEN_FOOTPRINT_VISIBLE, DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings } from "../../shared/localvtt";
-import { areCamerasEqual, getCameraForPanDrag, getCameraForWheelZoom, getRenderCamera, type Camera, type CameraPanDrag } from "../canvas/core/camera";
+import { areCamerasEqual, getCameraForPanDrag, getCameraForWheelZoom, getRenderCamera, type Camera, type CameraPanDrag } from "../canvas/core";
 import {
   getCanvasInteractionClass,
   getDrawingTransformHoverAtPoint,
   hasAuthoringToolActive,
   hasSceneItemHoverAtPoint,
   type DrawingTransformHover
-} from "../canvas/core/canvasInteraction";
+} from "../canvas/core";
 import {
   drawDrawings,
   getDrawingHitRadius,
@@ -21,7 +21,7 @@ import {
   type DrawingPointOverrides,
   type DrawingPreview,
   type DrawingTool
-} from "../canvas/drawings/drawingRenderer";
+} from "../canvas/drawings";
 import {
   getDrawingGroupSnapAnchor,
   getDrawingMoveDelta,
@@ -31,7 +31,7 @@ import {
   getMovedDrawingPointSnapshot,
   getResizedDrawingPointSnapshot,
   getRotatedDrawingPointSnapshot
-} from "../canvas/drawings/drawingTransform";
+} from "../canvas/drawings";
 import {
   drawFog,
   getFogDragFromPoint,
@@ -46,16 +46,16 @@ import {
   type FogDrag,
   type FogPolygonDraft,
   type FogTool
-} from "../canvas/fog/fogRenderer";
-import { drawHexGrid, drawSquareGrid } from "../canvas/grid/gridRenderer";
-import { constrainSquarePoint } from "../canvas/grid/gridMath";
+} from "../canvas/fog";
+import { drawHexGrid, drawSquareGrid } from "../canvas/grid";
+import { constrainSquarePoint } from "../canvas/grid";
 import {
   drawLiveTableEvents,
   getUpdatedLaserDrag,
   hasActiveLiveTableEvents,
   RULER_RELEASE_LINGER_MS
-} from "../canvas/live-table/liveTableRenderer";
-import { getPlayerDisplayScale, getRulerDragWithAppendedWaypoint, getRulerLabel, isVisibleDiceOverlayEvent } from "../canvas/live-table/liveTableState";
+} from "../canvas/live-table";
+import { getPlayerDisplayScale, getRulerDragWithAppendedWaypoint, getRulerLabel, isVisibleDiceOverlayEvent } from "../canvas/live-table";
 import {
   getCompletedMapCalibrationBox,
   getMapCalibrationDragFromPoint,
@@ -63,9 +63,9 @@ import {
   getVisibleMapCalibrationBox,
   type MapCalibrationBox,
   type MapCalibrationDrag
-} from "../canvas/map/mapCalibrationGeometry";
-import { drawMapSource, getCameraForMapFit } from "../canvas/map/mapRenderer";
-import { getEnvironmentEffectBounds } from "../canvas/scene/boundsGeometry";
+} from "../canvas/map";
+import { drawMapSource, getCameraForMapFit } from "../canvas/map";
+import { getEnvironmentEffectBounds } from "../canvas/scene";
 import {
   getInitialMapLoadStatus,
   getMapDrawSource,
@@ -75,14 +75,14 @@ import {
   isMapReady,
   type MapLoadStatus,
   type ReadyMapSource
-} from "../canvas/map/mapSource";
+} from "../canvas/map";
 import {
   drawRuler,
   getRulerPathPoints,
   type RulerDrag
-} from "../canvas/measurement/measurement";
-import { removeLastWaypoint } from "../canvas/tokens/movementPath";
-import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint, updatePolygonDraftCurrent } from "../canvas/scene/polygonDraft";
+} from "../canvas/measurement";
+import { removeLastWaypoint } from "../canvas/tokens";
+import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint, updatePolygonDraftCurrent } from "../canvas/scene";
 import {
   formatDefaultEnvironmentEffectName,
   formatDefaultWeatherMaskName,
@@ -90,13 +90,13 @@ import {
   getEnvironmentEffectContextLabel,
   getFogShapeContextLabel,
   getWeatherMaskContextLabel
-} from "../canvas/scene/sceneContextLabels";
+} from "../canvas/scene";
 import {
   getCompletedSceneMarqueeSelection,
   hasSelectedSceneItems,
   getSelectionDragFromPoint,
   getUpdatedSelectionDrag
-} from "../canvas/selection/selectionGeometry";
+} from "../canvas/selection";
 import type {
   DrawingDragState,
   DrawingResizeState,
@@ -105,7 +105,7 @@ import type {
   SelectionDrag,
   SelectionMode,
   TokenDragState
-} from "../canvas/scene/sceneInteractionTypes";
+} from "../canvas/scene";
 import {
   drawBrushHoverPreview,
   drawDrawingBrushHoverPreview,
@@ -113,29 +113,29 @@ import {
   drawMapCalibrationBox,
   drawSelectionMarquee,
   drawSnapMarker
-} from "../canvas/scene/sceneOverlayRenderer";
-import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/effects/environmentEffectLayerRenderer";
-import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/scene/sceneHitTesting";
-import { getSceneLayerVisibility } from "../canvas/scene/sceneLayerVisibility";
-import { getNearestSceneSnapPoint, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/scene/sceneSnapping";
+} from "../canvas/scene";
+import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/effects";
+import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/scene";
+import { getSceneLayerVisibility } from "../canvas/scene";
+import { getNearestSceneSnapPoint, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/scene";
 import { getSelectedItemIdList, getSelectedItemIds } from "../lib/selectionIds";
 import {
   getDrawingElementFromPreview,
   getDrawingPolygonElementFromDraft,
   getDrawingTemplateCurrentPoint,
   getTemplatePreviewDrawing
-} from "../canvas/drawings/templateDrawing";
-import { getTokenAtPoint } from "../canvas/tokens/tokenGeometry";
-import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey } from "../canvas/tokens/tokenImageSource";
+} from "../canvas/drawings";
+import { getTokenAtPoint } from "../canvas/tokens";
+import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey } from "../canvas/tokens";
 import {
   getSceneAfterTokenDrag,
   getTokenDragStart,
   getTokenDragPreviewFromPoint,
   getTokenDragWithAppendedWaypoint,
-} from "../canvas/tokens/tokenMovement";
-import { drawTokenDragHighlights, drawTokens, type TokenDragPreview } from "../canvas/tokens/tokenRenderer";
-import { getVideoTransform } from "../canvas/map/videoMap";
-import { clientToWorldPoint, eventToWorldPoint, getCanvasViewportCenter, isSnapModifier } from "../canvas/core/viewportGeometry";
+} from "../canvas/tokens";
+import { drawTokenDragHighlights, drawTokens, type TokenDragPreview } from "../canvas/tokens";
+import { getVideoTransform } from "../canvas/map";
+import { clientToWorldPoint, eventToWorldPoint, getCanvasViewportCenter, isSnapModifier } from "../canvas/core";
 import {
   type AcidEffectTuning,
   type ArcaneEffectTuning,
@@ -156,7 +156,7 @@ import {
   type VoidEffectTuning,
   type WaterEffectTuning,
   retainEnvironmentEffectRuntimes
-} from "../canvas/effects/environmentEffectsRenderer";
+} from "../canvas/effects";
 import {
   getEnvironmentEffectDragFromPoint,
   getEnvironmentEffectFromDrag,
@@ -166,14 +166,14 @@ import {
   shouldAnimateEnvironmentEffects,
   type EnvironmentEffectDrag,
   type EnvironmentPolygonDraft
-} from "../canvas/effects/environmentEffectGeometry";
-import { drawWeather, shouldAnimateWeather } from "../canvas/weather/weatherRenderer";
+} from "../canvas/effects";
+import { drawWeather, shouldAnimateWeather } from "../canvas/weather";
 import {
   drawWeatherMaskOutlines,
   drawWeatherMaskPreview,
   drawWeatherMaskSelection,
   drawWeatherPolygonDraft
-} from "../canvas/weather/weatherMaskRenderer";
+} from "../canvas/weather";
 import {
   getWeatherMaskDragFromPoint,
   getWeatherMaskFromDrag,
@@ -182,7 +182,7 @@ import {
   isMeaningfulWeatherMaskDrag,
   type WeatherMaskDrag,
   type WeatherPolygonDraft
-} from "../canvas/weather/weatherMaskGeometry";
+} from "../canvas/weather";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useImageMapLoader } from "../hooks/useImageMapLoader";
 import { usePlayerTokenTweens } from "../hooks/usePlayerTokenTweens";

@@ -5,7 +5,7 @@ import {
   hasAuthoringToolActive,
   hasSceneItemHoverAtPoint,
   type CanvasInteractionState
-} from "../../src/renderer/canvas/core/canvasInteraction";
+} from "../../src/renderer/canvas/core";
 import { createDefaultScene, type Token } from "../../src/shared/localvtt";
 
 function state(overrides: Partial<CanvasInteractionState> = {}): CanvasInteractionState {

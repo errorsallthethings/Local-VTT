@@ -7,7 +7,7 @@ import {
   getEnvironmentEffectContextLabel,
   getFogShapeContextLabel,
   getWeatherMaskContextLabel
-} from "../../src/renderer/canvas/scene/sceneContextLabels";
+} from "../../src/renderer/canvas/scene";
 
 function drawing(overrides: Partial<DrawingElement> = {}): DrawingElement {
   return {

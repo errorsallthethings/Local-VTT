@@ -9,7 +9,7 @@ import {
   getVisibleMapCalibrationBox,
   type MapCalibrationBox,
   type MapCalibrationDrag
-} from "../../src/renderer/canvas/map/mapCalibrationGeometry";
+} from "../../src/renderer/canvas/map";
 
 describe("map calibration geometry", () => {
   it("builds a square box from any drag direction", () => {

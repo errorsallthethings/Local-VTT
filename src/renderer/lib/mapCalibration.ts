@@ -1,6 +1,6 @@
 import { DEFAULT_MAP_TRANSFORM, type MapTransform, type Scene } from "../../shared/localvtt";
-import type { MapCalibrationBox } from "../canvas/map/mapCalibrationGeometry";
-import { getBoxCalibrationGridPatch } from "../canvas/map/mapCalibrationGeometry";
+import type { MapCalibrationBox } from "../canvas/map";
+import { getBoxCalibrationGridPatch } from "../canvas/map";
 
 export interface MapCalibrationDraft {
   fitMode: MapTransform["fitMode"];

@@ -1,5 +1,5 @@
 import type { LiveTableEvent } from "../../shared/localvtt";
-import { LASER_POINT_LIFETIME_MS, PING_DURATION_MS, RULER_EVENT_LIFETIME_MS } from "../canvas/live-table/liveTableRenderer";
+import { LASER_POINT_LIFETIME_MS, PING_DURATION_MS, RULER_EVENT_LIFETIME_MS } from "../canvas/live-table";
 import { DICE_HISTORY_DURATION_MS } from "./dice";
 
 export interface MergeLiveTableEventOptions {

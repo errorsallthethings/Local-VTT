@@ -9,7 +9,7 @@ import {
   getTokenMovementTweens,
   getTokenWaypointPosition,
   isDuplicateTokenWaypoint
-} from "../../src/renderer/canvas/tokens/tokenMovement";
+} from "../../src/renderer/canvas/tokens";
 
 function token(patch: Partial<Token> = {}): Token {
   return {

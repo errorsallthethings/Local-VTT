@@ -20,7 +20,7 @@ import {
   cloneSmokeEffectTuning,
   cloneVoidEffectTuning,
   cloneWaterEffectTuning
-} from "../../src/renderer/canvas/effects/environmentEffectsRenderer";
+} from "../../src/renderer/canvas/effects";
 
 describe("environment effects renderer helpers", () => {
   it("clones default tuning objects instead of returning shared references", () => {

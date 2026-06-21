@@ -7,7 +7,7 @@ import {
   getRulerGridHighlightCells,
   getRulerPathHighlightCells,
   getStraightLineMeasurementDistance
-} from "../../src/renderer/canvas/measurement/measurement";
+} from "../../src/renderer/canvas/measurement";
 
 describe("measurement helpers", () => {
   it("measures euclidean distance using scene grid units", () => {

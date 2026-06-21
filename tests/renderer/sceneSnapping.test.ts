@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene } from "../../src/shared/localvtt";
-import { constrainSquarePoint } from "../../src/renderer/canvas/grid/gridMath";
+import { constrainSquarePoint } from "../../src/renderer/canvas/grid";
 import {
   getNearestSceneSnapPoint,
   getRulerSnapPoint,
@@ -10,7 +10,7 @@ import {
   resolveSceneToolEventPoint,
   resolveSceneToolPoint,
   shouldShowSceneSnapPreview
-} from "../../src/renderer/canvas/scene/sceneSnapping";
+} from "../../src/renderer/canvas/scene";
 
 describe("scene snapping", () => {
   const eventTarget = {

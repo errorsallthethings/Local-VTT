@@ -45,7 +45,7 @@ import type {
   WeatherTuningSettings
 } from "../../../shared/localvtt";
 import { DEFAULT_GRID, DEFAULT_MAP_TRANSFORM, DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultDrawingName, formatDefaultFogShapeName, type Token } from "../../../shared/localvtt";
-import { getSnappedTokenPosition } from "../../canvas/tokens/tokenGeometry";
+import { getSnappedTokenPosition } from "../../canvas/tokens";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../../lib/environmentEffectOptions";

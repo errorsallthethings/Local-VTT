@@ -5,7 +5,7 @@ import {
   getEnvironmentFeatherAlpha,
   isPointInPolygon,
   roundMaskValue
-} from "../../src/renderer/canvas/effects/environmentFeather";
+} from "../../src/renderer/canvas/effects";
 
 describe("environment feather helpers", () => {
   it("clamps and curves feather alpha progress", () => {

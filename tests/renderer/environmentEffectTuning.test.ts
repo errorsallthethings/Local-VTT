@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LIGHTNING_EFFECT_TUNING,
   DEFAULT_WATER_EFFECT_TUNING
-} from "../../src/renderer/canvas/effects/environmentEffectsRenderer";
-import { getEnvironmentEffectTuningFields } from "../../src/renderer/canvas/effects/environmentEffectTuning";
+} from "../../src/renderer/canvas/effects";
+import { getEnvironmentEffectTuningFields } from "../../src/renderer/canvas/effects";
 
 describe("environment effect tuning fields", () => {
   it("returns only the matching tuning field", () => {

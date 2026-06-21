@@ -12,7 +12,7 @@ import {
   isMeaningfulEnvironmentEffectDrag,
   shouldAnimateEnvironmentEffects,
   type EnvironmentEffectDrag
-} from "../../src/renderer/canvas/effects/environmentEffectGeometry";
+} from "../../src/renderer/canvas/effects";
 
 function drag(overrides: Partial<EnvironmentEffectDrag> = {}): EnvironmentEffectDrag {
   return {

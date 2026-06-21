@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { parseTokenImageSourceKey } from "../canvas/tokens/tokenImageSource";
+import { parseTokenImageSourceKey } from "../canvas/tokens";
 
 export function useTokenImageLoader(tokenImageSourceKey: string): {
   failedTokenImageIds: Set<string>;

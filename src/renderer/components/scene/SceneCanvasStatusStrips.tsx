@@ -1,10 +1,10 @@
 import type { EnvironmentEffectType, Scene } from "../../../shared/localvtt";
-import type { DrawingTool } from "../../canvas/drawings/drawingRenderer";
-import { isTemplateDrawingTool } from "../../canvas/drawings/templateDrawing";
-import type { FogTool } from "../../canvas/fog/fogRenderer";
-import { getRulerLabel, getTokenMoveLabel } from "../../canvas/live-table/liveTableState";
-import type { RulerDrag } from "../../canvas/measurement/measurement";
-import type { TokenDragPreview } from "../../canvas/tokens/tokenRenderer";
+import type { DrawingTool } from "../../canvas/drawings";
+import { isTemplateDrawingTool } from "../../canvas/drawings";
+import type { FogTool } from "../../canvas/fog";
+import { getRulerLabel, getTokenMoveLabel } from "../../canvas/live-table";
+import type { RulerDrag } from "../../canvas/measurement";
+import type { TokenDragPreview } from "../../canvas/tokens";
 import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../../lib/environmentEffectOptions";
 import {
   FOG_GRID_SNAP_HINT,

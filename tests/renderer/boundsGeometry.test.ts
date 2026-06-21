@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EnvironmentEffectMask, WeatherMask } from "../../src/shared/localvtt";
-import { getEnvironmentEffectBounds, getPointBounds, getWeatherMaskBounds } from "../../src/renderer/canvas/scene/boundsGeometry";
+import { getEnvironmentEffectBounds, getPointBounds, getWeatherMaskBounds } from "../../src/renderer/canvas/scene";
 
 describe("bounds geometry", () => {
   it("builds point bounds from unordered points", () => {

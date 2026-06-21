@@ -9,7 +9,7 @@ import {
   isMeaningfulDrawingPreview,
   shouldAddDrawingPoint,
   type DrawingPreview
-} from "../../src/renderer/canvas/drawings/drawingRenderer";
+} from "../../src/renderer/canvas/drawings";
 import { createDefaultScene } from "../../src/shared/localvtt";
 
 describe("drawing renderer helpers", () => {

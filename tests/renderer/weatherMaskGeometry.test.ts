@@ -10,7 +10,7 @@ import {
   getUpdatedWeatherMaskDrag,
   isMeaningfulWeatherMaskDrag,
   type WeatherMaskDrag
-} from "../../src/renderer/canvas/weather/weatherMaskGeometry";
+} from "../../src/renderer/canvas/weather";
 
 function drag(overrides: Partial<WeatherMaskDrag> = {}): WeatherMaskDrag {
   return {

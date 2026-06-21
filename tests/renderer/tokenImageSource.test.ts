@@ -7,7 +7,7 @@ import {
   getRequiredTokenImageAssetIds,
   getTokenImageSourceKey,
   parseTokenImageSourceKey
-} from "../../src/renderer/canvas/tokens/tokenImageSource";
+} from "../../src/renderer/canvas/tokens";
 
 function token(assetId?: string): Token {
   return {

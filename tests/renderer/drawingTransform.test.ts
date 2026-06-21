@@ -19,7 +19,7 @@ import {
   resizeDrawingPoints,
   rotateDrawingPoints,
   rotatePoints
-} from "../../src/renderer/canvas/drawings/drawingTransform";
+} from "../../src/renderer/canvas/drawings";
 
 function drawing(overrides: Partial<DrawingElement>): DrawingElement {
   return {

@@ -10,7 +10,7 @@ import {
   isDuplicateRulerWaypoint,
   isVisibleDiceOverlayEvent,
   shouldShowDiceOverlay
-} from "../../src/renderer/canvas/live-table/liveTableState";
+} from "../../src/renderer/canvas/live-table";
 
 function token(overrides: Partial<Token> = {}): Token {
   return {

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { Scene } from "../../shared/localvtt";
-import { getPointAlongPath } from "../canvas/tokens/movementPath";
-import { getTokenMovementTweens } from "../canvas/tokens/tokenMovement";
-import type { TokenPositionOverrides } from "../canvas/tokens/tokenRenderer";
+import { getPointAlongPath } from "../canvas/tokens";
+import { getTokenMovementTweens } from "../canvas/tokens";
+import type { TokenPositionOverrides } from "../canvas/tokens";
 
 export function usePlayerTokenTweens(scene: Scene | null, mode: "gm" | "player") {
   const previousSceneRef = useRef<Scene | null>(null);
