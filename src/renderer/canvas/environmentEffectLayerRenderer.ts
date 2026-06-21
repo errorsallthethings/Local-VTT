@@ -105,6 +105,8 @@ type EnvironmentEffectDrawFn = (
   tuningOverrides: EnvironmentEffectTuningOverrides
 ) => void;
 
+let featherCompositeCanvas: HTMLCanvasElement | null = null;
+
 export function drawEnvironmentEffectPreview(ctx: CanvasRenderingContext2D, preview: EnvironmentEffectDrag, camera: Camera) {
   const effectMask = environmentDragToMask(preview);
   drawEnvironmentEffectShape(ctx, effectMask, camera, { fill: true, selected: false });
@@ -184,13 +186,12 @@ function drawFeatheredEnvironmentEffect(
 ) {
   const width = Math.max(1, Math.round(ctx.canvas.width / (window.devicePixelRatio || 1)));
   const height = Math.max(1, Math.round(ctx.canvas.height / (window.devicePixelRatio || 1)));
-  const effectCanvas = document.createElement("canvas");
-  effectCanvas.width = width;
-  effectCanvas.height = height;
+  const effectCanvas = getFeatherCompositeCanvas(width, height);
   const effectCtx = effectCanvas.getContext("2d");
   if (!effectCtx) {
     return;
   }
+  resetFeatherCompositeContext(effectCtx, width, height);
 
   const path = getEnvironmentEffectPath(effect, camera);
   effectCtx.save();
@@ -200,6 +201,24 @@ function drawFeatheredEnvironmentEffect(
 
   applyEnvironmentEffectFeather(effectCtx, effect, camera, feather);
   ctx.drawImage(effectCanvas, 0, 0, width, height);
+}
+
+function getFeatherCompositeCanvas(width: number, height: number): HTMLCanvasElement {
+  if (!featherCompositeCanvas) {
+    featherCompositeCanvas = document.createElement("canvas");
+  }
+  if (featherCompositeCanvas.width !== width || featherCompositeCanvas.height !== height) {
+    featherCompositeCanvas.width = width;
+    featherCompositeCanvas.height = height;
+  }
+  return featherCompositeCanvas;
+}
+
+function resetFeatherCompositeContext(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+  ctx.clearRect(0, 0, width, height);
 }
 
 function drawEnvironmentEffectContent(
