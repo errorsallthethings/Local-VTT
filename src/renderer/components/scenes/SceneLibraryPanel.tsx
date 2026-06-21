@@ -95,6 +95,10 @@ export function SceneLibraryPanel({
   const campaignScenes = campaign?.scenes ?? EMPTY_SCENES;
   const campaignSceneFolders = campaign?.sceneFolders ?? EMPTY_SCENE_FOLDERS;
   const { folderGroups, unfiledScenes } = useMemo(() => buildSceneLibraryGroups(campaignScenes, campaignSceneFolders, dirtySceneIds), [campaignScenes, campaignSceneFolders, dirtySceneIds]);
+  const weatherBadgesBySceneId = useMemo(
+    () => new globalThis.Map(campaignScenes.map((scene) => [scene.id, scene.weather ? getActiveWeatherEffects(scene.weather) : []])),
+    [campaignScenes]
+  );
   const emptySceneMessage = getSceneLibraryEmptyMessage(campaign);
 
   const renderSceneCard = (scene: CampaignSceneEntry) => {
@@ -156,7 +160,7 @@ export function SceneLibraryPanel({
           )}
         </div>
         <div className="scene-row-body">
-          <SceneThumbnail asset={thumbnailAsset ?? null} scene={scene} />
+          <SceneThumbnail asset={thumbnailAsset ?? null} activeWeather={weatherBadgesBySceneId.get(scene.id) ?? []} />
           <button
             className={isDirty ? "icon-button dirty-save" : "icon-button"}
             disabled={!isDirty}
@@ -449,11 +453,11 @@ function FloatingSceneMenu({ anchor, children }: { anchor: HTMLElement | null; c
   );
 }
 
-function SceneThumbnail({ asset, scene }: { asset: Asset | null; scene: CampaignSceneEntry }) {
+function SceneThumbnail({ asset, activeWeather }: { asset: Asset | null; activeWeather: ReturnType<typeof getActiveWeatherEffects> }) {
   if (!asset) {
     return (
       <div className="scene-thumbnail scene-thumbnail-empty" aria-label="No map">
-        <SceneWeatherBadges scene={scene} />
+        <SceneWeatherBadges activeWeather={activeWeather} />
         <Map size={16} aria-hidden="true" />
         <span>No map</span>
       </div>
@@ -465,7 +469,7 @@ function SceneThumbnail({ asset, scene }: { asset: Asset | null; scene: Campaign
       <div className="scene-thumbnail">
         <img src={window.localVtt.toAssetUrl(asset.thumbnailAbsolutePath)} alt="" draggable={false} />
         <ThumbnailBadge mediaType={asset.mediaType} />
-        <SceneWeatherBadges scene={scene} />
+        <SceneWeatherBadges activeWeather={activeWeather} />
       </div>
     );
   }
@@ -474,7 +478,7 @@ function SceneThumbnail({ asset, scene }: { asset: Asset | null; scene: Campaign
     return (
       <div className="scene-thumbnail scene-thumbnail-video" aria-label="Video map">
         <ThumbnailBadge mediaType="video" />
-        <SceneWeatherBadges scene={scene} />
+        <SceneWeatherBadges activeWeather={activeWeather} />
       </div>
     );
   }
@@ -482,7 +486,7 @@ function SceneThumbnail({ asset, scene }: { asset: Asset | null; scene: Campaign
   if (!asset.thumbnailAbsolutePath) {
     return (
       <div className="scene-thumbnail scene-thumbnail-empty" aria-label="No preview available">
-        <SceneWeatherBadges scene={scene} />
+        <SceneWeatherBadges activeWeather={activeWeather} />
         <ImageOff size={16} aria-hidden="true" />
         <span>No preview</span>
       </div>
@@ -492,9 +496,7 @@ function SceneThumbnail({ asset, scene }: { asset: Asset | null; scene: Campaign
   return null;
 }
 
-function SceneWeatherBadges({ scene }: { scene: CampaignSceneEntry }) {
-  const activeWeather = scene.weather ? getActiveWeatherEffects(scene.weather) : [];
-
+function SceneWeatherBadges({ activeWeather }: { activeWeather: ReturnType<typeof getActiveWeatherEffects> }) {
   if (activeWeather.length === 0) {
     return null;
   }
