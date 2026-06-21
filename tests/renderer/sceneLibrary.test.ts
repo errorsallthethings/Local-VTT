@@ -21,6 +21,25 @@ describe("scene library helpers", () => {
     expect(groups.folderGroups[1].scenes.map((scene) => scene.id)).toEqual(["scene-1", "scene-3"]);
   });
 
+  it("counts dirty scenes while grouping folders", () => {
+    const folders: CampaignSceneFolder[] = [
+      { id: "folder-a", name: "A", color: "#111111", createdAt: "now" },
+      { id: "folder-b", name: "B", color: "#222222", createdAt: "now" }
+    ];
+    const scenes: CampaignSceneEntry[] = [
+      { id: "scene-1", name: "One", file: "one.json", folderId: "folder-a" },
+      { id: "scene-2", name: "Two", file: "two.json", folderId: "folder-a" },
+      { id: "scene-3", name: "Three", file: "three.json", folderId: "folder-b" }
+    ];
+
+    const groups = buildSceneLibraryGroups(scenes, folders, new Set(["scene-1", "scene-3", "unfiled"]));
+
+    expect(groups.folderGroups.map((group) => [group.folder.id, group.dirtySceneCount])).toEqual([
+      ["folder-a", 1],
+      ["folder-b", 1]
+    ]);
+  });
+
   it("returns unfiled scenes separately", () => {
     const folders: CampaignSceneFolder[] = [{ id: "folder-a", name: "A", color: "#111111", createdAt: "now" }];
     const scenes: CampaignSceneEntry[] = [

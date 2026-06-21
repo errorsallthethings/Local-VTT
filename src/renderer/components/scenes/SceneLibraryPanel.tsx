@@ -94,7 +94,7 @@ export function SceneLibraryPanel({
   };
   const campaignScenes = campaign?.scenes ?? EMPTY_SCENES;
   const campaignSceneFolders = campaign?.sceneFolders ?? EMPTY_SCENE_FOLDERS;
-  const { folderGroups, unfiledScenes } = useMemo(() => buildSceneLibraryGroups(campaignScenes, campaignSceneFolders), [campaignScenes, campaignSceneFolders]);
+  const { folderGroups, unfiledScenes } = useMemo(() => buildSceneLibraryGroups(campaignScenes, campaignSceneFolders, dirtySceneIds), [campaignScenes, campaignSceneFolders, dirtySceneIds]);
   const emptySceneMessage = getSceneLibraryEmptyMessage(campaign);
 
   const renderSceneCard = (scene: CampaignSceneEntry) => {
@@ -257,8 +257,7 @@ export function SceneLibraryPanel({
         onDrop={(event) => onSceneDrop(event)}
       >
         {emptySceneMessage && <div className="scene-library-empty">{emptySceneMessage}</div>}
-        {folderGroups.map(({ folder, scenes: folderScenes }, folderIndex) => {
-          const folderDirtyCount = getDirtySceneCount(folderScenes, dirtySceneIds);
+        {folderGroups.map(({ folder, scenes: folderScenes, dirtySceneCount: folderDirtyCount }, folderIndex) => {
           const folderHasDirtyScenes = folderDirtyCount > 0;
           const isCollapsed = collapsedFolderIds.has(folder.id);
           const canMoveUp = folderIndex > 0;
@@ -374,10 +373,6 @@ export function SceneLibraryPanel({
       </div>
     </section>
   );
-}
-
-function getDirtySceneCount(scenes: CampaignSceneEntry[], dirtySceneIds: Set<string>): number {
-  return scenes.filter((scene) => dirtySceneIds.has(scene.id)).length;
 }
 
 function getSceneLibraryEmptyMessage(campaign: Campaign | null): string | null {
