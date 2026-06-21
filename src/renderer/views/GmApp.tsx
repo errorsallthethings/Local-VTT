@@ -39,20 +39,19 @@ import { CampaignBusyOverlay } from "../components/modals/CampaignBusyOverlay";
 import { EnvironmentEffectEditorModal } from "../components/layers";
 import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools";
+import { ToolsMenu, type DrawingTemplateSize, type DrawingTemplateWidth, type FogOperation, type SelectorSelectionFilters } from "../components/tools";
 import { DEFAULT_ACID_EFFECT_TUNING, DEFAULT_ARCANE_EFFECT_TUNING, DEFAULT_CHAOS_EFFECT_TUNING, DEFAULT_COLD_EFFECT_TUNING, DEFAULT_DARKNESS_EFFECT_TUNING, DEFAULT_DISTORTION_EFFECT_TUNING, DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_FORCE_FIELD_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_NATURE_EFFECT_TUNING, DEFAULT_POISON_EFFECT_TUNING, DEFAULT_RADIANT_EFFECT_TUNING, DEFAULT_SHOCKWAVE_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_VOID_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type AcidEffectTuning, type ArcaneEffectTuning, type ChaosEffectTuning, type ColdEffectTuning, type DarknessEffectTuning, type DistortionEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type NatureEffectTuning, type PoisonEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type VoidEffectTuning, type WaterEffectTuning } from "../canvas/effects";
-import type { DrawingTool } from "../canvas/drawings";
 import { applyMapCalibrationDraft, type MapCalibrationDraft } from "../lib/map";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderModal } from "../components/turn-order/TurnOrderModal";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
-import type { FogTool } from "../canvas/fog";
 import { useCampaignActions, type CampaignBusyState } from "../hooks/useCampaignActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useGmDialogEscape, useGmDialogState } from "../hooks/useGmDialogState";
+import { useGmToolSelection } from "../hooks/useGmToolSelection";
 import { usePlayerViewState } from "../hooks/usePlayerViewState";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { useSceneSelection } from "../hooks/useSceneSelection";
@@ -182,11 +181,21 @@ export function GmApp() {
   const [openSceneMenuId, setOpenSceneMenuId] = useState<string | null>(null);
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null);
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
-  const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasTool | null>(null);
-  const [activeDrawingTool, setActiveDrawingTool] = useState<DrawingTool | null>(null);
-  const [activeFogTool, setActiveFogTool] = useState<FogTool | null>(null);
-  const [activeWeatherMaskTool, setActiveWeatherMaskTool] = useState<WeatherMaskTool | null>(null);
-  const [activeEnvironmentEffectTool, setActiveEnvironmentEffectTool] = useState<EnvironmentEffectTool | null>(null);
+  const {
+    activeCanvasTool,
+    setActiveCanvasTool,
+    activeDrawingTool,
+    setActiveDrawingTool,
+    activeFogTool,
+    setActiveFogTool,
+    activeWeatherMaskTool,
+    setActiveWeatherMaskTool,
+    activeEnvironmentEffectTool,
+    setActiveEnvironmentEffectTool,
+    mouseBehavior,
+    setMouseBehavior,
+    clearActiveCanvasTools
+  } = useGmToolSelection();
   const [environmentEffectType, setEnvironmentEffectType] = useState<EnvironmentEffectType>("water");
   const [environmentEffectFeather, setEnvironmentEffectFeather] = useState(0);
   const [acidEffectTuning, setAcidEffectTuning] = useState<AcidEffectTuning>(DEFAULT_ACID_EFFECT_TUNING);
@@ -207,7 +216,6 @@ export function GmApp() {
   const [shockwaveEffectTuning, setShockwaveEffectTuning] = useState<ShockwaveEffectTuning>(DEFAULT_SHOCKWAVE_EFFECT_TUNING);
   const [smokeEffectTuning, setSmokeEffectTuning] = useState<SmokeEffectTuning>(DEFAULT_SMOKE_EFFECT_TUNING);
   const [fogEffectTuning, setFogEffectTuning] = useState<FogEffectTuning>(DEFAULT_FOG_EFFECT_TUNING);
-  const [mouseBehavior, setMouseBehavior] = useState<MouseBehavior>("selector");
   const [tableToolsVisibleInPlayer, setTableToolsVisibleInPlayer] = useState(true);
   const [tableTools, setTableTools] = useState(() => ({ ...DEFAULT_TABLE_TOOLS }));
   const [fogOperation, setFogOperation] = useState<FogOperation>("reveal");
@@ -393,13 +401,6 @@ export function GmApp() {
       environmentEffectId: selectedEnvironmentEffectId
     }));
     clearSceneSelection();
-  };
-
-  const clearActiveCanvasTools = () => {
-    setActiveCanvasTool(null);
-    setActiveDrawingTool(null);
-    setActiveFogTool(null);
-    setActiveWeatherMaskTool(null);
   };
 
   const updateCampaignDraft = (nextCampaign: Campaign, syncActiveSceneToPlayer = true) => {
