@@ -9,6 +9,7 @@ import {
   getPlayerSeatStyle,
   getPlayerTurnStatusLabel,
   getPlayerTurnStatusStyle,
+  getVisibleTurnOrderState,
   getTurnOrderPlayerBarLayout
 } from "../../lib/playerViewTurnOrder";
 
@@ -40,7 +41,7 @@ export function PlayerSeatIndicators({ campaign }: { campaign: Campaign | null }
 
 export function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign: Campaign | null }) {
   const turnOrder = scene.turnOrder;
-  const entries = turnOrder.entries.filter((entry) => entry.visibleInPlayer);
+  const entries = getVisibleTurnOrderState(turnOrder).entries;
   const visible = turnOrder.active && turnOrder.playerViewVisible && entries.length > 0;
   const reveal = useEdgeSlide(visible);
   const renderedEntries = useLastPresentValue(entries, visible && entries.length > 0);
@@ -53,8 +54,8 @@ export function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign
 
   const layout = getTurnOrderPlayerBarLayout(turnOrder.playerViewEdge, turnOrder.playerViewFacing);
   const displayedEntries = layout.reverseEntries ? [...renderedEntries].reverse() : renderedEntries;
-  const currentIndex = Math.max(0, renderedEntries.findIndex((entry) => entry.id === turnOrder.currentEntryId));
-  const nextEntryId = renderedEntries.length > 1 ? renderedEntries[(currentIndex + 1) % renderedEntries.length]?.id : null;
+  const { nextEntry } = getVisibleTurnOrderState({ currentEntryId: turnOrder.currentEntryId, entries: renderedEntries });
+  const nextEntryId = nextEntry?.id ?? null;
 
   return (
     <div
@@ -100,7 +101,7 @@ export function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; 
   const visible = turnOrder.active && turnOrder.playerViewVisible && Boolean(campaign);
   const reveal = useEdgeSlide(visible);
   const renderedCampaign = useLastPresentValue(campaign, visible && Boolean(campaign));
-  const entries = turnOrder.entries.filter((entry) => entry.visibleInPlayer);
+  const entries = getVisibleTurnOrderState(turnOrder).entries;
   const renderedEntries = useLastPresentValue(entries, visible && entries.length > 0);
   const assetsById = useMemo(() => buildAssetsById(renderedCampaign?.assets ?? []), [renderedCampaign?.assets]);
   if (!reveal.present || !renderedCampaign) {
@@ -111,8 +112,7 @@ export function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; 
     return null;
   }
 
-  const currentIndex = Math.max(0, renderedEntries.findIndex((entry) => entry.id === turnOrder.currentEntryId));
-  const nextEntry = renderedEntries.length > 1 ? renderedEntries[(currentIndex + 1) % renderedEntries.length] : null;
+  const { nextEntry } = getVisibleTurnOrderState({ currentEntryId: turnOrder.currentEntryId, entries: renderedEntries });
   const entriesByPlayerId = new Map<string, (typeof renderedEntries)[number]>();
   for (const entry of renderedEntries) {
     if (entry.playerId) {

@@ -7,7 +7,8 @@ import {
   getPlayerTurnStatusLabel,
   getPlayerTurnStatusStyle,
   getTurnOrderFacingRotation,
-  getTurnOrderPlayerBarLayout
+  getTurnOrderPlayerBarLayout,
+  getVisibleTurnOrderState
 } from "../../src/renderer/lib/playerViewTurnOrder";
 
 describe("player view turn order helpers", () => {
@@ -75,5 +76,42 @@ describe("player view turn order helpers", () => {
     expect(getTurnOrderFacingRotation("bottom", "inward")).toBe(180);
     expect(getTurnOrderFacingRotation("left", "outward")).toBe(90);
     expect(getTurnOrderFacingRotation("left", "inward")).toBe(270);
+  });
+
+  it("builds visible Player View turn order state", () => {
+    const turnOrder = {
+      currentEntryId: "entry-2",
+      entries: [
+        { id: "entry-1", name: "Hidden", initiative: 20, visibleInPlayer: false },
+        { id: "entry-2", name: "Current", initiative: 15, visibleInPlayer: true },
+        { id: "entry-3", name: "Next", initiative: 10, visibleInPlayer: true }
+      ]
+    };
+
+    expect(getVisibleTurnOrderState(turnOrder)).toMatchObject({
+      entries: [turnOrder.entries[1], turnOrder.entries[2]],
+      currentIndex: 0,
+      currentEntry: turnOrder.entries[1],
+      nextEntry: turnOrder.entries[2]
+    });
+  });
+
+  it("wraps next visible turn entry and tolerates a hidden current entry", () => {
+    const entries = [
+      { id: "entry-1", name: "First", initiative: 20, visibleInPlayer: true },
+      { id: "entry-2", name: "Hidden Current", initiative: 15, visibleInPlayer: false },
+      { id: "entry-3", name: "Last", initiative: 10, visibleInPlayer: true }
+    ];
+
+    expect(getVisibleTurnOrderState({ currentEntryId: "entry-3", entries })).toMatchObject({
+      currentIndex: 1,
+      currentEntry: entries[2],
+      nextEntry: entries[0]
+    });
+    expect(getVisibleTurnOrderState({ currentEntryId: "entry-2", entries })).toMatchObject({
+      currentIndex: 0,
+      currentEntry: null,
+      nextEntry: entries[2]
+    });
   });
 });

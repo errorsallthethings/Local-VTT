@@ -1,8 +1,24 @@
 import type { CSSProperties } from "react";
+import type { TurnOrderEntry, TurnOrderSettings } from "../../shared/localvtt";
 
 export type PlayerViewEdge = "top" | "right" | "bottom" | "left";
 export type PlayerViewFacing = "inward" | "outward";
 export type PlayerTurnStatus = "current" | "next" | "waiting";
+
+export interface VisibleTurnOrderState {
+  entries: TurnOrderEntry[];
+  currentIndex: number;
+  currentEntry: TurnOrderEntry | null;
+  nextEntry: TurnOrderEntry | null;
+}
+
+export function getVisibleTurnOrderState(turnOrder: Pick<TurnOrderSettings, "currentEntryId" | "entries">): VisibleTurnOrderState {
+  const entries = turnOrder.entries.filter((entry) => entry.visibleInPlayer);
+  const currentIndex = Math.max(0, entries.findIndex((entry) => entry.id === turnOrder.currentEntryId));
+  const currentEntry = entries.find((entry) => entry.id === turnOrder.currentEntryId) ?? null;
+  const nextEntry = entries.length > 1 ? entries[(currentIndex + 1) % entries.length] : null;
+  return { entries, currentIndex, currentEntry, nextEntry };
+}
 
 export function getPlayerSeatStyle(edge: PlayerViewEdge, position: number, color: string): CSSProperties {
   const clampedPosition = Math.min(1, Math.max(0, position)) * 100;
