@@ -17,6 +17,7 @@ import { TokenCropDialog } from "../components/modals/TokenCropDialog";
 import { MapCalibrationAssistant, type MapCalibrationBox, type MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { TokenDefaultsPanel } from "../components/tokens/TokenDefaultsPanel";
+import { getFolderSceneDeleteDetail } from "../lib/sceneLibrary";
 
 export type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
 export type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };
@@ -476,12 +477,7 @@ function getSceneDeleteDetail(scene: CampaignSceneEntry, dirtySceneIds: Set<stri
 }
 
 function getFolderDeleteDetail(folder: CampaignSceneFolder, campaign: Campaign, dirtySceneIds: Set<string>, playerSceneId: string | null) {
-  const folderScenes = campaign.scenes.filter((scene) => scene.folderId === folder.id);
-  return {
-    sceneCount: folderScenes.length,
-    dirtySceneCount: folderScenes.filter((scene) => dirtySceneIds.has(scene.id)).length,
-    containsPlayerScene: Boolean(playerSceneId && folderScenes.some((scene) => scene.id === playerSceneId))
-  };
+  return getFolderSceneDeleteDetail(campaign.scenes, folder.id, dirtySceneIds, playerSceneId);
 }
 
 function formatFolderDeleteSceneCount(sceneCount: number): string {

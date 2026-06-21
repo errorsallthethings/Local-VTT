@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSceneLibraryGroups } from "../../src/renderer/lib/sceneLibrary";
+import { buildSceneLibraryGroups, getFolderSceneDeleteDetail } from "../../src/renderer/lib/sceneLibrary";
 import type { CampaignSceneEntry, CampaignSceneFolder } from "../../src/shared/localvtt";
 
 describe("scene library helpers", () => {
@@ -64,5 +64,19 @@ describe("scene library helpers", () => {
 
     expect(groups.unfiledScenes).toEqual([]);
     expect(groups.folderGroups[0].scenes.map((scene) => scene.id)).toEqual(["scene-2"]);
+  });
+
+  it("summarizes folder scene delete details in one pass", () => {
+    const scenes: CampaignSceneEntry[] = [
+      { id: "scene-1", name: "One", file: "one.json", folderId: "folder-a" },
+      { id: "scene-2", name: "Two", file: "two.json", folderId: "folder-a" },
+      { id: "scene-3", name: "Three", file: "three.json", folderId: "folder-b" }
+    ];
+
+    expect(getFolderSceneDeleteDetail(scenes, "folder-a", new Set(["scene-2", "scene-3"]), "scene-1")).toEqual({
+      containsPlayerScene: true,
+      dirtySceneCount: 1,
+      sceneCount: 2
+    });
   });
 });

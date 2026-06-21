@@ -11,6 +11,12 @@ export interface SceneLibraryGroups {
   unfiledScenes: CampaignSceneEntry[];
 }
 
+export interface FolderSceneDeleteDetail {
+  containsPlayerScene: boolean;
+  dirtySceneCount: number;
+  sceneCount: number;
+}
+
 export function buildSceneLibraryGroups(scenes: CampaignSceneEntry[], folders: CampaignSceneFolder[], dirtySceneIds: ReadonlySet<string> = new Set()): SceneLibraryGroups {
   const scenesByFolderId = new Map(folders.map((folder) => [folder.id, [] as CampaignSceneEntry[]]));
   const dirtyCountsByFolderId = new Map(folders.map((folder) => [folder.id, 0]));
@@ -39,4 +45,30 @@ export function buildSceneLibraryGroups(scenes: CampaignSceneEntry[], folders: C
     })),
     unfiledScenes
   };
+}
+
+export function getFolderSceneDeleteDetail(
+  scenes: readonly CampaignSceneEntry[],
+  folderId: string,
+  dirtySceneIds: ReadonlySet<string>,
+  playerSceneId: string | null
+): FolderSceneDeleteDetail {
+  let sceneCount = 0;
+  let dirtySceneCount = 0;
+  let containsPlayerScene = false;
+
+  for (const scene of scenes) {
+    if (scene.folderId !== folderId) {
+      continue;
+    }
+    sceneCount += 1;
+    if (dirtySceneIds.has(scene.id)) {
+      dirtySceneCount += 1;
+    }
+    if (playerSceneId === scene.id) {
+      containsPlayerScene = true;
+    }
+  }
+
+  return { containsPlayerScene, dirtySceneCount, sceneCount };
 }
