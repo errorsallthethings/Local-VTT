@@ -181,6 +181,7 @@ import {
   type WeatherMaskDrag,
   type WeatherPolygonDraft
 } from "../canvas/weatherMaskGeometry";
+import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useImageMapLoader } from "../hooks/useImageMapLoader";
 import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
 import { useSyncedRef } from "../hooks/useSyncedRef";
@@ -577,30 +578,18 @@ export function SceneCanvas({
     };
   }, []);
 
-  useEffect(() => {
-    if (!tokenContextMenu && !maskContextMenu && !drawingContextMenu && !environmentEffectContextMenu) {
-      return;
-    }
+  const dismissCanvasContextMenus = useCallback(() => {
+    setTokenContextMenu(null);
+    setMaskContextMenu(null);
+    setDrawingContextMenu(null);
+    setEnvironmentEffectContextMenu(null);
+  }, []);
 
-    const dismissMenu = () => {
-      setTokenContextMenu(null);
-      setMaskContextMenu(null);
-      setDrawingContextMenu(null);
-      setEnvironmentEffectContextMenu(null);
-    };
-    const dismissMenuOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        dismissMenu();
-      }
-    };
-
-    window.addEventListener("pointerdown", dismissMenu);
-    window.addEventListener("keydown", dismissMenuOnEscape);
-    return () => {
-      window.removeEventListener("pointerdown", dismissMenu);
-      window.removeEventListener("keydown", dismissMenuOnEscape);
-    };
-  }, [drawingContextMenu, environmentEffectContextMenu, maskContextMenu, tokenContextMenu]);
+  useDismissableMenu({
+    enabled: Boolean(tokenContextMenu || maskContextMenu || drawingContextMenu || environmentEffectContextMenu),
+    menuRootClass: "canvas-context-menu",
+    onDismiss: dismissCanvasContextMenus
+  });
 
   const mapAsset = useMemo(() => {
     if (!campaign || !scene?.mapAssetId) {
