@@ -126,7 +126,7 @@ import {
   getTemplatePreviewDrawing
 } from "../canvas/templateDrawing";
 import { getTokenAtPoint } from "../canvas/tokenGeometry";
-import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey, parseTokenImageSourceKey } from "../canvas/tokenImageSource";
+import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey } from "../canvas/tokenImageSource";
 import {
   getSceneAfterTokenDrag,
   getTokenDragStart,
@@ -185,6 +185,7 @@ import {
   type WeatherPolygonDraft
 } from "../canvas/weatherMaskGeometry";
 import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
+import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/dragTypes";
 import {
@@ -433,8 +434,6 @@ export function SceneCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, zoom: 1 });
   const [loadedMap, setLoadedMap] = useState<LoadedMap | null>(null);
-  const [loadedTokenImages, setLoadedTokenImages] = useState<Map<string, HTMLImageElement>>(() => new Map());
-  const [failedTokenImageIds, setFailedTokenImageIds] = useState<Set<string>>(() => new Set());
   const [mapLoadStatus, setMapLoadStatus] = useState<MapLoadStatus>("idle");
   const [fogPreview, setFogPreview] = useState<FogDrag | null>(null);
   const [drawingPreview, setDrawingPreview] = useState<DrawingPreview | null>(null);
@@ -628,6 +627,7 @@ export function SceneCanvas({
   const tokenImageSourceKey = useMemo(() => {
     return getTokenImageSourceKey(tokenAssets);
   }, [tokenAssets]);
+  const { failedTokenImageIds, loadedTokenImages } = useTokenImageLoader(tokenImageSourceKey);
   const effectiveSelectedTokenIds = useMemo(() => getSelectedItemIdList(selectedTokenId, selectedTokenIds), [selectedTokenId, selectedTokenIds]);
   const effectiveSelectedTokenIdSet = useMemo(() => getSelectedItemIds(selectedTokenId, selectedTokenIds), [selectedTokenId, selectedTokenIds]);
   const effectiveSelectedDrawingIds = useMemo(() => getSelectedItemIdList(selectedDrawingId, selectedDrawingIds), [selectedDrawingId, selectedDrawingIds]);
@@ -1083,44 +1083,6 @@ export function SceneCanvas({
     }
     setMapLoadStatus("loading");
   }, [isVideoMap, mapAsset?.id, assetUrl]);
-
-  useEffect(() => {
-    const tokenImageSources = parseTokenImageSourceKey(tokenImageSourceKey);
-    if (tokenImageSources.length === 0) {
-      setLoadedTokenImages(new Map());
-      setFailedTokenImageIds(new Set());
-      return;
-    }
-
-    let cancelled = false;
-    const nextImages = new Map<string, HTMLImageElement>();
-    const nextFailedIds = new Set<string>();
-    setLoadedTokenImages(new Map());
-    setFailedTokenImageIds(new Set());
-    for (const source of tokenImageSources) {
-      const image = new Image();
-      image.decoding = "async";
-      image.onload = () => {
-        if (cancelled) {
-          return;
-        }
-        nextImages.set(source.id, image);
-        setLoadedTokenImages(new Map(nextImages));
-      };
-      image.onerror = () => {
-        if (cancelled) {
-          return;
-        }
-        nextFailedIds.add(source.id);
-        setFailedTokenImageIds(new Set(nextFailedIds));
-      };
-      image.src = window.localVtt.toAssetUrl(source.path);
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tokenImageSourceKey]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
