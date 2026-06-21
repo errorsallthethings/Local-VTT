@@ -4,6 +4,7 @@ import {
   normalizeCampaign,
   normalizeScene,
   type Campaign,
+  type CampaignSceneEntry,
   type Scene
 } from "../src/shared/localvtt.js";
 
@@ -29,4 +30,13 @@ export function toPortableCampaignMetadata(campaign: Campaign): Campaign {
 
 export function toPortableSceneMetadata(scene: Scene): Scene {
   return normalizeScene(scene);
+}
+
+export function hydrateCampaignSceneEntry(entry: CampaignSceneEntry, scene: Scene): CampaignSceneEntry {
+  const normalizedScene = normalizeScene(scene);
+  return {
+    ...entry,
+    mapAssetId: entry.mapAssetId ?? normalizedScene.mapAssetId,
+    weather: entry.weather ?? normalizedScene.weather
+  };
 }

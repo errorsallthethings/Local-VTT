@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  hydrateCampaignSceneEntry,
   parseCampaignMetadata,
   parseSceneMetadata,
   toPortableCampaignMetadata,
@@ -193,5 +194,53 @@ describe("persistence codecs", () => {
     expect(parsed.fog.shapes[0]).toMatchObject({ id: "fog-1", operation: "hide" });
     expect(parsed.weather.masks[0]).toMatchObject({ id: "weather-mask-1", radius: 50 });
     expect(parsed.environment.effects[0]).toMatchObject({ id: "effect-1", effect: "water", feather: 0.5 });
+  });
+
+  it("hydrates missing campaign scene summary fields from full scene metadata", () => {
+    const scene = createDefaultScene("Hydrated Scene");
+    scene.id = "scene-1";
+    scene.mapAssetId = "map-1";
+    scene.weather.enabled = true;
+    scene.weather.effects.fog.enabled = true;
+
+    const entry = hydrateCampaignSceneEntry(
+      {
+        id: "scene-1",
+        name: "Hydrated Scene",
+        file: "scenes/scene-1.scene.json",
+        folderId: "folder-1"
+      },
+      scene
+    );
+
+    expect(entry).toMatchObject({
+      id: "scene-1",
+      folderId: "folder-1",
+      mapAssetId: "map-1"
+    });
+    expect(entry.weather?.effects.fog.enabled).toBe(true);
+  });
+
+  it("preserves existing campaign scene summary fields when hydrating", () => {
+    const scene = createDefaultScene("Saved Scene");
+    scene.id = "scene-1";
+    scene.mapAssetId = "map-from-scene";
+    scene.weather.enabled = true;
+
+    const existingWeather = createDefaultScene("Existing Summary").weather;
+    existingWeather.enabled = false;
+    const entry = hydrateCampaignSceneEntry(
+      {
+        id: "scene-1",
+        name: "Saved Scene",
+        file: "scenes/scene-1.scene.json",
+        mapAssetId: "map-from-summary",
+        weather: existingWeather
+      },
+      scene
+    );
+
+    expect(entry.mapAssetId).toBe("map-from-summary");
+    expect(entry.weather).toBe(existingWeather);
   });
 });

@@ -28,6 +28,7 @@ import {
 import { createImageMapThumbnail, createSquareImageThumbnail, createVideoMapThumbnail } from "./assets.js";
 import { formatMetadataReadError, formatMetadataWriteError } from "./metadataErrors.js";
 import {
+  hydrateCampaignSceneEntry,
   parseCampaignMetadata,
   parseSceneMetadata,
   toPortableCampaignMetadata,
@@ -242,12 +243,7 @@ async function hydrateSceneSummaries(campaignPath: string, campaign: Campaign): 
         const raw = await readFile(filePath, "utf8");
         const scene = JSON.parse(raw) as unknown;
         assertValidScene(scene);
-        const normalizedScene = normalizeScene(scene);
-        return {
-          ...entry,
-          mapAssetId: entry.mapAssetId ?? normalizedScene.mapAssetId,
-          weather: entry.weather ?? normalizedScene.weather
-        };
+        return hydrateCampaignSceneEntry(entry, scene);
       } catch {
         return entry;
       }
