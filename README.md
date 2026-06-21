@@ -215,6 +215,14 @@ npm run check
 
 `npm run check` runs TypeScript typechecking, ESLint, and the Vitest suite.
 
+Run the Electron runtime smoke test after a production build:
+
+```bash
+npm run smoke:electron
+```
+
+`npm run smoke:electron` builds the app, launches the production Electron entrypoint, verifies the GM preload bridge, opens Player View through IPC, sends a Player View idle state, and checks Electron display enumeration.
+
 ## Project Documentation
 
 - [`docs/architecture.md`](docs/architecture.md): runtime structure, data flow, and layer ownership rules.

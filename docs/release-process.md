@@ -157,7 +157,7 @@ Before packaging or sharing a build, run through these workflows:
 - Close with unsaved scene changes, campaign-only changes, and both; confirm Save preserves changes and Close Without Saving discards them.
 - Confirm common failure messages are actionable, including missing recent campaigns, missing assets, and disconnected Player View displays.
 - Run `npm run check` and `npm run build`.
-- Run `npm run smoke:electron` to launch the built Electron app and confirm the GM window preload bridge is available.
+- Run `npm run smoke:electron` to launch the built Electron app, confirm the GM preload bridge is available, open Player View through IPC, send a Player View idle state, and verify display enumeration.
 
 For packaged Windows builds, also run:
 

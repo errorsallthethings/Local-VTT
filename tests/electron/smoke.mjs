@@ -60,13 +60,32 @@ child.on("exit", (code) => {
     process.exit(1);
   }
 
-  const result = JSON.parse(match[1]);
+  let result;
+  try {
+    result = JSON.parse(match[1]);
+  } catch (error) {
+    console.error("Electron smoke test emitted an invalid JSON result.", error);
+    process.exit(1);
+  }
+
   if (result.hash !== "#/gm") {
     console.error(`Expected GM route hash #/gm, received ${result.hash}.`);
     process.exit(1);
   }
   if (!result.hasPreloadBridge || !result.hasCreateCampaign) {
     console.error("Preload bridge was not available in the GM window.");
+    process.exit(1);
+  }
+  if (!result.hasPlayerBridge || !result.playerOpenResult?.ok) {
+    console.error("Player View IPC bridge did not open successfully.");
+    process.exit(1);
+  }
+  if (!result.playerIdleDelivered || result.lastPlayerState?.type !== "idle") {
+    console.error("Player View idle-state IPC did not round trip through the main process.");
+    process.exit(1);
+  }
+  if (!Number.isInteger(result.displayCount) || result.displayCount < 1) {
+    console.error(`Expected at least one display from Electron screen API, received ${result.displayCount}.`);
     process.exit(1);
   }
 

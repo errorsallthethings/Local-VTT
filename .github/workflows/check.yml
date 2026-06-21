@@ -28,3 +28,6 @@ jobs:
 
       - name: Run checks
         run: npm run check
+
+      - name: Run Electron smoke test
+        run: npm run smoke:electron
