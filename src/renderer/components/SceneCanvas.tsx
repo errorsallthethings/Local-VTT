@@ -183,6 +183,7 @@ import {
 } from "../canvas/weatherMaskGeometry";
 import { useImageMapLoader } from "../hooks/useImageMapLoader";
 import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
+import { useSyncedRef } from "../hooks/useSyncedRef";
 import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/dragTypes";
@@ -471,10 +472,10 @@ export function SceneCanvas({
   const environmentEffectDragRef = useRef<EnvironmentEffectDrag | null>(null);
   const mapCalibrationDragRef = useRef<MapCalibrationDrag | null>(null);
   const selectionDragRef = useRef<SelectionDrag | null>(null);
-  const polygonDraftRef = useRef<FogPolygonDraft | null>(null);
-  const drawingPolygonDraftRef = useRef<DrawingPolygonDraft | null>(null);
-  const weatherPolygonDraftRef = useRef<WeatherPolygonDraft | null>(null);
-  const environmentPolygonDraftRef = useRef<EnvironmentPolygonDraft | null>(null);
+  const polygonDraftRef = useSyncedRef<FogPolygonDraft | null>(polygonDraft);
+  const drawingPolygonDraftRef = useSyncedRef<DrawingPolygonDraft | null>(drawingPolygonDraft);
+  const weatherPolygonDraftRef = useSyncedRef<WeatherPolygonDraft | null>(weatherPolygonDraft);
+  const environmentPolygonDraftRef = useSyncedRef<EnvironmentPolygonDraft | null>(environmentPolygonDraft);
   const previousSceneRef = useRef<Scene | null>(null);
   const fittedSceneCameraRef = useRef<string | null>(null);
   const autoFitCameraRef = useRef(true);
@@ -787,22 +788,6 @@ export function SceneCanvas({
   }, [canShowMap, fitGmCameraToReadyMap, mapAsset, mode, scene]);
 
   useEffect(() => {
-    polygonDraftRef.current = polygonDraft;
-  }, [polygonDraft]);
-
-  useEffect(() => {
-    drawingPolygonDraftRef.current = drawingPolygonDraft;
-  }, [drawingPolygonDraft]);
-
-  useEffect(() => {
-    weatherPolygonDraftRef.current = weatherPolygonDraft;
-  }, [weatherPolygonDraft]);
-
-  useEffect(() => {
-    environmentPolygonDraftRef.current = environmentPolygonDraft;
-  }, [environmentPolygonDraft]);
-
-  useEffect(() => {
     if (!onMapCalibrationBox) {
       setMapCalibrationDraftBox(null);
       mapCalibrationDragRef.current = null;
@@ -825,7 +810,7 @@ export function SceneCanvas({
     setBrushHoverPoint(null);
     setSnapPoint(null);
     setSceneItemHover(false);
-  }, [clearDrawingPreview, clearFogPreview, fogTool, scene?.id]);
+  }, [clearDrawingPreview, clearFogPreview, drawingPolygonDraftRef, environmentPolygonDraftRef, fogTool, polygonDraftRef, scene?.id, weatherPolygonDraftRef]);
 
   useEffect(() => {
     clearDrawingPreview();
@@ -868,13 +853,13 @@ export function SceneCanvas({
     clearWeatherMaskPreview();
     weatherPolygonDraftRef.current = null;
     setWeatherPolygonDraft(null);
-  }, [clearWeatherMaskPreview, weatherMaskTool, scene?.id]);
+  }, [clearWeatherMaskPreview, scene?.id, weatherMaskTool, weatherPolygonDraftRef]);
 
   useEffect(() => {
     clearEnvironmentEffectPreview();
     environmentPolygonDraftRef.current = null;
     setEnvironmentPolygonDraft(null);
-  }, [clearEnvironmentEffectPreview, environmentEffectTool, scene?.id]);
+  }, [clearEnvironmentEffectPreview, environmentEffectTool, environmentPolygonDraftRef, scene?.id]);
 
   useEffect(() => {
     const previousScene = previousSceneRef.current;
