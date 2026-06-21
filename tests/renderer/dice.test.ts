@@ -283,7 +283,7 @@ describe("dice helpers", () => {
         type: "dice",
         createdAt: 1
       })
-    ).toBe("11 + (11)");
+    ).toBe("(11) + 11");
     expect(
       formatDiceRollBreakdownTooltip({
         ...rollDiceExpression("d20a", () => 0.5),
@@ -405,6 +405,14 @@ describe("dice helpers", () => {
       getDiceRollTone({
         ...rollDiceExpression("d8", () => 0.999),
         id: "single-max",
+        type: "dice",
+        createdAt: 1
+      })
+    ).toBe("max");
+    expect(
+      getDiceRollTone({
+        ...rollDiceEvent("coin", () => 0.999),
+        id: "coin-tail",
         type: "dice",
         createdAt: 1
       })

@@ -82,6 +82,11 @@ type TemplateEffectTuning = {
   scale: number;
 };
 
+function disposeTransientRenderer(renderer: THREE.WebGLRenderer) {
+  renderer.forceContextLoss();
+  renderer.dispose();
+}
+
 const TEMPLATE_EFFECT_RENDERABLE_WIDTH_PX = 800;
 const TEMPLATE_EFFECT_OVERLAY_CACHE_LIMIT = 80;
 const TEMPLATE_EFFECT_TUNING_VERSION = 2;
@@ -1344,7 +1349,7 @@ function createPoisonBubbleImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;
@@ -1377,7 +1382,7 @@ function createPsychicHazeImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;
@@ -1413,7 +1418,7 @@ function createAcidSpatterImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;
@@ -1446,7 +1451,7 @@ function createArcaneGlyphImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;
@@ -1482,7 +1487,7 @@ function createColdShardImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;
@@ -1516,7 +1521,7 @@ function createLightningForkImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;
@@ -1549,7 +1554,7 @@ function createNatureThornImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;
@@ -1585,7 +1590,7 @@ function createFireTongueImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;
@@ -1615,7 +1620,7 @@ function createFogCloudImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;
@@ -1650,7 +1655,7 @@ function createDarknessMistImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;
@@ -1690,7 +1695,7 @@ function createStormCloudImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;
@@ -1723,7 +1728,7 @@ function createThunderWaveImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;
@@ -1756,7 +1761,7 @@ function createRadiantLightImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;
@@ -1789,7 +1794,7 @@ function createWaterDropletImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;
@@ -1819,7 +1824,7 @@ function createWebStrandImage(): HTMLCanvasElement | null {
     }
     renderer.render(scene, camera);
     disposeScene(scene);
-    renderer.dispose();
+    disposeTransientRenderer(renderer);
     return canvas;
   } catch {
     return null;

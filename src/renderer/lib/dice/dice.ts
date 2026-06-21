@@ -133,6 +133,34 @@ export function updateDiceRollHistory(
   return [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, maxHistory);
 }
 
+export function annotateKeptDiceForFormula(formula: string | undefined, dice: DiceVisualRoll[]): DiceVisualRoll[] {
+  if (!formula) {
+    return dice.map((die) => ({ ...die, kept: die.kept ?? true }));
+  }
+  const normalizedExpression = formula.trim().toLowerCase().replace(/\s+/g, "");
+  const terms = parseExpressionTerms(normalizedExpression).filter((term): term is DiceExpressionDiceTerm => term.kind === "dice");
+  let cursor = 0;
+  const annotated = dice.map((die) => ({ ...die, kept: true }));
+  for (const term of terms) {
+    const [, countText, sidesText, modeText, keepHighText, keepLowText, dropHighText, dropLowText] = term.match;
+    const count = countText ? Number(countText) : 1;
+    const die = normalizeExpressionDie(sidesText);
+    const mode = normalizeRollMode(modeText);
+    const effectiveCount = mode === "advantage" || mode === "disadvantage" ? 2 : count;
+    const segment = annotated.slice(cursor, cursor + effectiveCount);
+    cursor += effectiveCount;
+    if (segment.length !== effectiveCount || die === "d00") {
+      continue;
+    }
+    const keepCount = getKeepCount(mode, keepHighText, keepLowText, dropHighText, dropLowText, effectiveCount);
+    const keptIndexes = getKeptIndexes(segment, mode, keepCount);
+    segment.forEach((_visual, index) => {
+      annotated[cursor - effectiveCount + index].kept = keptIndexes.has(index);
+    });
+  }
+  return annotated;
+}
+
 function rollDiceTerm(term: DiceExpressionDiceTerm, random: () => number): { die: DiceType; total: number; dice: DiceVisualRoll[] } {
   const [, countText, sidesText, modeText, keepHighText, keepLowText, dropHighText, dropLowText] = term.match;
   const count = countText ? Number(countText) : 1;
@@ -251,6 +279,9 @@ export function getDiceRollTone(event: Extract<LiveTableEvent, { type: "dice" }>
   }
   if (event.die === "d00") {
     return getEventPercentileTotal(event) === 100 ? "max" : "normal";
+  }
+  if (dice.length === 1 && dice[0] && dice[0].die !== "coin" && dice[0].die !== "d20" && getDiceVisualValue(dice[0]) === getDieSides(dice[0].die)) {
+    return "max";
   }
   return "normal";
 }
@@ -416,11 +447,16 @@ function getDropKeepCount(dropCount: number, count: number): number {
 
 function getKeptIndexes(dice: DiceVisualRoll[], mode: RollMode, keepCount: number): Set<number> {
   const sorted = dice
-    .map((die, index) => ({ index, result: die.result }))
+    .map((die, index) => ({ index, result: die.result, tieBreaker: getDiceTieBreaker(die, index) }))
     .sort((a, b) =>
-      mode === "disadvantage" || mode === "keep-low" || mode === "drop-high" ? a.result - b.result || a.index - b.index : b.result - a.result || a.index - b.index
+      mode === "disadvantage" || mode === "keep-low" || mode === "drop-high" ? a.result - b.result || a.tieBreaker - b.tieBreaker : b.result - a.result || a.tieBreaker - b.tieBreaker
     );
   return new Set(sorted.slice(0, keepCount).map((die) => die.index));
+}
+
+function getDiceTieBreaker(die: DiceVisualRoll, index: number): number {
+  const value = Math.sin((die.seed + index + 1) * 12000.9898) * 43758.5453;
+  return value - Math.floor(value);
 }
 
 function normalizeExpressionDie(sidesText: string): DiceType {

@@ -1361,18 +1361,31 @@ export function SceneCanvas({
     onSelectSceneItems?.({ ...selection, mode: drag.mode });
   };
 
-  const onWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
+  const onWheel = useCallback((event: WheelEvent) => {
     if (!interactive) {
       return;
     }
     event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
 
     autoFitCameraRef.current = false;
-    setCamera(getCameraForWheelZoom({ camera, mouseX, mouseY, deltaY: event.deltaY }));
-  };
+    setCamera((currentCamera) => getCameraForWheelZoom({ camera: currentCamera, mouseX, mouseY, deltaY: event.deltaY }));
+  }, [interactive]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return undefined;
+    }
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onWheel);
+  }, [onWheel]);
 
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     setTokenContextMenu(null);
@@ -2553,7 +2566,6 @@ export function SceneCanvas({
       <canvas
         ref={canvasRef}
         className={`scene-canvas ${getCanvasInteractionClass({ canvasTool, mouseBehavior, drawingTool, fogTool, weatherMaskTool, environmentEffectTool, isPanning, tokenDragPreview, drawingTransformHover, sceneItemHover })}`}
-        onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
