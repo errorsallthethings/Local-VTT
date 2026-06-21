@@ -194,12 +194,17 @@ function drawFeatheredEnvironmentEffect(
   resetFeatherCompositeContext(effectCtx, width, height);
 
   const path = getEnvironmentEffectPath(effect, camera);
+  const bounds = getEnvironmentEffectBounds(effect);
+  if (!bounds) {
+    return;
+  }
+  const screenBounds = worldRectToScreen(bounds, camera);
   effectCtx.save();
   effectCtx.clip(path);
   drawEnvironmentEffectContent(effectCtx, effect, camera, timestamp, layerOpacity, tuningOverrides);
   effectCtx.restore();
 
-  applyEnvironmentEffectFeather(effectCtx, effect, camera, feather);
+  applyEnvironmentEffectFeather(effectCtx, effect, camera, feather, path, screenBounds);
   ctx.drawImage(effectCanvas, 0, 0, width, height);
 }
 
@@ -233,13 +238,14 @@ function drawEnvironmentEffectContent(
   drawEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides);
 }
 
-function applyEnvironmentEffectFeather(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, feather: number) {
-  const path = getEnvironmentEffectPath(effect, camera);
-  const bounds = getEnvironmentEffectBounds(effect);
-  if (!bounds) {
-    return;
-  }
-  const screenBounds = worldRectToScreen(bounds, camera);
+function applyEnvironmentEffectFeather(
+  ctx: CanvasRenderingContext2D,
+  effect: EnvironmentEffectMask,
+  camera: Camera,
+  feather: number,
+  path: Path2D,
+  screenBounds: { x: number; y: number; width: number; height: number }
+) {
   const shortestEdge = Math.max(1, Math.min(Math.abs(screenBounds.width), Math.abs(screenBounds.height)));
   const featherPx = Math.max(10, shortestEdge * (0.06 + feather * 0.34));
 
