@@ -21,7 +21,7 @@ import {
   SHIFT_WAYPOINT_HINT,
   TOKEN_MOVE_COMPLETE_HINT
 } from "../../lib/toolCopy";
-import type { DrawingTemplateSize, EnvironmentEffectTool, WeatherMaskTool } from "../tools/ToolsMenu";
+import type { DrawingTemplateSize, EnvironmentEffectTool, WeatherMaskTool } from "../tools";
 
 export function MapLoadOverlay({ message, showSpinner }: { message: string; showSpinner: boolean }) {
   return (

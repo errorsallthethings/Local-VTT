@@ -1,6 +1,6 @@
-import type { DrawingStrokeStyle, DrawingTemplateEffect } from "../../../shared/localvtt";
-import type { DrawingTool } from "../../canvas/drawings";
-import { ColorInput } from "../controls/ColorPickerField";
+import type { DrawingStrokeStyle, DrawingTemplateEffect } from "../../../../shared/localvtt";
+import type { DrawingTool } from "../../../canvas/drawings";
+import { ColorInput } from "../../controls/ColorPickerField";
 import { getPresetSelectValue, hasPresetValue } from "./toolPresetOptions";
 
 export type DrawingTemplateSize = "custom" | 5 | 10 | 15 | 20 | 30 | 60 | 100;

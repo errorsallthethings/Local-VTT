@@ -19,8 +19,8 @@ import type {
   SmokeEffectTuning,
   VoidEffectTuning,
   WaterEffectTuning
-} from "../../canvas/effects";
-import { ColorInput } from "../controls/ColorPickerField";
+} from "../../../canvas/effects";
+import { ColorInput } from "../../controls/ColorPickerField";
 
 export function WaterEffectTuningPanel({
   tuning,

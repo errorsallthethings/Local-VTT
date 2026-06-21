@@ -233,7 +233,7 @@ import {
   TokenMoveStatusStrip,
   WeatherMaskStatusStrip
 } from "./scene/SceneCanvasStatusStrips";
-import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools/ToolsMenu";
+import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
 const WEATHER_ONLY_FRAME_INTERVAL_MS = 50;

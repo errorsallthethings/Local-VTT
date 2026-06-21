@@ -24,16 +24,16 @@ import {
   Type,
   Undo2,
 } from "lucide-react";
-import type { DrawingTool } from "../../canvas/drawings";
-import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType } from "../../../shared/localvtt";
-import type { FogTool } from "../../canvas/fog";
-import { DrawingSettings, type DrawingTemplateSize, type DrawingTemplateWidth } from "./DrawingToolSettings";
-import { AcidEffectTuningPanel, ArcaneEffectTuningPanel, ChaosEffectTuningPanel, ColdEffectTuningPanel, DarknessEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, NatureEffectTuningPanel, PoisonEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, VoidEffectTuningPanel, WaterEffectTuningPanel } from "./EnvironmentEffectTuningPanels";
-import { FogBrushSettings } from "./FogBrushSettings";
-import { SelectorFilterCheckbox, SelectorSelectionActions, SelectorSelectionSummary, type SelectorSelectionCounts, type SelectorSelectionFilters } from "./SelectorToolControls";
-import { TableToolSettings } from "./TableToolSettings";
-import { ToolHelpCard, type ToolHelpTopic } from "./ToolHelpCard";
-import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DarknessEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../../canvas/effects";
+import type { DrawingTool } from "../../../canvas/drawings";
+import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType } from "../../../../shared/localvtt";
+import type { FogTool } from "../../../canvas/fog";
+import { DrawingSettings, type DrawingTemplateSize, type DrawingTemplateWidth } from "../settings/DrawingToolSettings";
+import { AcidEffectTuningPanel, ArcaneEffectTuningPanel, ChaosEffectTuningPanel, ColdEffectTuningPanel, DarknessEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, NatureEffectTuningPanel, PoisonEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, VoidEffectTuningPanel, WaterEffectTuningPanel } from "../effects/EnvironmentEffectTuningPanels";
+import { FogBrushSettings } from "../settings/FogBrushSettings";
+import { SelectorFilterCheckbox, SelectorSelectionActions, SelectorSelectionSummary, type SelectorSelectionCounts, type SelectorSelectionFilters } from "../settings/SelectorToolControls";
+import { TableToolSettings } from "../settings/TableToolSettings";
+import { ToolHelpCard, type ToolHelpTopic } from "../settings/ToolHelpCard";
+import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DarknessEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../../../canvas/effects";
 import {
   ENVIRONMENT_EFFECT_FEATHER_OPTIONS,
   ENVIRONMENT_EFFECT_OPTIONS,
@@ -41,14 +41,14 @@ import {
   formatEnvironmentEffectOptionLabel,
   getEnvironmentEffectFeatherSelectValue,
   getEnvironmentEffectPresetOptions
-} from "../../lib/environmentEffectOptions";
+} from "../../../lib/environmentEffectOptions";
 
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";
 export type WeatherMaskTool = "rectangle" | "circle" | "polygon";
 export type EnvironmentEffectTool = "rectangle" | "circle" | "polygon";
-export type { DrawingTemplateSize, DrawingTemplateWidth } from "./DrawingToolSettings";
-export type { SelectorSelectionCounts, SelectorSelectionFilters } from "./SelectorToolControls";
+export type { DrawingTemplateSize, DrawingTemplateWidth } from "../settings/DrawingToolSettings";
+export type { SelectorSelectionCounts, SelectorSelectionFilters } from "../settings/SelectorToolControls";
 type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
 type ToolCategory = "mouse" | "drawing" | "templates" | "text" | "table" | "dice" | "turn-order" | "pin" | "fog" | "effects" | "lighting";
 export type MouseBehavior = "selector" | "grabber";

@@ -1,4 +1,4 @@
-import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../lib/toolCopy";
+import { getDrawingHelpLines, getFogHelpLines, getTableHelpLines, getTemplateHelpLines, getWeatherHelpLines } from "../../../lib/toolCopy";
 
 export type ToolHelpTopic = "drawing" | "templates" | "fog" | "effects" | "table";
 

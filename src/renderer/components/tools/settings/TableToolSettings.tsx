@@ -1,4 +1,4 @@
-import { ColorInput } from "../controls/ColorPickerField";
+import { ColorInput } from "../../controls/ColorPickerField";
 import { getPresetSelectValue, hasPresetValue } from "./toolPresetOptions";
 
 type CanvasTool = "ruler" | "ping" | "laser";
