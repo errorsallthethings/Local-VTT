@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { projectSceneForPlayer } from "../../shared/localvtt";
 import type { Campaign, CampaignSummary, Scene } from "../../shared/localvtt";
 import { mergeCampaignDraft } from "../lib/campaignDraft";
 import { formatUserFacingError } from "../lib/errorMessages";
 import { showDefaultPlayerHold } from "../lib/playerIdleState";
+import { updatePlayerSceneIfOpen } from "../lib/playerViewSync";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -92,7 +92,7 @@ export function useCampaignWorkspace() {
     setSaveState("idle");
     if (syncCampaign) {
       // Build the Player View projection in the renderer so dev hot reload and shared model changes stay in sync.
-      void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(syncCampaign, syncScene));
+      void updatePlayerSceneIfOpen(window.localVtt, syncCampaign, syncScene);
     }
   };
 
@@ -101,7 +101,7 @@ export function useCampaignWorkspace() {
     setCampaignDirty(true);
     if (syncScene) {
       // Campaign-level settings, such as Player Display Scale, still need a scene projection to update Player View.
-      void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(nextCampaign, syncScene));
+      void updatePlayerSceneIfOpen(window.localVtt, nextCampaign, syncScene);
     }
   };
 
