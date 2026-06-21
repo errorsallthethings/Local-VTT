@@ -79,7 +79,7 @@ import {
   getRulerPathPoints,
   type RulerDrag
 } from "../canvas/measurement";
-import { getPointAlongPath, removeLastWaypoint } from "../canvas/movementPath";
+import { removeLastWaypoint } from "../canvas/movementPath";
 import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint, updatePolygonDraftCurrent } from "../canvas/polygonDraft";
 import {
   formatDefaultEnvironmentEffectName,
@@ -129,9 +129,8 @@ import {
   getTokenDragStart,
   getTokenDragPreviewFromPoint,
   getTokenDragWithAppendedWaypoint,
-  getTokenMovementTweens,
 } from "../canvas/tokenMovement";
-import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
+import { drawTokenDragHighlights, drawTokens, type TokenDragPreview } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
 import { clientToWorldPoint, eventToWorldPoint, getCanvasViewportCenter, isSnapModifier } from "../canvas/viewportGeometry";
 import {
@@ -182,6 +181,7 @@ import {
 } from "../canvas/weatherMaskGeometry";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useImageMapLoader } from "../hooks/useImageMapLoader";
+import { usePlayerTokenTweens } from "../hooks/usePlayerTokenTweens";
 import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
 import { useSyncedRef } from "../hooks/useSyncedRef";
 import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
@@ -441,7 +441,6 @@ export function SceneCanvas({
   const [releasedRulerDrag, setReleasedRulerDrag] = useState<RulerDrag | null>(null);
   const [tokenDragPreview, setTokenDragPreview] = useState<TokenDragPreview | null>(null);
   const [drawingDragPreview, setDrawingDragPreview] = useState<DrawingPointOverrides | null>(null);
-  const [playerTokenTweenPositions, setPlayerTokenTweenPositions] = useState<TokenPositionOverrides | null>(null);
   const [polygonDraft, setPolygonDraft] = useState<FogPolygonDraft | null>(null);
   const [drawingPolygonDraft, setDrawingPolygonDraft] = useState<DrawingPolygonDraft | null>(null);
   const [weatherPolygonDraft, setWeatherPolygonDraft] = useState<WeatherPolygonDraft | null>(null);
@@ -476,11 +475,8 @@ export function SceneCanvas({
   const drawingPolygonDraftRef = useSyncedRef<DrawingPolygonDraft | null>(drawingPolygonDraft);
   const weatherPolygonDraftRef = useSyncedRef<WeatherPolygonDraft | null>(weatherPolygonDraft);
   const environmentPolygonDraftRef = useSyncedRef<EnvironmentPolygonDraft | null>(environmentPolygonDraft);
-  const previousSceneRef = useRef<Scene | null>(null);
   const fittedSceneCameraRef = useRef<string | null>(null);
   const autoFitCameraRef = useRef(true);
-  // Player View tween state is mirrored in a ref so requestAnimationFrame can draw without stale React closures.
-  const playerTokenTweenPositionsRef = useRef<TokenPositionOverrides | null>(null);
   const activeTableTools = tableTools ?? scene?.tableTools ?? DEFAULT_TABLE_TOOLS;
   const activeFogBrushSize = fogBrushSize ?? scene?.fog.brushSize ?? 80;
 
@@ -626,6 +622,7 @@ export function SceneCanvas({
     return getTokenImageSourceKey(tokenAssets);
   }, [tokenAssets]);
   const { failedTokenImageIds, loadedTokenImages } = useTokenImageLoader(tokenImageSourceKey);
+  const { tokenTweenPositions: playerTokenTweenPositions, tokenTweenPositionsRef: playerTokenTweenPositionsRef } = usePlayerTokenTweens(scene, mode);
   const effectiveSelectedTokenIds = useMemo(() => getSelectedItemIdList(selectedTokenId, selectedTokenIds), [selectedTokenId, selectedTokenIds]);
   const effectiveSelectedTokenIdSet = useMemo(() => getSelectedItemIds(selectedTokenId, selectedTokenIds), [selectedTokenId, selectedTokenIds]);
   const effectiveSelectedDrawingIds = useMemo(() => getSelectedItemIdList(selectedDrawingId, selectedDrawingIds), [selectedDrawingId, selectedDrawingIds]);
@@ -860,63 +857,6 @@ export function SceneCanvas({
     environmentPolygonDraftRef.current = null;
     setEnvironmentPolygonDraft(null);
   }, [clearEnvironmentEffectPreview, environmentEffectTool, environmentPolygonDraftRef, scene?.id]);
-
-  useEffect(() => {
-    const previousScene = previousSceneRef.current;
-    previousSceneRef.current = scene;
-
-    if (mode !== "player" || !previousScene || !scene || previousScene.id !== scene.id) {
-      playerTokenTweenPositionsRef.current = null;
-      setPlayerTokenTweenPositions(null);
-      return;
-    }
-
-    // Only Player View animates committed token moves; GM View uses the live drag preview instead.
-    const tweens = getTokenMovementTweens(previousScene.tokens, scene.tokens, scene);
-    if (tweens.length === 0) {
-      playerTokenTweenPositionsRef.current = null;
-      setPlayerTokenTweenPositions(null);
-      return;
-    }
-
-    let animationFrame = 0;
-    let cancelled = false;
-    const durationMs = Math.max(...tweens.map((tween) => tween.durationMs));
-    const startedAt = performance.now();
-
-    const animate = (timestamp: number) => {
-      if (cancelled) {
-        return;
-      }
-      const tweenPositions = new Map(
-        tweens.map((tween) => {
-          const progress = Math.min(1, (timestamp - startedAt) / tween.durationMs);
-          return [tween.id, getPointAlongPath(tween.points, tween.distance * progress)];
-        })
-      );
-      playerTokenTweenPositionsRef.current = tweenPositions;
-      setPlayerTokenTweenPositions(tweenPositions);
-
-      if (timestamp - startedAt < durationMs) {
-        animationFrame = window.requestAnimationFrame(animate);
-      } else {
-        playerTokenTweenPositionsRef.current = null;
-        setPlayerTokenTweenPositions(null);
-      }
-    };
-
-    const initialTweenPositions = new Map(tweens.map((tween) => [tween.id, tween.points[0]]));
-    playerTokenTweenPositionsRef.current = initialTweenPositions;
-    setPlayerTokenTweenPositions(initialTweenPositions);
-    animationFrame = window.requestAnimationFrame(animate);
-    return () => {
-      cancelled = true;
-      playerTokenTweenPositionsRef.current = null;
-      if (animationFrame) {
-        window.cancelAnimationFrame(animationFrame);
-      }
-    };
-  }, [mode, scene]);
 
   useEffect(() => {
     if (mode !== "gm" || (!tokenDragPreview && !drawingDragPreview && !rulerDrag && !fogPreview && !drawingPreview && !environmentEffectPreview)) {
@@ -1237,7 +1177,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, coldEffectTuning, darknessEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, effectiveSelectedDrawingIds, effectiveSelectedFogShapeIds, effectiveSelectedTokenIds, effectiveSelectedWeatherMaskIds, environmentEffectFeather, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedTokenId, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, coldEffectTuning, darknessEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, effectiveSelectedDrawingIds, effectiveSelectedFogShapeIds, effectiveSelectedTokenIds, effectiveSelectedWeatherMaskIds, environmentEffectFeather, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, playerTokenTweenPositionsRef, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedTokenId, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
