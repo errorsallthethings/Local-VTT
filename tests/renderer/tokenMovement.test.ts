@@ -4,6 +4,7 @@ import {
   getSceneAfterTokenDrag,
   getTokenDragStart,
   getTokenDragPreviewFromPoint,
+  getTokenDragWithAppendedWaypoint,
   getTokenMovementPath,
   getTokenMovementTweens,
   getTokenWaypointPosition,
@@ -240,5 +241,27 @@ describe("token movement helpers", () => {
     const sceneToken = token({ size: { width: 50, height: 50 } });
 
     expect(getTokenWaypointPosition({ x: 30, y: 35 }, sceneToken, scene)).toEqual({ x: 25, y: 25 });
+  });
+
+  it("appends snapped token drag waypoints", () => {
+    const scene = createDefaultScene("Waypoint");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 100;
+    scene.grid.offsetX = 0;
+    scene.grid.offsetY = 0;
+    const sceneToken = token({ size: { width: 50, height: 50 } });
+    const drag = {
+      pointerId: 1,
+      tokenId: sceneToken.id,
+      offset: { x: 0, y: 0 },
+      startPosition: { x: 0, y: 0 },
+      waypoints: [],
+      groupStartPositions: new Map([[sceneToken.id, { x: 0, y: 0 }]])
+    };
+
+    const nextDrag = getTokenDragWithAppendedWaypoint(scene, drag, sceneToken, { x: 130, y: 135 });
+
+    expect(nextDrag).not.toBe(drag);
+    expect(nextDrag.waypoints).toEqual([{ x: 125, y: 125 }]);
   });
 });

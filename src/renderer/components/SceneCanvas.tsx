@@ -128,9 +128,8 @@ import {
   getSceneAfterTokenDrag,
   getTokenDragStart,
   getTokenDragPreviewFromPoint,
+  getTokenDragWithAppendedWaypoint,
   getTokenMovementTweens,
-  getTokenWaypointPosition,
-  isDuplicateTokenWaypoint
 } from "../canvas/tokenMovement";
 import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
 import { getVideoTransform } from "../canvas/videoMap";
@@ -945,9 +944,7 @@ export function SceneCanvas({
       }
 
       event.preventDefault();
-      const waypoint = getTokenWaypointPosition(tokenDragPreview.currentPosition, token, scene);
-      const previousRoutePosition = tokenDrag.waypoints[tokenDrag.waypoints.length - 1] ?? tokenDrag.startPosition;
-      const nextTokenDrag = appendWaypoint(tokenDrag, waypoint, previousRoutePosition, (previousPosition, nextWaypoint) => isDuplicateTokenWaypoint(previousPosition, nextWaypoint, token, scene));
+      const nextTokenDrag = getTokenDragWithAppendedWaypoint(scene, tokenDrag, token, tokenDragPreview.currentPosition);
       if (nextTokenDrag === tokenDrag) {
         return;
       }

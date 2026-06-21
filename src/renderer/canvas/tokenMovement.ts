@@ -1,6 +1,6 @@
 import type { Point, Scene, Token } from "../../shared/localvtt";
 import { getNearestGridCellCenter, getNearestHexCenter, getSnappedTokenPosition, distanceBetween } from "./tokenGeometry";
-import { getPathDistance, normalizeMovementPath } from "./movementPath";
+import { appendWaypoint, getPathDistance, normalizeMovementPath } from "./movementPath";
 import { updateSceneTokenPositions } from "../lib/sceneEditing";
 import type { TokenDragState } from "./sceneInteractionTypes";
 import type { TokenDragPreview } from "./tokenRenderer";
@@ -96,6 +96,12 @@ export function getTokenDragPreviewFromPoint(scene: Scene, tokenDrag: TokenDragS
     waypoints: tokenDrag.waypoints,
     tokenPositions
   };
+}
+
+export function getTokenDragWithAppendedWaypoint(scene: Scene, tokenDrag: TokenDragState, token: Token, currentPosition: Point): TokenDragState {
+  const waypoint = getTokenWaypointPosition(currentPosition, token, scene);
+  const previousRoutePosition = tokenDrag.waypoints[tokenDrag.waypoints.length - 1] ?? tokenDrag.startPosition;
+  return appendWaypoint(tokenDrag, waypoint, previousRoutePosition, (previousPosition, nextWaypoint) => isDuplicateTokenWaypoint(previousPosition, nextWaypoint, token, scene));
 }
 
 export function getTokenMovementTweens(previousTokens: Token[], nextTokens: Token[], scene: Scene): TokenTween[] {
