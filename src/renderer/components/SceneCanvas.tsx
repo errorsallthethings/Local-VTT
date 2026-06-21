@@ -115,7 +115,7 @@ import {
 import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/environmentEffectLayerRenderer";
 import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/sceneHitTesting";
 import { getSceneLayerVisibility } from "../canvas/sceneLayerVisibility";
-import { getNearestSceneSnapPoint, getRulerSnapPoint, resolveDrawingToolPoint, resolveSceneToolPoint, shouldShowSceneSnapPreview } from "../canvas/sceneSnapping";
+import { getNearestSceneSnapPoint, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/sceneSnapping";
 import { getSelectedItemIdList, getSelectedItemIds } from "../lib/selectionIds";
 import {
   getDrawingElementFromPreview,
@@ -2065,23 +2065,17 @@ export function SceneCanvas({
   };
 
   const getToolPoint = (event: React.PointerEvent<HTMLCanvasElement>, snapEnabled = true): Point => {
-    const worldPoint = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-    const result = resolveSceneToolPoint(worldPoint, scene, snapEnabled, isSnapModifier(event));
+    const result = resolveSceneToolEventPoint(event, getRenderCamera(camera, playerDisplayScale), scene, snapEnabled);
     setSnapPoint(result.snapPoint);
     return result.point;
   };
 
   const getRulerPoint = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
-    const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-    if (!scene || !isSnapModifier(event)) {
-      return point;
-    }
-    return getRulerSnapPoint(point, scene) ?? point;
+    return resolveRulerEventPoint(event, getRenderCamera(camera, playerDisplayScale), scene);
   };
 
   const getDrawingToolPoint = (event: React.PointerEvent<HTMLCanvasElement>, tool: DrawingTool): Point => {
-    const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-    const result = resolveDrawingToolPoint(point, scene, tool !== "freehand", isSnapModifier(event));
+    const result = resolveDrawingToolEventPoint(event, getRenderCamera(camera, playerDisplayScale), scene, tool !== "freehand");
     setSnapPoint(result.snapPoint);
     return result.point;
   };

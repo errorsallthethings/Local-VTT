@@ -4,12 +4,19 @@ import { constrainSquarePoint } from "../../src/renderer/canvas/gridMath";
 import {
   getNearestSceneSnapPoint,
   getRulerSnapPoint,
+  resolveDrawingToolEventPoint,
   resolveDrawingToolPoint,
+  resolveRulerEventPoint,
+  resolveSceneToolEventPoint,
   resolveSceneToolPoint,
   shouldShowSceneSnapPreview
 } from "../../src/renderer/canvas/sceneSnapping";
 
 describe("scene snapping", () => {
+  const eventTarget = {
+    getBoundingClientRect: () => ({ left: 10, top: 20, width: 800, height: 600 })
+  };
+
   it("returns null for gridless scenes or invalid grid sizes", () => {
     const scene = createDefaultScene("Gridless");
     scene.grid.type = "gridless";
@@ -57,6 +64,35 @@ describe("scene snapping", () => {
     });
     expect(resolveSceneToolPoint({ x: 11, y: 21 }, scene, false, true)).toEqual({
       point: { x: 11, y: 21 },
+      snapPoint: null
+    });
+  });
+
+  it("resolves scene tool event points through the camera before snapping", () => {
+    const scene = createDefaultScene("Square");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 50;
+    scene.grid.offsetX = 0;
+    scene.grid.offsetY = 0;
+    const event = { currentTarget: eventTarget, clientX: 85, clientY: 95, ctrlKey: true, metaKey: false };
+
+    expect(resolveSceneToolEventPoint(event, { x: 0, y: 0, zoom: 1 }, scene, true)).toEqual({
+      point: { x: 75, y: 75 },
+      snapPoint: { x: 75, y: 75 }
+    });
+  });
+
+  it("resolves ruler and drawing event points with their snap rules", () => {
+    const scene = createDefaultScene("Square");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 50;
+    scene.grid.offsetX = 0;
+    scene.grid.offsetY = 0;
+    const event = { currentTarget: eventTarget, clientX: 85, clientY: 95, ctrlKey: true, metaKey: false };
+
+    expect(resolveRulerEventPoint(event, { x: 0, y: 0, zoom: 1 }, scene)).toEqual({ x: 75, y: 75 });
+    expect(resolveDrawingToolEventPoint(event, { x: 0, y: 0, zoom: 1 }, scene, false)).toEqual({
+      point: { x: 75, y: 75 },
       snapPoint: null
     });
   });

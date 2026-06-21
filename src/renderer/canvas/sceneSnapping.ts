@@ -1,6 +1,8 @@
 import type { Point, Scene } from "../../shared/localvtt";
+import type { Camera } from "./camera";
 import { getNearestSquareGridSnapPoint } from "./gridMath";
 import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex } from "./tokenGeometry";
+import { eventToWorldPoint, isSnapModifier, type CanvasPointerLike } from "./viewportGeometry";
 
 export interface SceneSnapResult {
   point: Point;
@@ -51,6 +53,22 @@ export function resolveDrawingToolPoint(point: Point, scene: Scene | null, canSn
     point: snapPoint ?? point,
     snapPoint
   };
+}
+
+export function resolveSceneToolEventPoint(event: CanvasPointerLike, camera: Camera, scene: Scene | null, snapEnabled = true): SceneSnapResult {
+  return resolveSceneToolPoint(eventToWorldPoint(event, camera), scene, snapEnabled, isSnapModifier(event));
+}
+
+export function resolveRulerEventPoint(event: CanvasPointerLike, camera: Camera, scene: Scene | null): Point {
+  const point = eventToWorldPoint(event, camera);
+  if (!scene || !isSnapModifier(event)) {
+    return point;
+  }
+  return getRulerSnapPoint(point, scene) ?? point;
+}
+
+export function resolveDrawingToolEventPoint(event: CanvasPointerLike, camera: Camera, scene: Scene | null, canSnap: boolean): SceneSnapResult {
+  return resolveDrawingToolPoint(eventToWorldPoint(event, camera), scene, canSnap, isSnapModifier(event));
 }
 
 export function shouldShowSceneSnapPreview(options: {
