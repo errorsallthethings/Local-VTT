@@ -27,7 +27,7 @@ import {
   LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE
 } from "./assetProtocol.js";
 import { createImageMapThumbnail, createSquareImageThumbnail, createVideoMapThumbnail } from "./assets.js";
-import { formatMetadataReadError } from "./metadataErrors.js";
+import { formatMetadataReadError, formatMetadataWriteError } from "./metadataErrors.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isDev = !app.isPackaged && !isSmokeTest;
@@ -291,21 +291,29 @@ async function ensureMapThumbnails(campaignPath: string, campaign: Campaign): Pr
 }
 
 async function writeCampaign(campaignPath: string, campaign: Campaign): Promise<void> {
-  await ensureCampaignFolders(campaignPath);
-  await backupExistingMetadataFile(campaignPath, campaignFile(campaignPath), campaignBackupFolder(campaignPath), "campaign.json");
-  const normalizedCampaign = normalizeCampaign(campaign);
-  const portable: Campaign = {
-    ...normalizedCampaign,
-    assets: normalizedCampaign.assets.map(({ absolutePath: _absolutePath, thumbnailAbsolutePath: _thumbnailAbsolutePath, ...asset }) => asset)
-  };
-  await writeFile(campaignFile(campaignPath), `${JSON.stringify(portable, null, 2)}\n`, "utf8");
+  try {
+    await ensureCampaignFolders(campaignPath);
+    await backupExistingMetadataFile(campaignPath, campaignFile(campaignPath), campaignBackupFolder(campaignPath), "campaign.json");
+    const normalizedCampaign = normalizeCampaign(campaign);
+    const portable: Campaign = {
+      ...normalizedCampaign,
+      assets: normalizedCampaign.assets.map(({ absolutePath: _absolutePath, thumbnailAbsolutePath: _thumbnailAbsolutePath, ...asset }) => asset)
+    };
+    await writeFile(campaignFile(campaignPath), `${JSON.stringify(portable, null, 2)}\n`, "utf8");
+  } catch (caught) {
+    throw formatMetadataWriteError("campaign", caught);
+  }
 }
 
 async function writeScene(campaignPath: string, scene: Scene): Promise<void> {
-  await ensureCampaignFolders(campaignPath);
-  await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, scene.id), sceneBackupFolder(campaignPath, scene.id), `${scene.id}.scene.json`);
-  const normalizedScene = normalizeScene(scene);
-  await writeFile(sceneFile(campaignPath, normalizedScene.id), `${JSON.stringify(normalizedScene, null, 2)}\n`, "utf8");
+  try {
+    await ensureCampaignFolders(campaignPath);
+    await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, scene.id), sceneBackupFolder(campaignPath, scene.id), `${scene.id}.scene.json`);
+    const normalizedScene = normalizeScene(scene);
+    await writeFile(sceneFile(campaignPath, normalizedScene.id), `${JSON.stringify(normalizedScene, null, 2)}\n`, "utf8");
+  } catch (caught) {
+    throw formatMetadataWriteError("scene", caught);
+  }
 }
 
 async function pauseActiveTurnOrders(campaignPath: string): Promise<void> {

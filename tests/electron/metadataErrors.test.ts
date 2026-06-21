@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMetadataReadError } from "../../electron/metadataErrors";
+import { formatMetadataReadError, formatMetadataWriteError } from "../../electron/metadataErrors";
 
 describe("formatMetadataReadError", () => {
   it("adds campaign backup guidance to metadata parse errors", () => {
@@ -15,6 +15,15 @@ describe("formatMetadataReadError", () => {
 
     expect(error.message).toBe(
       "Scene metadata could not be read. Metadata backups may exist in C:\\Campaign\\backups\\scenes\\scene-1. Unexpected end of JSON input"
+    );
+  });
+
+  it("adds metadata kind context to save errors", () => {
+    expect(formatMetadataWriteError("campaign", new Error("ENOSPC: no space left on device, write")).message).toBe(
+      "Campaign metadata could not be saved. ENOSPC: no space left on device, write"
+    );
+    expect(formatMetadataWriteError("scene", new Error("EACCES: permission denied, open 'scene.json'")).message).toBe(
+      "Scene metadata could not be saved. EACCES: permission denied, open 'scene.json'"
     );
   });
 });

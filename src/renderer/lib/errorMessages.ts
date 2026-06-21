@@ -2,6 +2,12 @@ export function formatUserFacingError(caught: unknown): string {
   const rawMessage = caught instanceof Error ? caught.message : String(caught || "");
   const message = stripElectronIpcPrefix(rawMessage);
 
+  if (message.includes("Campaign metadata could not be read") || message.includes("Scene metadata could not be read")) {
+    return message;
+  }
+  if (message.includes("Campaign metadata could not be saved") || message.includes("Scene metadata could not be saved")) {
+    return message;
+  }
   if (message.includes("ENOENT") || message.includes("no such file or directory")) {
     return "That file or folder could not be found. It may have been moved, renamed, or deleted.";
   }
@@ -16,9 +22,6 @@ export function formatUserFacingError(caught: unknown): string {
   }
   if (message.includes("ENOSPC") || message.includes("no space left on device")) {
     return "There is not enough free disk space to save that change. Free up space and try again.";
-  }
-  if (message.includes("Campaign metadata could not be read") || message.includes("Scene metadata could not be read")) {
-    return message;
   }
   if (message.includes("Unexpected end of JSON input")) {
     return "That campaign or scene file appears to be incomplete or corrupted. Check the campaign backups folder for a previous copy.";

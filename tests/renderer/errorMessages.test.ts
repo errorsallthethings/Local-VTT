@@ -26,6 +26,14 @@ describe("formatUserFacingError", () => {
     expect(formatUserFacingError(new Error(message))).toBe(message);
   });
 
+  it("keeps metadata save context before matching generic filesystem errors", () => {
+    const campaignMessage = "Campaign metadata could not be saved. ENOSPC: no space left on device, write";
+    const sceneMessage = "Scene metadata could not be saved. EACCES: permission denied, open 'scene.json'";
+
+    expect(formatUserFacingError(new Error(campaignMessage))).toBe(campaignMessage);
+    expect(formatUserFacingError(new Error(sceneMessage))).toBe(sceneMessage);
+  });
+
   it("turns permission errors into an actionable message", () => {
     expect(formatUserFacingError(new Error("EACCES: permission denied, open 'C:\\Campaign\\campaign.json'"))).toBe(
       "Local VTT does not have permission to access that file or folder. Check the folder permissions or choose a different location."
