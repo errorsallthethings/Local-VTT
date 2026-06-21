@@ -223,17 +223,24 @@ export function WorkspaceTopbar({
   }, [dicePanelOpen, onDicePanelOpenChange]);
 
   useEffect(() => {
-    if (!dicePanelOpen || !dicePanelPosition) {
+    if (!dicePanelOpen) {
       return;
     }
-    setDicePanelPosition((position) => {
-      if (!position) {
-        return position;
-      }
-      const nextPosition = clampDicePanelPosition(position.x, position.y, dicePopoverRef.current?.getBoundingClientRect());
-      return nextPosition.x === position.x && nextPosition.y === position.y ? position : nextPosition;
-    });
-  }, [dicePanelOpen, dicePanelPosition]);
+
+    const clampCurrentPanelPosition = () => {
+      setDicePanelPosition((position) => {
+        if (!position) {
+          return position;
+        }
+        const nextPosition = clampDicePanelPosition(position.x, position.y, dicePopoverRef.current?.getBoundingClientRect());
+        return nextPosition.x === position.x && nextPosition.y === position.y ? position : nextPosition;
+      });
+    };
+
+    clampCurrentPanelPosition();
+    window.addEventListener("resize", clampCurrentPanelPosition);
+    return () => window.removeEventListener("resize", clampCurrentPanelPosition);
+  }, [dicePanelOpen]);
 
   const beginDicePanelDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     const target = event.target;

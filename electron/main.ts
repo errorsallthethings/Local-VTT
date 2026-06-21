@@ -107,10 +107,13 @@ function installWindowDiagnostics(win: BrowserWindow, hash: "gm" | "player"): vo
     }
   });
 
-  win.webContents.on("console-message", (_event, level, message, line, sourceId) => {
-    if (level >= 2) {
-      const log = level >= 3 ? console.error : console.warn;
-      log(`LOCALVTT_${label}_CONSOLE`, message, `${sourceId}:${line}`);
+  win.webContents.on("console-message", (details) => {
+    if (details.level === "warning" || details.level === "error") {
+      if (isDev && details.message.includes("Electron Security Warning")) {
+        return;
+      }
+      const log = details.level === "error" ? console.error : console.warn;
+      log(`LOCALVTT_${label}_CONSOLE`, details.message, `${details.sourceId}:${details.lineNumber}`);
     }
   });
 
