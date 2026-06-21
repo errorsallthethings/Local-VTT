@@ -40,7 +40,7 @@ import { CampaignBusyOverlay } from "../components/modals/CampaignBusyOverlay";
 import { EnvironmentEffectEditorModal } from "../components/layers";
 import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionCounts, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools";
+import { ToolsMenu, type CanvasTool, type DrawingTemplateSize, type DrawingTemplateWidth, type EnvironmentEffectTool, type FogOperation, type MouseBehavior, type SelectorSelectionFilters, type WeatherMaskTool } from "../components/tools";
 import { DEFAULT_ACID_EFFECT_TUNING, DEFAULT_ARCANE_EFFECT_TUNING, DEFAULT_CHAOS_EFFECT_TUNING, DEFAULT_COLD_EFFECT_TUNING, DEFAULT_DARKNESS_EFFECT_TUNING, DEFAULT_DISTORTION_EFFECT_TUNING, DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_FORCE_FIELD_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_NATURE_EFFECT_TUNING, DEFAULT_POISON_EFFECT_TUNING, DEFAULT_RADIANT_EFFECT_TUNING, DEFAULT_SHOCKWAVE_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_VOID_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type AcidEffectTuning, type ArcaneEffectTuning, type ChaosEffectTuning, type ColdEffectTuning, type DarknessEffectTuning, type DistortionEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type NatureEffectTuning, type PoisonEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type VoidEffectTuning, type WaterEffectTuning } from "../canvas/effects";
 import type { DrawingTool } from "../canvas/drawings";
 import { applyMapCalibrationDraft, type MapCalibrationDraft } from "../lib/map";
@@ -54,6 +54,7 @@ import { useCampaignActions, type CampaignBusyState } from "../hooks/useCampaign
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
+import { useSceneSelection } from "../hooks/useSceneSelection";
 import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assets";
 import { moveSceneFolder } from "../lib/campaign";
 import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, updateDiceRollHistory as updateDiceRollHistoryList, type DiceType } from "../lib/dice";
@@ -64,7 +65,6 @@ import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from 
 import { getPlayerViewDisplayStateFromLastState, type PlayerDisplayMode } from "../lib/player-view";
 import { sendSceneToPlayer, updatePlayerSceneIfOpen } from "../lib/player-view";
 import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/scene";
-import { applySelectionMode, retainExistingSelectionIds, type SelectionMode } from "../lib/scene";
 import { patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
 import {
   addRecentCampaign,
@@ -220,17 +220,7 @@ export function GmApp() {
   const [newFolderColor, setNewFolderColor] = useState(DEFAULT_SCENE_FOLDER_COLOR);
   const [newCampaignName, setNewCampaignName] = useState("");
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
-  const [selectedFogShapeId, setSelectedFogShapeId] = useState<string | null>(null);
-  const [selectedWeatherMaskId, setSelectedWeatherMaskId] = useState<string | null>(null);
-  const [selectedEnvironmentEffectId, setSelectedEnvironmentEffectId] = useState<string | null>(null);
-  const [environmentEffectEditorId, setEnvironmentEffectEditorId] = useState<string | null>(null);
   const [environmentEffectEditorPosition, setEnvironmentEffectEditorPosition] = useState<{ x: number; y: number } | null>(null);
-  const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
-  const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
-  const [selectedFogShapeIds, setSelectedFogShapeIds] = useState<string[]>([]);
-  const [selectedWeatherMaskIds, setSelectedWeatherMaskIds] = useState<string[]>([]);
-  const [selectedDrawingIds, setSelectedDrawingIds] = useState<string[]>([]);
-  const [selectedTokenIds, setSelectedTokenIds] = useState<string[]>([]);
   const [selectorSelectionFilters, setSelectorSelectionFilters] = useState<SelectorSelectionFilters>(DEFAULT_SELECTOR_SELECTION_FILTERS);
   const [mapCalibrationBox, setMapCalibrationBox] = useState<MapCalibrationBox | null>(null);
   const [mapCalibrationBoxPicking, setMapCalibrationBoxPicking] = useState(false);
@@ -262,22 +252,32 @@ export function GmApp() {
   const activeMapIsVideo = mapAsset?.mediaType === "video";
   const tokenAssets = useMemo(() => buildAssetsByKind(campaignAssets, "token"), [campaignAssets]);
   const tokenLibraryAssets = useMemo(() => [...tokenAssets.values()], [tokenAssets]);
+  const {
+    selectedFogShapeId,
+    selectedWeatherMaskId,
+    selectedEnvironmentEffectId,
+    setEnvironmentEffectEditorId,
+    environmentEffectEditorEffect,
+    selectedDrawingId,
+    selectedTokenId,
+    selectedFogShapeIds,
+    selectedWeatherMaskIds,
+    selectedDrawingIds,
+    selectedTokenIds,
+    selectorSelectionCounts,
+    selectTokens,
+    selectDrawings,
+    selectFogShapes,
+    selectWeatherMasks,
+    selectEnvironmentEffect,
+    selectSceneItems,
+    clearSceneSelection
+  } = useSceneSelection(activeScene);
   const selectedTokenAssetIds = useMemo(
     () => getSelectedTokenAssetIds(activeScene?.tokens, selectedTokenId, selectedTokenIds),
     [activeScene?.tokens, selectedTokenId, selectedTokenIds]
   );
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
-  const selectorSelectionCounts = useMemo<SelectorSelectionCounts>(() => {
-    const selectedDrawingIdSet = new Set(selectedDrawingIds);
-    const selectedDrawings = activeScene?.drawings.filter((drawing) => selectedDrawingIdSet.has(drawing.id)) ?? [];
-    return {
-      tokens: selectedTokenIds.length,
-      templates: selectedDrawings.filter((drawing) => drawing.measurementLabelVisible).length,
-      drawings: selectedDrawings.filter((drawing) => !drawing.measurementLabelVisible).length,
-      fogMasks: selectedFogShapeIds.length,
-      weatherMasks: selectedWeatherMaskIds.length
-    };
-  }, [activeScene?.drawings, selectedDrawingIds, selectedFogShapeIds.length, selectedTokenIds.length, selectedWeatherMaskIds.length]);
   const [diceSettingsPreference, setDiceSettingsPreference] = useState<DiceSettings>(() => loadDiceSettingsPreference());
   const diceSettings = useMemo<DiceSettings>(() => ({ ...DEFAULT_DICE_SETTINGS, ...(campaign?.diceSettings ?? diceSettingsPreference) }), [campaign?.diceSettings, diceSettingsPreference]);
   const diceSettingsDraftRef = useRef<DiceSettings>(diceSettings);
@@ -289,11 +289,6 @@ export function GmApp() {
     () => buildSceneThumbnailAssets(campaignScenes, sceneDrafts, activeScene, assetsById),
     [activeScene, assetsById, campaignScenes, sceneDrafts]
   );
-  const environmentEffectEditorEffect = useMemo(
-    () => activeScene?.environment.effects.find((effect) => effect.id === environmentEffectEditorId) ?? null,
-    [activeScene?.environment.effects, environmentEffectEditorId]
-  );
-
   useEffect(() => {
     diceSettingsDraftRef.current = diceSettings;
   }, [diceSettings]);
@@ -313,126 +308,6 @@ export function GmApp() {
   const updateCanvasScene = (nextScene: Scene, syncScene: Scene = nextScene) => {
     updateScene(nextScene, campaign, syncScene);
   };
-
-  const selectTokens = (ids: string[]) => {
-    setSelectedTokenIds(ids);
-    setSelectedTokenId(ids[0] ?? null);
-  };
-
-  const selectDrawings = (ids: string[]) => {
-    setSelectedDrawingIds(ids);
-    setSelectedDrawingId(ids[0] ?? null);
-  };
-
-  const selectFogShapes = (ids: string[]) => {
-    setSelectedFogShapeIds(ids);
-    setSelectedFogShapeId(ids[0] ?? null);
-  };
-
-  const selectWeatherMasks = (ids: string[]) => {
-    setSelectedWeatherMaskIds(ids);
-    setSelectedWeatherMaskId(ids[0] ?? null);
-  };
-
-  const selectEnvironmentEffect = (id: string | null) => {
-    setSelectedEnvironmentEffectId(id);
-    if (id) {
-      selectTokens([]);
-      selectDrawings([]);
-      selectFogShapes([]);
-      selectWeatherMasks([]);
-    }
-  };
-
-  const selectSceneItems = ({
-    tokenIds = [],
-    drawingIds = [],
-    fogShapeIds = [],
-    weatherMaskIds = [],
-    mode = "replace"
-  }: {
-    tokenIds?: string[];
-    drawingIds?: string[];
-    fogShapeIds?: string[];
-    weatherMaskIds?: string[];
-    mode?: SelectionMode;
-  }) => {
-    selectTokens(applySelectionMode(selectedTokenIds, tokenIds, mode));
-    selectDrawings(applySelectionMode(selectedDrawingIds, drawingIds, mode));
-    selectFogShapes(applySelectionMode(selectedFogShapeIds, fogShapeIds, mode));
-    selectWeatherMasks(applySelectionMode(selectedWeatherMaskIds, weatherMaskIds, mode));
-    setSelectedEnvironmentEffectId(null);
-  };
-
-  const clearSceneSelection = () => {
-    selectTokens([]);
-    selectDrawings([]);
-    selectFogShapes([]);
-    selectWeatherMasks([]);
-    setSelectedEnvironmentEffectId(null);
-  };
-
-  useEffect(() => {
-    setSelectedTokenIds([]);
-    setSelectedTokenId(null);
-    setSelectedDrawingIds([]);
-    setSelectedDrawingId(null);
-    setSelectedFogShapeIds([]);
-    setSelectedFogShapeId(null);
-    setSelectedWeatherMaskIds([]);
-    setSelectedWeatherMaskId(null);
-    setSelectedEnvironmentEffectId(null);
-    setEnvironmentEffectEditorId(null);
-  }, [activeScene?.id]);
-
-  useEffect(() => {
-    if (!activeScene) {
-      setSelectedTokenIds((ids) => (ids.length === 0 ? ids : []));
-      setSelectedTokenId(null);
-      setSelectedDrawingIds((ids) => (ids.length === 0 ? ids : []));
-      setSelectedDrawingId(null);
-      setSelectedFogShapeIds((ids) => (ids.length === 0 ? ids : []));
-      setSelectedFogShapeId(null);
-      setSelectedWeatherMaskIds((ids) => (ids.length === 0 ? ids : []));
-      setSelectedWeatherMaskId(null);
-      setSelectedEnvironmentEffectId(null);
-      setEnvironmentEffectEditorId(null);
-      return;
-    }
-    const nextTokenIds = retainExistingSelectionIds(selectedTokenIds, activeScene.tokens.map((token) => token.id));
-    const nextDrawingIds = retainExistingSelectionIds(selectedDrawingIds, activeScene.drawings.map((drawing) => drawing.id));
-    const nextFogShapeIds = retainExistingSelectionIds(selectedFogShapeIds, activeScene.fog.shapes.map((shape) => shape.id));
-    const nextWeatherMaskIds = retainExistingSelectionIds(selectedWeatherMaskIds, activeScene.weather.masks.map((mask) => mask.id));
-    if (
-      nextTokenIds.length !== selectedTokenIds.length ||
-      nextDrawingIds.length !== selectedDrawingIds.length ||
-      nextFogShapeIds.length !== selectedFogShapeIds.length ||
-      nextWeatherMaskIds.length !== selectedWeatherMaskIds.length
-    ) {
-      setSelectedTokenIds(nextTokenIds);
-      setSelectedTokenId(nextTokenIds[0] ?? null);
-      setSelectedDrawingIds(nextDrawingIds);
-      setSelectedDrawingId(nextDrawingIds[0] ?? null);
-      setSelectedFogShapeIds(nextFogShapeIds);
-      setSelectedFogShapeId(nextFogShapeIds[0] ?? null);
-      setSelectedWeatherMaskIds(nextWeatherMaskIds);
-      setSelectedWeatherMaskId(nextWeatherMaskIds[0] ?? null);
-    }
-  }, [activeScene, selectedDrawingIds, selectedFogShapeIds, selectedTokenIds, selectedWeatherMaskIds]);
-
-  useEffect(() => {
-    if (!selectedEnvironmentEffectId || activeScene?.environment.effects.some((effect) => effect.id === selectedEnvironmentEffectId)) {
-      return;
-    }
-    setSelectedEnvironmentEffectId(null);
-  }, [activeScene?.environment.effects, selectedEnvironmentEffectId]);
-
-  useEffect(() => {
-    if (!environmentEffectEditorId || activeScene?.environment.effects.some((effect) => effect.id === environmentEffectEditorId)) {
-      return;
-    }
-    setEnvironmentEffectEditorId(null);
-  }, [activeScene?.environment.effects, environmentEffectEditorId]);
 
   type SceneEnvironmentEffect = Scene["environment"]["effects"][number];
 
@@ -760,66 +635,6 @@ export function GmApp() {
   }, [refreshDisplays]);
 
   useEffect(() => {
-    if (!selectedFogShapeId || activeScene?.fog.shapes.some((shape) => shape.id === selectedFogShapeId)) {
-      return;
-    }
-    setSelectedFogShapeId(null);
-  }, [activeScene?.fog.shapes, selectedFogShapeId]);
-
-  useEffect(() => {
-    setSelectedFogShapeIds((ids) => retainExistingSelectionIds(ids, activeScene?.fog.shapes.map((shape) => shape.id) ?? []));
-  }, [activeScene?.fog.shapes]);
-
-  useEffect(() => {
-    if (!selectedWeatherMaskId || activeScene?.weather.masks.some((mask) => mask.id === selectedWeatherMaskId)) {
-      return;
-    }
-    setSelectedWeatherMaskId(null);
-  }, [activeScene?.weather.masks, selectedWeatherMaskId]);
-
-  useEffect(() => {
-    setSelectedWeatherMaskIds((ids) => retainExistingSelectionIds(ids, activeScene?.weather.masks.map((mask) => mask.id) ?? []));
-  }, [activeScene?.weather.masks]);
-
-  useEffect(() => {
-    if (!selectedDrawingId || activeScene?.drawings.some((drawing) => drawing.id === selectedDrawingId)) {
-      return;
-    }
-    setSelectedDrawingId(null);
-  }, [activeScene?.drawings, selectedDrawingId]);
-
-  useEffect(() => {
-    setSelectedDrawingIds((ids) => retainExistingSelectionIds(ids, activeScene?.drawings.map((drawing) => drawing.id) ?? []));
-  }, [activeScene?.drawings]);
-
-  useEffect(() => {
-    if (!selectedFogShapeId) {
-      return;
-    }
-    const clearFogShapeSelection = (event: MouseEvent) => {
-      const target = event.target;
-      if (target instanceof HTMLElement && (target.closest(".fog-layer-shape-row") || target.closest(".scene-canvas-frame"))) {
-        return;
-      }
-      setSelectedFogShapeId(null);
-      setSelectedFogShapeIds([]);
-    };
-    window.addEventListener("mousedown", clearFogShapeSelection);
-    return () => window.removeEventListener("mousedown", clearFogShapeSelection);
-  }, [selectedFogShapeId]);
-
-  useEffect(() => {
-    if (!selectedTokenId || activeScene?.tokens.some((token) => token.id === selectedTokenId)) {
-      return;
-    }
-    setSelectedTokenId(null);
-  }, [activeScene?.tokens, selectedTokenId]);
-
-  useEffect(() => {
-    setSelectedTokenIds((ids) => retainExistingSelectionIds(ids, activeScene?.tokens.map((token) => token.id) ?? []));
-  }, [activeScene?.tokens]);
-
-  useEffect(() => {
     if (campaign) {
       playerIdleClearedForNoCampaignRef.current = false;
       return;
@@ -1042,7 +857,7 @@ export function GmApp() {
       },
       syncCampaign
     );
-    setSelectedTokenId(tokenId);
+    selectTokens([tokenId]);
     setTokenCropDialog(null);
   };
 
@@ -1108,11 +923,11 @@ export function GmApp() {
     }
     const token = activeScene.tokens.find((candidate) => candidate.id === tokenId);
     if (!token || activeScene.turnOrder.entries.some((entry) => entry.tokenId === token.id)) {
-      setSelectedTokenId(tokenId);
+      selectTokens([tokenId]);
       return;
     }
     updateScene(addTurnOrderEntry(activeScene, createTurnOrderEntryFromToken(crypto.randomUUID(), token)));
-    setSelectedTokenId(token.id);
+    selectTokens([token.id]);
   };
 
   const openTokenDefaultsDialog = (asset: Asset) => {
@@ -1392,7 +1207,7 @@ export function GmApp() {
           void updatePlayerSceneIfOpen(window.localVtt, result.campaignSummary.campaign, nextActiveScene, { showPlayerSeatIndicators: playersPanelOpen });
         }
       }
-      setSelectedTokenId((tokenId) => (nextActiveScene?.tokens.some((token) => token.id === tokenId) ? tokenId : null));
+      selectTokens(nextActiveScene ? selectedTokenIds.filter((tokenId) => nextActiveScene.tokens.some((token) => token.id === tokenId)) : []);
       setTokenAssetToDelete(null);
     });
 
