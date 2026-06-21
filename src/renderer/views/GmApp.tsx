@@ -9,9 +9,7 @@ import {
 } from "react";
 import {
   DEFAULT_DICE_SETTINGS,
-  DEFAULT_FOG,
   PLAYER_INDICATOR_THEMES,
-  DEFAULT_TABLE_TOOLS,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK
@@ -24,9 +22,6 @@ import type {
   CampaignSceneFolder,
   DisplayCalibration,
   DiceSettings,
-  DrawingElement,
-  DrawingStrokeStyle,
-  DrawingTemplateEffect,
   EnvironmentEffectType,
   LiveTableEvent,
   Point,
@@ -39,7 +34,7 @@ import { CampaignBusyOverlay } from "../components/modals/CampaignBusyOverlay";
 import { EnvironmentEffectEditorModal } from "../components/layers";
 import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ToolsMenu, type DrawingTemplateSize, type DrawingTemplateWidth, type FogOperation, type SelectorSelectionFilters } from "../components/tools";
+import { ToolsMenu, type SelectorSelectionFilters } from "../components/tools";
 import { DEFAULT_ACID_EFFECT_TUNING, DEFAULT_ARCANE_EFFECT_TUNING, DEFAULT_CHAOS_EFFECT_TUNING, DEFAULT_COLD_EFFECT_TUNING, DEFAULT_DARKNESS_EFFECT_TUNING, DEFAULT_DISTORTION_EFFECT_TUNING, DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_FORCE_FIELD_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_NATURE_EFFECT_TUNING, DEFAULT_POISON_EFFECT_TUNING, DEFAULT_RADIANT_EFFECT_TUNING, DEFAULT_SHOCKWAVE_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_VOID_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type AcidEffectTuning, type ArcaneEffectTuning, type ChaosEffectTuning, type ColdEffectTuning, type DarknessEffectTuning, type DistortionEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type NatureEffectTuning, type PoisonEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type VoidEffectTuning, type WaterEffectTuning } from "../canvas/effects";
 import { applyMapCalibrationDraft, type MapCalibrationDraft } from "../lib/map";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
@@ -51,6 +46,7 @@ import { useCampaignActions, type CampaignBusyState } from "../hooks/useCampaign
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useGmDialogEscape, useGmDialogState } from "../hooks/useGmDialogState";
+import { useGmToolOptions } from "../hooks/useGmToolOptions";
 import { useGmToolSelection } from "../hooks/useGmToolSelection";
 import { usePlayerViewState } from "../hooks/usePlayerViewState";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
@@ -216,21 +212,42 @@ export function GmApp() {
   const [shockwaveEffectTuning, setShockwaveEffectTuning] = useState<ShockwaveEffectTuning>(DEFAULT_SHOCKWAVE_EFFECT_TUNING);
   const [smokeEffectTuning, setSmokeEffectTuning] = useState<SmokeEffectTuning>(DEFAULT_SMOKE_EFFECT_TUNING);
   const [fogEffectTuning, setFogEffectTuning] = useState<FogEffectTuning>(DEFAULT_FOG_EFFECT_TUNING);
-  const [tableToolsVisibleInPlayer, setTableToolsVisibleInPlayer] = useState(true);
-  const [tableTools, setTableTools] = useState(() => ({ ...DEFAULT_TABLE_TOOLS }));
-  const [fogOperation, setFogOperation] = useState<FogOperation>("reveal");
-  const [fogBrushSize, setFogBrushSize] = useState(DEFAULT_FOG.brushSize);
-  const [drawingColor, setDrawingColor] = useState("#ff0000");
-  const [drawingOpacity, setDrawingOpacity] = useState(1);
-  const [drawingFillColor, setDrawingFillColor] = useState("#ff0000");
-  const [drawingFillOpacity, setDrawingFillOpacity] = useState(0);
-  const [drawingStrokeStyle, setDrawingStrokeStyle] = useState<DrawingStrokeStyle>("solid");
-  const [drawingStrokeWidth, setDrawingStrokeWidth] = useState(40);
-  const [drawingTemplateSize, setDrawingTemplateSize] = useState<DrawingTemplateSize>("custom");
-  const [drawingTemplateEffect, setDrawingTemplateEffect] = useState<DrawingTemplateEffect>("plain");
-  const [drawingTemplateWidth, setDrawingTemplateWidth] = useState<DrawingTemplateWidth>(5);
-  const [templatePreviewVisibleInPlayer, setTemplatePreviewVisibleInPlayer] = useState(false);
-  const [playerTemplatePreviewDrawing, setPlayerTemplatePreviewDrawing] = useState<DrawingElement | null>(null);
+  const {
+    tableToolsVisibleInPlayer,
+    setTableToolsVisibleInPlayer,
+    tableTools,
+    setPingSize,
+    setPingColor,
+    setLaserThickness,
+    setLaserColor,
+    setRulerLinger,
+    fogOperation,
+    setFogOperation,
+    fogBrushSize,
+    setFogBrushSize,
+    drawingColor,
+    setDrawingColor,
+    drawingOpacity,
+    setDrawingOpacity,
+    drawingFillColor,
+    setDrawingFillColor,
+    drawingFillOpacity,
+    setDrawingFillOpacity,
+    drawingStrokeStyle,
+    setDrawingStrokeStyle,
+    drawingStrokeWidth,
+    setDrawingStrokeWidth,
+    drawingTemplateSize,
+    setDrawingTemplateSize,
+    drawingTemplateEffect,
+    setDrawingTemplateEffect,
+    drawingTemplateWidth,
+    setDrawingTemplateWidth,
+    templatePreviewVisibleInPlayer,
+    setTemplatePreviewVisibleInPlayer,
+    playerTemplatePreviewDrawing,
+    setPlayerTemplatePreviewDrawing
+  } = useGmToolOptions();
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
   const [newFolderName, setNewFolderName] = useState("New Folder");
   const [newFogShapeName, setNewFogShapeName] = useState("");
@@ -326,7 +343,7 @@ export function GmApp() {
     setMapCalibrationBox(null);
     setMapCalibrationBoxPicking(false);
     setPlayerTemplatePreviewDrawing(null);
-  }, [activeScene?.id, setMapCalibrationBoxPicking]);
+  }, [activeScene?.id, setMapCalibrationBoxPicking, setPlayerTemplatePreviewDrawing]);
 
   const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
     // Only sync the active edit to Player View when that same scene is already being shown to players.
@@ -1578,11 +1595,11 @@ export function GmApp() {
               onDrawingTemplateEffectChange={setDrawingTemplateEffect}
               onDrawingTemplateWidthChange={setDrawingTemplateWidth}
               onTemplatePreviewVisibleInPlayerChange={setTemplatePreviewVisibleInPlayer}
-              onPingSizeChange={(pingSize) => setTableTools((current) => ({ ...current, pingSize }))}
-              onPingColorChange={(pingColor) => setTableTools((current) => ({ ...current, pingColor }))}
-              onLaserThicknessChange={(laserThickness) => setTableTools((current) => ({ ...current, laserThickness }))}
-              onLaserColorChange={(laserColor) => setTableTools((current) => ({ ...current, laserColor }))}
-              onRulerLingerChange={(rulerLinger) => setTableTools((current) => ({ ...current, rulerLinger }))}
+              onPingSizeChange={setPingSize}
+              onPingColorChange={setPingColor}
+              onLaserThicknessChange={setLaserThickness}
+              onLaserColorChange={setLaserColor}
+              onRulerLingerChange={setRulerLinger}
               onTableToolsVisibleInPlayerChange={setTableToolsVisibleInPlayer}
               onSelectorSelectionFiltersChange={setSelectorSelectionFilters}
               onUndoFogShape={undoFogShape}
