@@ -3,6 +3,7 @@ import { createDefaultScene, type Scene, type Token, type WeatherMask } from "..
 import {
   getCompletedSceneMarqueeSelection,
   getSceneMarqueeSelection,
+  getSelectionDragFromPoint,
   getUpdatedSelectionDrag,
   isDrawingInSelectionRect,
   isFogShapeInSelectionRect,
@@ -27,6 +28,15 @@ describe("selection geometry", () => {
       pointerId: 4,
       mode: "add",
       current: { x: 12, y: 18 }
+    });
+  });
+
+  it("creates selection drags from an initial point and mode", () => {
+    expect(getSelectionDragFromPoint(4, { x: 12, y: 18 }, "add")).toEqual({
+      pointerId: 4,
+      start: { x: 12, y: 18 },
+      current: { x: 12, y: 18 },
+      mode: "add"
     });
   });
 

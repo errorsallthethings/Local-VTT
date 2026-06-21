@@ -36,6 +36,15 @@ export function getUpdatedSelectionDrag<TDrag extends { current: Point }>(drag: 
   return { ...drag, current: point };
 }
 
+export function getSelectionDragFromPoint<TMode extends string>(pointerId: number, point: Point, mode: TMode): { pointerId: number; start: Point; current: Point; mode: TMode } {
+  return {
+    pointerId,
+    start: point,
+    current: point,
+    mode
+  };
+}
+
 export function getCompletedSceneMarqueeSelection(
   scene: Scene,
   drag: SelectionDragLike,
