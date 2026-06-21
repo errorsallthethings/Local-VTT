@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { memo, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowDown,
@@ -100,16 +100,17 @@ export function SceneLibraryPanel({
     [campaignScenes]
   );
   const emptySceneMessage = getSceneLibraryEmptyMessage(campaign);
+  const activeSceneId = activeScene?.id;
+  const sceneDropTargetKey = getDropTargetKey(dropTarget);
 
   const renderSceneCard = (scene: CampaignSceneEntry) => {
     const isDirty = dirtySceneIds.has(scene.id);
     const isPlayerScene = playerSceneId === scene.id;
     const thumbnailAsset = sceneThumbnailAssets.get(scene.id);
-    const sceneDropTargetKey = getDropTargetKey(dropTarget);
     const isDropBefore = sceneDropTargetKey === `scene:${scene.id}:before`;
     const isDropAfter = sceneDropTargetKey === `scene:${scene.id}:after`;
     const sceneRowClassName = [
-      activeScene?.id === scene.id ? "selected" : "",
+      activeSceneId === scene.id ? "selected" : "",
       "scene-row",
       isDropBefore ? "scene-row-drop-before" : "",
       isDropAfter ? "scene-row-drop-after" : ""
@@ -250,7 +251,7 @@ export function SceneLibraryPanel({
     }
   };
 
-  const folderDropTargetKey = getDropTargetKey(dropTarget);
+  const folderDropTargetKey = sceneDropTargetKey;
 
   return (
     <section className="panel grow scene-panel">
@@ -453,7 +454,7 @@ function FloatingSceneMenu({ anchor, children }: { anchor: HTMLElement | null; c
   );
 }
 
-function SceneThumbnail({ asset, activeWeather }: { asset: Asset | null; activeWeather: ReturnType<typeof getActiveWeatherEffects> }) {
+const SceneThumbnail = memo(function SceneThumbnail({ asset, activeWeather }: { asset: Asset | null; activeWeather: ReturnType<typeof getActiveWeatherEffects> }) {
   if (!asset) {
     return (
       <div className="scene-thumbnail scene-thumbnail-empty" aria-label="No map">
@@ -494,7 +495,7 @@ function SceneThumbnail({ asset, activeWeather }: { asset: Asset | null; activeW
   }
 
   return null;
-}
+});
 
 function SceneWeatherBadges({ activeWeather }: { activeWeather: ReturnType<typeof getActiveWeatherEffects> }) {
   if (activeWeather.length === 0) {
