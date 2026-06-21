@@ -40,10 +40,27 @@ export type DuplicateSceneDrawingResult = {
   duplicatedDrawingId?: string;
 };
 
+export type DuplicateSceneFogShapeResult = {
+  scene: Scene;
+  duplicatedFogShapeId?: string;
+};
+
+export type DuplicateSceneWeatherMaskResult = {
+  scene: Scene;
+  duplicatedWeatherMaskId?: string;
+};
+
+export type DuplicateEnvironmentEffectResult = {
+  scene: Scene;
+  duplicatedEnvironmentEffectId?: string;
+};
+
 export type DuplicateSceneTokenResult = {
   scene: Scene;
   duplicatedTokenId?: string;
 };
+
+const DUPLICATE_SCENE_ITEM_OFFSET_PX = 24;
 
 export type SceneSelectionIds = {
   tokenIds?: string[];
@@ -269,12 +286,142 @@ export function setFogShapePlayerVisibility(scene: Scene, shapeId: string, visib
   };
 }
 
+export function setFogShapeGmVisibility(scene: Scene, shapeId: string, visibleInGm: boolean, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    fog: {
+      ...scene.fog,
+      shapes: scene.fog.shapes.map((shape) =>
+        shape.id === shapeId
+          ? {
+              ...shape,
+              visibleInGm,
+              visible: visibleInGm || (shape.visibleInPlayer ?? shape.visible ?? true)
+            }
+          : shape
+      )
+    },
+    updatedAt
+  };
+}
+
+export function duplicateSceneFogShape(
+  scene: Scene,
+  shapeId: string,
+  duplicateId: string,
+  sourceLabel?: string,
+  updatedAt = new Date().toISOString()
+): DuplicateSceneFogShapeResult {
+  const sourceShape = scene.fog.shapes.find((shape) => shape.id === shapeId);
+  if (!sourceShape) {
+    return { scene };
+  }
+
+  const duplicatedShape: FogShape = {
+    ...sourceShape,
+    id: duplicateId,
+    name: getDuplicateSceneItemName(sourceShape.name?.trim() || sourceLabel || "Fog Shape", scene.fog.shapes),
+    points: offsetPoints(sourceShape.points)
+  };
+
+  return {
+    scene: {
+      ...scene,
+      fog: {
+        ...scene.fog,
+        shapes: [...scene.fog.shapes, duplicatedShape]
+      },
+      updatedAt
+    },
+    duplicatedFogShapeId: duplicatedShape.id
+  };
+}
+
+export function removeSceneFogShape(scene: Scene, shapeId: string, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    fog: {
+      ...scene.fog,
+      shapes: scene.fog.shapes.filter((shape) => shape.id !== shapeId)
+    },
+    updatedAt
+  };
+}
+
 export function setWeatherMaskVisibility(scene: Scene, maskId: string, visible: boolean, updatedAt = new Date().toISOString()): Scene {
   return {
     ...scene,
     weather: {
       ...scene.weather,
       masks: scene.weather.masks.map((mask) => (mask.id === maskId ? { ...mask, visible } : mask))
+    },
+    updatedAt
+  };
+}
+
+export function setWeatherMaskPlayerVisibility(scene: Scene, maskId: string, visibleInPlayer: boolean, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    weather: {
+      ...scene.weather,
+      masks: scene.weather.masks.map((mask) => (mask.id === maskId ? { ...mask, visibleInPlayer } : mask))
+    },
+    updatedAt
+  };
+}
+
+export function duplicateSceneWeatherMask(
+  scene: Scene,
+  maskId: string,
+  duplicateId: string,
+  sourceLabel?: string,
+  updatedAt = new Date().toISOString()
+): DuplicateSceneWeatherMaskResult {
+  const sourceMask = scene.weather.masks.find((mask) => mask.id === maskId);
+  if (!sourceMask) {
+    return { scene };
+  }
+
+  const duplicatedMask: WeatherMask = {
+    ...sourceMask,
+    id: duplicateId,
+    name: getDuplicateSceneItemName(sourceMask.name?.trim() || sourceLabel || "Weather Mask", scene.weather.masks),
+    points: offsetPoints(sourceMask.points)
+  };
+
+  return {
+    scene: {
+      ...scene,
+      weather: {
+        ...scene.weather,
+        masks: [...scene.weather.masks, duplicatedMask]
+      },
+      updatedAt
+    },
+    duplicatedWeatherMaskId: duplicatedMask.id
+  };
+}
+
+export function removeSceneWeatherMask(scene: Scene, maskId: string, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    weather: {
+      ...scene.weather,
+      masks: scene.weather.masks.filter((mask) => mask.id !== maskId)
+    },
+    updatedAt
+  };
+}
+
+export function updateSceneWeatherMaskPoints(scene: Scene, weatherMaskPoints: ReadonlyMap<string, Point[]>, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    weather: {
+      ...scene.weather,
+      masks: scene.weather.masks.map((mask) => {
+        const points = weatherMaskPoints.get(mask.id);
+        return points ? { ...mask, points } : mask;
+      })
     },
     updatedAt
   };
@@ -326,6 +473,10 @@ export function setDrawingPlayerVisibility(scene: Scene, drawingId: string, visi
   return patchSceneDrawing(scene, drawingId, { visibleInPlayer }, updatedAt);
 }
 
+export function setDrawingGmVisibility(scene: Scene, drawingId: string, visibleInGm: boolean, updatedAt = new Date().toISOString()): Scene {
+  return patchSceneDrawing(scene, drawingId, { visibleInGm }, updatedAt);
+}
+
 export function duplicateSceneDrawing(
   scene: Scene,
   drawingId: string,
@@ -368,6 +519,52 @@ export function removeEnvironmentEffect(scene: Scene, effectId: string, updatedA
   };
 }
 
+export function duplicateEnvironmentEffect(
+  scene: Scene,
+  effectId: string,
+  duplicateId: string,
+  sourceLabel?: string,
+  updatedAt = new Date().toISOString()
+): DuplicateEnvironmentEffectResult {
+  const sourceEffect = scene.environment.effects.find((effect) => effect.id === effectId);
+  if (!sourceEffect) {
+    return { scene };
+  }
+
+  const duplicatedEffect: EnvironmentEffectMask = {
+    ...sourceEffect,
+    id: duplicateId,
+    name: getDuplicateSceneItemName(sourceEffect.name?.trim() || sourceLabel || "Animated Effect", scene.environment.effects),
+    points: offsetPoints(sourceEffect.points)
+  };
+
+  return {
+    scene: {
+      ...scene,
+      environment: {
+        ...scene.environment,
+        effects: [...scene.environment.effects, duplicatedEffect]
+      },
+      updatedAt
+    },
+    duplicatedEnvironmentEffectId: duplicatedEffect.id
+  };
+}
+
+export function updateSceneEnvironmentEffectPoints(scene: Scene, environmentEffectPoints: ReadonlyMap<string, Point[]>, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    environment: {
+      ...scene.environment,
+      effects: scene.environment.effects.map((effect) => {
+        const points = environmentEffectPoints.get(effect.id);
+        return points ? { ...effect, points } : effect;
+      })
+    },
+    updatedAt
+  };
+}
+
 export function addEnvironmentEffect(scene: Scene, effect: EnvironmentEffectMask, updatedAt = new Date().toISOString()): Scene {
   return {
     ...scene,
@@ -377,6 +574,25 @@ export function addEnvironmentEffect(scene: Scene, effect: EnvironmentEffectMask
     },
     updatedAt
   };
+}
+
+function offsetPoints(points: Point[]): Point[] {
+  return points.map((point) => ({
+    x: point.x + DUPLICATE_SCENE_ITEM_OFFSET_PX,
+    y: point.y + DUPLICATE_SCENE_ITEM_OFFSET_PX
+  }));
+}
+
+function getDuplicateSceneItemName(sourceName: string, items: Array<{ name?: string }>): string {
+  const baseName = sourceName.replace(/\sCopy(?:\s\d+)?$/i, "").trim() || "Item";
+  const existingNames = new Set(items.map((item) => (item.name ?? "").trim().toLowerCase()).filter(Boolean));
+  let candidate = `${baseName} Copy`;
+  let index = 2;
+  while (existingNames.has(candidate.toLowerCase())) {
+    candidate = `${baseName} Copy ${index}`;
+    index += 1;
+  }
+  return candidate;
 }
 
 export function patchSceneMapTransform(scene: Scene, patch: Partial<MapTransform>): Scene {

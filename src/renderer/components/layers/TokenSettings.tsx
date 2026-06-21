@@ -21,13 +21,15 @@ export function TokenSettings({
   gridSize,
   gridType,
   onUpdateToken,
-  onOpenTokenColor
+  onOpenTokenColor,
+  showFootprint = true
 }: {
   token: Token;
   gridSize: number;
   gridType: GridType;
   onUpdateToken: (patch: Partial<Token>) => void;
   onOpenTokenColor: (tokenId: string, value: string, kind: "border" | "glow") => void;
+  showFootprint?: boolean;
 }) {
   const sizePreset = token.sizePreset ?? DEFAULT_TOKEN_SIZE_PRESET;
   const borderColor = token.borderColor ?? DEFAULT_TOKEN_BORDER_COLOR;
@@ -143,19 +145,21 @@ export function TokenSettings({
           />
         </label>
       )}
-      <label className="setting-row">
-        <span>Footprint</span>
-        <label className="fog-operation-switch token-footprint-switch" title="Show token footprint highlight">
-          <span>Show</span>
-          <input
-            aria-label="Show token footprint highlight"
-            type="checkbox"
-            checked={!(token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE)}
-            onChange={(event) => onUpdateToken({ footprintVisible: !event.target.checked })}
-          />
-          <span>Hide</span>
+      {showFootprint && (
+        <label className="setting-row">
+          <span>Footprint</span>
+          <label className="fog-operation-switch token-footprint-switch" title="Show token footprint highlight">
+            <span>Show</span>
+            <input
+              aria-label="Show token footprint highlight"
+              type="checkbox"
+              checked={!(token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE)}
+              onChange={(event) => onUpdateToken({ footprintVisible: !event.target.checked })}
+            />
+            <span>Hide</span>
+          </label>
         </label>
-      </label>
+      )}
     </div>
   );
 }

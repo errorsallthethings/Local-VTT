@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
-import { DEFAULT_TABLE_TOOLS, DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
+import { DEFAULT_TABLE_TOOLS, DEFAULT_TOKEN_FOOTPRINT_VISIBLE, DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings } from "../../shared/localvtt";
 import { areCamerasEqual, getCameraForPanDrag, getCameraForWheelZoom, getRenderCamera, type Camera, type CameraPanDrag } from "../canvas/camera";
 import {
@@ -65,6 +65,7 @@ import {
   type MapCalibrationDrag
 } from "../canvas/mapCalibrationGeometry";
 import { drawMapSource, getCameraForMapFit } from "../canvas/mapRenderer";
+import { getEnvironmentEffectBounds } from "../canvas/boundsGeometry";
 import {
   getInitialMapLoadStatus,
   getMapDrawSource,
@@ -154,7 +155,7 @@ import {
   type SmokeEffectTuning,
   type VoidEffectTuning,
   type WaterEffectTuning,
-  disposeEnvironmentEffectRuntimes
+  retainEnvironmentEffectRuntimes
 } from "../canvas/environmentEffectsRenderer";
 import {
   getEnvironmentEffectDragFromPoint,
@@ -196,17 +197,28 @@ import {
   addSceneDrawing,
   addSceneFogShape,
   addSceneWeatherMask,
+  duplicateEnvironmentEffect,
+  duplicateSceneFogShape,
   duplicateSceneDrawing,
   duplicateSceneToken,
+  duplicateSceneWeatherMask,
   removeEnvironmentEffect,
+  removeSceneFogShape,
   removeSceneDrawing,
   removeSceneToken,
+  removeSceneWeatherMask,
+  patchSceneEnvironmentEffect,
   patchSceneToken,
+  setDrawingGmVisibility,
   setDrawingPlayerVisibility,
   setDrawingTemplateFootprintVisibility,
+  setFogShapeGmVisibility,
   setFogShapePlayerVisibility,
+  setWeatherMaskPlayerVisibility,
   setWeatherMaskVisibility,
   updateSceneDrawingPoints,
+  updateSceneEnvironmentEffectPoints,
+  updateSceneWeatherMaskPoints,
 } from "../lib/sceneEditing";
 import { TokenSettings } from "./layers/TokenSettings";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
@@ -312,6 +324,8 @@ type DrawingPolygonDraft = {
 type TokenContextMenu = {
   tokenId: string;
   tokenName: string;
+  visibleInGm: boolean;
+  visibleInPlayer: boolean;
   x: number;
   y: number;
 };
@@ -321,6 +335,7 @@ type MaskContextMenu =
       kind: "fog";
       shapeId: string;
       label: string;
+      visibleInGm: boolean;
       visibleInPlayer: boolean;
       x: number;
       y: number;
@@ -330,6 +345,7 @@ type MaskContextMenu =
       maskId: string;
       label: string;
       visible: boolean;
+      visibleInPlayer: boolean;
       x: number;
       y: number;
     };
@@ -339,6 +355,7 @@ type DrawingContextMenu = {
   label: string;
   isTemplate: boolean;
   templateFootprintVisible: boolean;
+  visibleInGm: boolean;
   visibleInPlayer: boolean;
   x: number;
   y: number;
@@ -347,11 +364,28 @@ type DrawingContextMenu = {
 type EnvironmentEffectContextMenu = {
   effectId: string;
   label: string;
+  visibleInGm: boolean;
+  visibleInPlayer: boolean;
   x: number;
   y: number;
 };
 
 type CanvasContextMenuKind = "token" | "mask" | "drawing" | "environment";
+
+type WeatherMaskMoveState = {
+  pointerId: number;
+  maskId: string;
+  start: Point;
+  groupStartPoints: Map<string, Point[]>;
+};
+
+type EnvironmentEffectMoveState = {
+  pointerId: number;
+  effectId: string;
+  start: Point;
+  snapAnchor: Point;
+  groupStartPoints: Map<string, Point[]>;
+};
 
 function getCanvasContextMenuPosition(event: React.MouseEvent<HTMLCanvasElement>, kind: CanvasContextMenuKind): { x: number; y: number } {
   const menuSize = getEstimatedContextMenuSize(kind);
@@ -372,12 +406,90 @@ function getCanvasContextMenuPosition(event: React.MouseEvent<HTMLCanvasElement>
 
 function getEstimatedContextMenuSize(kind: CanvasContextMenuKind): { width: number; height: number } {
   if (kind === "token") {
-    return { width: 300, height: 460 };
+    return { width: 300, height: 540 };
   }
   if (kind === "drawing") {
-    return { width: 260, height: 230 };
+    return { width: 260, height: 270 };
   }
-  return { width: 230, height: 150 };
+  if (kind === "environment") {
+    return { width: 230, height: 250 };
+  }
+  return { width: 230, height: 250 };
+}
+
+function getWeatherMaskPointSnapshot(scene: Scene, maskIds: string[]): Map<string, Point[]> {
+  const ids = new Set(maskIds);
+  const snapshot = new Map<string, Point[]>();
+  for (const mask of scene.weather.masks) {
+    if (ids.has(mask.id)) {
+      snapshot.set(mask.id, mask.points.map((point) => ({ ...point })));
+    }
+  }
+  return snapshot;
+}
+
+function getEnvironmentEffectPointSnapshot(scene: Scene, effectIds: string[]): Map<string, Point[]> {
+  const ids = new Set(effectIds);
+  const snapshot = new Map<string, Point[]>();
+  for (const effect of scene.environment.effects) {
+    if (ids.has(effect.id)) {
+      snapshot.set(effect.id, effect.points.map((point) => ({ ...point })));
+    }
+  }
+  return snapshot;
+}
+
+function getEnvironmentEffectGroupSnapAnchor(scene: Scene, effectIds: string[], fallback: Point): Point {
+  const ids = new Set(effectIds);
+  const bounds = scene.environment.effects
+    .filter((effect) => ids.has(effect.id))
+    .map(getEnvironmentEffectBounds)
+    .filter((bounds): bounds is NonNullable<ReturnType<typeof getEnvironmentEffectBounds>> => Boolean(bounds));
+  if (bounds.length === 0) {
+    return fallback;
+  }
+  const left = Math.min(...bounds.map((bound) => bound.x));
+  const top = Math.min(...bounds.map((bound) => bound.y));
+  const right = Math.max(...bounds.map((bound) => bound.x + bound.width));
+  const bottom = Math.max(...bounds.map((bound) => bound.y + bound.height));
+  return {
+    x: (left + right) / 2,
+    y: (top + bottom) / 2
+  };
+}
+
+function getMovedSceneItemPointSnapshot(groupStartPoints: Map<string, Point[]>, delta: Point): Map<string, Point[]> {
+  const movedPoints = new Map<string, Point[]>();
+  for (const [itemId, points] of groupStartPoints) {
+    movedPoints.set(
+      itemId,
+      points.map((point) => ({
+        x: point.x + delta.x,
+        y: point.y + delta.y
+      }))
+    );
+  }
+  return movedPoints;
+}
+
+function getEnvironmentEffectsWithPointOverrides(scene: Scene, environmentEffectPoints: Map<string, Point[]> | null) {
+  if (!environmentEffectPoints) {
+    return scene.environment.effects;
+  }
+  return scene.environment.effects.map((effect) => {
+    const points = environmentEffectPoints.get(effect.id);
+    return points ? { ...effect, points } : effect;
+  });
+}
+
+function getWeatherMasksWithPointOverrides(scene: Scene, weatherMaskPoints: Map<string, Point[]> | null) {
+  if (!weatherMaskPoints) {
+    return scene.weather.masks;
+  }
+  return scene.weather.masks.map((mask) => {
+    const points = weatherMaskPoints.get(mask.id);
+    return points ? { ...mask, points } : mask;
+  });
 }
 
 export function SceneCanvas({
@@ -474,6 +586,8 @@ export function SceneCanvas({
   const [releasedRulerDrag, setReleasedRulerDrag] = useState<RulerDrag | null>(null);
   const [tokenDragPreview, setTokenDragPreview] = useState<TokenDragPreview | null>(null);
   const [drawingDragPreview, setDrawingDragPreview] = useState<DrawingPointOverrides | null>(null);
+  const [weatherMaskMovePreview, setWeatherMaskMovePreview] = useState<Map<string, Point[]> | null>(null);
+  const [environmentEffectMovePreview, setEnvironmentEffectMovePreview] = useState<Map<string, Point[]> | null>(null);
   const [polygonDraft, setPolygonDraft] = useState<FogPolygonDraft | null>(null);
   const [drawingPolygonDraft, setDrawingPolygonDraft] = useState<DrawingPolygonDraft | null>(null);
   const [weatherPolygonDraft, setWeatherPolygonDraft] = useState<WeatherPolygonDraft | null>(null);
@@ -497,6 +611,8 @@ export function SceneCanvas({
   const drawingDragRef = useRef<DrawingDragState | null>(null);
   const drawingResizeRef = useRef<DrawingResizeState | null>(null);
   const drawingRotateRef = useRef<DrawingRotateState | null>(null);
+  const weatherMaskMoveRef = useRef<WeatherMaskMoveState | null>(null);
+  const environmentEffectMoveRef = useRef<EnvironmentEffectMoveState | null>(null);
   const laserDragRef = useRef<LaserDragState | null>(null);
   const fogDragRef = useRef<FogDrag | null>(null);
   const drawingPreviewRef = useRef<DrawingPreview | null>(null);
@@ -544,6 +660,17 @@ export function SceneCanvas({
     drawingResizeRef.current = null;
     drawingRotateRef.current = null;
     setDrawingDragPreview(null);
+  }, []);
+
+  const cancelWeatherMaskMove = useCallback(() => {
+    weatherMaskMoveRef.current = null;
+    setWeatherMaskMovePreview(null);
+  }, []);
+
+  const cancelEnvironmentEffectMove = useCallback(() => {
+    environmentEffectMoveRef.current = null;
+    setEnvironmentEffectMovePreview(null);
+    setSnapPoint(null);
   }, []);
 
   const emitRulerEvent = useCallback((nextRulerDrag: RulerDrag) => {
@@ -872,12 +999,14 @@ export function SceneCanvas({
     dragRef.current = null;
     clearWeatherMaskPreview();
     clearEnvironmentEffectPreview();
+    cancelWeatherMaskMove();
+    cancelEnvironmentEffectMove();
     setIsPanning(false);
     selectionDragRef.current = null;
     setSelectionDrag(null);
     setSnapPoint(null);
     setBrushHoverPoint(null);
-  }, [clearEnvironmentEffectPreview, clearWeatherMaskPreview, mode, scene?.id]);
+  }, [cancelEnvironmentEffectMove, cancelWeatherMaskMove, clearEnvironmentEffectPreview, clearWeatherMaskPreview, mode, scene?.id]);
 
   useEffect(() => {
     clearWeatherMaskPreview();
@@ -891,7 +1020,7 @@ export function SceneCanvas({
     setEnvironmentPolygonDraft(null);
   }, [clearEnvironmentEffectPreview, environmentEffectTool, environmentPolygonDraftRef, scene?.id]);
 
-  const hasCancelableSceneInteraction = Boolean(tokenDragPreview || drawingDragPreview || rulerDrag || fogPreview || drawingPreview || environmentEffectPreview);
+  const hasCancelableSceneInteraction = Boolean(tokenDragPreview || drawingDragPreview || weatherMaskMovePreview || environmentEffectMovePreview || rulerDrag || fogPreview || drawingPreview || environmentEffectPreview);
   const cancelSceneInteractionOnEscape = useCallback((event: KeyboardEvent) => {
     if (event.key !== "Escape") {
       return;
@@ -899,11 +1028,13 @@ export function SceneCanvas({
     event.preventDefault();
     cancelTokenDrag();
     cancelDrawingDrag();
+    cancelWeatherMaskMove();
+    cancelEnvironmentEffectMove();
     cancelRulerDrag();
     clearFogPreview();
     clearEnvironmentEffectPreview();
     clearDrawingPreview();
-  }, [cancelDrawingDrag, cancelRulerDrag, cancelTokenDrag, clearDrawingPreview, clearEnvironmentEffectPreview, clearFogPreview]);
+  }, [cancelDrawingDrag, cancelEnvironmentEffectMove, cancelRulerDrag, cancelTokenDrag, cancelWeatherMaskMove, clearDrawingPreview, clearEnvironmentEffectPreview, clearFogPreview]);
   useWindowKeyDown(mode === "gm" && hasCancelableSceneInteraction, cancelSceneInteractionOnEscape);
 
   const appendTokenWaypointOnShift = useCallback((event: KeyboardEvent) => {
@@ -1074,13 +1205,16 @@ export function SceneCanvas({
         drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, effectiveSelectedFogShapeIds);
       }
       if (canShowWeather && !mapOverlayActive) {
+        const visibleEnvironmentEffects = getEnvironmentEffectsWithPointOverrides(scene, environmentEffectMovePreview);
         if (weatherMapReady) {
           drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1, weatherMapSource);
         }
-        drawEnvironmentEffects(ctx, scene.environment.effects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, acidEffectTuning, coldEffectTuning, darknessEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
+        drawEnvironmentEffects(ctx, visibleEnvironmentEffects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, acidEffectTuning, coldEffectTuning, darknessEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
       }
+      const visibleEnvironmentEffects = getEnvironmentEffectsWithPointOverrides(scene, environmentEffectMovePreview);
+      const visibleWeatherMasks = getWeatherMasksWithPointOverrides(scene, weatherMaskMovePreview);
       if (mode === "gm") {
-        drawWeatherMaskOutlines(ctx, scene.weather.masks, renderCamera);
+        drawWeatherMaskOutlines(ctx, visibleWeatherMasks, renderCamera);
       }
       if (mode === "gm" && weatherMaskPreview) {
         drawWeatherMaskPreview(ctx, weatherMaskPreview, renderCamera);
@@ -1095,11 +1229,11 @@ export function SceneCanvas({
         drawWeatherPolygonDraft(ctx, environmentPolygonDraft, renderCamera);
       }
       if (mode === "gm") {
-        for (const selectedWeatherMask of scene.weather.masks.filter((mask) => effectiveSelectedWeatherMaskIds.includes(mask.id) && (mask.visible ?? true))) {
+        for (const selectedWeatherMask of visibleWeatherMasks.filter((mask) => effectiveSelectedWeatherMaskIds.includes(mask.id) && (mask.visible ?? true))) {
           drawWeatherMaskSelection(ctx, selectedWeatherMask, renderCamera);
         }
         if (selectedEnvironmentEffectId) {
-          const selectedEnvironmentEffect = scene.environment.effects.find((effect) => effect.id === selectedEnvironmentEffectId && effect.visibleInGm !== false);
+          const selectedEnvironmentEffect = visibleEnvironmentEffects.find((effect) => effect.id === selectedEnvironmentEffectId && effect.visibleInGm !== false);
           if (selectedEnvironmentEffect) {
             drawEnvironmentEffectShape(ctx, selectedEnvironmentEffect, renderCamera, { fill: false, selected: true });
           }
@@ -1117,10 +1251,10 @@ export function SceneCanvas({
       if (mode === "gm" && snapPoint && ((drawingTool && drawingTool !== "freehand") || (drawingDragPreview && drawingDragRef.current))) {
         drawSnapMarker(ctx, snapPoint, renderCamera, "reveal");
       }
-      if (mode === "gm" && snapPoint && weatherMaskTool) {
+      if (mode === "gm" && snapPoint && (weatherMaskTool || (weatherMaskMovePreview && weatherMaskMoveRef.current))) {
         drawSnapMarker(ctx, snapPoint, renderCamera, "reveal");
       }
-      if (mode === "gm" && snapPoint && environmentEffectTool) {
+      if (mode === "gm" && snapPoint && (environmentEffectTool || (environmentEffectMovePreview && environmentEffectMoveRef.current))) {
         drawSnapMarker(ctx, snapPoint, renderCamera, "reveal");
       }
       if (mode === "gm" && (onMapCalibrationBox || mapCalibrationBox)) {
@@ -1191,12 +1325,10 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, coldEffectTuning, darknessEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, effectiveSelectedDrawingIds, effectiveSelectedFogShapeIds, effectiveSelectedTokenIds, effectiveSelectedWeatherMaskIds, environmentEffectFeather, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, playerTokenTweenPositionsRef, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedTokenId, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, coldEffectTuning, darknessEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, effectiveSelectedDrawingIds, effectiveSelectedFogShapeIds, effectiveSelectedTokenIds, effectiveSelectedWeatherMaskIds, environmentEffectFeather, environmentEffectMovePreview, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, playerTokenTweenPositionsRef, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedTokenId, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, videoRefs, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskMovePreview, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
-    return () => {
-      disposeEnvironmentEffectRuntimes();
-    };
+    return retainEnvironmentEffectRuntimes();
   }, []);
 
   useEffect(() => {
@@ -1443,14 +1575,37 @@ export function SceneCanvas({
           onSelectFogShape?.(null);
           onSelectWeatherMask?.(null);
           onSelectDrawing?.(null);
+          if (mouseBehavior === "grabber") {
+            const groupEffectIds = [environmentEffectHit.id];
+            const groupStartPoints = getEnvironmentEffectPointSnapshot(scene, groupEffectIds);
+            environmentEffectMoveRef.current = {
+              pointerId: event.pointerId,
+              effectId: environmentEffectHit.id,
+              start: point,
+              snapAnchor: getEnvironmentEffectGroupSnapAnchor(scene, groupEffectIds, point),
+              groupStartPoints
+            };
+            setEnvironmentEffectMovePreview(groupStartPoints);
+          }
           return;
         }
         const maskHit = getMaskHitAtPoint(scene, point);
         if (maskHit?.kind === "weather") {
+          const shouldDragSelectedGroup = mouseBehavior === "grabber" && effectiveSelectedWeatherMaskIds.includes(maskHit.mask.id) && effectiveSelectedWeatherMaskIds.length > 1;
+          const groupWeatherMaskIds = shouldDragSelectedGroup ? effectiveSelectedWeatherMaskIds : [maskHit.mask.id];
           onSelectWeatherMask?.(maskHit.mask.id);
           onSelectFogShape?.(null);
           onSelectEnvironmentEffect?.(null);
           onSelectDrawing?.(null);
+          if (mouseBehavior === "grabber") {
+            weatherMaskMoveRef.current = {
+              pointerId: event.pointerId,
+              maskId: maskHit.mask.id,
+              start: point,
+              groupStartPoints: getWeatherMaskPointSnapshot(scene, groupWeatherMaskIds)
+            };
+            setWeatherMaskMovePreview(getWeatherMaskPointSnapshot(scene, groupWeatherMaskIds));
+          }
           return;
         }
         if (maskHit?.kind === "fog") {
@@ -1486,6 +1641,8 @@ export function SceneCanvas({
     const drawingDragValue = drawingDragRef.current;
     const drawingResizeValue = drawingResizeRef.current;
     const drawingRotateValue = drawingRotateRef.current;
+    const weatherMaskMoveValue = weatherMaskMoveRef.current;
+    const environmentEffectMoveValue = environmentEffectMoveRef.current;
     const laserDrag = laserDragRef.current;
     const drawingDrag = drawingPreviewRef.current;
     const rulerDragValue = rulerDragRef.current;
@@ -1573,6 +1730,32 @@ export function SceneCanvas({
       const snappedPoint = scene && isSnapModifier(event) ? getNearestSceneSnapPoint(projectedAnchor, scene) : null;
       setSnapPoint(snappedPoint);
       setDrawingDragPreview(getMovedDrawingPointSnapshot(drawingDragValue.groupStartPoints, getDrawingMoveDelta(drawingDragValue.start, drawingDragValue.snapAnchor, worldPoint, snappedPoint)));
+      return;
+    }
+
+    if (weatherMaskMoveValue?.pointerId === event.pointerId) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const delta = {
+        x: point.x - weatherMaskMoveValue.start.x,
+        y: point.y - weatherMaskMoveValue.start.y
+      };
+      setWeatherMaskMovePreview(getMovedSceneItemPointSnapshot(weatherMaskMoveValue.groupStartPoints, delta));
+      return;
+    }
+
+    if (environmentEffectMoveValue?.pointerId === event.pointerId) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const pointerDelta = {
+        x: point.x - environmentEffectMoveValue.start.x,
+        y: point.y - environmentEffectMoveValue.start.y
+      };
+      const projectedAnchor = {
+        x: environmentEffectMoveValue.snapAnchor.x + pointerDelta.x,
+        y: environmentEffectMoveValue.snapAnchor.y + pointerDelta.y
+      };
+      const snappedPoint = scene && isSnapModifier(event) ? getNearestSceneSnapPoint(projectedAnchor, scene) : null;
+      setSnapPoint(snappedPoint);
+      setEnvironmentEffectMovePreview(getMovedSceneItemPointSnapshot(environmentEffectMoveValue.groupStartPoints, getDrawingMoveDelta(environmentEffectMoveValue.start, environmentEffectMoveValue.snapAnchor, point, snappedPoint)));
       return;
     }
 
@@ -1776,6 +1959,24 @@ export function SceneCanvas({
       return;
     }
 
+    if (weatherMaskMoveRef.current?.pointerId === event.pointerId) {
+      const movedPoints = weatherMaskMovePreview;
+      if (scene && onSceneChange && movedPoints) {
+        onSceneChange(updateSceneWeatherMaskPoints(scene, movedPoints));
+      }
+      cancelWeatherMaskMove();
+      return;
+    }
+
+    if (environmentEffectMoveRef.current?.pointerId === event.pointerId) {
+      const movedPoints = environmentEffectMovePreview;
+      if (scene && onSceneChange && movedPoints) {
+        onSceneChange(updateSceneEnvironmentEffectPoints(scene, movedPoints));
+      }
+      cancelEnvironmentEffectMove();
+      return;
+    }
+
     if (laserDragRef.current?.pointerId === event.pointerId) {
       laserDragRef.current = null;
       return;
@@ -1895,6 +2096,8 @@ export function SceneCanvas({
           setTokenContextMenu({
             tokenId: token.id,
             tokenName: token.name || "Token",
+            visibleInGm: token.visibleInGm ?? !token.hidden,
+            visibleInPlayer: token.visibleInPlayer,
             x: menuPosition.x,
             y: menuPosition.y
           });
@@ -1918,6 +2121,7 @@ export function SceneCanvas({
               label: getDrawingContextLabel(drawingHit, drawingIndex),
               isTemplate: drawingHit.measurementLabelVisible === true,
               templateFootprintVisible: drawingHit.templateFootprintVisible === true,
+              visibleInGm: drawingHit.visibleInGm ?? true,
               visibleInPlayer: drawingHit.visibleInPlayer,
               x: menuPosition.x,
               y: menuPosition.y
@@ -1941,12 +2145,14 @@ export function SceneCanvas({
                 maskId: maskHit.mask.id,
                 label: getWeatherMaskContextLabel(maskHit.mask),
                 visible: maskHit.mask.visible ?? true,
+                visibleInPlayer: maskHit.mask.visibleInPlayer ?? true,
                 x: menuPosition.x,
                 y: menuPosition.y
               });
             } else {
               const shapeIndex = scene.fog.shapes.findIndex((shape) => shape.id === maskHit.shape.id);
               const label = getFogShapeContextLabel(maskHit.shape, shapeIndex);
+              const visibleInGm = maskHit.shape.visibleInGm ?? maskHit.shape.visible ?? true;
               const visibleInPlayer = maskHit.shape.visibleInPlayer ?? maskHit.shape.visible ?? true;
               onSelectFogShape?.(maskHit.shape.id);
               onSelectWeatherMask?.(null);
@@ -1957,6 +2163,7 @@ export function SceneCanvas({
                 kind: "fog",
                 shapeId: maskHit.shape.id,
                 label,
+                visibleInGm,
                 visibleInPlayer,
                 x: menuPosition.x,
                 y: menuPosition.y
@@ -1980,6 +2187,8 @@ export function SceneCanvas({
             setEnvironmentEffectContextMenu({
               effectId: environmentEffectHit.id,
               label: getEnvironmentEffectContextLabel(environmentEffectHit, effectIndex),
+              visibleInGm: environmentEffectHit.visibleInGm !== false,
+              visibleInPlayer: environmentEffectHit.visibleInPlayer !== false,
               x: menuPosition.x,
               y: menuPosition.y
             });
@@ -2418,10 +2627,75 @@ export function SceneCanvas({
           >
             <div className="canvas-context-menu-title" title={tokenContextMenu.tokenName}>{tokenContextMenu.tokenName}</div>
             <div className="control-divider" />
+            <div className="settings-grid">
+              <label className="setting-row">
+                <span>GM View</span>
+                <label className="fog-operation-switch" title={`${tokenContextMenu.visibleInGm ? "Hide" : "Show"} ${tokenContextMenu.tokenName} in GM View`}>
+                  <span>Show</span>
+                  <input
+                    aria-label={`${tokenContextMenu.visibleInGm ? "Hide" : "Show"} ${tokenContextMenu.tokenName} in GM View`}
+                    type="checkbox"
+                    checked={!tokenContextMenu.visibleInGm}
+                    onChange={(event) => {
+                      if (!onSceneChange) {
+                        setTokenContextMenu(null);
+                        return;
+                      }
+                      const visibleInGm = !event.target.checked;
+                      onSceneChange(patchSceneToken(scene, token.id, { visibleInGm }));
+                      setTokenContextMenu((menu) => (menu ? { ...menu, visibleInGm } : menu));
+                    }}
+                  />
+                  <span>Hide</span>
+                </label>
+              </label>
+              <label className="setting-row">
+                <span>Player View</span>
+                <label className="fog-operation-switch" title={`${tokenContextMenu.visibleInPlayer ? "Hide" : "Show"} ${tokenContextMenu.tokenName} on Player View`}>
+                  <span>Show</span>
+                  <input
+                    aria-label={`${tokenContextMenu.visibleInPlayer ? "Hide" : "Show"} ${tokenContextMenu.tokenName} on Player View`}
+                    type="checkbox"
+                    checked={!tokenContextMenu.visibleInPlayer}
+                    onChange={(event) => {
+                      if (!onSceneChange) {
+                        setTokenContextMenu(null);
+                        return;
+                      }
+                      const visibleInPlayer = !event.target.checked;
+                      onSceneChange(patchSceneToken(scene, token.id, { visibleInPlayer }));
+                      setTokenContextMenu((menu) => (menu ? { ...menu, visibleInPlayer } : menu));
+                    }}
+                  />
+                  <span>Hide</span>
+                </label>
+              </label>
+              <label className="setting-row">
+                <span>Footprint</span>
+                <label className="fog-operation-switch" title={`${token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE ? "Hide" : "Show"} ${tokenContextMenu.tokenName} footprint`}>
+                  <span>Show</span>
+                  <input
+                    aria-label={`${token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE ? "Hide" : "Show"} ${tokenContextMenu.tokenName} footprint`}
+                    type="checkbox"
+                    checked={!(token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE)}
+                    onChange={(event) => {
+                      if (!onSceneChange) {
+                        setTokenContextMenu(null);
+                        return;
+                      }
+                      onSceneChange(patchSceneToken(scene, token.id, { footprintVisible: !event.target.checked }));
+                    }}
+                  />
+                  <span>Hide</span>
+                </label>
+              </label>
+            </div>
+            <div className="control-divider" />
             <TokenSettings
               token={token}
               gridSize={scene.grid.sizePx}
               gridType={scene.grid.type}
+              showFootprint={false}
               onUpdateToken={(patch) => {
                 if (!onSceneChange) {
                   return;
@@ -2504,44 +2778,149 @@ export function SceneCanvas({
           <div className="canvas-context-menu-title" title={maskContextMenu.label}>{maskContextMenu.label}</div>
           <div className="control-divider" />
           <div className="settings-grid">
-            <label className="setting-row">
-              <span>{maskContextMenu.kind === "fog" ? "Player View" : "Mask"}</span>
-              <label
-                className="fog-operation-switch"
-                title={
-                  maskContextMenu.kind === "fog"
-                    ? `${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`
-                    : `${maskContextMenu.visible ? "Hide" : "Show"} ${maskContextMenu.label}`
-                }
-              >
-                <span>Show</span>
-                <input
-                  aria-label={
-                    maskContextMenu.kind === "fog"
-                      ? `${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`
-                      : `${maskContextMenu.visible ? "Hide" : "Show"} ${maskContextMenu.label}`
-                  }
-                  type="checkbox"
-                  checked={maskContextMenu.kind === "fog" ? !maskContextMenu.visibleInPlayer : !maskContextMenu.visible}
-                  onChange={(event) => {
-                    if (!scene || !onSceneChange) {
-                      setMaskContextMenu(null);
-                      return;
-                    }
-                    if (maskContextMenu.kind === "fog") {
-                      const nextVisibleInPlayer = !event.target.checked;
-                      onSceneChange(setFogShapePlayerVisibility(scene, maskContextMenu.shapeId, nextVisibleInPlayer));
-                    } else {
-                      const nextVisible = !event.target.checked;
-                      onSceneChange(setWeatherMaskVisibility(scene, maskContextMenu.maskId, nextVisible));
-                    }
-                    setMaskContextMenu(null);
-                  }}
-                />
-                <span>Hide</span>
-              </label>
-            </label>
+            {maskContextMenu.kind === "fog" ? (
+              <>
+                <label className="setting-row">
+                  <span>GM View</span>
+                  <label className="fog-operation-switch" title={`${maskContextMenu.visibleInGm ? "Hide" : "Show"} ${maskContextMenu.label} in GM View`}>
+                    <span>Show</span>
+                    <input
+                      aria-label={`${maskContextMenu.visibleInGm ? "Hide" : "Show"} ${maskContextMenu.label} in GM View`}
+                      type="checkbox"
+                      checked={!maskContextMenu.visibleInGm}
+                      onChange={(event) => {
+                        if (!scene || !onSceneChange) {
+                          setMaskContextMenu(null);
+                          return;
+                        }
+                        const visibleInGm = !event.target.checked;
+                        onSceneChange(setFogShapeGmVisibility(scene, maskContextMenu.shapeId, visibleInGm));
+                        setMaskContextMenu((menu) => (menu?.kind === "fog" ? { ...menu, visibleInGm } : menu));
+                      }}
+                    />
+                    <span>Hide</span>
+                  </label>
+                </label>
+                <label className="setting-row">
+                  <span>Player View</span>
+                  <label className="fog-operation-switch" title={`${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`}>
+                    <span>Show</span>
+                    <input
+                      aria-label={`${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`}
+                      type="checkbox"
+                      checked={!maskContextMenu.visibleInPlayer}
+                      onChange={(event) => {
+                        if (!scene || !onSceneChange) {
+                          setMaskContextMenu(null);
+                          return;
+                        }
+                        const visibleInPlayer = !event.target.checked;
+                        onSceneChange(setFogShapePlayerVisibility(scene, maskContextMenu.shapeId, visibleInPlayer));
+                        setMaskContextMenu((menu) => (menu?.kind === "fog" ? { ...menu, visibleInPlayer } : menu));
+                      }}
+                    />
+                    <span>Hide</span>
+                  </label>
+                </label>
+              </>
+            ) : (
+              <>
+                <label className="setting-row">
+                  <span>Mask Enabled</span>
+                  <label className="fog-operation-switch" title={`${maskContextMenu.visible ? "Disable" : "Enable"} ${maskContextMenu.label}`}>
+                    <span>On</span>
+                    <input
+                      aria-label={`${maskContextMenu.visible ? "Disable" : "Enable"} ${maskContextMenu.label}`}
+                      type="checkbox"
+                      checked={!maskContextMenu.visible}
+                      onChange={(event) => {
+                        if (!scene || !onSceneChange) {
+                          setMaskContextMenu(null);
+                          return;
+                        }
+                        const visible = !event.target.checked;
+                        onSceneChange(setWeatherMaskVisibility(scene, maskContextMenu.maskId, visible));
+                        setMaskContextMenu((menu) => (menu?.kind === "effects" ? { ...menu, visible } : menu));
+                      }}
+                    />
+                    <span>Off</span>
+                  </label>
+                </label>
+                <label className="setting-row">
+                  <span>Player View</span>
+                  <label className="fog-operation-switch" title={`${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`}>
+                    <span>Show</span>
+                    <input
+                      aria-label={`${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`}
+                      type="checkbox"
+                      checked={!maskContextMenu.visibleInPlayer}
+                      onChange={(event) => {
+                        if (!scene || !onSceneChange) {
+                          setMaskContextMenu(null);
+                          return;
+                        }
+                        const visibleInPlayer = !event.target.checked;
+                        onSceneChange(setWeatherMaskPlayerVisibility(scene, maskContextMenu.maskId, visibleInPlayer));
+                        setMaskContextMenu((menu) => (menu?.kind === "effects" ? { ...menu, visibleInPlayer } : menu));
+                      }}
+                    />
+                    <span>Hide</span>
+                  </label>
+                </label>
+              </>
+            )}
           </div>
+          <div className="control-divider" />
+          <button
+            type="button"
+            role="menuitem"
+            className="token-menu-action"
+            title={`Duplicate ${maskContextMenu.label}`}
+            aria-label={`Duplicate ${maskContextMenu.label}`}
+            onClick={() => {
+              if (!scene || !onSceneChange) {
+                setMaskContextMenu(null);
+                return;
+              }
+              if (maskContextMenu.kind === "fog") {
+                const result = duplicateSceneFogShape(scene, maskContextMenu.shapeId, crypto.randomUUID(), maskContextMenu.label);
+                onSceneChange(result.scene);
+                onSelectFogShape?.(result.duplicatedFogShapeId ?? null);
+              } else {
+                const result = duplicateSceneWeatherMask(scene, maskContextMenu.maskId, crypto.randomUUID(), maskContextMenu.label);
+                onSceneChange(result.scene);
+                onSelectWeatherMask?.(result.duplicatedWeatherMaskId ?? null);
+              }
+              setMaskContextMenu(null);
+            }}
+          >
+            <Copy size={14} aria-hidden="true" />
+            <span>Duplicate</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="token-menu-action token-menu-delete"
+            title={`Delete ${maskContextMenu.label}`}
+            aria-label={`Delete ${maskContextMenu.label}`}
+            onClick={() => {
+              if (!scene || !onSceneChange) {
+                setMaskContextMenu(null);
+                return;
+              }
+              if (maskContextMenu.kind === "fog") {
+                onSceneChange(removeSceneFogShape(scene, maskContextMenu.shapeId));
+                onSelectFogShape?.(null);
+              } else {
+                onSceneChange(removeSceneWeatherMask(scene, maskContextMenu.maskId));
+                onSelectWeatherMask?.(null);
+              }
+              setMaskContextMenu(null);
+            }}
+          >
+            <Trash2 size={14} aria-hidden="true" />
+            <span>Delete</span>
+          </button>
         </div>
       )}
       {drawingContextMenu && (
@@ -2568,14 +2947,36 @@ export function SceneCanvas({
                         setDrawingContextMenu(null);
                         return;
                       }
-                      onSceneChange(setDrawingTemplateFootprintVisibility(scene, drawingContextMenu.drawingId, !event.target.checked));
-                      setDrawingContextMenu(null);
+                      const templateFootprintVisible = !event.target.checked;
+                      onSceneChange(setDrawingTemplateFootprintVisibility(scene, drawingContextMenu.drawingId, templateFootprintVisible));
+                      setDrawingContextMenu((menu) => (menu ? { ...menu, templateFootprintVisible } : menu));
                     }}
                   />
                   <span>Hide</span>
                 </label>
               </label>
             )}
+            <label className="setting-row">
+              <span>GM View</span>
+              <label className="fog-operation-switch" title={`${drawingContextMenu.visibleInGm ? "Hide" : "Show"} ${drawingContextMenu.label} in GM View`}>
+                <span>Show</span>
+                <input
+                  aria-label={`${drawingContextMenu.visibleInGm ? "Hide" : "Show"} ${drawingContextMenu.label} in GM View`}
+                  type="checkbox"
+                  checked={!drawingContextMenu.visibleInGm}
+                  onChange={(event) => {
+                    if (!scene || !onSceneChange) {
+                      setDrawingContextMenu(null);
+                      return;
+                    }
+                    const visibleInGm = !event.target.checked;
+                    onSceneChange(setDrawingGmVisibility(scene, drawingContextMenu.drawingId, visibleInGm));
+                    setDrawingContextMenu((menu) => (menu ? { ...menu, visibleInGm } : menu));
+                  }}
+                />
+                <span>Hide</span>
+              </label>
+            </label>
             <label className="setting-row">
               <span>Player View</span>
               <label className="fog-operation-switch" title={`${drawingContextMenu.visibleInPlayer ? "Hide" : "Show"} ${drawingContextMenu.label} on Player View`}>
@@ -2589,8 +2990,9 @@ export function SceneCanvas({
                       setDrawingContextMenu(null);
                       return;
                     }
-                    onSceneChange(setDrawingPlayerVisibility(scene, drawingContextMenu.drawingId, !event.target.checked));
-                    setDrawingContextMenu(null);
+                    const visibleInPlayer = !event.target.checked;
+                    onSceneChange(setDrawingPlayerVisibility(scene, drawingContextMenu.drawingId, visibleInPlayer));
+                    setDrawingContextMenu((menu) => (menu ? { ...menu, visibleInPlayer } : menu));
                   }}
                 />
                 <span>Hide</span>
@@ -2652,6 +3054,51 @@ export function SceneCanvas({
         >
           <div className="canvas-context-menu-title" title={environmentEffectContextMenu.label}>{environmentEffectContextMenu.label}</div>
           <div className="control-divider" />
+          <div className="settings-grid">
+            <label className="setting-row">
+              <span>GM View</span>
+              <label className="fog-operation-switch" title={`${environmentEffectContextMenu.visibleInGm ? "Hide" : "Show"} ${environmentEffectContextMenu.label} in GM View`}>
+                <span>Show</span>
+                <input
+                  aria-label={`${environmentEffectContextMenu.visibleInGm ? "Hide" : "Show"} ${environmentEffectContextMenu.label} in GM View`}
+                  type="checkbox"
+                  checked={!environmentEffectContextMenu.visibleInGm}
+                  onChange={(event) => {
+                    if (!scene || !onSceneChange) {
+                      setEnvironmentEffectContextMenu(null);
+                      return;
+                    }
+                    const visibleInGm = !event.target.checked;
+                    onSceneChange(patchSceneEnvironmentEffect(scene, environmentEffectContextMenu.effectId, (effect) => ({ ...effect, visibleInGm })));
+                    setEnvironmentEffectContextMenu((menu) => (menu ? { ...menu, visibleInGm } : menu));
+                  }}
+                />
+                <span>Hide</span>
+              </label>
+            </label>
+            <label className="setting-row">
+              <span>Player View</span>
+              <label className="fog-operation-switch" title={`${environmentEffectContextMenu.visibleInPlayer ? "Hide" : "Show"} ${environmentEffectContextMenu.label} on Player View`}>
+                <span>Show</span>
+                <input
+                  aria-label={`${environmentEffectContextMenu.visibleInPlayer ? "Hide" : "Show"} ${environmentEffectContextMenu.label} on Player View`}
+                  type="checkbox"
+                  checked={!environmentEffectContextMenu.visibleInPlayer}
+                  onChange={(event) => {
+                    if (!scene || !onSceneChange) {
+                      setEnvironmentEffectContextMenu(null);
+                      return;
+                    }
+                    const visibleInPlayer = !event.target.checked;
+                    onSceneChange(patchSceneEnvironmentEffect(scene, environmentEffectContextMenu.effectId, (effect) => ({ ...effect, visibleInPlayer })));
+                    setEnvironmentEffectContextMenu((menu) => (menu ? { ...menu, visibleInPlayer } : menu));
+                  }}
+                />
+                <span>Hide</span>
+              </label>
+            </label>
+          </div>
+          <div className="control-divider" />
           <button
             type="button"
             role="menuitem"
@@ -2666,6 +3113,26 @@ export function SceneCanvas({
           >
             <Settings2 size={14} aria-hidden="true" />
             <span>Edit Effect</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="token-menu-action"
+            title={`Duplicate ${environmentEffectContextMenu.label}`}
+            aria-label={`Duplicate ${environmentEffectContextMenu.label}`}
+            onClick={() => {
+              if (!scene || !onSceneChange) {
+                setEnvironmentEffectContextMenu(null);
+                return;
+              }
+              const result = duplicateEnvironmentEffect(scene, environmentEffectContextMenu.effectId, crypto.randomUUID(), environmentEffectContextMenu.label);
+              onSceneChange(result.scene);
+              onSelectEnvironmentEffect?.(result.duplicatedEnvironmentEffectId ?? null);
+              setEnvironmentEffectContextMenu(null);
+            }}
+          >
+            <Copy size={14} aria-hidden="true" />
+            <span>Duplicate</span>
           </button>
           <button
             type="button"
@@ -2693,5 +3160,7 @@ export function SceneCanvas({
     </div>
   );
 }
+
+
 
 

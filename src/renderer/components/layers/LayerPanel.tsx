@@ -7,6 +7,7 @@ import {
   Circle,
   CircleHelp,
   CloudFog,
+  Copy,
   Crown,
   Eye,
   EyeOff,
@@ -49,6 +50,7 @@ import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../../lib/environmentEffectOptions";
 import { reorderByDropTarget, type DropPlacement } from "../../lib/reorder";
+import { duplicateEnvironmentEffect } from "../../lib/sceneEditing";
 import { getSelectedItemIds } from "../../lib/selectionIds";
 import {
   WEATHER_CATEGORY_OPTIONS,
@@ -1363,6 +1365,11 @@ function EnvironmentEffectList({
                     onSelectEnvironmentEffect(effect.id);
                     onEditEnvironmentEffect(effect.id);
                   }}
+                  onDuplicate={() => {
+                    const result = duplicateEnvironmentEffect(scene, effect.id, crypto.randomUUID(), label);
+                    onUpdateEnvironment({ effects: result.scene.environment.effects });
+                    onSelectEnvironmentEffect(result.duplicatedEnvironmentEffectId ?? null);
+                  }}
                   onDelete={() => {
                     onUpdateEnvironment({ effects: scene.environment.effects.filter((candidate) => candidate.id !== effect.id) });
                     if (selectedEnvironmentEffectId === effect.id) {
@@ -1390,6 +1397,7 @@ function EnvironmentEffectMenuButton({
   onToggle,
   onClose,
   onEdit,
+  onDuplicate,
   onDelete
 }: {
   label: string;
@@ -1397,6 +1405,7 @@ function EnvironmentEffectMenuButton({
   onToggle: () => void;
   onClose: () => void;
   onEdit: () => void;
+  onDuplicate: () => void;
   onDelete: () => void;
 }) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -1423,6 +1432,7 @@ function EnvironmentEffectMenuButton({
             label={label}
             onClose={onClose}
             onEdit={onEdit}
+            onDuplicate={onDuplicate}
             onDelete={onDelete}
           />,
           document.body
@@ -1436,19 +1446,21 @@ function FloatingEnvironmentEffectMenu({
   label,
   onClose,
   onEdit,
+  onDuplicate,
   onDelete
 }: {
   anchor: HTMLElement | null;
   label: string;
   onClose: () => void;
   onEdit: () => void;
+  onDuplicate: () => void;
   onDelete: () => void;
 }) {
   const { menuRef, position } = useFloatingMenuPosition({
     open: Boolean(anchor),
     anchor,
     fallbackWidth: 196,
-    fallbackHeight: 100
+    fallbackHeight: 168
   });
 
   return (
@@ -1456,10 +1468,14 @@ function FloatingEnvironmentEffectMenu({
       ref={menuRef}
       className="token-settings-menu token-settings-menu-portal environment-effect-menu-wrap"
       style={{ top: position.top, left: position.left }}
+      role="menu"
       onClick={(event) => event.stopPropagation()}
     >
+      <div className="canvas-context-menu-title" title={label}>{label}</div>
+      <div className="control-divider" />
       <button
         className="token-menu-action"
+        role="menuitem"
         title={`Edit ${label}`}
         onClick={() => {
           onEdit();
@@ -1470,7 +1486,20 @@ function FloatingEnvironmentEffectMenu({
         Edit Animated Effect
       </button>
       <button
+        className="token-menu-action"
+        role="menuitem"
+        title={`Duplicate ${label}`}
+        onClick={() => {
+          onDuplicate();
+          onClose();
+        }}
+      >
+        <Copy size={14} aria-hidden="true" />
+        Duplicate
+      </button>
+      <button
         className="token-menu-action token-menu-delete"
+        role="menuitem"
         title={`Delete ${label}`}
         onClick={() => {
           onDelete();

@@ -1003,6 +1003,22 @@ let smokeRuntime: WaterRuntime | null = null;
 let fogRuntime: WaterRuntime | null = null;
 let sharedEnvironmentEffectRenderer: THREE.WebGLRenderer | null = null;
 let sharedEffectPlaneGeometry: THREE.PlaneGeometry | null = null;
+let environmentEffectRendererUsers = 0;
+
+export function retainEnvironmentEffectRuntimes(): () => void {
+  environmentEffectRendererUsers += 1;
+  let released = false;
+  return () => {
+    if (released) {
+      return;
+    }
+    released = true;
+    environmentEffectRendererUsers = Math.max(0, environmentEffectRendererUsers - 1);
+    if (environmentEffectRendererUsers === 0) {
+      disposeEnvironmentEffectRuntimes();
+    }
+  };
+}
 
 function getSharedEnvironmentEffectRenderer(): THREE.WebGLRenderer | null {
   if (typeof document === "undefined") {
@@ -1025,6 +1041,8 @@ function getSharedEffectPlaneGeometry(): THREE.PlaneGeometry {
 }
 
 export function disposeEnvironmentEffectRuntimes() {
+  environmentEffectRendererUsers = 0;
+
   for (const runtime of [
     waterRuntime,
     acidRuntime,
