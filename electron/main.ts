@@ -10,7 +10,6 @@ import {
   DEFAULT_LAYERS,
   Scene,
   SquareCropRect,
-  assertValidCampaign,
   assertValidScene,
   createDefaultCampaign,
   createDefaultScene,
@@ -28,6 +27,12 @@ import {
 } from "./assetProtocol.js";
 import { createImageMapThumbnail, createSquareImageThumbnail, createVideoMapThumbnail } from "./assets.js";
 import { formatMetadataReadError, formatMetadataWriteError } from "./metadataErrors.js";
+import {
+  parseCampaignMetadata,
+  parseSceneMetadata,
+  toPortableCampaignMetadata,
+  toPortableSceneMetadata
+} from "./persistenceCodecs.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isDev = !app.isPackaged && !isSmokeTest;
@@ -207,9 +212,7 @@ async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSumma
 async function readCampaignMetadata(campaignPath: string): Promise<Campaign> {
   try {
     const raw = await readFile(campaignFile(campaignPath), "utf8");
-    const parsed = JSON.parse(raw) as unknown;
-    assertValidCampaign(parsed);
-    return parsed;
+    return parseCampaignMetadata(raw);
   } catch (caught) {
     throw formatMetadataReadError("campaign", campaignBackupFolder(campaignPath), caught);
   }
@@ -220,9 +223,7 @@ async function readSceneMetadata(campaignPath: string, sceneId: string): Promise
   assertInsideCampaign(campaignPath, filePath);
   try {
     const raw = await readFile(filePath, "utf8");
-    const scene = JSON.parse(raw) as unknown;
-    assertValidScene(scene);
-    return scene;
+    return parseSceneMetadata(raw);
   } catch (caught) {
     throw formatMetadataReadError("scene", sceneBackupFolder(campaignPath, sceneId), caught);
   }
@@ -294,11 +295,7 @@ async function writeCampaign(campaignPath: string, campaign: Campaign): Promise<
   try {
     await ensureCampaignFolders(campaignPath);
     await backupExistingMetadataFile(campaignPath, campaignFile(campaignPath), campaignBackupFolder(campaignPath), "campaign.json");
-    const normalizedCampaign = normalizeCampaign(campaign);
-    const portable: Campaign = {
-      ...normalizedCampaign,
-      assets: normalizedCampaign.assets.map(({ absolutePath: _absolutePath, thumbnailAbsolutePath: _thumbnailAbsolutePath, ...asset }) => asset)
-    };
+    const portable = toPortableCampaignMetadata(campaign);
     await writeFile(campaignFile(campaignPath), `${JSON.stringify(portable, null, 2)}\n`, "utf8");
   } catch (caught) {
     throw formatMetadataWriteError("campaign", caught);
@@ -309,7 +306,7 @@ async function writeScene(campaignPath: string, scene: Scene): Promise<void> {
   try {
     await ensureCampaignFolders(campaignPath);
     await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, scene.id), sceneBackupFolder(campaignPath, scene.id), `${scene.id}.scene.json`);
-    const normalizedScene = normalizeScene(scene);
+    const normalizedScene = toPortableSceneMetadata(scene);
     await writeFile(sceneFile(campaignPath, normalizedScene.id), `${JSON.stringify(normalizedScene, null, 2)}\n`, "utf8");
   } catch (caught) {
     throw formatMetadataWriteError("scene", caught);
