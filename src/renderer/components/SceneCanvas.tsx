@@ -186,6 +186,7 @@ import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
 import { useSyncedRef } from "../hooks/useSyncedRef";
 import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
+import { useWindowKeyDown } from "../hooks/useWindowKeyDown";
 import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/dragTypes";
 import {
   addEnvironmentEffect,
@@ -858,85 +859,62 @@ export function SceneCanvas({
     setEnvironmentPolygonDraft(null);
   }, [clearEnvironmentEffectPreview, environmentEffectTool, environmentPolygonDraftRef, scene?.id]);
 
-  useEffect(() => {
-    if (mode !== "gm" || (!tokenDragPreview && !drawingDragPreview && !rulerDrag && !fogPreview && !drawingPreview && !environmentEffectPreview)) {
+  const hasCancelableSceneInteraction = Boolean(tokenDragPreview || drawingDragPreview || rulerDrag || fogPreview || drawingPreview || environmentEffectPreview);
+  const cancelSceneInteractionOnEscape = useCallback((event: KeyboardEvent) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+    event.preventDefault();
+    cancelTokenDrag();
+    cancelDrawingDrag();
+    cancelRulerDrag();
+    clearFogPreview();
+    clearEnvironmentEffectPreview();
+    clearDrawingPreview();
+  }, [cancelDrawingDrag, cancelRulerDrag, cancelTokenDrag, clearDrawingPreview, clearEnvironmentEffectPreview, clearFogPreview]);
+  useWindowKeyDown(mode === "gm" && hasCancelableSceneInteraction, cancelSceneInteractionOnEscape);
+
+  const appendTokenWaypointOnShift = useCallback((event: KeyboardEvent) => {
+    if (event.key !== "Shift" || event.repeat || !scene || !tokenDragPreview) {
+      return;
+    }
+    const tokenDrag = tokenDragRef.current;
+    const token = scene.tokens.find((candidate) => candidate.id === tokenDragPreview.tokenId);
+    if (!tokenDrag || !token || tokenDrag.tokenId !== token.id) {
       return;
     }
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-      event.preventDefault();
-      cancelTokenDrag();
-      cancelDrawingDrag();
-      cancelRulerDrag();
-      clearFogPreview();
-      clearEnvironmentEffectPreview();
-      clearDrawingPreview();
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelDrawingDrag, cancelRulerDrag, cancelTokenDrag, clearDrawingPreview, clearEnvironmentEffectPreview, clearFogPreview, drawingDragPreview, drawingPreview, environmentEffectPreview, fogPreview, mode, rulerDrag, tokenDragPreview]);
-
-  useEffect(() => {
-    if (mode !== "gm" || !scene || !tokenDragPreview) {
+    event.preventDefault();
+    const nextTokenDrag = getTokenDragWithAppendedWaypoint(scene, tokenDrag, token, tokenDragPreview.currentPosition);
+    if (nextTokenDrag === tokenDrag) {
       return;
     }
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Shift" || event.repeat) {
-        return;
-      }
-      const tokenDrag = tokenDragRef.current;
-      const token = scene.tokens.find((candidate) => candidate.id === tokenDragPreview.tokenId);
-      if (!tokenDrag || !token || tokenDrag.tokenId !== token.id) {
-        return;
-      }
+    tokenDragRef.current = nextTokenDrag;
+    setTokenDragPreview((preview) => (preview?.tokenId === token.id ? { ...preview, waypoints: nextTokenDrag.waypoints } : preview));
+  }, [scene, tokenDragPreview]);
+  useWindowKeyDown(mode === "gm" && Boolean(scene && tokenDragPreview), appendTokenWaypointOnShift);
 
-      event.preventDefault();
-      const nextTokenDrag = getTokenDragWithAppendedWaypoint(scene, tokenDrag, token, tokenDragPreview.currentPosition);
-      if (nextTokenDrag === tokenDrag) {
-        return;
-      }
-
-      tokenDragRef.current = nextTokenDrag;
-      setTokenDragPreview((preview) => (preview?.tokenId === token.id ? { ...preview, waypoints: nextTokenDrag.waypoints } : preview));
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [mode, scene, tokenDragPreview]);
-
-  useEffect(() => {
-    if (mode !== "gm" || !scene || !rulerDrag) {
+  const appendRulerWaypointOnShift = useCallback((event: KeyboardEvent) => {
+    if (event.key !== "Shift" || event.repeat || !scene) {
+      return;
+    }
+    const activeRulerDrag = rulerDragRef.current;
+    if (!activeRulerDrag) {
       return;
     }
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Shift" || event.repeat) {
-        return;
-      }
-      const activeRulerDrag = rulerDragRef.current;
-      if (!activeRulerDrag) {
-        return;
-      }
+    event.preventDefault();
+    const nextRulerDrag = getRulerDragWithAppendedWaypoint(scene, activeRulerDrag, event.ctrlKey || event.metaKey);
+    if (nextRulerDrag === activeRulerDrag) {
+      return;
+    }
 
-      event.preventDefault();
-      const nextRulerDrag = getRulerDragWithAppendedWaypoint(scene, activeRulerDrag, event.ctrlKey || event.metaKey);
-      if (nextRulerDrag === activeRulerDrag) {
-        return;
-      }
-
-      rulerDragRef.current = nextRulerDrag;
-      setRulerDrag(nextRulerDrag);
-      emitRulerEvent(nextRulerDrag);
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [emitRulerEvent, mode, rulerDrag, scene]);
+    rulerDragRef.current = nextRulerDrag;
+    setRulerDrag(nextRulerDrag);
+    emitRulerEvent(nextRulerDrag);
+  }, [emitRulerEvent, scene]);
+  useWindowKeyDown(mode === "gm" && Boolean(scene && rulerDrag), appendRulerWaypointOnShift);
 
   useEffect(() => {
     setVideoMapLoadStatus(isVideoMap ? getInitialMapLoadStatus(mapAsset?.mediaType, assetUrl) : "idle");
