@@ -505,6 +505,18 @@ export function SceneCanvas({
     setEnvironmentEffectPreview(null);
   }, []);
 
+  const cancelTokenDrag = useCallback(() => {
+    tokenDragRef.current = null;
+    setTokenDragPreview(null);
+  }, []);
+
+  const cancelDrawingDrag = useCallback(() => {
+    drawingDragRef.current = null;
+    drawingResizeRef.current = null;
+    drawingRotateRef.current = null;
+    setDrawingDragPreview(null);
+  }, []);
+
   const emitRulerEvent = useCallback((nextRulerDrag: RulerDrag) => {
     if (!scene) {
       return;
@@ -926,7 +938,7 @@ export function SceneCanvas({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelRulerDrag, clearDrawingPreview, clearEnvironmentEffectPreview, clearFogPreview, drawingDragPreview, drawingPreview, environmentEffectPreview, fogPreview, mode, rulerDrag, tokenDragPreview]);
+  }, [cancelDrawingDrag, cancelRulerDrag, cancelTokenDrag, clearDrawingPreview, clearEnvironmentEffectPreview, clearFogPreview, drawingDragPreview, drawingPreview, environmentEffectPreview, fogPreview, mode, rulerDrag, tokenDragPreview]);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !tokenDragPreview) {
@@ -1245,18 +1257,6 @@ export function SceneCanvas({
     observer.observe(canvas);
     return () => observer.disconnect();
   }, [camera, mode, onViewportCenterChange, playerDisplayScale, scene]);
-
-  const cancelTokenDrag = () => {
-    tokenDragRef.current = null;
-    setTokenDragPreview(null);
-  };
-
-  const cancelDrawingDrag = () => {
-    drawingDragRef.current = null;
-    drawingResizeRef.current = null;
-    drawingRotateRef.current = null;
-    setDrawingDragPreview(null);
-  };
 
   const selectFromMarquee = (currentScene: Scene, drag: SelectionDrag) => {
     const selection = getCompletedSceneMarqueeSelection(currentScene, drag, selectorSelectionFilters, {
