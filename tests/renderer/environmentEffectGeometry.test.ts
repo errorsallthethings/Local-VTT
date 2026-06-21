@@ -3,6 +3,7 @@ import { createDefaultScene } from "../../src/shared/localvtt";
 import {
   environmentDragToMask,
   getClampedEnvironmentEffectFeather,
+  getEnvironmentEffectDragFromPoint,
   getEnvironmentEffectFromDrag,
   getEnvironmentEffectFromPolygonDraft,
   getEnvironmentEffectPathCommands,
@@ -96,6 +97,18 @@ describe("environment effect geometry", () => {
       points,
       visibleInGm: true,
       visibleInPlayer: true
+    });
+  });
+
+  it("creates environment effect drags from a point and effect tuning", () => {
+    expect(getEnvironmentEffectDragFromPoint(3, "rectangle", { x: 10, y: 20 }, "water", 0.25, { waterTuning: { opacity: 0.8 } })).toMatchObject({
+      pointerId: 3,
+      kind: "rectangle",
+      effect: "water",
+      feather: 0.25,
+      waterTuning: { opacity: 0.8 },
+      start: { x: 10, y: 20 },
+      current: { x: 10, y: 20 }
     });
   });
 

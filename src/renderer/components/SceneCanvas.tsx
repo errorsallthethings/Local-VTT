@@ -157,6 +157,7 @@ import {
   type WaterEffectTuning
 } from "../canvas/environmentEffectsRenderer";
 import {
+  getEnvironmentEffectDragFromPoint,
   getEnvironmentEffectFromDrag,
   getEnvironmentEffectFromPolygonDraft,
   getUpdatedEnvironmentEffectDrag,
@@ -165,7 +166,6 @@ import {
   type EnvironmentEffectDrag,
   type EnvironmentPolygonDraft
 } from "../canvas/environmentEffectGeometry";
-import { getEnvironmentEffectTuningFields } from "../canvas/environmentEffectTuning";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
 import {
   drawWeatherMaskOutlines,
@@ -174,6 +174,7 @@ import {
   drawWeatherPolygonDraft
 } from "../canvas/weatherMaskRenderer";
 import {
+  getWeatherMaskDragFromPoint,
   getWeatherMaskFromDrag,
   getWeatherMaskFromPolygonDraft,
   getUpdatedWeatherMaskDrag,
@@ -1514,12 +1515,7 @@ export function SceneCanvas({
       }
       weatherPolygonDraftRef.current = null;
       setWeatherPolygonDraft(null);
-      const maskDrag = {
-        pointerId: event.pointerId,
-        kind: weatherMaskTool,
-        start: point,
-        current: point
-      } satisfies WeatherMaskDrag;
+      const maskDrag = getWeatherMaskDragFromPoint(event.pointerId, weatherMaskTool, point);
       weatherMaskDragRef.current = maskDrag;
       setWeatherMaskPreview(maskDrag);
       return;
@@ -1532,15 +1528,7 @@ export function SceneCanvas({
       }
       environmentPolygonDraftRef.current = null;
       setEnvironmentPolygonDraft(null);
-      const effectDrag = {
-        pointerId: event.pointerId,
-        kind: environmentEffectTool,
-        effect: environmentEffectType,
-        feather: environmentEffectFeather,
-        ...getEnvironmentEffectTuningFields(environmentEffectType, {}, currentEnvironmentEffectTuning),
-        start: point,
-        current: point
-      } satisfies EnvironmentEffectDrag;
+      const effectDrag = getEnvironmentEffectDragFromPoint(event.pointerId, environmentEffectTool, point, environmentEffectType, environmentEffectFeather, currentEnvironmentEffectTuning);
       environmentEffectDragRef.current = effectDrag;
       setEnvironmentEffectPreview(effectDrag);
       return;

@@ -109,6 +109,25 @@ export function getEnvironmentEffectFromPolygonDraft(
   };
 }
 
+export function getEnvironmentEffectDragFromPoint(
+  pointerId: number,
+  kind: EnvironmentEffectShapeKind,
+  point: Point,
+  effect: EnvironmentEffectType,
+  feather: number,
+  fallbackTuning: EnvironmentEffectTuningFallback = {}
+): EnvironmentEffectDrag {
+  return {
+    pointerId,
+    kind,
+    effect,
+    feather,
+    ...getEnvironmentEffectTuningFields(effect, {}, fallbackTuning),
+    start: point,
+    current: point
+  };
+}
+
 export function isMeaningfulEnvironmentEffectDrag(drag: EnvironmentEffectDrag): boolean {
   return drag.kind === "circle" ? distanceBetween(drag.start, drag.current) > 8 : Math.abs(drag.current.x - drag.start.x) > 8 && Math.abs(drag.current.y - drag.start.y) > 8;
 }

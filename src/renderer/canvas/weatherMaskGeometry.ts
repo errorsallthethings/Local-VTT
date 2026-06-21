@@ -66,6 +66,15 @@ export function getWeatherMaskFromPolygonDraft(draft: WeatherPolygonDraft, id: s
   };
 }
 
+export function getWeatherMaskDragFromPoint(pointerId: number, kind: WeatherMaskShapeKind, point: Point): WeatherMaskDrag {
+  return {
+    pointerId,
+    kind,
+    start: point,
+    current: point
+  };
+}
+
 export function getUpdatedWeatherMaskDrag(drag: WeatherMaskDrag, point: Point, squareConstrained: boolean): WeatherMaskDrag {
   return {
     ...drag,

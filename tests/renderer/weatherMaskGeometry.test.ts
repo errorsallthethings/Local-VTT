@@ -4,6 +4,7 @@ import {
   getVisibleWeatherMasks,
   getWeatherMaskFromDrag,
   getWeatherMaskFromPolygonDraft,
+  getWeatherMaskDragFromPoint,
   getWeatherMaskDragRect,
   getWeatherMaskRect,
   getUpdatedWeatherMaskDrag,
@@ -93,6 +94,15 @@ describe("weather mask geometry", () => {
       kind: "polygon",
       points,
       visible: true
+    });
+  });
+
+  it("creates weather mask drags from a point", () => {
+    expect(getWeatherMaskDragFromPoint(3, "rectangle", { x: 10, y: 20 })).toEqual({
+      pointerId: 3,
+      kind: "rectangle",
+      start: { x: 10, y: 20 },
+      current: { x: 10, y: 20 }
     });
   });
 
