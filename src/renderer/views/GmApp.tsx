@@ -17,8 +17,7 @@ import {
   DEFAULT_VIDEO_PLAYBACK,
   isLiveTableEvent,
   isPlayerIdleState,
-  isPlayerSceneProjection,
-  projectSceneForPlayer
+  isPlayerSceneProjection
 } from "../../shared/localvtt";
 import type {
   Asset,
@@ -64,6 +63,7 @@ import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/d
 import { loadImageDimensions } from "../lib/imageDimensions";
 import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/liveTableEvents";
 import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/playerIdleState";
+import { sendSceneToPlayer, updatePlayerSceneIfOpen } from "../lib/playerViewSync";
 import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/sceneCollectionActions";
 import { applySelectionMode, retainExistingSelectionIds, type SelectionMode } from "../lib/selectionIds";
 import { patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/sceneEditing";
@@ -871,7 +871,7 @@ export function GmApp() {
       skipNextPlayerSceneAutoSyncRef.current = false;
       return;
     }
-    void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
+    void updatePlayerSceneIfOpen(window.localVtt, campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
   }, [activeScene, campaign, playerDisplayMode, playerSceneId, playersPanelOpen]);
 
   useEffect(() => {
@@ -890,7 +890,7 @@ export function GmApp() {
         }
       : activeScene;
     playerTemplatePreviewPublishedRef.current = Boolean(previewDrawing);
-    void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(campaign, previewScene, { showPlayerSeatIndicators: playersPanelOpen }));
+    void updatePlayerSceneIfOpen(window.localVtt, campaign, previewScene, { showPlayerSeatIndicators: playersPanelOpen });
   }, [activeScene, campaign, playerDisplayMode, playerSceneId, playerTemplatePreviewDrawing, playersPanelOpen, templatePreviewVisibleInPlayer]);
 
   useEffect(() => {
@@ -1179,7 +1179,7 @@ export function GmApp() {
     };
     updateCampaignDraft(nextCampaign);
     if (activeScene) {
-      void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(nextCampaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
+      void updatePlayerSceneIfOpen(window.localVtt, nextCampaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
     }
   };
 
@@ -1393,7 +1393,7 @@ export function GmApp() {
       if (nextActiveScene) {
         setActiveScene(nextActiveScene);
         if (nextActiveScene.id === playerSceneId) {
-          void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(result.campaignSummary.campaign, nextActiveScene, { showPlayerSeatIndicators: playersPanelOpen }));
+          void updatePlayerSceneIfOpen(window.localVtt, result.campaignSummary.campaign, nextActiveScene, { showPlayerSeatIndicators: playersPanelOpen });
         }
       }
       setSelectedTokenId((tokenId) => (nextActiveScene?.tokens.some((token) => token.id === tokenId) ? tokenId : null));
@@ -1539,7 +1539,7 @@ export function GmApp() {
         displayId: campaign.playerDisplay.selectedDisplayId,
         fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
       });
-      await window.localVtt.sendSceneToPlayer(projectSceneForPlayer(campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
+      await sendSceneToPlayer(window.localVtt, campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
       setPlayerSceneId(activeScene.id);
       setPlayerDisplayMode("scene");
       if (!openResult.displayFound && campaign.playerDisplay.selectedDisplayLabel) {

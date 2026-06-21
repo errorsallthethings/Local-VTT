@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createDefaultCampaign, createDefaultScene, type Asset } from "../../src/shared/localvtt";
-import { updatePlayerSceneIfOpen, type PlayerViewSceneSyncApi } from "../../src/renderer/lib/playerViewSync";
+import { sendSceneToPlayer, updatePlayerSceneIfOpen, type PlayerViewSceneSyncApi } from "../../src/renderer/lib/playerViewSync";
 
 describe("player view sync", () => {
   it("sends a projected scene through the Player View IPC API", async () => {
@@ -51,6 +51,7 @@ describe("player view sync", () => {
     scene.notes = "GM-only notes";
 
     const api: PlayerViewSceneSyncApi = {
+      sendSceneToPlayer: vi.fn().mockResolvedValue(true),
       updatePlayerSceneIfOpen: vi.fn().mockResolvedValue(true)
     };
 
@@ -71,6 +72,7 @@ describe("player view sync", () => {
     const campaign = createDefaultCampaign("Closed Player View");
     const scene = createDefaultScene("Unsynced Scene");
     const api: PlayerViewSceneSyncApi = {
+      sendSceneToPlayer: vi.fn().mockResolvedValue(true),
       updatePlayerSceneIfOpen: vi.fn().mockResolvedValue(false)
     };
 
@@ -78,5 +80,24 @@ describe("player view sync", () => {
 
     expect(api.updatePlayerSceneIfOpen).toHaveBeenCalledOnce();
     expect(vi.mocked(api.updatePlayerSceneIfOpen).mock.calls[0][0].scene.name).toBe("Unsynced Scene");
+  });
+
+  it("sends the projected scene when explicitly opening Player View", async () => {
+    const campaign = createDefaultCampaign("Player Send Campaign");
+    const scene = createDefaultScene("Player Send Scene");
+    scene.notes = "Private send notes";
+    const api: PlayerViewSceneSyncApi = {
+      sendSceneToPlayer: vi.fn().mockResolvedValue(true),
+      updatePlayerSceneIfOpen: vi.fn().mockResolvedValue(false)
+    };
+
+    await expect(sendSceneToPlayer(api, campaign, scene, { showPlayerSeatIndicators: true })).resolves.toBe(true);
+
+    expect(api.sendSceneToPlayer).toHaveBeenCalledOnce();
+    expect(api.updatePlayerSceneIfOpen).not.toHaveBeenCalled();
+    const projection = vi.mocked(api.sendSceneToPlayer).mock.calls[0][0];
+    expect(projection.scene.name).toBe("Player Send Scene");
+    expect(projection.scene.notes).toBe("");
+    expect(projection.showPlayerSeatIndicators).toBe(true);
   });
 });
