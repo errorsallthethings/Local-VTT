@@ -1010,6 +1010,62 @@ function getSharedEffectPlaneGeometry(): THREE.PlaneGeometry {
   return sharedEffectPlaneGeometry;
 }
 
+export function disposeEnvironmentEffectRuntimes() {
+  for (const runtime of [
+    waterRuntime,
+    acidRuntime,
+    coldRuntime,
+    darknessRuntime,
+    poisonRuntime,
+    lavaRuntime,
+    fireRuntime,
+    lightningRuntime,
+    arcaneRuntime,
+    chaosRuntime,
+    voidRuntime,
+    natureRuntime,
+    radiantRuntime,
+    forceFieldRuntime,
+    shockwaveRuntime,
+    distortionRuntime,
+    smokeRuntime,
+    fogRuntime
+  ]) {
+    disposeEnvironmentEffectRuntime(runtime);
+  }
+
+  waterRuntime = null;
+  acidRuntime = null;
+  coldRuntime = null;
+  darknessRuntime = null;
+  poisonRuntime = null;
+  lavaRuntime = null;
+  fireRuntime = null;
+  lightningRuntime = null;
+  arcaneRuntime = null;
+  chaosRuntime = null;
+  voidRuntime = null;
+  natureRuntime = null;
+  radiantRuntime = null;
+  forceFieldRuntime = null;
+  shockwaveRuntime = null;
+  distortionRuntime = null;
+  smokeRuntime = null;
+  fogRuntime = null;
+
+  sharedEffectPlaneGeometry?.dispose();
+  sharedEffectPlaneGeometry = null;
+}
+
+function disposeEnvironmentEffectRuntime(runtime: WaterRuntime | null) {
+  if (!runtime) {
+    return;
+  }
+  runtime.meshA.material.dispose();
+  runtime.meshB.material.dispose();
+  runtime.renderer.dispose();
+}
+
 function getEffectWorldOrigin(bounds: ScreenBounds, cameraState: { x: number; y: number; zoom: number }) {
   const zoom = Math.max(cameraState.zoom, 0.01);
   return {
