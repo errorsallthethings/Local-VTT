@@ -14,6 +14,7 @@ import {
   drawDrawings,
   getDrawingHitRadius,
   getDrawingAtPoint,
+  getDrawingPreviewFromPoint,
   isMeaningfulDrawingPreview,
   shouldAddDrawingPoint,
   type DrawingPointOverrides,
@@ -121,8 +122,7 @@ import {
   getDrawingElementFromPreview,
   getDrawingPolygonElementFromDraft,
   getDrawingTemplateCurrentPoint,
-  getTemplatePreviewDrawing,
-  isTemplateDrawingTool
+  getTemplatePreviewDrawing
 } from "../canvas/templateDrawing";
 import { getSnappedTokenPosition, getTokenAtPoint } from "../canvas/tokenGeometry";
 import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey, parseTokenImageSourceKey } from "../canvas/tokenImageSource";
@@ -1474,23 +1474,16 @@ export function SceneCanvas({
     }
     if (mode === "gm" && drawingTool && scene && onSceneChange && event.button === 0) {
       const point = getDrawingToolPoint(event, drawingTool);
-      const preview = {
-        pointerId: event.pointerId,
-        kind: drawingTool,
-        points: [point],
-        current: point,
+      const preview = getDrawingPreviewFromPoint(event.pointerId, drawingTool, point, {
         color: drawingColor,
         opacity: drawingOpacity,
-        strokeColor: drawingColor,
-        strokeOpacity: drawingOpacity,
         fillColor: drawingFillColor,
-        fillOpacity: isTemplateDrawingTool(drawingTool) ? 0 : drawingFillOpacity,
-        strokeStyle: isTemplateDrawingTool(drawingTool) ? "dashed" : drawingStrokeStyle,
+        fillOpacity: drawingFillOpacity,
+        strokeStyle: drawingStrokeStyle,
         strokeWidth: drawingStrokeWidth,
-        templateEffect: isTemplateDrawingTool(drawingTool) ? drawingTemplateEffect : "plain",
-        templateWidth: isTemplateDrawingTool(drawingTool) ? drawingTemplateWidth : 5,
-        measurementLabelVisible: isTemplateDrawingTool(drawingTool)
-      } satisfies DrawingPreview;
+        templateEffect: drawingTemplateEffect,
+        templateWidth: drawingTemplateWidth
+      });
       drawingPreviewRef.current = preview;
       setDrawingPreview(preview);
       onTemplatePreviewChange?.(getTemplatePreviewDrawing(preview));

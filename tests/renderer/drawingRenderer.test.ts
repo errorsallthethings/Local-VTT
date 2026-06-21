@@ -3,6 +3,7 @@ import {
   getTemplateLabel,
   getConeTriangle,
   getDrawingPreviewPoints,
+  getDrawingPreviewFromPoint,
   getDrawingAtPoint,
   getDrawingHitRadius,
   isMeaningfulDrawingPreview,
@@ -16,6 +17,59 @@ describe("drawing renderer helpers", () => {
     expect(getDrawingHitRadius(2)).toBe(8);
     expect(getDrawingHitRadius(1)).toBe(8);
     expect(getDrawingHitRadius(0.5)).toBe(16);
+  });
+
+  it("creates regular drawing previews from point and style", () => {
+    expect(
+      getDrawingPreviewFromPoint(3, "rectangle", { x: 10, y: 20 }, {
+        color: "#ff0000",
+        opacity: 0.8,
+        fillColor: "#00ff00",
+        fillOpacity: 0.4,
+        strokeStyle: "solid",
+        strokeWidth: 12,
+        templateEffect: "fire",
+        templateWidth: 15
+      })
+    ).toEqual({
+      pointerId: 3,
+      kind: "rectangle",
+      points: [{ x: 10, y: 20 }],
+      current: { x: 10, y: 20 },
+      color: "#ff0000",
+      opacity: 0.8,
+      strokeColor: "#ff0000",
+      strokeOpacity: 0.8,
+      fillColor: "#00ff00",
+      fillOpacity: 0.4,
+      strokeStyle: "solid",
+      strokeWidth: 12,
+      templateEffect: "plain",
+      templateWidth: 5,
+      measurementLabelVisible: false
+    });
+  });
+
+  it("creates template drawing previews with template-specific defaults", () => {
+    expect(
+      getDrawingPreviewFromPoint(3, "template-circle", { x: 10, y: 20 }, {
+        color: "#ff0000",
+        opacity: 0.8,
+        fillColor: "#00ff00",
+        fillOpacity: 0.4,
+        strokeStyle: "solid",
+        strokeWidth: 12,
+        templateEffect: "fire",
+        templateWidth: 15
+      })
+    ).toMatchObject({
+      kind: "template-circle",
+      fillOpacity: 0,
+      strokeStyle: "dashed",
+      templateEffect: "fire",
+      templateWidth: 15,
+      measurementLabelVisible: true
+    });
   });
 
   it("keeps line previews to start and current points", () => {

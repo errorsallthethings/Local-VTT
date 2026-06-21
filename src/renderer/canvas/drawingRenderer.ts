@@ -39,6 +39,17 @@ export type DrawingPreview = {
 
 export type DrawingPointOverrides = Map<string, Point[]>;
 
+type DrawingPreviewStyle = {
+  color: string;
+  opacity: number;
+  fillColor?: string;
+  fillOpacity?: number;
+  strokeStyle?: DrawingStrokeStyle;
+  strokeWidth: number;
+  templateEffect: DrawingTemplateEffect;
+  templateWidth: number;
+};
+
 type TemplateEffectRenderable = {
   id: string;
   image: CanvasImageSource;
@@ -106,6 +117,27 @@ let stormTemplateRenderables: TemplateEffectRenderable[] | null = null;
 let thunderTemplateRenderables: TemplateEffectRenderable[] | null = null;
 let waterTemplateRenderables: TemplateEffectRenderable[] | null = null;
 let webTemplateRenderables: TemplateEffectRenderable[] | null = null;
+
+export function getDrawingPreviewFromPoint(pointerId: number, tool: DrawingTool, point: Point, style: DrawingPreviewStyle): DrawingPreview {
+  const isTemplate = tool.startsWith("template-");
+  return {
+    pointerId,
+    kind: tool,
+    points: [point],
+    current: point,
+    color: style.color,
+    opacity: style.opacity,
+    strokeColor: style.color,
+    strokeOpacity: style.opacity,
+    fillColor: style.fillColor,
+    fillOpacity: isTemplate ? 0 : style.fillOpacity,
+    strokeStyle: isTemplate ? "dashed" : style.strokeStyle,
+    strokeWidth: style.strokeWidth,
+    templateEffect: isTemplate ? style.templateEffect : "plain",
+    templateWidth: isTemplate ? style.templateWidth : 5,
+    measurementLabelVisible: isTemplate
+  };
+}
 
 export function drawDrawings(
   ctx: CanvasRenderingContext2D,
