@@ -17,7 +17,7 @@ export function formatUserFacingError(caught: unknown): string {
   if (message.includes("ENOSPC") || message.includes("no space left on device")) {
     return "There is not enough free disk space to save that change. Free up space and try again.";
   }
-  if (message.includes("Campaign metadata could not be read")) {
+  if (message.includes("Campaign metadata could not be read") || message.includes("Scene metadata could not be read")) {
     return message;
   }
   if (message.includes("Unexpected end of JSON input")) {

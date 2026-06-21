@@ -20,6 +20,12 @@ describe("formatUserFacingError", () => {
     expect(formatUserFacingError(new Error(message))).toBe(message);
   });
 
+  it("keeps backup guidance for corrupt scene metadata", () => {
+    const message = "Scene metadata could not be read. Metadata backups may exist in C:\\Campaign\\backups\\scenes\\scene-1. Invalid scene file.";
+
+    expect(formatUserFacingError(new Error(message))).toBe(message);
+  });
+
   it("turns permission errors into an actionable message", () => {
     expect(formatUserFacingError(new Error("EACCES: permission denied, open 'C:\\Campaign\\campaign.json'"))).toBe(
       "Local VTT does not have permission to access that file or folder. Check the folder permissions or choose a different location."

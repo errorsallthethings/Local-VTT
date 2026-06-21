@@ -22,6 +22,7 @@ import {
   type PlayerSceneProjection
 } from "../src/shared/localvtt.js";
 import { createImageMapThumbnail, createSquareImageThumbnail, createVideoMapThumbnail } from "./assets.js";
+import { formatMetadataReadError } from "./metadataErrors.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isDev = !app.isPackaged && !isSmokeTest;
@@ -184,16 +185,7 @@ function isKnownAssetPath(candidatePath: string): boolean {
 }
 
 async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSummary> {
-  const raw = await readFile(campaignFile(campaignPath), "utf8");
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw) as unknown;
-    assertValidCampaign(parsed);
-  } catch (caught) {
-    const message = caught instanceof Error ? caught.message : "Unknown metadata error.";
-    throw new Error(`Campaign metadata could not be read. Metadata backups may exist in ${path.join(campaignPath, "backups")}. ${message}`, { cause: caught });
-  }
-
+  const parsed = await readCampaignMetadata(campaignPath);
   await ensureCampaignFolders(campaignPath);
   const campaignWithSceneSummaries = await hydrateSceneSummaries(campaignPath, parsed);
   const campaignWithThumbnails = await ensureMapThumbnails(campaignPath, campaignWithSceneSummaries);
@@ -205,6 +197,30 @@ async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSumma
     campaign: resolveAssetPaths(campaignPath, campaignWithThumbnails),
     missingAssets: await findMissingAssets(campaignPath, campaignWithThumbnails.assets)
   };
+}
+
+async function readCampaignMetadata(campaignPath: string): Promise<Campaign> {
+  try {
+    const raw = await readFile(campaignFile(campaignPath), "utf8");
+    const parsed = JSON.parse(raw) as unknown;
+    assertValidCampaign(parsed);
+    return parsed;
+  } catch (caught) {
+    throw formatMetadataReadError("campaign", campaignBackupFolder(campaignPath), caught);
+  }
+}
+
+async function readSceneMetadata(campaignPath: string, sceneId: string): Promise<Scene> {
+  const filePath = sceneFile(campaignPath, sceneId);
+  assertInsideCampaign(campaignPath, filePath);
+  try {
+    const raw = await readFile(filePath, "utf8");
+    const scene = JSON.parse(raw) as unknown;
+    assertValidScene(scene);
+    return scene;
+  } catch (caught) {
+    throw formatMetadataReadError("scene", sceneBackupFolder(campaignPath, sceneId), caught);
+  }
 }
 
 async function hydrateSceneSummaries(campaignPath: string, campaign: Campaign): Promise<Campaign> {
@@ -730,10 +746,7 @@ ipcMain.handle("scene:duplicate", async (_event, campaignPath: string, sourceSce
 
 ipcMain.handle("scene:load", async (_event, campaignPath: string, sceneId: string) => {
   assertKnownCampaignPath(campaignPath);
-  assertInsideCampaign(campaignPath, sceneFile(campaignPath, sceneId));
-  const raw = await readFile(sceneFile(campaignPath, sceneId), "utf8");
-  const scene = JSON.parse(raw) as unknown;
-  assertValidScene(scene);
+  const scene = await readSceneMetadata(campaignPath, sceneId);
   if (scene.layers.length === 0) {
     scene.layers = DEFAULT_LAYERS.map((layer) => ({ ...layer }));
   }
@@ -767,9 +780,7 @@ ipcMain.handle("scene:rename", async (_event, campaignPath: string, sceneId: str
 
   const filePath = sceneFile(campaignPath, sceneId);
   assertInsideCampaign(campaignPath, filePath);
-  const raw = await readFile(filePath, "utf8");
-  const scene = JSON.parse(raw) as unknown;
-  assertValidScene(scene);
+  const scene = await readSceneMetadata(campaignPath, sceneId);
   if (scene.id !== sceneId) {
     throw new Error("Invalid scene file.");
   }
@@ -1062,9 +1073,7 @@ ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: 
     }
   }
 
-  const currentRaw = await readFile(sceneFile(campaignPath, sceneId), "utf8");
-  const currentScene = JSON.parse(currentRaw) as unknown;
-  assertValidScene(currentScene);
+  const currentScene = await readSceneMetadata(campaignPath, sceneId);
   const updatedScene = normalizeScene(
     currentScene.mapAssetId === assetId ? { ...currentScene, mapAssetId: undefined, updatedAt: new Date().toISOString() } : currentScene
   );
