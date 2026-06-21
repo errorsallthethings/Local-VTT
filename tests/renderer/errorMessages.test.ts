@@ -20,6 +20,33 @@ describe("formatUserFacingError", () => {
     expect(formatUserFacingError(new Error(message))).toBe(message);
   });
 
+  it("turns permission errors into an actionable message", () => {
+    expect(formatUserFacingError(new Error("EACCES: permission denied, open 'C:\\Campaign\\campaign.json'"))).toBe(
+      "Local VTT does not have permission to access that file or folder. Check the folder permissions or choose a different location."
+    );
+    expect(formatUserFacingError(new Error("EPERM: operation not permitted, unlink 'C:\\Campaign\\assets\\map.png'"))).toBe(
+      "Local VTT does not have permission to access that file or folder. Check the folder permissions or choose a different location."
+    );
+  });
+
+  it("turns wrong file or folder type errors into actionable messages", () => {
+    expect(formatUserFacingError(new Error("ENOTDIR: not a directory, open 'C:\\Campaign\\campaign.json\\scene.json'"))).toBe(
+      "Local VTT expected a folder but found a file instead. Choose a campaign folder and try again."
+    );
+    expect(formatUserFacingError(new Error("EISDIR: illegal operation on a directory, read"))).toBe(
+      "Local VTT expected a file but found a folder instead. Choose a valid file and try again."
+    );
+  });
+
+  it("turns disk space and truncated JSON errors into recovery-focused messages", () => {
+    expect(formatUserFacingError(new Error("ENOSPC: no space left on device, write"))).toBe(
+      "There is not enough free disk space to save that change. Free up space and try again."
+    );
+    expect(formatUserFacingError(new SyntaxError("Unexpected end of JSON input"))).toBe(
+      "That campaign or scene file appears to be incomplete or corrupted. Check the campaign backups folder for a previous copy."
+    );
+  });
+
   it("falls back to the source message or a generic message", () => {
     expect(formatUserFacingError(new Error("Scene name cannot be empty."))).toBe("Scene name cannot be empty.");
     expect(formatUserFacingError(null)).toBe("Something went wrong.");

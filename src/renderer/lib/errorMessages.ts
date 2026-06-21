@@ -5,8 +5,23 @@ export function formatUserFacingError(caught: unknown): string {
   if (message.includes("ENOENT") || message.includes("no such file or directory")) {
     return "That file or folder could not be found. It may have been moved, renamed, or deleted.";
   }
+  if (message.includes("EACCES") || message.includes("EPERM") || message.includes("permission denied") || message.includes("operation not permitted")) {
+    return "Local VTT does not have permission to access that file or folder. Check the folder permissions or choose a different location.";
+  }
+  if (message.includes("ENOTDIR") || message.includes("not a directory")) {
+    return "Local VTT expected a folder but found a file instead. Choose a campaign folder and try again.";
+  }
+  if (message.includes("EISDIR") || message.includes("illegal operation on a directory")) {
+    return "Local VTT expected a file but found a folder instead. Choose a valid file and try again.";
+  }
+  if (message.includes("ENOSPC") || message.includes("no space left on device")) {
+    return "There is not enough free disk space to save that change. Free up space and try again.";
+  }
   if (message.includes("Campaign metadata could not be read")) {
     return message;
+  }
+  if (message.includes("Unexpected end of JSON input")) {
+    return "That campaign or scene file appears to be incomplete or corrupted. Check the campaign backups folder for a previous copy.";
   }
   if (message.includes("Unsupported map type")) {
     return "That map file type is not supported. Use JPG, PNG, WebP, GIF, MP4, or WebM.";
