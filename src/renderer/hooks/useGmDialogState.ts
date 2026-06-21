@@ -247,5 +247,4 @@ export function useGmDialogEscape({
     setTokenDefaultsDialog,
     setTokenDialog
   ]);
-
 }
