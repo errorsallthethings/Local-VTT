@@ -7,7 +7,7 @@ import {
   loadWorkspaceLayout,
   saveTokenLibraryHeight,
   saveWorkspaceLayout
-} from "./workspaceLayout";
+} from "../../src/renderer/lib/workspaceLayout";
 
 function createStorage(initialValues: Record<string, string | null> = {}) {
   const values = new Map(Object.entries(initialValues).filter((entry): entry is [string, string] => entry[1] !== null));

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { LiveTableEvent } from "../../shared/localvtt";
-import { updateDiceRollHistory } from "./dice";
+import type { LiveTableEvent } from "../../src/shared/localvtt";
+import { updateDiceRollHistory } from "../../src/renderer/lib/dice";
 
 function diceEvent(id: string, result: number): Extract<LiveTableEvent, { type: "dice" }> {
   return {

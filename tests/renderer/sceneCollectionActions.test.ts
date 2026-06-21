@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createDefaultScene } from "../../shared/localvtt";
-import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "./sceneCollectionActions";
+import { createDefaultScene } from "../../src/shared/localvtt";
+import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../../src/renderer/lib/sceneCollectionActions";
 
 describe("scene collection actions", () => {
   it("removes the last weather mask", () => {
