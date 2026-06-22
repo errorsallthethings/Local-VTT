@@ -16,6 +16,11 @@ import {
 } from "../tokens/tokenGeometry";
 import { drawSelectionBox, drawSelectionEllipse } from "../selection/selectionRenderer";
 
+export interface TokenTurnOrderIndicator {
+  label: string;
+  current: boolean;
+}
+
 export type TokenDragPreview = {
   tokenId: string;
   startPosition: Point;
@@ -35,7 +40,8 @@ export function drawTokens(
   selectedTokenId: string | string[] | null,
   tokenDragPreview: TokenDragPreview | null,
   tokenPositionOverrides: TokenPositionOverrides | null = null,
-  zoom = 1
+  zoom = 1,
+  turnOrderIndicators: Map<string, TokenTurnOrderIndicator> | null = null
 ) {
   const selectedTokenIds = new Set(Array.isArray(selectedTokenId) ? selectedTokenId : selectedTokenId ? [selectedTokenId] : []);
   for (const token of getVisibleTokens(scene, mode)) {
@@ -63,12 +69,13 @@ export function drawTokens(
     }
     const image = loadedImages.get(token.assetId);
     const selected = selectedTokenIds.has(token.id);
+    const turnOrderIndicator = mode === "gm" ? turnOrderIndicators?.get(token.id) : undefined;
     if (!image) {
-      drawTokenPlaceholder(ctx, renderToken, selected, zoom);
+      drawTokenPlaceholder(ctx, renderToken, selected, zoom, turnOrderIndicator);
       ctx.restore();
       continue;
     }
-    drawToken(ctx, renderToken, image, selected && mode === "gm", zoom);
+    drawToken(ctx, renderToken, image, selected && mode === "gm", zoom, turnOrderIndicator);
     ctx.restore();
   }
 }
@@ -286,7 +293,14 @@ function hexToRgbAlpha(hex: string, alpha: number): string {
   return `rgb(${red} ${green} ${blue} / ${alpha})`;
 }
 
-function drawToken(ctx: CanvasRenderingContext2D, token: Token, image: HTMLImageElement, selected: boolean, zoom: number) {
+function drawToken(
+  ctx: CanvasRenderingContext2D,
+  token: Token,
+  image: HTMLImageElement,
+  selected: boolean,
+  zoom: number,
+  turnOrderIndicator?: TokenTurnOrderIndicator
+) {
   const mask = token.mask ?? DEFAULT_TOKEN_MASK;
   const borderStyle = token.borderStyle ?? DEFAULT_TOKEN_BORDER_STYLE;
   const borderColor = token.borderColor ?? DEFAULT_TOKEN_BORDER_COLOR;
@@ -302,6 +316,9 @@ function drawToken(ctx: CanvasRenderingContext2D, token: Token, image: HTMLImage
   ctx.restore();
 
   drawTokenBorder(ctx, x, y, width, height, mask, borderStyle, borderColor, borderWidth, glowColor);
+  if (turnOrderIndicator) {
+    drawTokenTurnOrderIndicator(ctx, x, y, width, height, mask, zoom, turnOrderIndicator);
+  }
   if (selected) {
     drawTokenSelectionOutline(ctx, x, y, width, height, mask, zoom);
   }
@@ -329,7 +346,7 @@ function drawCroppedImage(ctx: CanvasRenderingContext2D, image: HTMLImageElement
   ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, x, y, width, height);
 }
 
-function drawTokenPlaceholder(ctx: CanvasRenderingContext2D, token: Token, selected: boolean, zoom: number) {
+function drawTokenPlaceholder(ctx: CanvasRenderingContext2D, token: Token, selected: boolean, zoom: number, turnOrderIndicator?: TokenTurnOrderIndicator) {
   const { x, y } = token.position;
   const { width, height } = token.size;
   ctx.save();
@@ -349,6 +366,9 @@ function drawTokenPlaceholder(ctx: CanvasRenderingContext2D, token: Token, selec
     token.borderWidth ?? DEFAULT_TOKEN_BORDER_WIDTH,
     token.glowColor ?? token.borderColor ?? DEFAULT_TOKEN_BORDER_COLOR
   );
+  if (turnOrderIndicator) {
+    drawTokenTurnOrderIndicator(ctx, x, y, width, height, token.mask ?? DEFAULT_TOKEN_MASK, zoom, turnOrderIndicator);
+  }
   if (selected) {
     drawTokenSelectionOutline(ctx, x, y, width, height, token.mask ?? DEFAULT_TOKEN_MASK, zoom);
   }
@@ -482,6 +502,85 @@ function traceTokenInsetPath(ctx: CanvasRenderingContext2D, x: number, y: number
     return;
   }
   ctx.rect(x + safeInset, y + safeInset, Math.max(1, width - safeInset * 2), Math.max(1, height - safeInset * 2));
+}
+
+function drawTokenTurnOrderIndicator(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  mask: Token["mask"],
+  zoom: number,
+  indicator: TokenTurnOrderIndicator
+) {
+  const scale = Math.max(0.1, zoom);
+  const padding = (indicator.current ? 7 : 5) / scale;
+  const strokeColor = indicator.current ? "#f6d365" : "#67e8f9";
+  ctx.save();
+  traceTokenPaddedPath(ctx, x, y, width, height, mask, padding);
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = (indicator.current ? 3.4 : 2.4) / scale;
+  ctx.setLineDash(indicator.current ? [] : [8 / scale, 5 / scale]);
+  ctx.lineJoin = "round";
+  ctx.stroke();
+  ctx.restore();
+
+  drawTurnOrderBadge(ctx, x, y, width, zoom, indicator, strokeColor);
+}
+
+function traceTokenPaddedPath(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, mask: Token["mask"], padding: number) {
+  ctx.beginPath();
+  if (mask === "circle") {
+    ctx.ellipse(x + width / 2, y + height / 2, width / 2 + padding, height / 2 + padding, 0, 0, Math.PI * 2);
+    return;
+  }
+  ctx.rect(x - padding, y - padding, width + padding * 2, height + padding * 2);
+}
+
+function drawTurnOrderBadge(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  zoom: number,
+  indicator: TokenTurnOrderIndicator,
+  strokeColor: string
+) {
+  const scale = Math.max(0.1, zoom);
+  const badgeWidth = Math.max(26, 16 + indicator.label.length * 8) / scale;
+  const badgeHeight = 22 / scale;
+  const radius = 7 / scale;
+  const badgeX = x + width - badgeWidth * 0.6;
+  const badgeY = y - badgeHeight * 0.45;
+
+  ctx.save();
+  traceRoundedRect(ctx, badgeX, badgeY, badgeWidth, badgeHeight, radius);
+  ctx.fillStyle = indicator.current ? "#f6d365" : "rgb(8 13 22 / 0.92)";
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = 2 / scale;
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = indicator.current ? "#111720" : "#f7fbff";
+  ctx.font = `${12 / scale}px system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(indicator.label, badgeX + badgeWidth / 2, badgeY + badgeHeight / 2 + 0.5 / scale);
+  ctx.restore();
+}
+
+function traceRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+  const safeRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + safeRadius, y);
+  ctx.lineTo(x + width - safeRadius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+  ctx.lineTo(x + width, y + height - safeRadius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+  ctx.lineTo(x + safeRadius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+  ctx.lineTo(x, y + safeRadius);
+  ctx.quadraticCurveTo(x, y, x + safeRadius, y);
 }
 
 function drawTokenSelectionOutline(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, mask: Token["mask"], zoom: number) {

@@ -1,5 +1,10 @@
 import type { Asset, CampaignPlayer, Scene, Token, TurnOrderEntry, TurnOrderSettings } from "../../../shared/localvtt";
 
+export interface TurnOrderTokenIndicator {
+  label: string;
+  current: boolean;
+}
+
 export function createManualTurnOrderEntry(id: string, name: string, initiative = 0): TurnOrderEntry {
   return {
     id,
@@ -39,6 +44,21 @@ export function createTurnOrderEntryFromPlayer(id: string, player: CampaignPlaye
     playerId: player.id,
     assetId: player.assetId
   };
+}
+
+export function getTurnOrderTokenIndicators(scene: Scene): Map<string, TurnOrderTokenIndicator> {
+  const sceneTokenIds = new Set(scene.tokens.map((token) => token.id));
+  const indicators = new Map<string, TurnOrderTokenIndicator>();
+  scene.turnOrder.entries.forEach((entry, index) => {
+    if (!entry.tokenId || !sceneTokenIds.has(entry.tokenId) || indicators.has(entry.tokenId)) {
+      return;
+    }
+    indicators.set(entry.tokenId, {
+      label: String(index + 1),
+      current: scene.turnOrder.active && entry.id === scene.turnOrder.currentEntryId
+    });
+  });
+  return indicators;
 }
 
 export function addTurnOrderEntry(scene: Scene, entry: TurnOrderEntry, updatedAt = new Date().toISOString()): Scene {

@@ -7,6 +7,7 @@ import {
   createManualTurnOrderEntry,
   createTurnOrderEntryFromAsset,
   createTurnOrderEntryFromToken,
+  getTurnOrderTokenIndicators,
   moveTurnOrderEntry,
   reorderTurnOrderEntry,
   removeTurnOrderEntry,
@@ -162,6 +163,68 @@ describe("turn order helpers", () => {
       assetId: "asset-1",
       visibleInPlayer: false
     });
+  });
+
+  it("builds GM token indicators for linked scene turn order entries", () => {
+    const scene = createDefaultScene("Linked Tokens");
+    scene.tokens = [
+      {
+        id: "token-1",
+        assetId: "asset-1",
+        name: "Goblin A",
+        position: { x: 0, y: 0 },
+        size: { width: 70, height: 70 },
+        visibleInGm: true,
+        visibleInPlayer: true
+      },
+      {
+        id: "token-2",
+        assetId: "asset-2",
+        name: "Goblin B",
+        position: { x: 80, y: 0 },
+        size: { width: 70, height: 70 },
+        visibleInGm: true,
+        visibleInPlayer: true
+      }
+    ];
+    scene.turnOrder.active = true;
+    scene.turnOrder.currentEntryId = "entry-2";
+    scene.turnOrder.entries = [
+      { ...createManualTurnOrderEntry("entry-1", "Goblin A"), tokenId: "token-1" },
+      { ...createManualTurnOrderEntry("entry-2", "Goblin B"), tokenId: "token-2" },
+      createManualTurnOrderEntry("entry-3", "Floating Reminder"),
+      { ...createManualTurnOrderEntry("entry-4", "Missing Token"), tokenId: "missing-token" }
+    ];
+
+    const indicators = getTurnOrderTokenIndicators(scene);
+
+    expect([...indicators.entries()]).toEqual([
+      ["token-1", { label: "1", current: false }],
+      ["token-2", { label: "2", current: true }]
+    ]);
+  });
+
+  it("keeps the first turn order indicator when duplicate token links exist", () => {
+    const scene = createDefaultScene("Duplicate Token Link");
+    scene.tokens = [
+      {
+        id: "token-1",
+        assetId: "asset-1",
+        name: "Goblin",
+        position: { x: 0, y: 0 },
+        size: { width: 70, height: 70 },
+        visibleInGm: true,
+        visibleInPlayer: true
+      }
+    ];
+    scene.turnOrder.active = false;
+    scene.turnOrder.currentEntryId = "entry-2";
+    scene.turnOrder.entries = [
+      { ...createManualTurnOrderEntry("entry-1", "Goblin first"), tokenId: "token-1" },
+      { ...createManualTurnOrderEntry("entry-2", "Goblin duplicate"), tokenId: "token-1" }
+    ];
+
+    expect(getTurnOrderTokenIndicators(scene).get("token-1")).toEqual({ label: "1", current: false });
   });
 
   it("adds campaign players without duplicating existing player entries", () => {
