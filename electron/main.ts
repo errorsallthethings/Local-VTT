@@ -524,12 +524,30 @@ async function createTokenThumbnail(campaignPath: string, sourcePath: string, as
   return writeTokenThumbnail(campaignPath, assetId, thumbnail);
 }
 
-async function writeTokenThumbnail(campaignPath: string, assetId: string, thumbnail: Buffer): Promise<string> {
-  const relativePath = path.join("assets", "thumbnails", `${assetId}.jpg`).replaceAll(path.sep, "/");
+async function writeTokenThumbnail(campaignPath: string, assetId: string, thumbnail: Buffer, variant = ""): Promise<string> {
+  const safeVariant = variant.replace(/[^a-zA-Z0-9_-]/g, "");
+  const fileStem = safeVariant ? `${assetId}-${safeVariant}` : assetId;
+  const relativePath = path.join("assets", "thumbnails", `${fileStem}.jpg`).replaceAll(path.sep, "/");
   const destination = path.resolve(campaignPath, relativePath);
   assertInsideCampaign(campaignPath, destination);
   await writeFile(destination, thumbnail);
   return relativePath;
+}
+
+async function removeThumbnailIfUnused(campaignPath: string, relativePath: string | undefined, assets: readonly Asset[]): Promise<void> {
+  if (!relativePath || assets.some((asset) => asset.thumbnailRelativePath === relativePath)) {
+    return;
+  }
+  const thumbnailPath = path.resolve(campaignPath, relativePath);
+  assertInsideCampaign(campaignPath, thumbnailPath);
+  try {
+    await unlink(thumbnailPath);
+  } catch (caught) {
+    const error = caught as NodeJS.ErrnoException;
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
 }
 
 app.whenReady().then(() => {
@@ -968,13 +986,15 @@ ipcMain.handle("asset:updateTokenThumbnail", async (_event, campaignPath: string
   if (!thumbnail) {
     throw new Error("Unable to generate token thumbnail.");
   }
-  const thumbnailRelativePath = await writeTokenThumbnail(campaignPath, assetId, thumbnail);
+  const thumbnailRelativePath = await writeTokenThumbnail(campaignPath, assetId, thumbnail, `crop-${Date.now()}`);
+  const nextAssets = summary.campaign.assets.map((candidate) => (candidate.id === assetId ? { ...candidate, thumbnailRelativePath } : candidate));
   const campaign: Campaign = {
     ...summary.campaign,
-    assets: summary.campaign.assets.map((candidate) => (candidate.id === assetId ? { ...candidate, thumbnailRelativePath } : candidate)),
+    assets: nextAssets,
     updatedAt: new Date().toISOString()
   };
   await writeCampaign(campaignPath, campaign);
+  await removeThumbnailIfUnused(campaignPath, asset.thumbnailRelativePath, nextAssets);
   const campaignSummary = await loadCampaignFromPath(campaignPath);
   const updatedAsset = campaignSummary.campaign.assets.find((candidate) => candidate.id === assetId);
   if (!updatedAsset) {
