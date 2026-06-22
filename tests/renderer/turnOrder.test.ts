@@ -8,9 +8,11 @@ import {
   createTurnOrderEntryFromAsset,
   createTurnOrderEntryFromToken,
   getTurnOrderTokenIndicators,
+  linkTurnOrderEntryToToken,
   moveTurnOrderEntry,
   reorderTurnOrderEntry,
   removeTurnOrderEntry,
+  resetTurnOrder,
   rollInitiativeForEntry,
   rollInitiativeForNonPlayers,
   sortTurnOrderByInitiative,
@@ -225,6 +227,47 @@ describe("turn order helpers", () => {
     ];
 
     expect(getTurnOrderTokenIndicators(scene).get("token-1")).toEqual({ label: "1", current: false });
+  });
+
+  it("links and unlinks turn order entries to scene tokens", () => {
+    let scene = createDefaultScene("Link Tokens");
+    scene.tokens = [
+      {
+        id: "token-1",
+        assetId: "asset-1",
+        name: "Knight",
+        position: { x: 0, y: 0 },
+        size: { width: 70, height: 70 },
+        visibleInGm: true,
+        visibleInPlayer: true
+      }
+    ];
+    scene.turnOrder.entries = [createManualTurnOrderEntry("entry-1", "Player Character")];
+
+    scene = linkTurnOrderEntryToToken(scene, "entry-1", "token-1", "linked");
+
+    expect(scene.turnOrder.entries[0]).toMatchObject({ tokenId: "token-1", assetId: "asset-1" });
+    expect(scene.updatedAt).toBe("linked");
+
+    scene = linkTurnOrderEntryToToken(scene, "entry-1", null, "unlinked");
+
+    expect(scene.turnOrder.entries[0].tokenId).toBeUndefined();
+    expect(scene.turnOrder.entries[0].assetId).toBe("asset-1");
+    expect(scene.updatedAt).toBe("unlinked");
+  });
+
+  it("resets turn order playback state without clearing entries", () => {
+    let scene = sceneWithEntries(["a", "b", "c"]);
+    scene = startTurnOrder(scene, "start");
+    scene = advanceTurnOrder(scene, "next", "next");
+
+    scene = resetTurnOrder(scene, "reset");
+
+    expect(scene.turnOrder.entries.map((entry) => entry.id)).toEqual(["a", "b", "c"]);
+    expect(scene.turnOrder.active).toBe(false);
+    expect(scene.turnOrder.playerViewVisible).toBe(false);
+    expect(scene.turnOrder.currentEntryId).toBe("a");
+    expect(scene.updatedAt).toBe("reset");
   });
 
   it("adds campaign players without duplicating existing player entries", () => {

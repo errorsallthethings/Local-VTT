@@ -10,7 +10,7 @@ export function createManualTurnOrderEntry(id: string, name: string, initiative 
     id,
     name: name.trim() || "New Entry",
     initiative,
-    visibleInPlayer: true
+    visibleInPlayer: false
   };
 }
 
@@ -90,6 +90,23 @@ export function updateTurnOrderEntry(scene: Scene, entryId: string, patch: Parti
     {
       entries: scene.turnOrder.entries.map((entry) => (entry.id === entryId ? { ...entry, ...patch } : entry))
     },
+    updatedAt
+  );
+}
+
+export function linkTurnOrderEntryToToken(scene: Scene, entryId: string, tokenId: string | null, updatedAt = new Date().toISOString()): Scene {
+  const token = tokenId ? scene.tokens.find((candidate) => candidate.id === tokenId) : null;
+  return updateTurnOrderEntry(
+    scene,
+    entryId,
+    token
+      ? {
+          tokenId: token.id,
+          assetId: token.assetId
+        }
+      : {
+          tokenId: undefined
+        },
     updatedAt
   );
 }
@@ -220,6 +237,18 @@ export function startTurnOrder(scene: Scene, updatedAt = new Date().toISOString(
 
 export function stopTurnOrder(scene: Scene, updatedAt = new Date().toISOString()): Scene {
   return patchTurnOrder(scene, { active: false, playerViewVisible: false }, updatedAt);
+}
+
+export function resetTurnOrder(scene: Scene, updatedAt = new Date().toISOString()): Scene {
+  return patchTurnOrder(
+    scene,
+    {
+      active: false,
+      playerViewVisible: false,
+      currentEntryId: scene.turnOrder.entries[0]?.id
+    },
+    updatedAt
+  );
 }
 
 export function stopActiveTurnOrder(scene: Scene, updatedAt = new Date().toISOString()): Scene {

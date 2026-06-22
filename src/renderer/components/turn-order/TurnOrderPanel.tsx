@@ -1,7 +1,7 @@
-import { Dice5, Eye, EyeOff, GripVertical, ListPlus, MoreVertical, Pause, Play, Plus, Settings2, SkipBack, SkipForward, Trash2, UserRoundPlus } from "lucide-react";
+import { Dice5, Eye, EyeOff, GripVertical, ListPlus, MoreVertical, Pause, Play, Plus, RotateCcw, Settings2, SkipBack, SkipForward, Trash2, UserRoundPlus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { Asset, CampaignPlayer, Scene, TurnOrderEntry, TurnOrderSettings } from "../../../shared/localvtt";
+import type { Asset, CampaignPlayer, Scene, Token, TurnOrderEntry, TurnOrderSettings } from "../../../shared/localvtt";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
 import {
@@ -10,7 +10,9 @@ import {
   advanceTurnOrder,
   createManualTurnOrderEntry,
   createTurnOrderEntryFromAsset,
+  linkTurnOrderEntryToToken,
   removeTurnOrderEntry,
+  resetTurnOrder,
   reorderTurnOrderEntry,
   rollInitiativeForNonPlayers,
   rollInitiativeForEntry,
@@ -231,6 +233,9 @@ export function TurnOrderPanel({
           <button disabled={!scene || !turnOrder?.active || turnOrder.entries.length === 0} title="Next turn" onClick={() => scene && updateScene(advanceTurnOrder(scene, "next"))}>
             <SkipForward size={14} aria-hidden="true" />
           </button>
+          <button disabled={!scene || !turnOrder || turnOrder.entries.length === 0} title="Reset turn order" aria-label="Reset turn order" onClick={() => scene && updateScene(resetTurnOrder(scene))}>
+            <RotateCcw size={14} aria-hidden="true" />
+          </button>
           {settingsControlVisible && (
             <button disabled={!scene || !turnOrder} title="Turn order display settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>
               <Settings2 size={14} aria-hidden="true" />
@@ -272,8 +277,10 @@ export function TurnOrderPanel({
               player={entry.playerId ? campaignPlayers.find((candidate) => candidate.id === entry.playerId) : undefined}
               asset={entry.assetId ? tokenAssets.get(entry.assetId) : undefined}
               onUpdate={(patch) => updateScene(updateTurnOrderEntry(scene, entry.id, patch))}
+              onLinkToken={(tokenId) => updateScene(linkTurnOrderEntryToToken(scene, entry.id, tokenId))}
               onRoll={() => updateScene(rollInitiativeForEntry(scene, entry.id))}
               onRemove={() => updateScene(removeTurnOrderEntry(scene, entry.id))}
+              sceneTokens={scene.tokens}
               dragged={draggedEntryId === entry.id}
               dropPlacement={dropTarget?.entryId === entry.id ? dropTarget.placement : null}
               onDragStart={() => setDraggedEntryId(entry.id)}
@@ -300,8 +307,10 @@ function TurnOrderRow({
   player,
   asset,
   onUpdate,
+  onLinkToken,
   onRoll,
   onRemove,
+  sceneTokens,
   dragged,
   dropPlacement,
   onDragStart,
@@ -315,8 +324,10 @@ function TurnOrderRow({
   player?: CampaignPlayer;
   asset?: Asset;
   onUpdate: (patch: Partial<TurnOrderEntry>) => void;
+  onLinkToken: (tokenId: string | null) => void;
   onRoll: () => void;
   onRemove: () => void;
+  sceneTokens: Token[];
   dragged: boolean;
   dropPlacement: "before" | "after" | null;
   onDragStart: () => void;
@@ -409,20 +420,14 @@ function TurnOrderRow({
         onChange={(event) => onUpdate({ initiative: Number(event.target.value) || 0 })}
       />
       <div className="turn-order-row-actions">
-        <button title="Roll initiative" onClick={onRoll}>
-          <Dice5 size={14} aria-hidden="true" />
-        </button>
         <button title={entry.visibleInPlayer ? "Hide from Player View" : "Show in Player View"} onClick={() => onUpdate({ visibleInPlayer: !entry.visibleInPlayer })}>
           {entry.visibleInPlayer ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
-        </button>
-        <button className="turn-order-delete" title="Delete entry" onClick={onRemove}>
-          <Trash2 size={14} aria-hidden="true" />
         </button>
       </div>
       <div className="turn-order-row-menu-wrap">
         <button
           ref={menuButtonRef}
-          className="icon-button turn-order-row-menu-button"
+          className="turn-order-row-menu-button"
           title="Entry actions"
           aria-label={`Open ${entry.name} entry actions`}
           aria-expanded={menuOpen}
@@ -438,13 +443,17 @@ function TurnOrderRow({
             <FloatingTurnOrderRowMenu
               anchor={menuButtonRef.current}
               entry={entry}
+              sceneTokens={sceneTokens}
+              linkedTokenId={entry.tokenId}
               onRoll={() => {
                 onRoll();
                 setMenuOpen(false);
               }}
+              onLinkToken={(tokenId) => {
+                onLinkToken(tokenId);
+              }}
               onToggleVisibility={() => {
                 onUpdate({ visibleInPlayer: !entry.visibleInPlayer });
-                setMenuOpen(false);
               }}
               onRemove={() => {
                 onRemove();
@@ -461,13 +470,19 @@ function TurnOrderRow({
 function FloatingTurnOrderRowMenu({
   anchor,
   entry,
+  sceneTokens,
+  linkedTokenId,
   onRoll,
+  onLinkToken,
   onToggleVisibility,
   onRemove
 }: {
   anchor: HTMLElement | null;
   entry: TurnOrderEntry;
+  sceneTokens: Token[];
+  linkedTokenId?: string;
   onRoll: () => void;
+  onLinkToken: (tokenId: string | null) => void;
   onToggleVisibility: () => void;
   onRemove: () => void;
 }) {
@@ -475,26 +490,57 @@ function FloatingTurnOrderRowMenu({
     open: Boolean(anchor),
     anchor,
     fallbackWidth: 170,
-    fallbackHeight: 116
+    fallbackHeight: 172
   });
 
   return (
     <div
       ref={menuRef}
-      className="turn-order-row-menu token-library-menu token-library-menu-portal"
+      className="turn-order-row-menu token-settings-menu token-settings-menu-portal canvas-context-menu"
       style={{ top: position.top, left: position.left }}
+      role="menu"
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
     >
-      <button onClick={onRoll}>
+      <div className="canvas-context-menu-title" title={entry.name}>{entry.name}</div>
+      <div className="control-divider" />
+      <div className="settings-grid">
+        <label className="setting-row">
+          <span>Player View</span>
+          <label className="fog-operation-switch" title={`${entry.visibleInPlayer ? "Hide" : "Show"} ${entry.name} on Player View`}>
+            <span>Show</span>
+            <input
+              aria-label={`${entry.visibleInPlayer ? "Hide" : "Show"} ${entry.name} on Player View`}
+              type="checkbox"
+              checked={!entry.visibleInPlayer}
+              onChange={onToggleVisibility}
+            />
+            <span>Hide</span>
+          </label>
+        </label>
+        <label className="setting-row">
+          <span>Scene Token</span>
+          <select
+            value={linkedTokenId ?? ""}
+            disabled={sceneTokens.length === 0}
+            aria-label={`Scene token link for ${entry.name}`}
+            onChange={(event) => onLinkToken(event.target.value || null)}
+          >
+            <option value="">Not linked</option>
+            {sceneTokens.map((token) => (
+              <option key={token.id} value={token.id}>
+                {token.name || "Token"}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="control-divider" />
+      <button className="token-menu-action" role="menuitem" onClick={onRoll}>
         <Dice5 size={14} aria-hidden="true" />
         <span>Roll Initiative</span>
       </button>
-      <button onClick={onToggleVisibility}>
-        {entry.visibleInPlayer ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
-        <span>{entry.visibleInPlayer ? "Hide from Player View" : "Show in Player View"}</span>
-      </button>
-      <button className="danger-menu-item" onClick={onRemove}>
+      <button className="token-menu-action token-menu-delete" role="menuitem" onClick={onRemove}>
         <Trash2 size={14} aria-hidden="true" />
         <span>Delete</span>
       </button>

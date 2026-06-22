@@ -951,7 +951,8 @@
 
 .turn-order-actions button,
 .turn-order-controls button,
-.turn-order-row-actions button {
+.turn-order-row-actions button,
+.turn-order-row-menu-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -974,26 +975,22 @@
   padding: 0;
 }
 
-.turn-order-row-actions button {
+.turn-order-row-actions button,
+.turn-order-row-menu-button {
   width: 26px;
   min-width: 26px;
   padding: 0;
 }
 
 .turn-order-row-menu-wrap {
-  display: none;
+  display: inline-flex;
   justify-content: flex-end;
-}
-
-.turn-order-row-menu-button {
-  width: 26px;
-  min-width: 26px;
-  height: 26px;
 }
 
 .turn-order-actions button:hover:not(:disabled),
 .turn-order-controls button:hover:not(:disabled),
-.turn-order-row-actions button:hover:not(:disabled) {
+.turn-order-row-actions button:hover:not(:disabled),
+.turn-order-row-menu-button:hover:not(:disabled) {
   border-color: var(--color-border);
   background: var(--color-bg-control-hover);
   color: var(--color-text-strong);
@@ -1014,7 +1011,7 @@
 .turn-order-row {
   position: relative;
   display: grid;
-  grid-template-columns: 16px 22px 34px minmax(0, 1fr) 52px auto;
+  grid-template-columns: 16px 22px 34px minmax(0, 1fr) 52px 26px 26px;
   align-items: center;
   gap: 7px;
   min-width: 0;
@@ -1155,19 +1152,18 @@
 
 @container (max-width: 380px) {
   .turn-order-row {
+    grid-template-columns: 16px 22px 34px minmax(0, 1fr) 52px 26px 26px;
+  }
+}
+
+@container (max-width: 320px) {
+  .turn-order-row {
     grid-template-columns: 16px 22px 34px minmax(0, 1fr) 52px 26px;
   }
 
   .turn-order-row-actions {
     display: none;
   }
-
-  .turn-order-row-menu-wrap {
-    display: inline-flex;
-  }
-}
-
-@container (max-width: 320px) {
   .turn-order-type-badge {
     display: none;
   }
