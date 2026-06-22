@@ -1311,7 +1311,9 @@ function publishSceneRollResult(event: DiceRollEvent, mode: "gm" | "player", res
     return;
   }
   if (getDiceDisplayMode(event, "gm") === "scene-result") {
-    void window.localVtt.sendLiveTableEvent(resolvedEvent);
+    void window.localVtt.sendLiveTableEvent(resolvedEvent).catch((caught) => {
+      console.warn("LOCALVTT_LIVE_TABLE_EVENT_SEND_FAILED", caught);
+    });
   }
 }
 

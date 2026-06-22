@@ -957,6 +957,7 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, size: 1.5, color: "#ffcc00", createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "laser", type: "laser", points: [{ point: { x: 1, y: 2 }, createdAt: 1 }], createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ruler", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "ruler-optional", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", secondary: undefined, createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ruler-release", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", createdAt: 1, expiresAt: 2501 })).toBe(true);
   expect(isLiveTableEvent({ id: "ruler-clear", type: "ruler-clear", createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "clear", type: "dice-clear", createdAt: 1 })).toBe(true);
@@ -968,6 +969,7 @@ it("runtime validators reject invalid files and accept valid projected state", (
       result: 20,
       label: "20",
       formula: "1D20",
+      sceneResolvedLabel: undefined,
       rollLabel: "Attack",
       seed: 0.5,
       gmDiceDisplay: "results",

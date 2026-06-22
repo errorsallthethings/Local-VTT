@@ -1301,18 +1301,18 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
   if (value.type === "ping") {
     return (
       isPoint(value.point) &&
-      (!("size" in value) || (typeof value.size === "number" && Number.isFinite(value.size))) &&
-      (!("color" in value) || typeof value.color === "string") &&
-      (!("visibleInPlayer" in value) || typeof value.visibleInPlayer === "boolean")
+      isOptionalFiniteNumber(value.size) &&
+      isOptionalString(value.color) &&
+      isOptionalBoolean(value.visibleInPlayer)
     );
   }
   if (value.type === "laser") {
     return (
       Array.isArray(value.points) &&
       value.points.every((entry) => isRecord(entry) && isPoint(entry.point) && typeof entry.createdAt === "number") &&
-      (!("thickness" in value) || (typeof value.thickness === "number" && Number.isFinite(value.thickness))) &&
-      (!("color" in value) || typeof value.color === "string") &&
-      (!("visibleInPlayer" in value) || typeof value.visibleInPlayer === "boolean")
+      isOptionalFiniteNumber(value.thickness) &&
+      isOptionalString(value.color) &&
+      isOptionalBoolean(value.visibleInPlayer)
     );
   }
   if (value.type === "ruler") {
@@ -1321,9 +1321,9 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
       value.points.length >= 2 &&
       value.points.every(isPoint) &&
       typeof value.primary === "string" &&
-      (!("secondary" in value) || typeof value.secondary === "string") &&
-      (!("visibleInPlayer" in value) || typeof value.visibleInPlayer === "boolean") &&
-      (!("expiresAt" in value) || (typeof value.expiresAt === "number" && Number.isFinite(value.expiresAt)))
+      isOptionalString(value.secondary) &&
+      isOptionalBoolean(value.visibleInPlayer) &&
+      isOptionalFiniteNumber(value.expiresAt)
     );
   }
   if (value.type === "ruler-clear") {
@@ -1335,29 +1335,29 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
       typeof value.result === "number" &&
       Number.isInteger(value.result) &&
       typeof value.label === "string" &&
-      (!("formula" in value) || typeof value.formula === "string") &&
-      (!("rollLabel" in value) || typeof value.rollLabel === "string") &&
+      isOptionalString(value.formula) &&
+      isOptionalString(value.rollLabel) &&
       typeof value.seed === "number" &&
       Number.isFinite(value.seed) &&
-      (!("sceneResolvedLabel" in value) || typeof value.sceneResolvedLabel === "string") &&
-      (!("sceneResolvedSummary" in value) || typeof value.sceneResolvedSummary === "string") &&
-      (!("sceneResolvedResult" in value) || (typeof value.sceneResolvedResult === "number" && Number.isInteger(value.sceneResolvedResult))) &&
-      (!("gmDiceDisplay" in value) || isDiceDisplayMode(value.gmDiceDisplay)) &&
-      (!("playerDiceDisplay" in value) || isDiceDisplayMode(value.playerDiceDisplay)) &&
-      (!("gmDiceSceneSize" in value) || isDiceSceneSize(value.gmDiceSceneSize)) &&
-      (!("playerDiceSceneSize" in value) || isDiceSceneSize(value.playerDiceSceneSize)) &&
-      (!("gmDicePanelEdge" in value) || isDicePanelEdge(value.gmDicePanelEdge)) &&
-      (!("playerDicePanelEdge" in value) || isDicePanelEdge(value.playerDicePanelEdge)) &&
-      (!("gmDicePanelFacing" in value) || isDicePanelFacing(value.gmDicePanelFacing)) &&
-      (!("playerDicePanelFacing" in value) || isDicePanelFacing(value.playerDicePanelFacing)) &&
-      (!("gmDicePanelPosition" in value) || isUnitNumber(value.gmDicePanelPosition)) &&
-      (!("playerDicePanelPosition" in value) || isUnitNumber(value.playerDicePanelPosition)) &&
-      (!("gmDicePanelAdvanced" in value) || typeof value.gmDicePanelAdvanced === "boolean") &&
-      (!("playerDicePanelAdvanced" in value) || typeof value.playerDicePanelAdvanced === "boolean") &&
-      (!("gmPresentation" in value) || value.gmPresentation === "3d" || value.gmPresentation === "result") &&
-      (!("playerPresentation" in value) || value.playerPresentation === "3d" || value.playerPresentation === "result") &&
-      (!("presentation" in value) || value.presentation === "3d" || value.presentation === "result") &&
-      (!("dice" in value) ||
+      isOptionalString(value.sceneResolvedLabel) &&
+      isOptionalString(value.sceneResolvedSummary) &&
+      (value.sceneResolvedResult === undefined || (typeof value.sceneResolvedResult === "number" && Number.isInteger(value.sceneResolvedResult))) &&
+      (value.gmDiceDisplay === undefined || isDiceDisplayMode(value.gmDiceDisplay)) &&
+      (value.playerDiceDisplay === undefined || isDiceDisplayMode(value.playerDiceDisplay)) &&
+      (value.gmDiceSceneSize === undefined || isDiceSceneSize(value.gmDiceSceneSize)) &&
+      (value.playerDiceSceneSize === undefined || isDiceSceneSize(value.playerDiceSceneSize)) &&
+      (value.gmDicePanelEdge === undefined || isDicePanelEdge(value.gmDicePanelEdge)) &&
+      (value.playerDicePanelEdge === undefined || isDicePanelEdge(value.playerDicePanelEdge)) &&
+      (value.gmDicePanelFacing === undefined || isDicePanelFacing(value.gmDicePanelFacing)) &&
+      (value.playerDicePanelFacing === undefined || isDicePanelFacing(value.playerDicePanelFacing)) &&
+      (value.gmDicePanelPosition === undefined || isUnitNumber(value.gmDicePanelPosition)) &&
+      (value.playerDicePanelPosition === undefined || isUnitNumber(value.playerDicePanelPosition)) &&
+      isOptionalBoolean(value.gmDicePanelAdvanced) &&
+      isOptionalBoolean(value.playerDicePanelAdvanced) &&
+      (value.gmPresentation === undefined || value.gmPresentation === "3d" || value.gmPresentation === "result") &&
+      (value.playerPresentation === undefined || value.playerPresentation === "3d" || value.playerPresentation === "result") &&
+      (value.presentation === undefined || value.presentation === "3d" || value.presentation === "result") &&
+      (value.dice === undefined ||
         (Array.isArray(value.dice) &&
           value.dice.every(
             (die) =>
@@ -1368,7 +1368,7 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
               typeof die.label === "string" &&
               typeof die.seed === "number" &&
               Number.isFinite(die.seed) &&
-              (!("kept" in die) || typeof die.kept === "boolean")
+              isOptionalBoolean(die.kept)
           )))
     );
   }
@@ -1376,6 +1376,18 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
     return true;
   }
   return false;
+}
+
+function isOptionalBoolean(value: unknown): boolean {
+  return value === undefined || typeof value === "boolean";
+}
+
+function isOptionalFiniteNumber(value: unknown): boolean {
+  return value === undefined || (typeof value === "number" && Number.isFinite(value));
+}
+
+function isOptionalString(value: unknown): boolean {
+  return value === undefined || typeof value === "string";
 }
 
 function isDiceType(value: unknown): value is Extract<LiveTableEvent, { type: "dice" }>["die"] {

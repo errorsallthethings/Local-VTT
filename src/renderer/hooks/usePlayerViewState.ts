@@ -44,13 +44,19 @@ export function usePlayerViewState({
   }, [onDiceRollHistoryChange]);
 
   const emitLiveTableEvent = useCallback((event: LiveTableEvent) => {
+    if (!isLiveTableEvent(event)) {
+      console.warn("LOCALVTT_INVALID_LIVE_TABLE_EVENT", event);
+      return;
+    }
     setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
     if (event.type === "dice") {
       updateDiceRollHistory(event);
     } else if (event.type === "dice-clear") {
       onDiceRollHistoryChange([]);
     }
-    void window.localVtt.sendLiveTableEvent(event);
+    void window.localVtt.sendLiveTableEvent(event).catch((caught) => {
+      console.warn("LOCALVTT_LIVE_TABLE_EVENT_SEND_FAILED", caught);
+    });
   }, [onDiceRollHistoryChange, updateDiceRollHistory]);
 
   const skipNextPlayerSceneAutoSync = useCallback(() => {

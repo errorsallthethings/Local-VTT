@@ -12,6 +12,7 @@ import {
   type DiceType
 } from "../../lib/dice";
 import { getActiveWeatherEffects } from "../../lib/effects";
+import { type ModalSize, useResizableModal } from "../../hooks/useResizableModal";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 type CustomDicePreset = {
@@ -169,10 +170,20 @@ export function WorkspaceTopbar({
   const [diceRecentTick, setDiceRecentTick] = useState(0);
   const [dicePanelCollapsed, setDicePanelCollapsed] = useState(false);
   const [dicePanelPosition, setDicePanelPosition] = useState<DicePanelPosition | null>(null);
+  const [dicePanelSize, setDicePanelSize] = useState<ModalSize | null>(null);
   const [dicePanelDragging, setDicePanelDragging] = useState(false);
   const dicePopoverRef = useRef<HTMLDivElement | null>(null);
   const dicePanelDragRef = useRef<DicePanelDrag | null>(null);
   const previousDicePanelOpenRef = useRef(dicePanelOpen);
+  const { resize: resizeDicePanel, startResize: startDicePanelResize, stopResize: stopDicePanelResize } = useResizableModal({
+    elementRef: dicePopoverRef,
+    position: dicePanelPosition,
+    size: dicePanelSize,
+    minSize: { width: 300, height: 360 },
+    onPositionChange: setDicePanelPosition,
+    onSizeChange: setDicePanelSize,
+    margin: 8
+  });
   const title = activeScene?.name ?? (campaign ? "Select or Create a Scene" : "Create or Open a Campaign");
   const subtitle = activeScene
     ? mapAsset
@@ -390,7 +401,10 @@ export function WorkspaceTopbar({
                 dicePanelPosition ? "dice-popover dice-popover-dragged" : "dice-popover dice-popover-floating",
                 dicePanelCollapsed ? "dice-popover-collapsed" : ""
               ].filter(Boolean).join(" ")}
-              style={dicePanelPosition ? { left: dicePanelPosition.x, top: dicePanelPosition.y } : undefined}
+              style={{
+                ...(dicePanelPosition ? { left: dicePanelPosition.x, top: dicePanelPosition.y } : {}),
+                ...(dicePanelSize ? { width: dicePanelSize.width, height: dicePanelCollapsed ? undefined : dicePanelSize.height } : {})
+              }}
               role="dialog"
               aria-label="Dice roller"
             >
@@ -759,6 +773,17 @@ export function WorkspaceTopbar({
                   </div>
                 </section>
               </div>}
+              {!dicePanelCollapsed && (
+                <div
+                  className="modal-resize-handle"
+                  title="Drag to resize"
+                  aria-label="Resize dice bag"
+                  onPointerDown={startDicePanelResize}
+                  onPointerMove={resizeDicePanel}
+                  onPointerUp={stopDicePanelResize}
+                  onPointerCancel={stopDicePanelResize}
+                />
+              )}
             </div>
         )}
         <div className="toolbar-block">

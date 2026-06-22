@@ -6,6 +6,7 @@ import {
 } from "react";
 import { GripVertical, X } from "lucide-react";
 import type { EnvironmentEffectType, Scene } from "../../../../shared/localvtt";
+import { clampModalPosition, type ModalSize, useResizableModal } from "../../../hooks/useResizableModal";
 import { AcidEffectTuningPanel, ArcaneEffectTuningPanel, ChaosEffectTuningPanel, ColdEffectTuningPanel, DarknessEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, NatureEffectTuningPanel, PoisonEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, VoidEffectTuningPanel, WaterEffectTuningPanel } from "../../tools";
 import { DEFAULT_ACID_EFFECT_TUNING, DEFAULT_ARCANE_EFFECT_TUNING, DEFAULT_CHAOS_EFFECT_TUNING, DEFAULT_COLD_EFFECT_TUNING, DEFAULT_DARKNESS_EFFECT_TUNING, DEFAULT_DISTORTION_EFFECT_TUNING, DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_FORCE_FIELD_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_NATURE_EFFECT_TUNING, DEFAULT_POISON_EFFECT_TUNING, DEFAULT_RADIANT_EFFECT_TUNING, DEFAULT_SHOCKWAVE_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_VOID_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type AcidEffectTuning, type ArcaneEffectTuning, type ChaosEffectTuning, type ColdEffectTuning, type DarknessEffectTuning, type DistortionEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type NatureEffectTuning, type PoisonEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type VoidEffectTuning, type WaterEffectTuning } from "../../../canvas/effects";
 import { ENVIRONMENT_EFFECT_FEATHER_OPTIONS, ENVIRONMENT_EFFECT_OPTIONS, applyEnvironmentEffectPreset, formatEnvironmentEffectOptionLabel, getEnvironmentEffectFeatherSelectValue, getEnvironmentEffectPresetOptions, getEnvironmentEffectPresetSelectValue } from "../../../lib/effects";
@@ -13,8 +14,10 @@ import { ENVIRONMENT_EFFECT_FEATHER_OPTIONS, ENVIRONMENT_EFFECT_OPTIONS, applyEn
 export function EnvironmentEffectEditorModal({
   effect,
   position,
+  size,
   onClose,
   onPositionChange,
+  onSizeChange,
   onAcidTuningChange,
   onAcidTuningReset,
   onColdTuningChange,
@@ -56,8 +59,10 @@ export function EnvironmentEffectEditorModal({
 }: {
   effect: Scene["environment"]["effects"][number];
   position: { x: number; y: number } | null;
+  size: ModalSize | null;
   onClose: () => void;
   onPositionChange: (position: { x: number; y: number }) => void;
+  onSizeChange: (size: ModalSize) => void;
   onAcidTuningChange: (tuning: AcidEffectTuning) => void;
   onAcidTuningReset: () => void;
   onColdTuningChange: (tuning: ColdEffectTuning) => void;
@@ -100,7 +105,18 @@ export function EnvironmentEffectEditorModal({
   const modalRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
   const label = effect.name?.trim() || `${formatEnvironmentEffectOptionLabel(effect.effect)} Effect`;
-  const style = position ? ({ left: position.x, top: position.y } as CSSProperties) : undefined;
+  const { resize, startResize, stopResize } = useResizableModal({
+    elementRef: modalRef,
+    position,
+    size,
+    minSize: { width: 520, height: 420 },
+    onPositionChange,
+    onSizeChange
+  });
+  const style = {
+    ...(position ? { left: position.x, top: position.y } : {}),
+    ...(size ? { width: size.width, height: size.height } : {})
+  } as CSSProperties;
   const activeAcidTuning = { ...DEFAULT_ACID_EFFECT_TUNING, ...(effect.acidTuning ?? {}) };
   const activeColdTuning = { ...DEFAULT_COLD_EFFECT_TUNING, ...(effect.coldTuning ?? {}) };
   const activeDarknessTuning = { ...DEFAULT_DARKNESS_EFFECT_TUNING, ...(effect.darknessTuning ?? {}) };
@@ -198,7 +214,7 @@ export function EnvironmentEffectEditorModal({
       offsetX: event.clientX - bounds.left,
       offsetY: event.clientY - bounds.top
     };
-    onPositionChange(clampEnvironmentEffectEditorPosition(bounds.left, bounds.top, bounds));
+    onPositionChange(clampModalPosition(bounds.left, bounds.top, bounds.width, bounds.height));
   };
 
   const drag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -207,7 +223,7 @@ export function EnvironmentEffectEditorModal({
     if (!dragState || dragState.pointerId !== event.pointerId || !bounds) {
       return;
     }
-    onPositionChange(clampEnvironmentEffectEditorPosition(event.clientX - dragState.offsetX, event.clientY - dragState.offsetY, bounds));
+    onPositionChange(clampModalPosition(event.clientX - dragState.offsetX, event.clientY - dragState.offsetY, bounds.width, bounds.height));
   };
 
   const stopDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -481,14 +497,15 @@ export function EnvironmentEffectEditorModal({
           </button>
         </div>
       </div>
+      <div
+        className="modal-resize-handle"
+        title="Drag to resize"
+        aria-label="Resize edit effect modal"
+        onPointerDown={startResize}
+        onPointerMove={resize}
+        onPointerUp={stopResize}
+        onPointerCancel={stopResize}
+      />
     </section>
   );
-}
-
-function clampEnvironmentEffectEditorPosition(x: number, y: number, bounds: DOMRect): { x: number; y: number } {
-  const margin = 12;
-  return {
-    x: Math.min(Math.max(margin, x), Math.max(margin, window.innerWidth - bounds.width - margin)),
-    y: Math.min(Math.max(margin, y), Math.max(margin, window.innerHeight - bounds.height - margin))
-  };
 }

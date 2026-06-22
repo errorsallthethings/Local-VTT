@@ -5,31 +5,47 @@ import {
   useRef
 } from "react";
 import { GripVertical, Settings2, X } from "lucide-react";
+import { clampModalPosition, type ModalSize, useResizableModal } from "../../hooks/useResizableModal";
 
 export function TurnOrderModal({
   children,
   position,
+  size,
   settingsOpen,
   settingsDisabled,
   collapsed,
   onToggleSettings,
   onToggleCollapsed,
   onPositionChange,
+  onSizeChange,
   onClose
 }: {
   children: ReactNode;
   position: { x: number; y: number } | null;
+  size: ModalSize | null;
   settingsOpen: boolean;
   settingsDisabled: boolean;
   collapsed: boolean;
   onToggleSettings: () => void;
   onToggleCollapsed: () => void;
   onPositionChange: (position: { x: number; y: number }) => void;
+  onSizeChange: (size: ModalSize) => void;
   onClose: () => void;
 }) {
   const modalRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
-  const style = position ? ({ left: position.x, top: position.y } as CSSProperties) : undefined;
+  const { resize, startResize, stopResize } = useResizableModal({
+    elementRef: modalRef,
+    position,
+    size,
+    minSize: { width: 360, height: 320 },
+    onPositionChange,
+    onSizeChange
+  });
+  const style = {
+    ...(position ? { left: position.x, top: position.y } : {}),
+    ...(size ? { width: size.width, height: collapsed ? undefined : size.height } : {})
+  } as CSSProperties;
 
   const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     const bounds = modalRef.current?.getBoundingClientRect();
@@ -43,7 +59,7 @@ export function TurnOrderModal({
       offsetX: event.clientX - bounds.left,
       offsetY: event.clientY - bounds.top
     };
-    onPositionChange(clampTurnOrderModalPosition(bounds.left, bounds.top, bounds));
+    onPositionChange(clampModalPosition(bounds.left, bounds.top, bounds.width, bounds.height));
   };
 
   const drag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -52,7 +68,7 @@ export function TurnOrderModal({
     if (!dragState || dragState.pointerId !== event.pointerId || !bounds) {
       return;
     }
-    onPositionChange(clampTurnOrderModalPosition(event.clientX - dragState.offsetX, event.clientY - dragState.offsetY, bounds));
+    onPositionChange(clampModalPosition(event.clientX - dragState.offsetX, event.clientY - dragState.offsetY, bounds.width, bounds.height));
   };
 
   const stopDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -101,14 +117,17 @@ export function TurnOrderModal({
         </div>
       </div>
       {!collapsed && <div className="turn-order-modal-body">{children}</div>}
+      {!collapsed && (
+        <div
+          className="modal-resize-handle"
+          title="Drag to resize"
+          aria-label="Resize turn order modal"
+          onPointerDown={startResize}
+          onPointerMove={resize}
+          onPointerUp={stopResize}
+          onPointerCancel={stopResize}
+        />
+      )}
     </section>
   );
-}
-
-function clampTurnOrderModalPosition(x: number, y: number, bounds: DOMRect): { x: number; y: number } {
-  const margin = 12;
-  return {
-    x: Math.min(Math.max(margin, x), Math.max(margin, window.innerWidth - bounds.width - margin)),
-    y: Math.min(Math.max(margin, y), Math.max(margin, window.innerHeight - bounds.height - margin))
-  };
 }

@@ -740,7 +740,44 @@
 
 .turn-order-modal-body {
   min-height: 0;
+  overflow: auto;
   padding: 10px;
+}
+
+.modal-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.modal-resize-handle::before,
+.modal-resize-handle::after {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid rgb(247 251 255 / 0.42);
+  border-bottom: 2px solid rgb(247 251 255 / 0.42);
+  content: "";
+}
+
+.modal-resize-handle::after {
+  right: 9px;
+  bottom: 9px;
+  width: 4px;
+  height: 4px;
+  opacity: 0.75;
+}
+
+.modal-resize-handle:hover::before,
+.modal-resize-handle:hover::after {
+  border-color: var(--color-accent-soft);
 }
 
 .environment-effect-editor-modal {

@@ -319,6 +319,7 @@ export function GmApp() {
   const [newCampaignName, setNewCampaignName] = useState("");
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [environmentEffectEditorPosition, setEnvironmentEffectEditorPosition] = useState<{ x: number; y: number } | null>(null);
+  const [environmentEffectEditorSize, setEnvironmentEffectEditorSize] = useState<{ width: number; height: number } | null>(null);
   const [selectorSelectionFilters, setSelectorSelectionFilters] = useState<SelectorSelectionFilters>(DEFAULT_SELECTOR_SELECTION_FILTERS);
   const [mapCalibrationBox, setMapCalibrationBox] = useState<MapCalibrationBox | null>(null);
   const [diceRollHistory, setDiceRollHistory] = useState<DiceRollEvent[]>([]);
@@ -327,6 +328,7 @@ export function GmApp() {
   const [turnOrderModalOpen, setTurnOrderModalOpen] = useState(false);
   const [turnOrderModalCollapsed, setTurnOrderModalCollapsed] = useState(false);
   const [turnOrderModalPosition, setTurnOrderModalPosition] = useState<{ x: number; y: number } | null>(null);
+  const [turnOrderModalSize, setTurnOrderModalSize] = useState<{ width: number; height: number } | null>(null);
   const [turnOrderSettingsOpen, setTurnOrderSettingsOpen] = useState(false);
   const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
@@ -1777,12 +1779,14 @@ export function GmApp() {
         {turnOrderModalOpen && (
           <TurnOrderModal
             position={turnOrderModalPosition}
+            size={turnOrderModalSize}
             settingsOpen={turnOrderSettingsOpen}
             settingsDisabled={!activeScene}
             collapsed={turnOrderModalCollapsed}
             onToggleSettings={() => setTurnOrderSettingsOpen((open) => !open)}
             onToggleCollapsed={() => setTurnOrderModalCollapsed((collapsed) => !collapsed)}
             onPositionChange={setTurnOrderModalPosition}
+            onSizeChange={setTurnOrderModalSize}
             onClose={() => setTurnOrderModalOpen(false)}
           >
             <TurnOrderPanel
@@ -1852,8 +1856,10 @@ export function GmApp() {
         <EnvironmentEffectEditorModal
           effect={environmentEffectEditorEffect}
           position={environmentEffectEditorPosition}
+          size={environmentEffectEditorSize}
           onClose={() => setEnvironmentEffectEditorId(null)}
           onPositionChange={setEnvironmentEffectEditorPosition}
+          onSizeChange={setEnvironmentEffectEditorSize}
           onAcidTuningChange={(acidTuning) => updateEnvironmentEffectAcidTuning(environmentEffectEditorEffect.id, acidTuning)}
           onAcidTuningReset={() => updateEnvironmentEffectAcidTuning(environmentEffectEditorEffect.id, getDefaultAcidEffectTuning())}
           onColdTuningChange={(coldTuning) => updateEnvironmentEffectColdTuning(environmentEffectEditorEffect.id, coldTuning)}
