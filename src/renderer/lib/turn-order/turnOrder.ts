@@ -135,13 +135,15 @@ export function updateTurnOrderEntriesForPlayer(scene: Scene, player: CampaignPl
 export function removeTurnOrderEntry(scene: Scene, entryId: string, updatedAt = new Date().toISOString()): Scene {
   const entries = scene.turnOrder.entries.filter((entry) => entry.id !== entryId);
   const currentEntryId = getValidCurrentEntryId(entries, scene.turnOrder.currentEntryId === entryId ? undefined : scene.turnOrder.currentEntryId) ?? entries[0]?.id;
+  const listEmptied = entries.length === 0;
   return patchTurnOrder(
     scene,
     {
       entries,
       currentEntryId,
-      active: entries.length > 0 && scene.turnOrder.active,
-      playerViewVisible: entries.length > 0 && scene.turnOrder.playerViewVisible
+      active: !listEmptied && scene.turnOrder.active,
+      playerViewVisible: !listEmptied && scene.turnOrder.playerViewVisible,
+      round: listEmptied ? 1 : scene.turnOrder.round
     },
     updatedAt
   );
@@ -154,13 +156,15 @@ export function removeTurnOrderEntriesForPlayer(scene: Scene, playerId: string, 
   }
   const entries = scene.turnOrder.entries.filter((entry) => !entriesToRemove.has(entry.id));
   const currentEntryId = getValidCurrentEntryId(entries, entriesToRemove.has(scene.turnOrder.currentEntryId ?? "") ? undefined : scene.turnOrder.currentEntryId) ?? entries[0]?.id;
+  const listEmptied = entries.length === 0;
   return patchTurnOrder(
     scene,
     {
       entries,
       currentEntryId,
-      active: entries.length > 0 && scene.turnOrder.active,
-      playerViewVisible: entries.length > 0 && scene.turnOrder.playerViewVisible
+      active: !listEmptied && scene.turnOrder.active,
+      playerViewVisible: !listEmptied && scene.turnOrder.playerViewVisible,
+      round: listEmptied ? 1 : scene.turnOrder.round
     },
     updatedAt
   );
@@ -245,7 +249,8 @@ export function resetTurnOrder(scene: Scene, updatedAt = new Date().toISOString(
     {
       active: false,
       playerViewVisible: false,
-      currentEntryId: scene.turnOrder.entries[0]?.id
+      currentEntryId: scene.turnOrder.entries[0]?.id,
+      round: 1
     },
     updatedAt
   );
@@ -261,12 +266,21 @@ export function stopActiveTurnOrder(scene: Scene, updatedAt = new Date().toISOSt
 export function advanceTurnOrder(scene: Scene, direction: "next" | "previous", updatedAt = new Date().toISOString()): Scene {
   const entries = scene.turnOrder.entries;
   if (entries.length === 0) {
-    return patchTurnOrder(scene, { active: false, currentEntryId: undefined }, updatedAt);
+    return patchTurnOrder(scene, { active: false, currentEntryId: undefined, round: 1 }, updatedAt);
   }
   const currentIndex = Math.max(0, entries.findIndex((entry) => entry.id === scene.turnOrder.currentEntryId));
   const delta = direction === "next" ? 1 : -1;
   const nextIndex = (currentIndex + delta + entries.length) % entries.length;
-  return patchTurnOrder(scene, { active: true, currentEntryId: entries[nextIndex].id }, updatedAt);
+  const completedForwardCycle = direction === "next" && nextIndex === 0 && currentIndex === entries.length - 1;
+  return patchTurnOrder(
+    scene,
+    {
+      active: true,
+      currentEntryId: entries[nextIndex].id,
+      round: completedForwardCycle ? clampRound(scene.turnOrder.round + 1) : scene.turnOrder.round
+    },
+    updatedAt
+  );
 }
 
 export function patchTurnOrder(scene: Scene, patch: Partial<TurnOrderSettings>, updatedAt = new Date().toISOString()): Scene {
@@ -294,4 +308,8 @@ function rollDice(count: number, sides: number, random: () => number): number {
     total += Math.floor(random() * sides) + 1;
   }
   return total;
+}
+
+function clampRound(value: number): number {
+  return Math.max(1, Math.min(999, Math.floor(Number.isFinite(value) ? value : 1)));
 }

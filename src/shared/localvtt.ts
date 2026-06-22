@@ -483,6 +483,7 @@ export type PlayerIndicatorTheme =
   | "sorcerer"
   | "warlock"
   | "wizard";
+export type TurnOrderAvatarMask = "circle" | "square" | "hex";
 
 export const PLAYER_INDICATOR_THEMES: PlayerIndicatorTheme[] = [
   "generic",
@@ -519,12 +520,15 @@ export const PLAYER_INDICATOR_THEME_LABELS: Record<PlayerIndicatorTheme, string>
 export interface TurnOrderSettings {
   active: boolean;
   currentEntryId?: string;
+  round: number;
   playerViewVisible: boolean;
   playerViewEdge: "top" | "right" | "bottom" | "left";
   playerViewFacing: "inward" | "outward";
   playerViewSize: "xs" | "sm" | "md" | "lg" | "xl";
   playerViewMaxEntries: number;
+  trackerAvatarMask: TurnOrderAvatarMask;
   playerTurnStatusSize: "xs" | "sm" | "md" | "lg" | "xl";
+  playerTurnAvatarMask: TurnOrderAvatarMask;
   initiativeDiceCount: number;
   initiativeDiceSides: number;
   entries: TurnOrderEntry[];
@@ -817,12 +821,15 @@ export const DEFAULT_TABLE_TOOLS: TableToolSettings = {
 
 export const DEFAULT_TURN_ORDER: TurnOrderSettings = {
   active: false,
+  round: 1,
   playerViewVisible: false,
   playerViewEdge: "top",
   playerViewFacing: "inward",
   playerViewSize: "md",
   playerViewMaxEntries: 9,
+  trackerAvatarMask: "circle",
   playerTurnStatusSize: "md",
+  playerTurnAvatarMask: "circle",
   initiativeDiceCount: 1,
   initiativeDiceSides: 20,
   entries: [],
@@ -1963,6 +1970,7 @@ function normalizeTurnOrder(turnOrder?: Partial<TurnOrderSettings>): TurnOrderSe
     ...(turnOrder ?? {}),
     active: turnOrder?.active ?? false,
     currentEntryId,
+    round: clampNumber(turnOrder?.round, 1, 999, DEFAULT_TURN_ORDER.round),
     playerViewVisible: turnOrder?.playerViewVisible ?? false,
     playerViewEdge:
       turnOrder?.playerViewEdge === "top" || turnOrder?.playerViewEdge === "right" || turnOrder?.playerViewEdge === "bottom" || turnOrder?.playerViewEdge === "left"
@@ -1974,15 +1982,21 @@ function normalizeTurnOrder(turnOrder?: Partial<TurnOrderSettings>): TurnOrderSe
         ? turnOrder.playerViewSize
         : DEFAULT_TURN_ORDER.playerViewSize,
     playerViewMaxEntries: clampNumber(turnOrder?.playerViewMaxEntries, 1, 30, DEFAULT_TURN_ORDER.playerViewMaxEntries),
+    trackerAvatarMask: normalizeTurnOrderAvatarMask(turnOrder?.trackerAvatarMask),
     playerTurnStatusSize:
       turnOrder?.playerTurnStatusSize === "xs" || turnOrder?.playerTurnStatusSize === "sm" || turnOrder?.playerTurnStatusSize === "lg" || turnOrder?.playerTurnStatusSize === "xl"
         ? turnOrder.playerTurnStatusSize
         : DEFAULT_TURN_ORDER.playerTurnStatusSize,
+    playerTurnAvatarMask: normalizeTurnOrderAvatarMask(turnOrder?.playerTurnAvatarMask),
     initiativeDiceCount: clampNumber(turnOrder?.initiativeDiceCount, 1, 20, DEFAULT_TURN_ORDER.initiativeDiceCount),
     initiativeDiceSides: clampNumber(turnOrder?.initiativeDiceSides, 2, 100, DEFAULT_TURN_ORDER.initiativeDiceSides),
     entries,
     seats
   };
+}
+
+function normalizeTurnOrderAvatarMask(mask: unknown): TurnOrderAvatarMask {
+  return mask === "square" || mask === "hex" ? mask : "circle";
 }
 
 function getUniqueTurnOrderId(id: unknown, index: number, usedIds: Set<string>): string {

@@ -65,17 +65,31 @@ describe("turn order helpers", () => {
     expect(scene.turnOrder.active).toBe(true);
     expect(scene.turnOrder.playerViewVisible).toBe(true);
     expect(scene.turnOrder.currentEntryId).toBe("a");
+    expect(scene.turnOrder.round).toBe(1);
 
     scene = advanceTurnOrder(scene, "next", "now");
     expect(scene.turnOrder.currentEntryId).toBe("b");
+    expect(scene.turnOrder.round).toBe(1);
     scene = advanceTurnOrder(scene, "next", "now");
     expect(scene.turnOrder.currentEntryId).toBe("a");
+    expect(scene.turnOrder.round).toBe(2);
     scene = advanceTurnOrder(scene, "previous", "now");
     expect(scene.turnOrder.currentEntryId).toBe("b");
+    expect(scene.turnOrder.round).toBe(2);
 
     scene = stopTurnOrder(scene, "now");
     expect(scene.turnOrder.active).toBe(false);
     expect(scene.turnOrder.playerViewVisible).toBe(false);
+  });
+
+  it("resets round state when the turn order list is emptied", () => {
+    let scene = sceneWithEntries(["a"]);
+    scene.turnOrder.round = 4;
+
+    scene = removeTurnOrderEntry(scene, "a", "now");
+
+    expect(scene.turnOrder.entries).toEqual([]);
+    expect(scene.turnOrder.round).toBe(1);
   });
 
   it("resets stale current turn state when rebuilding a turn order list", () => {
@@ -260,6 +274,7 @@ describe("turn order helpers", () => {
     let scene = sceneWithEntries(["a", "b", "c"]);
     scene = startTurnOrder(scene, "start");
     scene = advanceTurnOrder(scene, "next", "next");
+    scene.turnOrder.round = 3;
 
     scene = resetTurnOrder(scene, "reset");
 
@@ -267,6 +282,7 @@ describe("turn order helpers", () => {
     expect(scene.turnOrder.active).toBe(false);
     expect(scene.turnOrder.playerViewVisible).toBe(false);
     expect(scene.turnOrder.currentEntryId).toBe("a");
+    expect(scene.turnOrder.round).toBe(1);
     expect(scene.updatedAt).toBe("reset");
   });
 
@@ -334,7 +350,10 @@ describe("turn order helpers", () => {
     expect(scene.turnOrder.playerViewFacing).toBe("inward");
     expect(scene.turnOrder.playerViewSize).toBe("md");
     expect(scene.turnOrder.playerViewMaxEntries).toBe(9);
+    expect(scene.turnOrder.round).toBe(1);
+    expect(scene.turnOrder.trackerAvatarMask).toBe("circle");
     expect(scene.turnOrder.playerTurnStatusSize).toBe("md");
+    expect(scene.turnOrder.playerTurnAvatarMask).toBe("circle");
     expect(scene.turnOrder.initiativeDiceCount).toBe(1);
     expect(scene.turnOrder.initiativeDiceSides).toBe(20);
     expect(scene.turnOrder.entries).toMatchObject([

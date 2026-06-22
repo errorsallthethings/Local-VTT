@@ -894,6 +894,27 @@
   font-size: 12px;
 }
 
+.turn-order-round-control {
+  display: inline-grid;
+  grid-template-columns: auto 54px;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.turn-order-round-control input {
+  width: 54px;
+  height: 28px;
+  min-height: 28px;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
 .turn-order-actions,
 .turn-order-controls,
 .turn-order-row-actions,

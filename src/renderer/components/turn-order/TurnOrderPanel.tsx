@@ -66,6 +66,7 @@ export function TurnOrderPanel({
     }
     updateScene({ ...scene, turnOrder: { ...turnOrder, ...patch }, updatedAt: new Date().toISOString() });
   };
+  const updateRound = (value: number) => updateTurnOrder({ round: clampRound(value) });
 
   const addManualEntry = () => {
     if (!scene) {
@@ -158,6 +159,17 @@ export function TurnOrderPanel({
                 </select>
               </label>
               <label>
+                <span>Tracker Mask</span>
+                <select
+                  value={turnOrder.trackerAvatarMask}
+                  onChange={(event) => updateTurnOrder({ trackerAvatarMask: event.target.value as typeof turnOrder.trackerAvatarMask })}
+                >
+                  <option value="circle">Circle</option>
+                  <option value="square">Square</option>
+                  <option value="hex">Hex</option>
+                </select>
+              </label>
+              <label>
                 <span>Visible Entries</span>
                 <input
                   type="number"
@@ -179,6 +191,17 @@ export function TurnOrderPanel({
                   <option value="md">Medium</option>
                   <option value="lg">Large</option>
                   <option value="xl">Extra Large</option>
+                </select>
+              </label>
+              <label>
+                <span>Player Turn Mask</span>
+                <select
+                  value={turnOrder.playerTurnAvatarMask}
+                  onChange={(event) => updateTurnOrder({ playerTurnAvatarMask: event.target.value as typeof turnOrder.playerTurnAvatarMask })}
+                >
+                  <option value="circle">Circle</option>
+                  <option value="square">Square</option>
+                  <option value="hex">Hex</option>
                 </select>
               </label>
             </div>
@@ -216,6 +239,12 @@ export function TurnOrderPanel({
           <strong>Turn Order List</strong>
           <span>{turnOrder ? `${turnOrder.entries.length} entries` : "Select a scene"}</span>
         </div>
+        {turnOrder && (
+          <label className="turn-order-round-control" title="Turn order round">
+            <span>Round</span>
+            <input type="number" min={1} max={999} step={1} value={turnOrder.round} aria-label="Turn order round" onChange={(event) => updateRound(Number(event.target.value))} />
+          </label>
+        )}
       </div>
 
       <div className="turn-order-toolbar">
@@ -298,6 +327,10 @@ export function TurnOrderPanel({
       )}
     </section>
   );
+}
+
+function clampRound(value: number): number {
+  return Math.max(1, Math.min(999, Math.floor(Number.isFinite(value) ? value : 1)));
 }
 
 function TurnOrderRow({

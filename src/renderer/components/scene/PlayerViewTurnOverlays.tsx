@@ -68,6 +68,10 @@ export function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign
         } as React.CSSProperties
       }
     >
+      <span className="turn-order-player-round" title={`Round ${turnOrder.round}`}>
+        <small>Round</small>
+        <strong>{turnOrder.round}</strong>
+      </span>
       <span className="turn-order-player-direction" aria-hidden="true">
         <ArrowRight size={18} />
       </span>
@@ -85,7 +89,7 @@ export function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign
             className={["turn-order-player-entry", active ? "turn-order-player-entry-active" : "", next ? "turn-order-player-entry-next" : ""].filter(Boolean).join(" ")}
             style={player?.color ? ({ "--turn-player-color": player.color } as React.CSSProperties) : undefined}
           >
-            <span className="turn-order-player-avatar">
+            <span className={`turn-order-player-avatar avatar-mask-${turnOrder.trackerAvatarMask}`}>
               {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : entryName.slice(0, 1).toUpperCase()}
             </span>
             <span className="turn-order-player-initiative">{entry.initiative}</span>
@@ -148,7 +152,7 @@ export function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; 
             style={style}
           >
             <PlayerTurnStatusFrame />
-            <span className="player-turn-status-avatar">
+            <span className={`player-turn-status-avatar avatar-mask-${turnOrder.playerTurnAvatarMask}`}>
               {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : player.name.slice(0, 1).toUpperCase()}
             </span>
             <span className="player-turn-status-copy">
