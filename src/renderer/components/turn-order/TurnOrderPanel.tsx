@@ -11,6 +11,7 @@ import {
   advanceTurnOrder,
   createCountTrackerTurnOrderEntry,
   createManualTurnOrderEntry,
+  createTurnOrderGroupFromEntry,
   createTurnOrderEntryFromAsset,
   linkTurnOrderEntryToToken,
   removeTurnOrderEntry,
@@ -21,6 +22,7 @@ import {
   sortTurnOrderByInitiative,
   startTurnOrder,
   stopTurnOrder,
+  ungroupTurnOrderEntry,
   updateTurnOrderEntry
 } from "../../lib/turn-order";
 
@@ -387,6 +389,8 @@ export function TurnOrderPanel({
               asset={entry.assetId ? tokenAssets.get(entry.assetId) : undefined}
               onUpdate={(patch) => updateScene(updateTurnOrderEntry(scene, entry.id, patch))}
               onLinkToken={(tokenId) => updateScene(linkTurnOrderEntryToToken(scene, entry.id, tokenId))}
+              onCreateGroup={() => updateScene(createTurnOrderGroupFromEntry(scene, entry.id))}
+              onUngroup={() => updateScene(ungroupTurnOrderEntry(scene, entry.id))}
               onRoll={() => updateScene(rollInitiativeForEntry(scene, entry.id))}
               onRemove={() => updateScene(removeTurnOrderEntry(scene, entry.id))}
               sceneTokens={scene.tokens}
@@ -490,6 +494,8 @@ function TurnOrderRow({
   asset,
   onUpdate,
   onLinkToken,
+  onCreateGroup,
+  onUngroup,
   onRoll,
   onRemove,
   sceneTokens,
@@ -507,6 +513,8 @@ function TurnOrderRow({
   asset?: Asset;
   onUpdate: (patch: Partial<TurnOrderEntry>) => void;
   onLinkToken: (tokenId: string | null) => void;
+  onCreateGroup: () => void;
+  onUngroup: () => void;
   onRoll: () => void;
   onRemove: () => void;
   sceneTokens: Token[];
@@ -523,6 +531,7 @@ function TurnOrderRow({
   const className = [
     active ? "turn-order-row turn-order-row-active" : "turn-order-row",
     entry.type === "count-tracker" ? "turn-order-row-count-tracker" : "",
+    entry.type === "turn-group" ? "turn-order-row-group" : "",
     entry.countdown !== undefined ? "turn-order-row-countdown" : "",
     entry.countdown === 0 ? "turn-order-row-expired" : "",
     dragged ? "turn-order-row-dragging" : "",
@@ -590,12 +599,17 @@ function TurnOrderRow({
       <div className="turn-order-name-cell">
         <input className="turn-order-name" value={entry.name} aria-label="Entry name" onChange={(event) => onUpdate({ name: event.target.value })} />
         <span
-          className={entry.type === "count-tracker" ? "turn-order-type-badge turn-order-type-count" : player ? "turn-order-type-badge turn-order-type-player" : "turn-order-type-badge turn-order-type-entry"}
-          title={entry.type === "count-tracker" ? "Count Tracker" : player ? "Player" : "Entity"}
-          aria-label={entry.type === "count-tracker" ? "Count tracker entry" : player ? "Player entry" : "Entity entry"}
+          className={entry.type === "count-tracker" ? "turn-order-type-badge turn-order-type-count" : entry.type === "turn-group" ? "turn-order-type-badge turn-order-type-group" : player ? "turn-order-type-badge turn-order-type-player" : "turn-order-type-badge turn-order-type-entry"}
+          title={entry.type === "count-tracker" ? "Count Tracker" : entry.type === "turn-group" ? "Turn Group" : player ? "Player" : "Entity"}
+          aria-label={entry.type === "count-tracker" ? "Count tracker entry" : entry.type === "turn-group" ? "Turn group entry" : player ? "Player entry" : "Entity entry"}
         >
-          {entry.type === "count-tracker" ? "C" : player ? "P" : "E"}
+          {entry.type === "count-tracker" ? "C" : entry.type === "turn-group" ? "G" : player ? "P" : "E"}
         </span>
+        {entry.type === "turn-group" && (
+          <span className="turn-order-group-count-badge" title={`${entry.tokenIds?.length ?? 0} grouped scene tokens`}>
+            x{entry.tokenIds?.length ?? 0}
+          </span>
+        )}
         {entry.countdown !== undefined && (
           <span className={entry.countdown === 0 ? "turn-order-countdown-badge turn-order-countdown-expired" : "turn-order-countdown-badge"} title={entry.countdown === 0 ? "Countdown expired" : `${entry.countdown} rounds remaining`}>
             <Hourglass size={11} aria-hidden="true" />
@@ -643,6 +657,17 @@ function TurnOrderRow({
               onLinkToken={(tokenId) => {
                 onLinkToken(tokenId);
               }}
+              onCreateGroup={() => {
+                onCreateGroup();
+                setMenuOpen(false);
+              }}
+              onUngroup={() => {
+                onUngroup();
+                setMenuOpen(false);
+              }}
+              onUpdateGroupTokenIds={(tokenIds) => {
+                onUpdate({ tokenIds });
+              }}
               onToggleVisibility={() => {
                 onUpdate({ visibleInPlayer: !entry.visibleInPlayer });
               }}
@@ -674,6 +699,9 @@ function FloatingTurnOrderRowMenu({
   linkedTokenId,
   onRoll,
   onLinkToken,
+  onCreateGroup,
+  onUngroup,
+  onUpdateGroupTokenIds,
   onToggleVisibility,
   onToggleCountdown,
   onUpdateCountdown,
@@ -686,6 +714,9 @@ function FloatingTurnOrderRowMenu({
   linkedTokenId?: string;
   onRoll: () => void;
   onLinkToken: (tokenId: string | null) => void;
+  onCreateGroup: () => void;
+  onUngroup: () => void;
+  onUpdateGroupTokenIds: (tokenIds: string[]) => void;
   onToggleVisibility: () => void;
   onToggleCountdown: () => void;
   onUpdateCountdown: (countdown: number) => void;
@@ -696,8 +727,18 @@ function FloatingTurnOrderRowMenu({
     open: Boolean(anchor),
     anchor,
     fallbackWidth: 170,
-    fallbackHeight: entry.type === "count-tracker" ? 254 : entry.countdown !== undefined ? 224 : 172
+    fallbackHeight: entry.type === "turn-group" ? 330 : entry.type === "count-tracker" ? 254 : entry.countdown !== undefined ? 224 : 202
   });
+  const selectedGroupTokenIds = new Set(entry.tokenIds ?? []);
+  const toggleGroupToken = (tokenId: string, selected: boolean) => {
+    const nextTokenIds = new Set(selectedGroupTokenIds);
+    if (selected) {
+      nextTokenIds.add(tokenId);
+    } else {
+      nextTokenIds.delete(tokenId);
+    }
+    onUpdateGroupTokenIds([...nextTokenIds]);
+  };
 
   return (
     <div
@@ -728,7 +769,7 @@ function FloatingTurnOrderRowMenu({
           <span>Scene Token</span>
           <select
             value={linkedTokenId ?? ""}
-            disabled={sceneTokens.length === 0}
+            disabled={sceneTokens.length === 0 || entry.type === "turn-group"}
             aria-label={`Scene token link for ${entry.name}`}
             onChange={(event) => onLinkToken(event.target.value || null)}
           >
@@ -740,6 +781,23 @@ function FloatingTurnOrderRowMenu({
             ))}
           </select>
         </label>
+        {entry.type === "turn-group" && (
+          <div className="turn-order-group-token-picker">
+            <span>Group Tokens</span>
+            <div className="turn-order-group-token-list">
+              {sceneTokens.length === 0 ? (
+                <span className="turn-order-group-token-empty">No scene tokens available.</span>
+              ) : (
+                sceneTokens.map((token) => (
+                  <label key={token.id} className="turn-order-group-token-option">
+                    <input type="checkbox" checked={selectedGroupTokenIds.has(token.id)} onChange={(event) => toggleGroupToken(token.id, event.target.checked)} />
+                    <span>{token.name || "Token"}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+        )}
         <label className="setting-row">
           <span>Countdown</span>
           <label className="fog-operation-switch turn-order-countdown-switch" title={`${entry.countdown === undefined ? "Enable" : "Disable"} countdown for ${entry.name}`}>
@@ -780,6 +838,18 @@ function FloatingTurnOrderRowMenu({
         )}
       </div>
       <div className="control-divider" />
+      {entry.type !== "count-tracker" && entry.type !== "turn-group" && (
+        <button className="token-menu-action" role="menuitem" onClick={onCreateGroup}>
+          <ListPlus size={14} aria-hidden="true" />
+          <span>Create Group</span>
+        </button>
+      )}
+      {entry.type === "turn-group" && (
+        <button className="token-menu-action" role="menuitem" onClick={onUngroup}>
+          <ListPlus size={14} aria-hidden="true" />
+          <span>Ungroup</span>
+        </button>
+      )}
       {entry.type !== "count-tracker" && (
         <button className="token-menu-action" role="menuitem" onClick={onRoll}>
           <Dice5 size={14} aria-hidden="true" />

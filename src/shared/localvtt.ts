@@ -454,11 +454,12 @@ export interface TurnOrderEntry {
   name: string;
   initiative: number;
   visibleInPlayer: boolean;
-  type?: "count-tracker";
+  type?: "count-tracker" | "turn-group";
   countdown?: number;
   trackerColor?: string;
   playerId?: string;
   tokenId?: string;
+  tokenIds?: string[];
   assetId?: string;
 }
 
@@ -1966,7 +1967,8 @@ function normalizeTurnOrder(turnOrder?: Partial<TurnOrderSettings>): TurnOrderSe
   const entryIds = new Set<string>();
   const entries = (turnOrder?.entries ?? []).map((entry, index) => {
     const id = getUniqueTurnOrderId(entry.id, index, entryIds);
-    const type: TurnOrderEntry["type"] = entry.type === "count-tracker" ? "count-tracker" : undefined;
+    const type: TurnOrderEntry["type"] = entry.type === "count-tracker" || entry.type === "turn-group" ? entry.type : undefined;
+    const tokenIds = Array.from(new Set((entry.tokenIds ?? []).filter((tokenId): tokenId is string => typeof tokenId === "string" && tokenId.trim().length > 0)));
     return {
       ...entry,
       id,
@@ -1975,6 +1977,7 @@ function normalizeTurnOrder(turnOrder?: Partial<TurnOrderSettings>): TurnOrderSe
       type,
       countdown: type === "count-tracker" || entry.countdown !== undefined ? clampNumber(entry.countdown, 0, 999, 1) : undefined,
       trackerColor: type === "count-tracker" ? normalizeColor(entry.trackerColor, "#f5d98a") : undefined,
+      tokenIds: type === "turn-group" ? tokenIds : undefined,
       visibleInPlayer: entry.visibleInPlayer ?? true
     };
   });

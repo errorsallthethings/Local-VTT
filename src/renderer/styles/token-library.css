@@ -1210,6 +1210,12 @@
     var(--color-bg-panel-deep);
 }
 
+.turn-order-row-group {
+  background:
+    linear-gradient(90deg, rgb(122 162 247 / 0.1), transparent 46%),
+    var(--color-bg-panel-deep);
+}
+
 .turn-order-row-expired {
   border-color: color-mix(in srgb, var(--color-danger) 52%, var(--color-border-muted));
 }
@@ -1300,6 +1306,67 @@
   border-color: rgb(245 217 138 / 0.42);
   background: rgb(245 217 138 / 0.12);
   color: #f5d98a;
+}
+
+.turn-order-type-group {
+  border-color: rgb(122 162 247 / 0.42);
+  background: rgb(122 162 247 / 0.12);
+  color: var(--color-text-soft);
+}
+
+.turn-order-group-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 20px;
+  border: 1px solid rgb(122 162 247 / 0.36);
+  border-radius: var(--radius-pill);
+  background: rgb(122 162 247 / 0.1);
+  color: var(--color-text-soft);
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.turn-order-group-token-picker {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.turn-order-group-token-list {
+  display: grid;
+  gap: 4px;
+  max-height: 118px;
+  overflow: auto;
+}
+
+.turn-order-group-token-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--color-text-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.turn-order-group-token-option span,
+.turn-order-group-token-empty {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .turn-order-countdown-switch input {

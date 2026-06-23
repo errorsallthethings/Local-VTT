@@ -93,12 +93,13 @@ export function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign
               const next = entry.id === nextEntryId;
               const entryName = player?.name ?? entry.name;
               const isCountTracker = entry.type === "count-tracker";
+              const isTurnGroup = entry.type === "turn-group";
               const showEndDivider = entry.id === lastEntryId;
               return (
                 <Fragment key={entry.id}>
                   {showEndDivider && layout.reverseEntries && <span className="turn-order-player-end-divider" title="End of turn order" aria-hidden="true" />}
                   <article
-                    className={["turn-order-player-entry", isCountTracker ? "turn-order-player-entry-count-tracker" : "", active ? "turn-order-player-entry-active" : "", next ? "turn-order-player-entry-next" : ""].filter(Boolean).join(" ")}
+                    className={["turn-order-player-entry", isCountTracker ? "turn-order-player-entry-count-tracker" : "", isTurnGroup ? "turn-order-player-entry-group" : "", active ? "turn-order-player-entry-active" : "", next ? "turn-order-player-entry-next" : ""].filter(Boolean).join(" ")}
                     style={
                       {
                         ...(player?.color ? { "--turn-player-color": player.color } : {}),
@@ -109,6 +110,7 @@ export function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign
                     <span className={`turn-order-player-avatar avatar-mask-${turnOrder.trackerAvatarMask}`}>
                       {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : entryName.slice(0, 1).toUpperCase()}
                       {isCountTracker && <span className={entry.countdown === 0 ? "turn-order-player-count-center turn-order-player-count-center-expired" : "turn-order-player-count-center"}>{entry.countdown ?? 0}</span>}
+                      {isTurnGroup && <span className="turn-order-player-count-center">x{entry.tokenIds?.length ?? 0}</span>}
                     </span>
                     <span className={isCountTracker ? "turn-order-player-initiative turn-order-player-tracker-name" : "turn-order-player-initiative"}>{isCountTracker ? entryName : entry.initiative}</span>
                     {!isCountTracker && entry.countdown !== undefined && (

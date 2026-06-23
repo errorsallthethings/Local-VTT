@@ -6,6 +6,7 @@ import {
   advanceTurnOrder,
   createCountTrackerTurnOrderEntry,
   createManualTurnOrderEntry,
+  createTurnOrderGroupFromEntry,
   createTurnOrderEntryFromAsset,
   createTurnOrderEntryFromToken,
   getTurnOrderTokenIndicators,
@@ -20,6 +21,7 @@ import {
   stopActiveTurnOrder,
   startTurnOrder,
   stopTurnOrder,
+  ungroupTurnOrderEntry,
   updateTurnOrderEntry
 } from "../../src/renderer/lib/turn-order";
 
@@ -248,6 +250,52 @@ describe("turn order helpers", () => {
       ["token-1", { label: "1", current: false }],
       ["token-2", { label: "2", current: true }]
     ]);
+  });
+
+  it("creates turn groups and highlights each grouped scene token", () => {
+    let scene = createDefaultScene("Grouped Tokens");
+    scene.tokens = [
+      {
+        id: "token-1",
+        assetId: "asset-1",
+        name: "Goblin A",
+        position: { x: 0, y: 0 },
+        size: { width: 70, height: 70 },
+        visibleInGm: true,
+        visibleInPlayer: true
+      },
+      {
+        id: "token-2",
+        assetId: "asset-2",
+        name: "Goblin B",
+        position: { x: 80, y: 0 },
+        size: { width: 70, height: 70 },
+        visibleInGm: true,
+        visibleInPlayer: true
+      }
+    ];
+    scene.turnOrder.entries = [{ ...createManualTurnOrderEntry("goblins", "Goblin", 12), tokenId: "token-1", assetId: "asset-1" }];
+
+    scene = createTurnOrderGroupFromEntry(scene, "goblins", "grouped");
+    scene = updateTurnOrderEntry(scene, "goblins", { tokenIds: ["token-1", "token-2"] }, "tokens");
+    scene = startTurnOrder(scene, "start");
+
+    expect(scene.turnOrder.entries[0]).toMatchObject({
+      id: "goblins",
+      name: "Goblin Group",
+      type: "turn-group",
+      tokenIds: ["token-1", "token-2"]
+    });
+    expect(getTurnOrderTokenIndicators(scene).get("token-1")).toEqual({ label: "1", current: true });
+    expect(getTurnOrderTokenIndicators(scene).get("token-2")).toEqual({ label: "1", current: true });
+
+    scene = ungroupTurnOrderEntry(scene, "goblins", "ungrouped");
+    expect(scene.turnOrder.entries[0]).toMatchObject({
+      id: "goblins",
+      type: undefined,
+      tokenIds: undefined,
+      tokenId: "token-1"
+    });
   });
 
   it("keeps the first turn order indicator when duplicate token links exist", () => {

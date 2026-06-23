@@ -26,6 +26,41 @@ export function createCountTrackerTurnOrderEntry(id: string, name = "Count Track
   };
 }
 
+export function createTurnOrderGroupFromEntry(scene: Scene, entryId: string, updatedAt = new Date().toISOString()): Scene {
+  const entry = scene.turnOrder.entries.find((candidate) => candidate.id === entryId);
+  if (!entry || entry.type === "count-tracker" || entry.type === "turn-group") {
+    return scene;
+  }
+  return updateTurnOrderEntry(
+    scene,
+    entryId,
+    {
+      type: "turn-group",
+      name: entry.name.endsWith(" Group") ? entry.name : `${entry.name} Group`,
+      tokenIds: entry.tokenId ? [entry.tokenId] : []
+    },
+    updatedAt
+  );
+}
+
+export function ungroupTurnOrderEntry(scene: Scene, entryId: string, updatedAt = new Date().toISOString()): Scene {
+  const entry = scene.turnOrder.entries.find((candidate) => candidate.id === entryId);
+  if (!entry || entry.type !== "turn-group") {
+    return scene;
+  }
+  return updateTurnOrderEntry(
+    scene,
+    entryId,
+    {
+      type: undefined,
+      tokenIds: undefined,
+      tokenId: entry.tokenId ?? entry.tokenIds?.[0],
+      assetId: entry.assetId
+    },
+    updatedAt
+  );
+}
+
 export function createTurnOrderEntryFromAsset(id: string, asset: Asset, initiative = 0): TurnOrderEntry {
   return {
     id,
@@ -62,13 +97,16 @@ export function getTurnOrderTokenIndicators(scene: Scene): Map<string, TurnOrder
   const sceneTokenIds = new Set(scene.tokens.map((token) => token.id));
   const indicators = new Map<string, TurnOrderTokenIndicator>();
   scene.turnOrder.entries.forEach((entry, index) => {
-    if (!entry.tokenId || !sceneTokenIds.has(entry.tokenId) || indicators.has(entry.tokenId)) {
-      return;
+    const entryTokenIds = entry.type === "turn-group" ? (entry.tokenIds ?? []) : entry.tokenId ? [entry.tokenId] : [];
+    for (const tokenId of entryTokenIds) {
+      if (!sceneTokenIds.has(tokenId) || indicators.has(tokenId)) {
+        continue;
+      }
+      indicators.set(tokenId, {
+        label: String(index + 1),
+        current: scene.turnOrder.active && entry.id === scene.turnOrder.currentEntryId
+      });
     }
-    indicators.set(entry.tokenId, {
-      label: String(index + 1),
-      current: scene.turnOrder.active && entry.id === scene.turnOrder.currentEntryId
-    });
   });
   return indicators;
 }
