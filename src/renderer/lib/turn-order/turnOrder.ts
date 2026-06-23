@@ -14,6 +14,18 @@ export function createManualTurnOrderEntry(id: string, name: string, initiative 
   };
 }
 
+export function createCountTrackerTurnOrderEntry(id: string, name = "Count Tracker", countdown = 1, initiative = 0): TurnOrderEntry {
+  return {
+    id,
+    name: name.trim() || "Count Tracker",
+    initiative,
+    visibleInPlayer: true,
+    type: "count-tracker",
+    countdown: Math.max(0, Math.min(999, Math.floor(Number.isFinite(countdown) ? countdown : 1))),
+    trackerColor: "#f5d98a"
+  };
+}
+
 export function createTurnOrderEntryFromAsset(id: string, asset: Asset, initiative = 0): TurnOrderEntry {
   return {
     id,
@@ -182,7 +194,7 @@ export function rollInitiativeForNonPlayers(scene: Scene, random = Math.random, 
     scene,
     {
       entries: scene.turnOrder.entries.map((entry) =>
-        entry.playerId
+        entry.playerId || entry.type === "count-tracker"
           ? entry
           : {
               ...entry,
@@ -195,6 +207,9 @@ export function rollInitiativeForNonPlayers(scene: Scene, random = Math.random, 
 }
 
 export function rollInitiativeForEntry(scene: Scene, entryId: string, random = Math.random, updatedAt = new Date().toISOString()): Scene {
+  if (scene.turnOrder.entries.some((entry) => entry.id === entryId && entry.type === "count-tracker")) {
+    return scene;
+  }
   const diceCount = Math.max(1, Math.min(20, Math.round(scene.turnOrder.initiativeDiceCount || 1)));
   const diceSides = Math.max(2, Math.min(100, Math.round(scene.turnOrder.initiativeDiceSides || 20)));
   return updateTurnOrderEntry(scene, entryId, { initiative: rollDice(diceCount, diceSides, random) }, updatedAt);
@@ -277,7 +292,8 @@ export function advanceTurnOrder(scene: Scene, direction: "next" | "previous", u
     {
       active: true,
       currentEntryId: entries[nextIndex].id,
-      round: completedForwardCycle ? clampRound(scene.turnOrder.round + 1) : scene.turnOrder.round
+      round: completedForwardCycle ? clampRound(scene.turnOrder.round + 1) : scene.turnOrder.round,
+      entries: completedForwardCycle ? decrementCountdownEntries(entries) : entries
     },
     updatedAt
   );
@@ -312,4 +328,16 @@ function rollDice(count: number, sides: number, random: () => number): number {
 
 function clampRound(value: number): number {
   return Math.max(1, Math.min(999, Math.floor(Number.isFinite(value) ? value : 1)));
+}
+
+function decrementCountdownEntries(entries: TurnOrderEntry[]): TurnOrderEntry[] {
+  return entries.map((entry) => {
+    if (entry.countdown === undefined) {
+      return entry;
+    }
+    return {
+      ...entry,
+      countdown: Math.max(0, entry.countdown - 1)
+    };
+  });
 }

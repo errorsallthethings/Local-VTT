@@ -1111,6 +1111,20 @@
     0 0 0 1px rgb(122 162 247 / 0.22);
 }
 
+.turn-order-row-countdown {
+  border-color: color-mix(in srgb, #f5d98a 46%, var(--color-border-muted));
+}
+
+.turn-order-row-count-tracker {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, #f5d98a 8%, transparent), transparent 42%),
+    var(--color-bg-panel-deep);
+}
+
+.turn-order-row-expired {
+  border-color: color-mix(in srgb, var(--color-danger) 52%, var(--color-border-muted));
+}
+
 .turn-order-drag-handle {
   display: grid;
   place-items: center;
@@ -1159,7 +1173,7 @@
 
 .turn-order-name-cell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 6px;
   min-width: 0;
@@ -1191,6 +1205,52 @@
 
 .turn-order-type-entry {
   background: rgb(255 255 255 / 0.03);
+}
+
+.turn-order-type-count {
+  border-color: rgb(245 217 138 / 0.42);
+  background: rgb(245 217 138 / 0.12);
+  color: #f5d98a;
+}
+
+.turn-order-countdown-switch input {
+  background: var(--color-danger-bg);
+}
+
+.turn-order-countdown-switch input::before {
+  background: var(--color-danger);
+}
+
+.turn-order-countdown-switch input:checked {
+  background: var(--color-success-bg);
+}
+
+.turn-order-countdown-switch input:checked::before {
+  background: var(--color-success);
+}
+
+.turn-order-countdown-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 24px;
+  height: 20px;
+  border: 1px solid rgb(245 217 138 / 0.4);
+  border-radius: var(--radius-pill);
+  background: rgb(245 217 138 / 0.1);
+  color: #f5d98a;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.turn-order-countdown-expired {
+  border-color: color-mix(in srgb, var(--color-danger) 62%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  color: color-mix(in srgb, var(--color-danger) 72%, white 22%);
 }
 
 .turn-order-initiative {

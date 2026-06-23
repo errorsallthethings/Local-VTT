@@ -21,7 +21,7 @@ export function getVisibleTurnOrderState(turnOrder: Pick<TurnOrderSettings, "cur
   const nextEntry = entries.length > 1 ? entries[(currentIndex + 1) % entries.length] : null;
   const maxEntries = getTurnOrderDisplayLimit(turnOrder.playerViewMaxEntries);
   const displayedEntries = getCarouselEntries(entries, currentIndex, maxEntries);
-  const hiddenEntryCount = Math.max(0, entries.length - displayedEntries.length);
+  const hiddenEntryCount = getHiddenEntriesUntilWrap(entries.length, currentIndex, displayedEntries.length);
   return { entries, displayedEntries, hiddenEntryCount, currentIndex, currentEntry, nextEntry };
 }
 
@@ -33,9 +33,14 @@ function getCarouselEntries(entries: TurnOrderEntry[], startIndex: number, maxEn
   if (entries.length <= maxEntries) {
     return entries;
   }
-  const previousContextCount = Math.max(0, Math.min(startIndex, Math.floor((maxEntries - 1) / 3)));
-  const windowStart = startIndex - previousContextCount;
-  return Array.from({ length: maxEntries }, (_, offset) => entries[(windowStart + offset) % entries.length]);
+  return Array.from({ length: maxEntries }, (_, offset) => entries[(startIndex + offset) % entries.length]);
+}
+
+function getHiddenEntriesUntilWrap(entryCount: number, currentIndex: number, displayedCount: number): number {
+  if (entryCount <= displayedCount) {
+    return 0;
+  }
+  return Math.max(0, entryCount - currentIndex - displayedCount);
 }
 
 export function getPlayerSeatStyle(edge: PlayerViewEdge, position: number, color: string): CSSProperties {

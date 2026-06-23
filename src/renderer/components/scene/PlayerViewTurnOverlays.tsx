@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import type { Campaign, Scene } from "../../../shared/localvtt";
 import { buildAssetsById } from "../../lib/assets";
@@ -56,6 +56,7 @@ export function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign
   const displayedEntries = layout.reverseEntries ? [...renderedEntries].reverse() : renderedEntries;
   const { nextEntry } = getVisibleTurnOrderState({ currentEntryId: turnOrder.currentEntryId, entries: turnOrderState.entries, playerViewMaxEntries: turnOrder.playerViewMaxEntries });
   const nextEntryId = nextEntry?.id ?? null;
+  const lastEntryId = turnOrderState.entries.at(-1)?.id ?? null;
 
   return (
     <div
@@ -83,21 +84,35 @@ export function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign
         const active = entry.id === turnOrder.currentEntryId;
         const next = entry.id === nextEntryId;
         const entryName = player?.name ?? entry.name;
+        const isCountTracker = entry.type === "count-tracker";
         return (
-          <article
-            key={entry.id}
-            className={["turn-order-player-entry", active ? "turn-order-player-entry-active" : "", next ? "turn-order-player-entry-next" : ""].filter(Boolean).join(" ")}
-            style={player?.color ? ({ "--turn-player-color": player.color } as React.CSSProperties) : undefined}
-          >
-            <span className={`turn-order-player-avatar avatar-mask-${turnOrder.trackerAvatarMask}`}>
-              {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : entryName.slice(0, 1).toUpperCase()}
-            </span>
-            <span className="turn-order-player-initiative">{entry.initiative}</span>
-          </article>
+          <Fragment key={entry.id}>
+            <article
+              className={["turn-order-player-entry", isCountTracker ? "turn-order-player-entry-count-tracker" : "", active ? "turn-order-player-entry-active" : "", next ? "turn-order-player-entry-next" : ""].filter(Boolean).join(" ")}
+              style={
+                {
+                  ...(player?.color ? { "--turn-player-color": player.color } : {}),
+                  ...(isCountTracker ? { "--turn-player-color": entry.trackerColor ?? "#f5d98a", "--turn-count-tracker-color": entry.trackerColor ?? "#f5d98a" } : {})
+                } as React.CSSProperties
+              }
+            >
+              <span className={`turn-order-player-avatar avatar-mask-${turnOrder.trackerAvatarMask}`}>
+                {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : entryName.slice(0, 1).toUpperCase()}
+                {isCountTracker && <span className={entry.countdown === 0 ? "turn-order-player-count-center turn-order-player-count-center-expired" : "turn-order-player-count-center"}>{entry.countdown ?? 0}</span>}
+              </span>
+              <span className={isCountTracker ? "turn-order-player-initiative turn-order-player-tracker-name" : "turn-order-player-initiative"}>{isCountTracker ? entryName : entry.initiative}</span>
+              {!isCountTracker && entry.countdown !== undefined && (
+                <span className={entry.countdown === 0 ? "turn-order-player-countdown turn-order-player-countdown-expired" : "turn-order-player-countdown"} title={entry.countdown === 0 ? "Countdown expired" : `${entry.countdown} rounds remaining`}>
+                  {entry.countdown}
+                </span>
+              )}
+            </article>
+            {entry.id === lastEntryId && <span className="turn-order-player-end-divider" title="End of turn order" aria-hidden="true" />}
+          </Fragment>
         );
       })}
       {turnOrderState.hiddenEntryCount > 0 && (
-        <span className="turn-order-player-overflow" title={`${turnOrderState.hiddenEntryCount} more entries in turn order`}>
+        <span className="turn-order-player-overflow" title={`${turnOrderState.hiddenEntryCount} off-screen entries before the turn order returns to the top`}>
           +{turnOrderState.hiddenEntryCount}
         </span>
       )}

@@ -4,6 +4,7 @@ import {
   addTurnOrderEntry,
   addPlayersToTurnOrder,
   advanceTurnOrder,
+  createCountTrackerTurnOrderEntry,
   createManualTurnOrderEntry,
   createTurnOrderEntryFromAsset,
   createTurnOrderEntryFromToken,
@@ -92,6 +93,23 @@ describe("turn order helpers", () => {
     expect(scene.turnOrder.round).toBe(1);
   });
 
+  it("decrements countdown entries when a forward round completes", () => {
+    let scene = sceneWithEntries(["a", "b"]);
+    scene.turnOrder.entries = [
+      { ...scene.turnOrder.entries[0], countdown: 2 },
+      { ...scene.turnOrder.entries[1], countdown: 0 }
+    ];
+    scene = startTurnOrder(scene, "start");
+
+    scene = advanceTurnOrder(scene, "next", "b");
+    expect(scene.turnOrder.round).toBe(1);
+    expect(scene.turnOrder.entries.map((entry) => entry.countdown)).toEqual([2, 0]);
+
+    scene = advanceTurnOrder(scene, "next", "wrap");
+    expect(scene.turnOrder.round).toBe(2);
+    expect(scene.turnOrder.entries.map((entry) => entry.countdown)).toEqual([1, 0]);
+  });
+
   it("resets stale current turn state when rebuilding a turn order list", () => {
     let scene = sceneWithEntries(["old-a", "old-b"]);
     scene = startTurnOrder(scene, "start");
@@ -178,6 +196,18 @@ describe("turn order helpers", () => {
       tokenId: "token-1",
       assetId: "asset-1",
       visibleInPlayer: false
+    });
+  });
+
+  it("creates count tracker entries", () => {
+    expect(createCountTrackerTurnOrderEntry("tracker-1", "Bless", 3, 15)).toMatchObject({
+      id: "tracker-1",
+      name: "Bless",
+      initiative: 15,
+      visibleInPlayer: true,
+      type: "count-tracker",
+      countdown: 3,
+      trackerColor: "#f5d98a"
     });
   });
 
@@ -307,13 +337,24 @@ describe("turn order helpers", () => {
     scene.turnOrder.initiativeDiceSides = 6;
     scene.turnOrder.entries = [
       createManualTurnOrderEntry("monster", "Monster", 0),
-      { ...createManualTurnOrderEntry("player", "Player", 12), playerId: "player-1" }
+      { ...createManualTurnOrderEntry("player", "Player", 12), playerId: "player-1" },
+      createCountTrackerTurnOrderEntry("tracker", "Bless", 2, 14)
     ];
 
     scene = rollInitiativeForNonPlayers(scene, () => 0.5, "now");
 
     expect(scene.turnOrder.entries[0]).toMatchObject({ id: "monster", initiative: 8 });
     expect(scene.turnOrder.entries[1]).toMatchObject({ id: "player", initiative: 12 });
+    expect(scene.turnOrder.entries[2]).toMatchObject({ id: "tracker", initiative: 14 });
+  });
+
+  it("does not roll initiative for count tracker entries", () => {
+    const scene = sceneWithEntries(["a"]);
+    scene.turnOrder.entries = [createCountTrackerTurnOrderEntry("tracker", "Bless", 2, 14)];
+
+    const unchanged = rollInitiativeForEntry(scene, "tracker", () => 0.75, "now");
+
+    expect(unchanged).toBe(scene);
   });
 
   it("rolls initiative for a single entry", () => {
@@ -338,8 +379,8 @@ describe("turn order helpers", () => {
         playerViewVisible: true,
         playerViewEdge: "sideways" as never,
         entries: [
-          { id: "duplicate", name: "", initiative: 500, visibleInPlayer: undefined as never },
-          { id: "duplicate", name: "Cleric", initiative: -500, visibleInPlayer: false }
+          { id: "duplicate", name: "", initiative: 500, type: "count-tracker", countdown: 1000, trackerColor: "bad", visibleInPlayer: undefined as never },
+          { id: "duplicate", name: "Cleric", initiative: -500, countdown: -10, visibleInPlayer: false }
         ],
         seats: [{ id: "", name: "", edge: "bad" as never, position: 2, color: "red", visibleInPlayer: undefined as never }]
       }
@@ -357,8 +398,8 @@ describe("turn order helpers", () => {
     expect(scene.turnOrder.initiativeDiceCount).toBe(1);
     expect(scene.turnOrder.initiativeDiceSides).toBe(20);
     expect(scene.turnOrder.entries).toMatchObject([
-      { id: "duplicate", name: "Entry 1", initiative: 99, visibleInPlayer: true },
-      { id: "duplicate-2", name: "Cleric", initiative: -99, visibleInPlayer: false }
+      { id: "duplicate", name: "Entry 1", initiative: 99, type: "count-tracker", countdown: 999, trackerColor: "#f5d98a", visibleInPlayer: true },
+      { id: "duplicate-2", name: "Cleric", initiative: -99, countdown: 0, visibleInPlayer: false }
     ]);
     expect(scene.turnOrder.seats[0]).toMatchObject({
       id: "seat-1",

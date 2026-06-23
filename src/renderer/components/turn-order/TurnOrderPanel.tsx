@@ -1,4 +1,4 @@
-import { Dice5, Eye, EyeOff, GripVertical, ListPlus, MoreVertical, Pause, Play, Plus, RotateCcw, Settings2, SkipBack, SkipForward, Trash2, UserRoundPlus } from "lucide-react";
+import { Dice5, Eye, EyeOff, GripVertical, Hourglass, ListPlus, MoreVertical, Pause, Play, Plus, RotateCcw, Settings2, SkipBack, SkipForward, Trash2, UserRoundPlus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Asset, CampaignPlayer, Scene, Token, TurnOrderEntry, TurnOrderSettings } from "../../../shared/localvtt";
@@ -8,6 +8,7 @@ import {
   addTurnOrderEntry,
   addPlayersToTurnOrder,
   advanceTurnOrder,
+  createCountTrackerTurnOrderEntry,
   createManualTurnOrderEntry,
   createTurnOrderEntryFromAsset,
   linkTurnOrderEntryToToken,
@@ -44,8 +45,10 @@ export function TurnOrderPanel({
   settingsControlVisible = true
 }: TurnOrderPanelProps) {
   const [localSettingsOpen, setLocalSettingsOpen] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ entryId: string; placement: "before" | "after" } | null>(null);
+  const addButtonRef = useRef<HTMLButtonElement | null>(null);
   const turnOrder = scene?.turnOrder;
   const currentEntryId = turnOrder?.currentEntryId;
   const playersToAddCount = scene ? campaignPlayers.filter((player) => !scene.turnOrder.entries.some((entry) => entry.playerId === player.id)).length : 0;
@@ -75,12 +78,42 @@ export function TurnOrderPanel({
     updateScene(addTurnOrderEntry(scene, createManualTurnOrderEntry(crypto.randomUUID(), "New Entry")));
   };
 
+  const addCountTrackerEntry = () => {
+    if (!scene) {
+      return;
+    }
+    updateScene(addTurnOrderEntry(scene, createCountTrackerTurnOrderEntry(crypto.randomUUID(), "Count Tracker", 1)));
+  };
+
   const addAssetEntry = (asset: Asset) => {
     if (!scene) {
       return;
     }
     updateScene(addTurnOrderEntry(scene, createTurnOrderEntryFromAsset(crypto.randomUUID(), asset)));
   };
+
+  useEffect(() => {
+    if (!addMenuOpen) {
+      return;
+    }
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (addButtonRef.current?.contains(event.target as Node)) {
+        return;
+      }
+      setAddMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setAddMenuOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [addMenuOpen]);
 
   const moveDraggedEntry = (targetEntryId: string, placement: "before" | "after") => {
     if (!scene || !draggedEntryId || draggedEntryId === targetEntryId) {
@@ -273,17 +306,42 @@ export function TurnOrderPanel({
         </div>
 
         <div className="turn-order-actions">
-          <button disabled={!scene} title="Add manual entry" aria-label="Add manual entry" onClick={addManualEntry}>
+          <button
+            ref={addButtonRef}
+            disabled={!scene}
+            title="Add turn order entry"
+            aria-label="Add turn order entry"
+            aria-expanded={addMenuOpen}
+            onClick={(event) => {
+              event.stopPropagation();
+              setAddMenuOpen((open) => !open);
+            }}
+          >
             <Plus size={14} aria-hidden="true" />
           </button>
-          <button
-            disabled={!scene || campaignPlayers.length === 0 || playersToAddCount === 0}
-            title={campaignPlayers.length === 0 ? "Add campaign players first" : playersToAddCount === 0 ? "All campaign players are already in turn order" : "Add campaign players"}
-            aria-label="Add campaign players"
-            onClick={() => scene && updateScene(addPlayersToTurnOrder(scene, campaignPlayers))}
-          >
-            <UserRoundPlus size={14} aria-hidden="true" />
-          </button>
+          {addMenuOpen &&
+            createPortal(
+              <FloatingTurnOrderAddMenu
+                anchor={addButtonRef.current}
+                canAddPlayers={Boolean(scene) && campaignPlayers.length > 0 && playersToAddCount > 0}
+                addPlayersTitle={campaignPlayers.length === 0 ? "Add campaign players first" : playersToAddCount === 0 ? "All campaign players are already in turn order" : "Add all campaign players"}
+                onAddManual={() => {
+                  addManualEntry();
+                  setAddMenuOpen(false);
+                }}
+                onAddPlayers={() => {
+                  if (scene) {
+                    updateScene(addPlayersToTurnOrder(scene, campaignPlayers));
+                  }
+                  setAddMenuOpen(false);
+                }}
+                onAddCountTracker={() => {
+                  addCountTrackerEntry();
+                  setAddMenuOpen(false);
+                }}
+              />,
+              document.body
+            )}
           <button disabled={!scene || !turnOrder || turnOrder.entries.length === 0} title="Roll initiative for non-player entries" aria-label="Roll initiative for non-player entries" onClick={() => scene && updateScene(rollInitiativeForNonPlayers(scene))}>
             <Dice5 size={14} aria-hidden="true" />
           </button>
@@ -326,6 +384,55 @@ export function TurnOrderPanel({
         <div className="turn-order-empty">Add an entry, or drag a library token here.</div>
       )}
     </section>
+  );
+}
+
+function FloatingTurnOrderAddMenu({
+  anchor,
+  canAddPlayers,
+  addPlayersTitle,
+  onAddManual,
+  onAddPlayers,
+  onAddCountTracker
+}: {
+  anchor: HTMLElement | null;
+  canAddPlayers: boolean;
+  addPlayersTitle: string;
+  onAddManual: () => void;
+  onAddPlayers: () => void;
+  onAddCountTracker: () => void;
+}) {
+  const { menuRef, position } = useFloatingMenuPosition({
+    open: Boolean(anchor),
+    anchor,
+    fallbackWidth: 190,
+    fallbackHeight: 132
+  });
+
+  return (
+    <div
+      ref={menuRef}
+      className="turn-order-add-menu token-settings-menu token-settings-menu-portal canvas-context-menu"
+      style={{ top: position.top, left: position.left }}
+      role="menu"
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="canvas-context-menu-title">Add Turn Order</div>
+      <div className="control-divider" />
+      <button className="token-menu-action" role="menuitem" onClick={onAddManual}>
+        <Plus size={14} aria-hidden="true" />
+        <span>Add Manual Entry</span>
+      </button>
+      <button className="token-menu-action" role="menuitem" disabled={!canAddPlayers} title={addPlayersTitle} onClick={onAddPlayers}>
+        <UserRoundPlus size={14} aria-hidden="true" />
+        <span>Add All Campaign Players</span>
+      </button>
+      <button className="token-menu-action" role="menuitem" onClick={onAddCountTracker}>
+        <Hourglass size={14} aria-hidden="true" />
+        <span>Add Count Tracker</span>
+      </button>
+    </div>
   );
 }
 
@@ -373,6 +480,9 @@ function TurnOrderRow({
   const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
   const className = [
     active ? "turn-order-row turn-order-row-active" : "turn-order-row",
+    entry.type === "count-tracker" ? "turn-order-row-count-tracker" : "",
+    entry.countdown !== undefined ? "turn-order-row-countdown" : "",
+    entry.countdown === 0 ? "turn-order-row-expired" : "",
     dragged ? "turn-order-row-dragging" : "",
     dropPlacement ? `turn-order-row-drop-${dropPlacement}` : ""
   ]
@@ -438,12 +548,18 @@ function TurnOrderRow({
       <div className="turn-order-name-cell">
         <input className="turn-order-name" value={entry.name} aria-label="Entry name" onChange={(event) => onUpdate({ name: event.target.value })} />
         <span
-          className={player ? "turn-order-type-badge turn-order-type-player" : "turn-order-type-badge turn-order-type-entry"}
-          title={player ? "Player" : "Entity"}
-          aria-label={player ? "Player entry" : "Entity entry"}
+          className={entry.type === "count-tracker" ? "turn-order-type-badge turn-order-type-count" : player ? "turn-order-type-badge turn-order-type-player" : "turn-order-type-badge turn-order-type-entry"}
+          title={entry.type === "count-tracker" ? "Count Tracker" : player ? "Player" : "Entity"}
+          aria-label={entry.type === "count-tracker" ? "Count tracker entry" : player ? "Player entry" : "Entity entry"}
         >
-          {player ? "P" : "E"}
+          {entry.type === "count-tracker" ? "C" : player ? "P" : "E"}
         </span>
+        {entry.countdown !== undefined && (
+          <span className={entry.countdown === 0 ? "turn-order-countdown-badge turn-order-countdown-expired" : "turn-order-countdown-badge"} title={entry.countdown === 0 ? "Countdown expired" : `${entry.countdown} rounds remaining`}>
+            <Hourglass size={11} aria-hidden="true" />
+            {entry.countdown}
+          </span>
+        )}
       </div>
       <input
         className="turn-order-initiative"
@@ -488,6 +604,15 @@ function TurnOrderRow({
               onToggleVisibility={() => {
                 onUpdate({ visibleInPlayer: !entry.visibleInPlayer });
               }}
+              onToggleCountdown={() => {
+                onUpdate({ countdown: entry.countdown === undefined ? 1 : undefined });
+              }}
+              onUpdateCountdown={(countdown) => {
+                onUpdate({ countdown });
+              }}
+              onUpdateTrackerColor={(trackerColor) => {
+                onUpdate({ trackerColor });
+              }}
               onRemove={() => {
                 onRemove();
                 setMenuOpen(false);
@@ -508,6 +633,9 @@ function FloatingTurnOrderRowMenu({
   onRoll,
   onLinkToken,
   onToggleVisibility,
+  onToggleCountdown,
+  onUpdateCountdown,
+  onUpdateTrackerColor,
   onRemove
 }: {
   anchor: HTMLElement | null;
@@ -517,13 +645,16 @@ function FloatingTurnOrderRowMenu({
   onRoll: () => void;
   onLinkToken: (tokenId: string | null) => void;
   onToggleVisibility: () => void;
+  onToggleCountdown: () => void;
+  onUpdateCountdown: (countdown: number) => void;
+  onUpdateTrackerColor: (trackerColor: string) => void;
   onRemove: () => void;
 }) {
   const { menuRef, position } = useFloatingMenuPosition({
     open: Boolean(anchor),
     anchor,
     fallbackWidth: 170,
-    fallbackHeight: 172
+    fallbackHeight: entry.type === "count-tracker" ? 254 : entry.countdown !== undefined ? 224 : 172
   });
 
   return (
@@ -567,16 +698,60 @@ function FloatingTurnOrderRowMenu({
             ))}
           </select>
         </label>
+        <label className="setting-row">
+          <span>Countdown</span>
+          <label className="fog-operation-switch turn-order-countdown-switch" title={`${entry.countdown === undefined ? "Enable" : "Disable"} countdown for ${entry.name}`}>
+            <span>Off</span>
+            <input
+              aria-label={`${entry.countdown === undefined ? "Enable" : "Disable"} countdown for ${entry.name}`}
+              type="checkbox"
+              checked={entry.countdown !== undefined}
+              onChange={onToggleCountdown}
+            />
+            <span>On</span>
+          </label>
+        </label>
+        {entry.type === "count-tracker" && (
+          <label className="setting-row">
+            <span>Card Color</span>
+            <input
+              type="color"
+              value={entry.trackerColor ?? "#f5d98a"}
+              aria-label={`Card color for ${entry.name}`}
+              onChange={(event) => onUpdateTrackerColor(event.target.value)}
+            />
+          </label>
+        )}
+        {entry.countdown !== undefined && (
+          <label className="setting-row">
+            <span>Rounds Left</span>
+            <input
+              type="number"
+              min={0}
+              max={999}
+              step={1}
+              value={entry.countdown}
+              aria-label={`Rounds left for ${entry.name}`}
+              onChange={(event) => onUpdateCountdown(clampCountdown(Number(event.target.value)))}
+            />
+          </label>
+        )}
       </div>
       <div className="control-divider" />
-      <button className="token-menu-action" role="menuitem" onClick={onRoll}>
-        <Dice5 size={14} aria-hidden="true" />
-        <span>Roll Initiative</span>
-      </button>
+      {entry.type !== "count-tracker" && (
+        <button className="token-menu-action" role="menuitem" onClick={onRoll}>
+          <Dice5 size={14} aria-hidden="true" />
+          <span>Roll Initiative</span>
+        </button>
+      )}
       <button className="token-menu-action token-menu-delete" role="menuitem" onClick={onRemove}>
         <Trash2 size={14} aria-hidden="true" />
         <span>Delete</span>
       </button>
     </div>
   );
+}
+
+function clampCountdown(value: number): number {
+  return Math.max(0, Math.min(999, Math.floor(Number.isFinite(value) ? value : 1)));
 }
