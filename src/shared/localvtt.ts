@@ -528,6 +528,7 @@ export interface TurnOrderSettings {
   playerViewEdge: "top" | "right" | "bottom" | "left";
   playerViewFacing: "inward" | "outward";
   playerViewSize: "xs" | "sm" | "md" | "lg" | "xl";
+  playerViewTrackers: Record<TurnOrderTrackerPlacement, TurnOrderTrackerDisplaySettings>;
   playerViewMaxEntries: number;
   trackerAvatarMask: TurnOrderAvatarMask;
   playerTurnStatusSize: "xs" | "sm" | "md" | "lg" | "xl";
@@ -536,6 +537,16 @@ export interface TurnOrderSettings {
   initiativeDiceSides: number;
   entries: TurnOrderEntry[];
   seats: PlayerSeatIndicator[];
+}
+
+export type TurnOrderTrackerPlacement = "top" | "right" | "bottom" | "left";
+export type TurnOrderTrackerFacing = "inward" | "outward";
+export type TurnOrderTrackerSize = "xs" | "sm" | "md" | "lg" | "xl";
+
+export interface TurnOrderTrackerDisplaySettings {
+  enabled: boolean;
+  facing: TurnOrderTrackerFacing;
+  size: TurnOrderTrackerSize;
 }
 
 export interface Scene {
@@ -829,6 +840,12 @@ export const DEFAULT_TURN_ORDER: TurnOrderSettings = {
   playerViewEdge: "top",
   playerViewFacing: "inward",
   playerViewSize: "md",
+  playerViewTrackers: {
+    top: { enabled: true, facing: "inward", size: "md" },
+    right: { enabled: false, facing: "inward", size: "md" },
+    bottom: { enabled: false, facing: "inward", size: "md" },
+    left: { enabled: false, facing: "inward", size: "md" }
+  },
   playerViewMaxEntries: 9,
   trackerAvatarMask: "circle",
   playerTurnStatusSize: "md",
@@ -1972,6 +1989,9 @@ function normalizeTurnOrder(turnOrder?: Partial<TurnOrderSettings>): TurnOrderSe
     visibleInPlayer: seat.visibleInPlayer ?? true
   }));
   const currentEntryId = turnOrder?.currentEntryId && entryIdSet.has(turnOrder.currentEntryId) ? turnOrder.currentEntryId : entries[0]?.id;
+  const playerViewEdge = normalizeTurnOrderTrackerPlacement(turnOrder?.playerViewEdge);
+  const playerViewFacing = normalizeTurnOrderTrackerFacing(turnOrder?.playerViewFacing);
+  const playerViewSize = normalizeTurnOrderTrackerSize(turnOrder?.playerViewSize);
   return {
     ...DEFAULT_TURN_ORDER,
     ...(turnOrder ?? {}),
@@ -1979,27 +1999,54 @@ function normalizeTurnOrder(turnOrder?: Partial<TurnOrderSettings>): TurnOrderSe
     currentEntryId,
     round: clampNumber(turnOrder?.round, 1, 999, DEFAULT_TURN_ORDER.round),
     playerViewVisible: turnOrder?.playerViewVisible ?? false,
-    playerViewEdge:
-      turnOrder?.playerViewEdge === "top" || turnOrder?.playerViewEdge === "right" || turnOrder?.playerViewEdge === "bottom" || turnOrder?.playerViewEdge === "left"
-        ? turnOrder.playerViewEdge
-        : DEFAULT_TURN_ORDER.playerViewEdge,
-    playerViewFacing: turnOrder?.playerViewFacing === "outward" ? "outward" : DEFAULT_TURN_ORDER.playerViewFacing,
-    playerViewSize:
-      turnOrder?.playerViewSize === "xs" || turnOrder?.playerViewSize === "sm" || turnOrder?.playerViewSize === "lg" || turnOrder?.playerViewSize === "xl"
-        ? turnOrder.playerViewSize
-        : DEFAULT_TURN_ORDER.playerViewSize,
+    playerViewEdge,
+    playerViewFacing,
+    playerViewSize,
+    playerViewTrackers: normalizeTurnOrderTrackers(turnOrder?.playerViewTrackers, playerViewEdge, playerViewFacing, playerViewSize),
     playerViewMaxEntries: clampNumber(turnOrder?.playerViewMaxEntries, 1, 30, DEFAULT_TURN_ORDER.playerViewMaxEntries),
     trackerAvatarMask: normalizeTurnOrderAvatarMask(turnOrder?.trackerAvatarMask),
-    playerTurnStatusSize:
-      turnOrder?.playerTurnStatusSize === "xs" || turnOrder?.playerTurnStatusSize === "sm" || turnOrder?.playerTurnStatusSize === "lg" || turnOrder?.playerTurnStatusSize === "xl"
-        ? turnOrder.playerTurnStatusSize
-        : DEFAULT_TURN_ORDER.playerTurnStatusSize,
+    playerTurnStatusSize: normalizeTurnOrderTrackerSize(turnOrder?.playerTurnStatusSize),
     playerTurnAvatarMask: normalizeTurnOrderAvatarMask(turnOrder?.playerTurnAvatarMask),
     initiativeDiceCount: clampNumber(turnOrder?.initiativeDiceCount, 1, 20, DEFAULT_TURN_ORDER.initiativeDiceCount),
     initiativeDiceSides: clampNumber(turnOrder?.initiativeDiceSides, 2, 100, DEFAULT_TURN_ORDER.initiativeDiceSides),
     entries,
     seats
   };
+}
+
+const TURN_ORDER_TRACKER_PLACEMENTS: TurnOrderTrackerPlacement[] = ["top", "right", "bottom", "left"];
+
+function normalizeTurnOrderTrackers(
+  trackers: unknown,
+  legacyEdge: TurnOrderTrackerPlacement,
+  legacyFacing: TurnOrderTrackerFacing,
+  legacySize: TurnOrderTrackerSize
+): Record<TurnOrderTrackerPlacement, TurnOrderTrackerDisplaySettings> {
+  const source = isRecord(trackers) ? trackers : null;
+  return TURN_ORDER_TRACKER_PLACEMENTS.reduce(
+    (nextTrackers, edge) => {
+      const tracker = source && isRecord(source[edge]) ? source[edge] : null;
+      nextTrackers[edge] = {
+        enabled: tracker ? tracker.enabled === true : edge === legacyEdge,
+        facing: normalizeTurnOrderTrackerFacing(tracker?.facing ?? (edge === legacyEdge ? legacyFacing : DEFAULT_TURN_ORDER.playerViewFacing)),
+        size: normalizeTurnOrderTrackerSize(tracker?.size ?? (edge === legacyEdge ? legacySize : DEFAULT_TURN_ORDER.playerViewSize))
+      };
+      return nextTrackers;
+    },
+    {} as Record<TurnOrderTrackerPlacement, TurnOrderTrackerDisplaySettings>
+  );
+}
+
+function normalizeTurnOrderTrackerPlacement(edge: unknown): TurnOrderTrackerPlacement {
+  return edge === "top" || edge === "right" || edge === "bottom" || edge === "left" ? edge : DEFAULT_TURN_ORDER.playerViewEdge;
+}
+
+function normalizeTurnOrderTrackerFacing(facing: unknown): TurnOrderTrackerFacing {
+  return facing === "outward" ? "outward" : DEFAULT_TURN_ORDER.playerViewFacing;
+}
+
+function normalizeTurnOrderTrackerSize(size: unknown): TurnOrderTrackerSize {
+  return size === "xs" || size === "sm" || size === "lg" || size === "xl" ? size : DEFAULT_TURN_ORDER.playerViewSize;
 }
 
 function normalizeTurnOrderAvatarMask(mask: unknown): TurnOrderAvatarMask {

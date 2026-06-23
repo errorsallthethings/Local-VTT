@@ -950,6 +950,32 @@
   gap: 7px;
 }
 
+.turn-order-settings-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-soft);
+  padding: 0;
+  font-size: 11px;
+  font-weight: 850;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.turn-order-settings-section-toggle:hover {
+  color: var(--color-text);
+}
+
+.turn-order-settings-section-body {
+  display: grid;
+  gap: 8px;
+}
+
 .turn-order-settings-label {
   color: var(--color-text-soft);
   font-size: 11px;
@@ -961,6 +987,10 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.turn-order-display-controls-compact {
+  grid-template-columns: repeat(2, minmax(110px, 1fr));
 }
 
 .turn-order-display-controls label {
@@ -993,6 +1023,65 @@
 .turn-order-display-controls select {
   line-height: 1.3;
   padding: 4px 8px;
+}
+
+.turn-order-tracker-display-grid {
+  display: grid;
+  grid-template-columns: minmax(58px, 0.7fr) minmax(max-content, 1.1fr) minmax(86px, 1fr) minmax(96px, 1fr);
+  gap: 6px 8px;
+  align-items: center;
+}
+
+.turn-order-tracker-display-grid > span {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.turn-order-tracker-display-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+}
+
+.turn-order-tracker-display-row label {
+  min-width: 0;
+}
+
+.turn-order-tracker-display-row select {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.turn-order-tracker-display-row select:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.turn-order-tracker-placement-name {
+  color: var(--color-text-soft);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.turn-order-tracker-enable-control {
+  justify-self: start;
+}
+
+.turn-order-style-group {
+  display: grid;
+  gap: 6px;
+}
+
+.turn-order-settings-sublabel {
+  font-size: 10px;
+  color: var(--color-text-muted);
 }
 
 .turn-order-dice-controls {

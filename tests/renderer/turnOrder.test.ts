@@ -390,6 +390,12 @@ describe("turn order helpers", () => {
     expect(scene.turnOrder.playerViewEdge).toBe("top");
     expect(scene.turnOrder.playerViewFacing).toBe("inward");
     expect(scene.turnOrder.playerViewSize).toBe("md");
+    expect(scene.turnOrder.playerViewTrackers).toEqual({
+      top: { enabled: true, facing: "inward", size: "md" },
+      right: { enabled: false, facing: "inward", size: "md" },
+      bottom: { enabled: false, facing: "inward", size: "md" },
+      left: { enabled: false, facing: "inward", size: "md" }
+    });
     expect(scene.turnOrder.playerViewMaxEntries).toBe(9);
     expect(scene.turnOrder.round).toBe(1);
     expect(scene.turnOrder.trackerAvatarMask).toBe("circle");
@@ -408,6 +414,26 @@ describe("turn order helpers", () => {
       position: 1,
       color: "#7aa2f7",
       visibleInPlayer: true
+    });
+  });
+
+  it("normalizes legacy turn order tracker placement into the per-edge tracker display settings", () => {
+    const scene = normalizeScene({
+      ...createDefaultScene("Legacy Tracker"),
+      turnOrder: {
+        ...createDefaultScene("Legacy Tracker").turnOrder,
+        playerViewEdge: "left",
+        playerViewFacing: "outward",
+        playerViewSize: "lg",
+        playerViewTrackers: undefined as never
+      }
+    });
+
+    expect(scene.turnOrder.playerViewTrackers).toEqual({
+      top: { enabled: false, facing: "inward", size: "md" },
+      right: { enabled: false, facing: "inward", size: "md" },
+      bottom: { enabled: false, facing: "inward", size: "md" },
+      left: { enabled: true, facing: "outward", size: "lg" }
     });
   });
 });

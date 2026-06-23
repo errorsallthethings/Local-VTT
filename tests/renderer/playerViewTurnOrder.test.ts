@@ -42,7 +42,7 @@ describe("player view turn order helpers", () => {
     expect(getPlayerTurnStatusStyle("left", 0.5, "#ffaa00", 1)).toMatchObject({
       "--player-seat-color": "#ffaa00",
       top: "50%",
-      left: "12px",
+      left: "calc(12px - var(--player-turn-edge-offset, 57px))",
       transform: "translate(calc(-0% - 0px), -50%) rotate(90deg)"
     });
   });

@@ -73,8 +73,17 @@ export function getPlayerTurnStatusLabel(status: PlayerTurnStatus): string {
 }
 
 export function getPlayerTurnStatusStyle(edge: PlayerViewEdge, position: number, color: string, progress: number): CSSProperties {
+  const style = getPlayerSeatStyle(edge, position, color);
+  if (edge === "left" || edge === "right") {
+    delete style[edge];
+    return {
+      ...style,
+      [edge]: "calc(12px - var(--player-turn-edge-offset, 57px))",
+      transform: getEdgeSlideTransform(edge, progress, getPlayerTurnStatusRotation(edge))
+    };
+  }
   return {
-    ...getPlayerSeatStyle(edge, position, color),
+    ...style,
     transform: getEdgeSlideTransform(edge, progress, getPlayerTurnStatusRotation(edge))
   };
 }

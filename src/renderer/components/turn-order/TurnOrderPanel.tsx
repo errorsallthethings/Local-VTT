@@ -1,7 +1,8 @@
-import { Dice5, Eye, EyeOff, GripVertical, Hourglass, ListPlus, MoreVertical, Pause, Play, Plus, RotateCcw, Settings2, SkipBack, SkipForward, Trash2, UserRoundPlus } from "lucide-react";
+import { ChevronDown, ChevronRight, Dice5, Eye, EyeOff, GripVertical, Hourglass, ListPlus, MoreVertical, Pause, Play, Plus, RotateCcw, Settings2, SkipBack, SkipForward, Trash2, UserRoundPlus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { Asset, CampaignPlayer, Scene, Token, TurnOrderEntry, TurnOrderSettings } from "../../../shared/localvtt";
+import type { ReactNode } from "react";
+import type { Asset, CampaignPlayer, Scene, Token, TurnOrderEntry, TurnOrderSettings, TurnOrderTrackerPlacement } from "../../../shared/localvtt";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
 import {
@@ -45,6 +46,10 @@ export function TurnOrderPanel({
   settingsControlVisible = true
 }: TurnOrderPanelProps) {
   const [localSettingsOpen, setLocalSettingsOpen] = useState(false);
+  const [trackerDisplayOpen, setTrackerDisplayOpen] = useState(false);
+  const [globalTrackerOpen, setGlobalTrackerOpen] = useState(false);
+  const [playerTurnIndicatorsOpen, setPlayerTurnIndicatorsOpen] = useState(false);
+  const [initiativeOpen, setInitiativeOpen] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ entryId: string; placement: "before" | "after" } | null>(null);
@@ -68,6 +73,24 @@ export function TurnOrderPanel({
       return;
     }
     updateScene({ ...scene, turnOrder: { ...turnOrder, ...patch }, updatedAt: new Date().toISOString() });
+  };
+  const updateTrackerDisplay = (edge: TurnOrderTrackerPlacement, patch: Partial<TurnOrderSettings["playerViewTrackers"][TurnOrderTrackerPlacement]>) => {
+    if (!turnOrder) {
+      return;
+    }
+    const currentTracker = turnOrder.playerViewTrackers[edge];
+    updateTurnOrder({
+      playerViewEdge: edge,
+      playerViewFacing: patch.facing ?? currentTracker.facing,
+      playerViewSize: patch.size ?? currentTracker.size,
+      playerViewTrackers: {
+        ...turnOrder.playerViewTrackers,
+        [edge]: {
+          ...currentTracker,
+          ...patch
+        }
+      }
+    });
   };
   const updateRound = (value: number) => updateTurnOrder({ round: clampRound(value) });
 
@@ -153,55 +176,40 @@ export function TurnOrderPanel({
     >
       {scene && turnOrder && settingsOpen && (
         <div className="turn-order-settings-panel" aria-label="Player View turn order display settings">
-          <div className="turn-order-settings-group">
-            <div className="turn-order-settings-label">Tracker Style</div>
-            <div className="turn-order-display-controls">
-              <label>
-                <span>Placement</span>
-                <select
-                  value={turnOrder.playerViewEdge}
-                  onChange={(event) => updateTurnOrder({ playerViewEdge: event.target.value as typeof turnOrder.playerViewEdge })}
-                >
-                  <option value="top">Top</option>
-                  <option value="right">Right</option>
-                  <option value="bottom">Bottom</option>
-                  <option value="left">Left</option>
-                </select>
-              </label>
-              <label>
-                <span>Facing</span>
-                <select
-                  value={turnOrder.playerViewFacing}
-                  onChange={(event) => updateTurnOrder({ playerViewFacing: event.target.value as typeof turnOrder.playerViewFacing })}
-                >
-                  <option value="inward">Inward</option>
-                  <option value="outward">Outward</option>
-                </select>
-              </label>
-              <label>
-                <span>Tracker Size</span>
-                <select
-                  value={turnOrder.playerViewSize}
-                  onChange={(event) => updateTurnOrder({ playerViewSize: event.target.value as typeof turnOrder.playerViewSize })}
-                >
-                  <option value="xs">Extra Small</option>
-                  <option value="sm">Small</option>
-                  <option value="md">Medium</option>
-                  <option value="lg">Large</option>
-                  <option value="xl">Extra Large</option>
-                </select>
-              </label>
-              <label>
-                <span>Tracker Mask</span>
-                <select
-                  value={turnOrder.trackerAvatarMask}
-                  onChange={(event) => updateTurnOrder({ trackerAvatarMask: event.target.value as typeof turnOrder.trackerAvatarMask })}
-                >
-                  <option value="circle">Circle</option>
-                  <option value="square">Square</option>
-                  <option value="hex">Hex</option>
-                </select>
-              </label>
+          <TurnOrderSettingsSection title="Tracker Display" open={trackerDisplayOpen} onToggle={() => setTrackerDisplayOpen((open) => !open)}>
+            <div className="turn-order-tracker-display-grid">
+              <span>Placement</span>
+              <span>Display</span>
+              <span>Facing</span>
+              <span>Size</span>
+              {TRACKER_DISPLAY_EDGES.map((edge) => {
+                const tracker = turnOrder.playerViewTrackers[edge];
+                return (
+                  <div key={edge} className="turn-order-tracker-display-row">
+                    <span className="turn-order-tracker-placement-name">{TRACKER_EDGE_LABELS[edge]}</span>
+                    <label className="fog-operation-switch turn-order-tracker-enable-control" title={`${tracker.enabled ? "Hide" : "Show"} ${TRACKER_EDGE_LABELS[edge]} tracker`}>
+                      <span>Show</span>
+                      <input type="checkbox" checked={!tracker.enabled} aria-label={`${tracker.enabled ? "Hide" : "Show"} ${TRACKER_EDGE_LABELS[edge]} tracker`} onChange={(event) => updateTrackerDisplay(edge, { enabled: !event.target.checked })} />
+                      <span>Hide</span>
+                    </label>
+                    <select aria-label={`${TRACKER_EDGE_LABELS[edge]} facing`} value={tracker.facing} disabled={!tracker.enabled} onChange={(event) => updateTrackerDisplay(edge, { facing: event.target.value as typeof tracker.facing })}>
+                      <option value="inward">Inward</option>
+                      <option value="outward">Outward</option>
+                    </select>
+                    <select aria-label={`${TRACKER_EDGE_LABELS[edge]} size`} value={tracker.size} disabled={!tracker.enabled} onChange={(event) => updateTrackerDisplay(edge, { size: event.target.value as typeof tracker.size })}>
+                      <option value="xs">Extra Small</option>
+                      <option value="sm">Small</option>
+                      <option value="md">Medium</option>
+                      <option value="lg">Large</option>
+                      <option value="xl">Extra Large</option>
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+          </TurnOrderSettingsSection>
+          <TurnOrderSettingsSection title="Global Turn Tracker" open={globalTrackerOpen} onToggle={() => setGlobalTrackerOpen((open) => !open)}>
+            <div className="turn-order-display-controls turn-order-display-controls-compact">
               <label>
                 <span>Visible Entries</span>
                 <input
@@ -214,7 +222,22 @@ export function TurnOrderPanel({
                 />
               </label>
               <label>
-                <span>Player Turn Size</span>
+                <span>Thumbnail Mask</span>
+                <select
+                  value={turnOrder.trackerAvatarMask}
+                  onChange={(event) => updateTurnOrder({ trackerAvatarMask: event.target.value as typeof turnOrder.trackerAvatarMask })}
+                >
+                  <option value="circle">Circle</option>
+                  <option value="square">Square</option>
+                  <option value="hex">Hex</option>
+                </select>
+              </label>
+            </div>
+          </TurnOrderSettingsSection>
+          <TurnOrderSettingsSection title="Player Turn Indicators" open={playerTurnIndicatorsOpen} onToggle={() => setPlayerTurnIndicatorsOpen((open) => !open)}>
+            <div className="turn-order-display-controls turn-order-display-controls-compact">
+              <label>
+                <span>Size</span>
                 <select
                   value={turnOrder.playerTurnStatusSize}
                   onChange={(event) => updateTurnOrder({ playerTurnStatusSize: event.target.value as typeof turnOrder.playerTurnStatusSize })}
@@ -227,7 +250,7 @@ export function TurnOrderPanel({
                 </select>
               </label>
               <label>
-                <span>Player Turn Mask</span>
+                <span>Thumbnail Mask</span>
                 <select
                   value={turnOrder.playerTurnAvatarMask}
                   onChange={(event) => updateTurnOrder({ playerTurnAvatarMask: event.target.value as typeof turnOrder.playerTurnAvatarMask })}
@@ -238,9 +261,8 @@ export function TurnOrderPanel({
                 </select>
               </label>
             </div>
-          </div>
-          <div className="turn-order-settings-group">
-            <div className="turn-order-settings-label">Initiative</div>
+          </TurnOrderSettingsSection>
+          <TurnOrderSettingsSection title="Initiative" open={initiativeOpen} onToggle={() => setInitiativeOpen((open) => !open)}>
             <label className="turn-order-setting-row">
               <span>Initiative Dice</span>
               <div className="turn-order-dice-controls">
@@ -263,7 +285,7 @@ export function TurnOrderPanel({
                 />
               </div>
             </label>
-          </div>
+          </TurnOrderSettingsSection>
         </div>
       )}
 
@@ -386,6 +408,26 @@ export function TurnOrderPanel({
     </section>
   );
 }
+
+function TurnOrderSettingsSection({ title, open, onToggle, children }: { title: string; open: boolean; onToggle: () => void; children: ReactNode }) {
+  return (
+    <div className="turn-order-settings-group">
+      <button type="button" className="turn-order-settings-section-toggle" aria-expanded={open} onClick={onToggle}>
+        {open ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+        <span>{title}</span>
+      </button>
+      {open && <div className="turn-order-settings-section-body">{children}</div>}
+    </div>
+  );
+}
+
+const TRACKER_DISPLAY_EDGES: TurnOrderTrackerPlacement[] = ["left", "top", "right", "bottom"];
+const TRACKER_EDGE_LABELS: Record<TurnOrderTrackerPlacement, string> = {
+  left: "Left",
+  top: "Top",
+  right: "Right",
+  bottom: "Bottom"
+};
 
 function FloatingTurnOrderAddMenu({
   anchor,
