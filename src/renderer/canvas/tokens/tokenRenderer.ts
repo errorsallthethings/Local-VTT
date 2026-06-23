@@ -3,9 +3,12 @@ import {
   DEFAULT_TOKEN_BORDER_STYLE,
   DEFAULT_TOKEN_BORDER_WIDTH,
   DEFAULT_TOKEN_MASK,
+  TOKEN_CONDITION_LABELS,
   type Point,
   type Scene,
-  type Token
+  type Token,
+  type TokenCondition,
+  type TokenConditionId
 } from "../../../shared/localvtt";
 import { getRulerPathHighlightCells } from "../measurement/measurement";
 import { drawDashedMovementPath, drawPathMarker, hasMeaningfulPath, MOVEMENT_PATH_COLORS } from "../tokens/movementPath";
@@ -41,7 +44,8 @@ export function drawTokens(
   tokenDragPreview: TokenDragPreview | null,
   tokenPositionOverrides: TokenPositionOverrides | null = null,
   zoom = 1,
-  turnOrderIndicators: Map<string, TokenTurnOrderIndicator> | null = null
+  turnOrderIndicators: Map<string, TokenTurnOrderIndicator> | null = null,
+  timestamp = Date.now()
 ) {
   const selectedTokenIds = new Set(Array.isArray(selectedTokenId) ? selectedTokenId : selectedTokenId ? [selectedTokenId] : []);
   for (const token of getVisibleTokens(scene, mode)) {
@@ -71,13 +75,22 @@ export function drawTokens(
     const selected = selectedTokenIds.has(token.id);
     const turnOrderIndicator = mode === "gm" ? turnOrderIndicators?.get(token.id) : undefined;
     if (!image) {
-      drawTokenPlaceholder(ctx, renderToken, selected, zoom, turnOrderIndicator);
+      drawTokenPlaceholder(ctx, renderToken, selected, zoom, turnOrderIndicator, getVisibleTokenConditions(renderToken, mode), timestamp);
       ctx.restore();
       continue;
     }
-    drawToken(ctx, renderToken, image, selected && mode === "gm", zoom, turnOrderIndicator);
+    drawToken(ctx, renderToken, image, selected && mode === "gm", zoom, turnOrderIndicator, getVisibleTokenConditions(renderToken, mode), timestamp);
     ctx.restore();
   }
+}
+
+export function hasVisibleTokenConditions(scene: Scene, mode: "gm" | "player"): boolean {
+  return getVisibleTokens(scene, mode).some((token) => getVisibleTokenConditions(token, mode).length > 0);
+}
+
+function getVisibleTokenConditions(token: Token, mode: "gm" | "player"): TokenCondition[] {
+  const conditions = token.conditions ?? [];
+  return mode === "gm" ? conditions : conditions.filter((condition) => condition.visibleInPlayer);
 }
 
 function clipToPlayerRevealShapes(ctx: CanvasRenderingContext2D, scene: Scene): boolean {
@@ -293,13 +306,116 @@ function hexToRgbAlpha(hex: string, alpha: number): string {
   return `rgb(${red} ${green} ${blue} / ${alpha})`;
 }
 
+const TOKEN_CONDITION_COLORS: Record<TokenConditionId, string> = {
+  blinded: "#facc15",
+  charmed: "#fb5fc7",
+  deafened: "#38bdf8",
+  exhaustion: "#f59e0b",
+  frightened: "#a855f7",
+  grappled: "#fb923c",
+  incapacitated: "#e5e7eb",
+  invisible: "#22d3ee",
+  paralyzed: "#2563eb",
+  petrified: "#94a3b8",
+  poisoned: "#22c55e",
+  prone: "#ef4444",
+  restrained: "#c084fc",
+  stunned: "#fde047",
+  unconscious: "#dc2626"
+};
+
+function drawTokenConditionRings(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  mask: Token["mask"],
+  conditions: TokenCondition[],
+  timestamp: number
+) {
+  if (conditions.length === 0) {
+    return;
+  }
+
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
+  const baseRadius = Math.max(width, height) / 2;
+  const fontSize = Math.max(24, Math.min(44, baseRadius * 0.34));
+  const ringWidth = Math.max(3, Math.min(10, baseRadius * 0.06));
+  const ringGap = Math.max(5, Math.min(12, baseRadius * 0.08));
+
+  conditions.slice(0, 4).forEach((condition, index) => {
+    const color = TOKEN_CONDITION_COLORS[condition.id] ?? "#f8fafc";
+    const offset = ringGap + index * (ringWidth + ringGap);
+    const spin = (timestamp / 2600) * (index % 2 === 0 ? 1 : -1);
+    ctx.save();
+    ctx.lineWidth = ringWidth;
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = Math.max(5, Math.min(14, baseRadius * 0.08));
+    ctx.setLineDash([Math.max(16, baseRadius * 0.24), Math.max(7, baseRadius * 0.1)]);
+    ctx.lineDashOffset = -timestamp / (26 + index * 4);
+    ctx.globalAlpha = 0.92;
+    ctx.beginPath();
+    if (mask === "circle") {
+      ctx.ellipse(centerX, centerY, width / 2 + offset, height / 2 + offset, 0, 0, Math.PI * 2);
+    } else {
+      ctx.roundRect(x - offset, y - offset, width + offset * 2, height + offset * 2, Math.max(8, baseRadius * 0.12));
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.shadowBlur = 0;
+
+    const label = TOKEN_CONDITION_LABELS[condition.id].toUpperCase();
+    const labelRadius = baseRadius + offset + ringWidth * 1.6;
+    ctx.translate(centerX, centerY);
+    ctx.rotate(spin);
+    ctx.font = `800 ${fontSize}px system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineWidth = Math.max(3, fontSize * 0.2);
+    ctx.strokeStyle = "rgb(0 0 0 / 0.72)";
+    ctx.fillStyle = "#ffffff";
+    drawCurvedConditionLabel(ctx, label, labelRadius, -Math.PI / 2, true);
+    drawCurvedConditionLabel(ctx, label, labelRadius, Math.PI / 2, true);
+    ctx.restore();
+  });
+}
+
+function drawCurvedConditionLabel(
+  ctx: CanvasRenderingContext2D,
+  label: string,
+  radius: number,
+  centerAngle: number,
+  reverseText: boolean
+) {
+  const characters = reverseText ? [...label].reverse() : [...label];
+  const widths = characters.map((character) => ctx.measureText(character).width);
+  const totalWidth = widths.reduce((sum, width) => sum + width, 0);
+  let offset = -totalWidth / 2;
+  characters.forEach((character, index) => {
+    const characterCenter = offset + widths[index] / 2;
+    const angle = centerAngle + characterCenter / Math.max(1, radius);
+    ctx.save();
+    ctx.translate(Math.cos(angle) * radius, Math.sin(angle) * radius);
+    ctx.rotate(angle - Math.PI / 2);
+    ctx.strokeText(character, 0, 0);
+    ctx.fillText(character, 0, 0);
+    ctx.restore();
+    offset += widths[index];
+  });
+}
+
 function drawToken(
   ctx: CanvasRenderingContext2D,
   token: Token,
   image: HTMLImageElement,
   selected: boolean,
   zoom: number,
-  turnOrderIndicator?: TokenTurnOrderIndicator
+  turnOrderIndicator?: TokenTurnOrderIndicator,
+  conditions: TokenCondition[] = [],
+  timestamp = Date.now()
 ) {
   const mask = token.mask ?? DEFAULT_TOKEN_MASK;
   const borderStyle = token.borderStyle ?? DEFAULT_TOKEN_BORDER_STYLE;
@@ -316,6 +432,7 @@ function drawToken(
   ctx.restore();
 
   drawTokenBorder(ctx, x, y, width, height, mask, borderStyle, borderColor, borderWidth, glowColor);
+  drawTokenConditionRings(ctx, x, y, width, height, mask, conditions, timestamp);
   if (turnOrderIndicator) {
     drawTokenTurnOrderIndicator(ctx, x, y, width, height, mask, zoom, turnOrderIndicator);
   }
@@ -346,7 +463,15 @@ function drawCroppedImage(ctx: CanvasRenderingContext2D, image: HTMLImageElement
   ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, x, y, width, height);
 }
 
-function drawTokenPlaceholder(ctx: CanvasRenderingContext2D, token: Token, selected: boolean, zoom: number, turnOrderIndicator?: TokenTurnOrderIndicator) {
+function drawTokenPlaceholder(
+  ctx: CanvasRenderingContext2D,
+  token: Token,
+  selected: boolean,
+  zoom: number,
+  turnOrderIndicator?: TokenTurnOrderIndicator,
+  conditions: TokenCondition[] = [],
+  timestamp = Date.now()
+) {
   const { x, y } = token.position;
   const { width, height } = token.size;
   ctx.save();
@@ -366,6 +491,7 @@ function drawTokenPlaceholder(ctx: CanvasRenderingContext2D, token: Token, selec
     token.borderWidth ?? DEFAULT_TOKEN_BORDER_WIDTH,
     token.glowColor ?? token.borderColor ?? DEFAULT_TOKEN_BORDER_COLOR
   );
+  drawTokenConditionRings(ctx, x, y, width, height, token.mask ?? DEFAULT_TOKEN_MASK, conditions, timestamp);
   if (turnOrderIndicator) {
     drawTokenTurnOrderIndicator(ctx, x, y, width, height, token.mask ?? DEFAULT_TOKEN_MASK, zoom, turnOrderIndicator);
   }

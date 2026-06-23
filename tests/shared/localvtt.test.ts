@@ -689,6 +689,58 @@ it("projectSceneForPlayer preserves expanded token border presentation", () => {
   });
 });
 
+it("normalizeScene normalizes token conditions", () => {
+  const scene = createDefaultScene("Token Conditions");
+  scene.tokens = [
+    {
+      id: "token-1",
+      name: "Conditioned",
+      assetId: "token-asset",
+      position: { x: 0, y: 0 },
+      size: { width: 100, height: 100 },
+      hidden: false,
+      visibleInPlayer: true,
+      conditions: [
+        { id: "poisoned", visibleInPlayer: false },
+        { id: "stunned", visibleInPlayer: undefined },
+        { id: "poisoned", visibleInPlayer: true },
+        { id: "not-a-condition", visibleInPlayer: true }
+      ]
+    }
+  ] as Scene["tokens"];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.tokens[0].conditions).toEqual([
+    { id: "poisoned", visibleInPlayer: false },
+    { id: "stunned", visibleInPlayer: true }
+  ]);
+});
+
+it("projectSceneForPlayer strips GM-only token conditions", () => {
+  const campaign = createDefaultCampaign("Player Token Conditions");
+  const scene = createDefaultScene("Player Token Conditions");
+  scene.tokens = [
+    {
+      id: "token-1",
+      name: "Conditioned",
+      assetId: "token-asset",
+      position: { x: 0, y: 0 },
+      size: { width: 100, height: 100 },
+      hidden: false,
+      visibleInPlayer: true,
+      conditions: [
+        { id: "poisoned", visibleInPlayer: true },
+        { id: "invisible", visibleInPlayer: false }
+      ]
+    }
+  ];
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.scene.tokens[0].conditions).toEqual([{ id: "poisoned", visibleInPlayer: true }]);
+});
+
 it("normalizeScene makes legacy fog shapes visible in GM and Player views", () => {
   const scene = createDefaultScene("Legacy Fog");
   scene.fog.shapes = [

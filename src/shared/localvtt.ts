@@ -319,6 +319,49 @@ export interface SquareCropRect {
   size: number;
 }
 
+export const TOKEN_CONDITION_IDS = [
+  "blinded",
+  "charmed",
+  "deafened",
+  "exhaustion",
+  "frightened",
+  "grappled",
+  "incapacitated",
+  "invisible",
+  "paralyzed",
+  "petrified",
+  "poisoned",
+  "prone",
+  "restrained",
+  "stunned",
+  "unconscious"
+] as const;
+
+export type TokenConditionId = (typeof TOKEN_CONDITION_IDS)[number];
+
+export interface TokenCondition {
+  id: TokenConditionId;
+  visibleInPlayer: boolean;
+}
+
+export const TOKEN_CONDITION_LABELS: Record<TokenConditionId, string> = {
+  blinded: "Blinded",
+  charmed: "Charmed",
+  deafened: "Deafened",
+  exhaustion: "Exhaustion",
+  frightened: "Frightened",
+  grappled: "Grappled",
+  incapacitated: "Incapacitated",
+  invisible: "Invisible",
+  paralyzed: "Paralyzed",
+  petrified: "Petrified",
+  poisoned: "Poisoned",
+  prone: "Prone",
+  restrained: "Restrained",
+  stunned: "Stunned",
+  unconscious: "Unconscious"
+};
+
 export interface Token {
   id: string;
   name: string;
@@ -338,6 +381,7 @@ export interface Token {
   hidden: boolean;
   visibleInGm?: boolean;
   visibleInPlayer: boolean;
+  conditions?: TokenCondition[];
   vision?: {
     enabled: boolean;
     radius: number;
@@ -1944,6 +1988,20 @@ function normalizeTokenMovementPath(path?: TokenMovementPath): TokenMovementPath
   return points.length > 0 ? { tokenId: path.tokenId, points } : undefined;
 }
 
+function normalizeTokenConditions(conditions?: TokenCondition[]): TokenCondition[] {
+  const seen = new Set<TokenConditionId>();
+  return (conditions ?? []).flatMap((condition) => {
+    if (!condition || !TOKEN_CONDITION_IDS.includes(condition.id) || seen.has(condition.id)) {
+      return [];
+    }
+    seen.add(condition.id);
+    return [{
+      id: condition.id,
+      visibleInPlayer: condition.visibleInPlayer ?? true
+    }];
+  });
+}
+
 function normalizeTokens(tokens?: Token[]): Token[] {
   return (tokens ?? []).map((token, index) => ({
     ...token,
@@ -1959,7 +2017,8 @@ function normalizeTokens(tokens?: Token[]): Token[] {
     order: token.order ?? (tokens?.length ?? 0) - index,
     hidden: token.hidden ?? false,
     visibleInGm: token.visibleInGm ?? !(token.hidden ?? false),
-    visibleInPlayer: token.hidden ? false : (token.visibleInPlayer ?? false)
+    visibleInPlayer: token.hidden ? false : (token.visibleInPlayer ?? false),
+    conditions: normalizeTokenConditions(token.conditions)
   }));
 }
 
@@ -2234,7 +2293,12 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
       },
       // Projection is the Player View trust boundary: strip GM-only layers/content before sending across IPC.
       layers: normalizedScene.layers.filter((layer) => layer.visibleInPlayer),
-      tokens: normalizedScene.tokens.filter((token) => token.visibleInPlayer),
+      tokens: normalizedScene.tokens
+        .filter((token) => token.visibleInPlayer)
+        .map((token) => ({
+          ...token,
+          conditions: (token.conditions ?? []).filter((condition) => condition.visibleInPlayer)
+        })),
       walls: [],
       drawings: normalizedScene.drawings.filter((drawing) => drawing.visibleInPlayer && playerLayerIds.has("drawing")),
       overlays: normalizedScene.overlays.filter((overlay) => overlay.visibleInPlayer && playerLayerIds.has(overlay.layerId)),

@@ -1,8 +1,15 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
-import { DEFAULT_TABLE_TOOLS, DEFAULT_TOKEN_FOOTPRINT_VISIBLE, DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
-import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings } from "../../shared/localvtt";
+import {
+  DEFAULT_TABLE_TOOLS,
+  DEFAULT_TOKEN_FOOTPRINT_VISIBLE,
+  DEFAULT_VIDEO_PLAYBACK,
+  TOKEN_CONDITION_IDS,
+  TOKEN_CONDITION_LABELS,
+  formatDefaultFogShapeName
+} from "../../shared/localvtt";
+import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings, Token, TokenConditionId } from "../../shared/localvtt";
 import { areCamerasEqual, getCameraForPanDrag, getCameraForWheelZoom, getRenderCamera, type Camera, type CameraPanDrag } from "../canvas/core";
 import {
   getCanvasInteractionClass,
@@ -134,7 +141,7 @@ import {
   getTokenDragPreviewFromPoint,
   getTokenDragWithAppendedWaypoint,
 } from "../canvas/tokens";
-import { drawTokenDragHighlights, drawTokens, type TokenDragPreview } from "../canvas/tokens";
+import { drawTokenDragHighlights, drawTokens, hasVisibleTokenConditions, type TokenDragPreview } from "../canvas/tokens";
 import { getVideoTransform } from "../canvas/map";
 import { clientToWorldPoint, eventToWorldPoint, getCanvasViewportCenter, isSnapModifier } from "../canvas/core";
 import {
@@ -370,6 +377,41 @@ type EnvironmentEffectContextMenu = {
   x: number;
   y: number;
 };
+
+function getTokenConditionsVisibleInPlayer(token: Token): boolean {
+  const conditions = token.conditions ?? [];
+  return conditions.length === 0 || conditions.every((condition) => condition.visibleInPlayer);
+}
+
+function setTokenCondition(tokens: Token[], tokenId: string, conditionId: TokenConditionId, enabled: boolean, visibleInPlayer: boolean): Token[] {
+  return tokens.map((token) => {
+    if (token.id !== tokenId) {
+      return token;
+    }
+    const conditions = token.conditions ?? [];
+    if (!enabled) {
+      return { ...token, conditions: conditions.filter((condition) => condition.id !== conditionId) };
+    }
+    if (conditions.some((condition) => condition.id === conditionId)) {
+      return token;
+    }
+    return { ...token, conditions: [...conditions, { id: conditionId, visibleInPlayer }] };
+  });
+}
+
+function setTokenConditionsPlayerVisibility(tokens: Token[], tokenId: string, visibleInPlayer: boolean): Token[] {
+  return tokens.map((token) => {
+    if (token.id !== tokenId) {
+      return token;
+    }
+    return {
+      ...token,
+      conditions: (token.conditions ?? []).map((condition) => (
+        { ...condition, visibleInPlayer }
+      ))
+    };
+  });
+}
 
 type CanvasContextMenuKind = "token" | "mask" | "drawing" | "environment";
 
@@ -1157,8 +1199,9 @@ export function SceneCanvas({
         drawTokenDragHighlights(ctx, scene, tokenDragPreview, renderCamera.zoom);
       }
 
+      const now = Date.now();
       if (canShowTokens) {
-        drawTokens(ctx, scene, loadedTokenImages, mode, effectiveSelectedTokenIds, tokenDragPreview, playerTokenTweenPositionsRef.current, renderCamera.zoom, turnOrderTokenIndicators);
+        drawTokens(ctx, scene, loadedTokenImages, mode, effectiveSelectedTokenIds, tokenDragPreview, playerTokenTweenPositionsRef.current, renderCamera.zoom, turnOrderTokenIndicators, now);
       }
 
       if (canShowDrawings) {
@@ -1209,9 +1252,9 @@ export function SceneCanvas({
       if (canShowWeather && !mapOverlayActive) {
         const visibleEnvironmentEffects = getEnvironmentEffectsWithPointOverrides(scene, environmentEffectMovePreview);
         if (weatherMapReady) {
-          drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1, weatherMapSource);
+          drawWeather(ctx, scene, width, height, renderCamera, now, weatherLayer?.opacity ?? 1, weatherMapSource);
         }
-        drawEnvironmentEffects(ctx, visibleEnvironmentEffects, renderCamera, mode, Date.now(), weatherLayer?.opacity ?? 1, acidEffectTuning, coldEffectTuning, darknessEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
+        drawEnvironmentEffects(ctx, visibleEnvironmentEffects, renderCamera, mode, now, weatherLayer?.opacity ?? 1, acidEffectTuning, coldEffectTuning, darknessEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
       }
       const visibleEnvironmentEffects = getEnvironmentEffectsWithPointOverrides(scene, environmentEffectMovePreview);
       const visibleWeatherMasks = getWeatherMasksWithPointOverrides(scene, weatherMaskMovePreview);
@@ -1279,6 +1322,7 @@ export function SceneCanvas({
     const drawCurrentFrame = (timestamp: number) => {
       const mapAnimating = Boolean(loadedMap?.animate);
       const tokenAnimating = Boolean(playerTokenTweenPositionsRef.current);
+      const tokenConditionAnimating = canShowTokens && hasVisibleTokenConditions(scene, mode);
       const tableEventsAnimating = hasActiveLiveTableEvents(liveTableEvents);
       const weatherAnimating = shouldAnimateWeather(scene, Boolean(canShowWeather));
       const environmentAnimating = shouldAnimateEnvironmentEffects(scene, mode, Boolean(canShowWeather));
@@ -1290,7 +1334,7 @@ export function SceneCanvas({
           tokenIds: effectiveSelectedTokenIds,
           weatherMaskIds: effectiveSelectedWeatherMaskIds
         });
-      const hasFullRateAnimation = mapAnimating || tokenAnimating || tableEventsAnimating || selectionAnimating;
+      const hasFullRateAnimation = mapAnimating || tokenAnimating || tokenConditionAnimating || tableEventsAnimating || selectionAnimating;
       const effectAnimating = weatherAnimating || environmentAnimating;
       const shouldDrawFrame = !effectAnimating || hasFullRateAnimation || timestamp - lastWeatherOnlyFrameAt >= WEATHER_ONLY_FRAME_INTERVAL_MS;
 
@@ -1302,7 +1346,7 @@ export function SceneCanvas({
         }
       }
 
-      if (mapAnimating || tokenAnimating || tableEventsAnimating || weatherAnimating || environmentAnimating || selectionAnimating) {
+      if (mapAnimating || tokenAnimating || tokenConditionAnimating || tableEventsAnimating || weatherAnimating || environmentAnimating || selectionAnimating) {
         animationFrame = window.requestAnimationFrame(drawCurrentFrame);
       }
     };
@@ -1316,7 +1360,7 @@ export function SceneCanvas({
         tokenIds: effectiveSelectedTokenIds,
         weatherMaskIds: effectiveSelectedWeatherMaskIds
       });
-    if (loadedMap?.animate || playerTokenTweenPositionsRef.current || hasActiveLiveTableEvents(liveTableEvents) || shouldAnimateWeather(scene, Boolean(canShowWeather)) || shouldAnimateEnvironmentEffects(scene, mode, Boolean(canShowWeather)) || selectionAnimating) {
+    if (loadedMap?.animate || playerTokenTweenPositionsRef.current || (canShowTokens && hasVisibleTokenConditions(scene, mode)) || hasActiveLiveTableEvents(liveTableEvents) || shouldAnimateWeather(scene, Boolean(canShowWeather)) || shouldAnimateEnvironmentEffects(scene, mode, Boolean(canShowWeather)) || selectionAnimating) {
       animationFrame = window.requestAnimationFrame(drawCurrentFrame);
     }
     const observer = new ResizeObserver(resize);
@@ -2632,6 +2676,8 @@ export function SceneCanvas({
         if (!token) {
           return null;
         }
+        const tokenConditionsVisibleInPlayer = getTokenConditionsVisibleInPlayer(token);
+        const tokenHasConditions = (token.conditions ?? []).length > 0;
         return (
           <div
             className="token-settings-menu canvas-context-menu"
@@ -2641,86 +2687,143 @@ export function SceneCanvas({
           >
             <div className="canvas-context-menu-title" title={tokenContextMenu.tokenName}>{tokenContextMenu.tokenName}</div>
             <div className="control-divider" />
-            <div className="settings-grid">
-              <label className="setting-row">
-                <span>GM View</span>
-                <label className="fog-operation-switch" title={`${tokenContextMenu.visibleInGm ? "Hide" : "Show"} ${tokenContextMenu.tokenName} in GM View`}>
-                  <span>Show</span>
-                  <input
-                    aria-label={`${tokenContextMenu.visibleInGm ? "Hide" : "Show"} ${tokenContextMenu.tokenName} in GM View`}
-                    type="checkbox"
-                    checked={!tokenContextMenu.visibleInGm}
-                    onChange={(event) => {
-                      if (!onSceneChange) {
-                        setTokenContextMenu(null);
-                        return;
-                      }
-                      const visibleInGm = !event.target.checked;
-                      onSceneChange(patchSceneToken(scene, token.id, { visibleInGm }));
-                      setTokenContextMenu((menu) => (menu ? { ...menu, visibleInGm } : menu));
-                    }}
-                  />
-                  <span>Hide</span>
-                </label>
-              </label>
-              <label className="setting-row">
-                <span>Player View</span>
-                <label className="fog-operation-switch" title={`${tokenContextMenu.visibleInPlayer ? "Hide" : "Show"} ${tokenContextMenu.tokenName} on Player View`}>
-                  <span>Show</span>
-                  <input
-                    aria-label={`${tokenContextMenu.visibleInPlayer ? "Hide" : "Show"} ${tokenContextMenu.tokenName} on Player View`}
-                    type="checkbox"
-                    checked={!tokenContextMenu.visibleInPlayer}
-                    onChange={(event) => {
-                      if (!onSceneChange) {
-                        setTokenContextMenu(null);
-                        return;
-                      }
-                      const visibleInPlayer = !event.target.checked;
-                      onSceneChange(patchSceneToken(scene, token.id, { visibleInPlayer }));
-                      setTokenContextMenu((menu) => (menu ? { ...menu, visibleInPlayer } : menu));
-                    }}
-                  />
-                  <span>Hide</span>
-                </label>
-              </label>
-              <label className="setting-row">
-                <span>Footprint</span>
-                <label className="fog-operation-switch" title={`${token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE ? "Hide" : "Show"} ${tokenContextMenu.tokenName} footprint`}>
-                  <span>Show</span>
-                  <input
-                    aria-label={`${token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE ? "Hide" : "Show"} ${tokenContextMenu.tokenName} footprint`}
-                    type="checkbox"
-                    checked={!(token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE)}
-                    onChange={(event) => {
-                      if (!onSceneChange) {
-                        setTokenContextMenu(null);
-                        return;
-                      }
-                      onSceneChange(patchSceneToken(scene, token.id, { footprintVisible: !event.target.checked }));
-                    }}
-                  />
-                  <span>Hide</span>
-                </label>
-              </label>
+            <div className="token-menu-editor-grid">
+              <div className="token-menu-token-settings">
+                <div className="settings-grid">
+                  <label className="setting-row">
+                    <span>GM View</span>
+                    <label className="fog-operation-switch" title={`${tokenContextMenu.visibleInGm ? "Hide" : "Show"} ${tokenContextMenu.tokenName} in GM View`}>
+                      <span>Show</span>
+                      <input
+                        aria-label={`${tokenContextMenu.visibleInGm ? "Hide" : "Show"} ${tokenContextMenu.tokenName} in GM View`}
+                        type="checkbox"
+                        checked={!tokenContextMenu.visibleInGm}
+                        onChange={(event) => {
+                          if (!onSceneChange) {
+                            setTokenContextMenu(null);
+                            return;
+                          }
+                          const visibleInGm = !event.target.checked;
+                          onSceneChange(patchSceneToken(scene, token.id, { visibleInGm }));
+                          setTokenContextMenu((menu) => (menu ? { ...menu, visibleInGm } : menu));
+                        }}
+                      />
+                      <span>Hide</span>
+                    </label>
+                  </label>
+                  <label className="setting-row">
+                    <span>Player View</span>
+                    <label className="fog-operation-switch" title={`${tokenContextMenu.visibleInPlayer ? "Hide" : "Show"} ${tokenContextMenu.tokenName} on Player View`}>
+                      <span>Show</span>
+                      <input
+                        aria-label={`${tokenContextMenu.visibleInPlayer ? "Hide" : "Show"} ${tokenContextMenu.tokenName} on Player View`}
+                        type="checkbox"
+                        checked={!tokenContextMenu.visibleInPlayer}
+                        onChange={(event) => {
+                          if (!onSceneChange) {
+                            setTokenContextMenu(null);
+                            return;
+                          }
+                          const visibleInPlayer = !event.target.checked;
+                          onSceneChange(patchSceneToken(scene, token.id, { visibleInPlayer }));
+                          setTokenContextMenu((menu) => (menu ? { ...menu, visibleInPlayer } : menu));
+                        }}
+                      />
+                      <span>Hide</span>
+                    </label>
+                  </label>
+                  <label className="setting-row">
+                    <span>Footprint</span>
+                    <label className="fog-operation-switch" title={`${token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE ? "Hide" : "Show"} ${tokenContextMenu.tokenName} footprint`}>
+                      <span>Show</span>
+                      <input
+                        aria-label={`${token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE ? "Hide" : "Show"} ${tokenContextMenu.tokenName} footprint`}
+                        type="checkbox"
+                        checked={!(token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE)}
+                        onChange={(event) => {
+                          if (!onSceneChange) {
+                            setTokenContextMenu(null);
+                            return;
+                          }
+                          onSceneChange(patchSceneToken(scene, token.id, { footprintVisible: !event.target.checked }));
+                        }}
+                      />
+                      <span>Hide</span>
+                    </label>
+                  </label>
+                </div>
+                <div className="control-divider" />
+                <TokenSettings
+                  token={token}
+                  gridSize={scene.grid.sizePx}
+                  gridType={scene.grid.type}
+                  showFootprint={false}
+                  onUpdateToken={(patch) => {
+                    if (!onSceneChange) {
+                      return;
+                    }
+                    onSceneChange(patchSceneToken(scene, token.id, patch));
+                  }}
+                  onOpenTokenColor={(tokenId, value, kind) => {
+                    onOpenTokenColor?.(tokenId, value, kind);
+                    setTokenContextMenu(null);
+                  }}
+                />
+              </div>
+              <div className="token-menu-condition-settings">
+                <div className="canvas-context-menu-title">Conditions</div>
+                <div className="settings-grid token-condition-visibility-grid">
+                  <label className="setting-row">
+                    <span>Player View</span>
+                    <label className="fog-operation-switch" title={`${tokenConditionsVisibleInPlayer ? "Hide" : "Show"} token conditions on Player View`}>
+                      <span>Show</span>
+                      <input
+                        aria-label={`${tokenConditionsVisibleInPlayer ? "Hide" : "Show"} token conditions on Player View`}
+                        type="checkbox"
+                        checked={!tokenConditionsVisibleInPlayer}
+                        disabled={!tokenHasConditions}
+                        onChange={(event) => {
+                          if (!onSceneChange) {
+                            return;
+                          }
+                          onSceneChange({
+                            ...scene,
+                            tokens: setTokenConditionsPlayerVisibility(scene.tokens, token.id, !event.target.checked),
+                            updatedAt: new Date().toISOString()
+                          });
+                        }}
+                      />
+                      <span>Hide</span>
+                    </label>
+                  </label>
+                </div>
+                <div className="token-condition-list">
+                  {TOKEN_CONDITION_IDS.map((conditionId) => {
+                    const enabled = (token.conditions ?? []).some((candidate) => candidate.id === conditionId);
+                    const label = TOKEN_CONDITION_LABELS[conditionId];
+                    return (
+                      <label className="token-condition-check" key={conditionId}>
+                        <input
+                          type="checkbox"
+                          checked={enabled}
+                          onChange={(event) => {
+                            if (!onSceneChange) {
+                              return;
+                            }
+                            onSceneChange({
+                              ...scene,
+                              tokens: setTokenCondition(scene.tokens, token.id, conditionId, event.target.checked, tokenConditionsVisibleInPlayer),
+                              updatedAt: new Date().toISOString()
+                            });
+                          }}
+                        />
+                        <span>{label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-            <div className="control-divider" />
-            <TokenSettings
-              token={token}
-              gridSize={scene.grid.sizePx}
-              gridType={scene.grid.type}
-              showFootprint={false}
-              onUpdateToken={(patch) => {
-                if (!onSceneChange) {
-                  return;
-                }
-                onSceneChange(patchSceneToken(scene, token.id, patch));
-              }}
-              onOpenTokenColor={(tokenId, value, kind) => {
-                onOpenTokenColor?.(tokenId, value, kind);
-                setTokenContextMenu(null);
-              }}
-            />
             <div className="control-divider" />
             <button
               type="button"

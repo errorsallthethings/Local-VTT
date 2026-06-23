@@ -385,6 +385,11 @@
   cursor: default;
 }
 
+.canvas-context-menu.token-settings-menu {
+  width: min(500px, calc(100vw - 24px));
+  max-width: min(500px, calc(100vw - 24px));
+}
+
 .token-settings-menu-portal {
   position: fixed;
   top: auto;
@@ -400,6 +405,64 @@
 
 .token-settings-menu .setting-row {
   grid-template-columns: 68px minmax(0, 1fr);
+}
+
+.token-menu-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(202px, 0.86fr) minmax(188px, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+
+.token-menu-token-settings,
+.token-menu-condition-settings {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.token-menu-condition-settings {
+  border-left: 1px solid var(--color-border-muted);
+  padding-left: 12px;
+}
+
+.token-condition-visibility-grid {
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border-muted);
+}
+
+.token-condition-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  max-height: min(230px, calc(100vh - 330px));
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.token-condition-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--color-text);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.token-condition-check input {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  accent-color: var(--color-accent);
+}
+
+.token-condition-check span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .layer-detail-controls {
