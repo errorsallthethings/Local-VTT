@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.1.8
+
+### Added
+
+- Added a redesigned Tools Menu with grouped Fog of War, Effects, Drawing, Template, Table, Dice Bag, and Turn Order workflows.
+- Added Drawing Tools for brush, line, rectangle, ellipse, triangle, and polygon annotations with stroke/fill controls, opacity presets, thickness presets, selection, movement, resizing, rotation, and layer sub-items.
+- Added Template Tools for line, radius, cube, and cone areas with measurement labels, configurable length/radius and width, grid footprint previews, visual effect presets, and Player View live preview controls.
+- Added localized Animated Effects under the Effects layer, including water, lava, smoke, fire, fog, cold, electric, acid, poison, darkness, arcane, radiant, force field, shockwave, chaos, void, and nature growth effect families.
+- Added token condition management from token context menus with Player View visibility control and rotating condition ring indicators.
+- Added turn order round counters, count tracker entries, countdown support, scene-token linking, turn groups, multi-edge Player View trackers, visible-entry limits, and avatar mask settings.
+- Added schema version `2` for campaign and scene save data.
+
+### Changed
+
+- Renamed the Weather layer to Effects and separated Fog of War tools from Effects tools.
+- Improved context menus for tokens, fog masks, weather/effects masks, drawings, templates, and animated effects with more consistent labels, toggles, duplicate/delete actions, and edge-aware positioning.
+- Improved map, token library, effects rendering, and scene canvas performance through virtualization, memoization, renderer cleanup, and viewport/bounds checks.
+- Improved Player View synchronization, scene switching, and projected scene filtering so GM-only state does not drift or leak to Player View.
+- Improved project structure by grouping canvas, component, layer, hook, and library modules into clearer feature-oriented folders.
+- Improved error handling and diagnostics for local file access, metadata reads/writes, missing assets, renderer crashes, and Electron smoke testing.
+
+### Fixed
+
+- Fixed token import cropping for non-square source images.
+- Fixed repeated dice result and WebGL context issues during 3D Scene Rolls.
+- Fixed context menus appearing behind drawers or too close to viewport edges.
+- Fixed duplicated/reordered scenes changing Player View without explicit GM action.
+- Fixed drawing selection hit areas and bounds for thicker strokes.
+- Fixed animated effects disappearing or losing animation after scene changes.
+- Fixed turn order tracker overflow by limiting visible entries and showing hidden-entry counts.
+
 ## 0.1.7
 
 ### Added

@@ -54,8 +54,8 @@ export type TokenMask = "none" | "circle" | "square";
 export type TokenBorderStyle = "none" | "solid" | "dashed" | "dotted" | "double-line" | "embossed" | "inner-shadow" | "glow";
 export type TokenBorderWidthPreset = "thin" | "medium" | "thick" | "custom";
 
-export const CURRENT_CAMPAIGN_SCHEMA_VERSION = 1;
-export const CURRENT_SCENE_SCHEMA_VERSION = 1;
+export const CURRENT_CAMPAIGN_SCHEMA_VERSION = 2;
+export const CURRENT_SCENE_SCHEMA_VERSION = 2;
 const LEGACY_SCHEMA_VERSION = 0;
 
 export interface TokenPresentationDefaults {

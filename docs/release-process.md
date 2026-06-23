@@ -57,6 +57,8 @@ git status
 2. Update release metadata if needed:
 
 - `package.json` version, for example `0.1.1`.
+- `package-lock.json` version if `npm version --no-git-tag-version` changed it.
+- `src/shared/localvtt.ts` campaign and scene schema constants if the release changes persisted campaign or scene JSON shape.
 - `CHANGELOG.md` release notes.
 - README known limitations or smoke checklist updates.
 
@@ -71,7 +73,7 @@ npm run smoke:electron
 4. Commit the release metadata changes:
 
 ```bash
-git add package.json package-lock.json CHANGELOG.md README.md
+git add package.json package-lock.json src/shared/localvtt.ts CHANGELOG.md README.md docs
 git commit -m "Prepare release 0.1.1"
 git push
 ```

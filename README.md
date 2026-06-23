@@ -16,7 +16,9 @@ This version is intentionally not a full campaign-management VTT. Tokens are lig
 - Keep Player View open on a friendly waiting screen when the shown scene is deleted or unavailable.
 - Configure gridless, square, and hex scenes with per-scene measurement settings.
 - Draw manual fog of war with brush, rectangle, circle, and polygon tools.
+- Draw map annotations, shapes, and area templates with reusable tool settings and grid footprint previews.
 - Add lightweight tokens, style them, reorder them, duplicate them, and animate visible Player View movement along waypoint paths.
+- Assign token conditions with GM-only or Player View-visible ring indicators.
 - Measure distance with a GM-only ruler, including waypoints, snapped grid points, crossed-cell highlights, and distance-mode readouts.
 - Use live Table Tools for configurable click pings and a fading laser pointer trail.
 - Run turn orders with campaign players, initiative values, Player View turn indicators, and display placement controls.
@@ -89,6 +91,7 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Table Tools include the GM-only ruler, configurable ping, and laser pointer.
 - The ruler supports square, hex, and gridless scenes.
 - Ctrl/Cmd snaps ruler points to square grid centers or hex centers. Gridless measurement stays freeform.
+- Drawing, template, and mask placement can snap to square grid centers, corners, and side centers, or hex centers/corners where applicable.
 - Shift adds ruler waypoints while dragging. Right-click removes the last active ruler waypoint.
 - Escape clears the active ruler measurement.
 - The ruler highlights crossed squares/hexes and displays total path distance using the scene's Measurement settings.
@@ -104,7 +107,8 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Dice results can render as text-only results, a 3D Panel, or a 3D Scene Roll with physics and delayed result reveal.
 - Recent dice roll history is capped and keeps delayed 3D/scene roll results in sync with the final visible result.
 - Turn orders can be built from campaign players or tokens, sorted by initiative, reset between encounters, and played/paused for Player View display.
-- Player View turn order indicators include configurable sizing, placement, facing, and player status styling.
+- Turn orders support linked scene tokens, turn groups, round tracking, count tracker entries, and per-entry countdowns.
+- Player View turn order indicators include configurable multi-edge placement, facing, sizing, avatar masks, visible-entry limits, round display, and player status styling.
 
 ### Effects Layer
 
@@ -115,7 +119,15 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Weather masks exclude per-scene weather effects from specific map areas.
 - Animated Effects are localized drawn areas for environmental visuals such as water, fire, smoke, fog, lava, electric, arcane, radiant, field, chaos, void, and nature effects.
 - Animated Effects are drawn from the Effects Tools menu, appear as sub-layers under Effects, and can be selected, hidden, edited, or deleted from the GM canvas and layer list.
+- Animated Effects include preset families for water, lava, smoke, fire, fog, cold, electric, acid, poison, darkness, arcane, radiant, force fields, shockwaves, chaos, void, and nature growth.
 - Weather masks can be selected from the GM canvas, highlighted in their layer list, and toggled from a context menu.
+
+### Drawing And Template Tools
+
+- Drawing Tools support brush, line, rectangle, ellipse, triangle, polygon, stroke/fill controls, opacity presets, thickness presets, and custom tuning.
+- Placed drawings can be selected, moved, resized, rotated, duplicated, hidden, deleted, and managed from Drawing sub-layers.
+- Template Tools support line, radius, cube, and cone templates with configurable length/radius, width, stroke thickness, visual effect presets, live preview, and optional grid footprint display.
+- Template labels scale with scene zoom and show only while drawing or when the template is selected.
 
 ### Fog Of War
 
@@ -139,6 +151,7 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Library tokens can be dragged onto the GM canvas or added to the active scene with the add button.
 - Token sub-layers support selection, rename, duplicate, drag/drop reordering, GM/Player visibility, deletion, and per-token presentation settings.
 - Token presentation settings include size presets, mask shape, border style, border width, border/glow colors, and optional footprint highlights.
+- Token conditions can be assigned from the token context menu, hidden from Player View, and displayed as rotating condition rings.
 - Square/gridless scenes keep token art square and snap to grid on release when a grid is active.
 - Hex scenes keep token art square while using hex-aware snapping and footprint clusters.
 - Shift adds token movement waypoints while dragging. Square and hex waypoints snap to grid/hex centers; gridless waypoints remain freeform.
@@ -244,9 +257,9 @@ npm run smoke:electron
 These ideas are intentionally outside the current MVP unless they become release blockers:
 
 - Token Library export/import packs.
-- Health bars, conditions, permissions, and advanced token sheets.
+- Health bars, permissions, and advanced token sheets.
 - Full dynamic lighting, walls, doors, windows, and vision-aware fog.
-- Drawing layers, spell templates, overlays, and advanced animated effects.
+- Text tools, pin tools, reusable object/prop layers, and advanced animated effect authoring.
 - Advanced token library tags, grouping, bulk editing, and external asset management.
 - Localization/string resource files after UI wording stabilizes.
 - Light/custom themes after the dark-theme CSS token structure is stable.

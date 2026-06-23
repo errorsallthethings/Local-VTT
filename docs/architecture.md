@@ -18,7 +18,7 @@ Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog 
 - Electron resolves absolute asset paths at runtime after a campaign is opened.
 - Renderer code saves campaign and scene changes through the preload API.
 - Player View receives a projected scene payload that strips GM-only content before crossing the IPC boundary.
-- Campaign and scene files include schema versions so future migrations have an explicit upgrade path.
+- Campaign and scene files include schema versions so future migrations have an explicit upgrade path. Local VTT `0.1.8` writes campaign and scene schema version `2`.
 
 ## Layer Ownership
 
