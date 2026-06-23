@@ -1523,10 +1523,6 @@
   --player-turn-label-size: 15px;
 }
 
-.player-turn-status-waiting {
-  opacity: 0.56;
-}
-
 .player-turn-status-next {
   --player-turn-frame-primary: color-mix(in srgb, var(--player-seat-color) 86%, white 16%);
   opacity: 0.88;
@@ -1712,10 +1708,10 @@
 }
 
 .player-turn-theme-sorcerer {
-  --player-turn-frame-trim: #f472b6;
-  --player-turn-frame-primary: #fb7185;
+  --player-turn-frame-trim: #c2410c;
+  --player-turn-frame-primary: #fb923c;
   --player-turn-frame-accent: #22d3ee;
-  --player-turn-frame-fill: rgb(24 10 23 / 0.94);
+  --player-turn-frame-fill: rgb(24 13 8 / 0.94);
 }
 
 .player-turn-theme-warlock {
@@ -1747,6 +1743,29 @@
 .player-turn-theme-ranger .player-turn-frame-corners,
 .player-turn-theme-rogue .player-turn-frame-corners {
   stroke-dasharray: 9 5;
+}
+
+.player-turn-status-waiting {
+  --player-seat-color: #64748b;
+  --player-turn-frame-fill: rgb(12 14 18 / 0.9);
+  --player-turn-frame-panel: rgb(18 21 27 / 0.56);
+  --player-turn-frame-crest: rgb(33 37 44 / 0.82);
+  --player-turn-frame-primary: rgb(148 163 184 / 0.56);
+  --player-turn-frame-trim: rgb(100 116 139 / 0.76);
+  --player-turn-frame-accent: rgb(148 163 184 / 0.62);
+  --player-turn-frame-glow: transparent;
+  opacity: 0.56;
+}
+
+.player-turn-status-waiting .player-turn-status-avatar {
+  background:
+    radial-gradient(circle at 30% 24%, rgb(255 255 255 / 0.2), transparent 34%),
+    #64748b;
+  filter: grayscale(1) saturate(0.1);
+}
+
+.player-turn-status-waiting .player-turn-status-avatar img {
+  filter: grayscale(1) contrast(0.9) brightness(0.78);
 }
 
 .video-map-controls {
