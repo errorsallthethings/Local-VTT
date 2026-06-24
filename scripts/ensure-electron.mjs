@@ -3,7 +3,6 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { downloadArtifact } from "@electron/get";
-import extract from "extract-zip";
 
 const root = path.resolve(import.meta.dirname, "..");
 const electronPackageRoot = path.join(root, "node_modules", "electron");
@@ -105,8 +104,39 @@ async function installElectronDirectly() {
   console.log(`Extracting Electron binary from ${zipPath}...`);
   rmSync(electronDistPath, { recursive: true, force: true });
   mkdirSync(electronDistPath, { recursive: true });
-  await extract(zipPath, { dir: electronDistPath });
+  extractElectronArchive(zipPath);
   writeFileSync(electronPathFile, platformPath);
+}
+
+function extractElectronArchive(zipPath) {
+  if (platform === "win32") {
+    const extraction = spawnSync(
+      "powershell",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force",
+        zipPath,
+        electronDistPath
+      ],
+      { cwd: root, stdio: "inherit" }
+    );
+    if (extraction.status !== 0) {
+      throw new Error(`PowerShell Expand-Archive failed with status ${extraction.status ?? "unknown"}.`);
+    }
+    return;
+  }
+
+  const extraction = spawnSync("unzip", ["-q", "-o", zipPath, "-d", electronDistPath], {
+    cwd: root,
+    stdio: "inherit"
+  });
+  if (extraction.status !== 0) {
+    throw new Error(`unzip failed with status ${extraction.status ?? "unknown"}.`);
+  }
 }
 
 function safeList(directory) {
