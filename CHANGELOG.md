@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.9
+
+### Changed
+
+- Added packaged application icons for Windows and macOS builds.
+
 ## 0.1.8
 
 ### Added
