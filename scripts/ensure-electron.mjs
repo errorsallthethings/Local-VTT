@@ -1,15 +1,21 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { downloadArtifact } from "@electron/get";
+import extract from "extract-zip";
 
 const root = path.resolve(import.meta.dirname, "..");
 const electronPackageRoot = path.join(root, "node_modules", "electron");
 const electronInstallScript = path.join(electronPackageRoot, "install.js");
 const electronPathFile = path.join(electronPackageRoot, "path.txt");
 const electronDistPath = path.join(electronPackageRoot, "dist");
+const electronPackageJson = path.join(electronPackageRoot, "package.json");
+const electronChecksumsJson = path.join(electronPackageRoot, "checksums.json");
 const platformPath = getPlatformPath();
 const electronExecutable = path.join(electronDistPath, platformPath);
+const platform = process.env.ELECTRON_INSTALL_PLATFORM || process.env.npm_config_platform || os.platform();
+const arch = process.env.ELECTRON_INSTALL_ARCH || process.env.npm_config_arch || os.arch();
 
 if (isElectronReady()) {
   console.log(`Electron binary ready: ${electronExecutable}`);
@@ -42,7 +48,20 @@ if (install.status === 0 && (isElectronReady() || repairPathFileFromExistingDist
   process.exit(0);
 }
 
-console.error(`Electron binary install failed with status ${install.status ?? "unknown"}.`);
+console.warn(`Electron package installer did not produce a usable binary. Status: ${install.status ?? "unknown"}.`);
+printDiagnostics();
+
+try {
+  await installElectronDirectly();
+  if (isElectronReady() || repairPathFileFromExistingDist()) {
+    console.log(`Electron binary ready: ${electronExecutable}`);
+    process.exit(0);
+  }
+} catch (caught) {
+  console.error("Direct Electron binary install failed.", caught);
+}
+
+console.error("Electron binary install failed.");
 printDiagnostics();
 process.exit(1);
 
@@ -68,6 +87,26 @@ function printDiagnostics() {
   console.error(`executable exists: ${existsSync(electronExecutable)}`);
   console.error(`electron package exists: ${existsSync(electronPackageRoot)}`);
   console.error(`electron dist entries: ${safeList(electronDistPath).join(", ") || "(none)"}`);
+}
+
+async function installElectronDirectly() {
+  const version = JSON.parse(readFileSync(electronPackageJson, "utf8")).version;
+  const checksums = existsSync(electronChecksumsJson) ? JSON.parse(readFileSync(electronChecksumsJson, "utf8")) : undefined;
+
+  console.log(`Downloading Electron ${version} for ${platform}/${arch}...`);
+  const zipPath = await downloadArtifact({
+    version,
+    artifactName: "electron",
+    cacheRoot: process.env.electron_config_cache,
+    checksums,
+    force: process.env.CI === "true"
+  });
+
+  console.log(`Extracting Electron binary from ${zipPath}...`);
+  rmSync(electronDistPath, { recursive: true, force: true });
+  mkdirSync(electronDistPath, { recursive: true });
+  await extract(zipPath, { dir: electronDistPath });
+  writeFileSync(electronPathFile, platformPath);
 }
 
 function safeList(directory) {
