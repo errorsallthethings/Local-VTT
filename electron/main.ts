@@ -39,6 +39,7 @@ const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isDev = !app.isPackaged && !isSmokeTest;
 const devServerUrl = "http://127.0.0.1:5173";
 const MAX_METADATA_BACKUPS = 10;
+const appWindowIconPath = path.join(app.getAppPath(), "build", "icon.ico");
 
 if (isSmokeTest) {
   app.setPath("userData", path.join(app.getPath("temp"), "local-vtt-smoke-test"));
@@ -72,6 +73,7 @@ function createWindow(hash: "gm" | "player"): BrowserWindow {
     width: hash === "gm" ? 1440 : 1280,
     height: hash === "gm" ? 960 : 720,
     title: hash === "gm" ? "Local VTT - GM View" : "Local VTT - Player View",
+    icon: appWindowIconPath,
     backgroundColor: hash === "gm" ? "#101318" : "#000000",
     webPreferences: {
       preload: path.join(app.getAppPath(), "dist-electron", "electron", "preload.js"),

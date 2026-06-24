@@ -99,7 +99,7 @@ Manual `workflow_dispatch` runs are useful for testing the release workflow, but
 
 ## Packaging
 
-Packaging is configured with `electron-builder`. The Windows build uses the Local VTT icon in `build/icon.ico`, creates Desktop and Start Menu shortcuts, and uses an assisted per-user installer so the install location can be reviewed during setup.
+Packaging is configured with `electron-builder`. Put app icon assets in `build/`: `icon.svg` for the editable source, `icon.ico` for Windows, and `icon.icns` for macOS. The Windows build uses `build/icon.ico`, the macOS build uses `build/icon.icns`, and the Windows app window is also given `build/icon.ico` at runtime. The Windows installer creates Desktop and Start Menu shortcuts and uses an assisted per-user installer so the install location can be reviewed during setup.
 
 The editable icon source is `build/icon.svg`. To regenerate the Windows icon file after changing the source artwork, run:
 

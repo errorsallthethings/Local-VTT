@@ -54,13 +54,15 @@
     "files": [
       "dist/**",
       "dist-electron/**",
+      "build/icon.ico",
       "package.json"
     ],
     "directories": {
       "output": "release"
     },
     "mac": {
-      "category": "public.app-category.games"
+      "category": "public.app-category.games",
+      "icon": "build/icon.icns"
     },
     "win": {
       "target": "nsis",
