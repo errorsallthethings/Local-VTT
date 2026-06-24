@@ -5,28 +5,20 @@ import { spawn, spawnSync } from "node:child_process";
 const root = resolve(import.meta.dirname, "..", "..");
 const distIndex = resolve(root, "dist", "index.html");
 const electronMain = resolve(root, "dist-electron", "electron", "main.js");
-const electronPackageRoot = resolve(root, "node_modules", "electron");
-const electronPathFile = resolve(electronPackageRoot, "path.txt");
-const electronInstallScript = resolve(electronPackageRoot, "install.js");
+const ensureElectronScript = resolve(root, "scripts", "ensure-electron.mjs");
 
 if (!existsSync(distIndex) || !existsSync(electronMain)) {
   console.error("Electron smoke test requires a production build. Run npm run build first.");
   process.exit(1);
 }
 
-if (!existsSync(electronPathFile)) {
-  if (!existsSync(electronInstallScript)) {
-    console.error("Electron smoke test could not find node_modules/electron/install.js. Run npm ci first.");
-    process.exit(1);
-  }
-  const install = spawnSync(process.execPath, [electronInstallScript], {
-    cwd: root,
-    stdio: "inherit"
-  });
-  if (install.status !== 0 || !existsSync(electronPathFile)) {
-    console.error("Electron smoke test could not install the Electron binary.");
-    process.exit(1);
-  }
+const ensureElectron = spawnSync(process.execPath, [ensureElectronScript], {
+  cwd: root,
+  stdio: "inherit"
+});
+if (ensureElectron.status !== 0) {
+  console.error("Electron smoke test could not prepare the Electron binary.");
+  process.exit(1);
 }
 
 const { default: electronPath } = await import("electron");
