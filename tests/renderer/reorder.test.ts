@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reorderByDropTarget } from "../../src/renderer/lib/reorder";
+import { reorderByDropTarget } from "../../src/renderer/lib/ui";
 
 describe("reorderByDropTarget", () => {
   const items = [{ id: "one" }, { id: "two" }, { id: "three" }, { id: "four" }];

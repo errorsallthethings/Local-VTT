@@ -9,7 +9,7 @@ import {
   getWeatherIntensity,
   getWeatherParticleCount,
   type WeatherBounds
-} from "../../src/renderer/canvas/weather/weatherCore";
+} from "../../src/renderer/canvas/weather";
 
 describe("weatherCore shared helpers", () => {
   it("clamps numeric values with finite fallbacks", () => {

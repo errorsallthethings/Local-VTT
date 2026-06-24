@@ -4,14 +4,20 @@ import {
   assertValidScene,
   createDefaultCampaign,
   createDefaultScene,
+  CURRENT_CAMPAIGN_SCHEMA_VERSION,
+  CURRENT_SCENE_SCHEMA_VERSION,
   duplicateScene,
+  DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS,
   DEFAULT_CALIBRATION,
   DEFAULT_DICE_SETTINGS,
+  DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
   DEFAULT_FOG,
   DEFAULT_GRID,
   DEFAULT_LAYERS,
+  DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
   DEFAULT_MAP_TRANSFORM,
   DEFAULT_MEASUREMENT,
+  DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TABLE_TOOLS,
   DEFAULT_VIDEO_PLAYBACK,
@@ -42,6 +48,26 @@ function asset(id: string): Asset {
 }
 
 describe("LocalVTT shared model helpers", () => {
+it("default campaign and scene files include the current schema version", () => {
+  expect(createDefaultCampaign("Versioned Campaign").schemaVersion).toBe(CURRENT_CAMPAIGN_SCHEMA_VERSION);
+  expect(createDefaultScene("Versioned Scene").schemaVersion).toBe(CURRENT_SCENE_SCHEMA_VERSION);
+});
+
+it("normalizes legacy campaign and scene files without schema versions to the current schema version", () => {
+  const legacyCampaign = createDefaultCampaign("Legacy Campaign") as Campaign & { schemaVersion?: number };
+  delete legacyCampaign.schemaVersion;
+  const legacyScene = createDefaultScene("Legacy Scene") as Scene & { schemaVersion?: number };
+  delete legacyScene.schemaVersion;
+
+  expect(normalizeCampaign(legacyCampaign as Campaign).schemaVersion).toBe(CURRENT_CAMPAIGN_SCHEMA_VERSION);
+  expect(normalizeScene(legacyScene as Scene).schemaVersion).toBe(CURRENT_SCENE_SCHEMA_VERSION);
+});
+
+it("rejects campaign and scene files from a newer schema version", () => {
+  expect(() => assertValidCampaign({ ...createDefaultCampaign("Future"), schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION + 1 })).toThrow(/Unsupported campaign schema version/);
+  expect(() => assertValidScene({ ...createDefaultScene("Future"), schemaVersion: CURRENT_SCENE_SCHEMA_VERSION + 1 })).toThrow(/Unsupported scene schema version/);
+});
+
 it("normalizeScene fills default settings for older scene files", () => {
   const partialScene = {
     id: "scene-1",
@@ -137,6 +163,164 @@ it("normalizeScene clamps weather settings", () => {
   });
 });
 
+it("normalizeScene preserves fire environmental effects", () => {
+  const scene = createDefaultScene("Fire Effects");
+  scene.environment.effects = [
+    {
+      id: "fire-effect",
+      name: "Fire Effect",
+      kind: "rectangle",
+      effect: "fire",
+      points: [
+        { x: 10, y: 20 },
+        { x: 110, y: 120 }
+      ],
+      feather: 0.6,
+      fireTuning: {
+        ...DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
+        flameScale: 9,
+        speed: 0.7
+      },
+      visibleInGm: true,
+      visibleInPlayer: false
+    }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.environment.effects[0]).toMatchObject({
+    effect: "fire",
+    feather: 0.6,
+    visibleInGm: true,
+    visibleInPlayer: false,
+    fireTuning: expect.objectContaining({
+      flameScale: 9,
+      speed: 0.7,
+      panFollow: 1
+    })
+  });
+  expect(normalized.environment.effects[0].waterTuning).toBeUndefined();
+});
+
+it("normalizeScene migrates legacy lightning environmental effects to electric", () => {
+  const scene = createDefaultScene("Electric Effects");
+  scene.environment.effects = [
+    {
+      id: "electric-effect",
+      name: "Electric Effect",
+      kind: "circle",
+      effect: "lightning",
+      points: [
+        { x: 40, y: 40 },
+        { x: 140, y: 140 }
+      ],
+      feather: 0.4,
+      lightningTuning: {
+        ...DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
+        arcScale: 9,
+        boltDensity: 0.7
+      },
+      visibleInGm: true,
+      visibleInPlayer: true
+    }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.environment.effects[0]).toMatchObject({
+    effect: "electric",
+    feather: 0.4,
+    visibleInGm: true,
+    visibleInPlayer: true,
+    lightningTuning: expect.objectContaining({
+      arcScale: 9,
+      boltDensity: 0.7,
+      panFollow: 1
+    })
+  });
+  expect(normalized.environment.effects[0].waterTuning).toBeUndefined();
+});
+
+it("normalizeScene preserves arcane environmental effects", () => {
+  const scene = createDefaultScene("Arcane Effects");
+  scene.environment.effects = [
+    {
+      id: "arcane-effect",
+      name: "Arcane Effect",
+      kind: "polygon",
+      effect: "arcane",
+      points: [
+        { x: 20, y: 20 },
+        { x: 120, y: 40 },
+        { x: 80, y: 140 }
+      ],
+      feather: 0.3,
+      arcaneTuning: {
+        ...DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS,
+        glyphScale: 8,
+        ringDensity: 0.7
+      },
+      visibleInGm: true,
+      visibleInPlayer: true
+    }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.environment.effects[0]).toMatchObject({
+    effect: "arcane",
+    feather: 0.3,
+    visibleInGm: true,
+    visibleInPlayer: true,
+    arcaneTuning: expect.objectContaining({
+      glyphScale: 8,
+      ringDensity: 0.7,
+      panFollow: 1
+    })
+  });
+  expect(normalized.environment.effects[0].waterTuning).toBeUndefined();
+});
+
+it("normalizeScene preserves radiant environmental effects", () => {
+  const scene = createDefaultScene("Radiant Effects");
+  scene.environment.effects = [
+    {
+      id: "radiant-effect",
+      name: "Radiant Effect",
+      kind: "circle",
+      effect: "radiant",
+      points: [
+        { x: 80, y: 80 },
+        { x: 180, y: 180 }
+      ],
+      radius: 40,
+      feather: 0.2,
+      radiantTuning: {
+        ...DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS,
+        rayScale: 8,
+        moteDensity: 0.7
+      },
+      visibleInGm: true,
+      visibleInPlayer: false
+    }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.environment.effects[0]).toMatchObject({
+    effect: "radiant",
+    feather: 0.2,
+    visibleInGm: true,
+    visibleInPlayer: false,
+    radiantTuning: expect.objectContaining({
+      rayScale: 8,
+      moteDensity: 0.7,
+      panFollow: 1
+    })
+  });
+  expect(normalized.environment.effects[0].waterTuning).toBeUndefined();
+});
+
 it("normalizeScene applies canonical core layer names and order", () => {
   const scene = createDefaultScene("Layers");
   scene.layers = scene.layers.map((layer) => ({
@@ -150,7 +334,8 @@ it("normalizeScene applies canonical core layer names and order", () => {
   expect(normalized.layers.map((layer) => layer.name)).toEqual([
     "GM",
     "Fog of War",
-    "Weather",
+    "Effects",
+    "Drawings",
     "Foreground",
     "Tokens",
     "Objects",
@@ -161,7 +346,8 @@ it("normalizeScene applies canonical core layer names and order", () => {
   expect([...normalized.layers].sort((a, b) => b.order - a.order).map((layer) => layer.id)).toEqual([
     "gm",
     "fog",
-    "weather",
+    "effects",
+    "drawing",
     "foreground",
     "token",
     "object",
@@ -169,6 +355,155 @@ it("normalizeScene applies canonical core layer names and order", () => {
     "grid",
     "map"
   ]);
+});
+
+it("normalizeScene migrates the legacy weather layer id to effects", () => {
+  const scene = createDefaultScene("Legacy Effects Layer");
+  scene.layers = scene.layers.map((layer) => (layer.id === "effects" ? { ...layer, id: "weather", kind: "weather", name: "Weather Legacy" } : layer));
+  scene.overlays = [
+    { id: "overlay", assetId: "asset", layerId: "weather", position: { x: 0, y: 0 }, scale: 1, rotation: 0, opacity: 1, visibleInPlayer: true }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.layers.some((layer) => layer.id === "weather")).toBe(false);
+  expect(normalized.layers.find((layer) => layer.id === "effects")).toMatchObject({ name: "Effects", kind: "effects" });
+  expect(normalized.overlays[0]?.layerId).toBe("effects");
+});
+
+it("normalizeScene backfills drawing defaults", () => {
+  const scene = createDefaultScene("Drawings");
+  scene.drawings = [
+    {
+      id: "",
+      kind: "bad" as never,
+      points: [{ x: 10, y: 20 }, { x: Number.NaN, y: 30 }],
+      color: "nope",
+      opacity: 8,
+      strokeWidth: -2,
+      templateEffect: "fire",
+      templateWidth: 20,
+      visibleInPlayer: undefined as never
+    },
+    {
+      id: "",
+      name: "  Spell Area  ",
+      kind: "circle",
+      points: [],
+      color: "#00ff00",
+      opacity: 0.5,
+      strokeWidth: 240,
+      fill: "#ff0000",
+      visibleInGm: false,
+      visibleInPlayer: false
+    }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.drawings).toEqual([
+    {
+      id: "drawing-1",
+      name: "Brush 1",
+      kind: "freehand",
+      points: [{ x: 10, y: 20 }],
+      text: undefined,
+      color: "#f6d365",
+      opacity: 1,
+      strokeColor: "#f6d365",
+      strokeOpacity: 1,
+      strokeWidth: 1,
+      fill: undefined,
+      fillColor: "#f6d365",
+      fillOpacity: 0,
+      strokeStyle: "solid",
+      templateEffect: "plain",
+      templateWidth: 5,
+      templateFootprintVisible: undefined,
+      measurementLabelVisible: undefined,
+      visibleInGm: true,
+      visibleInPlayer: true
+    },
+    {
+      id: "drawing-2",
+      name: "Spell Area",
+      kind: "circle",
+      points: [],
+      text: undefined,
+      color: "#00ff00",
+      opacity: 0.5,
+      strokeColor: "#00ff00",
+      strokeOpacity: 0.5,
+      strokeWidth: 240,
+      fill: "#ff0000",
+      fillColor: "#ff0000",
+      fillOpacity: 0.5,
+      strokeStyle: "solid",
+      templateEffect: "plain",
+      templateWidth: 5,
+      templateFootprintVisible: undefined,
+      measurementLabelVisible: undefined,
+      visibleInGm: false,
+      visibleInPlayer: false
+    }
+  ]);
+});
+
+it("normalizeScene preserves template effect settings", () => {
+  const scene = createDefaultScene("Template Effects");
+  scene.drawings = [
+    {
+      id: "template-fireball",
+      name: "Template Radius 1",
+      kind: "circle",
+      points: [
+        { x: 100, y: 100 },
+        { x: 180, y: 100 }
+      ],
+      color: "#7dd3fc",
+      opacity: 1,
+      strokeColor: "#7dd3fc",
+      strokeOpacity: 1,
+      strokeWidth: 24,
+      fill: "#7dd3fc",
+      fillColor: "#7dd3fc",
+      fillOpacity: 0,
+      strokeStyle: "dashed",
+      templateEffect: "fire",
+      templateWidth: 10,
+      templateFootprintVisible: false,
+      measurementLabelVisible: true,
+      visibleInGm: true,
+      visibleInPlayer: true
+    },
+    {
+      id: "template-legacy",
+      name: "Template Cone 1",
+      kind: "cone",
+      points: [
+        { x: 200, y: 200 },
+        { x: 300, y: 200 }
+      ],
+      color: "#7dd3fc",
+      opacity: 1,
+      strokeWidth: 24,
+      measurementLabelVisible: true,
+      visibleInPlayer: true
+    }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.drawings[0]).toMatchObject({
+    templateEffect: "fire",
+    templateWidth: 10,
+    templateFootprintVisible: false,
+    measurementLabelVisible: true
+  });
+  expect(normalized.drawings[1]).toMatchObject({
+    templateFootprintVisible: false,
+    measurementLabelVisible: true
+  });
 });
 
 it("duplicateScene copies scene settings while assigning new runtime ids", () => {
@@ -354,6 +689,58 @@ it("projectSceneForPlayer preserves expanded token border presentation", () => {
   });
 });
 
+it("normalizeScene normalizes token conditions", () => {
+  const scene = createDefaultScene("Token Conditions");
+  scene.tokens = [
+    {
+      id: "token-1",
+      name: "Conditioned",
+      assetId: "token-asset",
+      position: { x: 0, y: 0 },
+      size: { width: 100, height: 100 },
+      hidden: false,
+      visibleInPlayer: true,
+      conditions: [
+        { id: "poisoned", visibleInPlayer: false },
+        { id: "stunned", visibleInPlayer: undefined },
+        { id: "poisoned", visibleInPlayer: true },
+        { id: "not-a-condition", visibleInPlayer: true }
+      ]
+    }
+  ] as Scene["tokens"];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.tokens[0].conditions).toEqual([
+    { id: "poisoned", visibleInPlayer: false },
+    { id: "stunned", visibleInPlayer: true }
+  ]);
+});
+
+it("projectSceneForPlayer strips GM-only token conditions", () => {
+  const campaign = createDefaultCampaign("Player Token Conditions");
+  const scene = createDefaultScene("Player Token Conditions");
+  scene.tokens = [
+    {
+      id: "token-1",
+      name: "Conditioned",
+      assetId: "token-asset",
+      position: { x: 0, y: 0 },
+      size: { width: 100, height: 100 },
+      hidden: false,
+      visibleInPlayer: true,
+      conditions: [
+        { id: "poisoned", visibleInPlayer: true },
+        { id: "invisible", visibleInPlayer: false }
+      ]
+    }
+  ];
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.scene.tokens[0].conditions).toEqual([{ id: "poisoned", visibleInPlayer: true }]);
+});
+
 it("normalizeScene makes legacy fog shapes visible in GM and Player views", () => {
   const scene = createDefaultScene("Legacy Fog");
   scene.fog.shapes = [
@@ -512,7 +899,7 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
     { id: "drawing-hidden", kind: "line", points: [], color: "#fff", opacity: 1, strokeWidth: 2, visibleInPlayer: false }
   ];
   scene.overlays = [
-    { id: "overlay-visible", assetId: "overlay", layerId: "weather", position: { x: 0, y: 0 }, scale: 1, rotation: 0, opacity: 1, visibleInPlayer: true },
+    { id: "overlay-visible", assetId: "overlay", layerId: "effects", position: { x: 0, y: 0 }, scale: 1, rotation: 0, opacity: 1, visibleInPlayer: true },
     { id: "overlay-hidden", assetId: "unused", layerId: "gm", position: { x: 0, y: 0 }, scale: 1, rotation: 0, opacity: 1, visibleInPlayer: true }
   ];
   scene.notes = "Secret notes";
@@ -527,7 +914,7 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   expect(projection.playerDisplay.pixelsPerInch).toBe(120);
   expect(
     projection.scene.layers.map((layer) => layer.id),
-  ).toEqual(["fog", "weather", "foreground", "object", "lighting", "grid", "map"]);
+  ).toEqual(["fog", "effects", "drawing", "foreground", "object", "lighting", "grid", "map"]);
   expect(
     projection.scene.tokens.map((token) => token.id),
   ).toEqual(["token-1"]);
@@ -621,6 +1008,10 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, size: 1.5, color: "#ffcc00", createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "laser", type: "laser", points: [{ point: { x: 1, y: 2 }, createdAt: 1 }], createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "ruler", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "ruler-optional", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", secondary: undefined, createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "ruler-release", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", createdAt: 1, expiresAt: 2501 })).toBe(true);
+  expect(isLiveTableEvent({ id: "ruler-clear", type: "ruler-clear", createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "clear", type: "dice-clear", createdAt: 1 })).toBe(true);
   expect(
     isLiveTableEvent({
@@ -630,6 +1021,7 @@ it("runtime validators reject invalid files and accept valid projected state", (
       result: 20,
       label: "20",
       formula: "1D20",
+      sceneResolvedLabel: undefined,
       rollLabel: "Attack",
       seed: 0.5,
       gmDiceDisplay: "results",
@@ -680,10 +1072,14 @@ it("runtime validators reject invalid files and accept valid projected state", (
 
 it("normalizeScene normalizes table tool settings", () => {
   expect(normalizeScene({ ...createDefaultScene("Legacy"), tableTools: undefined as never }).tableTools).toEqual(DEFAULT_TABLE_TOOLS);
-  expect(normalizeScene({ ...createDefaultScene("Tools"), tableTools: { pingSize: 9, pingColor: "red" } }).tableTools).toEqual({
+  expect(normalizeScene({ ...createDefaultScene("Tools"), tableTools: { pingSize: 9, pingColor: "red", laserThickness: 100, laserColor: "nope" } }).tableTools).toEqual({
     pingSize: 3,
-    pingColor: DEFAULT_TABLE_TOOLS.pingColor
+    pingColor: DEFAULT_TABLE_TOOLS.pingColor,
+    laserThickness: 80,
+    laserColor: DEFAULT_TABLE_TOOLS.laserColor,
+    rulerLinger: DEFAULT_TABLE_TOOLS.rulerLinger
   });
+  expect(normalizeScene({ ...createDefaultScene("No Linger"), tableTools: { ...DEFAULT_TABLE_TOOLS, rulerLinger: false } }).tableTools.rulerLinger).toBe(false);
 });
 
 it("default creators return isolated nested collections", () => {

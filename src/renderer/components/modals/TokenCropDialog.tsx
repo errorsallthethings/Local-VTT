@@ -1,7 +1,7 @@
 import { Move } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Asset, Point, SquareCropRect } from "../../../shared/localvtt";
-import { clampTokenCropOffset, getTokenCropLayout, getTokenCropSourceRect } from "../../lib/tokenCrop";
+import { clampTokenCropOffset, getTokenCropLayout, getTokenCropSourceRect } from "../../lib/tokens";
 
 const PREVIEW_SIZE = 280;
 interface TokenCropDialogProps {
@@ -40,7 +40,8 @@ export function TokenCropDialog({ asset, title = "Frame Token", submitLabel = "A
         : null,
     [naturalSize, offset, zoom]
   );
-  const layout = useMemo(() => (cropInput ? getTokenCropLayout({ ...cropInput, offset: clampTokenCropOffset(cropInput) }) : null), [cropInput]);
+  const clampedCropInput = useMemo(() => (cropInput ? { ...cropInput, offset: clampTokenCropOffset(cropInput) } : null), [cropInput]);
+  const layout = useMemo(() => (clampedCropInput ? getTokenCropLayout(clampedCropInput) : null), [clampedCropInput]);
 
   const setClampedOffset = (nextOffset: Point, nextZoom = zoom) => {
     if (!naturalSize) {
@@ -59,10 +60,10 @@ export function TokenCropDialog({ asset, title = "Frame Token", submitLabel = "A
   };
 
   const submitCrop = () => {
-    if (!cropInput) {
+    if (!clampedCropInput) {
       return;
     }
-    onSubmit(getTokenCropSourceRect(cropInput));
+    onSubmit(getTokenCropSourceRect(clampedCropInput));
   };
 
   return (

@@ -38,7 +38,7 @@ export default tseslint.config(
     }
   },
   {
-    files: ["scripts/**/*.mjs"],
+    files: ["scripts/**/*.mjs", "tests/electron/**/*.mjs"],
     languageOptions: {
       ecmaVersion: 2022,
       globals: {

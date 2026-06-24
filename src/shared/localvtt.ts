@@ -1,13 +1,62 @@
+import { formatEnvironmentEffectName, isEnvironmentEffectType } from "./environmentEffectCatalog.js";
+import type { EnvironmentEffectType } from "./environmentEffectCatalog.js";
+import {
+  normalizeAcidEffectTuning,
+  normalizeArcaneEffectTuning,
+  normalizeChaosEffectTuning,
+  normalizeColdEffectTuning,
+  normalizeDarknessEffectTuning,
+  normalizeDistortionEffectTuning,
+  normalizeFireEffectTuning,
+  normalizeFogEffectTuning,
+  normalizeForceFieldEffectTuning,
+  normalizeLavaEffectTuning,
+  normalizeLightningEffectTuning,
+  normalizeNatureEffectTuning,
+  normalizePoisonEffectTuning,
+  normalizeRadiantEffectTuning,
+  normalizeShockwaveEffectTuning,
+  normalizeSmokeEffectTuning,
+  normalizeVoidEffectTuning,
+  normalizeWaterEffectTuning
+} from "./environmentEffectTuning.js";
+import type {
+  AcidEffectTuningSettings,
+  ArcaneEffectTuningSettings,
+  ChaosEffectTuningSettings,
+  ColdEffectTuningSettings,
+  DarknessEffectTuningSettings,
+  DistortionEffectTuningSettings,
+  FireEffectTuningSettings,
+  FogEffectTuningSettings,
+  ForceFieldEffectTuningSettings,
+  LavaEffectTuningSettings,
+  LightningEffectTuningSettings,
+  NatureEffectTuningSettings,
+  PoisonEffectTuningSettings,
+  RadiantEffectTuningSettings,
+  ShockwaveEffectTuningSettings,
+  SmokeEffectTuningSettings,
+  VoidEffectTuningSettings,
+  WaterEffectTuningSettings
+} from "./environmentEffectTuning.js";
+
+export type { EnvironmentEffectType } from "./environmentEffectCatalog.js";
+
 export type AssetKind = "map" | "token" | "overlay" | "effect" | "handout";
 export type AssetMediaType = "image" | "video";
 export type GridType = "square" | "hex" | "gridless";
 export type MeasurementUnit = "feet" | "meters" | "miles";
 export type WallType = "wall" | "door" | "window" | "terrain";
-export type DrawingKind = "freehand" | "line" | "rectangle" | "circle" | "cone" | "text" | "ping" | "laser";
+export type DrawingKind = "freehand" | "line" | "rectangle" | "circle" | "ellipse" | "triangle" | "polygon" | "cone" | "text" | "ping" | "laser";
 export type TokenSizePreset = "tiny" | "medium" | "large" | "huge" | "gargantuan" | "custom";
 export type TokenMask = "none" | "circle" | "square";
 export type TokenBorderStyle = "none" | "solid" | "dashed" | "dotted" | "double-line" | "embossed" | "inner-shadow" | "glow";
 export type TokenBorderWidthPreset = "thin" | "medium" | "thick" | "custom";
+
+export const CURRENT_CAMPAIGN_SCHEMA_VERSION = 2;
+export const CURRENT_SCENE_SCHEMA_VERSION = 2;
+const LEGACY_SCHEMA_VERSION = 0;
 
 export interface TokenPresentationDefaults {
   sizePreset?: TokenSizePreset;
@@ -79,8 +128,9 @@ export interface Layer {
   kind:
     | "gm"
     | "fog"
+    | "drawing"
     | "grid"
-    | "weather"
+    | "effects"
     | "token"
     | "foreground"
     | "object"
@@ -168,6 +218,82 @@ export interface WeatherMask {
   points: Point[];
   radius?: number;
   visible?: boolean;
+  visibleInPlayer?: boolean;
+}
+
+export type {
+  AcidEffectTuningSettings,
+  ArcaneEffectTuningSettings,
+  ChaosEffectTuningSettings,
+  ColdEffectTuningSettings,
+  DarknessEffectTuningSettings,
+  DistortionEffectTuningSettings,
+  FireEffectTuningSettings,
+  FogEffectTuningSettings,
+  ForceFieldEffectTuningSettings,
+  LavaEffectTuningSettings,
+  LightningEffectTuningSettings,
+  NatureEffectTuningSettings,
+  PoisonEffectTuningSettings,
+  RadiantEffectTuningSettings,
+  ShockwaveEffectTuningSettings,
+  SmokeEffectTuningSettings,
+  VoidEffectTuningSettings,
+  WaterEffectTuningSettings
+} from "./environmentEffectTuning.js";
+export {
+  DEFAULT_ACID_EFFECT_TUNING_SETTINGS,
+  DEFAULT_ARCANE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_CHAOS_EFFECT_TUNING_SETTINGS,
+  DEFAULT_COLD_EFFECT_TUNING_SETTINGS,
+  DEFAULT_DARKNESS_EFFECT_TUNING_SETTINGS,
+  DEFAULT_DISTORTION_EFFECT_TUNING_SETTINGS,
+  DEFAULT_FIRE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_FOG_EFFECT_TUNING_SETTINGS,
+  DEFAULT_FORCE_FIELD_EFFECT_TUNING_SETTINGS,
+  DEFAULT_LAVA_EFFECT_TUNING_SETTINGS,
+  DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
+  DEFAULT_NATURE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_POISON_EFFECT_TUNING_SETTINGS,
+  DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS,
+  DEFAULT_SHOCKWAVE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_SMOKE_EFFECT_TUNING_SETTINGS,
+  DEFAULT_VOID_EFFECT_TUNING_SETTINGS,
+  DEFAULT_WATER_EFFECT_TUNING_SETTINGS
+} from "./environmentEffectTuning.js";
+
+export interface EnvironmentEffectMask {
+  id: string;
+  name?: string;
+  kind: "rectangle" | "polygon" | "circle";
+  effect: EnvironmentEffectType;
+  points: Point[];
+  radius?: number;
+  feather?: number;
+  acidTuning?: AcidEffectTuningSettings;
+  coldTuning?: ColdEffectTuningSettings;
+  darknessTuning?: DarknessEffectTuningSettings;
+  poisonTuning?: PoisonEffectTuningSettings;
+  waterTuning?: WaterEffectTuningSettings;
+  lavaTuning?: LavaEffectTuningSettings;
+  fireTuning?: FireEffectTuningSettings;
+  lightningTuning?: LightningEffectTuningSettings;
+  arcaneTuning?: ArcaneEffectTuningSettings;
+  radiantTuning?: RadiantEffectTuningSettings;
+  fieldTuning?: ForceFieldEffectTuningSettings;
+  shockwaveTuning?: ShockwaveEffectTuningSettings;
+  distortionTuning?: DistortionEffectTuningSettings;
+  chaosTuning?: ChaosEffectTuningSettings;
+  voidTuning?: VoidEffectTuningSettings;
+  natureTuning?: NatureEffectTuningSettings;
+  smokeTuning?: SmokeEffectTuningSettings;
+  fogTuning?: FogEffectTuningSettings;
+  visibleInGm?: boolean;
+  visibleInPlayer?: boolean;
+}
+
+export interface EnvironmentSettings {
+  effects: EnvironmentEffectMask[];
 }
 
 export interface FogShape {
@@ -193,6 +319,49 @@ export interface SquareCropRect {
   size: number;
 }
 
+export const TOKEN_CONDITION_IDS = [
+  "blinded",
+  "charmed",
+  "deafened",
+  "exhaustion",
+  "frightened",
+  "grappled",
+  "incapacitated",
+  "invisible",
+  "paralyzed",
+  "petrified",
+  "poisoned",
+  "prone",
+  "restrained",
+  "stunned",
+  "unconscious"
+] as const;
+
+export type TokenConditionId = (typeof TOKEN_CONDITION_IDS)[number];
+
+export interface TokenCondition {
+  id: TokenConditionId;
+  visibleInPlayer: boolean;
+}
+
+export const TOKEN_CONDITION_LABELS: Record<TokenConditionId, string> = {
+  blinded: "Blinded",
+  charmed: "Charmed",
+  deafened: "Deafened",
+  exhaustion: "Exhaustion",
+  frightened: "Frightened",
+  grappled: "Grappled",
+  incapacitated: "Incapacitated",
+  invisible: "Invisible",
+  paralyzed: "Paralyzed",
+  petrified: "Petrified",
+  poisoned: "Poisoned",
+  prone: "Prone",
+  restrained: "Restrained",
+  stunned: "Stunned",
+  unconscious: "Unconscious"
+};
+
 export interface Token {
   id: string;
   name: string;
@@ -212,6 +381,7 @@ export interface Token {
   hidden: boolean;
   visibleInGm?: boolean;
   visibleInPlayer: boolean;
+  conditions?: TokenCondition[];
   vision?: {
     enabled: boolean;
     radius: number;
@@ -254,15 +424,45 @@ export interface LightSource {
 
 export interface DrawingElement {
   id: string;
+  name?: string;
   kind: DrawingKind;
   points: Point[];
   text?: string;
   color: string;
   opacity: number;
+  strokeColor?: string;
+  strokeOpacity?: number;
   strokeWidth: number;
   fill?: string;
+  fillColor?: string;
+  fillOpacity?: number;
+  strokeStyle?: DrawingStrokeStyle;
+  templateEffect?: DrawingTemplateEffect;
+  templateWidth?: number;
+  templateFootprintVisible?: boolean;
+  measurementLabelVisible?: boolean;
+  visibleInGm?: boolean;
   visibleInPlayer: boolean;
 }
+
+export type DrawingStrokeStyle = "solid" | "dashed" | "dotted" | "dash-dot" | "sketch";
+export type DrawingTemplateEffect =
+  | "plain"
+  | "acid"
+  | "arcane"
+  | "cold"
+  | "darkness"
+  | "fire"
+  | "fog"
+  | "lightning"
+  | "nature"
+  | "poison"
+  | "psychic"
+  | "radiant"
+  | "storm"
+  | "thunder"
+  | "water"
+  | "web";
 
 export interface SceneOverlay {
   id: string;
@@ -288,6 +488,9 @@ export interface VideoPlaybackSettings {
 export interface TableToolSettings {
   pingSize: number;
   pingColor: string;
+  laserThickness: number;
+  laserColor: string;
+  rulerLinger: boolean;
 }
 
 export interface TurnOrderEntry {
@@ -295,8 +498,12 @@ export interface TurnOrderEntry {
   name: string;
   initiative: number;
   visibleInPlayer: boolean;
+  type?: "count-tracker" | "turn-group";
+  countdown?: number;
+  trackerColor?: string;
   playerId?: string;
   tokenId?: string;
+  tokenIds?: string[];
   assetId?: string;
 }
 
@@ -324,6 +531,7 @@ export type PlayerIndicatorTheme =
   | "sorcerer"
   | "warlock"
   | "wizard";
+export type TurnOrderAvatarMask = "circle" | "square" | "hex";
 
 export const PLAYER_INDICATOR_THEMES: PlayerIndicatorTheme[] = [
   "generic",
@@ -360,18 +568,34 @@ export const PLAYER_INDICATOR_THEME_LABELS: Record<PlayerIndicatorTheme, string>
 export interface TurnOrderSettings {
   active: boolean;
   currentEntryId?: string;
+  round: number;
   playerViewVisible: boolean;
   playerViewEdge: "top" | "right" | "bottom" | "left";
   playerViewFacing: "inward" | "outward";
   playerViewSize: "xs" | "sm" | "md" | "lg" | "xl";
+  playerViewTrackers: Record<TurnOrderTrackerPlacement, TurnOrderTrackerDisplaySettings>;
+  playerViewMaxEntries: number;
+  trackerAvatarMask: TurnOrderAvatarMask;
   playerTurnStatusSize: "xs" | "sm" | "md" | "lg" | "xl";
+  playerTurnAvatarMask: TurnOrderAvatarMask;
   initiativeDiceCount: number;
   initiativeDiceSides: number;
   entries: TurnOrderEntry[];
   seats: PlayerSeatIndicator[];
 }
 
+export type TurnOrderTrackerPlacement = "top" | "right" | "bottom" | "left";
+export type TurnOrderTrackerFacing = "inward" | "outward";
+export type TurnOrderTrackerSize = "xs" | "sm" | "md" | "lg" | "xl";
+
+export interface TurnOrderTrackerDisplaySettings {
+  enabled: boolean;
+  facing: TurnOrderTrackerFacing;
+  size: TurnOrderTrackerSize;
+}
+
 export interface Scene {
+  schemaVersion: number;
   id: string;
   name: string;
   mapAssetId?: string;
@@ -384,6 +608,7 @@ export interface Scene {
   mapTransform: MapTransform;
   fog: FogSettings;
   weather: WeatherSettings;
+  environment: EnvironmentSettings;
   tokens: Token[];
   tokenMovementPath?: TokenMovementPath;
   walls: Wall[];
@@ -432,6 +657,7 @@ export interface SceneLibrarySettings {
 }
 
 export interface Campaign {
+  schemaVersion: number;
   id: string;
   name: string;
   description: string;
@@ -527,12 +753,31 @@ export type LiveTableEvent =
       point: Point;
       size?: number;
       color?: string;
+      visibleInPlayer?: boolean;
       createdAt: number;
     }
   | {
       id: string;
       type: "laser";
       points: LiveTablePoint[];
+      thickness?: number;
+      color?: string;
+      visibleInPlayer?: boolean;
+      createdAt: number;
+    }
+  | {
+      id: string;
+      type: "ruler";
+      points: Point[];
+      primary: string;
+      secondary?: string;
+      visibleInPlayer?: boolean;
+      createdAt: number;
+      expiresAt?: number;
+    }
+  | {
+      id: string;
+      type: "ruler-clear";
       createdAt: number;
     }
   | {
@@ -627,16 +872,29 @@ export const DEFAULT_VIDEO_PLAYBACK: VideoPlaybackSettings = {
 
 export const DEFAULT_TABLE_TOOLS: TableToolSettings = {
   pingSize: 1,
-  pingColor: "#f6d365"
+  pingColor: "#ffd84d",
+  laserThickness: 20,
+  laserColor: "#ff525e",
+  rulerLinger: false
 };
 
 export const DEFAULT_TURN_ORDER: TurnOrderSettings = {
   active: false,
+  round: 1,
   playerViewVisible: false,
   playerViewEdge: "top",
   playerViewFacing: "inward",
   playerViewSize: "md",
+  playerViewTrackers: {
+    top: { enabled: true, facing: "inward", size: "md" },
+    right: { enabled: false, facing: "inward", size: "md" },
+    bottom: { enabled: false, facing: "inward", size: "md" },
+    left: { enabled: false, facing: "inward", size: "md" }
+  },
+  playerViewMaxEntries: 9,
+  trackerAvatarMask: "circle",
   playerTurnStatusSize: "md",
+  playerTurnAvatarMask: "circle",
   initiativeDiceCount: 1,
   initiativeDiceSides: 20,
   entries: [],
@@ -930,6 +1188,10 @@ export function createDefaultWeather(): WeatherSettings {
   };
 }
 
+export const DEFAULT_ENVIRONMENT: EnvironmentSettings = {
+  effects: []
+};
+
 const WEATHER_EFFECTS = new Set<WeatherEffectType>([
   "none",
   "light-rain",
@@ -951,7 +1213,8 @@ export const DEFAULT_LAYERS: Layer[] = [
   // Larger order values render/manage above lower values. Keep ids stable for saved scene compatibility.
   { id: "gm", name: "GM", kind: "gm", order: 90, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
   { id: "fog", name: "Fog of War", kind: "fog", order: 80, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
-  { id: "weather", name: "Weather", kind: "weather", order: 70, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
+  { id: "effects", name: "Effects", kind: "effects", order: 70, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
+  { id: "drawing", name: "Drawings", kind: "drawing", order: 65, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
   { id: "foreground", name: "Foreground", kind: "foreground", order: 60, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
   { id: "token", name: "Tokens", kind: "token", order: 50, visibleInGm: true, visibleInPlayer: false, locked: false, opacity: 1 },
   { id: "object", name: "Objects", kind: "object", order: 40, visibleInGm: true, visibleInPlayer: true, locked: false, opacity: 1 },
@@ -963,6 +1226,7 @@ export const DEFAULT_LAYERS: Layer[] = [
 export function createDefaultCampaign(name: string): Campaign {
   const now = new Date().toISOString();
   return {
+    schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION,
     id: crypto.randomUUID(),
     name,
     description: "",
@@ -984,6 +1248,7 @@ export function createDefaultCampaign(name: string): Campaign {
 export function createDefaultScene(name: string): Scene {
   const now = new Date().toISOString();
   return {
+    schemaVersion: CURRENT_SCENE_SCHEMA_VERSION,
     id: crypto.randomUUID(),
     name,
     createdAt: now,
@@ -995,6 +1260,7 @@ export function createDefaultScene(name: string): Scene {
     mapTransform: { ...DEFAULT_MAP_TRANSFORM },
     fog: { ...DEFAULT_FOG, shapes: [] },
     weather: createDefaultWeather(),
+    environment: { ...DEFAULT_ENVIRONMENT, effects: [] },
     tokens: [],
     walls: [],
     lights: [],
@@ -1038,6 +1304,10 @@ export function duplicateScene(
       ...duplicated.fog,
       shapes: duplicated.fog.shapes.map((shape) => ({ ...shape, id: createId() }))
     },
+    environment: {
+      ...duplicated.environment,
+      effects: duplicated.environment.effects.map((effect) => ({ ...effect, id: createId() }))
+    },
     tokens,
     walls: duplicated.walls.map((wall) => ({ ...wall, id: createId() })),
     lights: duplicated.lights.map((light) => ({
@@ -1054,6 +1324,9 @@ export function assertValidCampaign(value: unknown): asserts value is Campaign {
   if (!isRecord(value) || !isNonEmptyString(value.id) || !isNonEmptyString(value.name) || !Array.isArray(value.scenes)) {
     throw new Error("Invalid campaign.json file.");
   }
+  if (!isSupportedSchemaVersion(value.schemaVersion, CURRENT_CAMPAIGN_SCHEMA_VERSION)) {
+    throw new Error(`Unsupported campaign schema version. This app supports campaign schema version ${CURRENT_CAMPAIGN_SCHEMA_VERSION}.`);
+  }
   if ("assets" in value && !Array.isArray(value.assets)) {
     throw new Error("Invalid campaign assets list.");
   }
@@ -1065,6 +1338,9 @@ export function assertValidCampaign(value: unknown): asserts value is Campaign {
 export function assertValidScene(value: unknown): asserts value is Scene {
   if (!isRecord(value) || !isNonEmptyString(value.id) || !isNonEmptyString(value.name) || !Array.isArray(value.layers)) {
     throw new Error("Invalid scene file.");
+  }
+  if (!isSupportedSchemaVersion(value.schemaVersion, CURRENT_SCENE_SCHEMA_VERSION)) {
+    throw new Error(`Unsupported scene schema version. This app supports scene schema version ${CURRENT_SCENE_SCHEMA_VERSION}.`);
   }
 }
 
@@ -1095,10 +1371,35 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
     return false;
   }
   if (value.type === "ping") {
-    return isPoint(value.point) && (!("size" in value) || (typeof value.size === "number" && Number.isFinite(value.size))) && (!("color" in value) || typeof value.color === "string");
+    return (
+      isPoint(value.point) &&
+      isOptionalFiniteNumber(value.size) &&
+      isOptionalString(value.color) &&
+      isOptionalBoolean(value.visibleInPlayer)
+    );
   }
   if (value.type === "laser") {
-    return Array.isArray(value.points) && value.points.every((entry) => isRecord(entry) && isPoint(entry.point) && typeof entry.createdAt === "number");
+    return (
+      Array.isArray(value.points) &&
+      value.points.every((entry) => isRecord(entry) && isPoint(entry.point) && typeof entry.createdAt === "number") &&
+      isOptionalFiniteNumber(value.thickness) &&
+      isOptionalString(value.color) &&
+      isOptionalBoolean(value.visibleInPlayer)
+    );
+  }
+  if (value.type === "ruler") {
+    return (
+      Array.isArray(value.points) &&
+      value.points.length >= 2 &&
+      value.points.every(isPoint) &&
+      typeof value.primary === "string" &&
+      isOptionalString(value.secondary) &&
+      isOptionalBoolean(value.visibleInPlayer) &&
+      isOptionalFiniteNumber(value.expiresAt)
+    );
+  }
+  if (value.type === "ruler-clear") {
+    return true;
   }
   if (value.type === "dice") {
     return (
@@ -1106,29 +1407,29 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
       typeof value.result === "number" &&
       Number.isInteger(value.result) &&
       typeof value.label === "string" &&
-      (!("formula" in value) || typeof value.formula === "string") &&
-      (!("rollLabel" in value) || typeof value.rollLabel === "string") &&
+      isOptionalString(value.formula) &&
+      isOptionalString(value.rollLabel) &&
       typeof value.seed === "number" &&
       Number.isFinite(value.seed) &&
-      (!("sceneResolvedLabel" in value) || typeof value.sceneResolvedLabel === "string") &&
-      (!("sceneResolvedSummary" in value) || typeof value.sceneResolvedSummary === "string") &&
-      (!("sceneResolvedResult" in value) || (typeof value.sceneResolvedResult === "number" && Number.isInteger(value.sceneResolvedResult))) &&
-      (!("gmDiceDisplay" in value) || isDiceDisplayMode(value.gmDiceDisplay)) &&
-      (!("playerDiceDisplay" in value) || isDiceDisplayMode(value.playerDiceDisplay)) &&
-      (!("gmDiceSceneSize" in value) || isDiceSceneSize(value.gmDiceSceneSize)) &&
-      (!("playerDiceSceneSize" in value) || isDiceSceneSize(value.playerDiceSceneSize)) &&
-      (!("gmDicePanelEdge" in value) || isDicePanelEdge(value.gmDicePanelEdge)) &&
-      (!("playerDicePanelEdge" in value) || isDicePanelEdge(value.playerDicePanelEdge)) &&
-      (!("gmDicePanelFacing" in value) || isDicePanelFacing(value.gmDicePanelFacing)) &&
-      (!("playerDicePanelFacing" in value) || isDicePanelFacing(value.playerDicePanelFacing)) &&
-      (!("gmDicePanelPosition" in value) || isUnitNumber(value.gmDicePanelPosition)) &&
-      (!("playerDicePanelPosition" in value) || isUnitNumber(value.playerDicePanelPosition)) &&
-      (!("gmDicePanelAdvanced" in value) || typeof value.gmDicePanelAdvanced === "boolean") &&
-      (!("playerDicePanelAdvanced" in value) || typeof value.playerDicePanelAdvanced === "boolean") &&
-      (!("gmPresentation" in value) || value.gmPresentation === "3d" || value.gmPresentation === "result") &&
-      (!("playerPresentation" in value) || value.playerPresentation === "3d" || value.playerPresentation === "result") &&
-      (!("presentation" in value) || value.presentation === "3d" || value.presentation === "result") &&
-      (!("dice" in value) ||
+      isOptionalString(value.sceneResolvedLabel) &&
+      isOptionalString(value.sceneResolvedSummary) &&
+      (value.sceneResolvedResult === undefined || (typeof value.sceneResolvedResult === "number" && Number.isInteger(value.sceneResolvedResult))) &&
+      (value.gmDiceDisplay === undefined || isDiceDisplayMode(value.gmDiceDisplay)) &&
+      (value.playerDiceDisplay === undefined || isDiceDisplayMode(value.playerDiceDisplay)) &&
+      (value.gmDiceSceneSize === undefined || isDiceSceneSize(value.gmDiceSceneSize)) &&
+      (value.playerDiceSceneSize === undefined || isDiceSceneSize(value.playerDiceSceneSize)) &&
+      (value.gmDicePanelEdge === undefined || isDicePanelEdge(value.gmDicePanelEdge)) &&
+      (value.playerDicePanelEdge === undefined || isDicePanelEdge(value.playerDicePanelEdge)) &&
+      (value.gmDicePanelFacing === undefined || isDicePanelFacing(value.gmDicePanelFacing)) &&
+      (value.playerDicePanelFacing === undefined || isDicePanelFacing(value.playerDicePanelFacing)) &&
+      (value.gmDicePanelPosition === undefined || isUnitNumber(value.gmDicePanelPosition)) &&
+      (value.playerDicePanelPosition === undefined || isUnitNumber(value.playerDicePanelPosition)) &&
+      isOptionalBoolean(value.gmDicePanelAdvanced) &&
+      isOptionalBoolean(value.playerDicePanelAdvanced) &&
+      (value.gmPresentation === undefined || value.gmPresentation === "3d" || value.gmPresentation === "result") &&
+      (value.playerPresentation === undefined || value.playerPresentation === "3d" || value.playerPresentation === "result") &&
+      (value.presentation === undefined || value.presentation === "3d" || value.presentation === "result") &&
+      (value.dice === undefined ||
         (Array.isArray(value.dice) &&
           value.dice.every(
             (die) =>
@@ -1139,7 +1440,7 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
               typeof die.label === "string" &&
               typeof die.seed === "number" &&
               Number.isFinite(die.seed) &&
-              (!("kept" in die) || typeof die.kept === "boolean")
+              isOptionalBoolean(die.kept)
           )))
     );
   }
@@ -1147,6 +1448,18 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
     return true;
   }
   return false;
+}
+
+function isOptionalBoolean(value: unknown): boolean {
+  return value === undefined || typeof value === "boolean";
+}
+
+function isOptionalFiniteNumber(value: unknown): boolean {
+  return value === undefined || (typeof value === "number" && Number.isFinite(value));
+}
+
+function isOptionalString(value: unknown): boolean {
+  return value === undefined || typeof value === "string";
 }
 
 function isDiceType(value: unknown): value is Extract<LiveTableEvent, { type: "dice" }>["die"] {
@@ -1182,7 +1495,46 @@ function normalizeTableTools(settings?: Partial<TableToolSettings>): TableToolSe
     ...DEFAULT_TABLE_TOOLS,
     ...(settings ?? {}),
     pingSize: clampNumber(settings?.pingSize, 0.5, 3, DEFAULT_TABLE_TOOLS.pingSize),
-    pingColor: normalizeColor(settings?.pingColor, DEFAULT_TABLE_TOOLS.pingColor)
+    pingColor: normalizeColor(settings?.pingColor, DEFAULT_TABLE_TOOLS.pingColor),
+    laserThickness: clampNumber(settings?.laserThickness, 4, 80, DEFAULT_TABLE_TOOLS.laserThickness),
+    laserColor: normalizeColor(settings?.laserColor, DEFAULT_TABLE_TOOLS.laserColor),
+    rulerLinger: typeof settings?.rulerLinger === "boolean" ? settings.rulerLinger : DEFAULT_TABLE_TOOLS.rulerLinger
+  };
+}
+
+function normalizeLayerIdentity(layer: Layer): Layer {
+  if (layer.id === "weather" || (layer.kind as string) === "weather") {
+    return {
+      ...layer,
+      id: "effects",
+      kind: "effects"
+    };
+  }
+  return layer;
+}
+
+function normalizeLayerId(layerId: string): string {
+  return layerId === "weather" ? "effects" : layerId;
+}
+
+function normalizeSceneOverlays(overlays?: SceneOverlay[]): SceneOverlay[] {
+  return (overlays ?? []).map((overlay) => ({
+    ...overlay,
+    layerId: normalizeLayerId(overlay.layerId)
+  }));
+}
+
+function migrateSceneToCurrent(scene: Scene): Scene {
+  const schemaVersion = normalizeSchemaVersion(scene.schemaVersion, CURRENT_SCENE_SCHEMA_VERSION);
+  if (schemaVersion === LEGACY_SCHEMA_VERSION) {
+    return {
+      ...scene,
+      schemaVersion: CURRENT_SCENE_SCHEMA_VERSION
+    };
+  }
+  return {
+    ...scene,
+    schemaVersion: CURRENT_SCENE_SCHEMA_VERSION
   };
 }
 
@@ -1195,7 +1547,9 @@ function isPoint(value: unknown): value is Point {
 }
 
 export function normalizeScene(scene: Scene): Scene {
-  const layerById = new Map((scene.layers ?? []).map((layer) => [layer.id, layer]));
+  const migratedScene = migrateSceneToCurrent(scene);
+  const migratedLayers = (migratedScene.layers ?? []).map(normalizeLayerIdentity);
+  const layerById = new Map(migratedLayers.map((layer) => [layer.id, layer]));
   // Default layer names/order are application-owned so old scene files pick up current layer labels safely.
   const normalizedLayers = DEFAULT_LAYERS.map((defaultLayer) => ({
     ...defaultLayer,
@@ -1203,28 +1557,30 @@ export function normalizeScene(scene: Scene): Scene {
     name: defaultLayer.name,
     order: defaultLayer.order
   }));
-  const customLayers = (scene.layers ?? []).filter((layer) => !DEFAULT_LAYERS.some((defaultLayer) => defaultLayer.id === layer.id));
+  const customLayers = migratedLayers.filter((layer) => !DEFAULT_LAYERS.some((defaultLayer) => defaultLayer.id === layer.id));
 
   return {
-    ...scene,
-    grid: { ...DEFAULT_GRID, ...(scene.grid ?? {}), measurement: { ...DEFAULT_MEASUREMENT, ...(scene.grid?.measurement ?? {}) } },
-    calibration: { ...DEFAULT_CALIBRATION, ...(scene.calibration ?? {}) },
+    ...migratedScene,
+    schemaVersion: CURRENT_SCENE_SCHEMA_VERSION,
+    grid: { ...DEFAULT_GRID, ...(migratedScene.grid ?? {}), measurement: { ...DEFAULT_MEASUREMENT, ...(migratedScene.grid?.measurement ?? {}) } },
+    calibration: { ...DEFAULT_CALIBRATION, ...(migratedScene.calibration ?? {}) },
     layers: [...normalizedLayers, ...customLayers],
-    layerOrderLocked: scene.layerOrderLocked ?? true,
-    mapTransform: { ...DEFAULT_MAP_TRANSFORM, ...(scene.mapTransform ?? {}) },
-    fog: normalizeFog(scene.fog),
-    weather: normalizeWeather(scene.weather),
-    tokens: normalizeTokens(scene.tokens),
-    tokenMovementPath: normalizeTokenMovementPath(scene.tokenMovementPath),
-    walls: scene.walls ?? [],
-    lights: scene.lights ?? [],
-    drawings: scene.drawings ?? [],
-    overlays: scene.overlays ?? [],
-    turnOrder: normalizeTurnOrder(scene.turnOrder),
-    videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(scene.videoPlayback ?? {}) },
-    tableTools: normalizeTableTools(scene.tableTools),
-    notes: scene.notes ?? "",
-    playerView: { ...DEFAULT_PLAYER_VIEW, ...(scene.playerView ?? {}) }
+    layerOrderLocked: migratedScene.layerOrderLocked ?? true,
+    mapTransform: { ...DEFAULT_MAP_TRANSFORM, ...(migratedScene.mapTransform ?? {}) },
+    fog: normalizeFog(migratedScene.fog),
+    weather: normalizeWeather(migratedScene.weather),
+    environment: normalizeEnvironment(migratedScene.environment),
+    tokens: normalizeTokens(migratedScene.tokens),
+    tokenMovementPath: normalizeTokenMovementPath(migratedScene.tokenMovementPath),
+    walls: migratedScene.walls ?? [],
+    lights: migratedScene.lights ?? [],
+    drawings: normalizeDrawings(migratedScene.drawings),
+    overlays: normalizeSceneOverlays(migratedScene.overlays),
+    turnOrder: normalizeTurnOrder(migratedScene.turnOrder),
+    videoPlayback: { ...DEFAULT_VIDEO_PLAYBACK, ...(migratedScene.videoPlayback ?? {}) },
+    tableTools: normalizeTableTools(migratedScene.tableTools),
+    notes: migratedScene.notes ?? "",
+    playerView: { ...DEFAULT_PLAYER_VIEW, ...(migratedScene.playerView ?? {}) }
   };
 }
 
@@ -1337,12 +1693,70 @@ function normalizeWeatherMasks(masks?: WeatherMask[]): WeatherMask[] {
       return {
         ...mask,
         id,
-        name: typeof mask.name === "string" && mask.name.trim() ? mask.name : `Weather Mask ${index + 1}`,
+        name: typeof mask.name === "string" && mask.name.trim() ? mask.name : `Weather Effect Mask ${index + 1}`,
         points,
-        visible: mask.visible ?? true
+        visible: mask.visible ?? true,
+        visibleInPlayer: mask.visibleInPlayer ?? true
       };
     });
 }
+
+function normalizeEnvironment(environment?: Partial<EnvironmentSettings>): EnvironmentSettings {
+  return {
+    ...DEFAULT_ENVIRONMENT,
+    effects: normalizeEnvironmentEffectMasks(environment?.effects)
+  };
+}
+
+function normalizeEnvironmentEffectMasks(effects?: EnvironmentEffectMask[]): EnvironmentEffectMask[] {
+  const usedIds = new Set<string>();
+  return (effects ?? [])
+    .filter((effect) => effect.kind === "rectangle" || effect.kind === "polygon" || effect.kind === "circle")
+    .map((effect, index) => {
+      const rawId = typeof effect.id === "string" ? effect.id.trim() : "";
+      const baseId = rawId || `environment-effect-${index + 1}`;
+      let id = baseId;
+      let suffix = 2;
+      while (usedIds.has(id)) {
+        id = `${baseId}-${suffix}`;
+        suffix += 1;
+      }
+      usedIds.add(id);
+      const points = effect.kind === "circle" ? effect.points.slice(0, 1) : effect.points;
+      const incomingEffectType = (effect as { effect?: unknown }).effect;
+      const rawEffectType = incomingEffectType === "lightning" ? "electric" : incomingEffectType;
+      const effectType = isEnvironmentEffectType(rawEffectType) ? rawEffectType : "water";
+      return {
+        ...effect,
+        id,
+        name: typeof effect.name === "string" && effect.name.trim() ? effect.name : `${formatEnvironmentEffectName(effectType)} Effect ${index + 1}`,
+        effect: effectType,
+        points,
+        feather: clampNumber(effect.feather, 0, 1, 0),
+        acidTuning: effectType === "acid" ? normalizeAcidEffectTuning(effect.acidTuning) : undefined,
+        coldTuning: effectType === "cold" ? normalizeColdEffectTuning(effect.coldTuning) : undefined,
+        darknessTuning: effectType === "darkness" ? normalizeDarknessEffectTuning(effect.darknessTuning) : undefined,
+        poisonTuning: effectType === "poison" ? normalizePoisonEffectTuning(effect.poisonTuning) : undefined,
+        waterTuning: effectType === "water" ? normalizeWaterEffectTuning(effect.waterTuning) : undefined,
+        lavaTuning: effectType === "lava" ? normalizeLavaEffectTuning(effect.lavaTuning) : undefined,
+        fireTuning: effectType === "fire" ? normalizeFireEffectTuning(effect.fireTuning) : undefined,
+        lightningTuning: effectType === "electric" ? normalizeLightningEffectTuning(effect.lightningTuning) : undefined,
+        arcaneTuning: effectType === "arcane" ? normalizeArcaneEffectTuning(effect.arcaneTuning) : undefined,
+        radiantTuning: effectType === "radiant" ? normalizeRadiantEffectTuning(effect.radiantTuning) : undefined,
+        fieldTuning: effectType === "field" ? normalizeForceFieldEffectTuning(effect.fieldTuning) : undefined,
+        shockwaveTuning: effectType === "shockwave" ? normalizeShockwaveEffectTuning(effect.shockwaveTuning) : undefined,
+        distortionTuning: effectType === "distortion" ? normalizeDistortionEffectTuning(effect.distortionTuning) : undefined,
+        chaosTuning: effectType === "chaos" ? normalizeChaosEffectTuning(effect.chaosTuning) : undefined,
+        voidTuning: effectType === "void" ? normalizeVoidEffectTuning(effect.voidTuning) : undefined,
+        natureTuning: effectType === "nature" ? normalizeNatureEffectTuning(effect.natureTuning) : undefined,
+        smokeTuning: effectType === "smoke" ? normalizeSmokeEffectTuning(effect.smokeTuning) : undefined,
+        fogTuning: effectType === "fog" ? normalizeFogEffectTuning(effect.fogTuning) : undefined,
+        visibleInGm: effect.visibleInGm ?? true,
+        visibleInPlayer: effect.visibleInPlayer ?? true
+      };
+    });
+}
+
 
 function normalizeWeatherEffectSettings(settings?: WeatherSettings["effectSettings"]): WeatherSettings["effectSettings"] {
   const normalized: WeatherSettings["effectSettings"] = {};
@@ -1413,6 +1827,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isSupportedSchemaVersion(value: unknown, currentVersion: number): boolean {
+  if (value === undefined) {
+    return true;
+  }
+  return typeof value === "number" && Number.isInteger(value) && value >= LEGACY_SCHEMA_VERSION && value <= currentVersion;
+}
+
+function normalizeSchemaVersion(value: unknown, currentVersion: number): number {
+  return isSupportedSchemaVersion(value, currentVersion) && typeof value === "number" ? value : LEGACY_SCHEMA_VERSION;
+}
+
 function normalizeFog(fog?: Partial<FogSettings>): FogSettings {
   const legacyOpacity = fog?.opacity ?? DEFAULT_FOG.opacity;
   const usedShapeIds = new Set<string>();
@@ -1458,12 +1883,123 @@ export function formatDefaultFogShapeName(operation: FogShape["operation"], kind
   return `${operationLabel} ${kindLabel} ${index + 1}`;
 }
 
+function normalizeDrawings(drawings?: DrawingElement[]): DrawingElement[] {
+  if (!Array.isArray(drawings)) {
+    return [];
+  }
+  const usedIds = new Set<string>();
+  return drawings.filter(isRecord).map((drawing, index) => {
+    const kind = normalizeDrawingKind(drawing.kind);
+    const isTemplateDrawing = drawing.measurementLabelVisible === true;
+    return {
+      id: getUniqueDrawingId(drawing.id, index, usedIds),
+      name: typeof drawing.name === "string" && drawing.name.trim() ? drawing.name.trim() : formatDefaultDrawingName(kind, index),
+      kind,
+      points: Array.isArray(drawing.points) ? drawing.points.filter(isPoint) : [],
+      text: typeof drawing.text === "string" ? drawing.text : undefined,
+      color: normalizeColor(drawing.color, "#f6d365"),
+      opacity: clampNumber(drawing.opacity, 0, 1, 1),
+      strokeColor: normalizeColor(drawing.strokeColor ?? drawing.color, "#f6d365"),
+      strokeOpacity: clampNumber(drawing.strokeOpacity ?? drawing.opacity, 0, 1, 1),
+      strokeWidth: clampNumber(drawing.strokeWidth, 1, 400, 4),
+      fill: typeof drawing.fill === "string" ? normalizeColor(drawing.fill, "transparent") : undefined,
+      fillColor: normalizeColor(drawing.fillColor ?? drawing.fill ?? drawing.color, "#f6d365"),
+      fillOpacity: clampNumber(drawing.fillOpacity ?? (typeof drawing.fill === "string" ? drawing.opacity : 0), 0, 1, 0),
+      strokeStyle: normalizeDrawingStrokeStyle(drawing.strokeStyle),
+      templateEffect: isTemplateDrawing ? normalizeDrawingTemplateEffect(drawing.templateEffect) : "plain",
+      templateWidth: isTemplateDrawing ? clampNumber(drawing.templateWidth, 0, 100, 5) : 5,
+      templateFootprintVisible: isTemplateDrawing ? drawing.templateFootprintVisible === true : undefined,
+      measurementLabelVisible: typeof drawing.measurementLabelVisible === "boolean" ? drawing.measurementLabelVisible : undefined,
+      visibleInGm: typeof drawing.visibleInGm === "boolean" ? drawing.visibleInGm : true,
+      visibleInPlayer: typeof drawing.visibleInPlayer === "boolean" ? drawing.visibleInPlayer : true
+    };
+  });
+}
+
+function normalizeDrawingStrokeStyle(value: unknown): DrawingStrokeStyle {
+  return value === "solid" || value === "dashed" || value === "dotted" || value === "dash-dot" || value === "sketch" ? value : "solid";
+}
+
+function normalizeDrawingTemplateEffect(value: unknown): DrawingTemplateEffect {
+  return value === "acid" ||
+    value === "arcane" ||
+    value === "cold" ||
+    value === "darkness" ||
+    value === "fire" ||
+    value === "fog" ||
+    value === "lightning" ||
+    value === "nature" ||
+    value === "poison" ||
+    value === "psychic" ||
+    value === "radiant" ||
+    value === "storm" ||
+    value === "thunder" ||
+    value === "water" ||
+    value === "web"
+    ? value
+    : "plain";
+}
+
+function getUniqueDrawingId(id: unknown, index: number, usedIds: Set<string>): string {
+  const rawId = typeof id === "string" ? id.trim() : "";
+  const baseId = rawId || `drawing-${index + 1}`;
+  let candidateId = baseId;
+  let suffix = 2;
+  while (usedIds.has(candidateId)) {
+    candidateId = `${baseId}-${suffix}`;
+    suffix += 1;
+  }
+  usedIds.add(candidateId);
+  return candidateId;
+}
+
+function normalizeDrawingKind(kind: unknown): DrawingKind {
+  return kind === "freehand" ||
+    kind === "line" ||
+    kind === "rectangle" ||
+    kind === "circle" ||
+    kind === "ellipse" ||
+    kind === "triangle" ||
+    kind === "polygon" ||
+    kind === "cone" ||
+    kind === "text" ||
+    kind === "ping" ||
+    kind === "laser"
+    ? kind
+    : "freehand";
+}
+
+export function formatDefaultDrawingName(kind: DrawingKind, index: number): string {
+  if (kind === "freehand") {
+    return `Brush ${index + 1}`;
+  }
+  const kindLabel = kind
+    .split("-")
+    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+  return `${kindLabel} ${index + 1}`;
+}
+
 function normalizeTokenMovementPath(path?: TokenMovementPath): TokenMovementPath | undefined {
   if (!path || typeof path.tokenId !== "string" || !Array.isArray(path.points)) {
     return undefined;
   }
   const points = path.points.filter(isPoint);
   return points.length > 0 ? { tokenId: path.tokenId, points } : undefined;
+}
+
+function normalizeTokenConditions(conditions?: TokenCondition[]): TokenCondition[] {
+  const seen = new Set<TokenConditionId>();
+  return (conditions ?? []).flatMap((condition) => {
+    if (!condition || !TOKEN_CONDITION_IDS.includes(condition.id) || seen.has(condition.id)) {
+      return [];
+    }
+    seen.add(condition.id);
+    return [{
+      id: condition.id,
+      visibleInPlayer: condition.visibleInPlayer ?? true
+    }];
+  });
 }
 
 function normalizeTokens(tokens?: Token[]): Token[] {
@@ -1481,7 +2017,8 @@ function normalizeTokens(tokens?: Token[]): Token[] {
     order: token.order ?? (tokens?.length ?? 0) - index,
     hidden: token.hidden ?? false,
     visibleInGm: token.visibleInGm ?? !(token.hidden ?? false),
-    visibleInPlayer: token.hidden ? false : (token.visibleInPlayer ?? false)
+    visibleInPlayer: token.hidden ? false : (token.visibleInPlayer ?? false),
+    conditions: normalizeTokenConditions(token.conditions)
   }));
 }
 
@@ -1489,11 +2026,17 @@ function normalizeTurnOrder(turnOrder?: Partial<TurnOrderSettings>): TurnOrderSe
   const entryIds = new Set<string>();
   const entries = (turnOrder?.entries ?? []).map((entry, index) => {
     const id = getUniqueTurnOrderId(entry.id, index, entryIds);
+    const type: TurnOrderEntry["type"] = entry.type === "count-tracker" || entry.type === "turn-group" ? entry.type : undefined;
+    const tokenIds = Array.from(new Set((entry.tokenIds ?? []).filter((tokenId): tokenId is string => typeof tokenId === "string" && tokenId.trim().length > 0)));
     return {
       ...entry,
       id,
       name: typeof entry.name === "string" && entry.name.trim() ? entry.name : `Entry ${index + 1}`,
       initiative: clampNumber(entry.initiative, -99, 99, 0),
+      type,
+      countdown: type === "count-tracker" || entry.countdown !== undefined ? clampNumber(entry.countdown, 0, 999, 1) : undefined,
+      trackerColor: type === "count-tracker" ? normalizeColor(entry.trackerColor, "#f5d98a") : undefined,
+      tokenIds: type === "turn-group" ? tokenIds : undefined,
       visibleInPlayer: entry.visibleInPlayer ?? true
     };
   });
@@ -1508,30 +2051,68 @@ function normalizeTurnOrder(turnOrder?: Partial<TurnOrderSettings>): TurnOrderSe
     visibleInPlayer: seat.visibleInPlayer ?? true
   }));
   const currentEntryId = turnOrder?.currentEntryId && entryIdSet.has(turnOrder.currentEntryId) ? turnOrder.currentEntryId : entries[0]?.id;
+  const playerViewEdge = normalizeTurnOrderTrackerPlacement(turnOrder?.playerViewEdge);
+  const playerViewFacing = normalizeTurnOrderTrackerFacing(turnOrder?.playerViewFacing);
+  const playerViewSize = normalizeTurnOrderTrackerSize(turnOrder?.playerViewSize);
   return {
     ...DEFAULT_TURN_ORDER,
     ...(turnOrder ?? {}),
     active: turnOrder?.active ?? false,
     currentEntryId,
+    round: clampNumber(turnOrder?.round, 1, 999, DEFAULT_TURN_ORDER.round),
     playerViewVisible: turnOrder?.playerViewVisible ?? false,
-    playerViewEdge:
-      turnOrder?.playerViewEdge === "top" || turnOrder?.playerViewEdge === "right" || turnOrder?.playerViewEdge === "bottom" || turnOrder?.playerViewEdge === "left"
-        ? turnOrder.playerViewEdge
-        : DEFAULT_TURN_ORDER.playerViewEdge,
-    playerViewFacing: turnOrder?.playerViewFacing === "outward" ? "outward" : DEFAULT_TURN_ORDER.playerViewFacing,
-    playerViewSize:
-      turnOrder?.playerViewSize === "xs" || turnOrder?.playerViewSize === "sm" || turnOrder?.playerViewSize === "lg" || turnOrder?.playerViewSize === "xl"
-        ? turnOrder.playerViewSize
-        : DEFAULT_TURN_ORDER.playerViewSize,
-    playerTurnStatusSize:
-      turnOrder?.playerTurnStatusSize === "xs" || turnOrder?.playerTurnStatusSize === "sm" || turnOrder?.playerTurnStatusSize === "lg" || turnOrder?.playerTurnStatusSize === "xl"
-        ? turnOrder.playerTurnStatusSize
-        : DEFAULT_TURN_ORDER.playerTurnStatusSize,
+    playerViewEdge,
+    playerViewFacing,
+    playerViewSize,
+    playerViewTrackers: normalizeTurnOrderTrackers(turnOrder?.playerViewTrackers, playerViewEdge, playerViewFacing, playerViewSize),
+    playerViewMaxEntries: clampNumber(turnOrder?.playerViewMaxEntries, 1, 30, DEFAULT_TURN_ORDER.playerViewMaxEntries),
+    trackerAvatarMask: normalizeTurnOrderAvatarMask(turnOrder?.trackerAvatarMask),
+    playerTurnStatusSize: normalizeTurnOrderTrackerSize(turnOrder?.playerTurnStatusSize),
+    playerTurnAvatarMask: normalizeTurnOrderAvatarMask(turnOrder?.playerTurnAvatarMask),
     initiativeDiceCount: clampNumber(turnOrder?.initiativeDiceCount, 1, 20, DEFAULT_TURN_ORDER.initiativeDiceCount),
     initiativeDiceSides: clampNumber(turnOrder?.initiativeDiceSides, 2, 100, DEFAULT_TURN_ORDER.initiativeDiceSides),
     entries,
     seats
   };
+}
+
+const TURN_ORDER_TRACKER_PLACEMENTS: TurnOrderTrackerPlacement[] = ["top", "right", "bottom", "left"];
+
+function normalizeTurnOrderTrackers(
+  trackers: unknown,
+  legacyEdge: TurnOrderTrackerPlacement,
+  legacyFacing: TurnOrderTrackerFacing,
+  legacySize: TurnOrderTrackerSize
+): Record<TurnOrderTrackerPlacement, TurnOrderTrackerDisplaySettings> {
+  const source = isRecord(trackers) ? trackers : null;
+  return TURN_ORDER_TRACKER_PLACEMENTS.reduce(
+    (nextTrackers, edge) => {
+      const tracker = source && isRecord(source[edge]) ? source[edge] : null;
+      nextTrackers[edge] = {
+        enabled: tracker ? tracker.enabled === true : edge === legacyEdge,
+        facing: normalizeTurnOrderTrackerFacing(tracker?.facing ?? (edge === legacyEdge ? legacyFacing : DEFAULT_TURN_ORDER.playerViewFacing)),
+        size: normalizeTurnOrderTrackerSize(tracker?.size ?? (edge === legacyEdge ? legacySize : DEFAULT_TURN_ORDER.playerViewSize))
+      };
+      return nextTrackers;
+    },
+    {} as Record<TurnOrderTrackerPlacement, TurnOrderTrackerDisplaySettings>
+  );
+}
+
+function normalizeTurnOrderTrackerPlacement(edge: unknown): TurnOrderTrackerPlacement {
+  return edge === "top" || edge === "right" || edge === "bottom" || edge === "left" ? edge : DEFAULT_TURN_ORDER.playerViewEdge;
+}
+
+function normalizeTurnOrderTrackerFacing(facing: unknown): TurnOrderTrackerFacing {
+  return facing === "outward" ? "outward" : DEFAULT_TURN_ORDER.playerViewFacing;
+}
+
+function normalizeTurnOrderTrackerSize(size: unknown): TurnOrderTrackerSize {
+  return size === "xs" || size === "sm" || size === "lg" || size === "xl" ? size : DEFAULT_TURN_ORDER.playerViewSize;
+}
+
+function normalizeTurnOrderAvatarMask(mask: unknown): TurnOrderAvatarMask {
+  return mask === "square" || mask === "hex" ? mask : "circle";
 }
 
 function getUniqueTurnOrderId(id: unknown, index: number, usedIds: Set<string>): string {
@@ -1574,25 +2155,41 @@ function normalizeDiceSettings(settings?: Partial<DiceSettings>): DiceSettings {
   };
 }
 
+function migrateCampaignToCurrent(campaign: Campaign): Campaign {
+  const schemaVersion = normalizeSchemaVersion(campaign.schemaVersion, CURRENT_CAMPAIGN_SCHEMA_VERSION);
+  if (schemaVersion === LEGACY_SCHEMA_VERSION) {
+    return {
+      ...campaign,
+      schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION
+    };
+  }
+  return {
+    ...campaign,
+    schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION
+  };
+}
+
 export function normalizeCampaign(campaign: Campaign): Campaign {
-  const sceneFolders = (campaign.sceneFolders ?? []).map((folder) => ({
+  const migratedCampaign = migrateCampaignToCurrent(campaign);
+  const sceneFolders = (migratedCampaign.sceneFolders ?? []).map((folder) => ({
     ...folder,
     color: normalizeColor(folder.color)
   }));
   const folderIds = new Set(sceneFolders.map((folder) => folder.id));
   // Drop collapsed folder ids that no longer exist so deleted folders do not linger in UI state.
-  const collapsedFolderIds = (campaign.sceneLibrary?.collapsedFolderIds ?? []).filter((folderId) => folderIds.has(folderId));
+  const collapsedFolderIds = (migratedCampaign.sceneLibrary?.collapsedFolderIds ?? []).filter((folderId) => folderIds.has(folderId));
 
   return {
-    ...campaign,
-    defaultGrid: { ...DEFAULT_GRID, ...(campaign.defaultGrid ?? {}), measurement: { ...DEFAULT_MEASUREMENT, ...(campaign.defaultGrid?.measurement ?? {}) } },
-    defaultMeasurement: { ...DEFAULT_MEASUREMENT, ...(campaign.defaultMeasurement ?? {}) },
-    defaultCalibration: { ...DEFAULT_CALIBRATION, ...(campaign.defaultCalibration ?? {}) },
-    playerDisplay: { ...DEFAULT_CALIBRATION, ...(campaign.playerDisplay ?? campaign.defaultCalibration ?? {}) },
-    diceSettings: normalizeDiceSettings(campaign.diceSettings),
+    ...migratedCampaign,
+    schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION,
+    defaultGrid: { ...DEFAULT_GRID, ...(migratedCampaign.defaultGrid ?? {}), measurement: { ...DEFAULT_MEASUREMENT, ...(migratedCampaign.defaultGrid?.measurement ?? {}) } },
+    defaultMeasurement: { ...DEFAULT_MEASUREMENT, ...(migratedCampaign.defaultMeasurement ?? {}) },
+    defaultCalibration: { ...DEFAULT_CALIBRATION, ...(migratedCampaign.defaultCalibration ?? {}) },
+    playerDisplay: { ...DEFAULT_CALIBRATION, ...(migratedCampaign.playerDisplay ?? migratedCampaign.defaultCalibration ?? {}) },
+    diceSettings: normalizeDiceSettings(migratedCampaign.diceSettings),
     sceneLibrary: { collapsedFolderIds },
     sceneFolders,
-    scenes: (campaign.scenes ?? []).map((scene) => {
+    scenes: (migratedCampaign.scenes ?? []).map((scene) => {
       const { folderId, ...sceneWithoutFolder } = scene;
       return {
         ...sceneWithoutFolder,
@@ -1600,7 +2197,7 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
         weather: scene.weather ? normalizeWeather(scene.weather) : undefined
       };
     }),
-    players: (campaign.players ?? []).map((player, index) => ({
+    players: (migratedCampaign.players ?? []).map((player, index) => ({
       ...player,
       id: typeof player.id === "string" && player.id.trim() ? player.id : `player-${index + 1}`,
       name: typeof player.name === "string" && player.name.trim() ? player.name : `Player ${index + 1}`,
@@ -1611,7 +2208,7 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
       defaultSeatPosition: clampNumber(player.defaultSeatPosition, 0, 1, 0.5),
       visibleInPlayer: player.visibleInPlayer ?? true
     })),
-    assets: (campaign.assets ?? []).map(normalizeAsset)
+    assets: (migratedCampaign.assets ?? []).map(normalizeAsset)
   };
 }
 
@@ -1696,9 +2293,14 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
       },
       // Projection is the Player View trust boundary: strip GM-only layers/content before sending across IPC.
       layers: normalizedScene.layers.filter((layer) => layer.visibleInPlayer),
-      tokens: normalizedScene.tokens.filter((token) => token.visibleInPlayer),
+      tokens: normalizedScene.tokens
+        .filter((token) => token.visibleInPlayer)
+        .map((token) => ({
+          ...token,
+          conditions: (token.conditions ?? []).filter((condition) => condition.visibleInPlayer)
+        })),
       walls: [],
-      drawings: normalizedScene.drawings.filter((drawing) => drawing.visibleInPlayer),
+      drawings: normalizedScene.drawings.filter((drawing) => drawing.visibleInPlayer && playerLayerIds.has("drawing")),
       overlays: normalizedScene.overlays.filter((overlay) => overlay.visibleInPlayer && playerLayerIds.has(overlay.layerId)),
       notes: ""
     },

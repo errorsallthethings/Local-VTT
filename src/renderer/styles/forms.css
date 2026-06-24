@@ -242,7 +242,7 @@
   text-transform: uppercase;
 }
 
-.layer-row label,
+.layer-row > label,
 .check {
   display: flex;
   align-items: center;
@@ -523,6 +523,26 @@
   display: grid;
   gap: 6px;
   min-width: 0;
+}
+
+.effects-layer-list .fog-shape-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.effects-layer-list .fog-shape-list-header small {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 18px;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-pill);
+  background: rgb(12 18 26 / 0.58);
+  color: var(--color-text-faint);
+  font-size: 10px;
+  font-weight: 800;
 }
 
 .weather-mask-row {

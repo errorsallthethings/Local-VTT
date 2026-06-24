@@ -1,8 +1,8 @@
 import { type PointerEvent as ReactPointerEvent } from "react";
 import { GripVertical, Lock, PanelRightClose, PanelRightOpen, Unlock } from "lucide-react";
 import type { Asset, FogSettings, GridSettings, MapTransform, Scene } from "../../shared/localvtt";
-import { LayerPanel } from "../components/layers/LayerPanel";
-import type { WorkspaceLayout } from "../lib/workspaceLayout";
+import { LayerPanel } from "../components/layers";
+import type { WorkspaceLayout } from "../lib/workspace";
 
 export function GmInspector({
   activeScene,
@@ -10,7 +10,13 @@ export function GmInspector({
   tokenAssets,
   selectedFogShapeId,
   selectedWeatherMaskId,
+  selectedEnvironmentEffectId,
+  selectedDrawingId,
   selectedTokenId,
+  selectedFogShapeIds,
+  selectedWeatherMaskIds,
+  selectedDrawingIds,
+  selectedTokenIds,
   workspaceLayout,
   onClearActiveFogTool,
   onToggleWorkspacePanel,
@@ -28,8 +34,12 @@ export function GmInspector({
   onDeleteMap,
   onSelectFogShape,
   onSelectWeatherMask,
+  onSelectEnvironmentEffect,
+  onEditEnvironmentEffect,
+  onSelectDrawing,
   onSelectToken,
   onRenameFogShape,
+  onRenameEnvironmentEffect,
   onRenameToken,
   onOpenFogColor,
   onOpenGridColor,
@@ -40,7 +50,13 @@ export function GmInspector({
   tokenAssets: Map<string, Asset>;
   selectedFogShapeId: string | null;
   selectedWeatherMaskId: string | null;
+  selectedEnvironmentEffectId: string | null;
+  selectedDrawingId: string | null;
   selectedTokenId: string | null;
+  selectedFogShapeIds: string[];
+  selectedWeatherMaskIds: string[];
+  selectedDrawingIds: string[];
+  selectedTokenIds: string[];
   workspaceLayout: WorkspaceLayout;
   onClearActiveFogTool: () => void;
   onToggleWorkspacePanel: (side: "right") => void;
@@ -58,8 +74,12 @@ export function GmInspector({
   onDeleteMap: (asset: Asset) => void;
   onSelectFogShape: (shapeId: string | null) => void;
   onSelectWeatherMask: (maskId: string | null) => void;
+  onSelectEnvironmentEffect: (effectId: string | null) => void;
+  onEditEnvironmentEffect: (effectId: string) => void;
+  onSelectDrawing: (drawingId: string | null) => void;
   onSelectToken: (tokenId: string | null) => void;
   onRenameFogShape: (shapeId: string, fallbackName: string) => void;
+  onRenameEnvironmentEffect: (effectId: string, fallbackName: string) => void;
   onRenameToken: (tokenId: string, fallbackName: string) => void;
   onOpenFogColor: () => void;
   onOpenGridColor: () => void;
@@ -112,7 +132,13 @@ export function GmInspector({
                 tokenAssets={tokenAssets}
                 selectedFogShapeId={selectedFogShapeId}
                 selectedWeatherMaskId={selectedWeatherMaskId}
+                selectedEnvironmentEffectId={selectedEnvironmentEffectId}
+                selectedDrawingId={selectedDrawingId}
                 selectedTokenId={selectedTokenId}
+                selectedFogShapeIds={selectedFogShapeIds}
+                selectedWeatherMaskIds={selectedWeatherMaskIds}
+                selectedDrawingIds={selectedDrawingIds}
+                selectedTokenIds={selectedTokenIds}
                 onChange={onChangeScene}
                 onUpdateGrid={onUpdateGrid}
                 onUpdateFog={onUpdateFog}
@@ -124,8 +150,12 @@ export function GmInspector({
                 onDeleteMap={onDeleteMap}
                 onSelectFogShape={onSelectFogShape}
                 onSelectWeatherMask={onSelectWeatherMask}
+                onSelectEnvironmentEffect={onSelectEnvironmentEffect}
+                onEditEnvironmentEffect={onEditEnvironmentEffect}
+                onSelectDrawing={onSelectDrawing}
                 onSelectToken={onSelectToken}
                 onRenameFogShape={onRenameFogShape}
+                onRenameEnvironmentEffect={onRenameEnvironmentEffect}
                 onRenameToken={onRenameToken}
                 onOpenFogColor={onOpenFogColor}
                 onOpenGridColor={onOpenGridColor}

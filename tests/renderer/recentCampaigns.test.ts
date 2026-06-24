@@ -4,7 +4,7 @@ import {
   addRecentCampaign,
   parseRecentCampaigns,
   removeRecentCampaign
-} from "../../src/renderer/lib/recentCampaigns";
+} from "../../src/renderer/lib/campaign";
 
 describe("recentCampaigns", () => {
   it("returns an empty list for missing or invalid storage values", () => {

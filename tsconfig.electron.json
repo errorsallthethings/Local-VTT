@@ -8,5 +8,6 @@
     "types": ["node"],
     "lib": ["ES2022", "DOM"]
   },
-  "include": ["electron/**/*.ts", "src/shared/**/*.ts"]
+  "include": ["electron/**/*.ts", "src/shared/**/*.ts"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
 }

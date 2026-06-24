@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { memo, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowDown,
@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../../shared/localvtt";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
-import { getActiveWeatherEffects } from "../../lib/weatherCatalog";
+import { buildSceneLibraryGroups } from "../../lib/scene";
+import { getActiveWeatherEffects } from "../../lib/effects";
 
 interface SceneLibraryPanelProps {
   campaign: Campaign | null;
@@ -51,6 +52,9 @@ interface SceneLibraryPanelProps {
 type SceneDropTarget =
   | { kind: "folder"; folderId?: string }
   | { kind: "scene"; sceneId: string; folderId?: string; position: "before" | "after" };
+
+const EMPTY_SCENES: CampaignSceneEntry[] = [];
+const EMPTY_SCENE_FOLDERS: CampaignSceneFolder[] = [];
 
 export function SceneLibraryPanel({
   campaign,
@@ -88,18 +92,25 @@ export function SceneLibraryPanel({
       ? `folder:${getDropTargetId(target.folderId)}`
       : `scene:${target.sceneId}:${target.position}`;
   };
-  const unfiledScenes = campaign?.scenes.filter((scene) => !scene.folderId) ?? [];
+  const campaignScenes = campaign?.scenes ?? EMPTY_SCENES;
+  const campaignSceneFolders = campaign?.sceneFolders ?? EMPTY_SCENE_FOLDERS;
+  const { folderGroups, unfiledScenes } = useMemo(() => buildSceneLibraryGroups(campaignScenes, campaignSceneFolders, dirtySceneIds), [campaignScenes, campaignSceneFolders, dirtySceneIds]);
+  const weatherBadgesBySceneId = useMemo(
+    () => new globalThis.Map(campaignScenes.map((scene) => [scene.id, scene.weather ? getActiveWeatherEffects(scene.weather) : []])),
+    [campaignScenes]
+  );
   const emptySceneMessage = getSceneLibraryEmptyMessage(campaign);
+  const activeSceneId = activeScene?.id;
+  const sceneDropTargetKey = getDropTargetKey(dropTarget);
 
   const renderSceneCard = (scene: CampaignSceneEntry) => {
     const isDirty = dirtySceneIds.has(scene.id);
     const isPlayerScene = playerSceneId === scene.id;
     const thumbnailAsset = sceneThumbnailAssets.get(scene.id);
-    const sceneDropTargetKey = getDropTargetKey(dropTarget);
     const isDropBefore = sceneDropTargetKey === `scene:${scene.id}:before`;
     const isDropAfter = sceneDropTargetKey === `scene:${scene.id}:after`;
     const sceneRowClassName = [
-      activeScene?.id === scene.id ? "selected" : "",
+      activeSceneId === scene.id ? "selected" : "",
       "scene-row",
       isDropBefore ? "scene-row-drop-before" : "",
       isDropAfter ? "scene-row-drop-after" : ""
@@ -150,7 +161,7 @@ export function SceneLibraryPanel({
           )}
         </div>
         <div className="scene-row-body">
-          <SceneThumbnail asset={thumbnailAsset ?? null} scene={scene} />
+          <SceneThumbnail asset={thumbnailAsset ?? null} activeWeather={weatherBadgesBySceneId.get(scene.id) ?? []} />
           <button
             className={isDirty ? "icon-button dirty-save" : "icon-button"}
             disabled={!isDirty}
@@ -240,7 +251,7 @@ export function SceneLibraryPanel({
     }
   };
 
-  const folderDropTargetKey = getDropTargetKey(dropTarget);
+  const folderDropTargetKey = sceneDropTargetKey;
 
   return (
     <section className="panel grow scene-panel">
@@ -251,13 +262,11 @@ export function SceneLibraryPanel({
         onDrop={(event) => onSceneDrop(event)}
       >
         {emptySceneMessage && <div className="scene-library-empty">{emptySceneMessage}</div>}
-        {campaign?.sceneFolders.map((folder, folderIndex) => {
-          const folderScenes = campaign.scenes.filter((scene) => scene.folderId === folder.id);
-          const folderDirtyCount = getDirtySceneCount(folderScenes, dirtySceneIds);
+        {folderGroups.map(({ folder, scenes: folderScenes, dirtySceneCount: folderDirtyCount }, folderIndex) => {
           const folderHasDirtyScenes = folderDirtyCount > 0;
           const isCollapsed = collapsedFolderIds.has(folder.id);
           const canMoveUp = folderIndex > 0;
-          const canMoveDown = folderIndex < campaign.sceneFolders.length - 1;
+          const canMoveDown = folderIndex < folderGroups.length - 1;
           const folderStyle = {
             "--scene-folder-color": folder.color,
             "--scene-folder-color-bg": hexToRgba(folder.color, 0.13)
@@ -371,10 +380,6 @@ export function SceneLibraryPanel({
   );
 }
 
-function getDirtySceneCount(scenes: CampaignSceneEntry[], dirtySceneIds: Set<string>): number {
-  return scenes.filter((scene) => dirtySceneIds.has(scene.id)).length;
-}
-
 function getSceneLibraryEmptyMessage(campaign: Campaign | null): string | null {
   if (!campaign) {
     return "Create or open a campaign before adding scenes.";
@@ -449,11 +454,11 @@ function FloatingSceneMenu({ anchor, children }: { anchor: HTMLElement | null; c
   );
 }
 
-function SceneThumbnail({ asset, scene }: { asset: Asset | null; scene: CampaignSceneEntry }) {
+const SceneThumbnail = memo(function SceneThumbnail({ asset, activeWeather }: { asset: Asset | null; activeWeather: ReturnType<typeof getActiveWeatherEffects> }) {
   if (!asset) {
     return (
       <div className="scene-thumbnail scene-thumbnail-empty" aria-label="No map">
-        <SceneWeatherBadges scene={scene} />
+        <SceneWeatherBadges activeWeather={activeWeather} />
         <Map size={16} aria-hidden="true" />
         <span>No map</span>
       </div>
@@ -463,9 +468,9 @@ function SceneThumbnail({ asset, scene }: { asset: Asset | null; scene: Campaign
   if (asset.thumbnailAbsolutePath) {
     return (
       <div className="scene-thumbnail">
-        <img src={window.localVtt.toAssetUrl(asset.thumbnailAbsolutePath)} alt="" draggable={false} />
+        <img src={window.localVtt.toAssetUrl(asset.thumbnailAbsolutePath)} alt="" loading="lazy" decoding="async" draggable={false} />
         <ThumbnailBadge mediaType={asset.mediaType} />
-        <SceneWeatherBadges scene={scene} />
+        <SceneWeatherBadges activeWeather={activeWeather} />
       </div>
     );
   }
@@ -474,7 +479,7 @@ function SceneThumbnail({ asset, scene }: { asset: Asset | null; scene: Campaign
     return (
       <div className="scene-thumbnail scene-thumbnail-video" aria-label="Video map">
         <ThumbnailBadge mediaType="video" />
-        <SceneWeatherBadges scene={scene} />
+        <SceneWeatherBadges activeWeather={activeWeather} />
       </div>
     );
   }
@@ -482,7 +487,7 @@ function SceneThumbnail({ asset, scene }: { asset: Asset | null; scene: Campaign
   if (!asset.thumbnailAbsolutePath) {
     return (
       <div className="scene-thumbnail scene-thumbnail-empty" aria-label="No preview available">
-        <SceneWeatherBadges scene={scene} />
+        <SceneWeatherBadges activeWeather={activeWeather} />
         <ImageOff size={16} aria-hidden="true" />
         <span>No preview</span>
       </div>
@@ -490,11 +495,9 @@ function SceneThumbnail({ asset, scene }: { asset: Asset | null; scene: Campaign
   }
 
   return null;
-}
+});
 
-function SceneWeatherBadges({ scene }: { scene: CampaignSceneEntry }) {
-  const activeWeather = scene.weather ? getActiveWeatherEffects(scene.weather) : [];
-
+function SceneWeatherBadges({ activeWeather }: { activeWeather: ReturnType<typeof getActiveWeatherEffects> }) {
   if (activeWeather.length === 0) {
     return null;
   }

@@ -13,19 +13,22 @@ import {
   removeDirtySceneId,
   removeFolderFromCampaign,
   removeSceneDraft
-} from "../../src/renderer/lib/campaignActions";
+} from "../../src/renderer/lib/campaign";
 import { createDefaultCampaign, createDefaultScene } from "../../src/shared/localvtt";
 
 describe("campaign action helpers", () => {
-  it("selects a draft scene before falling back to the active scene", () => {
+  it("selects the active scene before falling back to a scene draft", () => {
     const draft = createDefaultScene("Draft");
     draft.id = "scene-1";
     const active = createDefaultScene("Active");
-    active.id = "scene-2";
+    active.id = "scene-1";
+    const otherActive = createDefaultScene("Other Active");
+    otherActive.id = "scene-2";
 
-    expect(getSceneDraftToSave("scene-1", { "scene-1": draft }, active)).toBe(draft);
-    expect(getSceneDraftToSave("scene-2", {}, active)).toBe(active);
-    expect(getSceneDraftToSave("scene-3", {}, active)).toBeNull();
+    expect(getSceneDraftToSave("scene-1", { "scene-1": draft }, active)).toBe(active);
+    expect(getSceneDraftToSave("scene-1", { "scene-1": draft }, otherActive)).toBe(draft);
+    expect(getSceneDraftToSave("scene-2", {}, otherActive)).toBe(otherActive);
+    expect(getSceneDraftToSave("scene-3", {}, otherActive)).toBeNull();
   });
 
   it("finds dirty scene ids inside a folder", () => {

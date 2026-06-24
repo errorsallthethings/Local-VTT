@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
-import { projectSceneForPlayer } from "../../shared/localvtt";
+import { useCallback, useEffect, useState } from "react";
 import type { Campaign, CampaignSummary, Scene } from "../../shared/localvtt";
-import { mergeCampaignDraft } from "../lib/campaignDraft";
-import { formatUserFacingError } from "../lib/errorMessages";
+import { mergeCampaignDraft } from "../lib/campaign";
+import { formatUserFacingError } from "../lib/errors";
+import { showDefaultPlayerHold } from "../lib/player-view";
+import { updatePlayerSceneIfOpen } from "../lib/player-view";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -25,7 +26,7 @@ export function useCampaignWorkspace() {
     return () => window.localVtt.setUnsavedChanges(false);
   }, [hasUnsavedChanges]);
 
-  const run = async (action: () => Promise<void>) => {
+  const run = useCallback(async (action: () => Promise<void>) => {
     setError(null);
     try {
       await action();
@@ -35,7 +36,7 @@ export function useCampaignWorkspace() {
       setError(formatUserFacingError(caught));
       return false;
     }
-  };
+  }, []);
 
   const applySummary = (summary: CampaignSummary, preserveCampaignDraft = false) => {
     setCampaignPath(summary.campaignPath);
@@ -46,7 +47,7 @@ export function useCampaignWorkspace() {
   };
 
   const clearWorkspaceState = () => {
-    void window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.");
+    void showDefaultPlayerHold();
     setActiveScene(null);
     setSceneDrafts({});
     setDirtySceneIds(new Set());
@@ -91,7 +92,7 @@ export function useCampaignWorkspace() {
     setSaveState("idle");
     if (syncCampaign) {
       // Build the Player View projection in the renderer so dev hot reload and shared model changes stay in sync.
-      void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(syncCampaign, syncScene));
+      void updatePlayerSceneIfOpen(window.localVtt, syncCampaign, syncScene);
     }
   };
 
@@ -100,7 +101,7 @@ export function useCampaignWorkspace() {
     setCampaignDirty(true);
     if (syncScene) {
       // Campaign-level settings, such as Player Display Scale, still need a scene projection to update Player View.
-      void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(nextCampaign, syncScene));
+      void updatePlayerSceneIfOpen(window.localVtt, nextCampaign, syncScene);
     }
   };
 

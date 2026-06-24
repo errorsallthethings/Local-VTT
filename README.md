@@ -16,12 +16,14 @@ This version is intentionally not a full campaign-management VTT. Tokens are lig
 - Keep Player View open on a friendly waiting screen when the shown scene is deleted or unavailable.
 - Configure gridless, square, and hex scenes with per-scene measurement settings.
 - Draw manual fog of war with brush, rectangle, circle, and polygon tools.
+- Draw map annotations, shapes, and area templates with reusable tool settings and grid footprint previews.
 - Add lightweight tokens, style them, reorder them, duplicate them, and animate visible Player View movement along waypoint paths.
+- Assign token conditions with GM-only or Player View-visible ring indicators.
 - Measure distance with a GM-only ruler, including waypoints, snapped grid points, crossed-cell highlights, and distance-mode readouts.
 - Use live Table Tools for configurable click pings and a fading laser pointer trail.
 - Run turn orders with campaign players, initiative values, Player View turn indicators, and display placement controls.
 - Roll dice from the GM toolbar with formulas, custom presets, recent history, text results, 3D Panels, and scene-based 3D physics rolls.
-- Add configurable rain, snow, fog, and sand weather effects from the Weather layer.
+- Add per-scene weather effects and localized animated effects from the Effects layer.
 - Store metadata-only backups for campaign and scene JSON before overwrites.
 
 ## Campaign Folder Format
@@ -89,6 +91,7 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Table Tools include the GM-only ruler, configurable ping, and laser pointer.
 - The ruler supports square, hex, and gridless scenes.
 - Ctrl/Cmd snaps ruler points to square grid centers or hex centers. Gridless measurement stays freeform.
+- Drawing, template, and mask placement can snap to square grid centers, corners, and side centers, or hex centers/corners where applicable.
 - Shift adds ruler waypoints while dragging. Right-click removes the last active ruler waypoint.
 - Escape clears the active ruler measurement.
 - The ruler highlights crossed squares/hexes and displays total path distance using the scene's Measurement settings.
@@ -99,26 +102,39 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 ### Dice And Turn Order
 
 - Dice rolls support standard polyhedral dice, coin flips, percentile rolls, arithmetic modifiers, advantage/disadvantage, quick dice buttons, and custom presets.
+- The Tools menu opens the Dice Bag and Turn Order as draggable modals for live-session workflows.
 - Dice display settings are campaign-specific and can independently show or hide GM View and Player View results.
 - Dice results can render as text-only results, a 3D Panel, or a 3D Scene Roll with physics and delayed result reveal.
 - Recent dice roll history is capped and keeps delayed 3D/scene roll results in sync with the final visible result.
 - Turn orders can be built from campaign players or tokens, sorted by initiative, reset between encounters, and played/paused for Player View display.
-- Player View turn order indicators include configurable sizing, placement, facing, and player status styling.
+- Turn orders support linked scene tokens, turn groups, round tracking, count tracker entries, and per-entry countdowns.
+- Player View turn order indicators include configurable multi-edge placement, facing, sizing, avatar masks, visible-entry limits, round display, and player status styling.
 
-### Weather Effects
+### Effects Layer
 
-- Weather is configured per scene from the Weather layer.
+- Effects are configured per scene from the Effects layer.
 - Weather effects render as lightweight map-bound canvas overlays and respect GM View and Player View layer visibility.
 - Weather effects currently include rain, snow, fog, and sand patterns.
 - Weather controls include effect, enabled state, intensity, opacity, speed, drift, masks, and advanced pattern tuning.
+- Weather masks exclude per-scene weather effects from specific map areas.
+- Animated Effects are localized drawn areas for environmental visuals such as water, fire, smoke, fog, lava, electric, arcane, radiant, field, chaos, void, and nature effects.
+- Animated Effects are drawn from the Effects Tools menu, appear as sub-layers under Effects, and can be selected, hidden, edited, or deleted from the GM canvas and layer list.
+- Animated Effects include preset families for water, lava, smoke, fire, fog, cold, electric, acid, poison, darkness, arcane, radiant, force fields, shockwaves, chaos, void, and nature growth.
 - Weather masks can be selected from the GM canvas, highlighted in their layer list, and toggled from a context menu.
+
+### Drawing And Template Tools
+
+- Drawing Tools support brush, line, rectangle, ellipse, triangle, polygon, stroke/fill controls, opacity presets, thickness presets, and custom tuning.
+- Placed drawings can be selected, moved, resized, rotated, duplicated, hidden, deleted, and managed from Drawing sub-layers.
+- Template Tools support line, radius, cube, and cone templates with configurable length/radius, width, stroke thickness, visual effect presets, live preview, and optional grid footprint display.
+- Template labels scale with scene zoom and show only while drawing or when the template is selected.
 
 ### Fog Of War
 
 - Fog mode can start fully revealed, fully hidden, or partially revealed.
 - GM and Player fog opacity can be configured independently.
 - New fog shapes can default to revealed or hidden in Player View.
-- Brush, rectangle, circle, and polygon fog tools are available from the floating Tools Menu.
+- Brush, rectangle, circle, and polygon fog tools are available from the Tools Menu.
 - Rectangle tools support Shift-drag to constrain to a square.
 - Ctrl/Cmd shows the nearest square grid-corner or hex-corner snap point for rectangle, circle, and polygon placement.
 - Polygon drawing supports Enter or double-click to finish, Escape to cancel, and right-click to remove the last active point.
@@ -135,6 +151,7 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Library tokens can be dragged onto the GM canvas or added to the active scene with the add button.
 - Token sub-layers support selection, rename, duplicate, drag/drop reordering, GM/Player visibility, deletion, and per-token presentation settings.
 - Token presentation settings include size presets, mask shape, border style, border width, border/glow colors, and optional footprint highlights.
+- Token conditions can be assigned from the token context menu, hidden from Player View, and displayed as rotating condition rings.
 - Square/gridless scenes keep token art square and snap to grid on release when a grid is active.
 - Hex scenes keep token art square while using hex-aware snapping and footprint clusters.
 - Shift adds token movement waypoints while dragging. Square and hex waypoints snap to grid/hex centers; gridless waypoints remain freeform.
@@ -148,7 +165,7 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Empty Campaign, Scenes, Layers, and Token Library areas show contextual helper text.
 - Fog and Grid color controls open a modal picker with native color selection and reusable swatches.
 - Player View Setup and Map Calibration use collapsible sections, inline help, readouts, and fixed footer actions.
-- The floating Tools Menu currently contains Fog of War tools and Table Tools.
+- The Tools Menu groups Fog of War Tools, Effects Tools, Drawing Tools, Text Tools, Template Tools, Dynamic Lighting, Dice Bag, Turn Order, and Table Tools.
 
 ## Future Ideas
 
@@ -168,6 +185,8 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - `src/renderer/styles`: focused CSS files imported by `src/renderer/styles.css`.
 
 Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog of war, ruler measurement, and lightweight GM tokens. The scene model and renderer boundary are intentionally isolated so future versions can replace or augment the canvas layer with PixiJS/WebGL for very large maps, advanced vision, lighting, and overlays.
+
+See [`docs/architecture.md`](docs/architecture.md) for data flow notes and [`docs/layer-ownership-rules.md`](docs/layer-ownership-rules.md) for layer ownership rules.
 
 ## Development
 
@@ -209,174 +228,20 @@ npm run check
 
 `npm run check` runs TypeScript typechecking, ESLint, and the Vitest suite.
 
-## Release Process
-
-Release builds are created by GitHub Actions when a version tag matching `v*.*.*` is pushed. The release branch should contain the merged feature work and the matching app version before the tag is created.
-
-Example release flow for `0.1.6`:
+Run the Electron runtime smoke test after a production build:
 
 ```bash
-git fetch origin --prune
-git switch release/0.1.6
-git pull --ff-only origin release/0.1.6
-git merge --no-ff feature/3d-dice-maybe -m "Merge 3D dice feature into release 0.1.6"
+npm run smoke:electron
 ```
 
-Bump the app version before tagging so `electron-builder` produces installers with the correct version:
+`npm run smoke:electron` builds the app, launches the production Electron entrypoint, verifies the GM preload bridge, opens Player View through IPC, sends a Player View idle state, and checks Electron display enumeration.
 
-```bash
-npm version 0.1.6 --no-git-tag-version
-```
+## Project Documentation
 
-Update `CHANGELOG.md`, then verify the release branch:
-
-```bash
-npm run check
-npm run build
-```
-
-Commit the release metadata:
-
-```bash
-git add package.json package-lock.json CHANGELOG.md
-git commit -m "Prepare 0.1.6 release"
-```
-
-Push the release branch, create the release tag on that commit, and push the tag:
-
-```bash
-git push origin release/0.1.6
-git tag -a v0.1.6 -m "Local VTT v0.1.6"
-git push origin v0.1.6
-```
-
-Pushing the tag triggers `.github/workflows/release.yml`, which packages the Windows and macOS builds and publishes the GitHub release assets. Use a new version/tag for each release; existing release assets are treated as immutable.
-
-## Packaging
-
-Packaging is configured with `electron-builder`. The Windows build uses the Local VTT icon in `build/icon.ico`, creates Desktop and Start Menu shortcuts, and uses an assisted per-user installer so the install location can be reviewed during setup.
-
-The editable icon source is `build/icon.svg`. To regenerate the Windows icon file after changing the source artwork, run:
-
-```bash
-npm run generate:icon
-```
-
-Package for Windows:
-
-```bash
-npm run package:win
-```
-
-Package for macOS:
-
-```bash
-npm run package:mac
-```
-
-Successful Windows packaging creates:
-
-```text
-release/
-  Local VTT Setup 0.1.0.exe
-  win-unpacked/
-    Local VTT.exe
-```
-
-Use `release/win-unpacked/Local VTT.exe` for quick local smoke testing before sharing the installer.
-
-Code signing, macOS notarization, auto-update, and release-channel infrastructure are deferred.
-
-## Creating A Release
-
-GitHub Actions builds release packages from `.github/workflows/release.yml`.
-
-Use this process when preparing a new release:
-
-1. Confirm the working tree is clean:
-
-```bash
-git status
-```
-
-2. Update release metadata if needed:
-
-- `package.json` version, for example `0.1.1`.
-- `CHANGELOG.md` release notes.
-- README known limitations or smoke checklist updates.
-
-3. Run local verification:
-
-```bash
-npm run check
-npm run build
-```
-
-4. Commit the release metadata changes:
-
-```bash
-git add package.json package-lock.json CHANGELOG.md README.md
-git commit -m "Prepare release 0.1.1"
-git push
-```
-
-Only include `package-lock.json` if the version or dependencies changed there.
-
-5. Create a tag on the exact commit you want to release:
-
-```bash
-git tag v0.1.1
-git push origin v0.1.1
-```
-
-The release workflow listens for tags that match `v*.*.*`. Pushing the tag is what starts the release build. Creating a tag locally is not enough.
-
-6. In GitHub, open Actions -> Build Release and confirm the run is for the tag, such as `refs/tags/v0.1.1`, not a manual run on `main`.
-
-7. If the workflow succeeds, check GitHub Releases for the published release assets. The workflow also uploads Windows and macOS build artifacts to the workflow run page.
-
-GitHub Releases may be immutable after publishing. If a release workflow fails after creating a release, prepare a new version and tag instead of trying to replace assets on the existing release.
-
-Manual `workflow_dispatch` runs are useful for testing the release workflow, but they do not publish a GitHub Release unless the run is for a tag. Download test builds from the workflow run's Artifacts section.
-
-## Smoke Test Checklist
-
-Before packaging or sharing a build, run through these workflows:
-
-- Start from a clean app state and confirm no-campaign/no-scene controls guide the GM without dead-end actions.
-- Create and open a campaign.
-- Reopen a campaign from Recent Campaigns and remove an entry from Recents.
-- Create, rename, delete, duplicate, reorder, and save scenes.
-- Rename, color, delete, duplicate, collapse, and reorder scene folders.
-- Import static image maps, video maps, and token assets.
-- Send scenes to Player View and confirm Player View fullscreen behavior remains stable.
-- Delete the scene currently shown to players and confirm Player View switches to the waiting screen instead of closing.
-- Resize/collapse GM side panels and the Token Library drawer.
-- Change layer visibility and settings.
-- Draw, rename, reorder, toggle, and delete fog shapes.
-- Select weather and fog masks from the GM canvas and confirm token selection still takes priority.
-- Configure square, hex, and gridless scenes, including grid fit-to-map for static maps.
-- Use Player View Setup and Map Calibration Assistant on at least one static image map.
-- Add, duplicate, move, rename, resize, restyle, and delete tokens.
-- Confirm token presentation and movement sync to Player View.
-- Use the Token Library to import, rename, search, sort, set defaults, add, drag/drop, and delete tokens with usage warnings.
-- Use Table Tools: ruler on square, hex, and gridless scenes; ping by clicking after changing size/color; laser pointer by dragging.
-- Build, clear, rebuild, play, pause, and advance a turn order; confirm Player View indicators update correctly.
-- Roll dice with quick dice, formulas with modifiers, custom presets, GM/Player Hidden display modes, 3D Panel, and 3D Scene Roll.
-- Close with unsaved scene changes, campaign-only changes, and both; confirm Save preserves changes and Close Without Saving discards them.
-- Confirm common failure messages are actionable, including missing recent campaigns, missing assets, and disconnected Player View displays.
-- Run `npm run check` and `npm run build`.
-
-For packaged Windows builds, also run:
-
-- `npm run package:win`.
-- Open `release/win-unpacked/Local VTT.exe`.
-- Confirm the app gets past the startup splash.
-- Load a campaign and send static and video map scenes to Player View.
-- Move tokens with Shift waypoints on square, hex, and gridless scenes.
-- Confirm Player View token tweening/path behavior still works.
-- Confirm Player View fullscreen behavior remains stable during scene changes.
-- Confirm Open Backups Folder opens Explorer.
+- [`docs/architecture.md`](docs/architecture.md): runtime structure, data flow, and layer ownership rules.
+- [`docs/codebase-audit.md`](docs/codebase-audit.md): audit progress, current hotspots, and recommended refactor sequence.
+- [`docs/layer-ownership-rules.md`](docs/layer-ownership-rules.md): layer responsibilities, visibility rules, and guidance for placing new scene features.
+- [`docs/release-process.md`](docs/release-process.md): release branch flow, packaging notes, and smoke test checklist.
 
 ## Known Limitations
 
@@ -392,9 +257,9 @@ For packaged Windows builds, also run:
 These ideas are intentionally outside the current MVP unless they become release blockers:
 
 - Token Library export/import packs.
-- Health bars, conditions, permissions, and advanced token sheets.
+- Health bars, permissions, and advanced token sheets.
 - Full dynamic lighting, walls, doors, windows, and vision-aware fog.
-- Drawing layers, spell templates, overlays, and advanced animated effects.
+- Text tools, pin tools, reusable object/prop layers, and advanced animated effect authoring.
 - Advanced token library tags, grouping, bulk editing, and external asset management.
 - Localization/string resource files after UI wording stabilizes.
 - Light/custom themes after the dark-theme CSS token structure is stable.

@@ -17,12 +17,14 @@ import { TokenCropDialog } from "../components/modals/TokenCropDialog";
 import { MapCalibrationAssistant, type MapCalibrationBox, type MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { TokenDefaultsPanel } from "../components/tokens/TokenDefaultsPanel";
+import { getFolderSceneDeleteDetail } from "../lib/scene";
 
 export type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
 export type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };
 export type FolderColorDialog = { folderId: string; folderName: string };
 export type SceneColorDialog = { kind: "fog" | "grid"; title: string; value: string };
 export type FogShapeNameDialog = { shapeId: string };
+export type EnvironmentEffectNameDialog = { effectId: string };
 export type TokenNameDialog = { tokenId: string };
 export type TokenColorDialog = { tokenId: string; tokenName: string; value: string; kind: "border" | "glow" };
 export type TokenCropDialogState = { asset: Asset; mode: "scene" | "library" };
@@ -34,6 +36,7 @@ export function GmDialogs({
   sceneDialog,
   folderDialog,
   fogShapeDialog,
+  environmentEffectDialog,
   tokenDialog,
   tokenCropDialog,
   tokenAssetDialog,
@@ -59,6 +62,7 @@ export function GmDialogs({
   newSceneName,
   newFolderName,
   newFogShapeName,
+  newEnvironmentEffectName,
   newTokenName,
   newFolderColor,
   newTokenBorderColor,
@@ -66,6 +70,7 @@ export function GmDialogs({
   onNewSceneNameChange,
   onNewFolderNameChange,
   onNewFogShapeNameChange,
+  onNewEnvironmentEffectNameChange,
   onNewTokenNameChange,
   onNewFolderColorChange,
   onNewTokenBorderColorChange,
@@ -73,6 +78,7 @@ export function GmDialogs({
   onCancelSceneDialog,
   onCancelFolderDialog,
   onCancelFogShapeDialog,
+  onCancelEnvironmentEffectDialog,
   onCancelTokenDialog,
   onCancelTokenCropDialog,
   onCancelTokenAssetDialog,
@@ -91,6 +97,7 @@ export function GmDialogs({
   onSubmitSceneName,
   onSubmitFolderName,
   onSubmitFogShapeName,
+  onSubmitEnvironmentEffectName,
   onSubmitTokenName,
   onSubmitTokenCrop,
   onSubmitTokenAssetName,
@@ -116,6 +123,7 @@ export function GmDialogs({
   sceneDialog: SceneNameDialog | null;
   folderDialog: FolderNameDialog | null;
   fogShapeDialog: FogShapeNameDialog | null;
+  environmentEffectDialog: EnvironmentEffectNameDialog | null;
   tokenDialog: TokenNameDialog | null;
   tokenCropDialog: TokenCropDialogState | null;
   tokenAssetDialog: TokenAssetNameDialog | null;
@@ -141,6 +149,7 @@ export function GmDialogs({
   newSceneName: string;
   newFolderName: string;
   newFogShapeName: string;
+  newEnvironmentEffectName: string;
   newTokenName: string;
   newFolderColor: string;
   newTokenBorderColor: string;
@@ -148,6 +157,7 @@ export function GmDialogs({
   onNewSceneNameChange: (value: string) => void;
   onNewFolderNameChange: (value: string) => void;
   onNewFogShapeNameChange: (value: string) => void;
+  onNewEnvironmentEffectNameChange: (value: string) => void;
   onNewTokenNameChange: (value: string) => void;
   onNewFolderColorChange: (value: string) => void;
   onNewTokenBorderColorChange: (value: string) => void;
@@ -155,6 +165,7 @@ export function GmDialogs({
   onCancelSceneDialog: () => void;
   onCancelFolderDialog: () => void;
   onCancelFogShapeDialog: () => void;
+  onCancelEnvironmentEffectDialog: () => void;
   onCancelTokenDialog: () => void;
   onCancelTokenCropDialog: () => void;
   onCancelTokenAssetDialog: () => void;
@@ -173,6 +184,7 @@ export function GmDialogs({
   onSubmitSceneName: () => void;
   onSubmitFolderName: () => void;
   onSubmitFogShapeName: () => void;
+  onSubmitEnvironmentEffectName: () => void;
   onSubmitTokenName: () => void;
   onSubmitTokenCrop: (crop: SquareCropRect) => void;
   onSubmitTokenAssetName: () => void;
@@ -235,6 +247,18 @@ export function GmDialogs({
           onChange={onNewFogShapeNameChange}
           onCancel={onCancelFogShapeDialog}
           onSubmit={onSubmitFogShapeName}
+        />
+      )}
+
+      {environmentEffectDialog && (
+        <NameDialog
+          title="Rename Environmental Effect"
+          label="Effect name"
+          value={newEnvironmentEffectName}
+          submitLabel="Save"
+          onChange={onNewEnvironmentEffectNameChange}
+          onCancel={onCancelEnvironmentEffectDialog}
+          onSubmit={onSubmitEnvironmentEffectName}
         />
       )}
 
@@ -453,12 +477,7 @@ function getSceneDeleteDetail(scene: CampaignSceneEntry, dirtySceneIds: Set<stri
 }
 
 function getFolderDeleteDetail(folder: CampaignSceneFolder, campaign: Campaign, dirtySceneIds: Set<string>, playerSceneId: string | null) {
-  const folderScenes = campaign.scenes.filter((scene) => scene.folderId === folder.id);
-  return {
-    sceneCount: folderScenes.length,
-    dirtySceneCount: folderScenes.filter((scene) => dirtySceneIds.has(scene.id)).length,
-    containsPlayerScene: Boolean(playerSceneId && folderScenes.some((scene) => scene.id === playerSceneId))
-  };
+  return getFolderSceneDeleteDetail(campaign.scenes, folder.id, dirtySceneIds, playerSceneId);
 }
 
 function formatFolderDeleteSceneCount(sceneCount: number): string {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultWeather } from "../../src/shared/localvtt";
-import { getActiveWeatherEffects, getWeatherPatternLabel } from "../../src/renderer/lib/weatherCatalog";
+import { getActiveWeatherEffects, getWeatherPatternLabel } from "../../src/renderer/lib/effects";
 
 describe("weather catalog", () => {
   it("provides labels for weather patterns from one catalog", () => {

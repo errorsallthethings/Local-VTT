@@ -9,7 +9,7 @@ import {
   DEFAULT_TOKEN_MASK,
   DEFAULT_TOKEN_SIZE_PRESET
 } from "../../../shared/localvtt";
-import { getBorderWidthForPreset } from "../../lib/tokenDefaults";
+import { getBorderWidthForPreset } from "../../lib/tokens";
 import { ColorPickerField } from "../controls/ColorPickerField";
 
 interface TokenDefaultsPanelProps {

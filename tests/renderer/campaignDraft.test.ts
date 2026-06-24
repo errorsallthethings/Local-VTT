@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeCampaignDraft } from "../../src/renderer/lib/campaignDraft";
+import { mergeCampaignDraft } from "../../src/renderer/lib/campaign";
 import { createDefaultCampaign, createDefaultScene } from "../../src/shared/localvtt";
 
 describe("mergeCampaignDraft", () => {

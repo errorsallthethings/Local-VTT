@@ -7,7 +7,7 @@ import {
   getTokenPresentationDefaults,
   getTokenPositionAtPoint,
   stripFileExtension
-} from "../../src/renderer/lib/tokenDefaults";
+} from "../../src/renderer/lib/tokens";
 import { createDefaultScene, type Asset, type Token } from "../../src/shared/localvtt";
 
 const tokenAsset: Asset = {

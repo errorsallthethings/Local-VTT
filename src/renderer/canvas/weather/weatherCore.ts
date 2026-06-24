@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import type { Camera } from "../camera";
-import { getSourceHeight, getSourceWidth, resolveMapTransform } from "../mapRenderer";
+import type { Camera } from "../core/camera";
+import { getSourceHeight, getSourceWidth, resolveMapTransform } from "../map/mapRenderer";
 import type { FogWeatherEffectType, RainWeatherEffectType, SandWeatherEffectType, Scene, SnowWeatherEffectType, WeatherEffectType, WeatherMask, WeatherSettings } from "../../../shared/localvtt";
 
 export type WeatherBounds = {

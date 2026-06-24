@@ -3,7 +3,7 @@ import {
   getBorderWidthForPreset,
   getBorderWidthPreset,
   getTokenSizeForPreset
-} from "../../src/renderer/lib/tokenDefaults";
+} from "../../src/renderer/lib/tokens";
 
 describe("token settings helpers", () => {
   it("maps square-grid token size presets to cell multipliers", () => {

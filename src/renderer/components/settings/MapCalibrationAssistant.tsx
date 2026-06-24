@@ -1,22 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { Asset, DisplayCalibration, GridSettings, MapTransform, Scene } from "../../../shared/localvtt";
+import type { Asset, DisplayCalibration, GridSettings, Scene } from "../../../shared/localvtt";
+import type { MapCalibrationBox } from "../../canvas/map";
+import { getMapCalibrationDraftFromScene, type MapCalibrationDraft } from "../../lib/map";
 import { CollapsibleSettingsSection, SettingsField, SettingsReadout } from "./SettingsSection";
 
-export interface MapCalibrationBox {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export interface MapCalibrationDraft {
-  fitMode: MapTransform["fitMode"];
-  mapGridColumns: number;
-  mapGridRows: number;
-  alignGridToMap: boolean;
-  boxColumns: number;
-  boxRows: number;
-}
+export type { MapCalibrationBox } from "../../canvas/map";
+export type { MapCalibrationDraft } from "../../lib/map";
 
 interface MapCalibrationAssistantProps {
   scene: Scene;
@@ -31,14 +20,14 @@ interface MapCalibrationAssistantProps {
 
 export function MapCalibrationAssistant({ scene, mapAsset, calibration, calibrationBox, onApply, onStartBoxCapture, onOpenPlayerViewSetup, onFooterActionsChange }: MapCalibrationAssistantProps) {
   const canAlignGridToMap = mapAsset?.mediaType === "image" && scene.grid.type !== "gridless";
-  const [draft, setDraft] = useState<MapCalibrationDraft>(() => getDraftFromScene(scene, canAlignGridToMap));
+  const [draft, setDraft] = useState<MapCalibrationDraft>(() => getMapCalibrationDraftFromScene(scene, canAlignGridToMap));
   const [playerViewOpen, setPlayerViewOpen] = useState(false);
   const [mapGridOpen, setMapGridOpen] = useState(false);
   const [methodOpen, setMethodOpen] = useState(false);
   const [helpTopic, setHelpTopic] = useState<string | null>(null);
 
   useEffect(() => {
-    setDraft(getDraftFromScene(scene, canAlignGridToMap));
+    setDraft(getMapCalibrationDraftFromScene(scene, canAlignGridToMap));
   }, [canAlignGridToMap, scene]);
 
   useEffect(() => {
@@ -56,7 +45,7 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, calibrat
     draft.alignGridToMap ||
     hasBoxCalibration;
   const applyDraft = useCallback(() => onApply(draft), [draft, onApply]);
-  const resetDraft = useCallback(() => setDraft(getDraftFromScene(scene, canAlignGridToMap)), [canAlignGridToMap, scene]);
+  const resetDraft = useCallback(() => setDraft(getMapCalibrationDraftFromScene(scene, canAlignGridToMap)), [canAlignGridToMap, scene]);
   const footerActions = useMemo(
     () => (
       <>
@@ -225,17 +214,6 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, calibrat
       </CollapsibleSettingsSection>
     </section>
   );
-}
-
-function getDraftFromScene(scene: Scene, alignGridToMap: boolean): MapCalibrationDraft {
-  return {
-    fitMode: scene.mapTransform.fitMode,
-    mapGridColumns: scene.grid.mapGridColumns,
-    mapGridRows: scene.grid.mapGridRows,
-    alignGridToMap,
-    boxColumns: 1,
-    boxRows: 1
-  };
 }
 
 function getGridPreview(draft: MapCalibrationDraft, grid: GridSettings): { width: number; height: number } {

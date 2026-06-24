@@ -1,10 +1,11 @@
-import { type PointerEvent as ReactPointerEvent } from "react";
-import { FilePlus, FolderPlus, GripVertical, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { type PointerEvent as ReactPointerEvent, useState } from "react";
+import { CircleHelp, FilePlus, FolderPlus, GripVertical, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../shared/localvtt";
 import { CampaignPanel } from "../components/campaign/CampaignPanel";
 import { SceneLibraryPanel } from "../components/scenes/SceneLibraryPanel";
-import type { RecentCampaign } from "../lib/recentCampaigns";
-import type { WorkspaceLayout } from "../lib/workspaceLayout";
+import type { RecentCampaign } from "../lib/campaign";
+import type { WorkspaceLayout } from "../lib/workspace";
+import packageJson from "../../../package.json";
 
 export function GmSidebar({
   campaign,
@@ -101,6 +102,8 @@ export function GmSidebar({
   onMoveFolder: (folderId: string, direction: "up" | "down") => void;
   onDeleteFolder: (folder: CampaignSceneFolder) => void;
 }) {
+  const [aboutOpen, setAboutOpen] = useState(false);
+
   return (
     <aside
       className={`sidebar ${workspaceLayout.leftCollapsed ? "panel-collapsed-click-target" : ""}`}
@@ -125,6 +128,18 @@ export function GmSidebar({
       {workspaceLayout.leftCollapsed && <div className="panel-spine-label">Campaign / Scenes</div>}
       {!workspaceLayout.leftCollapsed && (
         <div className="panel-region-content">
+          <div className="brand app-brand">
+            <h1>Local VTT</h1>
+            <button
+              type="button"
+              className="settings-inline-icon-button app-about-button"
+              aria-label="About Local VTT"
+              title={`About Local VTT ${packageJson.version}`}
+              onClick={() => setAboutOpen(true)}
+            >
+              <CircleHelp size={17} aria-hidden="true" />
+            </button>
+          </div>
           <div className="section-heading">
             <h2>Campaign</h2>
           </div>
@@ -196,6 +211,35 @@ export function GmSidebar({
         >
           <GripVertical size={14} aria-hidden="true" />
         </button>
+      )}
+      {aboutOpen && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setAboutOpen(false)}>
+          <div className="modal about-modal" role="dialog" aria-modal="true" aria-labelledby="about-local-vtt-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="about-modal-header">
+              <div>
+                <h2 id="about-local-vtt-title">About Local VTT</h2>
+                <p>Version {packageJson.version}</p>
+              </div>
+              <button className="icon-button" aria-label="Close About Local VTT" title="Close" onClick={() => setAboutOpen(false)}>
+                <X size={14} aria-hidden="true" />
+              </button>
+            </div>
+            <div className="modal-copy about-modal-copy">
+              <p>Local VTT is a local-first tabletop battle map display tool for in-person RPG sessions.</p>
+              <div className="about-info-grid">
+                <span>Data</span>
+                <p>Campaigns, scenes, and imported assets are stored in the campaign folder you choose.</p>
+                <span>Player View</span>
+                <p>Use Player View for the table display, hold screen, blackout, map calibration, and scene sharing.</p>
+                <span>Dice</span>
+                <p>The Dice Bag supports quick dice, custom presets, formulas, text results, 3D panels, and 3D scene rolls.</p>
+              </div>
+            </div>
+            <div className="button-row modal-actions">
+              <button type="button" onClick={() => setAboutOpen(false)}>Close</button>
+            </div>
+          </div>
+        </div>
       )}
     </aside>
   );

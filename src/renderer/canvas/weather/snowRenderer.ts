@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { Camera } from "../camera";
+import type { Camera } from "../core/camera";
 import type { WeatherSettings } from "../../../shared/localvtt";
 import { SNOW_PRESETS, createFrostEdgeMesh, createSnowParticle, getCycleOffset, getDistanceToQuietArea, getMinimumWeatherDimension, getQuietAreaBounds, getWeatherDriftVector, getWeatherParticleCount, hash, isSnowEffect, smoothstep, updateFrostEdgeMesh, type SnowParticle, type SnowPreset, type WeatherArea, type WeatherBounds } from "./weatherCore";
 

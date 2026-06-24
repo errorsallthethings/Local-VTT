@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, CircleHelp, Dices, EllipsisVertical, Eye, Map, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, CircleHelp, EllipsisVertical, Eye, GripVertical, Map, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
 import type { Asset, Campaign, DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneRollTarget, DiceSceneSize, LiveTableEvent, Scene } from "../../../shared/localvtt";
 import {
   DICE_TYPES,
@@ -11,7 +11,8 @@ import {
   rollDiceExpression,
   type DiceType
 } from "../../lib/dice";
-import { getActiveWeatherEffects } from "../../lib/weatherCatalog";
+import { getActiveWeatherEffects } from "../../lib/effects";
+import { type ModalSize, useResizableModal } from "../../hooks/useResizableModal";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 type CustomDicePreset = {
@@ -103,6 +104,8 @@ interface WorkspaceTopbarProps {
   onRollDie: (die: DiceType) => void;
   onRollExpression: (expression: string, rollLabel?: string) => string | null;
   onClearDiceRolls: () => void;
+  dicePanelOpen: boolean;
+  onDicePanelOpenChange: (open: boolean) => void;
 }
 
 export function WorkspaceTopbar({
@@ -150,7 +153,9 @@ export function WorkspaceTopbar({
   onPlayerDicePanelAdvancedChange,
   onRollDie,
   onRollExpression,
-  onClearDiceRolls
+  onClearDiceRolls,
+  dicePanelOpen,
+  onDicePanelOpenChange
 }: WorkspaceTopbarProps) {
   const [diceExpression, setDiceExpression] = useState("1d20");
   const [diceExpressionError, setDiceExpressionError] = useState<string | null>(null);
@@ -159,16 +164,26 @@ export function WorkspaceTopbar({
   const [presetLabel, setPresetLabel] = useState("");
   const [presetFormula, setPresetFormula] = useState("");
   const [presetFormError, setPresetFormError] = useState<string | null>(null);
-  const [dicePanelOpen, setDicePanelOpen] = useState(false);
   const [diceSettingsOpen, setDiceSettingsOpen] = useState(false);
   const [dicePlacementOpen, setDicePlacementOpen] = useState(false);
   const [diceFormulaHelpOpen, setDiceFormulaHelpOpen] = useState(false);
   const [diceRecentTick, setDiceRecentTick] = useState(0);
+  const [dicePanelCollapsed, setDicePanelCollapsed] = useState(false);
   const [dicePanelPosition, setDicePanelPosition] = useState<DicePanelPosition | null>(null);
+  const [dicePanelSize, setDicePanelSize] = useState<ModalSize | null>(null);
   const [dicePanelDragging, setDicePanelDragging] = useState(false);
-  const dicePanelRef = useRef<HTMLDivElement | null>(null);
   const dicePopoverRef = useRef<HTMLDivElement | null>(null);
   const dicePanelDragRef = useRef<DicePanelDrag | null>(null);
+  const previousDicePanelOpenRef = useRef(dicePanelOpen);
+  const { resize: resizeDicePanel, startResize: startDicePanelResize, stopResize: stopDicePanelResize } = useResizableModal({
+    elementRef: dicePopoverRef,
+    position: dicePanelPosition,
+    size: dicePanelSize,
+    minSize: { width: 300, height: 360 },
+    onPositionChange: setDicePanelPosition,
+    onSizeChange: setDicePanelSize,
+    margin: 8
+  });
   const title = activeScene?.name ?? (campaign ? "Select or Create a Scene" : "Create or Open a Campaign");
   const subtitle = activeScene
     ? mapAsset
@@ -181,6 +196,13 @@ export function WorkspaceTopbar({
   useEffect(() => {
     window.localStorage.setItem(CUSTOM_DICE_PRESETS_STORAGE_KEY, JSON.stringify(customDicePresets));
   }, [customDicePresets]);
+
+  useEffect(() => {
+    if (dicePanelOpen && !previousDicePanelOpenRef.current) {
+      setDicePanelCollapsed(false);
+    }
+    previousDicePanelOpenRef.current = dicePanelOpen;
+  }, [dicePanelOpen]);
 
   useEffect(() => {
     if (!diceHistory.some(isPendingRecentDiceRoll)) {
@@ -200,38 +222,36 @@ export function WorkspaceTopbar({
     if (!dicePanelOpen) {
       return;
     }
-    const closePanel = (event: PointerEvent) => {
-      const target = event.target;
-      if (target instanceof Node && dicePanelRef.current?.contains(target)) {
-        return;
-      }
-      setDicePanelOpen(false);
-    };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setDicePanelOpen(false);
+        onDicePanelOpenChange(false);
       }
     };
-    window.addEventListener("pointerdown", closePanel);
     window.addEventListener("keydown", closeOnEscape);
     return () => {
-      window.removeEventListener("pointerdown", closePanel);
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [dicePanelOpen]);
+  }, [dicePanelOpen, onDicePanelOpenChange]);
 
   useEffect(() => {
-    if (!dicePanelOpen || !dicePanelPosition) {
+    if (!dicePanelOpen) {
       return;
     }
-    setDicePanelPosition((position) => {
-      if (!position) {
-        return position;
-      }
-      const nextPosition = clampDicePanelPosition(position.x, position.y, dicePopoverRef.current?.getBoundingClientRect());
-      return nextPosition.x === position.x && nextPosition.y === position.y ? position : nextPosition;
-    });
-  }, [dicePanelOpen, dicePanelPosition]);
+
+    const clampCurrentPanelPosition = () => {
+      setDicePanelPosition((position) => {
+        if (!position) {
+          return position;
+        }
+        const nextPosition = clampDicePanelPosition(position.x, position.y, dicePopoverRef.current?.getBoundingClientRect());
+        return nextPosition.x === position.x && nextPosition.y === position.y ? position : nextPosition;
+      });
+    };
+
+    clampCurrentPanelPosition();
+    window.addEventListener("resize", clampCurrentPanelPosition);
+    return () => window.removeEventListener("resize", clampCurrentPanelPosition);
+  }, [dicePanelOpen]);
 
   const beginDicePanelDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     const target = event.target;
@@ -374,24 +394,17 @@ export function WorkspaceTopbar({
         <span>{subtitle}</span>
       </div>
       <div className="toolbar-groups">
-        <div className="toolbar-block dice-toolbar-block" ref={dicePanelRef}>
-          <div className="toolbar-label">Dice</div>
-          <div className="toolbar-group dice-toolbar-trigger" aria-label="Dice actions">
-            <button
-              className={dicePanelOpen ? "dice-panel-trigger dice-panel-trigger-active" : "dice-panel-trigger"}
-              aria-expanded={dicePanelOpen}
-              aria-haspopup="dialog"
-              onClick={() => setDicePanelOpen((open) => !open)}
-            >
-              <Dices size={16} aria-hidden="true" />
-              Dice
-            </button>
-          </div>
-          {dicePanelOpen && (
+        {dicePanelOpen && (
             <div
               ref={dicePopoverRef}
-              className={dicePanelPosition ? "dice-popover dice-popover-dragged" : "dice-popover"}
-              style={dicePanelPosition ? { left: dicePanelPosition.x, top: dicePanelPosition.y } : undefined}
+              className={[
+                dicePanelPosition ? "dice-popover dice-popover-dragged" : "dice-popover dice-popover-floating",
+                dicePanelCollapsed ? "dice-popover-collapsed" : ""
+              ].filter(Boolean).join(" ")}
+              style={{
+                ...(dicePanelPosition ? { left: dicePanelPosition.x, top: dicePanelPosition.y } : {}),
+                ...(dicePanelSize ? { width: dicePanelSize.width, height: dicePanelCollapsed ? undefined : dicePanelSize.height } : {})
+              }}
               role="dialog"
               aria-label="Dice roller"
             >
@@ -401,11 +414,13 @@ export function WorkspaceTopbar({
                 onPointerMove={moveDicePanelDrag}
                 onPointerUp={endDicePanelDrag}
                 onPointerCancel={endDicePanelDrag}
+                onDoubleClick={() => setDicePanelCollapsed((collapsed) => !collapsed)}
               >
                 <div className="dice-popover-title">
-                  <strong>Dice</strong>
+                  <GripVertical size={15} aria-hidden="true" />
+                  <strong>Dice Bag</strong>
                 </div>
-                <div className="dice-popover-header-actions">
+                <div className="dice-popover-header-actions" onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
                   <button
                     className={diceSettingsOpen ? "icon-button dice-panel-icon-active" : "icon-button"}
                     aria-label="Dice rendering settings"
@@ -415,12 +430,12 @@ export function WorkspaceTopbar({
                   >
                     <Settings2 size={14} aria-hidden="true" />
                   </button>
-                  <button className="icon-button" aria-label="Close dice panel" title="Close dice panel" onClick={() => setDicePanelOpen(false)}>
+                  <button className="icon-button" aria-label="Close dice panel" title="Close dice panel" onClick={() => onDicePanelOpenChange(false)}>
                     <X size={14} aria-hidden="true" />
                   </button>
                 </div>
               </div>
-              <div className="dice-panel-body" aria-label="Roll dice">
+              {!dicePanelCollapsed && <div className="dice-panel-body" aria-label="Roll dice">
                 {diceSettingsOpen && (
                   <section className="dice-panel-section" aria-label="Dice rendering settings">
                     <div className="dice-settings-panel">
@@ -629,7 +644,7 @@ export function WorkspaceTopbar({
                 </section>
                 <section className="dice-panel-section" aria-label="Quick dice">
                   <div className="dice-section-heading">
-                    <span>Quick Dice</span>
+                    <strong>Quick Dice</strong>
                   </div>
                   <div className="dice-quick-grid">
                     {DICE_TYPES.map((die) => (
@@ -650,7 +665,7 @@ export function WorkspaceTopbar({
                 </section>
                 <section className="dice-panel-section" aria-label="Dice roll presets">
                   <div className="dice-section-heading">
-                    <span>Presets</span>
+                    <strong>Presets</strong>
                     <button type="button" className="icon-button dice-section-icon-button" title="Add preset" aria-label="Add preset" onClick={openPresetForm}>
                       <Plus size={14} aria-hidden="true" />
                     </button>
@@ -726,7 +741,7 @@ export function WorkspaceTopbar({
                 <section className="dice-panel-section" aria-label="Dice roll history">
                   <div className="dice-roll-feed">
                     <div className="dice-roll-feed-heading">
-                      <span>Recent</span>
+                      <strong>Recent</strong>
                       <div className="dice-roll-feed-actions">
                         <button
                           className="icon-button dice-section-icon-button dice-clear-button"
@@ -757,10 +772,20 @@ export function WorkspaceTopbar({
                     </div>
                   </div>
                 </section>
-              </div>
+              </div>}
+              {!dicePanelCollapsed && (
+                <div
+                  className="modal-resize-handle"
+                  title="Drag to resize"
+                  aria-label="Resize dice bag"
+                  onPointerDown={startDicePanelResize}
+                  onPointerMove={resizeDicePanel}
+                  onPointerUp={stopDicePanelResize}
+                  onPointerCancel={stopDicePanelResize}
+                />
+              )}
             </div>
-          )}
-        </div>
+        )}
         <div className="toolbar-block">
           <div className="toolbar-label">Player View</div>
           <div className="toolbar-group" aria-label="Player View actions">

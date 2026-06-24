@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { Camera } from "../camera";
+import type { Camera } from "../core/camera";
 import type { WeatherSettings } from "../../../shared/localvtt";
 import { FOG_PRESETS, createFogBanks, createFogDensityTexture, createFogHazeMesh, getQualityMultiplier, hash, isFogEffect, smoothstep, updateFogHazeMesh, type FogBank, type FogPreset, type WeatherArea, type WeatherBounds } from "./weatherCore";
 

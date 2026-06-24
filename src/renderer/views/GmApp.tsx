@@ -9,15 +9,10 @@ import {
 } from "react";
 import {
   DEFAULT_DICE_SETTINGS,
-  DEFAULT_MAP_TRANSFORM,
   PLAYER_INDICATOR_THEMES,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
-  DEFAULT_VIDEO_PLAYBACK,
-  isLiveTableEvent,
-  isPlayerIdleState,
-  isPlayerSceneProjection,
-  projectSceneForPlayer
+  DEFAULT_VIDEO_PLAYBACK
 } from "../../shared/localvtt";
 import type {
   Asset,
@@ -27,6 +22,7 @@ import type {
   CampaignSceneFolder,
   DisplayCalibration,
   DiceSettings,
+  EnvironmentEffectType,
   LiveTableEvent,
   Point,
   Scene,
@@ -34,67 +30,103 @@ import type {
   TokenPresentationDefaults
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
-import type { MapCalibrationBox, MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
+import { CampaignBusyOverlay } from "../components/modals/CampaignBusyOverlay";
+import { EnvironmentEffectEditorModal } from "../components/layers";
+import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import { ToolsMenu, type CanvasTool, type FogOperation, type WeatherMaskTool } from "../components/tools/ToolsMenu";
+import { ToolsMenu, type SelectorSelectionFilters } from "../components/tools";
+import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DarknessEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../canvas/effects";
+import { applyMapCalibrationDraft, type MapCalibrationDraft } from "../lib/map";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
+import { TurnOrderModal } from "../components/turn-order/TurnOrderModal";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
-import type { FogTool } from "../canvas/fogRenderer";
 import { useCampaignActions, type CampaignBusyState } from "../hooks/useCampaignActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
-import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
-import { moveSceneFolder } from "../lib/campaignActions";
-import { DICE_HISTORY_DURATION_MS, getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import {
-  RECENT_CAMPAIGNS_STORAGE_KEY,
+  getDefaultAcidEffectTuning,
+  getDefaultArcaneEffectTuning,
+  getDefaultChaosEffectTuning,
+  getDefaultColdEffectTuning,
+  getDefaultDarknessEffectTuning,
+  getDefaultDistortionEffectTuning,
+  getDefaultFireEffectTuning,
+  getDefaultFogEffectTuning,
+  getDefaultForceFieldEffectTuning,
+  getDefaultLavaEffectTuning,
+  getDefaultLightningEffectTuning,
+  getDefaultNatureEffectTuning,
+  getDefaultPoisonEffectTuning,
+  getDefaultRadiantEffectTuning,
+  getDefaultShockwaveEffectTuning,
+  getDefaultSmokeEffectTuning,
+  getDefaultVoidEffectTuning,
+  getDefaultWaterEffectTuning,
+  useEnvironmentEffectTuning
+} from "../hooks/useEnvironmentEffectTuning";
+import { useGmDialogEscape, useGmDialogState } from "../hooks/useGmDialogState";
+import { useGmToolOptions } from "../hooks/useGmToolOptions";
+import { useGmToolSelection } from "../hooks/useGmToolSelection";
+import { usePlayerViewState } from "../hooks/usePlayerViewState";
+import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
+import { useSceneSelection } from "../hooks/useSceneSelection";
+import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assets";
+import { moveSceneFolder } from "../lib/campaign";
+import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
+import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/dice";
+import { loadImageDimensions } from "../lib/assets";
+import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/player-view";
+import { sendSceneToPlayer, updatePlayerSceneIfOpen } from "../lib/player-view";
+import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/scene";
+import { patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
+import {
   addRecentCampaign,
-  parseRecentCampaigns,
+  loadRecentCampaigns,
   removeRecentCampaign,
+  saveRecentCampaigns,
   type RecentCampaign
-} from "../lib/recentCampaigns";
-import { createImportedToken } from "../lib/tokenDefaults";
-import { addTurnOrderEntry, createTurnOrderEntryFromToken, stopTurnOrder } from "../lib/turnOrder";
+} from "../lib/campaign";
+import { createImportedToken } from "../lib/tokens";
+import { getSelectedTokenAssetIds, mergeTokenAssetUsage, removeSceneTokensByAsset } from "../lib/tokens";
+import { addTurnOrderEntry, createTurnOrderEntryFromToken, removeTurnOrderEntriesForPlayer, stopTurnOrder, updateTurnOrderEntriesForPlayer } from "../lib/turn-order";
 import {
   COLLAPSED_RAIL_WIDTH,
   COMPACT_RIGHT_PANEL_WIDTH,
   DEFAULT_TOKEN_LIBRARY_HEIGHT,
-  TOKEN_LIBRARY_HEIGHT_STORAGE_KEY,
-  WORKSPACE_LAYOUT_STORAGE_KEY,
   getWorkspacePanelWidth,
   loadTokenLibraryHeight,
   loadWorkspaceLayout,
   normalizeTokenLibraryHeight,
   resetPanelWidth as resetWorkspacePanelWidth,
   resizePanelWidth,
+  saveTokenLibraryHeight,
+  saveWorkspaceLayout,
   toggleWorkspacePanel as toggleWorkspacePanelLayout,
   type WorkspaceLayout,
   type WorkspacePanelSide
-} from "../lib/workspaceLayout";
+} from "../lib/workspace";
+import { formatSaveStatus } from "../lib/workspace";
 import {
   GmDialogs,
-  type FogShapeNameDialog,
-  type FolderColorDialog,
-  type FolderNameDialog,
   type SceneColorDialog,
-  type TokenAssetDeleteDialog,
-  type TokenAssetNameDialog,
   type TokenCropDialogState,
-  type TokenDefaultsDialog,
-  type SceneNameDialog,
-  type TokenColorDialog,
-  type TokenNameDialog
 } from "./GmDialogs";
 import { GmInspector } from "./GmInspector";
 import { GmSidebar } from "./GmSidebar";
 
-type PlayerDisplayMode = "scene" | "hold" | "blackout";
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 
-const MAX_DICE_ROLL_HISTORY = 100;
-const DICE_SETTINGS_PREFERENCES_STORAGE_KEY = "localvtt.diceSettingsPreferences";
+const EMPTY_ASSETS: Asset[] = [];
+const EMPTY_SCENE_ENTRIES: CampaignSceneEntry[] = [];
+const DEFAULT_SELECTOR_SELECTION_FILTERS: SelectorSelectionFilters = {
+  tokens: true,
+  templates: false,
+  fogMasks: false,
+  weatherMasks: false,
+  drawings: true
+};
 
 export function GmApp() {
   const workspace = useCampaignWorkspace();
@@ -120,69 +152,223 @@ export function GmApp() {
     updateScene: updateWorkspaceScene,
     updateCampaignDraft: updateWorkspaceCampaignDraft
   } = workspace;
-  const [sceneDialog, setSceneDialog] = useState<SceneNameDialog | null>(null);
-  const [folderDialog, setFolderDialog] = useState<FolderNameDialog | null>(null);
-  const [fogShapeDialog, setFogShapeDialog] = useState<FogShapeNameDialog | null>(null);
-  const [tokenDialog, setTokenDialog] = useState<TokenNameDialog | null>(null);
-  const [tokenCropDialog, setTokenCropDialog] = useState<TokenCropDialogState | null>(null);
-  const [tokenAssetDialog, setTokenAssetDialog] = useState<TokenAssetNameDialog | null>(null);
-  const [tokenDefaultsDialog, setTokenDefaultsDialog] = useState<TokenDefaultsDialog | null>(null);
-  const [tokenColorDialog, setTokenColorDialog] = useState<TokenColorDialog | null>(null);
-  const [folderColorDialog, setFolderColorDialog] = useState<FolderColorDialog | null>(null);
-  const [sceneColorDialog, setSceneColorDialog] = useState<SceneColorDialog | null>(null);
-  const [campaignNameDialogOpen, setCampaignNameDialogOpen] = useState(false);
-  const [sceneToDelete, setSceneToDelete] = useState<CampaignSceneEntry | null>(null);
-  const [folderToDelete, setFolderToDelete] = useState<CampaignSceneFolder | null>(null);
-  const [mapAssetToDelete, setMapAssetToDelete] = useState<Asset | null>(null);
-  const [tokenAssetToDelete, setTokenAssetToDelete] = useState<TokenAssetDeleteDialog | null>(null);
+  const dialogs = useGmDialogState();
+  const {
+    sceneDialog,
+    setSceneDialog,
+    folderDialog,
+    setFolderDialog,
+    fogShapeDialog,
+    setFogShapeDialog,
+    environmentEffectDialog,
+    setEnvironmentEffectDialog,
+    tokenDialog,
+    setTokenDialog,
+    tokenCropDialog,
+    setTokenCropDialog,
+    tokenAssetDialog,
+    setTokenAssetDialog,
+    tokenDefaultsDialog,
+    setTokenDefaultsDialog,
+    tokenColorDialog,
+    setTokenColorDialog,
+    folderColorDialog,
+    setFolderColorDialog,
+    sceneColorDialog,
+    setSceneColorDialog,
+    campaignNameDialogOpen,
+    setCampaignNameDialogOpen,
+    sceneToDelete,
+    setSceneToDelete,
+    folderToDelete,
+    setFolderToDelete,
+    mapAssetToDelete,
+    setMapAssetToDelete,
+    tokenAssetToDelete,
+    setTokenAssetToDelete,
+    playerDisplayDialogOpen,
+    setPlayerDisplayDialogOpen,
+    mapCalibrationAssistantOpen,
+    setMapCalibrationAssistantOpen,
+    confirmClearFogOpen,
+    setConfirmClearFogOpen,
+    mapCalibrationBoxPicking,
+    setMapCalibrationBoxPicking
+  } = dialogs;
   const [openSceneMenuId, setOpenSceneMenuId] = useState<string | null>(null);
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null);
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
-  const [playerDisplayDialogOpen, setPlayerDisplayDialogOpen] = useState(false);
-  const [mapCalibrationAssistantOpen, setMapCalibrationAssistantOpen] = useState(false);
-  const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasTool | null>(null);
-  const [activeFogTool, setActiveFogTool] = useState<FogTool | null>(null);
-  const [activeWeatherMaskTool, setActiveWeatherMaskTool] = useState<WeatherMaskTool | null>(null);
-  const [fogOperation, setFogOperation] = useState<FogOperation>("reveal");
-  const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
+  const {
+    activeCanvasTool,
+    setActiveCanvasTool,
+    activeDrawingTool,
+    setActiveDrawingTool,
+    activeFogTool,
+    setActiveFogTool,
+    activeWeatherMaskTool,
+    setActiveWeatherMaskTool,
+    activeEnvironmentEffectTool,
+    setActiveEnvironmentEffectTool,
+    mouseBehavior,
+    setMouseBehavior,
+    clearActiveCanvasTools
+  } = useGmToolSelection();
+  const {
+    environmentEffectType,
+    setEnvironmentEffectType,
+    environmentEffectFeather,
+    setEnvironmentEffectFeather,
+    acidEffectTuning,
+    setAcidEffectTuning,
+    resetAcidEffectTuning,
+    coldEffectTuning,
+    setColdEffectTuning,
+    resetColdEffectTuning,
+    darknessEffectTuning,
+    setDarknessEffectTuning,
+    resetDarknessEffectTuning,
+    poisonEffectTuning,
+    setPoisonEffectTuning,
+    resetPoisonEffectTuning,
+    waterEffectTuning,
+    setWaterEffectTuning,
+    resetWaterEffectTuning,
+    lavaEffectTuning,
+    setLavaEffectTuning,
+    resetLavaEffectTuning,
+    fireEffectTuning,
+    setFireEffectTuning,
+    resetFireEffectTuning,
+    lightningEffectTuning,
+    setLightningEffectTuning,
+    resetLightningEffectTuning,
+    arcaneEffectTuning,
+    setArcaneEffectTuning,
+    resetArcaneEffectTuning,
+    chaosEffectTuning,
+    setChaosEffectTuning,
+    resetChaosEffectTuning,
+    voidEffectTuning,
+    setVoidEffectTuning,
+    resetVoidEffectTuning,
+    natureEffectTuning,
+    setNatureEffectTuning,
+    resetNatureEffectTuning,
+    distortionEffectTuning,
+    setDistortionEffectTuning,
+    resetDistortionEffectTuning,
+    radiantEffectTuning,
+    setRadiantEffectTuning,
+    resetRadiantEffectTuning,
+    forceFieldEffectTuning,
+    setForceFieldEffectTuning,
+    resetForceFieldEffectTuning,
+    shockwaveEffectTuning,
+    setShockwaveEffectTuning,
+    resetShockwaveEffectTuning,
+    smokeEffectTuning,
+    setSmokeEffectTuning,
+    resetSmokeEffectTuning,
+    fogEffectTuning,
+    setFogEffectTuning,
+    resetFogEffectTuning
+  } = useEnvironmentEffectTuning();
+  const {
+    tableToolsVisibleInPlayer,
+    setTableToolsVisibleInPlayer,
+    tableTools,
+    setPingSize,
+    setPingColor,
+    setLaserThickness,
+    setLaserColor,
+    setRulerLinger,
+    fogOperation,
+    setFogOperation,
+    fogBrushSize,
+    setFogBrushSize,
+    drawingColor,
+    setDrawingColor,
+    drawingOpacity,
+    setDrawingOpacity,
+    drawingFillColor,
+    setDrawingFillColor,
+    drawingFillOpacity,
+    setDrawingFillOpacity,
+    drawingStrokeStyle,
+    setDrawingStrokeStyle,
+    drawingStrokeWidth,
+    setDrawingStrokeWidth,
+    drawingTemplateSize,
+    setDrawingTemplateSize,
+    drawingTemplateEffect,
+    setDrawingTemplateEffect,
+    drawingTemplateWidth,
+    setDrawingTemplateWidth,
+    templatePreviewVisibleInPlayer,
+    setTemplatePreviewVisibleInPlayer,
+    playerTemplatePreviewDrawing,
+    setPlayerTemplatePreviewDrawing
+  } = useGmToolOptions();
   const [newSceneName, setNewSceneName] = useState("New Battle Map");
   const [newFolderName, setNewFolderName] = useState("New Folder");
   const [newFogShapeName, setNewFogShapeName] = useState("");
+  const [newEnvironmentEffectName, setNewEnvironmentEffectName] = useState("");
   const [newTokenName, setNewTokenName] = useState("");
   const [newTokenBorderColor, setNewTokenBorderColor] = useState(DEFAULT_TOKEN_BORDER_COLOR);
   const [newFolderColor, setNewFolderColor] = useState(DEFAULT_SCENE_FOLDER_COLOR);
   const [newCampaignName, setNewCampaignName] = useState("");
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
-  const [selectedFogShapeId, setSelectedFogShapeId] = useState<string | null>(null);
-  const [selectedWeatherMaskId, setSelectedWeatherMaskId] = useState<string | null>(null);
-  const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+  const [environmentEffectEditorPosition, setEnvironmentEffectEditorPosition] = useState<{ x: number; y: number } | null>(null);
+  const [environmentEffectEditorSize, setEnvironmentEffectEditorSize] = useState<{ width: number; height: number } | null>(null);
+  const [selectorSelectionFilters, setSelectorSelectionFilters] = useState<SelectorSelectionFilters>(DEFAULT_SELECTOR_SELECTION_FILTERS);
   const [mapCalibrationBox, setMapCalibrationBox] = useState<MapCalibrationBox | null>(null);
-  const [mapCalibrationBoxPicking, setMapCalibrationBoxPicking] = useState(false);
-  const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
-  const [playerDisplayMode, setPlayerDisplayMode] = useState<PlayerDisplayMode>("scene");
-  const [liveTableEvents, setLiveTableEvents] = useState<LiveTableEvent[]>([]);
   const [diceRollHistory, setDiceRollHistory] = useState<DiceRollEvent[]>([]);
+  const [dicePanelOpen, setDicePanelOpen] = useState(false);
   const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
+  const [turnOrderModalOpen, setTurnOrderModalOpen] = useState(false);
+  const [turnOrderModalCollapsed, setTurnOrderModalCollapsed] = useState(false);
+  const [turnOrderModalPosition, setTurnOrderModalPosition] = useState<{ x: number; y: number } | null>(null);
+  const [turnOrderModalSize, setTurnOrderModalSize] = useState<{ width: number; height: number } | null>(null);
+  const [turnOrderSettingsOpen, setTurnOrderSettingsOpen] = useState(false);
   const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
   const [gmCanvasCenter, setGmCanvasCenter] = useState<Point | null>(null);
   const [tokenLibraryHeight, setTokenLibraryHeight] = useState(() => loadTokenLibraryHeight());
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
-  const [recentCampaigns, setRecentCampaigns] = useState<RecentCampaign[]>(() =>
-    parseRecentCampaigns(window.localStorage.getItem(RECENT_CAMPAIGNS_STORAGE_KEY))
-  );
+  const [recentCampaigns, setRecentCampaigns] = useState<RecentCampaign[]>(() => loadRecentCampaigns());
   const [busyState, setBusyState] = useState<CampaignBusyState | null>(null);
-  const skipNextPlayerSceneAutoSyncRef = useRef(false);
-
-  const mapAsset = useMemo(() => {
-    if (!campaign || !activeScene?.mapAssetId) {
-      return null;
-    }
-    return campaign.assets.find((asset) => asset.id === activeScene.mapAssetId) ?? null;
-  }, [activeScene?.mapAssetId, campaign]);
+  const campaignAssets = campaign?.assets ?? EMPTY_ASSETS;
+  const campaignScenes = campaign?.scenes ?? EMPTY_SCENE_ENTRIES;
+  const assetsById = useMemo(() => buildAssetsById(campaignAssets), [campaignAssets]);
+  const mapAsset = useMemo(() => (activeScene?.mapAssetId ? (assetsById.get(activeScene.mapAssetId) ?? null) : null), [activeScene?.mapAssetId, assetsById]);
   const activeMapIsVideo = mapAsset?.mediaType === "video";
-  const tokenAssets = useMemo(() => new Map((campaign?.assets ?? []).filter((asset) => asset.kind === "token").map((asset) => [asset.id, asset])), [campaign?.assets]);
+  const tokenAssets = useMemo(() => buildAssetsByKind(campaignAssets, "token"), [campaignAssets]);
   const tokenLibraryAssets = useMemo(() => [...tokenAssets.values()], [tokenAssets]);
+  const {
+    selectedFogShapeId,
+    selectedWeatherMaskId,
+    selectedEnvironmentEffectId,
+    setEnvironmentEffectEditorId,
+    environmentEffectEditorEffect,
+    selectedDrawingId,
+    selectedTokenId,
+    selectedFogShapeIds,
+    selectedWeatherMaskIds,
+    selectedDrawingIds,
+    selectedTokenIds,
+    selectorSelectionCounts,
+    selectTokens,
+    selectDrawings,
+    selectFogShapes,
+    selectWeatherMasks,
+    selectEnvironmentEffect,
+    selectSceneItems,
+    clearSceneSelection
+  } = useSceneSelection(activeScene);
+  const selectedTokenAssetIds = useMemo(
+    () => getSelectedTokenAssetIds(activeScene?.tokens, selectedTokenId, selectedTokenIds),
+    [activeScene?.tokens, selectedTokenId, selectedTokenIds]
+  );
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const [diceSettingsPreference, setDiceSettingsPreference] = useState<DiceSettings>(() => loadDiceSettingsPreference());
   const diceSettings = useMemo<DiceSettings>(() => ({ ...DEFAULT_DICE_SETTINGS, ...(campaign?.diceSettings ?? diceSettingsPreference) }), [campaign?.diceSettings, diceSettingsPreference]);
@@ -191,17 +377,27 @@ export function GmApp() {
     () => new Set((campaign?.sceneFolders ?? []).filter((folder) => !expandedFolderIds.has(folder.id)).map((folder) => folder.id)),
     [campaign?.sceneFolders, expandedFolderIds]
   );
-  const sceneThumbnailAssets = useMemo(() => {
-    const assetsById = new Map((campaign?.assets ?? []).map((asset) => [asset.id, asset]));
-    return new Map(
-      (campaign?.scenes ?? []).map((sceneEntry) => {
-        const draftScene = sceneDrafts[sceneEntry.id] ?? (activeScene?.id === sceneEntry.id ? activeScene : null);
-        const mapAssetId = draftScene?.mapAssetId ?? sceneEntry.mapAssetId;
-        return [sceneEntry.id, mapAssetId ? (assetsById.get(mapAssetId) ?? null) : null];
-      })
-    );
-  }, [activeScene, campaign?.assets, campaign?.scenes, sceneDrafts]);
-
+  const sceneThumbnailAssets = useMemo(
+    () => buildSceneThumbnailAssets(campaignScenes, sceneDrafts, activeScene, assetsById),
+    [activeScene, assetsById, campaignScenes, sceneDrafts]
+  );
+  const {
+    playerSceneId,
+    setPlayerSceneId,
+    playerDisplayMode,
+    setPlayerDisplayMode,
+    liveTableEvents,
+    emitLiveTableEvent,
+    updateDiceRollHistory,
+    skipNextPlayerSceneAutoSync
+  } = usePlayerViewState({
+    activeScene,
+    campaign,
+    playersPanelOpen,
+    templatePreviewVisibleInPlayer,
+    playerTemplatePreviewDrawing,
+    onDiceRollHistoryChange: setDiceRollHistory
+  });
   useEffect(() => {
     diceSettingsDraftRef.current = diceSettings;
   }, [diceSettings]);
@@ -209,11 +405,14 @@ export function GmApp() {
   useEffect(() => {
     setMapCalibrationBox(null);
     setMapCalibrationBoxPicking(false);
-  }, [activeScene?.id]);
+    setPlayerTemplatePreviewDrawing(null);
+  }, [activeScene?.id, setMapCalibrationBoxPicking, setPlayerTemplatePreviewDrawing]);
 
   const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
     // Only sync the active edit to Player View when that same scene is already being shown to players.
-    skipNextPlayerSceneAutoSyncRef.current = syncScene !== nextScene;
+    if (syncScene !== nextScene) {
+      skipNextPlayerSceneAutoSync();
+    }
     updateWorkspaceScene(nextScene, nextScene.id === playerSceneId ? syncCampaign : null, syncScene);
   };
 
@@ -221,14 +420,71 @@ export function GmApp() {
     updateScene(nextScene, campaign, syncScene);
   };
 
-  const clearActiveCanvasTools = () => {
-    setActiveCanvasTool(null);
-    setActiveFogTool(null);
-    setActiveWeatherMaskTool(null);
+  type SceneEnvironmentEffect = Scene["environment"]["effects"][number];
+
+  const updateEnvironmentEffect = (effectId: string, updateEffect: (effect: SceneEnvironmentEffect) => SceneEnvironmentEffect) => {
+    if (!activeScene) {
+      return;
+    }
+    updateScene(patchSceneEnvironmentEffect(activeScene, effectId, updateEffect));
   };
 
-  const updateCampaignDraft = (nextCampaign: Campaign) => {
-    updateWorkspaceCampaignDraft(nextCampaign, activeScene?.id === playerSceneId ? activeScene : null);
+  const updateEnvironmentEffectAcidTuning = (effectId: string, acidTuning: AcidEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, acidTuning }));
+  const updateEnvironmentEffectPoisonTuning = (effectId: string, poisonTuning: PoisonEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, poisonTuning }));
+  const updateEnvironmentEffectColdTuning = (effectId: string, coldTuning: ColdEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, coldTuning }));
+  const updateEnvironmentEffectDarknessTuning = (effectId: string, darknessTuning: DarknessEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, darknessTuning }));
+  const updateEnvironmentEffectWaterTuning = (effectId: string, waterTuning: WaterEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, waterTuning }));
+  const updateEnvironmentEffectLavaTuning = (effectId: string, lavaTuning: LavaEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, lavaTuning }));
+  const updateEnvironmentEffectFireTuning = (effectId: string, fireTuning: FireEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, fireTuning }));
+  const updateEnvironmentEffectLightningTuning = (effectId: string, lightningTuning: LightningEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, lightningTuning }));
+  const updateEnvironmentEffectArcaneTuning = (effectId: string, arcaneTuning: ArcaneEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, arcaneTuning }));
+  const updateEnvironmentEffectChaosTuning = (effectId: string, chaosTuning: ChaosEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, chaosTuning }));
+  const updateEnvironmentEffectVoidTuning = (effectId: string, voidTuning: VoidEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, voidTuning }));
+  const updateEnvironmentEffectNatureTuning = (effectId: string, natureTuning: NatureEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, natureTuning }));
+  const updateEnvironmentEffectDistortionTuning = (effectId: string, distortionTuning: DistortionEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, distortionTuning }));
+  const updateEnvironmentEffectRadiantTuning = (effectId: string, radiantTuning: RadiantEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, radiantTuning }));
+  const updateEnvironmentEffectForceFieldTuning = (effectId: string, fieldTuning: ForceFieldEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, fieldTuning }));
+  const updateEnvironmentEffectShockwaveTuning = (effectId: string, shockwaveTuning: ShockwaveEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, shockwaveTuning }));
+  const updateEnvironmentEffectSmokeTuning = (effectId: string, smokeTuning: SmokeEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, smokeTuning }));
+  const updateEnvironmentEffectFogTuning = (effectId: string, fogTuning: FogEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, fogTuning }));
+  const updateEnvironmentEffectFeather = (effectId: string, feather: number) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, feather }));
+
+  const updateEnvironmentEffectType = (effectId: string, effectType: EnvironmentEffectType) => {
+    if (!activeScene) {
+      return;
+    }
+    updateScene(setSceneEnvironmentEffectType(activeScene, effectId, effectType));
+  };
+
+  const updateSelectedPlayerVisibility = (visibleInPlayer: boolean) => {
+    if (!activeScene) {
+      return;
+    }
+    updateScene(setSelectedSceneItemsPlayerVisibility(activeScene, {
+      tokenIds: selectedTokenIds,
+      drawingIds: selectedDrawingIds,
+      fogShapeIds: selectedFogShapeIds,
+      weatherMaskIds: selectedWeatherMaskIds,
+      environmentEffectId: selectedEnvironmentEffectId
+    }, visibleInPlayer));
+  };
+
+  const deleteSelectedSceneItems = () => {
+    if (!activeScene) {
+      return;
+    }
+    updateScene(removeSelectedSceneItems(activeScene, {
+      tokenIds: selectedTokenIds,
+      drawingIds: selectedDrawingIds,
+      fogShapeIds: selectedFogShapeIds,
+      weatherMaskIds: selectedWeatherMaskIds,
+      environmentEffectId: selectedEnvironmentEffectId
+    }));
+    clearSceneSelection();
+  };
+
+  const updateCampaignDraft = (nextCampaign: Campaign, syncActiveSceneToPlayer = true) => {
+    updateWorkspaceCampaignDraft(nextCampaign, syncActiveSceneToPlayer && activeScene?.id === playerSceneId ? activeScene : null);
   };
 
   const updateDiceSettings = (patch: Partial<DiceSettings>) => {
@@ -248,34 +504,6 @@ export function GmApp() {
       updatedAt: new Date().toISOString()
     });
   };
-
-  const updateDiceRollHistory = useCallback((event: DiceRollEvent) => {
-    setDiceRollHistory((history) => [event, ...history.filter((roll) => roll.id !== event.id)].slice(0, MAX_DICE_ROLL_HISTORY));
-  }, []);
-
-  const emitLiveTableEvent = (event: LiveTableEvent) => {
-    setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
-    if (event.type === "dice") {
-      updateDiceRollHistory(event);
-    } else if (event.type === "dice-clear") {
-      setDiceRollHistory([]);
-    }
-    void window.localVtt.sendLiveTableEvent(event);
-  };
-
-  useEffect(() => {
-    const removeListener = window.localVtt.onLiveTableEvent((event) => {
-      if (isLiveTableEvent(event)) {
-        setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
-        if (event.type === "dice") {
-          updateDiceRollHistory(event);
-        } else if (event.type === "dice-clear") {
-          setDiceRollHistory([]);
-        }
-      }
-    });
-    return removeListener;
-  }, [updateDiceRollHistory]);
 
   const rollTableDie = (die: DiceType) => {
     const roll = rollDiceEvent(die);
@@ -341,10 +569,10 @@ export function GmApp() {
     });
   };
 
-  const refreshDisplays = () =>
+  const refreshDisplays = useCallback(() =>
     run(async () => {
       setDisplays(await window.localVtt.getDisplays());
-    });
+    }), [run]);
 
   const cancelTokenCrop = useCallback(() =>
     run(async () => {
@@ -355,90 +583,18 @@ export function GmApp() {
       const summary = await window.localVtt.discardTokenImport(campaignPath, tokenCropDialog.asset.id);
       applySummary(summary, campaignDirty);
       setTokenCropDialog(null);
-    }), [applySummary, campaignDirty, campaignPath, run, tokenCropDialog]);
+    }), [applySummary, campaignDirty, campaignPath, run, setTokenCropDialog, tokenCropDialog]);
 
-  useEffect(() => {
-    if (
-      !sceneDialog &&
-      !folderDialog &&
-      !fogShapeDialog &&
-      !tokenDialog &&
-      !tokenCropDialog &&
-      !tokenAssetDialog &&
-      !tokenDefaultsDialog &&
-      !folderColorDialog &&
-      !tokenColorDialog &&
-      !sceneColorDialog &&
-      !campaignNameDialogOpen &&
-      !playerDisplayDialogOpen &&
-      !mapCalibrationAssistantOpen &&
-      !mapCalibrationBoxPicking &&
-      !sceneToDelete &&
-      !folderToDelete &&
-      !mapAssetToDelete &&
-      !tokenAssetToDelete &&
-      !confirmClearFogOpen &&
-      !openSceneMenuId &&
-      !openFolderMenuId &&
-      !playerMenuOpen
-    ) {
-      return;
-    }
-
-    const closeModal = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSceneDialog(null);
-        setFolderDialog(null);
-        setFogShapeDialog(null);
-        setTokenDialog(null);
-        void cancelTokenCrop();
-        setTokenAssetDialog(null);
-        setTokenDefaultsDialog(null);
-        setFolderColorDialog(null);
-        setTokenColorDialog(null);
-        setSceneColorDialog(null);
-        setCampaignNameDialogOpen(false);
-        setPlayerDisplayDialogOpen(false);
-        setMapCalibrationAssistantOpen(false);
-        setMapCalibrationBoxPicking(false);
-        setSceneToDelete(null);
-        setFolderToDelete(null);
-        setMapAssetToDelete(null);
-        setTokenAssetToDelete(null);
-        setConfirmClearFogOpen(false);
-        setOpenSceneMenuId(null);
-        setOpenFolderMenuId(null);
-        setPlayerMenuOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", closeModal);
-    return () => window.removeEventListener("keydown", closeModal);
-  }, [
-    campaignNameDialogOpen,
-    cancelTokenCrop,
-    confirmClearFogOpen,
-    folderColorDialog,
-    folderDialog,
-    fogShapeDialog,
-    tokenDialog,
-    tokenCropDialog,
-    tokenAssetDialog,
-    tokenDefaultsDialog,
-    tokenColorDialog,
-    folderToDelete,
-    mapAssetToDelete,
-    tokenAssetToDelete,
-    openFolderMenuId,
+  useGmDialogEscape({
+    dialogs,
     openSceneMenuId,
-    mapCalibrationAssistantOpen,
-    mapCalibrationBoxPicking,
-    playerDisplayDialogOpen,
+    openFolderMenuId,
     playerMenuOpen,
-    sceneColorDialog,
-    sceneDialog,
-    sceneToDelete
-  ]);
+    onCancelTokenCrop: () => void cancelTokenCrop(),
+    onCloseSceneMenu: () => setOpenSceneMenuId(null),
+    onCloseFolderMenu: () => setOpenFolderMenuId(null),
+    onClosePlayerMenu: () => setPlayerMenuOpen(false)
+  });
 
   useDismissableMenu({
     enabled: Boolean(openSceneMenuId || openFolderMenuId),
@@ -464,110 +620,20 @@ export function GmApp() {
   }, [activeScene]);
 
   useEffect(() => {
-    setLiveTableEvents([]);
-  }, [activeScene?.id]);
-
-  useEffect(() => {
-    if (liveTableEvents.length === 0) {
-      return;
-    }
-    const cleanupTimer = window.setTimeout(() => {
-      setLiveTableEvents((events) => filterActiveLiveTableEvents(events));
-    }, 250);
-    return () => window.clearTimeout(cleanupTimer);
-  }, [liveTableEvents]);
-
-  useEffect(() => {
     void refreshDisplays();
     // Displays are refreshed once on mount; later updates happen when the GM opens display settings.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refreshDisplays]);
 
   useEffect(() => {
-    if (!selectedFogShapeId || activeScene?.fog.shapes.some((shape) => shape.id === selectedFogShapeId)) {
-      return;
-    }
-    setSelectedFogShapeId(null);
-  }, [activeScene?.fog.shapes, selectedFogShapeId]);
-
-  useEffect(() => {
-    if (!selectedWeatherMaskId || activeScene?.weather.masks.some((mask) => mask.id === selectedWeatherMaskId)) {
-      return;
-    }
-    setSelectedWeatherMaskId(null);
-  }, [activeScene?.weather.masks, selectedWeatherMaskId]);
-
-  useEffect(() => {
-    if (!selectedFogShapeId) {
-      return;
-    }
-    const clearFogShapeSelection = (event: MouseEvent) => {
-      const target = event.target;
-      if (target instanceof HTMLElement && (target.closest(".fog-layer-shape-row") || target.closest(".scene-canvas-frame"))) {
-        return;
-      }
-      setSelectedFogShapeId(null);
-    };
-    window.addEventListener("mousedown", clearFogShapeSelection);
-    return () => window.removeEventListener("mousedown", clearFogShapeSelection);
-  }, [selectedFogShapeId]);
-
-  useEffect(() => {
-    if (!selectedTokenId || activeScene?.tokens.some((token) => token.id === selectedTokenId)) {
-      return;
-    }
-    setSelectedTokenId(null);
-  }, [activeScene?.tokens, selectedTokenId]);
-
-  useEffect(() => {
-    if (!playerSceneId || campaign?.scenes.some((scene) => scene.id === playerSceneId)) {
-      return;
-    }
-    void window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.", "hold");
-    setPlayerSceneId(null);
-    setPlayerDisplayMode("hold");
-  }, [campaign?.scenes, playerSceneId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void window.localVtt.getLastPlayerState().then((state) => {
-      if (cancelled) {
-        return;
-      }
-      if (isPlayerSceneProjection(state) && campaign?.scenes.some((scene) => scene.id === state.scene.id)) {
-        setPlayerSceneId(state.scene.id);
-        setPlayerDisplayMode("scene");
-      } else if (isPlayerIdleState(state)) {
-        setPlayerSceneId(null);
-        setPlayerDisplayMode(state.variant ?? "hold");
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [campaign?.scenes]);
-
-  useEffect(() => {
-    if (!campaign || !activeScene || activeScene.id !== playerSceneId || playerDisplayMode !== "scene") {
-      return;
-    }
-    if (skipNextPlayerSceneAutoSyncRef.current) {
-      skipNextPlayerSceneAutoSyncRef.current = false;
-      return;
-    }
-    void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
-  }, [activeScene, campaign, playerDisplayMode, playerSceneId, playersPanelOpen]);
-
-  useEffect(() => {
-    window.localStorage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(workspaceLayout));
+    saveWorkspaceLayout(workspaceLayout);
   }, [workspaceLayout]);
 
   useEffect(() => {
-    window.localStorage.setItem(TOKEN_LIBRARY_HEIGHT_STORAGE_KEY, String(tokenLibraryHeight));
+    saveTokenLibraryHeight(tokenLibraryHeight);
   }, [tokenLibraryHeight]);
 
   useEffect(() => {
-    window.localStorage.setItem(RECENT_CAMPAIGNS_STORAGE_KEY, JSON.stringify(recentCampaigns));
+    saveRecentCampaigns(recentCampaigns);
   }, [recentCampaigns]);
 
   const rememberCampaign = useCallback((summary: CampaignSummary) => {
@@ -652,14 +718,21 @@ export function GmApp() {
     if (!activeScene || activeScene.weather.masks.length === 0) {
       return;
     }
-    updateScene({
-      ...activeScene,
-      weather: {
-        ...activeScene.weather,
-        masks: activeScene.weather.masks.slice(0, -1)
-      },
-      updatedAt: new Date().toISOString()
-    });
+    updateScene(removeLastWeatherMask(activeScene));
+  };
+
+  const undoEnvironmentEffect = () => {
+    if (!activeScene || activeScene.environment.effects.length === 0) {
+      return;
+    }
+    updateScene(removeLastEnvironmentEffect(activeScene));
+  };
+
+  const undoDrawing = () => {
+    if (!activeScene || activeScene.drawings.length === 0) {
+      return;
+    }
+    updateScene(removeLastDrawing(activeScene));
   };
 
   const reopenRecentCampaign = async (recentCampaignPath: string) => {
@@ -704,7 +777,7 @@ export function GmApp() {
       },
       syncCampaign
     );
-    setSelectedTokenId(tokenId);
+    selectTokens([tokenId]);
     setTokenCropDialog(null);
   };
 
@@ -744,25 +817,7 @@ export function GmApp() {
     const nextCampaign = { ...campaign, players, updatedAt };
     updateCampaignDraft(nextCampaign);
     if (activeScene && updatedPlayer && activeScene.turnOrder.entries.some((entry) => entry.playerId === playerId)) {
-      updateScene(
-        {
-          ...activeScene,
-          turnOrder: {
-            ...activeScene.turnOrder,
-            entries: activeScene.turnOrder.entries.map((entry) =>
-              entry.playerId === playerId
-                ? {
-                    ...entry,
-                    name: updatedPlayer.name,
-                    assetId: updatedPlayer.assetId
-                  }
-                : entry
-            )
-          },
-          updatedAt
-        },
-        nextCampaign
-      );
+      updateScene(updateTurnOrderEntriesForPlayer(activeScene, updatedPlayer, updatedAt), nextCampaign);
     }
   };
 
@@ -778,17 +833,7 @@ export function GmApp() {
     };
     updateCampaignDraft(nextCampaign);
     if (activeScene?.turnOrder.entries.some((entry) => entry.playerId === playerId)) {
-      updateScene(
-        {
-          ...activeScene,
-          turnOrder: {
-            ...activeScene.turnOrder,
-            entries: activeScene.turnOrder.entries.filter((entry) => entry.playerId !== playerId)
-          },
-          updatedAt
-        },
-        nextCampaign
-      );
+      updateScene(removeTurnOrderEntriesForPlayer(activeScene, playerId, updatedAt), nextCampaign);
     }
   };
 
@@ -798,11 +843,11 @@ export function GmApp() {
     }
     const token = activeScene.tokens.find((candidate) => candidate.id === tokenId);
     if (!token || activeScene.turnOrder.entries.some((entry) => entry.tokenId === token.id)) {
-      setSelectedTokenId(tokenId);
+      selectTokens([tokenId]);
       return;
     }
     updateScene(addTurnOrderEntry(activeScene, createTurnOrderEntryFromToken(crypto.randomUUID(), token)));
-    setSelectedTokenId(token.id);
+    selectTokens([token.id]);
   };
 
   const openTokenDefaultsDialog = (asset: Asset) => {
@@ -865,7 +910,7 @@ export function GmApp() {
     };
     updateCampaignDraft(nextCampaign);
     if (activeScene) {
-      void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(nextCampaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
+      void updatePlayerSceneIfOpen(window.localVtt, nextCampaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
     }
   };
 
@@ -874,55 +919,13 @@ export function GmApp() {
       if (!activeScene) {
         return;
       }
-      const columns = Math.max(1, draft.mapGridColumns);
-      const rows = Math.max(1, draft.mapGridRows);
-      const boxGridPatch = getBoxCalibrationGridPatch(draft, mapCalibrationBox);
-      if (boxGridPatch) {
-        updateScene({
-          ...activeScene,
-          grid: {
-            ...activeScene.grid,
-            mapGridColumns: columns,
-            mapGridRows: rows,
-            ...boxGridPatch
-          },
-          mapTransform: {
-            ...activeScene.mapTransform,
-            fitMode: "manual"
-          },
-          updatedAt: new Date().toISOString()
-        });
+      if (mapCalibrationBox) {
+        updateScene(applyMapCalibrationDraft(activeScene, draft, { calibrationBox: mapCalibrationBox }));
       } else if (draft.alignGridToMap && mapAsset?.absolutePath && mapAsset.mediaType === "image") {
         const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath));
-        const cellWidth = dimensions.width / columns;
-        const cellHeight = dimensions.height / rows;
-        updateScene({
-          ...activeScene,
-          grid: {
-            ...activeScene.grid,
-            mapGridColumns: columns,
-            mapGridRows: rows,
-            sizePx: Math.max(1, Math.round(((cellWidth + cellHeight) / 2) * 100) / 100),
-            offsetX: 0,
-            offsetY: 0
-          },
-          mapTransform: { ...DEFAULT_MAP_TRANSFORM },
-          updatedAt: new Date().toISOString()
-        });
+        updateScene(applyMapCalibrationDraft(activeScene, draft, { imageDimensions: dimensions }));
       } else {
-        updateScene({
-          ...activeScene,
-          grid: {
-            ...activeScene.grid,
-            mapGridColumns: columns,
-            mapGridRows: rows
-          },
-          mapTransform: {
-            ...activeScene.mapTransform,
-            fitMode: draft.fitMode
-          },
-          updatedAt: new Date().toISOString()
-        });
+        updateScene(applyMapCalibrationDraft(activeScene, draft));
       }
       setMapCalibrationBox(null);
       setMapCalibrationAssistantOpen(false);
@@ -972,6 +975,12 @@ export function GmApp() {
     const shapeName = activeScene?.fog.shapes.find((shape) => shape.id === shapeId)?.name?.trim();
     setNewFogShapeName(shapeName || fallbackName);
     setFogShapeDialog({ shapeId });
+  };
+
+  const openRenameEnvironmentEffectDialog = (effectId: string, fallbackName: string) => {
+    const effectName = activeScene?.environment.effects.find((effect) => effect.id === effectId)?.name?.trim();
+    setNewEnvironmentEffectName(effectName || fallbackName);
+    setEnvironmentEffectDialog({ effectId });
   };
 
   const openRenameTokenDialog = (tokenId: string, fallbackName: string) => {
@@ -1041,6 +1050,25 @@ export function GmApp() {
     setFogShapeDialog(null);
   };
 
+  const submitEnvironmentEffectName = () => {
+    if (!activeScene || !environmentEffectDialog) {
+      return;
+    }
+    const name = newEnvironmentEffectName.trim();
+    if (!name) {
+      return;
+    }
+    updateScene({
+      ...activeScene,
+      environment: {
+        ...activeScene.environment,
+        effects: activeScene.environment.effects.map((effect) => (effect.id === environmentEffectDialog.effectId ? { ...effect, name } : effect))
+      },
+      updatedAt: new Date().toISOString()
+    });
+    setEnvironmentEffectDialog(null);
+  };
+
   const submitTokenName = () => {
     if (!activeScene || !tokenDialog) {
       return;
@@ -1096,10 +1124,10 @@ export function GmApp() {
       if (nextActiveScene) {
         setActiveScene(nextActiveScene);
         if (nextActiveScene.id === playerSceneId) {
-          void window.localVtt.updatePlayerSceneIfOpen(projectSceneForPlayer(result.campaignSummary.campaign, nextActiveScene, { showPlayerSeatIndicators: playersPanelOpen }));
+          void updatePlayerSceneIfOpen(window.localVtt, result.campaignSummary.campaign, nextActiveScene, { showPlayerSeatIndicators: playersPanelOpen });
         }
       }
-      setSelectedTokenId((tokenId) => (nextActiveScene?.tokens.some((token) => token.id === tokenId) ? tokenId : null));
+      selectTokens(nextActiveScene ? selectedTokenIds.filter((tokenId) => nextActiveScene.tokens.some((token) => token.id === tokenId)) : []);
       setTokenAssetToDelete(null);
     });
 
@@ -1121,7 +1149,7 @@ export function GmApp() {
     if (!campaign) {
       return;
     }
-    updateCampaignDraft(moveSceneFolder(campaign, folderId, direction, new Date().toISOString()));
+    updateCampaignDraft(moveSceneFolder(campaign, folderId, direction, new Date().toISOString()), false);
     setOpenFolderMenuId(null);
   };
 
@@ -1242,7 +1270,7 @@ export function GmApp() {
         displayId: campaign.playerDisplay.selectedDisplayId,
         fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
       });
-      await window.localVtt.sendSceneToPlayer(projectSceneForPlayer(campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen }));
+      await sendSceneToPlayer(window.localVtt, campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
       setPlayerSceneId(activeScene.id);
       setPlayerDisplayMode("scene");
       if (!openResult.displayFound && campaign.playerDisplay.selectedDisplayLabel) {
@@ -1266,7 +1294,7 @@ export function GmApp() {
 
   const showPlayerHold = () =>
     run(async () => {
-      await window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.", "hold");
+      await showDefaultPlayerHold();
       setPlayerSceneId(null);
       setPlayerDisplayMode("hold");
       setPlayerMenuOpen(false);
@@ -1274,14 +1302,14 @@ export function GmApp() {
 
   const showPlayerBlackout = () =>
     run(async () => {
-      await window.localVtt.showPlayerIdle("", "", "blackout");
+      await sendPlayerBlackout();
       setPlayerSceneId(null);
       setPlayerDisplayMode("blackout");
       setPlayerMenuOpen(false);
     });
 
   const showPlayerIdle = async () => {
-    await window.localVtt.showPlayerIdle("Waiting for Next Scene", "The GM is preparing the next map.", "hold");
+    await showDefaultPlayerHold();
     setPlayerSceneId(null);
     setPlayerDisplayMode("hold");
     setPlayerMenuOpen(false);
@@ -1509,6 +1537,8 @@ export function GmApp() {
           onRollDie={rollTableDie}
           onRollExpression={rollTableExpression}
           onClearDiceRolls={clearDiceRolls}
+          dicePanelOpen={dicePanelOpen}
+          onDicePanelOpenChange={setDicePanelOpen}
         />
 
         <div className={error ? "error-banner" : "error-banner error-banner-empty"}>{error}</div>
@@ -1519,38 +1549,140 @@ export function GmApp() {
               activeCanvasTool={activeCanvasTool}
               activeFogTool={activeFogTool}
               activeWeatherMaskTool={activeWeatherMaskTool}
+              activeEnvironmentEffectTool={activeEnvironmentEffectTool}
+              activeDrawingTool={activeDrawingTool}
+              environmentEffectType={environmentEffectType}
+              environmentEffectFeather={environmentEffectFeather}
+              acidEffectTuning={acidEffectTuning}
+              coldEffectTuning={coldEffectTuning}
+              darknessEffectTuning={darknessEffectTuning}
+              poisonEffectTuning={poisonEffectTuning}
+              waterEffectTuning={waterEffectTuning}
+              lavaEffectTuning={lavaEffectTuning}
+              fireEffectTuning={fireEffectTuning}
+              lightningEffectTuning={lightningEffectTuning}
+              arcaneEffectTuning={arcaneEffectTuning}
+              chaosEffectTuning={chaosEffectTuning}
+              voidEffectTuning={voidEffectTuning}
+              natureEffectTuning={natureEffectTuning}
+              distortionEffectTuning={distortionEffectTuning}
+              radiantEffectTuning={radiantEffectTuning}
+              forceFieldEffectTuning={forceFieldEffectTuning}
+              shockwaveEffectTuning={shockwaveEffectTuning}
+              smokeEffectTuning={smokeEffectTuning}
+              fogEffectTuning={fogEffectTuning}
+              mouseBehavior={mouseBehavior}
               fogOperation={fogOperation}
-              brushSize={activeScene.fog.brushSize}
-              pingSize={activeScene.tableTools.pingSize}
-              pingColor={activeScene.tableTools.pingColor}
+              brushSize={fogBrushSize}
+              drawingColor={drawingColor}
+              drawingOpacity={drawingOpacity}
+              drawingFillColor={drawingFillColor}
+              drawingFillOpacity={drawingFillOpacity}
+              drawingStrokeStyle={drawingStrokeStyle}
+              drawingStrokeWidth={drawingStrokeWidth}
+              drawingTemplateSize={drawingTemplateSize}
+              drawingTemplateEffect={drawingTemplateEffect}
+              drawingTemplateWidth={drawingTemplateWidth}
+              templatePreviewVisibleInPlayer={templatePreviewVisibleInPlayer}
+              pingSize={tableTools.pingSize}
+              pingColor={tableTools.pingColor}
+              laserThickness={tableTools.laserThickness}
+              laserColor={tableTools.laserColor}
+              rulerLinger={tableTools.rulerLinger}
+              tableToolsVisibleInPlayer={tableToolsVisibleInPlayer}
               fogShapeCount={activeScene.fog.shapes.length}
+              drawingCount={activeScene.drawings.length}
               weatherMaskCount={activeScene.weather.masks.length}
+              environmentEffectCount={activeScene.environment.effects.length}
               weatherToolsEnabled={
                 activeScene.weather.enabled &&
                 (activeScene.weather.effects.rain.enabled || activeScene.weather.effects.fog.enabled || activeScene.weather.effects.snow.enabled || activeScene.weather.effects.sand.enabled)
               }
+              dicePanelOpen={dicePanelOpen}
+              turnOrderModalOpen={turnOrderModalOpen}
+              selectorSelectionFilters={selectorSelectionFilters}
+              selectorSelectionCounts={selectorSelectionCounts}
               onCanvasToolChange={setActiveCanvasTool}
               onFogToolChange={setActiveFogTool}
               onWeatherMaskToolChange={setActiveWeatherMaskTool}
+              onEnvironmentEffectToolChange={setActiveEnvironmentEffectTool}
+              onDrawingToolChange={setActiveDrawingTool}
+              onEnvironmentEffectTypeChange={setEnvironmentEffectType}
+              onEnvironmentEffectFeatherChange={setEnvironmentEffectFeather}
+              onAcidEffectTuningChange={setAcidEffectTuning}
+              onAcidEffectTuningReset={resetAcidEffectTuning}
+              onColdEffectTuningChange={setColdEffectTuning}
+              onColdEffectTuningReset={resetColdEffectTuning}
+              onDarknessEffectTuningChange={setDarknessEffectTuning}
+              onDarknessEffectTuningReset={resetDarknessEffectTuning}
+              onPoisonEffectTuningChange={setPoisonEffectTuning}
+              onPoisonEffectTuningReset={resetPoisonEffectTuning}
+              onWaterEffectTuningChange={setWaterEffectTuning}
+              onWaterEffectTuningReset={resetWaterEffectTuning}
+              onLavaEffectTuningChange={setLavaEffectTuning}
+              onLavaEffectTuningReset={resetLavaEffectTuning}
+              onFireEffectTuningChange={setFireEffectTuning}
+              onFireEffectTuningReset={resetFireEffectTuning}
+              onLightningEffectTuningChange={setLightningEffectTuning}
+              onLightningEffectTuningReset={resetLightningEffectTuning}
+              onArcaneEffectTuningChange={setArcaneEffectTuning}
+              onArcaneEffectTuningReset={resetArcaneEffectTuning}
+              onChaosEffectTuningChange={setChaosEffectTuning}
+              onChaosEffectTuningReset={resetChaosEffectTuning}
+              onVoidEffectTuningChange={setVoidEffectTuning}
+              onVoidEffectTuningReset={resetVoidEffectTuning}
+              onNatureEffectTuningChange={setNatureEffectTuning}
+              onNatureEffectTuningReset={resetNatureEffectTuning}
+              onDistortionEffectTuningChange={setDistortionEffectTuning}
+              onDistortionEffectTuningReset={resetDistortionEffectTuning}
+              onRadiantEffectTuningChange={setRadiantEffectTuning}
+              onRadiantEffectTuningReset={resetRadiantEffectTuning}
+              onForceFieldEffectTuningChange={setForceFieldEffectTuning}
+              onForceFieldEffectTuningReset={resetForceFieldEffectTuning}
+              onShockwaveEffectTuningChange={setShockwaveEffectTuning}
+              onShockwaveEffectTuningReset={resetShockwaveEffectTuning}
+              onSmokeEffectTuningChange={setSmokeEffectTuning}
+              onSmokeEffectTuningReset={resetSmokeEffectTuning}
+              onFogEffectTuningChange={setFogEffectTuning}
+              onFogEffectTuningReset={resetFogEffectTuning}
+              onMouseBehaviorChange={setMouseBehavior}
               onFogOperationChange={setFogOperation}
-              onBrushSizeChange={(brushSize) => updateFog({ brushSize })}
-              onPingSizeChange={(pingSize) =>
-                updateScene({
-                  ...activeScene,
-                  tableTools: { ...activeScene.tableTools, pingSize },
-                  updatedAt: new Date().toISOString()
-                })
-              }
-              onPingColorChange={(pingColor) =>
-                updateScene({
-                  ...activeScene,
-                  tableTools: { ...activeScene.tableTools, pingColor },
-                  updatedAt: new Date().toISOString()
-                })
-              }
+              onBrushSizeChange={setFogBrushSize}
+              onDrawingColorChange={setDrawingColor}
+              onDrawingOpacityChange={setDrawingOpacity}
+              onDrawingFillColorChange={setDrawingFillColor}
+              onDrawingFillOpacityChange={setDrawingFillOpacity}
+              onDrawingStrokeStyleChange={setDrawingStrokeStyle}
+              onDrawingStrokeWidthChange={setDrawingStrokeWidth}
+              onDrawingTemplateSizeChange={setDrawingTemplateSize}
+              onDrawingTemplateEffectChange={setDrawingTemplateEffect}
+              onDrawingTemplateWidthChange={setDrawingTemplateWidth}
+              onTemplatePreviewVisibleInPlayerChange={setTemplatePreviewVisibleInPlayer}
+              onPingSizeChange={setPingSize}
+              onPingColorChange={setPingColor}
+              onLaserThicknessChange={setLaserThickness}
+              onLaserColorChange={setLaserColor}
+              onRulerLingerChange={setRulerLinger}
+              onTableToolsVisibleInPlayerChange={setTableToolsVisibleInPlayer}
+              onSelectorSelectionFiltersChange={setSelectorSelectionFilters}
               onUndoFogShape={undoFogShape}
+              onUndoDrawing={undoDrawing}
               onUndoWeatherMask={undoWeatherMask}
+              onUndoEnvironmentEffect={undoEnvironmentEffect}
               onRequestClearFog={() => setConfirmClearFogOpen(true)}
+              onToggleDicePanel={() => setDicePanelOpen((open) => !open)}
+              onToggleTurnOrder={() =>
+                setTurnOrderModalOpen((open) => {
+                  if (!open) {
+                    setTurnOrderModalCollapsed(false);
+                  }
+                  return !open;
+                })
+              }
+              onShowSelectedOnPlayerView={() => updateSelectedPlayerVisibility(true)}
+              onHideSelectedOnPlayerView={() => updateSelectedPlayerVisibility(false)}
+              onDeleteSelected={deleteSelectedSceneItems}
+              onClearSelection={clearSceneSelection}
             />
           )}
           <SceneCanvas
@@ -1558,21 +1690,69 @@ export function GmApp() {
             scene={activeScene}
             mode="gm"
             canvasTool={activeCanvasTool}
+            mouseBehavior={mouseBehavior}
+            drawingTool={activeDrawingTool}
+            drawingColor={drawingColor}
+            drawingOpacity={drawingOpacity}
+            drawingFillColor={drawingFillColor}
+            drawingFillOpacity={drawingFillOpacity}
+            drawingStrokeStyle={drawingStrokeStyle}
+            drawingStrokeWidth={drawingStrokeWidth}
+            drawingTemplateSize={drawingTemplateSize}
+            drawingTemplateEffect={drawingTemplateEffect}
+            drawingTemplateWidth={drawingTemplateWidth}
+            fogBrushSize={fogBrushSize}
             fogTool={activeFogTool}
             weatherMaskTool={activeWeatherMaskTool}
+            environmentEffectTool={activeEnvironmentEffectTool}
+            environmentEffectType={environmentEffectType}
+            environmentEffectFeather={environmentEffectFeather}
+            acidEffectTuning={acidEffectTuning}
+            coldEffectTuning={coldEffectTuning}
+            darknessEffectTuning={darknessEffectTuning}
+            poisonEffectTuning={poisonEffectTuning}
+            waterEffectTuning={waterEffectTuning}
+            lavaEffectTuning={lavaEffectTuning}
+            fireEffectTuning={fireEffectTuning}
+            lightningEffectTuning={lightningEffectTuning}
+            arcaneEffectTuning={arcaneEffectTuning}
+            chaosEffectTuning={chaosEffectTuning}
+            voidEffectTuning={voidEffectTuning}
+            natureEffectTuning={natureEffectTuning}
+            distortionEffectTuning={distortionEffectTuning}
+            radiantEffectTuning={radiantEffectTuning}
+            forceFieldEffectTuning={forceFieldEffectTuning}
+            shockwaveEffectTuning={shockwaveEffectTuning}
+            smokeEffectTuning={smokeEffectTuning}
+            fogEffectTuning={fogEffectTuning}
             liveTableEvents={liveTableEvents}
+            tableTools={tableTools}
+            tableToolsVisibleInPlayer={tableToolsVisibleInPlayer}
             selectedFogShapeId={selectedFogShapeId}
             selectedWeatherMaskId={selectedWeatherMaskId}
+            selectedEnvironmentEffectId={selectedEnvironmentEffectId}
+            selectedDrawingId={selectedDrawingId}
             selectedTokenId={selectedTokenId}
+            selectedFogShapeIds={selectedFogShapeIds}
+            selectedWeatherMaskIds={selectedWeatherMaskIds}
+            selectedDrawingIds={selectedDrawingIds}
+            selectedTokenIds={selectedTokenIds}
+            selectorSelectionFilters={selectorSelectionFilters}
             onSceneChange={updateCanvasScene}
-            onSelectToken={setSelectedTokenId}
-            onSelectFogShape={setSelectedFogShapeId}
-            onSelectWeatherMask={setSelectedWeatherMaskId}
+            onSelectToken={(tokenId) => selectTokens(tokenId ? [tokenId] : [])}
+            onSelectFogShape={(shapeId) => selectFogShapes(shapeId ? [shapeId] : [])}
+            onSelectWeatherMask={(maskId) => selectWeatherMasks(maskId ? [maskId] : [])}
+            onSelectEnvironmentEffect={selectEnvironmentEffect}
+            onEditEnvironmentEffect={setEnvironmentEffectEditorId}
+            onSelectDrawing={(drawingId) => selectDrawings(drawingId ? [drawingId] : [])}
+            onSelectSceneItems={selectSceneItems}
             onAddTokenToTurnOrder={addSceneTokenToTurnOrder}
             onDropTokenAsset={dropLibraryTokenOnScene}
             onLiveTableEvent={emitLiveTableEvent}
             onDiceRollResolved={updateDiceRollHistory}
+            onTemplatePreviewChange={setPlayerTemplatePreviewDrawing}
             onViewportCenterChange={setGmCanvasCenter}
+            onOpenTokenColor={openTokenColorDialog}
             mapCalibrationBox={mapCalibrationBox}
             onMapCalibrationBox={mapCalibrationBoxPicking ? captureMapCalibrationBox : undefined}
             onMapCalibrationCancel={mapCalibrationBoxPicking ? cancelMapCalibrationBoxCapture : undefined}
@@ -1590,23 +1770,40 @@ export function GmApp() {
           onResetHeight={resetTokenLibraryHeight}
           onImportToken={() => void importToken("library")}
           onAddToken={addLibraryTokenToScene}
-          selectedTokenAssetId={activeScene?.tokens.find((token) => token.id === selectedTokenId)?.assetId}
+          selectedTokenAssetId={selectedTokenAssetIds.selectedTokenAssetId}
+          selectedTokenAssetIds={selectedTokenAssetIds.selectedTokenAssetIds}
           onSetTokenDefaults={openTokenDefaultsDialog}
           onRenameToken={openRenameTokenAssetDialog}
           onDeleteToken={(asset) => void openDeleteTokenAssetDialog(asset)}
-          sidePanel={
+        />
+        {turnOrderModalOpen && (
+          <TurnOrderModal
+            position={turnOrderModalPosition}
+            size={turnOrderModalSize}
+            settingsOpen={turnOrderSettingsOpen}
+            settingsDisabled={!activeScene}
+            collapsed={turnOrderModalCollapsed}
+            onToggleSettings={() => setTurnOrderSettingsOpen((open) => !open)}
+            onToggleCollapsed={() => setTurnOrderModalCollapsed((collapsed) => !collapsed)}
+            onPositionChange={setTurnOrderModalPosition}
+            onSizeChange={setTurnOrderModalSize}
+            onClose={() => setTurnOrderModalOpen(false)}
+          >
             <TurnOrderPanel
               scene={activeScene}
               campaignPlayers={campaign?.players ?? []}
               tokenAssets={tokenAssets}
               canStartTurnOrder={Boolean(activeScene && activeScene.id === playerSceneId && playerDisplayMode === "scene")}
               onChangeScene={updateScene}
+              settingsOpen={turnOrderSettingsOpen}
+              onSettingsOpenChange={setTurnOrderSettingsOpen}
+              settingsControlVisible={false}
             />
-          }
-        />
+          </TurnOrderModal>
+        )}
 
         <footer className="statusbar">
-          <span>Mouse wheel zooms. Drag pans. Scene data uses world/map coordinates.</span>
+          <span>Mouse wheel zooms. Grabber left-drags the scene. Middle/right drag pans. Scene data uses world/map coordinates.</span>
           <span>
             Save status: {formatSaveStatus({ dirtySceneCount: dirtyCount, campaignDirty, saveState })}
           </span>
@@ -1619,7 +1816,13 @@ export function GmApp() {
         tokenAssets={tokenAssets}
         selectedFogShapeId={selectedFogShapeId}
         selectedWeatherMaskId={selectedWeatherMaskId}
+        selectedEnvironmentEffectId={selectedEnvironmentEffectId}
+        selectedDrawingId={selectedDrawingId}
         selectedTokenId={selectedTokenId}
+        selectedFogShapeIds={selectedFogShapeIds}
+        selectedWeatherMaskIds={selectedWeatherMaskIds}
+        selectedDrawingIds={selectedDrawingIds}
+        selectedTokenIds={selectedTokenIds}
         workspaceLayout={workspaceLayout}
         onClearActiveFogTool={clearActiveCanvasTools}
         onToggleWorkspacePanel={toggleWorkspacePanel}
@@ -1635,20 +1838,74 @@ export function GmApp() {
         onImportMap={importMap}
         onImportToken={() => void importToken("scene")}
         onDeleteMap={setMapAssetToDelete}
-        onSelectFogShape={setSelectedFogShapeId}
-        onSelectWeatherMask={setSelectedWeatherMaskId}
-        onSelectToken={setSelectedTokenId}
+        onSelectFogShape={(shapeId) => selectSceneItems({ fogShapeIds: shapeId ? [shapeId] : [] })}
+        onSelectWeatherMask={(maskId) => selectSceneItems({ weatherMaskIds: maskId ? [maskId] : [] })}
+        onSelectEnvironmentEffect={selectEnvironmentEffect}
+        onEditEnvironmentEffect={setEnvironmentEffectEditorId}
+        onSelectDrawing={(drawingId) => selectSceneItems({ drawingIds: drawingId ? [drawingId] : [] })}
+        onSelectToken={(tokenId) => selectSceneItems({ tokenIds: tokenId ? [tokenId] : [] })}
         onRenameFogShape={openRenameFogShapeDialog}
+        onRenameEnvironmentEffect={openRenameEnvironmentEffectDialog}
         onRenameToken={openRenameTokenDialog}
         onOpenFogColor={() => openSceneColorDialog("fog")}
         onOpenGridColor={() => openSceneColorDialog("grid")}
         onOpenTokenColor={openTokenColorDialog}
       />
 
+      {environmentEffectEditorEffect && (
+        <EnvironmentEffectEditorModal
+          effect={environmentEffectEditorEffect}
+          position={environmentEffectEditorPosition}
+          size={environmentEffectEditorSize}
+          onClose={() => setEnvironmentEffectEditorId(null)}
+          onPositionChange={setEnvironmentEffectEditorPosition}
+          onSizeChange={setEnvironmentEffectEditorSize}
+          onAcidTuningChange={(acidTuning) => updateEnvironmentEffectAcidTuning(environmentEffectEditorEffect.id, acidTuning)}
+          onAcidTuningReset={() => updateEnvironmentEffectAcidTuning(environmentEffectEditorEffect.id, getDefaultAcidEffectTuning())}
+          onColdTuningChange={(coldTuning) => updateEnvironmentEffectColdTuning(environmentEffectEditorEffect.id, coldTuning)}
+          onColdTuningReset={() => updateEnvironmentEffectColdTuning(environmentEffectEditorEffect.id, getDefaultColdEffectTuning())}
+          onDarknessTuningChange={(darknessTuning) => updateEnvironmentEffectDarknessTuning(environmentEffectEditorEffect.id, darknessTuning)}
+          onDarknessTuningReset={() => updateEnvironmentEffectDarknessTuning(environmentEffectEditorEffect.id, getDefaultDarknessEffectTuning())}
+          onPoisonTuningChange={(poisonTuning) => updateEnvironmentEffectPoisonTuning(environmentEffectEditorEffect.id, poisonTuning)}
+          onPoisonTuningReset={() => updateEnvironmentEffectPoisonTuning(environmentEffectEditorEffect.id, getDefaultPoisonEffectTuning())}
+          onWaterTuningChange={(waterTuning) => updateEnvironmentEffectWaterTuning(environmentEffectEditorEffect.id, waterTuning)}
+          onWaterTuningReset={() => updateEnvironmentEffectWaterTuning(environmentEffectEditorEffect.id, getDefaultWaterEffectTuning())}
+          onLavaTuningChange={(lavaTuning) => updateEnvironmentEffectLavaTuning(environmentEffectEditorEffect.id, lavaTuning)}
+          onLavaTuningReset={() => updateEnvironmentEffectLavaTuning(environmentEffectEditorEffect.id, getDefaultLavaEffectTuning())}
+          onFireTuningChange={(fireTuning) => updateEnvironmentEffectFireTuning(environmentEffectEditorEffect.id, fireTuning)}
+          onFireTuningReset={() => updateEnvironmentEffectFireTuning(environmentEffectEditorEffect.id, getDefaultFireEffectTuning())}
+          onLightningTuningChange={(lightningTuning) => updateEnvironmentEffectLightningTuning(environmentEffectEditorEffect.id, lightningTuning)}
+          onLightningTuningReset={() => updateEnvironmentEffectLightningTuning(environmentEffectEditorEffect.id, getDefaultLightningEffectTuning())}
+          onArcaneTuningChange={(arcaneTuning) => updateEnvironmentEffectArcaneTuning(environmentEffectEditorEffect.id, arcaneTuning)}
+          onArcaneTuningReset={() => updateEnvironmentEffectArcaneTuning(environmentEffectEditorEffect.id, getDefaultArcaneEffectTuning())}
+          onChaosTuningChange={(chaosTuning) => updateEnvironmentEffectChaosTuning(environmentEffectEditorEffect.id, chaosTuning)}
+          onChaosTuningReset={() => updateEnvironmentEffectChaosTuning(environmentEffectEditorEffect.id, getDefaultChaosEffectTuning())}
+          onVoidTuningChange={(voidTuning) => updateEnvironmentEffectVoidTuning(environmentEffectEditorEffect.id, voidTuning)}
+          onVoidTuningReset={() => updateEnvironmentEffectVoidTuning(environmentEffectEditorEffect.id, getDefaultVoidEffectTuning())}
+          onNatureTuningChange={(natureTuning) => updateEnvironmentEffectNatureTuning(environmentEffectEditorEffect.id, natureTuning)}
+          onNatureTuningReset={() => updateEnvironmentEffectNatureTuning(environmentEffectEditorEffect.id, getDefaultNatureEffectTuning())}
+          onDistortionTuningChange={(distortionTuning) => updateEnvironmentEffectDistortionTuning(environmentEffectEditorEffect.id, distortionTuning)}
+          onDistortionTuningReset={() => updateEnvironmentEffectDistortionTuning(environmentEffectEditorEffect.id, getDefaultDistortionEffectTuning())}
+          onRadiantTuningChange={(radiantTuning) => updateEnvironmentEffectRadiantTuning(environmentEffectEditorEffect.id, radiantTuning)}
+          onRadiantTuningReset={() => updateEnvironmentEffectRadiantTuning(environmentEffectEditorEffect.id, getDefaultRadiantEffectTuning())}
+          onForceFieldTuningChange={(fieldTuning) => updateEnvironmentEffectForceFieldTuning(environmentEffectEditorEffect.id, fieldTuning)}
+          onForceFieldTuningReset={() => updateEnvironmentEffectForceFieldTuning(environmentEffectEditorEffect.id, getDefaultForceFieldEffectTuning())}
+          onShockwaveTuningChange={(shockwaveTuning) => updateEnvironmentEffectShockwaveTuning(environmentEffectEditorEffect.id, shockwaveTuning)}
+          onShockwaveTuningReset={() => updateEnvironmentEffectShockwaveTuning(environmentEffectEditorEffect.id, getDefaultShockwaveEffectTuning())}
+          onSmokeTuningChange={(smokeTuning) => updateEnvironmentEffectSmokeTuning(environmentEffectEditorEffect.id, smokeTuning)}
+          onSmokeTuningReset={() => updateEnvironmentEffectSmokeTuning(environmentEffectEditorEffect.id, getDefaultSmokeEffectTuning())}
+          onFogTuningChange={(fogTuning) => updateEnvironmentEffectFogTuning(environmentEffectEditorEffect.id, fogTuning)}
+          onFogTuningReset={() => updateEnvironmentEffectFogTuning(environmentEffectEditorEffect.id, getDefaultFogEffectTuning())}
+          onFeatherChange={(feather) => updateEnvironmentEffectFeather(environmentEffectEditorEffect.id, feather)}
+          onEffectTypeChange={(effectType) => updateEnvironmentEffectType(environmentEffectEditorEffect.id, effectType)}
+        />
+      )}
+
       <GmDialogs
         sceneDialog={sceneDialog}
         folderDialog={folderDialog}
         fogShapeDialog={fogShapeDialog}
+        environmentEffectDialog={environmentEffectDialog}
         tokenDialog={tokenDialog}
         tokenCropDialog={tokenCropDialog}
         tokenAssetDialog={tokenAssetDialog}
@@ -1674,6 +1931,7 @@ export function GmApp() {
         newSceneName={newSceneName}
         newFolderName={newFolderName}
         newFogShapeName={newFogShapeName}
+        newEnvironmentEffectName={newEnvironmentEffectName}
         newTokenName={newTokenName}
         newFolderColor={newFolderColor}
         newTokenBorderColor={newTokenBorderColor}
@@ -1681,6 +1939,7 @@ export function GmApp() {
         onNewSceneNameChange={setNewSceneName}
         onNewFolderNameChange={setNewFolderName}
         onNewFogShapeNameChange={setNewFogShapeName}
+        onNewEnvironmentEffectNameChange={setNewEnvironmentEffectName}
         onNewTokenNameChange={setNewTokenName}
         onNewFolderColorChange={setNewFolderColor}
         onNewTokenBorderColorChange={setNewTokenBorderColor}
@@ -1688,6 +1947,7 @@ export function GmApp() {
         onCancelSceneDialog={() => setSceneDialog(null)}
         onCancelFolderDialog={() => setFolderDialog(null)}
         onCancelFogShapeDialog={() => setFogShapeDialog(null)}
+        onCancelEnvironmentEffectDialog={() => setEnvironmentEffectDialog(null)}
         onCancelTokenDialog={() => setTokenDialog(null)}
         onCancelTokenCropDialog={() => void cancelTokenCrop()}
         onCancelTokenAssetDialog={() => setTokenAssetDialog(null)}
@@ -1706,6 +1966,7 @@ export function GmApp() {
         onSubmitSceneName={() => void submitSceneName()}
         onSubmitFolderName={submitFolderName}
         onSubmitFogShapeName={submitFogShapeName}
+        onSubmitEnvironmentEffectName={submitEnvironmentEffectName}
         onSubmitTokenName={submitTokenName}
         onSubmitTokenCrop={(crop) => void submitTokenCrop(crop)}
         onSubmitTokenAssetName={submitTokenAssetName}
@@ -1745,205 +2006,3 @@ export function GmApp() {
   );
 }
 
-function CampaignBusyOverlay({ busyState }: { busyState: CampaignBusyState }) {
-  const progress = busyState.total > 0 ? Math.min(100, Math.max(0, (busyState.current / busyState.total) * 100)) : 100;
-  return (
-    <div className="modal-backdrop busy-backdrop" role="status" aria-live="polite" aria-busy="true">
-      <div className="modal busy-modal">
-        <h2>{busyState.title}</h2>
-        <p>{busyState.message}</p>
-        <div className="busy-progress" aria-label={`${busyState.current} of ${busyState.total}`}>
-          <span style={{ width: `${progress}%` }} />
-        </div>
-        {busyState.total > 0 && (
-          <span className="busy-progress-label">
-            {busyState.current} of {busyState.total} scenes
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-const LIVE_TABLE_PING_DURATION_MS = 1600;
-const LIVE_TABLE_LASER_POINT_LIFETIME_MS = 1100;
-function mergeLiveTableEvent(events: LiveTableEvent[], event: LiveTableEvent): LiveTableEvent[] {
-  const filteredEvents = filterActiveLiveTableEvents(events);
-  if (event.type === "dice-clear") {
-    return filteredEvents.filter((candidate) => candidate.type !== "dice");
-  }
-  return [event, ...filteredEvents.filter((candidate) => candidate.id !== event.id)];
-}
-
-function filterActiveLiveTableEvents(events: LiveTableEvent[]): LiveTableEvent[] {
-  const now = Date.now();
-  const activeEvents: LiveTableEvent[] = [];
-  for (const event of events) {
-    if (event.type === "ping") {
-      if (now - event.createdAt <= LIVE_TABLE_PING_DURATION_MS) {
-        activeEvents.push(event);
-      }
-    } else if (event.type === "dice") {
-      if (now - event.createdAt <= DICE_HISTORY_DURATION_MS) {
-        activeEvents.push(event);
-      }
-    } else if (event.type === "laser") {
-      const points = event.points.filter((point) => now - point.createdAt <= LIVE_TABLE_LASER_POINT_LIFETIME_MS);
-      if (points.length > 0) {
-        activeEvents.push({ ...event, points });
-      }
-    }
-  }
-  return activeEvents;
-}
-
-function formatSaveStatus({
-  dirtySceneCount,
-  campaignDirty,
-  saveState
-}: {
-  dirtySceneCount: number;
-  campaignDirty: boolean;
-  saveState: string;
-}): string {
-  const parts = [];
-  if (dirtySceneCount > 0) {
-    parts.push(`Unsaved scenes: ${dirtySceneCount}`);
-  }
-  if (campaignDirty) {
-    parts.push("Unsaved campaign changes");
-  }
-  return parts.length > 0 ? parts.join(" | ") : formatCleanSaveState(saveState);
-}
-
-function formatCleanSaveState(saveState: string): string {
-  if (saveState === "idle") {
-    return "Saved";
-  }
-  return saveState[0].toUpperCase() + saveState.slice(1);
-}
-
-function loadImageDimensions(src: string): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
-    image.onerror = () => reject(new Error("Unable to read the selected map image dimensions."));
-    image.src = src;
-  });
-}
-
-function getBoxCalibrationGridPatch(draft: MapCalibrationDraft, box: MapCalibrationBox | null): { sizePx: number; offsetX: number; offsetY: number } | null {
-  if (!box || draft.boxColumns <= 0 || draft.boxRows <= 0) {
-    return null;
-  }
-  const cellWidth = box.width / draft.boxColumns;
-  const cellHeight = box.height / draft.boxRows;
-  if (!Number.isFinite(cellWidth) || !Number.isFinite(cellHeight) || cellWidth <= 0 || cellHeight <= 0) {
-    return null;
-  }
-  const sizePx = Math.max(1, Math.round(((cellWidth + cellHeight) / 2) * 100) / 100);
-  return {
-    sizePx,
-    offsetX: positiveModulo(box.x, sizePx),
-    offsetY: positiveModulo(box.y, sizePx)
-  };
-}
-
-function positiveModulo(value: number, divisor: number): number {
-  return ((value % divisor) + divisor) % divisor;
-}
-
-function loadDiceSettingsPreference(): DiceSettings {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(DICE_SETTINGS_PREFERENCES_STORAGE_KEY) ?? "null") as Partial<DiceSettings> | null;
-    return normalizeDiceSettingsPreference(parsed);
-  } catch {
-    return { ...DEFAULT_DICE_SETTINGS };
-  }
-}
-
-function saveDiceSettingsPreference(settings: DiceSettings): void {
-  try {
-    window.localStorage.setItem(DICE_SETTINGS_PREFERENCES_STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // Preference persistence is helpful, but dice controls should still work if storage is unavailable.
-  }
-}
-
-function normalizeDiceSettingsPreference(settings?: Partial<DiceSettings> | null): DiceSettings {
-  return {
-    ...DEFAULT_DICE_SETTINGS,
-    gmDisplayMode: isDiceDisplayModePreference(settings?.gmDisplayMode) ? settings.gmDisplayMode : DEFAULT_DICE_SETTINGS.gmDisplayMode,
-    playerDisplayMode: isDiceDisplayModePreference(settings?.playerDisplayMode) ? settings.playerDisplayMode : DEFAULT_DICE_SETTINGS.playerDisplayMode,
-    sceneRollEnabled: typeof settings?.sceneRollEnabled === "boolean" ? settings.sceneRollEnabled : DEFAULT_DICE_SETTINGS.sceneRollEnabled,
-    sceneRollTarget: settings?.sceneRollTarget === "gm" || settings?.sceneRollTarget === "player" ? settings.sceneRollTarget : DEFAULT_DICE_SETTINGS.sceneRollTarget,
-    gmSceneSize: isDiceSceneSizePreference(settings?.gmSceneSize) ? settings.gmSceneSize : DEFAULT_DICE_SETTINGS.gmSceneSize,
-    playerSceneSize: isDiceSceneSizePreference(settings?.playerSceneSize) ? settings.playerSceneSize : DEFAULT_DICE_SETTINGS.playerSceneSize,
-    gmPanelEdge: isDicePanelEdgePreference(settings?.gmPanelEdge) ? settings.gmPanelEdge : DEFAULT_DICE_SETTINGS.gmPanelEdge,
-    playerPanelEdge: isDicePanelEdgePreference(settings?.playerPanelEdge) ? settings.playerPanelEdge : DEFAULT_DICE_SETTINGS.playerPanelEdge,
-    gmPanelFacing: settings?.gmPanelFacing === "inward" || settings?.gmPanelFacing === "outward" ? settings.gmPanelFacing : DEFAULT_DICE_SETTINGS.gmPanelFacing,
-    playerPanelFacing: settings?.playerPanelFacing === "inward" || settings?.playerPanelFacing === "outward" ? settings.playerPanelFacing : DEFAULT_DICE_SETTINGS.playerPanelFacing,
-    gmPanelPosition: clampUnitPreference(settings?.gmPanelPosition, DEFAULT_DICE_SETTINGS.gmPanelPosition),
-    playerPanelPosition: clampUnitPreference(settings?.playerPanelPosition, DEFAULT_DICE_SETTINGS.playerPanelPosition),
-    gmPanelAdvanced: typeof settings?.gmPanelAdvanced === "boolean" ? settings.gmPanelAdvanced : DEFAULT_DICE_SETTINGS.gmPanelAdvanced,
-    playerPanelAdvanced: typeof settings?.playerPanelAdvanced === "boolean" ? settings.playerPanelAdvanced : DEFAULT_DICE_SETTINGS.playerPanelAdvanced
-  };
-}
-
-function isDiceDisplayModePreference(value: unknown): value is DiceSettings["gmDisplayMode"] {
-  return value === "results" || value === "panel" || value === "scene" || value === "scene-result" || value === "hidden";
-}
-
-function isDiceSceneSizePreference(value: unknown): value is DiceSettings["gmSceneSize"] {
-  return value === "xs" || value === "sm" || value === "md" || value === "lg" || value === "xl";
-}
-
-function isDicePanelEdgePreference(value: unknown): value is DiceSettings["gmPanelEdge"] {
-  return value === "top" || value === "right" || value === "bottom" || value === "left";
-}
-
-function clampUnitPreference(value: unknown, fallback: number): number {
-  return typeof value === "number" && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : fallback;
-}
-
-function removeSceneTokensByAsset(scene: Scene, assetId: string): Scene {
-  if (!scene.tokens.some((token) => token.assetId === assetId)) {
-    return scene;
-  }
-  return {
-    ...scene,
-    tokens: scene.tokens.filter((token) => token.assetId !== assetId),
-    updatedAt: new Date().toISOString()
-  };
-}
-
-function mergeTokenAssetUsage(
-  savedUsage: Array<{ sceneId: string; sceneName: string; count: number }>,
-  campaign: Campaign,
-  sceneDrafts: Record<string, Scene>,
-  activeScene: Scene | null,
-  assetId: string
-): Array<{ sceneId: string; sceneName: string; count: number }> {
-  const sceneOrder = new Map(campaign.scenes.map((scene, index) => [scene.id, index]));
-  const sceneNames = new Map(campaign.scenes.map((scene) => [scene.id, scene.name]));
-  const usageByScene = new Map(savedUsage.map((usage) => [usage.sceneId, usage]));
-  const localScenes = new Map(Object.entries(sceneDrafts));
-  if (activeScene) {
-    localScenes.set(activeScene.id, activeScene);
-  }
-
-  for (const [sceneId, scene] of localScenes) {
-    const count = scene.tokens.filter((token) => token.assetId === assetId).length;
-    if (count > 0) {
-      usageByScene.set(sceneId, {
-        sceneId,
-        sceneName: sceneNames.get(sceneId) ?? scene.name,
-        count
-      });
-    } else {
-      usageByScene.delete(sceneId);
-    }
-  }
-
-  return [...usageByScene.values()].sort((a, b) => (sceneOrder.get(a.sceneId) ?? Number.MAX_SAFE_INTEGER) - (sceneOrder.get(b.sceneId) ?? Number.MAX_SAFE_INTEGER));
-}

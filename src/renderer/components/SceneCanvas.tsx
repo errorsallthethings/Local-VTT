@@ -1,69 +1,251 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight } from "lucide-react";
-import { DEFAULT_VIDEO_PLAYBACK, formatDefaultFogShapeName } from "../../shared/localvtt";
-import type { Asset, Campaign, LiveTableEvent, LiveTablePoint, Point, Scene, Token, WeatherMask } from "../../shared/localvtt";
-import { getRenderCamera, type Camera } from "../canvas/camera";
+import { createPortal } from "react-dom";
+import { Copy, ListPlus, Settings2, Trash2 } from "lucide-react";
+import {
+  DEFAULT_TABLE_TOOLS,
+  DEFAULT_TOKEN_FOOTPRINT_VISIBLE,
+  DEFAULT_VIDEO_PLAYBACK,
+  TOKEN_CONDITION_IDS,
+  TOKEN_CONDITION_LABELS,
+  formatDefaultFogShapeName
+} from "../../shared/localvtt";
+import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings, Token, TokenConditionId } from "../../shared/localvtt";
+import { areCamerasEqual, getCameraForPanDrag, getCameraForWheelZoom, getRenderCamera, type Camera, type CameraPanDrag } from "../canvas/core";
+import {
+  getCanvasInteractionClass,
+  getDrawingTransformHoverAtPoint,
+  hasAuthoringToolActive,
+  hasSceneItemHoverAtPoint,
+  type DrawingTransformHover
+} from "../canvas/core";
+import {
+  drawDrawings,
+  getDrawingHitRadius,
+  getDrawingAtPoint,
+  getDrawingPreviewFromPoint,
+  isMeaningfulDrawingPreview,
+  shouldAddDrawingPoint,
+  type DrawingPointOverrides,
+  type DrawingPreview,
+  type DrawingTool
+} from "../canvas/drawings";
+import {
+  getDrawingGroupSnapAnchor,
+  getDrawingMoveDelta,
+  getDrawingPointSnapshot,
+  getDrawingResizeHandleAtPoint,
+  getDrawingRotationHandleAtPoint,
+  getMovedDrawingPointSnapshot,
+  getResizedDrawingPointSnapshot,
+  getRotatedDrawingPointSnapshot
+} from "../canvas/drawings";
 import {
   drawFog,
-  getFogDragKindForTool,
+  getFogDragFromPoint,
+  getFogShapeFromDrag,
+  getFogShapeFromPolygonDraft,
+  getFogVisibilityPatchForNewShape,
   getFogOperationForTool,
+  getUpdatedFogDrag,
   isMeaningfulFogDrag,
   isMeaningfulPolygon,
   isPolygonTool,
-  normalizeBrushPoints,
-  shouldAddBrushPoint,
   type FogDrag,
   type FogPolygonDraft,
   type FogTool
-} from "../canvas/fogRenderer";
-import { drawHexGrid, drawSquareGrid } from "../canvas/gridRenderer";
-import { getNearestGridPoint } from "../canvas/gridMath";
+} from "../canvas/fog";
+import { drawHexGrid, drawSquareGrid } from "../canvas/grid";
+import { constrainSquarePoint } from "../canvas/grid";
 import {
   drawLiveTableEvents,
+  getUpdatedLaserDrag,
   hasActiveLiveTableEvents,
-  LASER_MIN_POINT_DISTANCE,
-  LASER_POINT_LIFETIME_MS
-} from "../canvas/liveTableRenderer";
-import { drawMapSource, resolveMapTransform } from "../canvas/mapRenderer";
+  RULER_RELEASE_LINGER_MS
+} from "../canvas/live-table";
+import { getPlayerDisplayScale, getRulerDragWithAppendedWaypoint, getRulerLabel, isVisibleDiceOverlayEvent } from "../canvas/live-table";
+import {
+  getCompletedMapCalibrationBox,
+  getMapCalibrationDragFromPoint,
+  getUpdatedMapCalibrationDrag,
+  getVisibleMapCalibrationBox,
+  type MapCalibrationBox,
+  type MapCalibrationDrag
+} from "../canvas/map";
+import { drawMapSource, getCameraForMapFit } from "../canvas/map";
+import { getEnvironmentEffectBounds } from "../canvas/scene";
+import {
+  getInitialMapLoadStatus,
+  getMapDrawSource,
+  getMapOverlayMessage,
+  getReadyMapSourceForFit,
+  isMapOverlayActive,
+  isMapReady,
+  type MapLoadStatus,
+  type ReadyMapSource
+} from "../canvas/map";
 import {
   drawRuler,
-  formatMeasurementDistance,
-  getMeasurementDistance,
-  getMeasurementPathDistance,
   getRulerPathPoints,
-  getStraightLineMeasurementDistance,
-  type RulerDrag,
-  type RulerLabel
+  type RulerDrag
 } from "../canvas/measurement";
-import { getPointAlongPath } from "../canvas/movementPath";
-import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex, getSnappedTokenPosition, getTokenAtPoint, isPointInsideFogShape } from "../canvas/tokenGeometry";
+import { removeLastWaypoint } from "../canvas/tokens";
+import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint, updatePolygonDraftCurrent } from "../canvas/scene";
 import {
-  getTokenMovementPath,
-  getTokenMovementTweens,
-  getTokenWaypointPosition,
-  isDuplicateTokenWaypoint
-} from "../canvas/tokenMovement";
-import { drawTokenDragHighlights, drawTokens, type TokenDragPreview, type TokenPositionOverrides } from "../canvas/tokenRenderer";
-import { getVideoTransform } from "../canvas/videoMap";
-import { drawWeather, shouldAnimateWeather } from "../canvas/weatherRenderer";
+  formatDefaultEnvironmentEffectName,
+  formatDefaultWeatherMaskName,
+  getDrawingContextLabel,
+  getEnvironmentEffectContextLabel,
+  getFogShapeContextLabel,
+  getWeatherMaskContextLabel
+} from "../canvas/scene";
+import {
+  getCompletedSceneMarqueeSelection,
+  hasSelectedSceneItems,
+  getSelectionDragFromPoint,
+  getUpdatedSelectionDrag
+} from "../canvas/selection";
+import type {
+  DrawingDragState,
+  DrawingResizeState,
+  DrawingRotateState,
+  LaserDragState,
+  SelectionDrag,
+  SelectionMode,
+  TokenDragState
+} from "../canvas/scene";
+import {
+  drawBrushHoverPreview,
+  drawDrawingBrushHoverPreview,
+  drawDrawingResizeHandles,
+  drawMapCalibrationBox,
+  drawSelectionMarquee,
+  drawSnapMarker
+} from "../canvas/scene";
+import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/effects";
+import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/scene";
+import { getSceneLayerVisibility } from "../canvas/scene";
+import { getNearestSceneSnapPoint, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/scene";
+import { getSelectedItemIdList, getSelectedItemIds } from "../lib/scene";
+import { getTurnOrderTokenIndicators } from "../lib/turn-order";
+import {
+  getDrawingElementFromPreview,
+  getDrawingPolygonElementFromDraft,
+  getDrawingTemplateCurrentPoint,
+  getTemplatePreviewDrawing
+} from "../canvas/drawings";
+import { getTokenAtPoint } from "../canvas/tokens";
+import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey } from "../canvas/tokens";
+import {
+  getSceneAfterTokenDrag,
+  getTokenDragStart,
+  getTokenDragPreviewFromPoint,
+  getTokenDragWithAppendedWaypoint,
+} from "../canvas/tokens";
+import { drawTokenDragHighlights, drawTokens, hasVisibleTokenConditions, type TokenDragPreview } from "../canvas/tokens";
+import { getVideoTransform } from "../canvas/map";
+import { clientToWorldPoint, eventToWorldPoint, getCanvasViewportCenter, isSnapModifier } from "../canvas/core";
+import {
+  type AcidEffectTuning,
+  type ArcaneEffectTuning,
+  type ChaosEffectTuning,
+  type ColdEffectTuning,
+  type DarknessEffectTuning,
+  type DistortionEffectTuning,
+  type FogEffectTuning,
+  type ForceFieldEffectTuning,
+  type FireEffectTuning,
+  type LavaEffectTuning,
+  type LightningEffectTuning,
+  type NatureEffectTuning,
+  type PoisonEffectTuning,
+  type RadiantEffectTuning,
+  type ShockwaveEffectTuning,
+  type SmokeEffectTuning,
+  type VoidEffectTuning,
+  type WaterEffectTuning,
+  retainEnvironmentEffectRuntimes
+} from "../canvas/effects";
+import {
+  getEnvironmentEffectDragFromPoint,
+  getEnvironmentEffectFromDrag,
+  getEnvironmentEffectFromPolygonDraft,
+  getUpdatedEnvironmentEffectDrag,
+  isMeaningfulEnvironmentEffectDrag,
+  shouldAnimateEnvironmentEffects,
+  type EnvironmentEffectDrag,
+  type EnvironmentPolygonDraft
+} from "../canvas/effects";
+import { drawWeather, shouldAnimateWeather } from "../canvas/weather";
+import {
+  drawWeatherMaskOutlines,
+  drawWeatherMaskPreview,
+  drawWeatherMaskSelection,
+  drawWeatherPolygonDraft
+} from "../canvas/weather";
+import {
+  getWeatherMaskDragFromPoint,
+  getWeatherMaskFromDrag,
+  getWeatherMaskFromPolygonDraft,
+  getUpdatedWeatherMaskDrag,
+  isMeaningfulWeatherMaskDrag,
+  type WeatherMaskDrag,
+  type WeatherPolygonDraft
+} from "../canvas/weather";
+import { useDismissableMenu } from "../hooks/useDismissableMenu";
+import { useImageMapLoader } from "../hooks/useImageMapLoader";
+import { usePlayerTokenTweens } from "../hooks/usePlayerTokenTweens";
+import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
+import { useSyncedRef } from "../hooks/useSyncedRef";
+import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
-import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../lib/dragTypes";
-import type { WeatherMaskTool } from "./tools/ToolsMenu";
+import { useWindowKeyDown } from "../hooks/useWindowKeyDown";
+import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/tokens";
 import {
-  FOG_GRID_SNAP_HINT,
-  RULER_CLEAR_HINT,
-  RULER_GRID_SNAP_HINT,
-  SHIFT_WAYPOINT_HINT,
-  TOKEN_MOVE_COMPLETE_HINT,
-  getFogToolHint,
-  getFogToolLabel
-} from "../lib/toolCopy";
+  addEnvironmentEffect,
+  addSceneDrawing,
+  addSceneFogShape,
+  addSceneWeatherMask,
+  duplicateEnvironmentEffect,
+  duplicateSceneFogShape,
+  duplicateSceneDrawing,
+  duplicateSceneToken,
+  duplicateSceneWeatherMask,
+  removeEnvironmentEffect,
+  removeSceneFogShape,
+  removeSceneDrawing,
+  removeSceneToken,
+  removeSceneWeatherMask,
+  patchSceneEnvironmentEffect,
+  patchSceneToken,
+  setDrawingGmVisibility,
+  setDrawingPlayerVisibility,
+  setDrawingTemplateFootprintVisibility,
+  setFogShapeGmVisibility,
+  setFogShapePlayerVisibility,
+  setWeatherMaskPlayerVisibility,
+  setWeatherMaskVisibility,
+  updateSceneDrawingPoints,
+  updateSceneEnvironmentEffectPoints,
+  updateSceneWeatherMaskPoints,
+} from "../lib/scene";
+import { TokenSettings } from "./layers";
+import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
+import {
+  DrawingToolStatusStrip,
+  EnvironmentEffectStatusStrip,
+  FogToolStatusStrip,
+  MapCalibrationStatusStrip,
+  MapLoadOverlay,
+  RulerStatusStrip,
+  TableToolStatusStrip,
+  TokenMoveStatusStrip,
+  WeatherMaskStatusStrip
+} from "./scene/SceneCanvasStatusStrips";
+import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
 const WEATHER_ONLY_FRAME_INTERVAL_MS = 50;
-const LARGE_MAP_CACHE_MAX_EDGE = 4096;
-const LARGE_MAP_CACHE_MAX_PIXELS = 16_000_000;
-const GM_FULL_QUALITY_MAP_SCALE_THRESHOLD = 1.12;
+const EMPTY_SELECTED_IDS: string[] = [];
 
 interface SceneCanvasProps {
   campaign: Campaign | null;
@@ -72,21 +254,69 @@ interface SceneCanvasProps {
   className?: string;
   interactive?: boolean;
   canvasTool?: "ruler" | "ping" | "laser" | null;
+  mouseBehavior?: MouseBehavior;
+  drawingTool?: DrawingTool | null;
+  drawingColor?: string;
+  drawingOpacity?: number;
+  drawingFillColor?: string;
+  drawingFillOpacity?: number;
+  drawingStrokeStyle?: DrawingStrokeStyle;
+  drawingStrokeWidth?: number;
+  drawingTemplateSize?: DrawingTemplateSize;
+  drawingTemplateEffect?: DrawingTemplateEffect;
+  drawingTemplateWidth?: number;
+  fogBrushSize?: number;
   fogTool?: FogTool | null;
   weatherMaskTool?: WeatherMaskTool | null;
+  environmentEffectTool?: EnvironmentEffectTool | null;
+  environmentEffectType?: EnvironmentEffectType;
+  environmentEffectFeather?: number;
+  acidEffectTuning?: AcidEffectTuning;
+  coldEffectTuning?: ColdEffectTuning;
+  darknessEffectTuning?: DarknessEffectTuning;
+  poisonEffectTuning?: PoisonEffectTuning;
+  waterEffectTuning?: WaterEffectTuning;
+  lavaEffectTuning?: LavaEffectTuning;
+  fireEffectTuning?: FireEffectTuning;
+  lightningEffectTuning?: LightningEffectTuning;
+  arcaneEffectTuning?: ArcaneEffectTuning;
+  chaosEffectTuning?: ChaosEffectTuning;
+  voidEffectTuning?: VoidEffectTuning;
+  natureEffectTuning?: NatureEffectTuning;
+  distortionEffectTuning?: DistortionEffectTuning;
+  radiantEffectTuning?: RadiantEffectTuning;
+  forceFieldEffectTuning?: ForceFieldEffectTuning;
+  shockwaveEffectTuning?: ShockwaveEffectTuning;
+  smokeEffectTuning?: SmokeEffectTuning;
+  fogEffectTuning?: FogEffectTuning;
   liveTableEvents?: LiveTableEvent[];
+  tableTools?: TableToolSettings;
+  tableToolsVisibleInPlayer?: boolean;
   selectedFogShapeId?: string | null;
   selectedWeatherMaskId?: string | null;
+  selectedEnvironmentEffectId?: string | null;
+  selectedDrawingId?: string | null;
   selectedTokenId?: string | null;
+  selectedFogShapeIds?: string[];
+  selectedWeatherMaskIds?: string[];
+  selectedDrawingIds?: string[];
+  selectedTokenIds?: string[];
+  selectorSelectionFilters?: SelectorSelectionFilters;
   onSceneChange?: (scene: Scene, syncScene?: Scene) => void;
   onSelectToken?: (tokenId: string | null) => void;
   onSelectFogShape?: (shapeId: string | null) => void;
   onSelectWeatherMask?: (maskId: string | null) => void;
+  onSelectEnvironmentEffect?: (effectId: string | null) => void;
+  onEditEnvironmentEffect?: (effectId: string) => void;
+  onSelectDrawing?: (drawingId: string | null) => void;
+  onSelectSceneItems?: (selection: { tokenIds?: string[]; drawingIds?: string[]; fogShapeIds?: string[]; weatherMaskIds?: string[]; mode?: SelectionMode }) => void;
   onAddTokenToTurnOrder?: (tokenId: string) => void;
   onDropTokenAsset?: (asset: Asset, point: Point) => void;
   onLiveTableEvent?: (event: LiveTableEvent) => void;
   onDiceRollResolved?: (event: Extract<LiveTableEvent, { type: "dice" }>) => void;
+  onTemplatePreviewChange?: (drawing: DrawingElement | null) => void;
   onViewportCenterChange?: (point: Point) => void;
+  onOpenTokenColor?: (tokenId: string, value: string, kind: "border" | "glow") => void;
   mapCalibrationBox?: MapCalibrationBox | null;
   onMapCalibrationBox?: (box: MapCalibrationBox) => void;
   onMapCalibrationCancel?: () => void;
@@ -94,76 +324,16 @@ interface SceneCanvasProps {
   showPlayerSeatIndicators?: boolean;
 }
 
-interface LoadedMap {
-  assetId: string;
-  originalSource: HTMLImageElement;
-  optimizedSource: CanvasImageSource | null;
-  sourceWidth: number;
-  sourceHeight: number;
-  optimizedScale: number;
-  animate: boolean;
-  mediaType: "image" | "video";
-  ready: boolean;
-}
-
-interface ReadyMapSource {
-  source: CanvasImageSource;
-  width: number;
-  height: number;
-}
-
-type MapLoadStatus = "idle" | "loading" | "ready" | "error";
-
-type TokenDragState = {
-  pointerId: number;
-  tokenId: string;
-  offset: Point;
-  startPosition: Point;
-  waypoints: Point[];
-};
-
-type LaserDragState = {
-  pointerId: number;
-  eventId: string;
-  points: LiveTablePoint[];
-};
-
-type WeatherMaskDrag = {
-  pointerId: number;
-  kind: WeatherMaskTool;
-  start: Point;
-  current: Point;
-};
-
-type WeatherPolygonDraft = {
+type DrawingPolygonDraft = {
   points: Point[];
   current?: Point;
-};
-
-type MapCalibrationBox = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-type MapCalibrationDrag = {
-  pointerId: number;
-  mode: "draw" | "move" | "resize";
-  start: Point;
-  current: Point;
-  box?: MapCalibrationBox;
-  offset?: Point;
-};
-
-type TokenImageSource = {
-  id: string;
-  path: string;
 };
 
 type TokenContextMenu = {
   tokenId: string;
   tokenName: string;
+  visibleInGm: boolean;
+  visibleInPlayer: boolean;
   x: number;
   y: number;
 };
@@ -173,32 +343,196 @@ type MaskContextMenu =
       kind: "fog";
       shapeId: string;
       label: string;
+      visibleInGm: boolean;
       visibleInPlayer: boolean;
       x: number;
       y: number;
     }
   | {
-      kind: "weather";
+      kind: "effects";
       maskId: string;
       label: string;
       visible: boolean;
+      visibleInPlayer: boolean;
       x: number;
       y: number;
     };
 
-function parseTokenImageSourceKey(key: string): TokenImageSource[] {
-  try {
-    const parsed = JSON.parse(key);
-    if (!Array.isArray(parsed)) {
-      return [];
+type DrawingContextMenu = {
+  drawingId: string;
+  label: string;
+  isTemplate: boolean;
+  templateFootprintVisible: boolean;
+  visibleInGm: boolean;
+  visibleInPlayer: boolean;
+  x: number;
+  y: number;
+};
+
+type EnvironmentEffectContextMenu = {
+  effectId: string;
+  label: string;
+  visibleInGm: boolean;
+  visibleInPlayer: boolean;
+  x: number;
+  y: number;
+};
+
+function getTokenConditionsVisibleInPlayer(token: Token): boolean {
+  const conditions = token.conditions ?? [];
+  return conditions.length === 0 || conditions.every((condition) => condition.visibleInPlayer);
+}
+
+function setTokenCondition(tokens: Token[], tokenId: string, conditionId: TokenConditionId, enabled: boolean, visibleInPlayer: boolean): Token[] {
+  return tokens.map((token) => {
+    if (token.id !== tokenId) {
+      return token;
     }
-    return parsed.filter(
-      (source): source is TokenImageSource =>
-        typeof source?.id === "string" && source.id.length > 0 && typeof source?.path === "string" && source.path.length > 0
-    );
-  } catch {
-    return [];
+    const conditions = token.conditions ?? [];
+    if (!enabled) {
+      return { ...token, conditions: conditions.filter((condition) => condition.id !== conditionId) };
+    }
+    if (conditions.some((condition) => condition.id === conditionId)) {
+      return token;
+    }
+    return { ...token, conditions: [...conditions, { id: conditionId, visibleInPlayer }] };
+  });
+}
+
+function setTokenConditionsPlayerVisibility(tokens: Token[], tokenId: string, visibleInPlayer: boolean): Token[] {
+  return tokens.map((token) => {
+    if (token.id !== tokenId) {
+      return token;
+    }
+    return {
+      ...token,
+      conditions: (token.conditions ?? []).map((condition) => (
+        { ...condition, visibleInPlayer }
+      ))
+    };
+  });
+}
+
+type CanvasContextMenuKind = "token" | "mask" | "drawing" | "environment";
+
+type WeatherMaskMoveState = {
+  pointerId: number;
+  maskId: string;
+  start: Point;
+  groupStartPoints: Map<string, Point[]>;
+};
+
+type EnvironmentEffectMoveState = {
+  pointerId: number;
+  effectId: string;
+  start: Point;
+  snapAnchor: Point;
+  groupStartPoints: Map<string, Point[]>;
+};
+
+function getCanvasContextMenuPosition(event: React.MouseEvent<HTMLCanvasElement>, kind: CanvasContextMenuKind): { x: number; y: number } {
+  const menuSize = getEstimatedContextMenuSize(kind);
+  const margin = 12;
+  const offset = 8;
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+  const hasRoomRight = event.clientX + offset + menuSize.width + margin <= viewportWidth;
+  const hasRoomBelow = event.clientY + offset + menuSize.height + margin <= viewportHeight;
+  const preferredX = hasRoomRight ? event.clientX + offset : event.clientX - menuSize.width - offset;
+  const preferredY = hasRoomBelow ? event.clientY + offset : event.clientY - menuSize.height - offset;
+
+  return {
+    x: Math.max(margin, Math.min(preferredX, viewportWidth - menuSize.width - margin)),
+    y: Math.max(margin, Math.min(preferredY, viewportHeight - menuSize.height - margin))
+  };
+}
+
+function getEstimatedContextMenuSize(kind: CanvasContextMenuKind): { width: number; height: number } {
+  if (kind === "token") {
+    return { width: 300, height: 540 };
   }
+  if (kind === "drawing") {
+    return { width: 260, height: 270 };
+  }
+  if (kind === "environment") {
+    return { width: 230, height: 250 };
+  }
+  return { width: 230, height: 250 };
+}
+
+function getWeatherMaskPointSnapshot(scene: Scene, maskIds: string[]): Map<string, Point[]> {
+  const ids = new Set(maskIds);
+  const snapshot = new Map<string, Point[]>();
+  for (const mask of scene.weather.masks) {
+    if (ids.has(mask.id)) {
+      snapshot.set(mask.id, mask.points.map((point) => ({ ...point })));
+    }
+  }
+  return snapshot;
+}
+
+function getEnvironmentEffectPointSnapshot(scene: Scene, effectIds: string[]): Map<string, Point[]> {
+  const ids = new Set(effectIds);
+  const snapshot = new Map<string, Point[]>();
+  for (const effect of scene.environment.effects) {
+    if (ids.has(effect.id)) {
+      snapshot.set(effect.id, effect.points.map((point) => ({ ...point })));
+    }
+  }
+  return snapshot;
+}
+
+function getEnvironmentEffectGroupSnapAnchor(scene: Scene, effectIds: string[], fallback: Point): Point {
+  const ids = new Set(effectIds);
+  const bounds = scene.environment.effects
+    .filter((effect) => ids.has(effect.id))
+    .map(getEnvironmentEffectBounds)
+    .filter((bounds): bounds is NonNullable<ReturnType<typeof getEnvironmentEffectBounds>> => Boolean(bounds));
+  if (bounds.length === 0) {
+    return fallback;
+  }
+  const left = Math.min(...bounds.map((bound) => bound.x));
+  const top = Math.min(...bounds.map((bound) => bound.y));
+  const right = Math.max(...bounds.map((bound) => bound.x + bound.width));
+  const bottom = Math.max(...bounds.map((bound) => bound.y + bound.height));
+  return {
+    x: (left + right) / 2,
+    y: (top + bottom) / 2
+  };
+}
+
+function getMovedSceneItemPointSnapshot(groupStartPoints: Map<string, Point[]>, delta: Point): Map<string, Point[]> {
+  const movedPoints = new Map<string, Point[]>();
+  for (const [itemId, points] of groupStartPoints) {
+    movedPoints.set(
+      itemId,
+      points.map((point) => ({
+        x: point.x + delta.x,
+        y: point.y + delta.y
+      }))
+    );
+  }
+  return movedPoints;
+}
+
+function getEnvironmentEffectsWithPointOverrides(scene: Scene, environmentEffectPoints: Map<string, Point[]> | null) {
+  if (!environmentEffectPoints) {
+    return scene.environment.effects;
+  }
+  return scene.environment.effects.map((effect) => {
+    const points = environmentEffectPoints.get(effect.id);
+    return points ? { ...effect, points } : effect;
+  });
+}
+
+function getWeatherMasksWithPointOverrides(scene: Scene, weatherMaskPoints: Map<string, Point[]> | null) {
+  if (!weatherMaskPoints) {
+    return scene.weather.masks;
+  }
+  return scene.weather.masks.map((mask) => {
+    const points = weatherMaskPoints.get(mask.id);
+    return points ? { ...mask, points } : mask;
+  });
 }
 
 export function SceneCanvas({
@@ -208,21 +542,75 @@ export function SceneCanvas({
   className,
   interactive = true,
   canvasTool = null,
+  mouseBehavior = "selector",
+  drawingTool = null,
+  drawingColor = "#ff0000",
+  drawingOpacity = 1,
+  drawingFillColor = "#ff0000",
+  drawingFillOpacity = 0,
+  drawingStrokeStyle = "solid",
+  drawingStrokeWidth = 40,
+  drawingTemplateSize = "custom",
+  drawingTemplateEffect = "plain",
+  drawingTemplateWidth = 5,
+  fogBrushSize,
   fogTool = null,
   weatherMaskTool = null,
+  environmentEffectTool = null,
+  environmentEffectType = "water",
+  environmentEffectFeather = 0,
+  acidEffectTuning,
+  coldEffectTuning,
+  darknessEffectTuning,
+  poisonEffectTuning,
+  waterEffectTuning,
+  lavaEffectTuning,
+  fireEffectTuning,
+  lightningEffectTuning,
+  arcaneEffectTuning,
+  chaosEffectTuning,
+  voidEffectTuning,
+  natureEffectTuning,
+  distortionEffectTuning,
+  radiantEffectTuning,
+  forceFieldEffectTuning,
+  shockwaveEffectTuning,
+  smokeEffectTuning,
+  fogEffectTuning,
   liveTableEvents = [],
+  tableTools,
+  tableToolsVisibleInPlayer = true,
   selectedFogShapeId = null,
   selectedWeatherMaskId = null,
+  selectedEnvironmentEffectId = null,
+  selectedDrawingId = null,
   selectedTokenId = null,
+  selectedFogShapeIds = EMPTY_SELECTED_IDS,
+  selectedWeatherMaskIds = EMPTY_SELECTED_IDS,
+  selectedDrawingIds = EMPTY_SELECTED_IDS,
+  selectedTokenIds = EMPTY_SELECTED_IDS,
+  selectorSelectionFilters = {
+    tokens: true,
+    templates: false,
+    fogMasks: false,
+    weatherMasks: false,
+    drawings: true
+  },
   onSceneChange,
   onSelectToken,
   onSelectFogShape,
   onSelectWeatherMask,
+  onSelectEnvironmentEffect,
+  onEditEnvironmentEffect,
+  onSelectDrawing,
+  onSelectSceneItems,
   onAddTokenToTurnOrder,
   onDropTokenAsset,
   onLiveTableEvent,
   onDiceRollResolved,
+  onTemplatePreviewChange,
   onViewportCenterChange,
+  onOpenTokenColor,
   mapCalibrationBox = null,
   onMapCalibrationBox,
   onMapCalibrationCancel,
@@ -232,61 +620,186 @@ export function SceneCanvas({
   const frameRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, zoom: 1 });
-  const [loadedMap, setLoadedMap] = useState<LoadedMap | null>(null);
-  const [loadedTokenImages, setLoadedTokenImages] = useState<Map<string, HTMLImageElement>>(() => new Map());
-  const [failedTokenImageIds, setFailedTokenImageIds] = useState<Set<string>>(() => new Set());
-  const [mapLoadStatus, setMapLoadStatus] = useState<MapLoadStatus>("idle");
+  const [videoMapLoadStatus, setVideoMapLoadStatus] = useState<MapLoadStatus>("idle");
   const [fogPreview, setFogPreview] = useState<FogDrag | null>(null);
+  const [drawingPreview, setDrawingPreview] = useState<DrawingPreview | null>(null);
   const [weatherMaskPreview, setWeatherMaskPreview] = useState<WeatherMaskDrag | null>(null);
+  const [environmentEffectPreview, setEnvironmentEffectPreview] = useState<EnvironmentEffectDrag | null>(null);
   const [rulerDrag, setRulerDrag] = useState<RulerDrag | null>(null);
+  const [releasedRulerDrag, setReleasedRulerDrag] = useState<RulerDrag | null>(null);
   const [tokenDragPreview, setTokenDragPreview] = useState<TokenDragPreview | null>(null);
-  const [playerTokenTweenPositions, setPlayerTokenTweenPositions] = useState<TokenPositionOverrides | null>(null);
+  const [drawingDragPreview, setDrawingDragPreview] = useState<DrawingPointOverrides | null>(null);
+  const [weatherMaskMovePreview, setWeatherMaskMovePreview] = useState<Map<string, Point[]> | null>(null);
+  const [environmentEffectMovePreview, setEnvironmentEffectMovePreview] = useState<Map<string, Point[]> | null>(null);
   const [polygonDraft, setPolygonDraft] = useState<FogPolygonDraft | null>(null);
+  const [drawingPolygonDraft, setDrawingPolygonDraft] = useState<DrawingPolygonDraft | null>(null);
   const [weatherPolygonDraft, setWeatherPolygonDraft] = useState<WeatherPolygonDraft | null>(null);
+  const [environmentPolygonDraft, setEnvironmentPolygonDraft] = useState<EnvironmentPolygonDraft | null>(null);
   const [mapCalibrationDrag, setMapCalibrationDrag] = useState<MapCalibrationDrag | null>(null);
+  const [selectionDrag, setSelectionDrag] = useState<SelectionDrag | null>(null);
+  const [drawingTransformHover, setDrawingTransformHover] = useState<DrawingTransformHover>(null);
+  const [sceneItemHover, setSceneItemHover] = useState(false);
   const [mapCalibrationDraftBox, setMapCalibrationDraftBox] = useState<MapCalibrationBox | null>(null);
   const [brushHoverPoint, setBrushHoverPoint] = useState<Point | null>(null);
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
   const [tokenContextMenu, setTokenContextMenu] = useState<TokenContextMenu | null>(null);
   const [maskContextMenu, setMaskContextMenu] = useState<MaskContextMenu | null>(null);
+  const [drawingContextMenu, setDrawingContextMenu] = useState<DrawingContextMenu | null>(null);
+  const [environmentEffectContextMenu, setEnvironmentEffectContextMenu] = useState<EnvironmentEffectContextMenu | null>(null);
   const [isPanning, setIsPanning] = useState(false);
-  const dragRef = useRef<{ pointerId: number; x: number; y: number; camera: Camera } | null>(null);
+  const dragRef = useRef<(CameraPanDrag & { pointerId: number }) | null>(null);
   const rulerDragRef = useRef<(RulerDrag & { pointerId: number }) | null>(null);
+  const releasedRulerTimeoutRef = useRef<number | null>(null);
   const tokenDragRef = useRef<TokenDragState | null>(null);
+  const drawingDragRef = useRef<DrawingDragState | null>(null);
+  const drawingResizeRef = useRef<DrawingResizeState | null>(null);
+  const drawingRotateRef = useRef<DrawingRotateState | null>(null);
+  const weatherMaskMoveRef = useRef<WeatherMaskMoveState | null>(null);
+  const environmentEffectMoveRef = useRef<EnvironmentEffectMoveState | null>(null);
   const laserDragRef = useRef<LaserDragState | null>(null);
   const fogDragRef = useRef<FogDrag | null>(null);
+  const drawingPreviewRef = useRef<DrawingPreview | null>(null);
   const weatherMaskDragRef = useRef<WeatherMaskDrag | null>(null);
+  const environmentEffectDragRef = useRef<EnvironmentEffectDrag | null>(null);
   const mapCalibrationDragRef = useRef<MapCalibrationDrag | null>(null);
-  const polygonDraftRef = useRef<FogPolygonDraft | null>(null);
-  const weatherPolygonDraftRef = useRef<WeatherPolygonDraft | null>(null);
-  const previousSceneRef = useRef<Scene | null>(null);
+  const selectionDragRef = useRef<SelectionDrag | null>(null);
+  const polygonDraftRef = useSyncedRef<FogPolygonDraft | null>(polygonDraft);
+  const drawingPolygonDraftRef = useSyncedRef<DrawingPolygonDraft | null>(drawingPolygonDraft);
+  const weatherPolygonDraftRef = useSyncedRef<WeatherPolygonDraft | null>(weatherPolygonDraft);
+  const environmentPolygonDraftRef = useSyncedRef<EnvironmentPolygonDraft | null>(environmentPolygonDraft);
   const fittedSceneCameraRef = useRef<string | null>(null);
   const autoFitCameraRef = useRef(true);
-  // Player View tween state is mirrored in a ref so requestAnimationFrame can draw without stale React closures.
-  const playerTokenTweenPositionsRef = useRef<TokenPositionOverrides | null>(null);
+  const activeTableTools = tableTools ?? scene?.tableTools ?? DEFAULT_TABLE_TOOLS;
+  const activeFogBrushSize = fogBrushSize ?? scene?.fog.brushSize ?? 80;
 
-  useEffect(() => {
-    if (!tokenContextMenu && !maskContextMenu) {
+  const clearDrawingPreview = useCallback(() => {
+    drawingPreviewRef.current = null;
+    setDrawingPreview(null);
+    onTemplatePreviewChange?.(null);
+  }, [onTemplatePreviewChange]);
+
+  const clearFogPreview = useCallback(() => {
+    fogDragRef.current = null;
+    setFogPreview(null);
+  }, []);
+
+  const clearWeatherMaskPreview = useCallback(() => {
+    weatherMaskDragRef.current = null;
+    setWeatherMaskPreview(null);
+  }, []);
+
+  const clearEnvironmentEffectPreview = useCallback(() => {
+    environmentEffectDragRef.current = null;
+    setEnvironmentEffectPreview(null);
+  }, []);
+
+  const cancelTokenDrag = useCallback(() => {
+    tokenDragRef.current = null;
+    setTokenDragPreview(null);
+  }, []);
+
+  const cancelDrawingDrag = useCallback(() => {
+    drawingDragRef.current = null;
+    drawingResizeRef.current = null;
+    drawingRotateRef.current = null;
+    setDrawingDragPreview(null);
+  }, []);
+
+  const cancelWeatherMaskMove = useCallback(() => {
+    weatherMaskMoveRef.current = null;
+    setWeatherMaskMovePreview(null);
+  }, []);
+
+  const cancelEnvironmentEffectMove = useCallback(() => {
+    environmentEffectMoveRef.current = null;
+    setEnvironmentEffectMovePreview(null);
+    setSnapPoint(null);
+  }, []);
+
+  const emitRulerEvent = useCallback((nextRulerDrag: RulerDrag) => {
+    if (!scene) {
       return;
     }
+    const label = getRulerLabel(nextRulerDrag, scene);
+    onLiveTableEvent?.({
+      id: "ruler-live",
+      type: "ruler",
+      points: getRulerPathPoints(nextRulerDrag),
+      primary: label.primary,
+      secondary: label.secondary,
+      visibleInPlayer: tableToolsVisibleInPlayer,
+      createdAt: Date.now()
+    });
+  }, [onLiveTableEvent, scene, tableToolsVisibleInPlayer]);
 
-    const dismissMenu = () => {
-      setTokenContextMenu(null);
-      setMaskContextMenu(null);
-    };
-    const dismissMenuOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        dismissMenu();
+  const cancelRulerDrag = useCallback(() => {
+    if (releasedRulerTimeoutRef.current !== null) {
+      window.clearTimeout(releasedRulerTimeoutRef.current);
+      releasedRulerTimeoutRef.current = null;
+    }
+    rulerDragRef.current = null;
+    setRulerDrag(null);
+    setReleasedRulerDrag(null);
+    onLiveTableEvent?.({
+      id: "ruler-clear",
+      type: "ruler-clear",
+      createdAt: Date.now()
+    });
+  }, [onLiveTableEvent]);
+
+  const finishRulerDrag = useCallback(() => {
+    const activeRulerDrag = rulerDragRef.current;
+    if (!activeRulerDrag || !scene) {
+      return;
+    }
+    if (!activeTableTools.rulerLinger) {
+      cancelRulerDrag();
+      return;
+    }
+    const label = getRulerLabel(activeRulerDrag, scene);
+    const now = Date.now();
+    if (releasedRulerTimeoutRef.current !== null) {
+      window.clearTimeout(releasedRulerTimeoutRef.current);
+    }
+    rulerDragRef.current = null;
+    setRulerDrag(null);
+    setReleasedRulerDrag(activeRulerDrag);
+    releasedRulerTimeoutRef.current = window.setTimeout(() => {
+      setReleasedRulerDrag(null);
+      releasedRulerTimeoutRef.current = null;
+    }, RULER_RELEASE_LINGER_MS);
+    onLiveTableEvent?.({
+      id: "ruler-live",
+      type: "ruler",
+      points: getRulerPathPoints(activeRulerDrag),
+      primary: label.primary,
+      secondary: label.secondary,
+      visibleInPlayer: tableToolsVisibleInPlayer,
+      createdAt: now,
+      expiresAt: now + RULER_RELEASE_LINGER_MS
+    });
+  }, [activeTableTools.rulerLinger, cancelRulerDrag, onLiveTableEvent, scene, tableToolsVisibleInPlayer]);
+
+  useEffect(() => {
+    return () => {
+      if (releasedRulerTimeoutRef.current !== null) {
+        window.clearTimeout(releasedRulerTimeoutRef.current);
       }
     };
+  }, []);
 
-    window.addEventListener("pointerdown", dismissMenu);
-    window.addEventListener("keydown", dismissMenuOnEscape);
-    return () => {
-      window.removeEventListener("pointerdown", dismissMenu);
-      window.removeEventListener("keydown", dismissMenuOnEscape);
-    };
-  }, [maskContextMenu, tokenContextMenu]);
+  const dismissCanvasContextMenus = useCallback(() => {
+    setTokenContextMenu(null);
+    setMaskContextMenu(null);
+    setDrawingContextMenu(null);
+    setEnvironmentEffectContextMenu(null);
+  }, []);
+
+  useDismissableMenu({
+    enabled: Boolean(tokenContextMenu || maskContextMenu || drawingContextMenu || environmentEffectContextMenu),
+    menuRootClass: "canvas-context-menu",
+    onDismiss: dismissCanvasContextMenus
+  });
 
   const mapAsset = useMemo(() => {
     if (!campaign || !scene?.mapAssetId) {
@@ -301,43 +814,92 @@ export function SceneCanvas({
   const campaignAssets = campaign?.assets;
 
   const tokenAssetIds = useMemo(() => {
-    // Keep image loading keyed by asset identity, not token presentation/position changes.
-    return [...new Set(scene?.tokens.map((token) => token.assetId).filter(Boolean) ?? [])].join("|");
+    return getTokenAssetIds(scene?.tokens);
   }, [scene?.tokens]);
 
   const tokenAssets = useMemo(() => {
-    if (!campaignAssets) {
-      return [];
-    }
-    const assetsById = new Map(campaignAssets.map((asset) => [asset.id, asset]));
-    return tokenAssetIds
-      .split("|")
-      .filter(Boolean)
-      .map((assetId) => assetsById.get(assetId) ?? null)
-      .filter((asset): asset is NonNullable<typeof asset> => Boolean(asset?.absolutePath));
+    return getTokenImageAssets(campaignAssets, tokenAssetIds);
   }, [campaignAssets, tokenAssetIds]);
 
   const tokenImageSourceKey = useMemo(() => {
-    const sources = tokenAssets
-      .map((asset) => ({
-        id: asset.id,
-        path: asset.thumbnailAbsolutePath ?? asset.absolutePath
-      }))
-      .filter((source): source is TokenImageSource => Boolean(source.path));
-    return JSON.stringify(sources);
+    return getTokenImageSourceKey(tokenAssets);
   }, [tokenAssets]);
+  const { failedTokenImageIds, loadedTokenImages } = useTokenImageLoader(tokenImageSourceKey);
+  const { tokenTweenPositions: playerTokenTweenPositions, tokenTweenPositionsRef: playerTokenTweenPositionsRef } = usePlayerTokenTweens(scene, mode);
+  const effectiveSelectedTokenIds = useMemo(() => getSelectedItemIdList(selectedTokenId, selectedTokenIds), [selectedTokenId, selectedTokenIds]);
+  const effectiveSelectedTokenIdSet = useMemo(() => getSelectedItemIds(selectedTokenId, selectedTokenIds), [selectedTokenId, selectedTokenIds]);
+  const turnOrderTokenIndicators = useMemo(() => (scene && mode === "gm" ? getTurnOrderTokenIndicators(scene) : null), [mode, scene]);
+  const effectiveSelectedDrawingIds = useMemo(() => getSelectedItemIdList(selectedDrawingId, selectedDrawingIds), [selectedDrawingId, selectedDrawingIds]);
+  const effectiveSelectedDrawingIdSet = useMemo(() => getSelectedItemIds(selectedDrawingId, selectedDrawingIds), [selectedDrawingId, selectedDrawingIds]);
+  const effectiveSelectedFogShapeIds = useMemo(() => getSelectedItemIdList(selectedFogShapeId, selectedFogShapeIds), [selectedFogShapeId, selectedFogShapeIds]);
+  const effectiveSelectedWeatherMaskIds = useMemo(() => getSelectedItemIdList(selectedWeatherMaskId, selectedWeatherMaskIds), [selectedWeatherMaskId, selectedWeatherMaskIds]);
+  const authoringToolActive = useMemo(
+    () => hasAuthoringToolActive({ canvasTool, drawingTool, fogTool, weatherMaskTool, environmentEffectTool }),
+    [canvasTool, drawingTool, environmentEffectTool, fogTool, weatherMaskTool]
+  );
+  const currentEnvironmentEffectTuning = useMemo<Partial<EnvironmentEffectMask>>(
+    () => ({
+      acidTuning: acidEffectTuning,
+      coldTuning: coldEffectTuning,
+      darknessTuning: darknessEffectTuning,
+      poisonTuning: poisonEffectTuning,
+      waterTuning: waterEffectTuning,
+      lavaTuning: lavaEffectTuning,
+      fireTuning: fireEffectTuning,
+      lightningTuning: lightningEffectTuning,
+      arcaneTuning: arcaneEffectTuning,
+      chaosTuning: chaosEffectTuning,
+      voidTuning: voidEffectTuning,
+      natureTuning: natureEffectTuning,
+      distortionTuning: distortionEffectTuning,
+      radiantTuning: radiantEffectTuning,
+      fieldTuning: forceFieldEffectTuning,
+      shockwaveTuning: shockwaveEffectTuning,
+      smokeTuning: smokeEffectTuning,
+      fogTuning: fogEffectTuning
+    }),
+    [
+      acidEffectTuning,
+      arcaneEffectTuning,
+      chaosEffectTuning,
+      coldEffectTuning,
+      darknessEffectTuning,
+      distortionEffectTuning,
+      fireEffectTuning,
+      fogEffectTuning,
+      forceFieldEffectTuning,
+      lavaEffectTuning,
+      lightningEffectTuning,
+      natureEffectTuning,
+      poisonEffectTuning,
+      radiantEffectTuning,
+      shockwaveEffectTuning,
+      smokeEffectTuning,
+      voidEffectTuning,
+      waterEffectTuning
+    ]
+  );
 
-  const mapLayer = scene?.layers.find((layer) => layer.id === "map");
-  const gridLayer = scene?.layers.find((layer) => layer.id === "grid");
-  const fogLayer = scene?.layers.find((layer) => layer.id === "fog");
-  const weatherLayer = scene?.layers.find((layer) => layer.id === "weather");
-  const tokenLayer = scene?.layers.find((layer) => layer.id === "token");
-  const canShowMap = mode === "gm" ? mapLayer?.visibleInGm : mapLayer?.visibleInPlayer;
-  const canShowGrid = mode === "gm" ? gridLayer?.visibleInGm : gridLayer?.visibleInPlayer;
-  const canShowFog = mode === "gm" ? fogLayer?.visibleInGm : fogLayer?.visibleInPlayer;
-  const canShowWeather = mode === "gm" ? weatherLayer?.visibleInGm : weatherLayer?.visibleInPlayer;
-  const canShowTokens = mode === "gm" ? tokenLayer?.visibleInGm : tokenLayer?.visibleInPlayer;
+  const {
+    mapLayer,
+    drawingLayer,
+    effectsLayer: weatherLayer,
+    canShowMap,
+    canShowGrid,
+    canShowFog,
+    canShowDrawings,
+    canShowWeather,
+    canShowTokens
+  } = getSceneLayerVisibility(scene?.layers, mode);
   const isVideoMap = Boolean(canShowMap && mapAsset?.mediaType === "video" && assetUrl);
+  const { loadedMap, mapLoadStatus: imageMapLoadStatus } = useImageMapLoader({
+    assetId: mapAsset?.id,
+    assetRelativePath: mapAsset?.relativePath,
+    assetUrl,
+    mediaType: mapAsset?.mediaType
+  });
+  const mapLoadStatus = isVideoMap ? videoMapLoadStatus : imageMapLoadStatus;
+  const mapOverlayActive = isMapOverlayActive(canShowMap, Boolean(mapAsset), mapLoadStatus);
   const playerDisplayScale = getPlayerDisplayScale(campaign, scene, mode);
   const videoPlayback = scene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const videoPaused = videoPlayback.paused;
@@ -350,13 +912,8 @@ export function SceneCanvas({
       paused: videoPaused
     });
 
-  const requiredTokenAssetIds = useMemo(() => parseTokenImageSourceKey(tokenImageSourceKey).map((source) => source.id), [tokenImageSourceKey]);
-  const tokensReady = !canShowTokens || requiredTokenAssetIds.every((assetId) => loadedTokenImages.has(assetId) || failedTokenImageIds.has(assetId));
-  const mapReady =
-    !canShowMap ||
-    !mapAsset ||
-    mapLoadStatus === "ready" ||
-    mapLoadStatus === "error";
+  const tokensReady = areTokenImagesReady(canShowTokens, tokenImageSourceKey, loadedTokenImages, failedTokenImageIds);
+  const mapReady = isMapReady(canShowMap, Boolean(mapAsset), mapLoadStatus);
 
   const getCurrentReadyMapSourceForFit = useCallback((): ReadyMapSource | null => {
     if (!mapAsset || !canShowMap) {
@@ -383,7 +940,8 @@ export function SceneCanvas({
       }
 
       fittedSceneCameraRef.current = fitSignature;
-      setCamera(getCameraForMapFit(scene, mapSource.width, mapSource.height, viewportWidth, viewportHeight));
+      const nextCamera = getCameraForMapFit(scene, mapSource.width, mapSource.height, viewportWidth, viewportHeight);
+      setCamera((currentCamera) => (areCamerasEqual(currentCamera, nextCamera) ? currentCamera : nextCamera));
       return true;
     },
     [getCurrentReadyMapSourceForFit, mapAsset, mode, scene]
@@ -431,14 +989,6 @@ export function SceneCanvas({
   }, [canShowMap, fitGmCameraToReadyMap, mapAsset, mode, scene]);
 
   useEffect(() => {
-    polygonDraftRef.current = polygonDraft;
-  }, [polygonDraft]);
-
-  useEffect(() => {
-    weatherPolygonDraftRef.current = weatherPolygonDraft;
-  }, [weatherPolygonDraft]);
-
-  useEffect(() => {
     if (!onMapCalibrationBox) {
       setMapCalibrationDraftBox(null);
       mapCalibrationDragRef.current = null;
@@ -449,329 +999,133 @@ export function SceneCanvas({
   useEffect(() => {
     setPolygonDraft(null);
     polygonDraftRef.current = null;
+    setDrawingPolygonDraft(null);
+    drawingPolygonDraftRef.current = null;
     weatherPolygonDraftRef.current = null;
-    fogDragRef.current = null;
-    setFogPreview(null);
+    environmentPolygonDraftRef.current = null;
+    clearFogPreview();
+    clearDrawingPreview();
+    setDrawingPolygonDraft(null);
     setWeatherPolygonDraft(null);
+    setEnvironmentPolygonDraft(null);
     setBrushHoverPoint(null);
     setSnapPoint(null);
-  }, [fogTool, scene?.id]);
+    setSceneItemHover(false);
+  }, [clearDrawingPreview, clearFogPreview, drawingPolygonDraftRef, environmentPolygonDraftRef, fogTool, polygonDraftRef, scene?.id, weatherPolygonDraftRef]);
 
   useEffect(() => {
+    clearDrawingPreview();
+    setBrushHoverPoint(null);
+    setSnapPoint(null);
+  }, [clearDrawingPreview, drawingTool, scene?.id]);
+
+  useEffect(() => {
+    if (rulerDragRef.current) {
+      onLiveTableEvent?.({
+        id: "ruler-clear",
+        type: "ruler-clear",
+        createdAt: Date.now()
+      });
+    }
     setRulerDrag(null);
+    if (releasedRulerTimeoutRef.current !== null) {
+      window.clearTimeout(releasedRulerTimeoutRef.current);
+      releasedRulerTimeoutRef.current = null;
+    }
+    setReleasedRulerDrag(null);
     rulerDragRef.current = null;
     laserDragRef.current = null;
-  }, [canvasTool, scene?.id]);
+  }, [canvasTool, onLiveTableEvent, scene?.id]);
 
   useEffect(() => {
     tokenDragRef.current = null;
     setTokenDragPreview(null);
     dragRef.current = null;
-    weatherMaskDragRef.current = null;
-    setWeatherMaskPreview(null);
+    clearWeatherMaskPreview();
+    clearEnvironmentEffectPreview();
+    cancelWeatherMaskMove();
+    cancelEnvironmentEffectMove();
     setIsPanning(false);
+    selectionDragRef.current = null;
+    setSelectionDrag(null);
     setSnapPoint(null);
     setBrushHoverPoint(null);
-  }, [mode, scene?.id]);
+  }, [cancelEnvironmentEffectMove, cancelWeatherMaskMove, clearEnvironmentEffectPreview, clearWeatherMaskPreview, mode, scene?.id]);
 
   useEffect(() => {
-    weatherMaskDragRef.current = null;
-    setWeatherMaskPreview(null);
+    clearWeatherMaskPreview();
     weatherPolygonDraftRef.current = null;
     setWeatherPolygonDraft(null);
-  }, [weatherMaskTool, scene?.id]);
+  }, [clearWeatherMaskPreview, scene?.id, weatherMaskTool, weatherPolygonDraftRef]);
 
   useEffect(() => {
-    const previousScene = previousSceneRef.current;
-    previousSceneRef.current = scene;
+    clearEnvironmentEffectPreview();
+    environmentPolygonDraftRef.current = null;
+    setEnvironmentPolygonDraft(null);
+  }, [clearEnvironmentEffectPreview, environmentEffectTool, environmentPolygonDraftRef, scene?.id]);
 
-    if (mode !== "player" || !previousScene || !scene || previousScene.id !== scene.id) {
-      playerTokenTweenPositionsRef.current = null;
-      setPlayerTokenTweenPositions(null);
+  const hasCancelableSceneInteraction = Boolean(tokenDragPreview || drawingDragPreview || weatherMaskMovePreview || environmentEffectMovePreview || rulerDrag || fogPreview || drawingPreview || environmentEffectPreview);
+  const cancelSceneInteractionOnEscape = useCallback((event: KeyboardEvent) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+    event.preventDefault();
+    cancelTokenDrag();
+    cancelDrawingDrag();
+    cancelWeatherMaskMove();
+    cancelEnvironmentEffectMove();
+    cancelRulerDrag();
+    clearFogPreview();
+    clearEnvironmentEffectPreview();
+    clearDrawingPreview();
+  }, [cancelDrawingDrag, cancelEnvironmentEffectMove, cancelRulerDrag, cancelTokenDrag, cancelWeatherMaskMove, clearDrawingPreview, clearEnvironmentEffectPreview, clearFogPreview]);
+  useWindowKeyDown(mode === "gm" && hasCancelableSceneInteraction, cancelSceneInteractionOnEscape);
+
+  const appendTokenWaypointOnShift = useCallback((event: KeyboardEvent) => {
+    if (event.key !== "Shift" || event.repeat || !scene || !tokenDragPreview) {
+      return;
+    }
+    const tokenDrag = tokenDragRef.current;
+    const token = scene.tokens.find((candidate) => candidate.id === tokenDragPreview.tokenId);
+    if (!tokenDrag || !token || tokenDrag.tokenId !== token.id) {
       return;
     }
 
-    // Only Player View animates committed token moves; GM View uses the live drag preview instead.
-    const tweens = getTokenMovementTweens(previousScene.tokens, scene.tokens, scene);
-    if (tweens.length === 0) {
-      playerTokenTweenPositionsRef.current = null;
-      setPlayerTokenTweenPositions(null);
+    event.preventDefault();
+    const nextTokenDrag = getTokenDragWithAppendedWaypoint(scene, tokenDrag, token, tokenDragPreview.currentPosition);
+    if (nextTokenDrag === tokenDrag) {
       return;
     }
 
-    let animationFrame = 0;
-    let cancelled = false;
-    const durationMs = Math.max(...tweens.map((tween) => tween.durationMs));
-    const startedAt = performance.now();
+    tokenDragRef.current = nextTokenDrag;
+    setTokenDragPreview((preview) => (preview?.tokenId === token.id ? { ...preview, waypoints: nextTokenDrag.waypoints } : preview));
+  }, [scene, tokenDragPreview]);
+  useWindowKeyDown(mode === "gm" && Boolean(scene && tokenDragPreview), appendTokenWaypointOnShift);
 
-    const animate = (timestamp: number) => {
-      if (cancelled) {
-        return;
-      }
-      const tweenPositions = new Map(
-        tweens.map((tween) => {
-          const progress = Math.min(1, (timestamp - startedAt) / tween.durationMs);
-          return [tween.id, getPointAlongPath(tween.points, tween.distance * progress)];
-        })
-      );
-      playerTokenTweenPositionsRef.current = tweenPositions;
-      setPlayerTokenTweenPositions(tweenPositions);
-
-      if (timestamp - startedAt < durationMs) {
-        animationFrame = window.requestAnimationFrame(animate);
-      } else {
-        playerTokenTweenPositionsRef.current = null;
-        setPlayerTokenTweenPositions(null);
-      }
-    };
-
-    const initialTweenPositions = new Map(tweens.map((tween) => [tween.id, tween.points[0]]));
-    playerTokenTweenPositionsRef.current = initialTweenPositions;
-    setPlayerTokenTweenPositions(initialTweenPositions);
-    animationFrame = window.requestAnimationFrame(animate);
-    return () => {
-      cancelled = true;
-      playerTokenTweenPositionsRef.current = null;
-      if (animationFrame) {
-        window.cancelAnimationFrame(animationFrame);
-      }
-    };
-  }, [mode, scene]);
-
-  useEffect(() => {
-    if (!polygonDraft) {
+  const appendRulerWaypointOnShift = useCallback((event: KeyboardEvent) => {
+    if (event.key !== "Shift" || event.repeat || !scene) {
+      return;
+    }
+    const activeRulerDrag = rulerDragRef.current;
+    if (!activeRulerDrag) {
       return;
     }
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setPolygonDraft(null);
-        polygonDraftRef.current = null;
-      }
-      if (event.key === "Enter") {
-        event.preventDefault();
-        commitPolygonDraft();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // Polygon draft state is mirrored in polygonDraftRef so the handler can commit the latest draft without re-subscribing to commitPolygonDraft.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [polygonDraft, scene]);
-
-  useEffect(() => {
-    if (!weatherPolygonDraft) {
+    event.preventDefault();
+    const nextRulerDrag = getRulerDragWithAppendedWaypoint(scene, activeRulerDrag, event.ctrlKey || event.metaKey);
+    if (nextRulerDrag === activeRulerDrag) {
       return;
     }
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setWeatherPolygonDraft(null);
-        weatherPolygonDraftRef.current = null;
-      }
-      if (event.key === "Enter") {
-        event.preventDefault();
-        commitWeatherPolygonDraft();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // Weather polygon draft state is mirrored in weatherPolygonDraftRef so the handler can commit without re-subscribing.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weatherPolygonDraft, scene]);
+    rulerDragRef.current = nextRulerDrag;
+    setRulerDrag(nextRulerDrag);
+    emitRulerEvent(nextRulerDrag);
+  }, [emitRulerEvent, scene]);
+  useWindowKeyDown(mode === "gm" && Boolean(scene && rulerDrag), appendRulerWaypointOnShift);
 
   useEffect(() => {
-    if (mode !== "gm" || (!tokenDragPreview && !rulerDrag && !fogPreview)) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-      event.preventDefault();
-      cancelTokenDrag();
-      cancelRulerDrag();
-      cancelFogDrag();
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [fogPreview, mode, rulerDrag, tokenDragPreview]);
-
-  useEffect(() => {
-    if (mode !== "gm" || !scene || !tokenDragPreview) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Shift" || event.repeat) {
-        return;
-      }
-      const tokenDrag = tokenDragRef.current;
-      const token = scene.tokens.find((candidate) => candidate.id === tokenDragPreview.tokenId);
-      if (!tokenDrag || !token || tokenDrag.tokenId !== token.id) {
-        return;
-      }
-
-      event.preventDefault();
-      const waypoint = getTokenWaypointPosition(tokenDragPreview.currentPosition, token, scene);
-      const previousRoutePosition = tokenDrag.waypoints[tokenDrag.waypoints.length - 1] ?? tokenDrag.startPosition;
-      if (isDuplicateTokenWaypoint(previousRoutePosition, waypoint, token, scene)) {
-        return;
-      }
-
-      const waypoints = [...tokenDrag.waypoints, waypoint];
-      tokenDrag.waypoints = waypoints;
-      setTokenDragPreview((preview) => (preview?.tokenId === token.id ? { ...preview, waypoints } : preview));
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [mode, scene, tokenDragPreview]);
-
-  useEffect(() => {
-    if (mode !== "gm" || !scene || !rulerDrag) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Shift" || event.repeat) {
-        return;
-      }
-      const activeRulerDrag = rulerDragRef.current;
-      if (!activeRulerDrag) {
-        return;
-      }
-
-      event.preventDefault();
-      const waypoint = event.ctrlKey || event.metaKey ? (getRulerSnapPoint(activeRulerDrag.current, scene) ?? activeRulerDrag.current) : activeRulerDrag.current;
-      const previousRoutePosition = activeRulerDrag.waypoints[activeRulerDrag.waypoints.length - 1] ?? activeRulerDrag.start;
-      if (isDuplicateRulerWaypoint(previousRoutePosition, waypoint, scene)) {
-        return;
-      }
-
-      const waypoints = [...activeRulerDrag.waypoints, waypoint];
-      const nextRulerDrag = { ...activeRulerDrag, current: waypoint, waypoints };
-      rulerDragRef.current = nextRulerDrag;
-      setRulerDrag(nextRulerDrag);
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [mode, rulerDrag, scene]);
-
-  useEffect(() => {
-    if (!assetUrl || !mapAsset?.id || mapAsset.mediaType === "video") {
-      setLoadedMap(null);
-      setMapLoadStatus(mapAsset?.mediaType === "video" && assetUrl ? "loading" : "idle");
-      return;
-    }
-
-    let cancelled = false;
-    const imageAssetId = mapAsset.id;
-    const imageAssetPath = mapAsset.relativePath;
-    const image = new Image();
-    image.decoding = "async";
-    setLoadedMap(null);
-    setMapLoadStatus("loading");
-    image.onload = () => {
-      void prepareLoadedImageMap(image, imageAssetPath)
-        .then((preparedMap) => {
-          if (cancelled) {
-            closeCanvasImageSource(preparedMap.optimizedSource);
-            return;
-          }
-          setLoadedMap({
-            assetId: imageAssetId,
-            originalSource: image,
-            optimizedSource: preparedMap.optimizedSource,
-            sourceWidth: image.naturalWidth || image.width,
-            sourceHeight: image.naturalHeight || image.height,
-            optimizedScale: preparedMap.optimizedScale,
-            animate: imageAssetPath.toLowerCase().endsWith(".gif"),
-            mediaType: "image",
-            ready: true
-          });
-          setMapLoadStatus("ready");
-        })
-        .catch(() => {
-          if (cancelled) {
-            return;
-          }
-          setLoadedMap(null);
-          setMapLoadStatus("error");
-        });
-    };
-    image.onerror = () => {
-      if (cancelled) {
-        return;
-      }
-      setLoadedMap(null);
-      setMapLoadStatus("error");
-    };
-    image.src = assetUrl;
-    return () => {
-      cancelled = true;
-    };
-  }, [assetUrl, mapAsset?.id, mapAsset?.mediaType, mapAsset?.relativePath]);
-
-  useEffect(() => {
-    return () => {
-      if (loadedMap) {
-        closeCanvasImageSource(loadedMap.optimizedSource);
-      }
-    };
-  }, [loadedMap]);
-
-  useEffect(() => {
-    if (!isVideoMap) {
-      return;
-    }
-    setMapLoadStatus("loading");
-  }, [isVideoMap, mapAsset?.id, assetUrl]);
-
-  useEffect(() => {
-    const tokenImageSources = parseTokenImageSourceKey(tokenImageSourceKey);
-    if (tokenImageSources.length === 0) {
-      setLoadedTokenImages(new Map());
-      setFailedTokenImageIds(new Set());
-      return;
-    }
-
-    let cancelled = false;
-    const nextImages = new Map<string, HTMLImageElement>();
-    const nextFailedIds = new Set<string>();
-    setLoadedTokenImages(new Map());
-    setFailedTokenImageIds(new Set());
-    for (const source of tokenImageSources) {
-      const image = new Image();
-      image.decoding = "async";
-      image.onload = () => {
-        if (cancelled) {
-          return;
-        }
-        nextImages.set(source.id, image);
-        setLoadedTokenImages(new Map(nextImages));
-      };
-      image.onerror = () => {
-        if (cancelled) {
-          return;
-        }
-        nextFailedIds.add(source.id);
-        setFailedTokenImageIds(new Set(nextFailedIds));
-      };
-      image.src = window.localVtt.toAssetUrl(source.path);
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tokenImageSourceKey]);
+    setVideoMapLoadStatus(isVideoMap ? getInitialMapLoadStatus(mapAsset?.mediaType, assetUrl) : "idle");
+  }, [assetUrl, isVideoMap, mapAsset?.id, mapAsset?.mediaType]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -807,7 +1161,7 @@ export function SceneCanvas({
       const renderCamera = getRenderCamera(camera, playerDisplayScale);
       const activeVideo = isVideoMap ? (videoRefs.current[activeVideoIndex] ?? null) : null;
       const mapDrawSource = loadedMap?.ready ? getMapDrawSource(loadedMap, scene, width, height, renderCamera.zoom, mode) : null;
-      const weatherMapSource = mapDrawSource ?? (activeVideo && activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA ? activeVideo : null);
+      const weatherMapSource = loadedMap?.ready ? loadedMap.originalSource : (activeVideo && activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA ? activeVideo : null);
       const weatherMapReady = !canShowMap || !mapAsset || Boolean(weatherMapSource);
 
       ctx.save();
@@ -845,48 +1199,121 @@ export function SceneCanvas({
         drawTokenDragHighlights(ctx, scene, tokenDragPreview, renderCamera.zoom);
       }
 
+      const now = Date.now();
       if (canShowTokens) {
-        drawTokens(ctx, scene, loadedTokenImages, mode, selectedTokenId, tokenDragPreview, playerTokenTweenPositionsRef.current);
+        drawTokens(ctx, scene, loadedTokenImages, mode, effectiveSelectedTokenIds, tokenDragPreview, playerTokenTweenPositionsRef.current, renderCamera.zoom, turnOrderTokenIndicators, now);
       }
 
-      if (mode === "gm" && rulerDrag) {
-        drawRuler(ctx, rulerDrag, getRulerLabel(rulerDrag, scene), scene.grid, renderCamera.zoom);
+      if (canShowDrawings) {
+        const drawingPolygonPreview =
+          drawingPolygonDraft && drawingPolygonDraft.points[0]
+            ? ({
+                pointerId: -1,
+                kind: "polygon",
+                points: drawingPolygonDraft.points,
+                current: drawingPolygonDraft.current ?? drawingPolygonDraft.points[drawingPolygonDraft.points.length - 1],
+                color: drawingColor,
+                opacity: drawingOpacity,
+                strokeColor: drawingColor,
+                strokeOpacity: drawingOpacity,
+                fillColor: drawingFillColor,
+                fillOpacity: drawingFillOpacity,
+                strokeStyle: drawingStrokeStyle,
+                strokeWidth: drawingStrokeWidth,
+                templateEffect: "plain",
+                templateWidth: 5,
+                measurementLabelVisible: false
+              } satisfies DrawingPreview)
+            : null;
+        drawDrawings(
+          ctx,
+          scene,
+          mode,
+          drawingLayer?.opacity ?? 1,
+          mode === "gm" ? (drawingPreview ?? drawingPolygonPreview) : null,
+          renderCamera.zoom,
+          effectiveSelectedDrawingIds,
+          drawingDragPreview,
+          drawingRotateRef.current ? drawingRotateRef.current.groupStartPoints : drawingDragPreview
+        );
+      }
+
+      const visibleGmRuler = rulerDrag ?? releasedRulerDrag;
+      if (mode === "gm" && visibleGmRuler) {
+        drawRuler(ctx, visibleGmRuler, getRulerLabel(visibleGmRuler, scene), scene.grid, renderCamera.zoom);
       }
 
       ctx.restore();
 
       if (canShowFog) {
         // Fog is drawn after world content so hidden/partial modes mask maps, tokens, grid, and ruler consistently.
-        drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, selectedFogShapeId);
+        drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, effectiveSelectedFogShapeIds);
       }
-      if (canShowWeather) {
+      if (canShowWeather && !mapOverlayActive) {
+        const visibleEnvironmentEffects = getEnvironmentEffectsWithPointOverrides(scene, environmentEffectMovePreview);
         if (weatherMapReady) {
-          drawWeather(ctx, scene, width, height, renderCamera, Date.now(), weatherLayer?.opacity ?? 1, weatherMapSource);
+          drawWeather(ctx, scene, width, height, renderCamera, now, weatherLayer?.opacity ?? 1, weatherMapSource);
         }
+        drawEnvironmentEffects(ctx, visibleEnvironmentEffects, renderCamera, mode, now, weatherLayer?.opacity ?? 1, acidEffectTuning, coldEffectTuning, darknessEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
+      }
+      const visibleEnvironmentEffects = getEnvironmentEffectsWithPointOverrides(scene, environmentEffectMovePreview);
+      const visibleWeatherMasks = getWeatherMasksWithPointOverrides(scene, weatherMaskMovePreview);
+      if (mode === "gm") {
+        drawWeatherMaskOutlines(ctx, visibleWeatherMasks, renderCamera);
       }
       if (mode === "gm" && weatherMaskPreview) {
         drawWeatherMaskPreview(ctx, weatherMaskPreview, renderCamera);
       }
+      if (mode === "gm" && environmentEffectPreview) {
+        drawEnvironmentEffectPreview(ctx, environmentEffectPreview, renderCamera);
+      }
       if (mode === "gm" && weatherMaskTool === "polygon" && weatherPolygonDraft) {
         drawWeatherPolygonDraft(ctx, weatherPolygonDraft, renderCamera);
       }
-      if (mode === "gm" && selectedWeatherMaskId) {
-        const selectedWeatherMask = scene.weather.masks.find((mask) => mask.id === selectedWeatherMaskId && (mask.visible ?? true));
-        if (selectedWeatherMask) {
+      if (mode === "gm" && environmentEffectTool === "polygon" && environmentPolygonDraft) {
+        drawWeatherPolygonDraft(ctx, environmentPolygonDraft, renderCamera);
+      }
+      if (mode === "gm") {
+        for (const selectedWeatherMask of visibleWeatherMasks.filter((mask) => effectiveSelectedWeatherMaskIds.includes(mask.id) && (mask.visible ?? true))) {
           drawWeatherMaskSelection(ctx, selectedWeatherMask, renderCamera);
+        }
+        if (selectedEnvironmentEffectId) {
+          const selectedEnvironmentEffect = visibleEnvironmentEffects.find((effect) => effect.id === selectedEnvironmentEffectId && effect.visibleInGm !== false);
+          if (selectedEnvironmentEffect) {
+            drawEnvironmentEffectShape(ctx, selectedEnvironmentEffect, renderCamera, { fill: false, selected: true });
+          }
         }
       }
       if (mode === "gm" && brushHoverPoint && fogTool?.includes("brush") && !fogPreview) {
-        drawBrushHoverPreview(ctx, brushHoverPoint, Math.max(4, scene.fog.brushSize / 2), renderCamera, getFogOperationForTool(fogTool));
+        drawBrushHoverPreview(ctx, brushHoverPoint, Math.max(4, activeFogBrushSize / 2), renderCamera, getFogOperationForTool(fogTool));
       }
-      if (mode === "gm" && snapPoint && fogTool) {
+      if (mode === "gm" && brushHoverPoint && drawingTool === "freehand" && !drawingPreview) {
+        drawDrawingBrushHoverPreview(ctx, brushHoverPoint, Math.max(4, drawingStrokeWidth / 2), renderCamera, drawingColor, drawingOpacity);
+      }
+      if (mode === "gm" && snapPoint && fogTool && !fogTool.includes("brush")) {
         drawSnapMarker(ctx, snapPoint, renderCamera, getFogOperationForTool(fogTool));
+      }
+      if (mode === "gm" && snapPoint && ((drawingTool && drawingTool !== "freehand") || (drawingDragPreview && drawingDragRef.current))) {
+        drawSnapMarker(ctx, snapPoint, renderCamera, "reveal");
+      }
+      if (mode === "gm" && snapPoint && (weatherMaskTool || (weatherMaskMovePreview && weatherMaskMoveRef.current))) {
+        drawSnapMarker(ctx, snapPoint, renderCamera, "reveal");
+      }
+      if (mode === "gm" && snapPoint && (environmentEffectTool || (environmentEffectMovePreview && environmentEffectMoveRef.current))) {
+        drawSnapMarker(ctx, snapPoint, renderCamera, "reveal");
       }
       if (mode === "gm" && (onMapCalibrationBox || mapCalibrationBox)) {
         drawMapCalibrationBox(ctx, getVisibleMapCalibrationBox(mapCalibrationDrag, mapCalibrationDraftBox ?? mapCalibrationBox), renderCamera);
       }
-      if (liveTableEvents.length > 0) {
-        drawLiveTableEvents(ctx, liveTableEvents, renderCamera);
+      if (mode === "gm" && selectionDrag) {
+        drawSelectionMarquee(ctx, selectionDrag, renderCamera);
+      }
+      if (mode === "gm" && canShowDrawings && !drawingDragPreview && effectiveSelectedDrawingIds.length > 0) {
+        drawDrawingResizeHandles(ctx, scene.drawings, effectiveSelectedDrawingIds, renderCamera);
+      }
+      const visibleLiveTableEvents = mode === "gm" ? liveTableEvents.filter((event) => event.type !== "ruler") : liveTableEvents;
+      if (visibleLiveTableEvents.length > 0) {
+        drawLiveTableEvents(ctx, visibleLiveTableEvents, renderCamera, scene.grid);
       }
     };
 
@@ -895,26 +1322,45 @@ export function SceneCanvas({
     const drawCurrentFrame = (timestamp: number) => {
       const mapAnimating = Boolean(loadedMap?.animate);
       const tokenAnimating = Boolean(playerTokenTweenPositionsRef.current);
+      const tokenConditionAnimating = canShowTokens && hasVisibleTokenConditions(scene, mode);
       const tableEventsAnimating = hasActiveLiveTableEvents(liveTableEvents);
       const weatherAnimating = shouldAnimateWeather(scene, Boolean(canShowWeather));
-      const hasFullRateAnimation = mapAnimating || tokenAnimating || tableEventsAnimating;
-      const shouldDrawFrame = !weatherAnimating || hasFullRateAnimation || timestamp - lastWeatherOnlyFrameAt >= WEATHER_ONLY_FRAME_INTERVAL_MS;
+      const environmentAnimating = shouldAnimateEnvironmentEffects(scene, mode, Boolean(canShowWeather));
+      const selectionAnimating =
+        mode === "gm" &&
+        hasSelectedSceneItems({
+          drawingIds: effectiveSelectedDrawingIds,
+          fogShapeIds: effectiveSelectedFogShapeIds,
+          tokenIds: effectiveSelectedTokenIds,
+          weatherMaskIds: effectiveSelectedWeatherMaskIds
+        });
+      const hasFullRateAnimation = mapAnimating || tokenAnimating || tokenConditionAnimating || tableEventsAnimating || selectionAnimating;
+      const effectAnimating = weatherAnimating || environmentAnimating;
+      const shouldDrawFrame = !effectAnimating || hasFullRateAnimation || timestamp - lastWeatherOnlyFrameAt >= WEATHER_ONLY_FRAME_INTERVAL_MS;
 
       if (shouldDrawFrame) {
         const rect = canvas.getBoundingClientRect();
         drawScene(context, rect.width, rect.height);
-        if (weatherAnimating && !hasFullRateAnimation) {
+        if (effectAnimating && !hasFullRateAnimation) {
           lastWeatherOnlyFrameAt = timestamp;
         }
       }
 
-      if (mapAnimating || tokenAnimating || tableEventsAnimating || weatherAnimating) {
+      if (mapAnimating || tokenAnimating || tokenConditionAnimating || tableEventsAnimating || weatherAnimating || environmentAnimating || selectionAnimating) {
         animationFrame = window.requestAnimationFrame(drawCurrentFrame);
       }
     };
 
     resize();
-    if (loadedMap?.animate || playerTokenTweenPositionsRef.current || hasActiveLiveTableEvents(liveTableEvents) || shouldAnimateWeather(scene, Boolean(canShowWeather))) {
+    const selectionAnimating =
+      mode === "gm" &&
+      hasSelectedSceneItems({
+        drawingIds: effectiveSelectedDrawingIds,
+        fogShapeIds: effectiveSelectedFogShapeIds,
+        tokenIds: effectiveSelectedTokenIds,
+        weatherMaskIds: effectiveSelectedWeatherMaskIds
+      });
+    if (loadedMap?.animate || playerTokenTweenPositionsRef.current || (canShowTokens && hasVisibleTokenConditions(scene, mode)) || hasActiveLiveTableEvents(liveTableEvents) || shouldAnimateWeather(scene, Boolean(canShowWeather)) || shouldAnimateEnvironmentEffects(scene, mode, Boolean(canShowWeather)) || selectionAnimating) {
       animationFrame = window.requestAnimationFrame(drawCurrentFrame);
     }
     const observer = new ResizeObserver(resize);
@@ -925,7 +1371,11 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeVideoIndex, brushHoverPoint, camera, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, fitGmCameraToReadyMap, fogPreview, fogTool, isVideoMap, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mode, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, polygonDraft, rulerDrag, scene, selectedFogShapeId, selectedTokenId, selectedWeatherMaskId, snapPoint, tokenDragPreview, videoRefs, weatherLayer?.opacity, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, coldEffectTuning, darknessEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, effectiveSelectedDrawingIds, effectiveSelectedFogShapeIds, effectiveSelectedTokenIds, effectiveSelectedWeatherMaskIds, environmentEffectFeather, environmentEffectMovePreview, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, playerTokenTweenPositionsRef, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedTokenId, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, turnOrderTokenIndicators, videoRefs, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskMovePreview, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+
+  useEffect(() => {
+    return retainEnvironmentEffectRuntimes();
+  }, []);
 
   useEffect(() => {
     if (mode !== "gm" || !scene || !onViewportCenterChange) {
@@ -946,49 +1396,56 @@ export function SceneCanvas({
     return () => observer.disconnect();
   }, [camera, mode, onViewportCenterChange, playerDisplayScale, scene]);
 
-  const cancelTokenDrag = () => {
-    tokenDragRef.current = null;
-    setTokenDragPreview(null);
+  const selectFromMarquee = (currentScene: Scene, drag: SelectionDrag) => {
+    const selection = getCompletedSceneMarqueeSelection(currentScene, drag, selectorSelectionFilters, {
+      tokens: Boolean(canShowTokens),
+      drawings: Boolean(canShowDrawings)
+    });
+    if (!selection) {
+      return;
+    }
+    onSelectSceneItems?.({ ...selection, mode: drag.mode });
   };
 
-  const cancelRulerDrag = () => {
-    rulerDragRef.current = null;
-    setRulerDrag(null);
-  };
-
-  const cancelFogDrag = () => {
-    fogDragRef.current = null;
-    setFogPreview(null);
-  };
-
-  const onWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
+  const onWheel = useCallback((event: WheelEvent) => {
     if (!interactive) {
       return;
     }
     event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
-    const zoomFactor = event.deltaY < 0 ? 1.08 : 0.92;
-    const nextZoom = Math.min(6, Math.max(0.08, camera.zoom * zoomFactor));
-    const worldX = (mouseX - camera.x) / camera.zoom;
-    const worldY = (mouseY - camera.y) / camera.zoom;
 
     autoFitCameraRef.current = false;
-    setCamera({
-      zoom: nextZoom,
-      x: mouseX - worldX * nextZoom,
-      y: mouseY - worldY * nextZoom
-    });
-  };
+    setCamera((currentCamera) => getCameraForWheelZoom({ camera: currentCamera, mouseX, mouseY, deltaY: event.deltaY }));
+  }, [interactive]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return undefined;
+    }
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onWheel);
+  }, [onWheel]);
 
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     setTokenContextMenu(null);
     setMaskContextMenu(null);
+    setDrawingContextMenu(null);
+    setEnvironmentEffectContextMenu(null);
     if (!interactive) {
       return;
     }
-    if (event.button === 2 && polygonDraftRef.current) {
+    if (event.button !== 0) {
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, camera };
+      setIsPanning(true);
       return;
     }
     if (mode === "gm" && canvasTool === "ping" && scene && event.button === 0) {
@@ -998,22 +1455,7 @@ export function SceneCanvas({
     if (mode === "gm" && scene && onMapCalibrationBox && event.button === 0) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const editableBox = mapCalibrationDraftBox ?? mapCalibrationBox;
-      const hit = editableBox ? getMapCalibrationBoxHit(point, editableBox, getRenderCamera(camera, playerDisplayScale)) : null;
-      let drag: MapCalibrationDrag;
-      if (hit === "resize" && editableBox) {
-        drag = { pointerId: event.pointerId, mode: "resize", start: { x: editableBox.x, y: editableBox.y }, current: point, box: editableBox };
-      } else if (hit === "move" && editableBox) {
-        drag = {
-          pointerId: event.pointerId,
-          mode: "move",
-          start: point,
-          current: point,
-          box: editableBox,
-          offset: { x: point.x - editableBox.x, y: point.y - editableBox.y }
-        };
-      } else {
-        drag = { pointerId: event.pointerId, mode: "draw", start: point, current: point };
-      }
+      const drag = getMapCalibrationDragFromPoint(event.pointerId, point, editableBox, getRenderCamera(camera, playerDisplayScale));
       mapCalibrationDragRef.current = drag;
       setMapCalibrationDrag(drag);
       return;
@@ -1021,8 +1463,14 @@ export function SceneCanvas({
     if (mode === "gm" && canvasTool === "ruler" && scene && event.button === 0) {
       const point = getRulerPoint(event);
       const nextRulerDrag = { pointerId: event.pointerId, start: point, current: point, waypoints: [] };
+      if (releasedRulerTimeoutRef.current !== null) {
+        window.clearTimeout(releasedRulerTimeoutRef.current);
+        releasedRulerTimeoutRef.current = null;
+      }
+      setReleasedRulerDrag(null);
       rulerDragRef.current = nextRulerDrag;
       setRulerDrag(nextRulerDrag);
+      emitRulerEvent(nextRulerDrag);
       return;
     }
     if (mode === "gm" && canvasTool === "laser" && scene && event.button === 0) {
@@ -1032,27 +1480,43 @@ export function SceneCanvas({
         id: crypto.randomUUID(),
         type: "laser",
         createdAt: now,
-        points: [{ point, createdAt: now }]
+        points: [{ point, createdAt: now }],
+        thickness: activeTableTools.laserThickness,
+        color: activeTableTools.laserColor,
+        visibleInPlayer: tableToolsVisibleInPlayer
       } satisfies LiveTableEvent;
       laserDragRef.current = { pointerId: event.pointerId, eventId: laserEvent.id, points: laserEvent.points };
       onLiveTableEvent?.(laserEvent);
       return;
     }
+    if (mode === "gm" && drawingTool === "polygon" && scene && onSceneChange && event.button === 0) {
+      updateDrawingPolygonDraft(getDrawingToolPoint(event, drawingTool));
+      return;
+    }
+    if (mode === "gm" && drawingTool && scene && onSceneChange && event.button === 0) {
+      const point = getDrawingToolPoint(event, drawingTool);
+      const preview = getDrawingPreviewFromPoint(event.pointerId, drawingTool, point, {
+        color: drawingColor,
+        opacity: drawingOpacity,
+        fillColor: drawingFillColor,
+        fillOpacity: drawingFillOpacity,
+        strokeStyle: drawingStrokeStyle,
+        strokeWidth: drawingStrokeWidth,
+        templateEffect: drawingTemplateEffect,
+        templateWidth: drawingTemplateWidth
+      });
+      drawingPreviewRef.current = preview;
+      setDrawingPreview(preview);
+      onTemplatePreviewChange?.(getTemplatePreviewDrawing(preview));
+      return;
+    }
     if (mode === "gm" && fogTool && scene && onSceneChange && event.button === 0) {
-      const point = getToolPoint(event);
+      const point = getToolPoint(event, !fogTool.includes("brush"));
       if (isPolygonTool(fogTool)) {
         updatePolygonDraft(fogTool, point);
         return;
       }
-      const fogDrag = {
-        pointerId: event.pointerId,
-        kind: getFogDragKindForTool(fogTool),
-        start: point,
-        current: point,
-        points: [point],
-        radius: fogTool.includes("brush") ? Math.max(4, scene.fog.brushSize / 2) : undefined,
-        operation: getFogOperationForTool(fogTool)
-      } satisfies FogDrag;
+      const fogDrag = getFogDragFromPoint(event.pointerId, fogTool, point, activeFogBrushSize);
       fogDragRef.current = fogDrag;
       setFogPreview(fogDrag);
       return;
@@ -1065,59 +1529,167 @@ export function SceneCanvas({
       }
       weatherPolygonDraftRef.current = null;
       setWeatherPolygonDraft(null);
-      const maskDrag = {
-        pointerId: event.pointerId,
-        kind: weatherMaskTool,
-        start: point,
-        current: point
-      } satisfies WeatherMaskDrag;
+      const maskDrag = getWeatherMaskDragFromPoint(event.pointerId, weatherMaskTool, point);
       weatherMaskDragRef.current = maskDrag;
       setWeatherMaskPreview(maskDrag);
+      return;
+    }
+    if (mode === "gm" && environmentEffectTool && scene && onSceneChange && event.button === 0) {
+      const point = getToolPoint(event);
+      if (environmentEffectTool === "polygon") {
+        updateEnvironmentPolygonDraft(point);
+        return;
+      }
+      environmentPolygonDraftRef.current = null;
+      setEnvironmentPolygonDraft(null);
+      const effectDrag = getEnvironmentEffectDragFromPoint(event.pointerId, environmentEffectTool, point, environmentEffectType, environmentEffectFeather, currentEnvironmentEffectTuning);
+      environmentEffectDragRef.current = effectDrag;
+      setEnvironmentEffectPreview(effectDrag);
+      return;
+    }
+    if (mode === "gm" && mouseBehavior === "selector" && scene && !authoringToolActive && event.button === 0 && (event.shiftKey || event.ctrlKey || event.metaKey)) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const selectionMode: SelectionMode = event.ctrlKey || event.metaKey ? "subtract" : "add";
+      const nextSelectionDrag = getSelectionDragFromPoint(event.pointerId, point, selectionMode);
+      selectionDragRef.current = nextSelectionDrag;
+      setSelectionDrag(nextSelectionDrag);
       return;
     }
     if (mode === "gm" && scene && onSceneChange && event.button === 0) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const token = canShowTokens ? getTokenAtPoint(scene.tokens, point) : null;
       if (token) {
-        onSelectToken?.(token.id);
+        const shouldDragSelectedGroup = mouseBehavior === "grabber" && effectiveSelectedTokenIdSet.has(token.id) && effectiveSelectedTokenIds.length > 1;
+        const groupTokenIds = shouldDragSelectedGroup ? effectiveSelectedTokenIds : [token.id];
+        if (!shouldDragSelectedGroup) {
+          onSelectToken?.(token.id);
+        }
         onSelectFogShape?.(null);
         onSelectWeatherMask?.(null);
-        const snappedPosition = getSnappedTokenPosition(token.position, token, scene);
-        tokenDragRef.current = {
-          pointerId: event.pointerId,
-          tokenId: token.id,
-          startPosition: token.position,
-          waypoints: [],
-          offset: {
-            x: point.x - token.position.x,
-            y: point.y - token.position.y
-          }
-        };
-        setTokenDragPreview({
-          tokenId: token.id,
-          startPosition: token.position,
-          currentPosition: token.position,
-          snappedPosition,
-          waypoints: []
-        });
+        onSelectEnvironmentEffect?.(null);
+        onSelectDrawing?.(null);
+        if (mouseBehavior === "grabber") {
+          const tokenDragStart = getTokenDragStart(scene, token, point, event.pointerId, groupTokenIds);
+          tokenDragRef.current = tokenDragStart.drag;
+          setTokenDragPreview(tokenDragStart.preview);
+        }
         return;
       }
       onSelectToken?.(null);
-      if (!canvasTool && !fogTool && !weatherMaskTool) {
+      if (!authoringToolActive) {
+        if ((mouseBehavior === "grabber" || mouseBehavior === "selector") && canShowDrawings && effectiveSelectedDrawingIds.length > 0) {
+          const rotateTarget = getDrawingRotationHandleAtPoint(scene.drawings, effectiveSelectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
+          if (rotateTarget) {
+            const groupStartPoints = getDrawingPointSnapshot(scene.drawings, effectiveSelectedDrawingIds);
+            drawingRotateRef.current = {
+              pointerId: event.pointerId,
+              center: rotateTarget.center,
+              startAngle: Math.atan2(point.y - rotateTarget.center.y, point.x - rotateTarget.center.x),
+              groupStartPoints
+            };
+            setDrawingDragPreview(groupStartPoints);
+            return;
+          }
+          const resizeTarget = getDrawingResizeHandleAtPoint(scene.drawings, effectiveSelectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
+          if (resizeTarget) {
+            const groupStartPoints = getDrawingPointSnapshot(scene.drawings, effectiveSelectedDrawingIds);
+            drawingResizeRef.current = {
+              pointerId: event.pointerId,
+              handle: resizeTarget.handle,
+              bounds: resizeTarget.bounds,
+              groupStartPoints
+            };
+            setDrawingDragPreview(groupStartPoints);
+            return;
+          }
+        }
+        const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, getDrawingHitRadius(getRenderCamera(camera, playerDisplayScale).zoom), scene.grid) : null;
+        if (drawingHit) {
+          const shouldDragSelectedGroup = mouseBehavior === "grabber" && effectiveSelectedDrawingIdSet.has(drawingHit.id) && effectiveSelectedDrawingIds.length > 1;
+          const groupDrawingIds = shouldDragSelectedGroup ? effectiveSelectedDrawingIds : [drawingHit.id];
+          const groupStartPoints = getDrawingPointSnapshot(scene.drawings, groupDrawingIds, { includeTemplates: true });
+          const snapAnchor = getDrawingGroupSnapAnchor(scene.drawings, groupDrawingIds, point);
+          onSelectToken?.(null);
+          if (!shouldDragSelectedGroup) {
+            onSelectDrawing?.(drawingHit.id);
+          }
+          onSelectFogShape?.(null);
+          onSelectWeatherMask?.(null);
+          onSelectEnvironmentEffect?.(null);
+          if (mouseBehavior === "grabber") {
+            drawingDragRef.current = {
+              pointerId: event.pointerId,
+              drawingId: drawingHit.id,
+              start: point,
+              snapAnchor,
+              groupStartPoints
+            };
+            setDrawingDragPreview(groupStartPoints);
+          }
+          return;
+        }
+        const environmentEffectHit = getEnvironmentEffectAtPoint(scene, point);
+        if (environmentEffectHit) {
+          onSelectEnvironmentEffect?.(environmentEffectHit.id);
+          onSelectFogShape?.(null);
+          onSelectWeatherMask?.(null);
+          onSelectDrawing?.(null);
+          if (mouseBehavior === "grabber") {
+            const groupEffectIds = [environmentEffectHit.id];
+            const groupStartPoints = getEnvironmentEffectPointSnapshot(scene, groupEffectIds);
+            environmentEffectMoveRef.current = {
+              pointerId: event.pointerId,
+              effectId: environmentEffectHit.id,
+              start: point,
+              snapAnchor: getEnvironmentEffectGroupSnapAnchor(scene, groupEffectIds, point),
+              groupStartPoints
+            };
+            setEnvironmentEffectMovePreview(groupStartPoints);
+          }
+          return;
+        }
         const maskHit = getMaskHitAtPoint(scene, point);
         if (maskHit?.kind === "weather") {
+          const shouldDragSelectedGroup = mouseBehavior === "grabber" && effectiveSelectedWeatherMaskIds.includes(maskHit.mask.id) && effectiveSelectedWeatherMaskIds.length > 1;
+          const groupWeatherMaskIds = shouldDragSelectedGroup ? effectiveSelectedWeatherMaskIds : [maskHit.mask.id];
           onSelectWeatherMask?.(maskHit.mask.id);
           onSelectFogShape?.(null);
+          onSelectEnvironmentEffect?.(null);
+          onSelectDrawing?.(null);
+          if (mouseBehavior === "grabber") {
+            weatherMaskMoveRef.current = {
+              pointerId: event.pointerId,
+              maskId: maskHit.mask.id,
+              start: point,
+              groupStartPoints: getWeatherMaskPointSnapshot(scene, groupWeatherMaskIds)
+            };
+            setWeatherMaskMovePreview(getWeatherMaskPointSnapshot(scene, groupWeatherMaskIds));
+          }
           return;
         }
         if (maskHit?.kind === "fog") {
           onSelectFogShape?.(maskHit.shape.id);
           onSelectWeatherMask?.(null);
+          onSelectEnvironmentEffect?.(null);
+          onSelectDrawing?.(null);
           return;
         }
         onSelectFogShape?.(null);
         onSelectWeatherMask?.(null);
+        onSelectEnvironmentEffect?.(null);
+        onSelectDrawing?.(null);
       }
+    }
+    if (mode === "gm" && mouseBehavior === "selector" && scene && !authoringToolActive && event.button === 0) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const selectionMode: SelectionMode = event.ctrlKey || event.metaKey ? "subtract" : event.shiftKey ? "add" : "replace";
+      const nextSelectionDrag = getSelectionDragFromPoint(event.pointerId, point, selectionMode);
+      selectionDragRef.current = nextSelectionDrag;
+      setSelectionDrag(nextSelectionDrag);
+      return;
+    }
+    if (mode === "gm" && mouseBehavior !== "grabber" && event.button === 0) {
+      return;
     }
     dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, camera };
     setIsPanning(true);
@@ -1125,39 +1697,37 @@ export function SceneCanvas({
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const tokenDrag = tokenDragRef.current;
+    const drawingDragValue = drawingDragRef.current;
+    const drawingResizeValue = drawingResizeRef.current;
+    const drawingRotateValue = drawingRotateRef.current;
+    const weatherMaskMoveValue = weatherMaskMoveRef.current;
+    const environmentEffectMoveValue = environmentEffectMoveRef.current;
     const laserDrag = laserDragRef.current;
+    const drawingDrag = drawingPreviewRef.current;
     const rulerDragValue = rulerDragRef.current;
+    const selectionDragValue = selectionDragRef.current;
     const mapCalibrationDragValue = mapCalibrationDragRef.current;
     if (mapCalibrationDragValue?.pointerId === event.pointerId) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const nextDrag = { ...mapCalibrationDragValue, current: point };
+      const { drag: nextDrag, draftBox } = getUpdatedMapCalibrationDrag(mapCalibrationDragValue, point);
       mapCalibrationDragRef.current = nextDrag;
       setMapCalibrationDrag(nextDrag);
-      if (nextDrag.mode === "move" && nextDrag.box && nextDrag.offset) {
-        setMapCalibrationDraftBox({
-          ...nextDrag.box,
-          x: point.x - nextDrag.offset.x,
-          y: point.y - nextDrag.offset.y
-        });
-      } else if (nextDrag.mode === "resize") {
-        setMapCalibrationDraftBox(getSquareCalibrationBox(nextDrag.start, point));
-      } else {
-        setMapCalibrationDraftBox(getSquareCalibrationBox(nextDrag.start, point));
-      }
+      setMapCalibrationDraftBox(draftBox);
       return;
     }
     if (laserDrag?.pointerId === event.pointerId) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const previousPoint = laserDrag.points[laserDrag.points.length - 1]?.point;
-      if (!previousPoint || distanceBetween(previousPoint, point) >= LASER_MIN_POINT_DISTANCE) {
-        const now = Date.now();
-        const nextPoints = [...laserDrag.points, { point, createdAt: now }].filter((entry) => now - entry.createdAt <= LASER_POINT_LIFETIME_MS);
-        laserDragRef.current = { ...laserDrag, points: nextPoints };
+      const nextLaserDrag = getUpdatedLaserDrag(laserDrag, point, Date.now());
+      if (nextLaserDrag) {
+        laserDragRef.current = nextLaserDrag;
         onLiveTableEvent?.({
           id: laserDrag.eventId,
           type: "laser",
           createdAt: laserDrag.points[0]?.createdAt ?? Date.now(),
-          points: nextPoints
+          points: nextLaserDrag.points,
+          thickness: activeTableTools.laserThickness,
+          color: activeTableTools.laserColor,
+          visibleInPlayer: tableToolsVisibleInPlayer
         });
       }
       return;
@@ -1166,6 +1736,85 @@ export function SceneCanvas({
       const nextRulerDrag = { ...rulerDragValue, current: getRulerPoint(event) };
       rulerDragRef.current = nextRulerDrag;
       setRulerDrag(nextRulerDrag);
+      emitRulerEvent(nextRulerDrag);
+      return;
+    }
+
+    if (selectionDragValue?.pointerId === event.pointerId) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const nextSelectionDrag = getUpdatedSelectionDrag(selectionDragValue, point);
+      selectionDragRef.current = nextSelectionDrag;
+      setSelectionDrag(nextSelectionDrag);
+      return;
+    }
+
+    if (drawingDrag?.pointerId === event.pointerId) {
+      const point = getDrawingToolPoint(event, drawingDrag.kind);
+      const templateCurrent = getDrawingTemplateCurrentPoint(drawingDrag.points[0], point, drawingDrag.kind, scene, drawingTemplateSize);
+      const current = (drawingDrag.kind === "rectangle" || drawingDrag.kind === "circle") && event.shiftKey ? constrainSquarePoint(drawingDrag.points[0], templateCurrent) : templateCurrent;
+      const ellipse = drawingDrag.kind === "circle" && !event.shiftKey;
+      const nextPoints =
+        drawingDrag.kind === "freehand" && shouldAddDrawingPoint(drawingDrag.points[drawingDrag.points.length - 1], current)
+          ? [...drawingDrag.points, current]
+          : drawingDrag.points;
+      const nextDrawingDrag = { ...drawingDrag, current, points: nextPoints, ellipse };
+      drawingPreviewRef.current = nextDrawingDrag;
+      setDrawingPreview(nextDrawingDrag);
+      onTemplatePreviewChange?.(getTemplatePreviewDrawing(nextDrawingDrag));
+      return;
+    }
+
+    if (drawingResizeValue?.pointerId === event.pointerId) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      setDrawingDragPreview(scene ? getResizedDrawingPointSnapshot(scene.drawings, drawingResizeValue.groupStartPoints, drawingResizeValue.bounds, drawingResizeValue.handle, point, event.shiftKey) : new Map());
+      return;
+    }
+
+    if (drawingRotateValue?.pointerId === event.pointerId) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      setDrawingDragPreview(scene ? getRotatedDrawingPointSnapshot(scene.drawings, drawingRotateValue.groupStartPoints, drawingRotateValue.center, drawingRotateValue.startAngle, point) : new Map());
+      return;
+    }
+
+    if (drawingDragValue?.pointerId === event.pointerId) {
+      const worldPoint = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const pointerDelta = {
+        x: worldPoint.x - drawingDragValue.start.x,
+        y: worldPoint.y - drawingDragValue.start.y
+      };
+      const projectedAnchor = {
+        x: drawingDragValue.snapAnchor.x + pointerDelta.x,
+        y: drawingDragValue.snapAnchor.y + pointerDelta.y
+      };
+      const snappedPoint = scene && isSnapModifier(event) ? getNearestSceneSnapPoint(projectedAnchor, scene) : null;
+      setSnapPoint(snappedPoint);
+      setDrawingDragPreview(getMovedDrawingPointSnapshot(drawingDragValue.groupStartPoints, getDrawingMoveDelta(drawingDragValue.start, drawingDragValue.snapAnchor, worldPoint, snappedPoint)));
+      return;
+    }
+
+    if (weatherMaskMoveValue?.pointerId === event.pointerId) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const delta = {
+        x: point.x - weatherMaskMoveValue.start.x,
+        y: point.y - weatherMaskMoveValue.start.y
+      };
+      setWeatherMaskMovePreview(getMovedSceneItemPointSnapshot(weatherMaskMoveValue.groupStartPoints, delta));
+      return;
+    }
+
+    if (environmentEffectMoveValue?.pointerId === event.pointerId) {
+      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+      const pointerDelta = {
+        x: point.x - environmentEffectMoveValue.start.x,
+        y: point.y - environmentEffectMoveValue.start.y
+      };
+      const projectedAnchor = {
+        x: environmentEffectMoveValue.snapAnchor.x + pointerDelta.x,
+        y: environmentEffectMoveValue.snapAnchor.y + pointerDelta.y
+      };
+      const snappedPoint = scene && isSnapModifier(event) ? getNearestSceneSnapPoint(projectedAnchor, scene) : null;
+      setSnapPoint(snappedPoint);
+      setEnvironmentEffectMovePreview(getMovedSceneItemPointSnapshot(environmentEffectMoveValue.groupStartPoints, getDrawingMoveDelta(environmentEffectMoveValue.start, environmentEffectMoveValue.snapAnchor, point, snappedPoint)));
       return;
     }
 
@@ -1176,30 +1825,13 @@ export function SceneCanvas({
         cancelTokenDrag();
         return;
       }
-      const currentPosition = {
-        x: point.x - tokenDrag.offset.x,
-        y: point.y - tokenDrag.offset.y
-      };
-      const snappedPosition = getSnappedTokenPosition(currentPosition, token, scene);
-      setTokenDragPreview({
-        tokenId: token.id,
-        startPosition: tokenDrag.startPosition,
-        currentPosition,
-        snappedPosition,
-        waypoints: tokenDrag.waypoints
-      });
+      setTokenDragPreview(getTokenDragPreviewFromPoint(scene, tokenDrag, token, point));
       return;
     }
 
     const fogDrag = fogDragRef.current;
     if (fogDrag?.pointerId === event.pointerId) {
-      const point = getToolPoint(event);
-      const current = fogDrag.kind === "rectangle" && event.shiftKey ? constrainSquarePoint(fogDrag.start, point) : point;
-      const nextPoints =
-        fogDrag.kind === "brush" && shouldAddBrushPoint(fogDrag.points[fogDrag.points.length - 1], current, fogDrag.radius ?? 1)
-          ? [...fogDrag.points, current]
-          : fogDrag.points;
-      const nextDrag = { ...fogDrag, current, points: nextPoints };
+      const nextDrag = getUpdatedFogDrag(fogDrag, getToolPoint(event, fogDrag.kind !== "brush"), event.shiftKey);
       fogDragRef.current = nextDrag;
       setFogPreview(nextDrag);
       return;
@@ -1207,41 +1839,59 @@ export function SceneCanvas({
 
     const weatherMaskDrag = weatherMaskDragRef.current;
     if (weatherMaskDrag?.pointerId === event.pointerId) {
-      const point = getToolPoint(event);
-      const current = weatherMaskDrag.kind === "rectangle" && event.shiftKey ? constrainSquarePoint(weatherMaskDrag.start, point) : point;
-      const nextDrag = { ...weatherMaskDrag, current };
+      const nextDrag = getUpdatedWeatherMaskDrag(weatherMaskDrag, getToolPoint(event), event.shiftKey);
       weatherMaskDragRef.current = nextDrag;
       setWeatherMaskPreview(nextDrag);
       return;
     }
 
+    const environmentEffectDrag = environmentEffectDragRef.current;
+    if (environmentEffectDrag?.pointerId === event.pointerId) {
+      const nextDrag = getUpdatedEnvironmentEffectDrag(environmentEffectDrag, getToolPoint(event), event.shiftKey);
+      environmentEffectDragRef.current = nextDrag;
+      setEnvironmentEffectPreview(nextDrag);
+      return;
+    }
+
+    const drag = dragRef.current;
+    if (drag?.pointerId === event.pointerId) {
+      autoFitCameraRef.current = false;
+      setCamera(getCameraForPanDrag(drag, event.clientX, event.clientY));
+      return;
+    }
+
+    if (drawingTool === "polygon" && drawingPolygonDraftRef.current) {
+      setDrawingPolygonDraft(updatePolygonDraftCurrent(drawingPolygonDraftRef.current, getDrawingToolPoint(event, "polygon")));
+      return;
+    }
+
     if (polygonDraftRef.current) {
-      setPolygonDraft({ ...polygonDraftRef.current, current: getToolPoint(event) });
+      setPolygonDraft(updatePolygonDraftCurrent(polygonDraftRef.current, getToolPoint(event)));
       return;
     }
 
     if (weatherMaskTool === "polygon" && weatherPolygonDraftRef.current) {
-      setWeatherPolygonDraft({ ...weatherPolygonDraftRef.current, current: getToolPoint(event) });
+      setWeatherPolygonDraft(updatePolygonDraftCurrent(weatherPolygonDraftRef.current, getToolPoint(event)));
+      return;
+    }
+
+    if (environmentEffectTool === "polygon" && environmentPolygonDraftRef.current) {
+      setEnvironmentPolygonDraft(updatePolygonDraftCurrent(environmentPolygonDraftRef.current, getToolPoint(event)));
       return;
     }
 
     if (mode === "gm" && fogTool?.includes("brush") && scene) {
-      setBrushHoverPoint(getToolPoint(event));
+      setBrushHoverPoint(getToolPoint(event, false));
+      return;
+    }
+    if (mode === "gm" && drawingTool === "freehand" && scene) {
+      setBrushHoverPoint(eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)));
       return;
     }
 
+    updateDrawingTransformHover(event);
+    updateSceneItemHover(event);
     updateSnapPoint(event);
-
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) {
-      return;
-    }
-    autoFitCameraRef.current = false;
-    setCamera({
-      ...drag.camera,
-      x: drag.camera.x + event.clientX - drag.x,
-      y: drag.camera.y + event.clientY - drag.y
-    });
   };
 
   const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1249,75 +1899,140 @@ export function SceneCanvas({
     if (mapCalibrationDragValue?.pointerId === event.pointerId) {
       mapCalibrationDragRef.current = null;
       setMapCalibrationDrag(null);
-      const box = getVisibleMapCalibrationBox(mapCalibrationDragValue, mapCalibrationDraftBox);
-      if (box && box.width >= 4 && box.height >= 4) {
+      const box = getCompletedMapCalibrationBox(mapCalibrationDragValue, mapCalibrationDraftBox);
+      if (box) {
         setMapCalibrationDraftBox(box);
+      }
+      return;
+    }
+
+    const drawingDrag = drawingPreviewRef.current;
+    if (drawingDrag?.pointerId === event.pointerId) {
+      clearDrawingPreview();
+      if (scene && onSceneChange && isMeaningfulDrawingPreview(drawingDrag)) {
+        onSceneChange(addSceneDrawing(scene, getDrawingElementFromPreview(drawingDrag, crypto.randomUUID(), scene.drawings.length)));
       }
       return;
     }
 
     const weatherMaskDrag = weatherMaskDragRef.current;
     if (weatherMaskDrag?.pointerId === event.pointerId) {
-      weatherMaskDragRef.current = null;
-      setWeatherMaskPreview(null);
+      clearWeatherMaskPreview();
       if (scene && onSceneChange && isMeaningfulWeatherMaskDrag(weatherMaskDrag)) {
-        onSceneChange({
-          ...scene,
-          weather: {
-            ...scene.weather,
-            masks: [
-              ...scene.weather.masks,
-              {
-                id: crypto.randomUUID(),
-                name: `Weather Mask ${scene.weather.masks.length + 1}`,
-                kind: weatherMaskDrag.kind,
-                points: weatherMaskDrag.kind === "circle" ? [weatherMaskDrag.start] : [weatherMaskDrag.start, weatherMaskDrag.current],
-                radius: weatherMaskDrag.kind === "circle" ? distanceBetween(weatherMaskDrag.start, weatherMaskDrag.current) : undefined,
-                visible: true
-              }
-            ]
-          },
-          updatedAt: new Date().toISOString()
-        });
+        onSceneChange(
+          addSceneWeatherMask(
+            scene,
+            getWeatherMaskFromDrag(
+              weatherMaskDrag,
+              crypto.randomUUID(),
+              formatDefaultWeatherMaskName(scene.weather.masks.length)
+            )
+          )
+        );
+      }
+      return;
+    }
+
+    const environmentEffectDrag = environmentEffectDragRef.current;
+    if (environmentEffectDrag?.pointerId === event.pointerId) {
+      clearEnvironmentEffectPreview();
+      if (scene && onSceneChange && isMeaningfulEnvironmentEffectDrag(environmentEffectDrag)) {
+        onSceneChange(
+          addEnvironmentEffect(
+            scene,
+            getEnvironmentEffectFromDrag(
+              environmentEffectDrag,
+              crypto.randomUUID(),
+              formatDefaultEnvironmentEffectName(environmentEffectDrag.effect, scene.environment.effects.length),
+              currentEnvironmentEffectTuning
+            )
+          )
+        );
       }
       return;
     }
 
     const fogDrag = fogDragRef.current;
     if (fogDrag?.pointerId === event.pointerId) {
-      fogDragRef.current = null;
-      setFogPreview(null);
+      clearFogPreview();
       if (scene && onSceneChange && isMeaningfulFogDrag(fogDrag)) {
-        onSceneChange({
-          ...scene,
-          fog: {
-            ...scene.fog,
-            ...(fogDrag.operation === "hide" && scene.fog.gmOpacity === 0 && scene.fog.playerOpacity === 0
-              ? { gmOpacity: 0.5, playerOpacity: 1, opacity: 1 }
-              : {}),
-            shapes: [
-              ...scene.fog.shapes,
-              {
-                id: crypto.randomUUID(),
-                name: formatDefaultFogShapeName(fogDrag.operation, fogDrag.kind, scene.fog.shapes.length),
-                operation: fogDrag.operation,
-                kind: fogDrag.kind,
-                points: fogDrag.kind === "brush" ? normalizeBrushPoints(fogDrag.points, fogDrag.current) : [fogDrag.start, fogDrag.current],
-                radius: fogDrag.kind === "circle" ? distanceBetween(fogDrag.start, fogDrag.current) : fogDrag.radius,
-                visibleInGm: true,
-                visibleInPlayer: scene.fog.newShapesVisibleInPlayer,
-                visible: true
-              }
-            ]
-          },
-          updatedAt: new Date().toISOString()
-        });
+        onSceneChange(
+          addSceneFogShape(
+            scene,
+            getFogShapeFromDrag(
+              fogDrag,
+              crypto.randomUUID(),
+              formatDefaultFogShapeName(fogDrag.operation, fogDrag.kind, scene.fog.shapes.length),
+              scene.fog.newShapesVisibleInPlayer
+            ),
+            getFogVisibilityPatchForNewShape(scene.fog, fogDrag.operation)
+          )
+        );
       }
       return;
     }
 
     if (rulerDragRef.current?.pointerId === event.pointerId) {
-      cancelRulerDrag();
+      finishRulerDrag();
+      return;
+    }
+
+    if (selectionDragRef.current?.pointerId === event.pointerId) {
+      const completedSelection = selectionDragRef.current;
+      selectionDragRef.current = null;
+      setSelectionDrag(null);
+      if (scene) {
+        selectFromMarquee(scene, completedSelection);
+      }
+      return;
+    }
+
+    if (drawingDragRef.current?.pointerId === event.pointerId) {
+      const movedPoints = drawingDragPreview;
+      if (scene && onSceneChange && movedPoints) {
+        onSceneChange(updateSceneDrawingPoints(scene, movedPoints));
+      }
+      drawingDragRef.current = null;
+      setDrawingDragPreview(null);
+      setSnapPoint(null);
+      return;
+    }
+
+    if (drawingResizeRef.current?.pointerId === event.pointerId) {
+      const resizedPoints = drawingDragPreview;
+      if (scene && onSceneChange && resizedPoints) {
+        onSceneChange(updateSceneDrawingPoints(scene, resizedPoints));
+      }
+      drawingResizeRef.current = null;
+      setDrawingDragPreview(null);
+      return;
+    }
+
+    if (drawingRotateRef.current?.pointerId === event.pointerId) {
+      const rotatedPoints = drawingDragPreview;
+      if (scene && onSceneChange && rotatedPoints) {
+        onSceneChange(updateSceneDrawingPoints(scene, rotatedPoints));
+      }
+      drawingRotateRef.current = null;
+      setDrawingDragPreview(null);
+      return;
+    }
+
+    if (weatherMaskMoveRef.current?.pointerId === event.pointerId) {
+      const movedPoints = weatherMaskMovePreview;
+      if (scene && onSceneChange && movedPoints) {
+        onSceneChange(updateSceneWeatherMaskPoints(scene, movedPoints));
+      }
+      cancelWeatherMaskMove();
+      return;
+    }
+
+    if (environmentEffectMoveRef.current?.pointerId === event.pointerId) {
+      const movedPoints = environmentEffectMovePreview;
+      if (scene && onSceneChange && movedPoints) {
+        onSceneChange(updateSceneEnvironmentEffectPoints(scene, movedPoints));
+      }
+      cancelEnvironmentEffectMove();
       return;
     }
 
@@ -1334,25 +2049,8 @@ export function SceneCanvas({
       const tokenDrag = tokenDragRef.current;
       const token = scene?.tokens.find((candidate) => candidate.id === tokenDrag.tokenId);
       if (scene && token && onSceneChange) {
-        const finalPosition = tokenDragPreview?.tokenId === token.id ? tokenDragPreview.snappedPosition : getSnappedTokenPosition(token.position, token, scene);
-        const nextScene = {
-          ...scene,
-          tokens: scene.tokens.map((candidate) => (candidate.id === token.id ? { ...candidate, position: finalPosition } : candidate)),
-          updatedAt: new Date().toISOString()
-        };
-        const tokenMovementPath = getTokenMovementPath(tokenDrag.startPosition, tokenDrag.waypoints, finalPosition);
-        onSceneChange(
-          nextScene,
-          tokenMovementPath
-            ? {
-                ...nextScene,
-                tokenMovementPath: {
-                  tokenId: token.id,
-                  points: tokenMovementPath
-                }
-              }
-            : nextScene
-        );
+        const result = getSceneAfterTokenDrag(scene, tokenDrag, token, tokenDragPreview);
+        onSceneChange(result.scene, result.syncScene ?? result.scene);
       }
       cancelTokenDrag();
     }
@@ -1361,6 +2059,8 @@ export function SceneCanvas({
   const onPointerLeave = () => {
     setSnapPoint(null);
     setBrushHoverPoint(null);
+    setDrawingTransformHover(null);
+    setSceneItemHover(false);
   };
 
   const emitPing = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1368,8 +2068,9 @@ export function SceneCanvas({
       id: crypto.randomUUID(),
       type: "ping",
       point: clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale)),
-      size: scene?.tableTools.pingSize,
-      color: scene?.tableTools.pingColor,
+      size: activeTableTools.pingSize,
+      color: activeTableTools.pingColor,
+      visibleInPlayer: tableToolsVisibleInPlayer,
       createdAt: Date.now()
     });
   };
@@ -1390,92 +2091,167 @@ export function SceneCanvas({
       event.preventDefault();
       commitPolygonDraft();
     }
+    if (drawingTool === "polygon" && drawingPolygonDraftRef.current) {
+      event.preventDefault();
+      commitDrawingPolygonDraft();
+    }
     if (weatherMaskTool === "polygon" && weatherPolygonDraftRef.current) {
       event.preventDefault();
       commitWeatherPolygonDraft();
+    }
+    if (environmentEffectTool === "polygon" && environmentPolygonDraftRef.current) {
+      event.preventDefault();
+      commitEnvironmentPolygonDraft();
     }
   };
 
   const onContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const activeRulerDrag = rulerDragRef.current;
     const tokenDrag = tokenDragRef.current;
+    if (authoringToolActive) {
+      event.preventDefault();
+    }
     if (tokenDrag) {
       event.preventDefault();
-      if (tokenDrag.waypoints.length === 0) {
+      const nextTokenDrag = removeLastWaypoint(tokenDrag);
+      if (!nextTokenDrag) {
         return;
       }
-      const waypoints = tokenDrag.waypoints.slice(0, -1);
-      tokenDrag.waypoints = waypoints;
-      setTokenDragPreview((preview) => (preview?.tokenId === tokenDrag.tokenId ? { ...preview, waypoints } : preview));
+      tokenDragRef.current = nextTokenDrag;
+      setTokenDragPreview((preview) => (preview?.tokenId === nextTokenDrag.tokenId ? { ...preview, waypoints: nextTokenDrag.waypoints } : preview));
       return;
     }
 
     if (activeRulerDrag) {
       event.preventDefault();
-      if (activeRulerDrag.waypoints.length === 0) {
+      const nextRulerDrag = removeLastWaypoint(activeRulerDrag);
+      if (!nextRulerDrag) {
         return;
       }
-      const nextRulerDrag = {
-        ...activeRulerDrag,
-        waypoints: activeRulerDrag.waypoints.slice(0, -1)
-      };
       rulerDragRef.current = nextRulerDrag;
       setRulerDrag(nextRulerDrag);
+      emitRulerEvent(nextRulerDrag);
       return;
     }
 
     const draft = polygonDraftRef.current;
+    const drawingDraft = drawingPolygonDraftRef.current;
     const weatherDraft = weatherPolygonDraftRef.current;
-    if (!draft && !weatherDraft) {
+    const environmentDraft = environmentPolygonDraftRef.current;
+    if (!draft && !drawingDraft && !weatherDraft && !environmentDraft) {
       if (mode === "gm" && scene) {
         const point = clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale));
         const token = canShowTokens ? getTokenAtPoint(scene.tokens, point) : null;
         if (token && onAddTokenToTurnOrder) {
-          const frameRect = frameRef.current?.getBoundingClientRect();
+          const menuPosition = getCanvasContextMenuPosition(event, "token");
           event.preventDefault();
           onSelectToken?.(token.id);
           onSelectFogShape?.(null);
           onSelectWeatherMask?.(null);
+          onSelectDrawing?.(null);
+          setMaskContextMenu(null);
+          setDrawingContextMenu(null);
+          setEnvironmentEffectContextMenu(null);
           setTokenContextMenu({
             tokenId: token.id,
             tokenName: token.name || "Token",
-            x: frameRect ? event.clientX - frameRect.left : event.clientX,
-            y: frameRect ? event.clientY - frameRect.top : event.clientY
+            visibleInGm: token.visibleInGm ?? !token.hidden,
+            visibleInPlayer: token.visibleInPlayer,
+            x: menuPosition.x,
+            y: menuPosition.y
           });
           return;
         }
-        if (!canvasTool && !fogTool && !weatherMaskTool) {
-          const maskHit = getMaskHitAtPoint(scene, point);
-          if (maskHit) {
-            const frameRect = frameRef.current?.getBoundingClientRect();
+        if (!authoringToolActive) {
+          const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, getDrawingHitRadius(getRenderCamera(camera, playerDisplayScale).zoom), scene.grid) : null;
+          if (drawingHit) {
+            const menuPosition = getCanvasContextMenuPosition(event, "drawing");
+            const drawingIndex = scene.drawings.findIndex((drawing) => drawing.id === drawingHit.id);
             event.preventDefault();
             onSelectToken?.(null);
+            onSelectFogShape?.(null);
+            onSelectWeatherMask?.(null);
+            onSelectDrawing?.(drawingHit.id);
+            setTokenContextMenu(null);
+            setMaskContextMenu(null);
+            setEnvironmentEffectContextMenu(null);
+            setDrawingContextMenu({
+              drawingId: drawingHit.id,
+              label: getDrawingContextLabel(drawingHit, drawingIndex),
+              isTemplate: drawingHit.measurementLabelVisible === true,
+              templateFootprintVisible: drawingHit.templateFootprintVisible === true,
+              visibleInGm: drawingHit.visibleInGm ?? true,
+              visibleInPlayer: drawingHit.visibleInPlayer,
+              x: menuPosition.x,
+              y: menuPosition.y
+            });
+            return;
+          }
+          const maskHit = getMaskHitAtPoint(scene, point);
+          if (maskHit) {
+            const menuPosition = getCanvasContextMenuPosition(event, "mask");
+            event.preventDefault();
+            onSelectToken?.(null);
+            onSelectDrawing?.(null);
             if (maskHit.kind === "weather") {
               onSelectWeatherMask?.(maskHit.mask.id);
               onSelectFogShape?.(null);
+              setTokenContextMenu(null);
+              setDrawingContextMenu(null);
+              setEnvironmentEffectContextMenu(null);
               setMaskContextMenu({
-                kind: "weather",
+                kind: "effects",
                 maskId: maskHit.mask.id,
-                label: maskHit.mask.name?.trim() || "Weather Mask",
+                label: getWeatherMaskContextLabel(maskHit.mask),
                 visible: maskHit.mask.visible ?? true,
-                x: frameRect ? event.clientX - frameRect.left : event.clientX,
-                y: frameRect ? event.clientY - frameRect.top : event.clientY
+                visibleInPlayer: maskHit.mask.visibleInPlayer ?? true,
+                x: menuPosition.x,
+                y: menuPosition.y
               });
             } else {
               const shapeIndex = scene.fog.shapes.findIndex((shape) => shape.id === maskHit.shape.id);
-              const label = maskHit.shape.name?.trim() || formatDefaultFogShapeName(maskHit.shape.operation, maskHit.shape.kind, Math.max(0, shapeIndex));
+              const label = getFogShapeContextLabel(maskHit.shape, shapeIndex);
+              const visibleInGm = maskHit.shape.visibleInGm ?? maskHit.shape.visible ?? true;
               const visibleInPlayer = maskHit.shape.visibleInPlayer ?? maskHit.shape.visible ?? true;
               onSelectFogShape?.(maskHit.shape.id);
               onSelectWeatherMask?.(null);
+              setTokenContextMenu(null);
+              setDrawingContextMenu(null);
+              setEnvironmentEffectContextMenu(null);
               setMaskContextMenu({
                 kind: "fog",
                 shapeId: maskHit.shape.id,
                 label,
+                visibleInGm,
                 visibleInPlayer,
-                x: frameRect ? event.clientX - frameRect.left : event.clientX,
-                y: frameRect ? event.clientY - frameRect.top : event.clientY
+                x: menuPosition.x,
+                y: menuPosition.y
               });
             }
+            return;
+          }
+          const environmentEffectHit = getEnvironmentEffectAtPoint(scene, point);
+          if (environmentEffectHit) {
+            const menuPosition = getCanvasContextMenuPosition(event, "environment");
+            event.preventDefault();
+            const effectIndex = scene.environment.effects.findIndex((effect) => effect.id === environmentEffectHit.id);
+            onSelectToken?.(null);
+            onSelectDrawing?.(null);
+            onSelectFogShape?.(null);
+            onSelectWeatherMask?.(null);
+            onSelectEnvironmentEffect?.(environmentEffectHit.id);
+            setTokenContextMenu(null);
+            setMaskContextMenu(null);
+            setDrawingContextMenu(null);
+            setEnvironmentEffectContextMenu({
+              effectId: environmentEffectHit.id,
+              label: getEnvironmentEffectContextLabel(environmentEffectHit, effectIndex),
+              visibleInGm: environmentEffectHit.visibleInGm !== false,
+              visibleInPlayer: environmentEffectHit.visibleInPlayer !== false,
+              x: menuPosition.x,
+              y: menuPosition.y
+            });
+            return;
           }
         }
       }
@@ -1483,22 +2259,32 @@ export function SceneCanvas({
     }
     event.preventDefault();
     if (draft) {
-      const nextPoints = draft.points.slice(0, -1);
-      const nextDraft = nextPoints.length > 0 ? { ...draft, points: nextPoints, current: nextPoints[nextPoints.length - 1] } : null;
+      const nextDraft = removeLastPolygonDraftPoint(draft);
       polygonDraftRef.current = nextDraft;
       setPolygonDraft(nextDraft);
       return;
     }
+    if (drawingDraft) {
+      const nextDraft = removeLastPolygonDraftPoint(drawingDraft);
+      drawingPolygonDraftRef.current = nextDraft;
+      setDrawingPolygonDraft(nextDraft);
+      return;
+    }
     if (weatherDraft) {
-      const nextPoints = weatherDraft.points.slice(0, -1);
-      const nextDraft = nextPoints.length > 0 ? { ...weatherDraft, points: nextPoints, current: nextPoints[nextPoints.length - 1] } : null;
+      const nextDraft = removeLastPolygonDraftPoint(weatherDraft);
       weatherPolygonDraftRef.current = nextDraft;
       setWeatherPolygonDraft(nextDraft);
+      return;
+    }
+    if (environmentDraft) {
+      const nextDraft = removeLastPolygonDraftPoint(environmentDraft);
+      environmentPolygonDraftRef.current = nextDraft;
+      setEnvironmentPolygonDraft(nextDraft);
     }
   };
 
   const canAcceptTokenAssetDrop = (event: React.DragEvent<HTMLCanvasElement>): boolean => {
-    return Boolean(mode === "gm" && scene && campaign && onDropTokenAsset && event.dataTransfer.types.includes(TOKEN_LIBRARY_ASSET_DRAG_TYPE));
+    return Boolean(mode === "gm" && scene && campaign && onDropTokenAsset && hasTokenLibraryAssetDrag(event.dataTransfer.types));
   };
 
   const onDragOver = (event: React.DragEvent<HTMLCanvasElement>) => {
@@ -1514,7 +2300,7 @@ export function SceneCanvas({
       return;
     }
     event.preventDefault();
-    const assetId = event.dataTransfer.getData(TOKEN_LIBRARY_ASSET_DRAG_TYPE);
+    const assetId = getTokenLibraryAssetDragId(event.dataTransfer);
     const asset = campaign?.assets.find((candidate) => candidate.id === assetId && candidate.kind === "token");
     if (!asset) {
       return;
@@ -1522,45 +2308,94 @@ export function SceneCanvas({
     onDropTokenAsset?.(asset, clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale)));
   };
 
+  const updateDrawingTransformHover = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const cameraState = getRenderCamera(camera, playerDisplayScale);
+    setDrawingTransformHover(
+      getDrawingTransformHoverAtPoint({
+        mode,
+        scene,
+        point: eventToWorldPoint(event, cameraState),
+        camera: cameraState,
+        selectedDrawingIds,
+        canShowDrawings,
+        hasActiveInteraction: Boolean(drawingDragPreview || authoringToolActive)
+      })
+    );
+  };
+
+  const updateSceneItemHover = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const cameraState = getRenderCamera(camera, playerDisplayScale);
+    setSceneItemHover(
+      hasSceneItemHoverAtPoint({
+        mode,
+        scene,
+        point: eventToWorldPoint(event, cameraState),
+        camera: cameraState,
+        canShowTokens,
+        canShowDrawings,
+        canShowWeather,
+        canShowFog,
+        hasActiveInteraction: Boolean(drawingDragPreview || authoringToolActive || selectionDragRef.current)
+      })
+    );
+  };
+
   const updatePolygonDraft = (tool: FogTool, point: Point) => {
     const currentDraft = polygonDraftRef.current;
     const operation = getFogOperationForTool(tool);
-    const nextDraft =
-      currentDraft && currentDraft.operation === operation
-        ? { ...currentDraft, points: [...currentDraft.points, point], current: point }
-        : { operation, points: [point], current: point };
+    const nextDraft = appendScopedPolygonDraftPoint(currentDraft, point, "operation", operation);
     setPolygonDraft(nextDraft);
     polygonDraftRef.current = nextDraft;
   };
 
   const updateWeatherPolygonDraft = (point: Point) => {
     const currentDraft = weatherPolygonDraftRef.current;
-    const nextDraft = currentDraft ? { ...currentDraft, points: [...currentDraft.points, point], current: point } : { points: [point], current: point };
+    const nextDraft = appendPolygonDraftPoint(currentDraft, point);
     setWeatherPolygonDraft(nextDraft);
     weatherPolygonDraftRef.current = nextDraft;
   };
 
-  const getToolPoint = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
-    const worldPoint = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-    const snappedPoint = scene && isSnapModifier(event) ? getFogSnapPoint(worldPoint, scene) : null;
-    setSnapPoint(snappedPoint);
-    return snappedPoint ?? worldPoint;
+  const updateEnvironmentPolygonDraft = (point: Point) => {
+    const currentDraft = environmentPolygonDraftRef.current;
+    const nextDraft = appendPolygonDraftPoint(currentDraft, point);
+    setEnvironmentPolygonDraft(nextDraft);
+    environmentPolygonDraftRef.current = nextDraft;
+  };
+
+  const updateDrawingPolygonDraft = (point: Point) => {
+    const currentDraft = drawingPolygonDraftRef.current;
+    const nextDraft = appendPolygonDraftPoint(currentDraft, point);
+    setDrawingPolygonDraft(nextDraft);
+    drawingPolygonDraftRef.current = nextDraft;
+  };
+
+  const getToolPoint = (event: React.PointerEvent<HTMLCanvasElement>, snapEnabled = true): Point => {
+    const result = resolveSceneToolEventPoint(event, getRenderCamera(camera, playerDisplayScale), scene, snapEnabled);
+    setSnapPoint(result.snapPoint);
+    return result.point;
   };
 
   const getRulerPoint = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
-    const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-    if (!scene || !isSnapModifier(event)) {
-      return point;
-    }
-    return getRulerSnapPoint(point, scene) ?? point;
+    return resolveRulerEventPoint(event, getRenderCamera(camera, playerDisplayScale), scene);
+  };
+
+  const getDrawingToolPoint = (event: React.PointerEvent<HTMLCanvasElement>, tool: DrawingTool): Point => {
+    const result = resolveDrawingToolEventPoint(event, getRenderCamera(camera, playerDisplayScale), scene, tool !== "freehand");
+    setSnapPoint(result.snapPoint);
+    return result.point;
   };
 
   const updateSnapPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!scene || !fogTool || !isSnapModifier(event)) {
+    const canSnapDrawing = drawingTool && drawingTool !== "freehand";
+    const canSnapFog = fogTool && !fogTool.includes("brush");
+    const canSnapWeather = Boolean(weatherMaskTool);
+    const canSnapEnvironment = Boolean(environmentEffectTool);
+    if (!scene || !shouldShowSceneSnapPreview({ scene, snapModifierActive: isSnapModifier(event), canSnapDrawing, canSnapFog, canSnapWeather, canSnapEnvironment })) {
       setSnapPoint(null);
       return;
     }
-    setSnapPoint(getFogSnapPoint(eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)), scene));
+    const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
+    setSnapPoint(getNearestSceneSnapPoint(point, scene));
   };
 
   const commitPolygonDraft = () => {
@@ -1570,29 +2405,40 @@ export function SceneCanvas({
     }
     polygonDraftRef.current = null;
     setPolygonDraft(null);
-    onSceneChange({
-      ...scene,
-      fog: {
-        ...scene.fog,
-        ...(draft.operation === "hide" && scene.fog.gmOpacity === 0 && scene.fog.playerOpacity === 0
-          ? { gmOpacity: 0.5, playerOpacity: 1, opacity: 1 }
-          : {}),
-        shapes: [
-          ...scene.fog.shapes,
-          {
-            id: crypto.randomUUID(),
-            name: formatDefaultFogShapeName(draft.operation, "polygon", scene.fog.shapes.length),
-            operation: draft.operation,
-            kind: "polygon",
-            points: draft.points,
-            visibleInGm: true,
-            visibleInPlayer: scene.fog.newShapesVisibleInPlayer,
-            visible: true
-          }
-        ]
-      },
-      updatedAt: new Date().toISOString()
-    });
+    onSceneChange(
+      addSceneFogShape(
+        scene,
+        getFogShapeFromPolygonDraft(
+          draft,
+          crypto.randomUUID(),
+          formatDefaultFogShapeName(draft.operation, "polygon", scene.fog.shapes.length),
+          scene.fog.newShapesVisibleInPlayer
+        ),
+        getFogVisibilityPatchForNewShape(scene.fog, draft.operation)
+      )
+    );
+  };
+
+  const commitDrawingPolygonDraft = () => {
+    const draft = drawingPolygonDraftRef.current;
+    if (!scene || !onSceneChange || !draft || !isMeaningfulPolygon(draft.points)) {
+      return;
+    }
+    drawingPolygonDraftRef.current = null;
+    setDrawingPolygonDraft(null);
+    onSceneChange(
+      addSceneDrawing(
+        scene,
+        getDrawingPolygonElementFromDraft(draft.points, crypto.randomUUID(), scene.drawings.length, {
+          color: drawingColor,
+          opacity: drawingOpacity,
+          fillColor: drawingFillColor,
+          fillOpacity: drawingFillOpacity,
+          strokeStyle: drawingStrokeStyle,
+          strokeWidth: drawingStrokeWidth
+        })
+      )
+    );
   };
 
   const commitWeatherPolygonDraft = () => {
@@ -1602,24 +2448,75 @@ export function SceneCanvas({
     }
     weatherPolygonDraftRef.current = null;
     setWeatherPolygonDraft(null);
-    onSceneChange({
-      ...scene,
-      weather: {
-        ...scene.weather,
-        masks: [
-          ...scene.weather.masks,
-          {
-            id: crypto.randomUUID(),
-            name: `Weather Mask ${scene.weather.masks.length + 1}`,
-            kind: "polygon",
-            points: draft.points,
-            visible: true
-          }
-        ]
-      },
-      updatedAt: new Date().toISOString()
-    });
+    onSceneChange(
+      addSceneWeatherMask(
+        scene,
+        getWeatherMaskFromPolygonDraft(
+          draft,
+          crypto.randomUUID(),
+          formatDefaultWeatherMaskName(scene.weather.masks.length)
+        )
+      )
+    );
   };
+
+  const commitEnvironmentPolygonDraft = () => {
+    const draft = environmentPolygonDraftRef.current;
+    if (!scene || !onSceneChange || !draft || !isMeaningfulPolygon(draft.points)) {
+      return;
+    }
+    environmentPolygonDraftRef.current = null;
+    setEnvironmentPolygonDraft(null);
+    onSceneChange(
+      addEnvironmentEffect(
+        scene,
+        getEnvironmentEffectFromPolygonDraft(
+          draft,
+          crypto.randomUUID(),
+          formatDefaultEnvironmentEffectName(environmentEffectType, scene.environment.effects.length),
+          environmentEffectType,
+          environmentEffectFeather,
+          currentEnvironmentEffectTuning
+        )
+      )
+    );
+  };
+
+  usePolygonDraftKeyboard({
+    active: Boolean(polygonDraft),
+    onCancel: () => {
+      setPolygonDraft(null);
+      polygonDraftRef.current = null;
+    },
+    onCommit: commitPolygonDraft
+  });
+
+  usePolygonDraftKeyboard({
+    active: Boolean(drawingPolygonDraft),
+    onCancel: () => {
+      setDrawingPolygonDraft(null);
+      drawingPolygonDraftRef.current = null;
+    },
+    onCommit: commitDrawingPolygonDraft
+  });
+
+  usePolygonDraftKeyboard({
+    active: Boolean(weatherPolygonDraft),
+    onCancel: () => {
+      setWeatherPolygonDraft(null);
+      weatherPolygonDraftRef.current = null;
+    },
+    onCommit: commitWeatherPolygonDraft
+  });
+
+  usePolygonDraftKeyboard({
+    active: Boolean(environmentPolygonDraft),
+    onCancel: () => {
+      setEnvironmentPolygonDraft(null);
+      environmentPolygonDraftRef.current = null;
+    },
+    onCommit: commitEnvironmentPolygonDraft
+  });
 
   const fitGmCameraToVideoMap = (video: HTMLVideoElement) => {
     if (mode !== "gm" || !scene || !mapAsset || !isVideoMap || video.dataset.mapAssetId !== mapAsset.id) {
@@ -1643,8 +2540,8 @@ export function SceneCanvas({
     fitGmCameraToReadyMap(rect.width, rect.height);
   };
 
-  const showMapOverlay = Boolean(canShowMap && mapAsset && (mapLoadStatus === "loading" || mapLoadStatus === "error"));
-  const mapOverlayMessage = mapLoadStatus === "error" ? "Map asset unavailable" : mapAsset?.mediaType === "video" ? "Loading video map..." : "Loading map...";
+  const showMapOverlay = mapOverlayActive;
+  const mapOverlayMessage = getMapOverlayMessage(mapLoadStatus, mapAsset?.mediaType);
   const activeCalibrationBox = onMapCalibrationBox ? mapCalibrationDraftBox : null;
   const activeCalibrationBoxCamera = getRenderCamera(camera, playerDisplayScale);
   const calibrationSizeControlStyle =
@@ -1677,7 +2574,7 @@ export function SceneCanvas({
                 transform: getVideoTransform(getRenderCamera(camera, playerDisplayScale), scene)
               }}
               onCanPlay={(event) => {
-                setMapLoadStatus("ready");
+                setVideoMapLoadStatus("ready");
                 fitGmCameraToVideoMap(event.currentTarget);
                 playActiveWhenReady(index);
               }}
@@ -1685,26 +2582,26 @@ export function SceneCanvas({
                 fitGmCameraToVideoMap(event.currentTarget);
               }}
               onLoadedData={(event) => {
-                setMapLoadStatus("ready");
+                setVideoMapLoadStatus("ready");
                 fitGmCameraToVideoMap(event.currentTarget);
               }}
               onPlaying={(event) => {
-                setMapLoadStatus("ready");
+                setVideoMapLoadStatus("ready");
                 fitGmCameraToVideoMap(event.currentTarget);
               }}
               onError={(event) => {
                 const video = event.currentTarget;
                 if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-                  setMapLoadStatus("ready");
+                  setVideoMapLoadStatus("ready");
                   return;
                 }
                 window.setTimeout(() => {
                   if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-                    setMapLoadStatus("ready");
+                    setVideoMapLoadStatus("ready");
                     return;
                   }
                   if (index === activeVideoIndex) {
-                    setMapLoadStatus((status) => (status === "ready" ? status : "error"));
+                    setVideoMapLoadStatus((status) => (status === "ready" ? status : "error"));
                   }
                 }, 180);
               }}
@@ -1714,8 +2611,7 @@ export function SceneCanvas({
         ))}
       <canvas
         ref={canvasRef}
-        className={`scene-canvas ${getCanvasInteractionClass({ canvasTool, fogTool, weatherMaskTool, isPanning, tokenDragPreview })}`}
-        onWheel={onWheel}
+        className={`scene-canvas ${getCanvasInteractionClass({ canvasTool, mouseBehavior, drawingTool, fogTool, weatherMaskTool, environmentEffectTool, isPanning, tokenDragPreview, drawingTransformHover, sceneItemHover })}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -1728,8 +2624,9 @@ export function SceneCanvas({
         onDrop={onDrop}
       />
       {mode === "gm" && fogTool && (
-        <FogToolStatusStrip fogTool={fogTool} polygonPointCount={polygonDraft?.points.length ?? 0} brushSize={scene?.fog.brushSize ?? 0} />
+        <FogToolStatusStrip fogTool={fogTool} polygonPointCount={polygonDraft?.points.length ?? 0} brushSize={activeFogBrushSize} />
       )}
+      {mode === "gm" && drawingTool && <DrawingToolStatusStrip drawingTool={drawingTool} drawingTemplateSize={drawingTemplateSize} />}
       {mode === "gm" && onMapCalibrationBox && <MapCalibrationStatusStrip />}
       {mode === "gm" && onMapCalibrationBox && activeCalibrationBox && calibrationSizeControlStyle && (
         <label className="map-calibration-size-control" style={calibrationSizeControlStyle} onPointerDown={(event) => event.stopPropagation()}>
@@ -1765,6 +2662,7 @@ export function SceneCanvas({
       {mode === "gm" && canvasTool === "ruler" && <RulerStatusStrip rulerDrag={rulerDrag} scene={scene} />}
       {mode === "gm" && (canvasTool === "ping" || canvasTool === "laser") && <TableToolStatusStrip canvasTool={canvasTool} />}
       {mode === "gm" && weatherMaskTool && <WeatherMaskStatusStrip weatherMaskTool={weatherMaskTool} pointCount={weatherPolygonDraft?.points.length ?? 0} />}
+      {mode === "gm" && environmentEffectTool && <EnvironmentEffectStatusStrip environmentEffectTool={environmentEffectTool} effect={environmentEffectType} pointCount={environmentPolygonDraft?.points.length ?? 0} />}
       {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
       <Suspense fallback={null}>
         <DiceRollOverlay events={liveTableEvents.filter((event) => isVisibleDiceOverlayEvent(event, mode))} mode={mode} onDiceRollResolved={onDiceRollResolved} />
@@ -1772,1018 +2670,614 @@ export function SceneCanvas({
       {mode === "player" && scene && <TurnOrderPlayerBar scene={scene} campaign={campaign} />}
       {mode === "player" && scene && showPlayerSeatIndicators && <PlayerSeatIndicators campaign={campaign} />}
       {mode === "player" && scene && <PlayerTurnStatusIndicators scene={scene} campaign={campaign} />}
-      {mode === "gm" && tokenContextMenu && (
-        <div
-          className="canvas-token-context-menu"
-          style={{ left: tokenContextMenu.x, top: tokenContextMenu.y }}
-          role="menu"
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              onAddTokenToTurnOrder?.(tokenContextMenu.tokenId);
-              setTokenContextMenu(null);
-            }}
+      {mode === "gm" && createPortal(<>
+      {tokenContextMenu && scene && (() => {
+        const token = scene.tokens.find((candidate) => candidate.id === tokenContextMenu.tokenId);
+        if (!token) {
+          return null;
+        }
+        const tokenConditionsVisibleInPlayer = getTokenConditionsVisibleInPlayer(token);
+        const tokenHasConditions = (token.conditions ?? []).length > 0;
+        return (
+          <div
+            className="token-settings-menu token-context-menu canvas-context-menu"
+            style={{ left: tokenContextMenu.x, top: tokenContextMenu.y }}
+            role="menu"
+            onPointerDown={(event) => event.stopPropagation()}
           >
-            Add "{tokenContextMenu.tokenName}" to Turn Order
-          </button>
-        </div>
-      )}
-      {mode === "gm" && maskContextMenu && (
+            <div className="canvas-context-menu-title" title={tokenContextMenu.tokenName}>{tokenContextMenu.tokenName}</div>
+            <div className="control-divider" />
+            <div className="token-menu-editor-grid">
+              <div className="token-menu-token-settings">
+                <div className="settings-grid">
+                  <label className="setting-row">
+                    <span>GM View</span>
+                    <label className="fog-operation-switch" title={`${tokenContextMenu.visibleInGm ? "Hide" : "Show"} ${tokenContextMenu.tokenName} in GM View`}>
+                      <span>Show</span>
+                      <input
+                        aria-label={`${tokenContextMenu.visibleInGm ? "Hide" : "Show"} ${tokenContextMenu.tokenName} in GM View`}
+                        type="checkbox"
+                        checked={!tokenContextMenu.visibleInGm}
+                        onChange={(event) => {
+                          if (!onSceneChange) {
+                            setTokenContextMenu(null);
+                            return;
+                          }
+                          const visibleInGm = !event.target.checked;
+                          onSceneChange(patchSceneToken(scene, token.id, { visibleInGm }));
+                          setTokenContextMenu((menu) => (menu ? { ...menu, visibleInGm } : menu));
+                        }}
+                      />
+                      <span>Hide</span>
+                    </label>
+                  </label>
+                  <label className="setting-row">
+                    <span>Player View</span>
+                    <label className="fog-operation-switch" title={`${tokenContextMenu.visibleInPlayer ? "Hide" : "Show"} ${tokenContextMenu.tokenName} on Player View`}>
+                      <span>Show</span>
+                      <input
+                        aria-label={`${tokenContextMenu.visibleInPlayer ? "Hide" : "Show"} ${tokenContextMenu.tokenName} on Player View`}
+                        type="checkbox"
+                        checked={!tokenContextMenu.visibleInPlayer}
+                        onChange={(event) => {
+                          if (!onSceneChange) {
+                            setTokenContextMenu(null);
+                            return;
+                          }
+                          const visibleInPlayer = !event.target.checked;
+                          onSceneChange(patchSceneToken(scene, token.id, { visibleInPlayer }));
+                          setTokenContextMenu((menu) => (menu ? { ...menu, visibleInPlayer } : menu));
+                        }}
+                      />
+                      <span>Hide</span>
+                    </label>
+                  </label>
+                  <label className="setting-row">
+                    <span>Footprint</span>
+                    <label className="fog-operation-switch" title={`${token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE ? "Hide" : "Show"} ${tokenContextMenu.tokenName} footprint`}>
+                      <span>Show</span>
+                      <input
+                        aria-label={`${token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE ? "Hide" : "Show"} ${tokenContextMenu.tokenName} footprint`}
+                        type="checkbox"
+                        checked={!(token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE)}
+                        onChange={(event) => {
+                          if (!onSceneChange) {
+                            setTokenContextMenu(null);
+                            return;
+                          }
+                          onSceneChange(patchSceneToken(scene, token.id, { footprintVisible: !event.target.checked }));
+                        }}
+                      />
+                      <span>Hide</span>
+                    </label>
+                  </label>
+                </div>
+                <div className="control-divider" />
+                <TokenSettings
+                  token={token}
+                  gridSize={scene.grid.sizePx}
+                  gridType={scene.grid.type}
+                  showFootprint={false}
+                  onUpdateToken={(patch) => {
+                    if (!onSceneChange) {
+                      return;
+                    }
+                    onSceneChange(patchSceneToken(scene, token.id, patch));
+                  }}
+                  onOpenTokenColor={(tokenId, value, kind) => {
+                    onOpenTokenColor?.(tokenId, value, kind);
+                    setTokenContextMenu(null);
+                  }}
+                />
+              </div>
+              <div className="token-menu-condition-settings">
+                <div className="canvas-context-menu-title">Conditions</div>
+                <div className="settings-grid token-condition-visibility-grid">
+                  <label className="setting-row">
+                    <span>Player View</span>
+                    <label className="fog-operation-switch" title={`${tokenConditionsVisibleInPlayer ? "Hide" : "Show"} token conditions on Player View`}>
+                      <span>Show</span>
+                      <input
+                        aria-label={`${tokenConditionsVisibleInPlayer ? "Hide" : "Show"} token conditions on Player View`}
+                        type="checkbox"
+                        checked={!tokenConditionsVisibleInPlayer}
+                        disabled={!tokenHasConditions}
+                        onChange={(event) => {
+                          if (!onSceneChange) {
+                            return;
+                          }
+                          onSceneChange({
+                            ...scene,
+                            tokens: setTokenConditionsPlayerVisibility(scene.tokens, token.id, !event.target.checked),
+                            updatedAt: new Date().toISOString()
+                          });
+                        }}
+                      />
+                      <span>Hide</span>
+                    </label>
+                  </label>
+                </div>
+                <div className="token-condition-list">
+                  {TOKEN_CONDITION_IDS.map((conditionId) => {
+                    const enabled = (token.conditions ?? []).some((candidate) => candidate.id === conditionId);
+                    const label = TOKEN_CONDITION_LABELS[conditionId];
+                    return (
+                      <label className="token-condition-check" key={conditionId}>
+                        <input
+                          type="checkbox"
+                          checked={enabled}
+                          onChange={(event) => {
+                            if (!onSceneChange) {
+                              return;
+                            }
+                            onSceneChange({
+                              ...scene,
+                              tokens: setTokenCondition(scene.tokens, token.id, conditionId, event.target.checked, tokenConditionsVisibleInPlayer),
+                              updatedAt: new Date().toISOString()
+                            });
+                          }}
+                        />
+                        <span>{label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="control-divider" />
+            <button
+              type="button"
+              className="token-menu-action"
+              role="menuitem"
+              title={`Add ${tokenContextMenu.tokenName} to Turn Order`}
+              aria-label={`Add ${tokenContextMenu.tokenName} to Turn Order`}
+              onClick={() => {
+                onAddTokenToTurnOrder?.(tokenContextMenu.tokenId);
+                setTokenContextMenu(null);
+              }}
+            >
+              <ListPlus size={14} aria-hidden="true" />
+              <span>Add to Turn Order</span>
+            </button>
+            <button
+              type="button"
+              className="token-menu-action"
+              role="menuitem"
+              title={`Duplicate ${tokenContextMenu.tokenName}`}
+              aria-label={`Duplicate ${tokenContextMenu.tokenName}`}
+              onClick={() => {
+                if (!onSceneChange) {
+                  setTokenContextMenu(null);
+                  return;
+                }
+                const result = duplicateSceneToken(scene, token.id, crypto.randomUUID());
+                if (!result.duplicatedTokenId) {
+                  setTokenContextMenu(null);
+                  return;
+                }
+                onSceneChange(result.scene);
+                onSelectToken?.(result.duplicatedTokenId);
+                setTokenContextMenu(null);
+              }}
+            >
+              <Copy size={14} aria-hidden="true" />
+              <span>Duplicate</span>
+            </button>
+            <button
+              type="button"
+              className="token-menu-action token-menu-delete"
+              role="menuitem"
+              title={`Delete ${tokenContextMenu.tokenName}`}
+              aria-label={`Delete ${tokenContextMenu.tokenName}`}
+              onClick={() => {
+                if (!onSceneChange) {
+                  setTokenContextMenu(null);
+                  return;
+                }
+                onSceneChange(removeSceneToken(scene, token.id));
+                onSelectToken?.(null);
+                setTokenContextMenu(null);
+              }}
+            >
+              <Trash2 size={14} aria-hidden="true" />
+              <span>Delete</span>
+            </button>
+          </div>
+        );
+      })()}
+      {maskContextMenu && (
         <div
-          className="canvas-token-context-menu"
+          className="token-settings-menu canvas-context-menu"
           style={{ left: maskContextMenu.x, top: maskContextMenu.y }}
           role="menu"
           onPointerDown={(event) => event.stopPropagation()}
         >
+          <div className="canvas-context-menu-title" title={maskContextMenu.label}>{maskContextMenu.label}</div>
+          <div className="control-divider" />
+          <div className="settings-grid">
+            {maskContextMenu.kind === "fog" ? (
+              <>
+                <label className="setting-row">
+                  <span>GM View</span>
+                  <label className="fog-operation-switch" title={`${maskContextMenu.visibleInGm ? "Hide" : "Show"} ${maskContextMenu.label} in GM View`}>
+                    <span>Show</span>
+                    <input
+                      aria-label={`${maskContextMenu.visibleInGm ? "Hide" : "Show"} ${maskContextMenu.label} in GM View`}
+                      type="checkbox"
+                      checked={!maskContextMenu.visibleInGm}
+                      onChange={(event) => {
+                        if (!scene || !onSceneChange) {
+                          setMaskContextMenu(null);
+                          return;
+                        }
+                        const visibleInGm = !event.target.checked;
+                        onSceneChange(setFogShapeGmVisibility(scene, maskContextMenu.shapeId, visibleInGm));
+                        setMaskContextMenu((menu) => (menu?.kind === "fog" ? { ...menu, visibleInGm } : menu));
+                      }}
+                    />
+                    <span>Hide</span>
+                  </label>
+                </label>
+                <label className="setting-row">
+                  <span>Player View</span>
+                  <label className="fog-operation-switch" title={`${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`}>
+                    <span>Show</span>
+                    <input
+                      aria-label={`${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`}
+                      type="checkbox"
+                      checked={!maskContextMenu.visibleInPlayer}
+                      onChange={(event) => {
+                        if (!scene || !onSceneChange) {
+                          setMaskContextMenu(null);
+                          return;
+                        }
+                        const visibleInPlayer = !event.target.checked;
+                        onSceneChange(setFogShapePlayerVisibility(scene, maskContextMenu.shapeId, visibleInPlayer));
+                        setMaskContextMenu((menu) => (menu?.kind === "fog" ? { ...menu, visibleInPlayer } : menu));
+                      }}
+                    />
+                    <span>Hide</span>
+                  </label>
+                </label>
+              </>
+            ) : (
+              <>
+                <label className="setting-row">
+                  <span>Mask Enabled</span>
+                  <label className="fog-operation-switch" title={`${maskContextMenu.visible ? "Disable" : "Enable"} ${maskContextMenu.label}`}>
+                    <span>On</span>
+                    <input
+                      aria-label={`${maskContextMenu.visible ? "Disable" : "Enable"} ${maskContextMenu.label}`}
+                      type="checkbox"
+                      checked={!maskContextMenu.visible}
+                      onChange={(event) => {
+                        if (!scene || !onSceneChange) {
+                          setMaskContextMenu(null);
+                          return;
+                        }
+                        const visible = !event.target.checked;
+                        onSceneChange(setWeatherMaskVisibility(scene, maskContextMenu.maskId, visible));
+                        setMaskContextMenu((menu) => (menu?.kind === "effects" ? { ...menu, visible } : menu));
+                      }}
+                    />
+                    <span>Off</span>
+                  </label>
+                </label>
+                <label className="setting-row">
+                  <span>Player View</span>
+                  <label className="fog-operation-switch" title={`${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`}>
+                    <span>Show</span>
+                    <input
+                      aria-label={`${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} ${maskContextMenu.label} on Player View`}
+                      type="checkbox"
+                      checked={!maskContextMenu.visibleInPlayer}
+                      onChange={(event) => {
+                        if (!scene || !onSceneChange) {
+                          setMaskContextMenu(null);
+                          return;
+                        }
+                        const visibleInPlayer = !event.target.checked;
+                        onSceneChange(setWeatherMaskPlayerVisibility(scene, maskContextMenu.maskId, visibleInPlayer));
+                        setMaskContextMenu((menu) => (menu?.kind === "effects" ? { ...menu, visibleInPlayer } : menu));
+                      }}
+                    />
+                    <span>Hide</span>
+                  </label>
+                </label>
+              </>
+            )}
+          </div>
+          <div className="control-divider" />
           <button
             type="button"
             role="menuitem"
+            className="token-menu-action"
+            title={`Duplicate ${maskContextMenu.label}`}
+            aria-label={`Duplicate ${maskContextMenu.label}`}
             onClick={() => {
               if (!scene || !onSceneChange) {
                 setMaskContextMenu(null);
                 return;
               }
               if (maskContextMenu.kind === "fog") {
-                onSceneChange({
-                  ...scene,
-                  fog: {
-                    ...scene.fog,
-                    shapes: scene.fog.shapes.map((shape) =>
-                      shape.id === maskContextMenu.shapeId
-                        ? { ...shape, visibleInPlayer: !maskContextMenu.visibleInPlayer, visible: (shape.visibleInGm ?? shape.visible ?? true) || !maskContextMenu.visibleInPlayer }
-                        : shape
-                    )
-                  },
-                  updatedAt: new Date().toISOString()
-                });
+                const result = duplicateSceneFogShape(scene, maskContextMenu.shapeId, crypto.randomUUID(), maskContextMenu.label);
+                onSceneChange(result.scene);
+                onSelectFogShape?.(result.duplicatedFogShapeId ?? null);
               } else {
-                onSceneChange({
-                  ...scene,
-                  weather: {
-                    ...scene.weather,
-                    masks: scene.weather.masks.map((mask) => (mask.id === maskContextMenu.maskId ? { ...mask, visible: !maskContextMenu.visible } : mask))
-                  },
-                  updatedAt: new Date().toISOString()
-                });
+                const result = duplicateSceneWeatherMask(scene, maskContextMenu.maskId, crypto.randomUUID(), maskContextMenu.label);
+                onSceneChange(result.scene);
+                onSelectWeatherMask?.(result.duplicatedWeatherMaskId ?? null);
               }
               setMaskContextMenu(null);
             }}
           >
-            {maskContextMenu.kind === "fog"
-              ? `${maskContextMenu.visibleInPlayer ? "Hide" : "Show"} "${maskContextMenu.label}" on Player View`
-              : `${maskContextMenu.visible ? "Disable" : "Enable"} "${maskContextMenu.label}"`}
+            <Copy size={14} aria-hidden="true" />
+            <span>Duplicate</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="token-menu-action token-menu-delete"
+            title={`Delete ${maskContextMenu.label}`}
+            aria-label={`Delete ${maskContextMenu.label}`}
+            onClick={() => {
+              if (!scene || !onSceneChange) {
+                setMaskContextMenu(null);
+                return;
+              }
+              if (maskContextMenu.kind === "fog") {
+                onSceneChange(removeSceneFogShape(scene, maskContextMenu.shapeId));
+                onSelectFogShape?.(null);
+              } else {
+                onSceneChange(removeSceneWeatherMask(scene, maskContextMenu.maskId));
+                onSelectWeatherMask?.(null);
+              }
+              setMaskContextMenu(null);
+            }}
+          >
+            <Trash2 size={14} aria-hidden="true" />
+            <span>Delete</span>
           </button>
         </div>
       )}
+      {drawingContextMenu && (
+        <div
+          className="token-settings-menu canvas-context-menu"
+          style={{ left: drawingContextMenu.x, top: drawingContextMenu.y }}
+          role="menu"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <div className="canvas-context-menu-title" title={drawingContextMenu.label}>{drawingContextMenu.label}</div>
+          <div className="control-divider" />
+          <div className="settings-grid">
+            {drawingContextMenu.isTemplate && (
+              <label className="setting-row">
+                <span>Footprint</span>
+                <label className="fog-operation-switch" title={`${drawingContextMenu.templateFootprintVisible ? "Hide" : "Show"} ${drawingContextMenu.label} grid footprint`}>
+                  <span>Show</span>
+                  <input
+                    aria-label={`${drawingContextMenu.templateFootprintVisible ? "Hide" : "Show"} ${drawingContextMenu.label} grid footprint`}
+                    type="checkbox"
+                    checked={!drawingContextMenu.templateFootprintVisible}
+                    onChange={(event) => {
+                      if (!scene || !onSceneChange) {
+                        setDrawingContextMenu(null);
+                        return;
+                      }
+                      const templateFootprintVisible = !event.target.checked;
+                      onSceneChange(setDrawingTemplateFootprintVisibility(scene, drawingContextMenu.drawingId, templateFootprintVisible));
+                      setDrawingContextMenu((menu) => (menu ? { ...menu, templateFootprintVisible } : menu));
+                    }}
+                  />
+                  <span>Hide</span>
+                </label>
+              </label>
+            )}
+            <label className="setting-row">
+              <span>GM View</span>
+              <label className="fog-operation-switch" title={`${drawingContextMenu.visibleInGm ? "Hide" : "Show"} ${drawingContextMenu.label} in GM View`}>
+                <span>Show</span>
+                <input
+                  aria-label={`${drawingContextMenu.visibleInGm ? "Hide" : "Show"} ${drawingContextMenu.label} in GM View`}
+                  type="checkbox"
+                  checked={!drawingContextMenu.visibleInGm}
+                  onChange={(event) => {
+                    if (!scene || !onSceneChange) {
+                      setDrawingContextMenu(null);
+                      return;
+                    }
+                    const visibleInGm = !event.target.checked;
+                    onSceneChange(setDrawingGmVisibility(scene, drawingContextMenu.drawingId, visibleInGm));
+                    setDrawingContextMenu((menu) => (menu ? { ...menu, visibleInGm } : menu));
+                  }}
+                />
+                <span>Hide</span>
+              </label>
+            </label>
+            <label className="setting-row">
+              <span>Player View</span>
+              <label className="fog-operation-switch" title={`${drawingContextMenu.visibleInPlayer ? "Hide" : "Show"} ${drawingContextMenu.label} on Player View`}>
+                <span>Show</span>
+                <input
+                  aria-label={`${drawingContextMenu.visibleInPlayer ? "Hide" : "Show"} ${drawingContextMenu.label} on Player View`}
+                  type="checkbox"
+                  checked={!drawingContextMenu.visibleInPlayer}
+                  onChange={(event) => {
+                    if (!scene || !onSceneChange) {
+                      setDrawingContextMenu(null);
+                      return;
+                    }
+                    const visibleInPlayer = !event.target.checked;
+                    onSceneChange(setDrawingPlayerVisibility(scene, drawingContextMenu.drawingId, visibleInPlayer));
+                    setDrawingContextMenu((menu) => (menu ? { ...menu, visibleInPlayer } : menu));
+                  }}
+                />
+                <span>Hide</span>
+              </label>
+            </label>
+          </div>
+          <div className="control-divider" />
+          <button
+            type="button"
+            role="menuitem"
+            className="token-menu-action"
+            title={`Duplicate ${drawingContextMenu.label}`}
+            aria-label={`Duplicate ${drawingContextMenu.label}`}
+            onClick={() => {
+              if (!scene || !onSceneChange) {
+                setDrawingContextMenu(null);
+                return;
+              }
+              const result = duplicateSceneDrawing(scene, drawingContextMenu.drawingId, crypto.randomUUID(), drawingContextMenu.label);
+              if (!result.duplicatedDrawingId) {
+                setDrawingContextMenu(null);
+                return;
+              }
+              onSceneChange(result.scene);
+              onSelectDrawing?.(result.duplicatedDrawingId);
+              setDrawingContextMenu(null);
+            }}
+          >
+            <Copy size={14} aria-hidden="true" />
+            <span>Duplicate</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="token-menu-action token-menu-delete"
+            title={`Delete ${drawingContextMenu.label}`}
+            aria-label={`Delete ${drawingContextMenu.label}`}
+            onClick={() => {
+              if (!scene || !onSceneChange) {
+                setDrawingContextMenu(null);
+                return;
+              }
+              onSceneChange(removeSceneDrawing(scene, drawingContextMenu.drawingId));
+              onSelectDrawing?.(null);
+              setDrawingContextMenu(null);
+            }}
+          >
+            <Trash2 size={14} aria-hidden="true" />
+            <span>Delete</span>
+          </button>
+        </div>
+      )}
+      {environmentEffectContextMenu && (
+        <div
+          className="token-settings-menu canvas-context-menu"
+          style={{ left: environmentEffectContextMenu.x, top: environmentEffectContextMenu.y }}
+          role="menu"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <div className="canvas-context-menu-title" title={environmentEffectContextMenu.label}>{environmentEffectContextMenu.label}</div>
+          <div className="control-divider" />
+          <div className="settings-grid">
+            <label className="setting-row">
+              <span>GM View</span>
+              <label className="fog-operation-switch" title={`${environmentEffectContextMenu.visibleInGm ? "Hide" : "Show"} ${environmentEffectContextMenu.label} in GM View`}>
+                <span>Show</span>
+                <input
+                  aria-label={`${environmentEffectContextMenu.visibleInGm ? "Hide" : "Show"} ${environmentEffectContextMenu.label} in GM View`}
+                  type="checkbox"
+                  checked={!environmentEffectContextMenu.visibleInGm}
+                  onChange={(event) => {
+                    if (!scene || !onSceneChange) {
+                      setEnvironmentEffectContextMenu(null);
+                      return;
+                    }
+                    const visibleInGm = !event.target.checked;
+                    onSceneChange(patchSceneEnvironmentEffect(scene, environmentEffectContextMenu.effectId, (effect) => ({ ...effect, visibleInGm })));
+                    setEnvironmentEffectContextMenu((menu) => (menu ? { ...menu, visibleInGm } : menu));
+                  }}
+                />
+                <span>Hide</span>
+              </label>
+            </label>
+            <label className="setting-row">
+              <span>Player View</span>
+              <label className="fog-operation-switch" title={`${environmentEffectContextMenu.visibleInPlayer ? "Hide" : "Show"} ${environmentEffectContextMenu.label} on Player View`}>
+                <span>Show</span>
+                <input
+                  aria-label={`${environmentEffectContextMenu.visibleInPlayer ? "Hide" : "Show"} ${environmentEffectContextMenu.label} on Player View`}
+                  type="checkbox"
+                  checked={!environmentEffectContextMenu.visibleInPlayer}
+                  onChange={(event) => {
+                    if (!scene || !onSceneChange) {
+                      setEnvironmentEffectContextMenu(null);
+                      return;
+                    }
+                    const visibleInPlayer = !event.target.checked;
+                    onSceneChange(patchSceneEnvironmentEffect(scene, environmentEffectContextMenu.effectId, (effect) => ({ ...effect, visibleInPlayer })));
+                    setEnvironmentEffectContextMenu((menu) => (menu ? { ...menu, visibleInPlayer } : menu));
+                  }}
+                />
+                <span>Hide</span>
+              </label>
+            </label>
+          </div>
+          <div className="control-divider" />
+          <button
+            type="button"
+            role="menuitem"
+            className="token-menu-action"
+            title={`Edit ${environmentEffectContextMenu.label}`}
+            aria-label={`Edit ${environmentEffectContextMenu.label}`}
+            onClick={() => {
+              onSelectEnvironmentEffect?.(environmentEffectContextMenu.effectId);
+              onEditEnvironmentEffect?.(environmentEffectContextMenu.effectId);
+              setEnvironmentEffectContextMenu(null);
+            }}
+          >
+            <Settings2 size={14} aria-hidden="true" />
+            <span>Edit Effect</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="token-menu-action"
+            title={`Duplicate ${environmentEffectContextMenu.label}`}
+            aria-label={`Duplicate ${environmentEffectContextMenu.label}`}
+            onClick={() => {
+              if (!scene || !onSceneChange) {
+                setEnvironmentEffectContextMenu(null);
+                return;
+              }
+              const result = duplicateEnvironmentEffect(scene, environmentEffectContextMenu.effectId, crypto.randomUUID(), environmentEffectContextMenu.label);
+              onSceneChange(result.scene);
+              onSelectEnvironmentEffect?.(result.duplicatedEnvironmentEffectId ?? null);
+              setEnvironmentEffectContextMenu(null);
+            }}
+          >
+            <Copy size={14} aria-hidden="true" />
+            <span>Duplicate</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="token-menu-action token-menu-delete"
+            title={`Delete ${environmentEffectContextMenu.label}`}
+            aria-label={`Delete ${environmentEffectContextMenu.label}`}
+            onClick={() => {
+              if (!scene || !onSceneChange) {
+                return;
+              }
+              onSceneChange(removeEnvironmentEffect(scene, environmentEffectContextMenu.effectId));
+              onSelectEnvironmentEffect?.(null);
+              setEnvironmentEffectContextMenu(null);
+            }}
+          >
+            <Trash2 size={14} aria-hidden="true" />
+            <span>Delete</span>
+          </button>
+        </div>
+      )}
+      </>, document.body)}
       {showMapOverlay && <MapLoadOverlay message={mapOverlayMessage} showSpinner={mapLoadStatus === "loading"} />}
       {mode === "gm" && showVideoDiagnostics && isVideoMap && videoDebug && <div className="video-debug">{videoDebug}</div>}
     </div>
   );
 }
 
-function PlayerSeatIndicators({ campaign }: { campaign: Campaign | null }) {
-  const seats = (campaign?.players ?? []).filter((player) => player.visibleInPlayer);
-  if (seats.length === 0) {
-    return null;
-  }
 
-  const assetsById = new Map((campaign?.assets ?? []).map((asset) => [asset.id, asset]));
-  return (
-    <>
-      {seats.map((seat) => {
-        const asset = seat.assetId ? assetsById.get(seat.assetId) : null;
-        const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
-        const style = getPlayerSeatStyle(seat.defaultSeatEdge, seat.defaultSeatPosition, seat.color);
-        return (
-          <div key={seat.id} className={`player-seat-indicator player-seat-indicator-${seat.defaultSeatEdge}`} style={style}>
-            <span className="player-seat-indicator-avatar">
-              {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : seat.name.slice(0, 1).toUpperCase()}
-            </span>
-            <span className="player-seat-indicator-name">{seat.name}</span>
-          </div>
-        );
-      })}
-    </>
-  );
-}
 
-function getPlayerSeatStyle(edge: "top" | "right" | "bottom" | "left", position: number, color: string): React.CSSProperties {
-  const clampedPosition = Math.min(1, Math.max(0, position)) * 100;
-  const baseStyle = {
-    "--player-seat-color": color
-  } as React.CSSProperties;
-  if (edge === "top" || edge === "bottom") {
-    return {
-      ...baseStyle,
-      left: `${clampedPosition}%`,
-      [edge]: "12px"
-    };
-  }
-  return {
-    ...baseStyle,
-    top: `${clampedPosition}%`,
-    [edge]: "12px"
-  };
-}
 
-function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign: Campaign | null }) {
-  const turnOrder = scene.turnOrder;
-  const entries = turnOrder.entries.filter((entry) => entry.visibleInPlayer);
-  const visible = turnOrder.active && turnOrder.playerViewVisible && entries.length > 0;
-  const reveal = useEdgeSlide(visible);
-  const renderedEntries = useLastPresentValue(entries, visible && entries.length > 0);
-  const renderedCampaign = useLastPresentValue(campaign, visible && Boolean(campaign));
-  if (!reveal.present || renderedEntries.length === 0) {
-    return null;
-  }
-
-  const assetsById = new Map((renderedCampaign?.assets ?? []).map((asset) => [asset.id, asset]));
-  const playersById = new Map((renderedCampaign?.players ?? []).map((player) => [player.id, player]));
-  const layout = getTurnOrderPlayerBarLayout(turnOrder.playerViewEdge, turnOrder.playerViewFacing);
-  const displayedEntries = layout.reverseEntries ? [...renderedEntries].reverse() : renderedEntries;
-  const currentIndex = Math.max(0, renderedEntries.findIndex((entry) => entry.id === turnOrder.currentEntryId));
-  const nextEntryId = renderedEntries.length > 1 ? renderedEntries[(currentIndex + 1) % renderedEntries.length]?.id : null;
-
-  return (
-    <div
-      className={`turn-order-player-bar turn-order-player-bar-${turnOrder.playerViewEdge} turn-order-player-bar-${turnOrder.playerViewSize} ${layout.arrowAtEnd ? "turn-order-player-bar-arrow-end" : ""}`}
-      style={
-        {
-          "--turn-entry-rotation": `${layout.entryRotation}deg`,
-          "--turn-arrow-rotation": `${layout.arrowRotation}deg`,
-          transform: getEdgeSlideTransform(turnOrder.playerViewEdge, reveal.progress)
-        } as React.CSSProperties
-      }
-    >
-      <span className="turn-order-player-direction" aria-hidden="true">
-        <ArrowRight size={18} />
-      </span>
-      {displayedEntries.map((entry) => {
-        const player = entry.playerId ? playersById.get(entry.playerId) : null;
-        const assetId = player?.assetId ?? entry.assetId;
-        const asset = assetId ? assetsById.get(assetId) : null;
-        const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
-        const active = entry.id === turnOrder.currentEntryId;
-        const next = entry.id === nextEntryId;
-        const entryName = player?.name ?? entry.name;
-        return (
-          <article
-            key={entry.id}
-            className={["turn-order-player-entry", active ? "turn-order-player-entry-active" : "", next ? "turn-order-player-entry-next" : ""].filter(Boolean).join(" ")}
-            style={player?.color ? ({ "--turn-player-color": player.color } as React.CSSProperties) : undefined}
-          >
-            <span className="turn-order-player-avatar">
-              {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : entryName.slice(0, 1).toUpperCase()}
-            </span>
-            <span className="turn-order-player-initiative">{entry.initiative}</span>
-          </article>
-        );
-      })}
-    </div>
-  );
-}
-
-function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; campaign: Campaign | null }) {
-  const turnOrder = scene.turnOrder;
-  const visible = turnOrder.active && turnOrder.playerViewVisible && Boolean(campaign);
-  const reveal = useEdgeSlide(visible);
-  const renderedCampaign = useLastPresentValue(campaign, visible && Boolean(campaign));
-  const entries = turnOrder.entries.filter((entry) => entry.visibleInPlayer);
-  const renderedEntries = useLastPresentValue(entries, visible && entries.length > 0);
-  if (!reveal.present || !renderedCampaign) {
-    return null;
-  }
-
-  if (renderedEntries.length === 0) {
-    return null;
-  }
-
-  const currentIndex = Math.max(0, renderedEntries.findIndex((entry) => entry.id === turnOrder.currentEntryId));
-  const nextEntry = renderedEntries.length > 1 ? renderedEntries[(currentIndex + 1) % renderedEntries.length] : null;
-  const entriesByPlayerId = new Map<string, (typeof renderedEntries)[number]>();
-  for (const entry of renderedEntries) {
-    if (entry.playerId) {
-      entriesByPlayerId.set(entry.playerId, entry);
-    }
-  }
-  const assetsById = new Map(renderedCampaign.assets.map((asset) => [asset.id, asset]));
-  const players = renderedCampaign.players.filter((player) => entriesByPlayerId.has(player.id));
-  if (players.length === 0) {
-    return null;
-  }
-
-  return (
-    <>
-      {players.map((player) => {
-        const entry = entriesByPlayerId.get(player.id);
-        if (!entry) {
-          return null;
-        }
-        const asset = player.assetId ? assetsById.get(player.assetId) : null;
-        const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
-        const status = entry.id === turnOrder.currentEntryId ? "current" : entry.id === nextEntry?.id ? "next" : "waiting";
-        const theme = player.indicatorTheme ?? "generic";
-        const style = getPlayerTurnStatusStyle(player.defaultSeatEdge, player.defaultSeatPosition, player.color, reveal.progress);
-        return (
-          <div
-            key={player.id}
-            className={`player-turn-status player-turn-status-${player.defaultSeatEdge} player-turn-status-${turnOrder.playerTurnStatusSize} player-turn-status-${status} player-turn-theme-${theme}`}
-            style={style}
-          >
-            <PlayerTurnStatusFrame />
-            <span className="player-turn-status-avatar">
-              {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : player.name.slice(0, 1).toUpperCase()}
-            </span>
-            <span className="player-turn-status-copy">
-              <strong>{player.name}</strong>
-              <small>{getPlayerTurnStatusLabel(status)}</small>
-            </span>
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
-function PlayerTurnStatusFrame() {
-  return (
-    <svg className="player-turn-status-frame" viewBox="0 0 260 82" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-      <path className="player-turn-frame-shadow" d="M18 5H242L257 20V62L242 77H18L3 62V20L18 5Z" />
-      <path className="player-turn-frame-fill" d="M22 4H238L254 20V62L238 78H22L6 62V20L22 4Z" />
-      <path className="player-turn-frame-panel" d="M66 13H221L244 25V57L221 69H66L77 41L66 13Z" />
-      <path className="player-turn-frame-crest" d="M22 11H64L77 41L64 71H22L12 59V23L22 11Z" />
-      <path className="player-turn-frame-inner" d="M33 12H227L246 25V57L227 70H33L14 57V25L33 12Z" />
-      <path className="player-turn-frame-corners" d="M24 10L35 18M236 10L225 18M24 72L35 64M236 72L225 64M8 31L18 41L8 51M252 31L242 41L252 51" />
-      <path className="player-turn-frame-runes" d="M91 20H111M190 20H210M91 62H111M190 62H210" />
-      <path className="player-turn-frame-sigil" d="M42 17L49 28L42 39L35 28L42 17ZM42 43L50 54L42 66L34 54L42 43Z" />
-      <circle className="player-turn-frame-gem" cx="31" cy="41" r="4.5" />
-      <circle className="player-turn-frame-gem" cx="229" cy="41" r="4.5" />
-    </svg>
-  );
-}
-
-function getPlayerTurnStatusLabel(status: "current" | "next" | "waiting"): string {
-  if (status === "current") {
-    return "Turn Now";
-  }
-  if (status === "next") {
-    return "Up Next";
-  }
-  return "Waiting";
-}
-
-function getPlayerTurnStatusStyle(edge: "top" | "right" | "bottom" | "left", position: number, color: string, progress: number): React.CSSProperties {
-  return {
-    ...getPlayerSeatStyle(edge, position, color),
-    transform: getEdgeSlideTransform(edge, progress, getPlayerTurnStatusRotation(edge))
-  };
-}
-
-function getPlayerTurnStatusRotation(edge: "top" | "right" | "bottom" | "left"): number {
-  if (edge === "top") {
-    return 180;
-  }
-  if (edge === "left") {
-    return 90;
-  }
-  if (edge === "right") {
-    return -90;
-  }
-  return 0;
-}
-
-function getEdgeSlideTransform(edge: "top" | "right" | "bottom" | "left", progress: number, rotation = 0): string {
-  const clamped = Math.min(1, Math.max(0, progress));
-  const hiddenPercent = (1 - clamped) * 100;
-  const hiddenPixels = (1 - clamped) * 36;
-  const rotationTransform = rotation ? ` rotate(${rotation}deg)` : "";
-  if (edge === "top") {
-    return `translate(-50%, calc(-${hiddenPercent}% - ${hiddenPixels}px))${rotationTransform}`;
-  }
-  if (edge === "bottom") {
-    return `translate(-50%, calc(${hiddenPercent}% + ${hiddenPixels}px))${rotationTransform}`;
-  }
-  if (edge === "left") {
-    return `translate(calc(-${hiddenPercent}% - ${hiddenPixels}px), -50%)${rotationTransform}`;
-  }
-  return `translate(calc(${hiddenPercent}% + ${hiddenPixels}px), -50%)${rotationTransform}`;
-}
-
-function useEdgeSlide(show: boolean, durationMs = 560) {
-  const [present, setPresent] = useState(show);
-  const [progress, setProgress] = useState(show ? 1 : 0);
-  const progressRef = useRef(show ? 1 : 0);
-
-  useEffect(() => {
-    let frame = 0;
-    const start = performance.now();
-    const from = progressRef.current;
-    const to = show ? 1 : 0;
-
-    if (show) {
-      setPresent(true);
-    }
-
-    const step = (now: number) => {
-      const elapsed = now - start;
-      const t = durationMs <= 0 ? 1 : Math.min(1, elapsed / durationMs);
-      const eased = show ? easeOutCubic(t) : easeInCubic(t);
-      const nextProgress = from + (to - from) * eased;
-      progressRef.current = nextProgress;
-      setProgress(nextProgress);
-      if (t < 1) {
-        frame = window.requestAnimationFrame(step);
-        return;
-      }
-      progressRef.current = to;
-      setProgress(to);
-      if (!show) {
-        setPresent(false);
-      }
-    };
-
-    frame = window.requestAnimationFrame(step);
-    return () => window.cancelAnimationFrame(frame);
-  }, [durationMs, show]);
-
-  return { present, progress };
-}
-
-function easeOutCubic(value: number): number {
-  return 1 - Math.pow(1 - value, 3);
-}
-
-function easeInCubic(value: number): number {
-  return value * value * value;
-}
-
-function useLastPresentValue<T>(value: T, active: boolean): T {
-  const lastValueRef = useRef(value);
-  if (active) {
-    lastValueRef.current = value;
-  }
-  return active ? value : lastValueRef.current;
-}
-
-function getTurnOrderPlayerBarLayout(edge: "top" | "right" | "bottom" | "left", facing: "inward" | "outward") {
-  const reverseEntries =
-    (edge === "top" && facing === "outward") ||
-    (edge === "right" && facing === "outward") ||
-    (edge === "bottom" && facing === "inward") ||
-    (edge === "left" && facing === "inward");
-  const vertical = edge === "left" || edge === "right";
-  return {
-    entryRotation: getTurnOrderFacingRotation(edge, facing),
-    reverseEntries,
-    arrowAtEnd: reverseEntries,
-    arrowRotation: vertical ? (reverseEntries ? -90 : 90) : reverseEntries ? 180 : 0
-  };
-}
-
-function getTurnOrderFacingRotation(edge: "top" | "right" | "bottom" | "left", facing: "inward" | "outward"): number {
-  const inwardRotation = {
-    top: 180,
-    right: -90,
-    bottom: 0,
-    left: 90
-  } satisfies Record<typeof edge, number>;
-  const rotation = inwardRotation[edge];
-  return facing === "inward" ? (rotation + 180) % 360 : rotation;
-}
-
-function MapLoadOverlay({ message, showSpinner }: { message: string; showSpinner: boolean }) {
-  return (
-    <div className="map-load-overlay" role="status" aria-live="polite">
-      {showSpinner && <span className="map-load-spinner" aria-hidden="true" />}
-      <span>{message}</span>
-    </div>
-  );
-}
-
-function FogToolStatusStrip({
-  fogTool,
-  polygonPointCount,
-  brushSize
-}: {
-  fogTool: FogTool;
-  polygonPointCount: number;
-  brushSize: number;
-}) {
-  const primaryHint = getFogToolHint(fogTool, polygonPointCount, brushSize);
-
-  return (
-    <div className="fog-tool-status" aria-live="polite">
-      <strong>{getFogToolLabel(fogTool)}</strong>
-      <span>{primaryHint}</span>
-      <span>{FOG_GRID_SNAP_HINT}</span>
-      <span>Escape cancels active drawing.</span>
-      <span>Middle-click drag pans.</span>
-    </div>
-  );
-}
-
-function TokenMoveStatusStrip({ scene, tokenDragPreview }: { scene: Scene | null; tokenDragPreview: TokenDragPreview }) {
-  const waypointCount = tokenDragPreview.waypoints.length;
-  const tokenMoveLabel = scene ? getTokenMoveLabel(scene, tokenDragPreview) : null;
-  return (
-    <div className="canvas-tool-status" aria-live="polite">
-      <strong>Token Move</strong>
-      <span>Drag to position.</span>
-      <span>{SHIFT_WAYPOINT_HINT}</span>
-      <span>{waypointCount === 1 ? "1 waypoint" : `${waypointCount} waypoints`}</span>
-      {tokenMoveLabel && <span>{tokenMoveLabel}</span>}
-      <span>{TOKEN_MOVE_COMPLETE_HINT}</span>
-    </div>
-  );
-}
-
-function RulerStatusStrip({ rulerDrag, scene }: { rulerDrag: RulerDrag | null; scene: Scene | null }) {
-  const label = rulerDrag && scene ? getRulerLabel(rulerDrag, scene) : null;
-  return (
-    <div className="canvas-tool-status" aria-live="polite">
-      <strong>Ruler</strong>
-      <span>Left-drag to measure.</span>
-      <span>{RULER_GRID_SNAP_HINT}</span>
-      <span>{SHIFT_WAYPOINT_HINT}</span>
-      {rulerDrag && <span>{rulerDrag.waypoints.length === 1 ? "1 waypoint" : `${rulerDrag.waypoints.length} waypoints`}</span>}
-      {label && <span>{label.secondary ? `${label.primary} (${label.secondary})` : label.primary}</span>}
-      <span>{RULER_CLEAR_HINT}</span>
-    </div>
-  );
-}
-
-function TableToolStatusStrip({ canvasTool }: { canvasTool: "ping" | "laser" }) {
-  return (
-    <div className="fog-tool-status" aria-live="polite">
-      <strong>{canvasTool === "ping" ? "Ping" : "Laser Pointer"}</strong>
-      <span>{canvasTool === "ping" ? "Click the map to send a ping." : "Drag on the map to show a fading pointer trail."}</span>
-    </div>
-  );
-}
-
-function MapCalibrationStatusStrip() {
-  return (
-    <div className="fog-tool-status" aria-live="polite">
-      <strong>Map Calibration</strong>
-      <span>Drag over one printed grid square, or a larger block such as 5 x 5 squares.</span>
-    </div>
-  );
-}
-
-function WeatherMaskStatusStrip({ weatherMaskTool, pointCount }: { weatherMaskTool: WeatherMaskTool; pointCount: number }) {
-  const label = weatherMaskTool === "polygon" ? "Weather Mask Polygon" : weatherMaskTool === "circle" ? "Weather Mask Circle" : "Weather Mask Rectangle";
-  const hint =
-    weatherMaskTool === "polygon"
-      ? `Click to place points.${pointCount >= 3 ? " Enter or double-click finishes." : ""}${pointCount > 0 ? " Right-click removes last point." : ""} Escape cancels.`
-      : weatherMaskTool === "circle"
-        ? "Left-drag from center to set the excluded weather radius."
-        : "Left-drag to draw an excluded weather area. Hold Shift for square.";
-  return (
-    <div className="fog-tool-status" aria-live="polite">
-      <strong>{label}</strong>
-      <span>{hint}</span>
-      <span>{FOG_GRID_SNAP_HINT}</span>
-    </div>
-  );
-}
-
-function getRulerLabel(rulerDrag: RulerDrag, scene: Scene): RulerLabel {
-  const pathPoints = getRulerPathPoints(rulerDrag);
-  const primaryDistance = getMeasurementPathDistance(pathPoints, scene.grid, getMeasurementDistance);
-  const primary = formatMeasurementDistance(primaryDistance, scene.grid.measurement, scene.grid.type);
-  if (scene.grid.type === "gridless" || scene.grid.measurement.distanceMode === "euclidean") {
-    return { primary };
-  }
-
-  const straightLine = formatMeasurementDistance(getMeasurementPathDistance(pathPoints, scene.grid, getStraightLineMeasurementDistance), scene.grid.measurement, scene.grid.type);
-  return { primary, secondary: `Straight: ${straightLine}` };
-}
-
-function getTokenMoveLabel(scene: Scene, preview: TokenDragPreview): string | null {
-  const token = scene.tokens.find((candidate) => candidate.id === preview.tokenId);
-  if (!token) {
-    return null;
-  }
-
-  const pathPoints = [
-    getTokenCenterPoint(token, preview.startPosition),
-    ...preview.waypoints.map((waypoint) => getTokenCenterPoint(token, waypoint)),
-    getTokenCenterPoint(token, preview.snappedPosition)
-  ];
-  const distance = getMeasurementPathDistance(pathPoints, scene.grid, getMeasurementDistance);
-  return formatMeasurementDistance(distance, scene.grid.measurement, scene.grid.type);
-}
-
-function getTokenCenterPoint(token: Token, position: Point): Point {
-  return {
-    x: position.x + token.size.width / 2,
-    y: position.y + token.size.height / 2
-  };
-}
-
-function getPlayerDisplayScale(campaign: Campaign | null, scene: Scene | null, mode: "gm" | "player"): number {
-  if (mode !== "player" || !campaign?.playerDisplay?.physicalScaleEnabled || !scene || scene.grid.sizePx <= 0) {
-    return 1;
-  }
-  const targetCellSize = campaign.playerDisplay.pixelsPerInch * campaign.playerDisplay.inchesPerGridCell;
-  if (!Number.isFinite(targetCellSize) || targetCellSize <= 0) {
-    return 1;
-  }
-  return targetCellSize / scene.grid.sizePx;
-}
-
-function getMaskHitAtPoint(scene: Scene, point: Point): { kind: "weather"; mask: WeatherMask } | { kind: "fog"; shape: Scene["fog"]["shapes"][number] } | null {
-  for (const mask of [...scene.weather.masks].reverse()) {
-    if ((mask.visible ?? true) && isPointInsideWeatherMask(point, mask)) {
-      return { kind: "weather", mask };
-    }
-  }
-  for (const shape of [...scene.fog.shapes].reverse()) {
-    if ((shape.visibleInGm ?? shape.visible ?? true) && isPointInsideFogShape(point, shape)) {
-      return { kind: "fog", shape };
-    }
-  }
-  return null;
-}
-
-function isPointInsideWeatherMask(point: Point, mask: WeatherMask): boolean {
-  if (mask.kind === "circle") {
-    return Boolean(mask.points[0] && distanceBetween(point, mask.points[0]) <= (mask.radius ?? 0));
-  }
-  if (mask.kind === "rectangle") {
-    if (mask.points.length < 2) {
-      return false;
-    }
-    const minX = Math.min(mask.points[0].x, mask.points[1].x);
-    const maxX = Math.max(mask.points[0].x, mask.points[1].x);
-    const minY = Math.min(mask.points[0].y, mask.points[1].y);
-    const maxY = Math.max(mask.points[0].y, mask.points[1].y);
-    return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
-  }
-  return isPointInsidePolygon(point, mask.points);
-}
-
-function isPointInsidePolygon(point: Point, polygon: Point[]): boolean {
-  if (polygon.length < 3) {
-    return false;
-  }
-  let inside = false;
-  for (let index = 0, previousIndex = polygon.length - 1; index < polygon.length; previousIndex = index, index += 1) {
-    const current = polygon[index];
-    const previous = polygon[previousIndex];
-    if ((current.y > point.y) !== (previous.y > point.y) && point.x < ((previous.x - current.x) * (point.y - current.y)) / (previous.y - current.y) + current.x) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
-
-function isVisibleDiceOverlayEvent(event: LiveTableEvent, mode: "gm" | "player"): event is Extract<LiveTableEvent, { type: "dice" }> {
-  return event.type === "dice" && shouldShowDiceOverlay(event, mode);
-}
-
-function shouldShowDiceOverlay(event: Extract<LiveTableEvent, { type: "dice" }>, mode: "gm" | "player"): boolean {
-  const displayMode = mode === "gm" ? event.gmDiceDisplay : event.playerDiceDisplay;
-  if (displayMode) {
-    return displayMode !== "hidden";
-  }
-  const presentation = mode === "gm" ? event.gmPresentation : event.playerPresentation;
-  return presentation ? presentation === "3d" : event.presentation === "3d";
-}
-
-function eventToWorldPoint(event: React.PointerEvent<HTMLCanvasElement>, camera: Camera): Point {
-  return clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, camera);
-}
-
-function clientToWorldPoint(element: HTMLCanvasElement, clientX: number, clientY: number, camera: Camera): Point {
-  const rect = element.getBoundingClientRect();
-  return {
-    x: (clientX - rect.left - camera.x) / camera.zoom,
-    y: (clientY - rect.top - camera.y) / camera.zoom
-  };
-}
-
-function getCanvasViewportCenter(element: HTMLCanvasElement, camera: Camera): Point {
-  const rect = element.getBoundingClientRect();
-  return {
-    x: (rect.width / 2 - camera.x) / camera.zoom,
-    y: (rect.height / 2 - camera.y) / camera.zoom
-  };
-}
-
-async function prepareLoadedImageMap(image: HTMLImageElement, assetPath: string): Promise<{ optimizedSource: CanvasImageSource | null; optimizedScale: number }> {
-  const sourceWidth = image.naturalWidth || image.width;
-  const sourceHeight = image.naturalHeight || image.height;
-  const isAnimatedImage = assetPath.toLowerCase().endsWith(".gif");
-  if (isAnimatedImage || sourceWidth <= 0 || sourceHeight <= 0 || typeof createImageBitmap !== "function") {
-    return { optimizedSource: null, optimizedScale: 1 };
-  }
-
-  const resizeScale = getLargeMapCacheScale(sourceWidth, sourceHeight);
-  if (resizeScale >= 1) {
-    return { optimizedSource: null, optimizedScale: 1 };
-  }
-
-  const resizeWidth = Math.max(1, Math.round(sourceWidth * resizeScale));
-  const resizeHeight = Math.max(1, Math.round(sourceHeight * resizeScale));
-  const optimizedSource = await createImageBitmap(image, {
-    resizeWidth,
-    resizeHeight,
-    resizeQuality: "high"
-  });
-  return { optimizedSource, optimizedScale: resizeScale };
-}
-
-function getLargeMapCacheScale(width: number, height: number): number {
-  const edgeScale = Math.min(1, LARGE_MAP_CACHE_MAX_EDGE / Math.max(width, height));
-  const pixelScale = Math.min(1, Math.sqrt(LARGE_MAP_CACHE_MAX_PIXELS / Math.max(1, width * height)));
-  return Math.min(edgeScale, pixelScale);
-}
-
-function closeCanvasImageSource(source: CanvasImageSource | null) {
-  if (source && "close" in source && typeof source.close === "function") {
-    source.close();
-  }
-}
-
-function getMapDrawSource(
-  loadedMap: LoadedMap,
-  scene: Scene,
-  viewportWidth: number,
-  viewportHeight: number,
-  cameraZoom: number,
-  mode: "gm" | "player"
-): CanvasImageSource {
-  if (mode === "player" || loadedMap.animate || !loadedMap.optimizedSource) {
-    return loadedMap.originalSource;
-  }
-
-  const transform = resolveMapTransform(scene, loadedMap.sourceWidth, loadedMap.sourceHeight, viewportWidth, viewportHeight);
-  const effectiveMapScale = Math.abs(transform.scale * cameraZoom);
-  if (effectiveMapScale > loadedMap.optimizedScale * GM_FULL_QUALITY_MAP_SCALE_THRESHOLD) {
-    return loadedMap.originalSource;
-  }
-  return loadedMap.optimizedSource;
-}
-
-function getReadyMapSourceForFit(loadedMap: LoadedMap | null, mapAssetId: string, activeVideo: HTMLVideoElement | null, isVideoMap: boolean): ReadyMapSource | null {
-  if (!isVideoMap) {
-    return loadedMap?.ready && loadedMap.assetId === mapAssetId
-      ? { source: loadedMap.originalSource, width: loadedMap.sourceWidth, height: loadedMap.sourceHeight }
-      : null;
-  }
-  if (
-    activeVideo?.dataset.mapAssetId === mapAssetId &&
-    activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA &&
-    activeVideo.videoWidth > 0 &&
-    activeVideo.videoHeight > 0
-  ) {
-    return { source: activeVideo, width: activeVideo.videoWidth, height: activeVideo.videoHeight };
-  }
-  return null;
-}
-
-function getCameraForMapFit(scene: Scene, sourceWidth: number, sourceHeight: number, viewportWidth: number, viewportHeight: number): Camera {
-  if (sourceWidth <= 0 || sourceHeight <= 0 || viewportWidth <= 0 || viewportHeight <= 0) {
-    return { x: 0, y: 0, zoom: 1 };
-  }
-
-  const transform = resolveMapTransform(scene, sourceWidth, sourceHeight, viewportWidth, viewportHeight);
-  const rotation = (transform.rotation * Math.PI) / 180;
-  const cos = Math.cos(rotation);
-  const sin = Math.sin(rotation);
-  const corners = [
-    { x: 0, y: 0 },
-    { x: sourceWidth, y: 0 },
-    { x: sourceWidth, y: sourceHeight },
-    { x: 0, y: sourceHeight }
-  ].map((corner) => {
-    const scaledX = corner.x * transform.scale;
-    const scaledY = corner.y * transform.scale;
-    return {
-      x: transform.x + scaledX * cos - scaledY * sin,
-      y: transform.y + scaledX * sin + scaledY * cos
-    };
-  });
-
-  const minX = Math.min(...corners.map((corner) => corner.x));
-  const maxX = Math.max(...corners.map((corner) => corner.x));
-  const minY = Math.min(...corners.map((corner) => corner.y));
-  const maxY = Math.max(...corners.map((corner) => corner.y));
-  const mapWidth = Math.max(1, maxX - minX);
-  const mapHeight = Math.max(1, maxY - minY);
-  const padding = Math.min(48, Math.max(16, Math.min(viewportWidth, viewportHeight) * 0.04));
-  const availableWidth = Math.max(1, viewportWidth - padding * 2);
-  const availableHeight = Math.max(1, viewportHeight - padding * 2);
-  const zoom = Math.min(6, Math.max(0.05, Math.min(availableWidth / mapWidth, availableHeight / mapHeight)));
-  const centerX = minX + mapWidth / 2;
-  const centerY = minY + mapHeight / 2;
-
-  return {
-    x: viewportWidth / 2 - centerX * zoom,
-    y: viewportHeight / 2 - centerY * zoom,
-    zoom
-  };
-}
-
-function getRulerSnapPoint(point: Point, scene: Scene): Point | null {
-  if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
-    return null;
-  }
-  if (scene.grid.type === "hex") {
-    return getNearestHexCenter(point, scene.grid);
-  }
-  return getNearestGridCellCenter(point, scene.grid);
-}
-
-function getFogSnapPoint(point: Point, scene: Scene): Point | null {
-  if (scene.grid.type === "gridless" || scene.grid.sizePx <= 0) {
-    return null;
-  }
-  if (scene.grid.type === "hex") {
-    return getNearestHexVertex(point, scene.grid);
-  }
-  return getNearestGridPoint(point, scene.grid);
-}
-
-function getCanvasInteractionClass({
-  canvasTool,
-  fogTool,
-  weatherMaskTool,
-  isPanning,
-  tokenDragPreview
-}: {
-  canvasTool: "ruler" | "ping" | "laser" | null;
-  fogTool: FogTool | null;
-  weatherMaskTool: WeatherMaskTool | null;
-  isPanning: boolean;
-  tokenDragPreview: TokenDragPreview | null;
-}): string {
-  if (isPanning) {
-    return "scene-canvas-panning";
-  }
-  if (tokenDragPreview) {
-    return "scene-canvas-token-dragging";
-  }
-  if (canvasTool === "ruler") {
-    return "scene-canvas-tool-ruler";
-  }
-  if (canvasTool === "ping") {
-    return "scene-canvas-tool-ping";
-  }
-  if (canvasTool === "laser") {
-    return "scene-canvas-tool-laser";
-  }
-  if (weatherMaskTool === "circle") {
-    return "scene-canvas-tool-circle";
-  }
-  if (weatherMaskTool === "rectangle") {
-    return "scene-canvas-tool-rectangle";
-  }
-  if (weatherMaskTool === "polygon") {
-    return "scene-canvas-tool-polygon";
-  }
-  if (!fogTool) {
-    return "";
-  }
-  if (fogTool.includes("brush")) {
-    return "scene-canvas-tool-brush";
-  }
-  if (fogTool.includes("polygon")) {
-    return "scene-canvas-tool-polygon";
-  }
-  if (fogTool.includes("circle")) {
-    return "scene-canvas-tool-circle";
-  }
-  return "scene-canvas-tool-rectangle";
-}
-
-function isSnapModifier(event: React.PointerEvent<HTMLCanvasElement>): boolean {
-  return event.ctrlKey || event.metaKey;
-}
-
-function constrainSquarePoint(start: Point, current: Point): Point {
-  const width = current.x - start.x;
-  const height = current.y - start.y;
-  const size = Math.max(Math.abs(width), Math.abs(height));
-  return {
-    x: start.x + Math.sign(width || 1) * size,
-    y: start.y + Math.sign(height || 1) * size
-  };
-}
-
-function drawSnapMarker(ctx: CanvasRenderingContext2D, point: Point, camera: Camera, operation: "reveal" | "hide") {
-  const screenX = point.x * camera.zoom + camera.x;
-  const screenY = point.y * camera.zoom + camera.y;
-
-  ctx.save();
-  const scale = window.devicePixelRatio || 1;
-  ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  ctx.fillStyle = operation === "reveal" ? "#a7f3c5" : "#ffd2d2";
-  ctx.strokeStyle = "#0b1118";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(screenX, screenY, 7, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawBrushHoverPreview(ctx: CanvasRenderingContext2D, point: Point, radius: number, camera: Camera, operation: "reveal" | "hide") {
-  ctx.save();
-  ctx.translate(camera.x, camera.y);
-  ctx.scale(camera.zoom, camera.zoom);
-  ctx.globalCompositeOperation = "source-over";
-  ctx.strokeStyle = operation === "reveal" ? "#8ee6a8" : "#ff9b9b";
-  ctx.lineWidth = Math.max(1.5, 2 / camera.zoom);
-  ctx.setLineDash([8 / camera.zoom, 5 / camera.zoom]);
-  ctx.beginPath();
-  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawWeatherMaskPreview(ctx: CanvasRenderingContext2D, preview: WeatherMaskDrag, camera: Camera) {
-  ctx.save();
-  ctx.translate(camera.x, camera.y);
-  ctx.scale(camera.zoom, camera.zoom);
-  ctx.strokeStyle = "#8bc6ff";
-  ctx.fillStyle = "rgb(139 198 255 / 0.12)";
-  ctx.lineWidth = Math.max(1.5, 2 / camera.zoom);
-  ctx.setLineDash([8 / camera.zoom, 5 / camera.zoom]);
-  if (preview.kind === "circle") {
-    ctx.beginPath();
-    ctx.arc(preview.start.x, preview.start.y, distanceBetween(preview.start, preview.current), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  } else {
-    const x = Math.min(preview.start.x, preview.current.x);
-    const y = Math.min(preview.start.y, preview.current.y);
-    const width = Math.abs(preview.current.x - preview.start.x);
-    const height = Math.abs(preview.current.y - preview.start.y);
-    ctx.fillRect(x, y, width, height);
-    ctx.strokeRect(x, y, width, height);
-  }
-  ctx.restore();
-}
-
-function drawMapCalibrationBox(ctx: CanvasRenderingContext2D, box: MapCalibrationBox | null, camera: Camera) {
-  if (!box) {
-    return;
-  }
-  ctx.save();
-  const scale = window.devicePixelRatio || 1;
-  ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  const x = box.x * camera.zoom + camera.x;
-  const y = box.y * camera.zoom + camera.y;
-  const width = box.width * camera.zoom;
-  const height = box.height * camera.zoom;
-  ctx.fillStyle = "rgb(246 195 67 / 0.16)";
-  ctx.strokeStyle = "#f6c343";
-  ctx.lineWidth = 2;
-  ctx.setLineDash([7, 5]);
-  ctx.fillRect(x, y, width, height);
-  ctx.strokeRect(x, y, width, height);
-  ctx.setLineDash([]);
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x + width, y + height);
-  ctx.moveTo(x + width, y);
-  ctx.lineTo(x, y + height);
-  ctx.stroke();
-  ctx.fillStyle = "#f6d98a";
-  ctx.font = "700 12px system-ui, sans-serif";
-  ctx.fillText(`${Math.round(box.width)} x ${Math.round(box.height)}px`, x + 8, y - 8);
-  ctx.fillStyle = "#0b1118";
-  ctx.strokeStyle = "#f6d98a";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.rect(x + width - 7, y + height - 7, 14, 14);
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
-}
-
-function getVisibleMapCalibrationBox(drag: MapCalibrationDrag | null, fallback: MapCalibrationBox | null): MapCalibrationBox | null {
-  if (!drag) {
-    return fallback;
-  }
-  if (drag.mode === "move" && drag.box && drag.offset) {
-    return {
-      ...drag.box,
-      x: drag.current.x - drag.offset.x,
-      y: drag.current.y - drag.offset.y
-    };
-  }
-  return getSquareCalibrationBox(drag.start, drag.current);
-}
-
-function getSquareCalibrationBox(start: Point, current: Point): MapCalibrationBox {
-  const width = current.x - start.x;
-  const height = current.y - start.y;
-  const size = Math.max(Math.abs(width), Math.abs(height));
-  const endX = start.x + Math.sign(width || 1) * size;
-  const endY = start.y + Math.sign(height || 1) * size;
-  const x = Math.min(start.x, endX);
-  const y = Math.min(start.y, endY);
-  return {
-    x,
-    y,
-    width: size,
-    height: size
-  };
-}
-
-function getMapCalibrationBoxHit(point: Point, box: MapCalibrationBox, camera: Camera): "move" | "resize" | null {
-  const handleSize = 14 / Math.max(0.1, camera.zoom);
-  const handleLeft = box.x + box.width - handleSize / 2;
-  const handleTop = box.y + box.height - handleSize / 2;
-  if (point.x >= handleLeft && point.x <= handleLeft + handleSize && point.y >= handleTop && point.y <= handleTop + handleSize) {
-    return "resize";
-  }
-  if (point.x >= box.x && point.x <= box.x + box.width && point.y >= box.y && point.y <= box.y + box.height) {
-    return "move";
-  }
-  return null;
-}
-
-function drawWeatherPolygonDraft(ctx: CanvasRenderingContext2D, draft: WeatherPolygonDraft, camera: Camera) {
-  if (draft.points.length === 0) {
-    return;
-  }
-
-  ctx.save();
-  ctx.translate(camera.x, camera.y);
-  ctx.scale(camera.zoom, camera.zoom);
-  ctx.strokeStyle = "#8bc6ff";
-  ctx.fillStyle = "#8bc6ff";
-  ctx.lineWidth = Math.max(1.5, 2 / camera.zoom);
-  ctx.setLineDash([8 / camera.zoom, 5 / camera.zoom]);
-  ctx.beginPath();
-  ctx.moveTo(draft.points[0].x, draft.points[0].y);
-  for (const point of draft.points.slice(1)) {
-    ctx.lineTo(point.x, point.y);
-  }
-  if (draft.current) {
-    ctx.lineTo(draft.current.x, draft.current.y);
-  }
-  ctx.stroke();
-  ctx.setLineDash([]);
-  for (const point of draft.points) {
-    ctx.beginPath();
-    ctx.arc(point.x, point.y, 8 / camera.zoom, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.lineWidth = Math.max(1, 2 / camera.zoom);
-    ctx.strokeStyle = "#0b1118";
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-function drawWeatherMaskSelection(ctx: CanvasRenderingContext2D, mask: WeatherMask, camera: Camera) {
-  ctx.save();
-  ctx.translate(camera.x, camera.y);
-  ctx.scale(camera.zoom, camera.zoom);
-  ctx.strokeStyle = "#8bc6ff";
-  ctx.fillStyle = "rgb(139 198 255 / 0.16)";
-  ctx.lineWidth = Math.max(1.75, 2.5 / camera.zoom);
-  ctx.setLineDash([9 / camera.zoom, 5 / camera.zoom]);
-  if (mask.kind === "circle" && mask.points[0] && mask.radius) {
-    ctx.beginPath();
-    ctx.arc(mask.points[0].x, mask.points[0].y, mask.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  } else if (mask.kind === "rectangle" && mask.points.length >= 2) {
-    const x = Math.min(mask.points[0].x, mask.points[1].x);
-    const y = Math.min(mask.points[0].y, mask.points[1].y);
-    const width = Math.abs(mask.points[1].x - mask.points[0].x);
-    const height = Math.abs(mask.points[1].y - mask.points[0].y);
-    ctx.fillRect(x, y, width, height);
-    ctx.strokeRect(x, y, width, height);
-  } else if (mask.kind === "polygon" && mask.points.length >= 3) {
-    ctx.beginPath();
-    ctx.moveTo(mask.points[0].x, mask.points[0].y);
-    for (const point of mask.points.slice(1)) {
-      ctx.lineTo(point.x, point.y);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-function isMeaningfulWeatherMaskDrag(drag: WeatherMaskDrag): boolean {
-  if (drag.kind === "circle") {
-    return distanceBetween(drag.start, drag.current) >= 4;
-  }
-  return Math.abs(drag.current.x - drag.start.x) >= 4 && Math.abs(drag.current.y - drag.start.y) >= 4;
-}
-
-function isDuplicateRulerWaypoint(existingPosition: Point, waypoint: Point, scene: Scene) {
-  const duplicateDistance = scene.grid.type === "gridless" ? 12 : 2;
-  return distanceBetween(existingPosition, waypoint) <= duplicateDistance;
-}

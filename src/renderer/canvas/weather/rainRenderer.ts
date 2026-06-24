@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { Camera } from "../camera";
+import type { Camera } from "../core/camera";
 import type { RainWeatherEffectType, WeatherSettings } from "../../../shared/localvtt";
 import { createStreak, drawStormFlash, getCycleOffset, getDistanceToQuietArea, getMinimumWeatherDimension, getRainPreset, getWeatherDriftVector, getWeatherParticleCount, hash, smoothstep, type RainPreset, type RainStreak, type WeatherArea, type WeatherBounds } from "./weatherCore";
 

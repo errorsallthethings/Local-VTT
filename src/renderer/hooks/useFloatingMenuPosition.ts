@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { calculateFloatingMenuPosition } from "../lib/menuPosition";
+import { calculateFloatingMenuPosition } from "../lib/ui";
 
 interface FloatingMenuPositionOptions {
   open: boolean;

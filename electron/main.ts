@@ -10,7 +10,6 @@ import {
   DEFAULT_LAYERS,
   Scene,
   SquareCropRect,
-  assertValidCampaign,
   assertValidScene,
   createDefaultCampaign,
   createDefaultScene,
@@ -21,11 +20,29 @@ import {
   normalizeScene,
   type PlayerSceneProjection
 } from "../src/shared/localvtt.js";
+import {
+  createAssetProtocolErrorResponse,
+  LOCALVTT_ASSET_MISSING_MESSAGE,
+  LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE
+} from "./assetProtocol.js";
 import { createImageMapThumbnail, createSquareImageThumbnail, createVideoMapThumbnail } from "./assets.js";
+import { formatMetadataReadError, formatMetadataWriteError } from "./metadataErrors.js";
+import {
+  hydrateCampaignSceneEntry,
+  parseCampaignMetadata,
+  parseSceneMetadata,
+  toPortableCampaignMetadata,
+  toPortableSceneMetadata
+} from "./persistenceCodecs.js";
 
-const isDev = !app.isPackaged;
+const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
+const isDev = !app.isPackaged && !isSmokeTest;
 const devServerUrl = "http://127.0.0.1:5173";
 const MAX_METADATA_BACKUPS = 10;
+
+if (isSmokeTest) {
+  app.setPath("userData", path.join(app.getPath("temp"), "local-vtt-smoke-test"));
+}
 
 let gmWindow: BrowserWindow | null = null;
 let playerWindow: BrowserWindow | null = null;
@@ -64,6 +81,8 @@ function createWindow(hash: "gm" | "player"): BrowserWindow {
     }
   });
 
+  installWindowDiagnostics(win, hash);
+
   if (isDev) {
     void win.loadURL(`${devServerUrl}/#/${hash}`);
   } else {
@@ -73,6 +92,38 @@ function createWindow(hash: "gm" | "player"): BrowserWindow {
   }
 
   return win;
+}
+
+function installWindowDiagnostics(win: BrowserWindow, hash: "gm" | "player"): void {
+  const label = hash === "gm" ? "GM" : "Player";
+
+  win.webContents.on("render-process-gone", (_event, details) => {
+    console.error(`LOCALVTT_${label}_RENDER_PROCESS_GONE`, details.reason, details.exitCode);
+  });
+
+  win.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (isMainFrame) {
+      console.error(`LOCALVTT_${label}_DID_FAIL_LOAD`, errorCode, errorDescription, validatedURL);
+    }
+  });
+
+  win.webContents.on("console-message", (details) => {
+    if (details.level === "warning" || details.level === "error") {
+      if (isDev && details.message.includes("Electron Security Warning")) {
+        return;
+      }
+      const log = details.level === "error" ? console.error : console.warn;
+      log(`LOCALVTT_${label}_CONSOLE`, details.message, `${details.sourceId}:${details.lineNumber}`);
+    }
+  });
+
+  win.on("unresponsive", () => {
+    console.warn(`LOCALVTT_${label}_WINDOW_UNRESPONSIVE`);
+  });
+
+  win.on("responsive", () => {
+    console.info(`LOCALVTT_${label}_WINDOW_RESPONSIVE`);
+  });
 }
 
 function sendToPlayerWhenReady(payload: unknown): void {
@@ -179,16 +230,7 @@ function isKnownAssetPath(candidatePath: string): boolean {
 }
 
 async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSummary> {
-  const raw = await readFile(campaignFile(campaignPath), "utf8");
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw) as unknown;
-    assertValidCampaign(parsed);
-  } catch (caught) {
-    const message = caught instanceof Error ? caught.message : "Unknown metadata error.";
-    throw new Error(`Campaign metadata could not be read. Metadata backups may exist in ${path.join(campaignPath, "backups")}. ${message}`, { cause: caught });
-  }
-
+  const parsed = await readCampaignMetadata(campaignPath);
   await ensureCampaignFolders(campaignPath);
   const campaignWithSceneSummaries = await hydrateSceneSummaries(campaignPath, parsed);
   const campaignWithThumbnails = await ensureMapThumbnails(campaignPath, campaignWithSceneSummaries);
@@ -200,6 +242,26 @@ async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSumma
     campaign: resolveAssetPaths(campaignPath, campaignWithThumbnails),
     missingAssets: await findMissingAssets(campaignPath, campaignWithThumbnails.assets)
   };
+}
+
+async function readCampaignMetadata(campaignPath: string): Promise<Campaign> {
+  try {
+    const raw = await readFile(campaignFile(campaignPath), "utf8");
+    return parseCampaignMetadata(raw);
+  } catch (caught) {
+    throw formatMetadataReadError("campaign", campaignBackupFolder(campaignPath), caught);
+  }
+}
+
+async function readSceneMetadata(campaignPath: string, sceneId: string): Promise<Scene> {
+  const filePath = sceneFile(campaignPath, sceneId);
+  assertInsideCampaign(campaignPath, filePath);
+  try {
+    const raw = await readFile(filePath, "utf8");
+    return parseSceneMetadata(raw);
+  } catch (caught) {
+    throw formatMetadataReadError("scene", sceneBackupFolder(campaignPath, sceneId), caught);
+  }
 }
 
 async function hydrateSceneSummaries(campaignPath: string, campaign: Campaign): Promise<Campaign> {
@@ -215,12 +277,7 @@ async function hydrateSceneSummaries(campaignPath: string, campaign: Campaign): 
         const raw = await readFile(filePath, "utf8");
         const scene = JSON.parse(raw) as unknown;
         assertValidScene(scene);
-        const normalizedScene = normalizeScene(scene);
-        return {
-          ...entry,
-          mapAssetId: entry.mapAssetId ?? normalizedScene.mapAssetId,
-          weather: entry.weather ?? normalizedScene.weather
-        };
+        return hydrateCampaignSceneEntry(entry, scene);
       } catch {
         return entry;
       }
@@ -265,20 +322,25 @@ async function ensureMapThumbnails(campaignPath: string, campaign: Campaign): Pr
 }
 
 async function writeCampaign(campaignPath: string, campaign: Campaign): Promise<void> {
-  await ensureCampaignFolders(campaignPath);
-  await backupExistingMetadataFile(campaignPath, campaignFile(campaignPath), campaignBackupFolder(campaignPath), "campaign.json");
-  const normalizedCampaign = normalizeCampaign(campaign);
-  const portable: Campaign = {
-    ...normalizedCampaign,
-    assets: normalizedCampaign.assets.map(({ absolutePath: _absolutePath, thumbnailAbsolutePath: _thumbnailAbsolutePath, ...asset }) => asset)
-  };
-  await writeFile(campaignFile(campaignPath), `${JSON.stringify(portable, null, 2)}\n`, "utf8");
+  try {
+    await ensureCampaignFolders(campaignPath);
+    await backupExistingMetadataFile(campaignPath, campaignFile(campaignPath), campaignBackupFolder(campaignPath), "campaign.json");
+    const portable = toPortableCampaignMetadata(campaign);
+    await writeFile(campaignFile(campaignPath), `${JSON.stringify(portable, null, 2)}\n`, "utf8");
+  } catch (caught) {
+    throw formatMetadataWriteError("campaign", caught);
+  }
 }
 
 async function writeScene(campaignPath: string, scene: Scene): Promise<void> {
-  await ensureCampaignFolders(campaignPath);
-  await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, scene.id), sceneBackupFolder(campaignPath, scene.id), `${scene.id}.scene.json`);
-  await writeFile(sceneFile(campaignPath, scene.id), `${JSON.stringify(scene, null, 2)}\n`, "utf8");
+  try {
+    await ensureCampaignFolders(campaignPath);
+    await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, scene.id), sceneBackupFolder(campaignPath, scene.id), `${scene.id}.scene.json`);
+    const normalizedScene = toPortableSceneMetadata(scene);
+    await writeFile(sceneFile(campaignPath, normalizedScene.id), `${JSON.stringify(normalizedScene, null, 2)}\n`, "utf8");
+  } catch (caught) {
+    throw formatMetadataWriteError("scene", caught);
+  }
 }
 
 async function pauseActiveTurnOrders(campaignPath: string): Promise<void> {
@@ -462,12 +524,30 @@ async function createTokenThumbnail(campaignPath: string, sourcePath: string, as
   return writeTokenThumbnail(campaignPath, assetId, thumbnail);
 }
 
-async function writeTokenThumbnail(campaignPath: string, assetId: string, thumbnail: Buffer): Promise<string> {
-  const relativePath = path.join("assets", "thumbnails", `${assetId}.jpg`).replaceAll(path.sep, "/");
+async function writeTokenThumbnail(campaignPath: string, assetId: string, thumbnail: Buffer, variant = ""): Promise<string> {
+  const safeVariant = variant.replace(/[^a-zA-Z0-9_-]/g, "");
+  const fileStem = safeVariant ? `${assetId}-${safeVariant}` : assetId;
+  const relativePath = path.join("assets", "thumbnails", `${fileStem}.jpg`).replaceAll(path.sep, "/");
   const destination = path.resolve(campaignPath, relativePath);
   assertInsideCampaign(campaignPath, destination);
   await writeFile(destination, thumbnail);
   return relativePath;
+}
+
+async function removeThumbnailIfUnused(campaignPath: string, relativePath: string | undefined, assets: readonly Asset[]): Promise<void> {
+  if (!relativePath || assets.some((asset) => asset.thumbnailRelativePath === relativePath)) {
+    return;
+  }
+  const thumbnailPath = path.resolve(campaignPath, relativePath);
+  assertInsideCampaign(campaignPath, thumbnailPath);
+  try {
+    await unlink(thumbnailPath);
+  } catch (caught) {
+    const error = caught as NodeJS.ErrnoException;
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
 }
 
 app.whenReady().then(() => {
@@ -479,16 +559,31 @@ app.whenReady().then(() => {
 
     const filePath = path.resolve(decodeURIComponent(url.pathname.slice(1)));
     if (!isInsideOpenedCampaign(filePath) || !isKnownAssetPath(filePath)) {
-      return new Response("LocalVTT asset is not registered for an opened campaign.", { status: 403 });
+      return createAssetProtocolErrorResponse(LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE, 403);
+    }
+    try {
+      await stat(filePath);
+    } catch (caught) {
+      const error = caught as NodeJS.ErrnoException;
+      if (error.code === "ENOENT") {
+        return createAssetProtocolErrorResponse(LOCALVTT_ASSET_MISSING_MESSAGE, 404);
+      }
+      throw error;
     }
     return net.fetch(pathToFileURL(filePath).toString());
   });
 
   gmWindow = createGmWindow();
+  if (isSmokeTest) {
+    runSmokeTest(gmWindow);
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       gmWindow = createGmWindow();
+      if (isSmokeTest) {
+        runSmokeTest(gmWindow);
+      }
     }
   });
 });
@@ -548,6 +643,72 @@ function createGmWindow(): BrowserWindow {
     forceCloseGmWindow = false;
   });
   return win;
+}
+
+function runSmokeTest(win: BrowserWindow): void {
+  let completed = false;
+  const timeout = setTimeout(() => {
+    if (completed) {
+      return;
+    }
+    completed = true;
+    console.error("LOCALVTT_SMOKE_ERROR GM window did not finish loading in time.");
+    app.exit(1);
+  }, 15000);
+
+  const finish = () => {
+    if (completed) {
+      return;
+    }
+    completed = true;
+    void win.webContents
+      .executeJavaScript(
+        `(async () => {
+          const playerOpenResult = await window.localVtt.openPlayerView({ fullscreen: false });
+          const playerIdleDelivered = await window.localVtt.showPlayerIdle("Smoke Test", "Player View IPC is available.", "hold");
+          const lastPlayerState = await window.localVtt.getLastPlayerState();
+          const displays = await window.localVtt.getDisplays();
+          return {
+            hash: window.location.hash,
+            hasPreloadBridge: Boolean(window.localVtt),
+            hasCreateCampaign: typeof window.localVtt?.createCampaign === "function",
+            hasPlayerBridge: typeof window.localVtt?.openPlayerView === "function",
+            playerOpenResult,
+            playerIdleDelivered,
+            lastPlayerState,
+            displayCount: displays.length,
+            title: document.title,
+            bodyText: document.body.innerText.slice(0, 500)
+          };
+        })()`
+      )
+      .then((result: unknown) => {
+        clearTimeout(timeout);
+        console.log(`LOCALVTT_SMOKE_RESULT ${JSON.stringify(result)}`);
+        app.exit(0);
+      })
+      .catch((caught: unknown) => {
+        clearTimeout(timeout);
+        console.error("LOCALVTT_SMOKE_ERROR", caught);
+        app.exit(1);
+      });
+  };
+
+  win.webContents.once("did-fail-load", (_event, errorCode, errorDescription) => {
+    if (completed) {
+      return;
+    }
+    completed = true;
+    clearTimeout(timeout);
+    console.error(`LOCALVTT_SMOKE_ERROR GM window failed to load: ${errorCode} ${errorDescription}`);
+    app.exit(1);
+  });
+
+  if (win.webContents.isLoading()) {
+    win.webContents.once("did-finish-load", finish);
+  } else {
+    queueMicrotask(finish);
+  }
 }
 
 async function closeGmWindowAfterPausing(win: BrowserWindow): Promise<void> {
@@ -652,10 +813,7 @@ ipcMain.handle("scene:duplicate", async (_event, campaignPath: string, sourceSce
 
 ipcMain.handle("scene:load", async (_event, campaignPath: string, sceneId: string) => {
   assertKnownCampaignPath(campaignPath);
-  assertInsideCampaign(campaignPath, sceneFile(campaignPath, sceneId));
-  const raw = await readFile(sceneFile(campaignPath, sceneId), "utf8");
-  const scene = JSON.parse(raw) as unknown;
-  assertValidScene(scene);
+  const scene = await readSceneMetadata(campaignPath, sceneId);
   if (scene.layers.length === 0) {
     scene.layers = DEFAULT_LAYERS.map((layer) => ({ ...layer }));
   }
@@ -689,9 +847,7 @@ ipcMain.handle("scene:rename", async (_event, campaignPath: string, sceneId: str
 
   const filePath = sceneFile(campaignPath, sceneId);
   assertInsideCampaign(campaignPath, filePath);
-  const raw = await readFile(filePath, "utf8");
-  const scene = JSON.parse(raw) as unknown;
-  assertValidScene(scene);
+  const scene = await readSceneMetadata(campaignPath, sceneId);
   if (scene.id !== sceneId) {
     throw new Error("Invalid scene file.");
   }
@@ -830,13 +986,15 @@ ipcMain.handle("asset:updateTokenThumbnail", async (_event, campaignPath: string
   if (!thumbnail) {
     throw new Error("Unable to generate token thumbnail.");
   }
-  const thumbnailRelativePath = await writeTokenThumbnail(campaignPath, assetId, thumbnail);
+  const thumbnailRelativePath = await writeTokenThumbnail(campaignPath, assetId, thumbnail, `crop-${Date.now()}`);
+  const nextAssets = summary.campaign.assets.map((candidate) => (candidate.id === assetId ? { ...candidate, thumbnailRelativePath } : candidate));
   const campaign: Campaign = {
     ...summary.campaign,
-    assets: summary.campaign.assets.map((candidate) => (candidate.id === assetId ? { ...candidate, thumbnailRelativePath } : candidate)),
+    assets: nextAssets,
     updatedAt: new Date().toISOString()
   };
   await writeCampaign(campaignPath, campaign);
+  await removeThumbnailIfUnused(campaignPath, asset.thumbnailRelativePath, nextAssets);
   const campaignSummary = await loadCampaignFromPath(campaignPath);
   const updatedAsset = campaignSummary.campaign.assets.find((candidate) => candidate.id === assetId);
   if (!updatedAsset) {
@@ -984,9 +1142,7 @@ ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: 
     }
   }
 
-  const currentRaw = await readFile(sceneFile(campaignPath, sceneId), "utf8");
-  const currentScene = JSON.parse(currentRaw) as unknown;
-  assertValidScene(currentScene);
+  const currentScene = await readSceneMetadata(campaignPath, sceneId);
   const updatedScene = normalizeScene(
     currentScene.mapAssetId === assetId ? { ...currentScene, mapAssetId: undefined, updatedAt: new Date().toISOString() } : currentScene
   );

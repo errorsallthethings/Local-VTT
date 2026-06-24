@@ -10,8 +10,8 @@ import {
   removeDirtySceneId,
   removeFolderFromCampaign,
   removeSceneDraft
-} from "../lib/campaignActions";
-import { stopActiveTurnOrder } from "../lib/turnOrder";
+} from "../lib/campaign";
+import { stopActiveTurnOrder } from "../lib/turn-order";
 import type { useCampaignWorkspace } from "./useCampaignWorkspace";
 
 type CampaignWorkspace = ReturnType<typeof useCampaignWorkspace>;
@@ -119,7 +119,7 @@ export function useCampaignActions({
     if (!campaign) {
       return;
     }
-    updateCampaignDraft(moveSceneEntry(campaign, sceneId, target, new Date().toISOString()));
+    updateCampaignDraft(moveSceneEntry(campaign, sceneId, target, new Date().toISOString()), null);
   };
 
   const saveSceneById = async (sceneId: string) => {
@@ -397,7 +397,7 @@ export function useCampaignActions({
     if (!campaign || !folder) {
       return;
     }
-    updateCampaignDraft(removeFolderFromCampaign(campaign, folder.id, new Date().toISOString()));
+    updateCampaignDraft(removeFolderFromCampaign(campaign, folder.id, new Date().toISOString()), null);
     onFolderDeleteHandled();
     onCloseFolderMenu();
   };

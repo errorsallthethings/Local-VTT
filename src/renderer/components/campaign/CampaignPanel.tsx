@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 import { PLAYER_INDICATOR_THEME_LABELS, PLAYER_INDICATOR_THEMES } from "../../../shared/localvtt";
 import type { Asset, Campaign, CampaignPlayer, PlayerIndicatorTheme } from "../../../shared/localvtt";
 import { ColorInput } from "../controls/ColorPickerField";
-import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/dragTypes";
-import type { RecentCampaign } from "../../lib/recentCampaigns";
+import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
+import type { RecentCampaign } from "../../lib/campaign";
 
 const MAX_CAMPAIGN_PLAYERS = 7;
 
