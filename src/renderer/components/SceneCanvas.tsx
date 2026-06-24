@@ -2680,7 +2680,7 @@ export function SceneCanvas({
         const tokenHasConditions = (token.conditions ?? []).length > 0;
         return (
           <div
-            className="token-settings-menu canvas-context-menu"
+            className="token-settings-menu token-context-menu canvas-context-menu"
             style={{ left: tokenContextMenu.x, top: tokenContextMenu.y }}
             role="menu"
             onPointerDown={(event) => event.stopPropagation()}

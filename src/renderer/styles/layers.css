@@ -385,7 +385,7 @@
   cursor: default;
 }
 
-.canvas-context-menu.token-settings-menu {
+.canvas-context-menu.token-context-menu {
   width: min(500px, calc(100vw - 24px));
   max-width: min(500px, calc(100vw - 24px));
 }

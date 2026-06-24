@@ -206,6 +206,23 @@ export function DrawingSettings({
           </div>
         </div>
       </div>
+      {((drawingThicknessCustomOpen || !hasPresetValue(thicknessPresets, drawingStrokeWidth)) || (drawingOpacityCustomOpen || !hasPresetValue(DRAWING_OPACITY_PRESETS, drawingOpacity))) && (
+        <div className="tools-drawing-settings-row tools-drawing-custom-row">
+          <div className="tools-drawing-row-label" aria-hidden="true" />
+          {(drawingThicknessCustomOpen || !hasPresetValue(thicknessPresets, drawingStrokeWidth)) && (
+            <div className="tools-strip-advanced-slider tools-strip-thickness-slider">
+              <input aria-label={`Fine tune ${templateToolActive ? "template" : "drawing"} thickness`} title={`Fine tune ${templateToolActive ? "template" : "drawing"} thickness`} type="range" min={thicknessMin} max={400} step={4} value={drawingStrokeWidth} onChange={(event) => onDrawingStrokeWidthChange(Number(event.target.value))} />
+              <span aria-label={`${thicknessInputLabel} ${drawingStrokeWidth} pixels`}>{drawingStrokeWidth}px</span>
+            </div>
+          )}
+          {(drawingOpacityCustomOpen || !hasPresetValue(DRAWING_OPACITY_PRESETS, drawingOpacity)) && (
+            <div className="tools-strip-advanced-slider tools-strip-opacity-slider">
+              <input aria-label="Fine tune drawing opacity" title="Fine tune drawing opacity" type="range" min={0.15} max={1} step={0.05} value={drawingOpacity} onChange={(event) => onDrawingOpacityChange(Number(event.target.value))} />
+              <span aria-label={`Drawing opacity ${Math.round(drawingOpacity * 100)} percent`}>{Math.round(drawingOpacity * 100)}%</span>
+            </div>
+          )}
+        </div>
+      )}
       {showFillSettings && (
         <div className="tools-drawing-settings-row tools-drawing-fill-row">
           <div className="tools-drawing-row-label">Fill</div>
@@ -270,18 +287,6 @@ export function DrawingSettings({
         <div className="tools-drawing-settings-row tools-template-player-preview-row">
           <div className="tools-drawing-row-label">Player</div>
           <SettingsCheckbox label="Live Preview" checked={templatePreviewVisibleInPlayer} onChange={onTemplatePreviewVisibleInPlayerChange} />
-        </div>
-      )}
-      {(drawingThicknessCustomOpen || !hasPresetValue(thicknessPresets, drawingStrokeWidth)) && (
-        <div className="tools-strip-advanced-slider tools-strip-thickness-slider">
-          <input aria-label={`Fine tune ${templateToolActive ? "template" : "drawing"} thickness`} title={`Fine tune ${templateToolActive ? "template" : "drawing"} thickness`} type="range" min={thicknessMin} max={400} step={4} value={drawingStrokeWidth} onChange={(event) => onDrawingStrokeWidthChange(Number(event.target.value))} />
-          <span aria-label={`${thicknessInputLabel} ${drawingStrokeWidth} pixels`}>{drawingStrokeWidth}px</span>
-        </div>
-      )}
-      {(drawingOpacityCustomOpen || !hasPresetValue(DRAWING_OPACITY_PRESETS, drawingOpacity)) && (
-        <div className="tools-strip-advanced-slider tools-strip-opacity-slider">
-          <input aria-label="Fine tune drawing opacity" title="Fine tune drawing opacity" type="range" min={0.15} max={1} step={0.05} value={drawingOpacity} onChange={(event) => onDrawingOpacityChange(Number(event.target.value))} />
-          <span aria-label={`Drawing opacity ${Math.round(drawingOpacity * 100)} percent`}>{Math.round(drawingOpacity * 100)}%</span>
         </div>
       )}
     </div>

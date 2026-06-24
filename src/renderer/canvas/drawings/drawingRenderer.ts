@@ -87,6 +87,18 @@ function disposeTransientRenderer(renderer: THREE.WebGLRenderer) {
   renderer.dispose();
 }
 
+function snapshotRendererCanvas(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const snapshot = document.createElement("canvas");
+  snapshot.width = canvas.width;
+  snapshot.height = canvas.height;
+  const snapshotContext = snapshot.getContext("2d");
+  if (!snapshotContext) {
+    return canvas;
+  }
+  snapshotContext.drawImage(canvas, 0, 0);
+  return snapshot;
+}
+
 const TEMPLATE_EFFECT_RENDERABLE_WIDTH_PX = 800;
 const TEMPLATE_EFFECT_OVERLAY_CACHE_LIMIT = 80;
 const TEMPLATE_EFFECT_TUNING_VERSION = 2;
@@ -1348,9 +1360,10 @@ function createPoisonBubbleImage(): HTMLCanvasElement | null {
       addPoisonBubble(scene, x, y, radius, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
@@ -1381,9 +1394,10 @@ function createPsychicHazeImage(): HTMLCanvasElement | null {
       addPsychicSpark(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.01 + random() * 0.03, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
@@ -1417,9 +1431,10 @@ function createAcidSpatterImage(): HTMLCanvasElement | null {
       addAcidWave(scene, -0.88 + random() * 1.76, -0.88 + random() * 1.76, 0.18 + random() * 0.34, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
@@ -1450,9 +1465,10 @@ function createArcaneGlyphImage(): HTMLCanvasElement | null {
       addArcaneSpark(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.008 + random() * 0.024, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
@@ -1486,9 +1502,10 @@ function createColdShardImage(): HTMLCanvasElement | null {
       addColdStarburst(scene, x, y, size, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
@@ -1520,9 +1537,10 @@ function createLightningForkImage(): HTMLCanvasElement | null {
       addLightningBolt(scene, start, end, 6 + Math.floor(random() * 6), 0.28 + random() * 0.5, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
@@ -1553,9 +1571,10 @@ function createNatureThornImage(): HTMLCanvasElement | null {
       addNatureLeaf(scene, -0.88 + random() * 1.76, -0.88 + random() * 1.76, 0.035 + random() * 0.09, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
@@ -1589,9 +1608,10 @@ function createFireTongueImage(): HTMLCanvasElement | null {
       addFireEmber(scene, x, y, radius, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
@@ -1619,9 +1639,10 @@ function createFogCloudImage(): HTMLCanvasElement | null {
       addFogPuff(scene, x, y, radius, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
@@ -1654,9 +1675,10 @@ function createDarknessMistImage(): HTMLCanvasElement | null {
       addDarknessTendril(scene, x, y, 0.16 + random() * 0.34, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
@@ -1694,9 +1716,10 @@ function createStormCloudImage(): HTMLCanvasElement | null {
       addLightningBolt(scene, start, end, 4 + Math.floor(random() * 5), 0.16 + random() * 0.32, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
@@ -1727,9 +1750,10 @@ function createThunderWaveImage(): HTMLCanvasElement | null {
       addThunderTick(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.08 + random() * 0.16, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
@@ -1760,9 +1784,10 @@ function createRadiantLightImage(): HTMLCanvasElement | null {
       addRadiantSpark(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.008 + random() * 0.026, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
@@ -1793,9 +1818,10 @@ function createWaterDropletImage(): HTMLCanvasElement | null {
       addWaterDroplet(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.018 + random() * 0.052, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
@@ -1823,9 +1849,10 @@ function createWebStrandImage(): HTMLCanvasElement | null {
       addWebStrayThread(scene, -0.92 + random() * 1.84, -0.92 + random() * 1.84, 0.18 + random() * 0.42, random);
     }
     renderer.render(scene, camera);
+    const snapshot = snapshotRendererCanvas(canvas);
     disposeScene(scene);
     disposeTransientRenderer(renderer);
-    return canvas;
+    return snapshot;
   } catch {
     return null;
   }
