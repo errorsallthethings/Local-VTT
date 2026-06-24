@@ -110,6 +110,8 @@ async function installElectronDirectly() {
 
 function extractElectronArchive(zipPath) {
   if (platform === "win32") {
+    const escapedZipPath = escapePowerShellSingleQuotedString(zipPath);
+    const escapedElectronDistPath = escapePowerShellSingleQuotedString(electronDistPath);
     const extraction = spawnSync(
       "powershell",
       [
@@ -118,9 +120,7 @@ function extractElectronArchive(zipPath) {
         "-ExecutionPolicy",
         "Bypass",
         "-Command",
-        "param([string]$zipPath, [string]$destinationPath) Expand-Archive -LiteralPath $zipPath -DestinationPath $destinationPath -Force",
-        zipPath,
-        electronDistPath
+        `Expand-Archive -LiteralPath '${escapedZipPath}' -DestinationPath '${escapedElectronDistPath}' -Force`
       ],
       { cwd: root, stdio: "inherit" }
     );
@@ -137,6 +137,10 @@ function extractElectronArchive(zipPath) {
   if (extraction.status !== 0) {
     throw new Error(`unzip failed with status ${extraction.status ?? "unknown"}.`);
   }
+}
+
+function escapePowerShellSingleQuotedString(value) {
+  return value.replaceAll("'", "''");
 }
 
 function safeList(directory) {
