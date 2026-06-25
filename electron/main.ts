@@ -41,6 +41,8 @@ const devServerUrl = "http://127.0.0.1:5173";
 const MAX_METADATA_BACKUPS = 10;
 const appWindowIconPath = path.join(app.getAppPath(), "build", "icon.ico");
 
+configureLinuxGraphicsSwitches();
+
 if (isSmokeTest) {
   app.disableHardwareAcceleration();
   app.setPath("userData", path.join(app.getPath("temp"), "local-vtt-smoke-test"));
@@ -54,6 +56,25 @@ let forceCloseGmWindow = false;
 let currentCampaignPath: string | null = null;
 const openedCampaignPaths = new Set<string>();
 const knownAssetPaths = new Set<string>();
+
+function configureLinuxGraphicsSwitches(): void {
+  if (process.platform !== "linux") {
+    return;
+  }
+
+  const ozonePlatform = process.env.LOCALVTT_OZONE_PLATFORM;
+  if (ozonePlatform === "wayland" || ozonePlatform === "x11") {
+    app.commandLine.appendSwitch("ozone-platform", ozonePlatform);
+  } else if (ozonePlatform === "auto") {
+    app.commandLine.appendSwitch("ozone-platform-hint", "auto");
+  }
+
+  if (process.env.LOCALVTT_DISABLE_VULKAN === "1") {
+    app.commandLine.appendSwitch("disable-features", "Vulkan");
+  } else if (process.env.LOCALVTT_ENABLE_VULKAN === "1") {
+    app.commandLine.appendSwitch("enable-features", "Vulkan");
+  }
+}
 
 // localvtt://asset URLs let renderer code display campaign files without exposing arbitrary filesystem access.
 protocol.registerSchemesAsPrivileged([

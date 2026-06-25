@@ -50,6 +50,43 @@ Assets are stored with relative paths in JSON so campaign folders can be backed 
 
 Imported static image and video maps generate small JPEG thumbnails in `assets/thumbnails/` for the scene list. Video thumbnails are captured from the first frame during import when Electron can decode the source video. Imported token assets also generate square JPEG thumbnails for token sub-layer previews and the Token Library.
 
+## Install Troubleshooting
+
+`npm install` may report deprecation warnings from transitive Electron packaging dependencies, such as `rimraf`, `inflight`, `glob`, or `boolean`. To see why a package is installed, run:
+
+```bash
+npm explain rimraf
+npm explain inflight
+npm explain glob
+npm explain boolean
+```
+
+If Electron did not create `node_modules/electron/path.txt` during install, first check whether lifecycle scripts are disabled:
+
+```bash
+npm config get ignore-scripts
+```
+
+When scripts are enabled, Local VTT runs `scripts/ensure-electron.mjs` after install to repair or download the Electron binary. You can also run it manually:
+
+```bash
+npm run electron:install
+```
+
+### Linux Graphics Options
+
+Linux users can test Electron's Ozone platform and Vulkan flags when diagnosing Wayland, X11, or GPU driver issues:
+
+```bash
+LOCALVTT_OZONE_PLATFORM=wayland npm run dev
+LOCALVTT_OZONE_PLATFORM=x11 npm run dev
+LOCALVTT_OZONE_PLATFORM=auto npm run dev
+LOCALVTT_ENABLE_VULKAN=1 npm run dev
+LOCALVTT_DISABLE_VULKAN=1 npm run dev
+```
+
+These options are opt-in because the best combination depends on the compositor, GPU driver, and Electron/Chromium version. `LOCALVTT_DISABLE_VULKAN=1` takes precedence when both Vulkan variables are set.
+
 ## Backups And Recovery
 
 Local VTT creates metadata-only JSON backups before overwriting `campaign.json` or existing scene JSON files. It keeps the latest 10 campaign backups and latest 10 backups per scene.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.11
+
+### Fixed
+
+- Improved Electron binary installation reliability after npm install.
+- Documented npm install deprecation warnings from transitive packaging dependencies.
+- Added opt-in Linux graphics flags for testing Wayland, X11, and Vulkan launch behavior.
+
 ## 0.1.10
 
 ### Changed
