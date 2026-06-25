@@ -1,6 +1,6 @@
 {
   "name": "localvtt",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "private": true,
   "description": "Local-first tabletop battle map display tool for in-person RPG sessions.",
   "author": "Local VTT contributors",
@@ -30,7 +30,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/three": "^0.184.1",
-    "@vitejs/plugin-react": "^5.0.0",
+    "@vitejs/plugin-react": "^6.0.3",
     "concurrently": "^10.0.3",
     "electron": "^42.3.3",
     "electron-builder": "^26.8.1",
@@ -44,7 +44,7 @@
     "three": "^0.184.0",
     "typescript": "^5.8.0",
     "typescript-eslint": "^8.60.1",
-    "vite": "^7.0.0",
+    "vite": "^8.1.0",
     "vitest": "^4.1.8",
     "wait-on": "^8.0.0"
   },

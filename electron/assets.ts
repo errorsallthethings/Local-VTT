@@ -21,68 +21,40 @@ export function createImageMapThumbnail(sourcePath: string): Buffer | undefined 
 }
 
 export async function createSquareImageThumbnail(sourcePath: string, crop?: SquareCropRect): Promise<Buffer | undefined> {
-  const win = new BrowserWindow({
-    show: false,
+  const image = nativeImage.createFromPath(sourcePath);
+  const sourceSize = image.getSize();
+  if (image.isEmpty() || sourceSize.width <= 0 || sourceSize.height <= 0) {
+    return undefined;
+  }
+
+  const defaultCropSize = Math.min(sourceSize.width, sourceSize.height);
+  const requestedCrop = crop ?? null;
+  const requestedSize = requestedCrop?.size;
+  const requestedX = requestedCrop?.x;
+  const requestedY = requestedCrop?.y;
+  const cropSize = Math.max(
+    1,
+    Math.round(
+      Math.min(
+        sourceSize.width,
+        sourceSize.height,
+        typeof requestedSize === "number" && Number.isFinite(requestedSize) ? requestedSize : defaultCropSize
+      )
+    )
+  );
+  const sourceX = Math.round(
+    Math.max(0, Math.min(sourceSize.width - cropSize, typeof requestedX === "number" && Number.isFinite(requestedX) ? requestedX : (sourceSize.width - cropSize) / 2))
+  );
+  const sourceY = Math.round(
+    Math.max(0, Math.min(sourceSize.height - cropSize, typeof requestedY === "number" && Number.isFinite(requestedY) ? requestedY : (sourceSize.height - cropSize) / 2))
+  );
+  const thumbnail = image.crop({ x: sourceX, y: sourceY, width: cropSize, height: cropSize }).resize({
     width: 512,
     height: 512,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      webSecurity: false
-    }
+    quality: "best"
   });
 
-  try {
-    await win.loadURL("data:text/html,<html><body></body></html>");
-    const sourceUrl = pathToFileURL(sourcePath).toString();
-    const dataUrl = await win.webContents.executeJavaScript(
-      `
-        new Promise((resolve) => {
-          const requestedCrop = ${JSON.stringify(crop ?? null)};
-          const image = new Image();
-          image.onload = () => {
-            const sourceWidth = image.naturalWidth || image.width;
-            const sourceHeight = image.naturalHeight || image.height;
-            if (!sourceWidth || !sourceHeight) {
-              resolve(null);
-              return;
-            }
-            const defaultCropSize = Math.min(sourceWidth, sourceHeight);
-            const cropSize = Math.max(1, Math.min(
-              sourceWidth,
-              sourceHeight,
-              Number.isFinite(requestedCrop?.size) ? requestedCrop.size : defaultCropSize
-            ));
-            const sourceX = Math.max(0, Math.min(sourceWidth - cropSize, Number.isFinite(requestedCrop?.x) ? requestedCrop.x : (sourceWidth - cropSize) / 2));
-            const sourceY = Math.max(0, Math.min(sourceHeight - cropSize, Number.isFinite(requestedCrop?.y) ? requestedCrop.y : (sourceHeight - cropSize) / 2));
-            const outputSize = 512;
-            const canvas = document.createElement("canvas");
-            canvas.width = outputSize;
-            canvas.height = outputSize;
-            const context = canvas.getContext("2d");
-            if (!context) {
-              resolve(null);
-              return;
-            }
-            context.drawImage(image, sourceX, sourceY, cropSize, cropSize, 0, 0, outputSize, outputSize);
-            resolve(canvas.toDataURL("image/jpeg", 0.86));
-          };
-          image.onerror = () => resolve(null);
-          image.src = ${JSON.stringify(sourceUrl)};
-        })
-      `,
-      true
-    );
-    if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/jpeg;base64,")) {
-      return undefined;
-    }
-    return Buffer.from(dataUrl.split(",")[1], "base64");
-  } finally {
-    if (!win.isDestroyed()) {
-      win.destroy();
-    }
-  }
+  return thumbnail.toJPEG(86);
 }
 
 export async function createVideoMapThumbnail(sourcePath: string): Promise<Buffer | undefined> {
@@ -93,20 +65,22 @@ export async function createVideoMapThumbnail(sourcePath: string): Promise<Buffe
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
-      webSecurity: false
+      sandbox: true
     }
   });
 
   try {
-    await win.loadURL("data:text/html,<html><body></body></html>");
+    const sourceUrl = pathToFileURL(sourcePath).toString();
+    await win.loadURL(sourceUrl);
     const dataUrl = (await win.webContents.executeJavaScript(
       `
         new Promise((resolve) => {
-          const video = document.createElement("video");
+          const video = document.querySelector("video") ?? document.createElement("video");
           const finish = (value) => {
             clearTimeout(timeoutId);
-            video.remove();
+            if (!document.body.contains(video)) {
+              video.remove();
+            }
             resolve(value);
           };
           const capture = () => {
@@ -142,8 +116,12 @@ export async function createVideoMapThumbnail(sourcePath: string): Promise<Buffe
               video.currentTime = seekTime;
             }
           }, { once: true });
-          video.src = ${JSON.stringify(pathToFileURL(sourcePath).toString())};
-          video.load();
+          if (!document.body.contains(video)) {
+            video.src = ${JSON.stringify(sourceUrl)};
+            video.load();
+          } else if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+            video.dispatchEvent(new Event("loadedmetadata"));
+          }
         })
       `
     )) as string | null;

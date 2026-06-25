@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.10
+
+### Changed
+
+- Updated Vite and React build tooling for the 0.1.10 security release.
+
+### Fixed
+
+- Addressed GitHub Dependabot dependency alerts.
+- Removed unsafe Electron web security overrides reported by CodeQL.
+
 ## 0.1.9
 
 ### Changed

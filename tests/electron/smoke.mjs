@@ -23,7 +23,7 @@ if (ensureElectron.status !== 0) {
 
 const { default: electronPath } = await import("electron");
 
-const child = spawn(electronPath, [root], {
+const child = spawn(electronPath, ["--disable-gpu", root], {
   cwd: root,
   env: {
     ...process.env,

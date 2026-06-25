@@ -42,6 +42,7 @@ const MAX_METADATA_BACKUPS = 10;
 const appWindowIconPath = path.join(app.getAppPath(), "build", "icon.ico");
 
 if (isSmokeTest) {
+  app.disableHardwareAcceleration();
   app.setPath("userData", path.join(app.getPath("temp"), "local-vtt-smoke-test"));
 }
 
