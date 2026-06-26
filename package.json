@@ -78,7 +78,8 @@
         "rpm"
       ],
       "icon": "build/icons",
-      "category": "Game"
+      "category": "Game",
+      "maintainer": "Local VTT contributors <errorsallthethings@gmail.com>"
     },
     "nsis": {
       "oneClick": false,
