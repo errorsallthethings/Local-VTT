@@ -6,6 +6,16 @@ No login, accounts, cloud sync, or internet connection are required during play.
 
 This version is intentionally not a full campaign-management VTT. Tokens are lightweight map markers, not character sheets or combat entities.
 
+## Downloads
+
+GitHub Releases provide packaged desktop builds:
+
+- Windows: use the `.exe` installer.
+- macOS: use the `.dmg` or `.zip` artifact.
+- Linux: use the `.AppImage`, `.deb`, or `.rpm` artifact for your distribution.
+
+The Windows installer is not code signed, and macOS builds are not notarized yet, so operating systems may show publisher or security warnings on first launch.
+
 ## Current MVP
 
 - Create, open, save, and quickly reopen portable local campaigns.
