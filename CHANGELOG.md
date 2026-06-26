@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.12
+
+### Added
+
+- Added Linux release builds for AppImage, Debian package, and RPM package artifacts.
+- Added Linux packaging to the GitHub Actions release workflow.
+
 ## 0.1.11
 
 ### Fixed
