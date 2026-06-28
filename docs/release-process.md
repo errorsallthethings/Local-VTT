@@ -42,7 +42,7 @@ git tag -a v0.1.6 -m "Local VTT v0.1.6"
 git push origin v0.1.6
 ```
 
-Pushing the tag triggers `.github/workflows/release.yml`, which packages the Windows and macOS builds and publishes the GitHub release assets. Use a new version/tag for each release; existing release assets are treated as immutable.
+Pushing the tag triggers `.github/workflows/release.yml`, which packages the Windows, macOS, and Linux builds and publishes the GitHub release assets. Use a new version/tag for each release; existing release assets are treated as immutable.
 
 ## Creating A Release
 
@@ -91,9 +91,13 @@ The release workflow listens for tags that match `v*.*.*`. Pushing the tag is wh
 
 6. In GitHub, open Actions -> Build Release and confirm the run is for the tag, such as `refs/tags/v0.1.1`, not a manual run on `main`.
 
-7. If the workflow succeeds, check GitHub Releases for the published release assets. The workflow also uploads Windows and macOS build artifacts to the workflow run page.
+7. If the workflow succeeds, check GitHub Releases for the published release assets. The workflow also uploads Windows, macOS, and Linux build artifacts to the workflow run page.
 
-GitHub Releases may be immutable after publishing. If a release workflow fails after creating a release, prepare a new version and tag instead of trying to replace assets on the existing release.
+GitHub Releases may be immutable after publishing. If a release workflow fails after creating a release, prepare a new version and tag instead of trying to replace assets on the existing release. If the release workflow fails before publishing the GitHub Release, read the failing step message first:
+
+- Platform artifact validation failures mean the package job did not produce the expected installer or package files. Fix the packaging issue on the release branch, move or recreate the tag on the corrected commit if the tag has not published a release, and rerun by pushing that tag.
+- Publish validation failures mean one or more platform artifacts were missing after download. Check the platform upload jobs before rerunning.
+- Existing-release failures mean the tag already has a GitHub Release. Do not retry the same tag; create a new version and tag.
 
 Manual `workflow_dispatch` runs are useful for testing the release workflow, but they do not publish a GitHub Release unless the run is for a tag. Download test builds from the workflow run's Artifacts section.
 
@@ -131,6 +135,62 @@ release/
 Use `release/win-unpacked/Local VTT.exe` for quick local smoke testing before sharing the installer.
 
 Code signing, macOS notarization, auto-update, and release-channel infrastructure are deferred.
+
+## Installer Upgrade And Downgrade Testing
+
+Run this checklist before publishing a Windows release installer. Use a disposable Windows user profile or VM when practical, and keep test campaign folders outside the application install directory so uninstall behavior is easy to verify.
+
+### Windows Upgrade Checklist
+
+1. Build or download the previous released Windows installer from GitHub Releases.
+2. Build the candidate installer from the release branch:
+
+```bash
+npm run package:win
+```
+
+3. Install the previous release with the default per-user installer options.
+4. Launch Local VTT from the Start Menu shortcut.
+5. Create or open a campaign in a normal user folder, such as Documents.
+6. Import at least one map and one token, save, close, and relaunch the previous release.
+7. Install the candidate release over the previous release.
+8. Launch Local VTT from the Start Menu shortcut and from the Desktop shortcut.
+9. Confirm the app opens without startup errors.
+10. Confirm the existing campaign opens and the campaign folder contents were not removed or rewritten unexpectedly.
+11. Confirm Player View can still open from the upgraded install.
+12. Uninstall Local VTT from Windows Apps or Programs and Features.
+13. Confirm the campaign folder and its backups still exist after uninstall.
+14. Reinstall the candidate release and confirm shortcuts are recreated.
+
+### Windows Downgrade Checklist
+
+1. Install and launch the candidate release.
+2. Create or open a campaign, save it, then close the app.
+3. Attempt to install the previous release over the candidate release.
+4. Record whether the installer blocks, warns, or allows the downgrade.
+5. If the downgrade is allowed, launch the previous release and try to open the campaign created or saved by the candidate release.
+6. Confirm any schema-version warning or file-access failure is understandable and does not corrupt the campaign folder.
+7. Uninstall the previous release and confirm the campaign folder remains intact.
+
+Downgrades are not a supported recovery path unless a release explicitly says otherwise. If a downgrade is allowed by the installer, treat the result as compatibility evidence only, and warn users to keep campaign backups before opening files with an older app version.
+
+### Result Log Template
+
+```text
+Release candidate:
+Previous release tested:
+Windows version:
+Install type:
+Upgrade result:
+Downgrade attempt result:
+Campaign folder retained after upgrade:
+Campaign folder retained after uninstall:
+Desktop shortcut result:
+Start Menu shortcut result:
+Notes or follow-up issues:
+```
+
+For macOS and Linux, test the closest equivalent flow where practical: install or unpack the previous artifact, open a campaign, replace it with the candidate artifact, confirm launch and campaign access, then remove the app artifact and confirm campaign folders remain.
 
 ## Smoke Test Checklist
 

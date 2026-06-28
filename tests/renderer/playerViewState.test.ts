@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultCampaign, createDefaultScene, projectSceneForPlayer } from "../../src/shared/localvtt";
 import { getPlayerViewDisplayStateFromLastState } from "../../src/renderer/lib/player-view";
+import { shouldShowPlayerHoldAfterSceneDelete } from "../../src/renderer/hooks/usePlayerViewState";
 
 describe("player view state reconciliation", () => {
   it("restores a Player View scene only when it belongs to the current campaign", () => {
@@ -31,5 +32,12 @@ describe("player view state reconciliation", () => {
   it("ignores invalid last Player View state", () => {
     expect(getPlayerViewDisplayStateFromLastState({ type: "scene", scene: { id: "scene-1" } }, [])).toBeNull();
     expect(getPlayerViewDisplayStateFromLastState(null, [])).toBeNull();
+  });
+
+  it("shows the Player View hold screen only after deleting the displayed scene", () => {
+    expect(shouldShowPlayerHoldAfterSceneDelete("scene-1", "scene-1", true)).toBe(true);
+    expect(shouldShowPlayerHoldAfterSceneDelete("scene-2", "scene-1", true)).toBe(false);
+    expect(shouldShowPlayerHoldAfterSceneDelete("scene-1", null, true)).toBe(false);
+    expect(shouldShowPlayerHoldAfterSceneDelete("scene-1", "scene-1", false)).toBe(false);
   });
 });

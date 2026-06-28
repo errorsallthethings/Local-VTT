@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.13
+
+### Added
+
+- Added GitHub issue forms for bug reports and feature/enhancement work so new issues collect area, version, operating system, acceptance criteria, and evidence consistently.
+- Added installer upgrade and downgrade testing guidance for Windows-first release validation, with macOS and Linux equivalents where practical.
+
+### Changed
+
+- Hardened the GitHub Actions release workflow with platform artifact validation, publish-time artifact consistency checks, clearer immutable-release failures, and retry guidance.
+- Improved release process documentation for packaging validation and immutable GitHub Release handling.
+
+### Fixed
+
+- Improved user-facing error handling for metadata save failures, missing map assets, and missing campaign assets.
+- Added regression coverage for scene-switching and Player View state transitions.
+- Added missing asset recovery coverage for missing maps, token images, thumbnails, and stale recent campaigns.
+
 ## 0.1.12
 
 ### Added

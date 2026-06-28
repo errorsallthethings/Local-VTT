@@ -33,10 +33,23 @@ jobs:
       - name: Build Windows package
         run: npm run package:win -- --publish never
 
+      - name: Validate Windows artifacts
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem -Path release -Filter "*.exe" -File)
+          if ($installers.Count -eq 0) {
+            throw "Windows packaging did not produce a .exe installer. Check the Build Windows package step logs, then rerun the workflow for the same tag after fixing the build."
+          }
+          if (-not (Test-Path "release/latest.yml")) {
+            throw "Windows packaging did not produce release/latest.yml. The Windows artifact set is incomplete; rerun only after the packaging output is fixed."
+          }
+          $installers | ForEach-Object { Write-Host "Windows installer: $($_.Name)" }
+
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v5
         with:
           name: Local VTT Windows
+          if-no-files-found: error
           path: |
             release/*.exe
             release/*.blockmap
@@ -65,10 +78,26 @@ jobs:
       - name: Build macOS package
         run: npm run package:mac -- --publish never
 
+      - name: Validate macOS artifacts
+        shell: bash
+        run: |
+          shopt -s nullglob
+          packages=(release/*.dmg release/*.zip)
+          if (( ${#packages[@]} == 0 )); then
+            echo "::error::macOS packaging did not produce a .dmg or .zip artifact. Check the Build macOS package step logs, then rerun the workflow for the same tag after fixing the build."
+            exit 1
+          fi
+          if [[ ! -f release/latest-mac.yml ]]; then
+            echo "::error::macOS packaging did not produce release/latest-mac.yml. The macOS artifact set is incomplete; rerun only after the packaging output is fixed."
+            exit 1
+          fi
+          printf 'macOS artifact: %s\n' "${packages[@]}"
+
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v5
         with:
           name: Local VTT macOS
+          if-no-files-found: error
           path: |
             release/*.dmg
             release/*.zip
@@ -98,10 +127,28 @@ jobs:
       - name: Build Linux packages
         run: npm run package:linux -- --publish never
 
+      - name: Validate Linux artifacts
+        shell: bash
+        run: |
+          shopt -s nullglob
+          appimages=(release/*.AppImage)
+          debs=(release/*.deb)
+          rpms=(release/*.rpm)
+          if (( ${#appimages[@]} == 0 || ${#debs[@]} == 0 || ${#rpms[@]} == 0 )); then
+            echo "::error::Linux packaging must produce AppImage, deb, and rpm artifacts. Check the Build Linux packages step logs, then rerun the workflow for the same tag after fixing the build."
+            exit 1
+          fi
+          if [[ ! -f release/latest-linux.yml ]]; then
+            echo "::error::Linux packaging did not produce release/latest-linux.yml. The Linux artifact set is incomplete; rerun only after the packaging output is fixed."
+            exit 1
+          fi
+          printf 'Linux artifact: %s\n' "${appimages[@]}" "${debs[@]}" "${rpms[@]}"
+
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v5
         with:
           name: Local VTT Linux
+          if-no-files-found: error
           path: |
             release/*.AppImage
             release/*.deb
@@ -132,8 +179,45 @@ jobs:
           TAG_NAME: ${{ github.ref_name }}
         run: |
           if gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
-            echo "Release $TAG_NAME already exists. Create a new version/tag instead of replacing immutable release assets."
+            echo "::error::Release $TAG_NAME already exists. GitHub Release assets are treated as immutable for Local VTT. Do not retry this tag; create a new version/tag after fixing the release branch."
             exit 1
           fi
+
+          required_dirs=(
+            "release-artifacts/Local VTT Windows"
+            "release-artifacts/Local VTT macOS"
+            "release-artifacts/Local VTT Linux"
+          )
+          for dir in "${required_dirs[@]}"; do
+            if [[ ! -d "$dir" ]]; then
+              echo "::error::Missing downloaded artifact directory: $dir. Check the platform upload job and rerun the workflow after the missing artifact is available."
+              exit 1
+            fi
+          done
+
+          shopt -s nullglob
+          windows_installers=(release-artifacts/Local\ VTT\ Windows/*.exe)
+          macos_packages=(release-artifacts/Local\ VTT\ macOS/*.dmg release-artifacts/Local\ VTT\ macOS/*.zip)
+          linux_appimages=(release-artifacts/Local\ VTT\ Linux/*.AppImage)
+          linux_debs=(release-artifacts/Local\ VTT\ Linux/*.deb)
+          linux_rpms=(release-artifacts/Local\ VTT\ Linux/*.rpm)
+          if (( ${#windows_installers[@]} == 0 )); then
+            echo "::error::Downloaded artifacts do not include a Windows .exe installer. Check the Windows Release job before retrying."
+            exit 1
+          fi
+          if (( ${#macos_packages[@]} == 0 )); then
+            echo "::error::Downloaded artifacts do not include a macOS .dmg or .zip package. Check the macOS Release job before retrying."
+            exit 1
+          fi
+          if (( ${#linux_appimages[@]} == 0 || ${#linux_debs[@]} == 0 || ${#linux_rpms[@]} == 0 )); then
+            echo "::error::Downloaded artifacts must include Linux AppImage, deb, and rpm packages. Check the Linux Release job before retrying."
+            exit 1
+          fi
+
           mapfile -d '' release_files < <(find release-artifacts -type f -print0)
+          if (( ${#release_files[@]} == 0 )); then
+            echo "::error::No release files were downloaded. Rerun only after all platform artifact upload steps succeed."
+            exit 1
+          fi
+          printf 'Publishing release asset: %s\n' "${release_files[@]}"
           gh release create "$TAG_NAME" "${release_files[@]}" --repo "$GH_REPO" --title "$TAG_NAME" --notes "Local VTT $TAG_NAME" --verify-tag

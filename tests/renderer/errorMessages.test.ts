@@ -30,8 +30,18 @@ describe("formatUserFacingError", () => {
     const campaignMessage = "Campaign metadata could not be saved. ENOSPC: no space left on device, write";
     const sceneMessage = "Scene metadata could not be saved. EACCES: permission denied, open 'scene.json'";
 
-    expect(formatUserFacingError(new Error(campaignMessage))).toBe(campaignMessage);
-    expect(formatUserFacingError(new Error(sceneMessage))).toBe(sceneMessage);
+    expect(formatUserFacingError(new Error(campaignMessage))).toBe(
+      "Campaign metadata could not be saved. There is not enough free disk space to save that change. Free up space and try again."
+    );
+    expect(formatUserFacingError(new Error(sceneMessage))).toBe(
+      "Scene metadata could not be saved. Local VTT does not have permission to access that file or folder. Check the folder permissions or choose a different location."
+    );
+  });
+
+  it("keeps unknown metadata save details intact", () => {
+    const message = "Campaign metadata could not be saved. Drive temporarily unavailable.";
+
+    expect(formatUserFacingError(new Error(message))).toBe(message);
   });
 
   it("turns permission errors into an actionable message", () => {
