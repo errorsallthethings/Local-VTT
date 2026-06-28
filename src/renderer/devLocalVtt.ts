@@ -5,6 +5,10 @@ import {
   type Campaign,
   type CampaignSummary,
   type LiveTableEvent,
+  type MetadataBackupEntry,
+  type MetadataBackupPreview,
+  type MetadataBackupRef,
+  type MetadataBackupRestoreResult,
   type PlayerIdleState,
   type PlayerSceneProjection,
   type Scene,
@@ -29,6 +33,14 @@ export function installDevLocalVtt() {
   };
   const playerStateListeners = new Set<(state: unknown) => void>();
   const liveTableEventListeners = new Set<(event: unknown) => void>();
+  const devBackup: MetadataBackupEntry = {
+    id: "campaign::dev-backup.campaign.json",
+    kind: "campaign",
+    fileName: "dev-backup.campaign.json",
+    timestamp: new Date().toISOString(),
+    label: "Campaign metadata",
+    sizeBytes: 0
+  };
 
   const getSummary = (): CampaignSummary => ({
     campaignPath: DEV_CAMPAIGN_PATH,
@@ -62,6 +74,17 @@ export function installDevLocalVtt() {
       return getSummary();
     },
     openBackupsFolder: async () => false,
+    listMetadataBackups: async () => [devBackup],
+    previewMetadataBackup: async (_campaignPath: string, ref: MetadataBackupRef): Promise<MetadataBackupPreview> => ({
+      ...devBackup,
+      ...ref,
+      summary: `${campaign.name} - ${campaign.scenes.length} scenes, ${campaign.assets.length} assets`,
+      json: JSON.stringify(campaign, null, 2)
+    }),
+    restoreMetadataBackup: async (): Promise<MetadataBackupRestoreResult> => ({
+      campaignSummary: getSummary(),
+      restored: devBackup
+    }),
     createScene: async (_campaignPath: string, sceneName: string) => {
       const scene = createDefaultScene(sceneName || "Dev Scene");
       upsertScene(scene);

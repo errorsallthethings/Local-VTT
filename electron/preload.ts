@@ -1,5 +1,18 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { Asset, Campaign, CampaignSummary, LiveTableEvent, PlayerIdleState, PlayerSceneProjection, Scene, SquareCropRect } from "../src/shared/localvtt.js";
+import type {
+  Asset,
+  Campaign,
+  CampaignSummary,
+  LiveTableEvent,
+  MetadataBackupEntry,
+  MetadataBackupPreview,
+  MetadataBackupRef,
+  MetadataBackupRestoreResult,
+  PlayerIdleState,
+  PlayerSceneProjection,
+  Scene,
+  SquareCropRect
+} from "../src/shared/localvtt.js";
 
 const api = {
   createCampaign: () => ipcRenderer.invoke("campaign:create") as Promise<CampaignSummary | null>,
@@ -8,6 +21,11 @@ const api = {
   saveCampaign: (campaignPath: string, campaign: Campaign) =>
     ipcRenderer.invoke("campaign:save", campaignPath, campaign) as Promise<CampaignSummary>,
   openBackupsFolder: (campaignPath: string) => ipcRenderer.invoke("campaign:openBackupsFolder", campaignPath) as Promise<boolean>,
+  listMetadataBackups: (campaignPath: string) => ipcRenderer.invoke("campaign:listMetadataBackups", campaignPath) as Promise<MetadataBackupEntry[]>,
+  previewMetadataBackup: (campaignPath: string, ref: MetadataBackupRef) =>
+    ipcRenderer.invoke("campaign:previewMetadataBackup", campaignPath, ref) as Promise<MetadataBackupPreview>,
+  restoreMetadataBackup: (campaignPath: string, ref: MetadataBackupRef) =>
+    ipcRenderer.invoke("campaign:restoreMetadataBackup", campaignPath, ref) as Promise<MetadataBackupRestoreResult>,
   createScene: (campaignPath: string, sceneName: string) =>
     ipcRenderer.invoke("scene:create", campaignPath, sceneName) as Promise<{ campaignSummary: CampaignSummary; scene: Scene }>,
   duplicateScene: (campaignPath: string, sourceScene: Scene, sceneName: string, afterSceneId: string, folderId?: string) =>

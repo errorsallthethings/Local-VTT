@@ -8,6 +8,10 @@ import {
   Campaign,
   CampaignSummary,
   DEFAULT_LAYERS,
+  MetadataBackupEntry,
+  MetadataBackupPreview,
+  MetadataBackupRef,
+  MetadataBackupRestoreResult,
   Scene,
   SquareCropRect,
   assertValidScene,
@@ -441,6 +445,134 @@ function createBackupTimestamp(): string {
   return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
+async function listMetadataBackups(campaignPath: string): Promise<MetadataBackupEntry[]> {
+  const summary = await loadCampaignFromPath(campaignPath);
+  const sceneNames = new Map(summary.campaign.scenes.map((scene) => [scene.id, scene.name]));
+  const entries: MetadataBackupEntry[] = [];
+  entries.push(...(await listBackupFolder(campaignPath, campaignBackupFolder(campaignPath), "campaign")));
+
+  const scenesRoot = path.join(campaignPath, "backups", "scenes");
+  assertInsideCampaign(campaignPath, scenesRoot);
+  try {
+    const sceneFolders = await readdir(scenesRoot, { withFileTypes: true });
+    for (const folder of sceneFolders) {
+      if (!folder.isDirectory()) {
+        continue;
+      }
+      const sceneId = folder.name;
+      entries.push(...(await listBackupFolder(campaignPath, sceneBackupFolder(campaignPath, sceneId), "scene", sceneId, sceneNames.get(sceneId))));
+    }
+  } catch (caught) {
+    if ((caught as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw caught;
+    }
+  }
+
+  return entries.sort((left, right) => right.fileName.localeCompare(left.fileName));
+}
+
+async function listBackupFolder(campaignPath: string, backupFolder: string, kind: MetadataBackupEntry["kind"], sceneId?: string, sceneName?: string): Promise<MetadataBackupEntry[]> {
+  assertInsideCampaign(campaignPath, backupFolder);
+  try {
+    const entries = await readdir(backupFolder);
+    const backups: MetadataBackupEntry[] = [];
+    for (const fileName of entries.filter((entry) => entry.endsWith(".json"))) {
+      const backupPath = path.join(backupFolder, fileName);
+      assertInsideCampaign(campaignPath, backupPath);
+      const stats = await stat(backupPath);
+      backups.push(createMetadataBackupEntry(kind, fileName, stats.size, sceneId, sceneName));
+    }
+    return backups;
+  } catch (caught) {
+    if ((caught as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+    throw caught;
+  }
+}
+
+function createMetadataBackupEntry(kind: MetadataBackupEntry["kind"], fileName: string, sizeBytes: number, sceneId?: string, sceneName?: string): MetadataBackupEntry {
+  const timestamp = parseBackupTimestamp(fileName);
+  const label = kind === "campaign" ? "Campaign metadata" : sceneName ? `Scene metadata: ${sceneName}` : `Scene metadata: ${sceneId ?? "Unknown scene"}`;
+  return {
+    id: kind === "campaign" ? `campaign::${fileName}` : `scene:${sceneId ?? ""}:${fileName}`,
+    kind,
+    sceneId,
+    fileName,
+    timestamp,
+    label,
+    sizeBytes
+  };
+}
+
+function parseBackupTimestamp(fileName: string): string | null {
+  const timestamp = fileName.replace(/\.(campaign|[^.]+\.scene)\.json$/, "");
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2})-(\d{2})-(\d{2})-(\d{3}Z)$/.exec(timestamp);
+  if (!match) {
+    return null;
+  }
+  return `${match[1]}:${match[2]}:${match[3]}.${match[4]}`;
+}
+
+function backupPathFromRef(campaignPath: string, ref: MetadataBackupRef): string {
+  const backupFolder = ref.kind === "campaign" ? campaignBackupFolder(campaignPath) : sceneBackupFolder(campaignPath, requireSceneBackupId(ref));
+  const backupPath = path.join(backupFolder, path.basename(ref.fileName));
+  assertInsideCampaign(campaignPath, backupPath);
+  return backupPath;
+}
+
+function requireSceneBackupId(ref: MetadataBackupRef): string {
+  if (!ref.sceneId) {
+    throw new Error("Scene backup selection is missing a scene id.");
+  }
+  return ref.sceneId;
+}
+
+async function previewMetadataBackup(campaignPath: string, ref: MetadataBackupRef): Promise<MetadataBackupPreview> {
+  const backupPath = backupPathFromRef(campaignPath, ref);
+  const raw = await readFile(backupPath, "utf8");
+  const stats = await stat(backupPath);
+  if (ref.kind === "campaign") {
+    const campaign = parseCampaignMetadata(raw);
+    return {
+      ...createMetadataBackupEntry("campaign", path.basename(backupPath), stats.size),
+      summary: `${campaign.name} - ${campaign.scenes.length} scene${campaign.scenes.length === 1 ? "" : "s"}, ${campaign.assets.length} asset${campaign.assets.length === 1 ? "" : "s"}`,
+      json: JSON.stringify(toPortableCampaignMetadata(campaign), null, 2)
+    };
+  }
+
+  const scene = parseSceneMetadata(raw);
+  const sceneId = requireSceneBackupId(ref);
+  if (scene.id !== sceneId) {
+    throw new Error("Scene backup does not match the selected scene.");
+  }
+  return {
+    ...createMetadataBackupEntry("scene", path.basename(backupPath), stats.size, sceneId, scene.name),
+    summary: `${scene.name} - ${scene.tokens.length} token${scene.tokens.length === 1 ? "" : "s"}, ${scene.layers.length} layer${scene.layers.length === 1 ? "" : "s"}`,
+    json: JSON.stringify(toPortableSceneMetadata(scene), null, 2)
+  };
+}
+
+async function restoreMetadataBackup(campaignPath: string, ref: MetadataBackupRef): Promise<MetadataBackupRestoreResult> {
+  const preview = await previewMetadataBackup(campaignPath, ref);
+  const raw = await readFile(backupPathFromRef(campaignPath, ref), "utf8");
+  if (ref.kind === "campaign") {
+    const campaign = toPortableCampaignMetadata(parseCampaignMetadata(raw));
+    await backupExistingMetadataFile(campaignPath, campaignFile(campaignPath), campaignBackupFolder(campaignPath), "campaign.json");
+    await writeFile(campaignFile(campaignPath), `${JSON.stringify(campaign, null, 2)}\n`, "utf8");
+    return { campaignSummary: await loadCampaignFromPath(campaignPath), restored: preview };
+  }
+
+  const scene = toPortableSceneMetadata(parseSceneMetadata(raw));
+  const sceneId = requireSceneBackupId(ref);
+  if (scene.id !== sceneId) {
+    throw new Error("Scene backup does not match the selected scene.");
+  }
+  await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, sceneId), sceneBackupFolder(campaignPath, sceneId), `${sceneId}.scene.json`);
+  await writeFile(sceneFile(campaignPath, sceneId), `${JSON.stringify(scene, null, 2)}\n`, "utf8");
+  return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: normalizeScene(scene), restored: preview };
+}
+
 async function getTokenAssetUsage(campaignPath: string, campaign: Campaign, assetId: string): Promise<Array<{ sceneId: string; sceneName: string; count: number }>> {
   const usage = [];
   for (const entry of campaign.scenes) {
@@ -778,6 +910,21 @@ ipcMain.handle("campaign:openBackupsFolder", async (_event, campaignPath: string
     throw new Error(`Could not open backups folder. ${errorMessage}`);
   }
   return true;
+});
+
+ipcMain.handle("campaign:listMetadataBackups", async (_event, campaignPath: string) => {
+  assertKnownCampaignPath(campaignPath);
+  return listMetadataBackups(campaignPath);
+});
+
+ipcMain.handle("campaign:previewMetadataBackup", async (_event, campaignPath: string, ref: MetadataBackupRef) => {
+  assertKnownCampaignPath(campaignPath);
+  return previewMetadataBackup(campaignPath, ref);
+});
+
+ipcMain.handle("campaign:restoreMetadataBackup", async (_event, campaignPath: string, ref: MetadataBackupRef) => {
+  assertKnownCampaignPath(campaignPath);
+  return restoreMetadataBackup(campaignPath, ref);
 });
 
 ipcMain.handle("scene:create", async (_event, campaignPath: string, sceneName: string) => {
