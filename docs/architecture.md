@@ -2,6 +2,8 @@
 
 Local VTT is a local-first Electron desktop app with a private GM View and a separate Player View. The app keeps campaign data in portable local folders and treats the Player View as a projected, filtered view of the active scene.
 
+For Wiki-ready diagrams of the same architecture, see [`diagrams/README.md`](diagrams/README.md).
+
 ## Runtime Structure
 
 - `electron/main.ts`: application lifecycle, secure window creation, campaign folder IO, asset import/copy, metadata backups, and Player View window control.
