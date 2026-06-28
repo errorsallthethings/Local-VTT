@@ -24,6 +24,7 @@ import type {
   DiceSettings,
   EnvironmentEffectType,
   LiveTableEvent,
+  MetadataBackupRestoreResult,
   Point,
   Scene,
   SquareCropRect,
@@ -31,6 +32,7 @@ import type {
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { CampaignBusyOverlay } from "../components/modals/CampaignBusyOverlay";
+import { MetadataBackupRestoreDialog } from "../components/modals/MetadataBackupRestoreDialog";
 import { EnvironmentEffectEditorModal } from "../components/layers";
 import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
@@ -76,6 +78,7 @@ import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from ".
 import { moveSceneFolder } from "../lib/campaign";
 import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/dice";
+import { formatUserFacingError } from "../lib/errors";
 import { loadImageDimensions } from "../lib/assets";
 import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/player-view";
 import { sendSceneToPlayer, updatePlayerSceneIfOpen } from "../lib/player-view";
@@ -141,6 +144,7 @@ export function GmApp() {
     dirtySceneIds,
     setDirtySceneIds,
     campaignDirty,
+    setCampaignDirty,
     saveState,
     error,
     setError,
@@ -198,6 +202,7 @@ export function GmApp() {
   const [openSceneMenuId, setOpenSceneMenuId] = useState<string | null>(null);
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null);
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
+  const [metadataRestoreOpen, setMetadataRestoreOpen] = useState(false);
   const {
     activeCanvasTool,
     setActiveCanvasTool,
@@ -749,6 +754,28 @@ export function GmApp() {
       }
       await window.localVtt.openBackupsFolder(campaignPath);
     });
+
+  const openMetadataRestoreDialog = () => {
+    if (!campaignPath) {
+      return;
+    }
+    setMetadataRestoreOpen(true);
+  };
+
+  const handleMetadataRestore = (result: MetadataBackupRestoreResult) => {
+    applySummary(result.campaignSummary, false);
+    setCampaignDirty(false);
+    if (result.scene) {
+      setActiveScene(result.scene);
+      setSceneClean(result.scene);
+    } else {
+      setActiveScene(null);
+      setSceneDrafts({});
+      setDirtySceneIds(new Set());
+    }
+    setMetadataRestoreOpen(false);
+    void sendPlayerBlackout();
+  };
 
   const importToken = (mode: TokenCropDialogState["mode"] = "scene") =>
     run(async () => {
@@ -1449,7 +1476,7 @@ export function GmApp() {
         onRemoveRecentCampaign={removeRecentCampaignPath}
         onSaveCampaign={() => void saveCampaign()}
         onRenameCampaign={openCampaignRenameDialog}
-        onOpenBackupsFolder={() => void openBackupsFolder()}
+        onOpenBackupRestore={openMetadataRestoreDialog}
         onAddPlayer={addCampaignPlayer}
         onUpdatePlayer={updateCampaignPlayer}
         onDeletePlayer={deleteCampaignPlayer}
@@ -2000,6 +2027,18 @@ export function GmApp() {
         onConfirmDeleteTokenAsset={() => void confirmDeleteTokenAsset()}
         onConfirmClearFog={clearFogShapes}
       />
+      {metadataRestoreOpen && campaignPath && (
+        <MetadataBackupRestoreDialog
+          campaignPath={campaignPath}
+          onCancel={() => setMetadataRestoreOpen(false)}
+          onOpenBackupsFolder={() => void openBackupsFolder()}
+          onRestore={handleMetadataRestore}
+          onError={(caught) => {
+            console.error(caught);
+            setError(formatUserFacingError(caught));
+          }}
+        />
+      )}
       {busyState && <CampaignBusyOverlay busyState={busyState} />}
     </div>
   );

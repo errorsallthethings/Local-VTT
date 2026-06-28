@@ -22,7 +22,7 @@ interface CampaignPanelProps {
   onRemoveRecentCampaign: (campaignPath: string) => void;
   onSaveCampaign: () => void;
   onRenameCampaign: () => void;
-  onOpenBackupsFolder: () => void;
+  onOpenBackupRestore: () => void;
   onAddPlayer: () => void;
   onUpdatePlayer: (playerId: string, patch: Partial<CampaignPlayer>) => void;
   onDeletePlayer: (playerId: string) => void;
@@ -42,7 +42,7 @@ export function CampaignPanel({
   onRemoveRecentCampaign,
   onSaveCampaign,
   onRenameCampaign,
-  onOpenBackupsFolder,
+  onOpenBackupRestore,
   onAddPlayer,
   onUpdatePlayer,
   onDeletePlayer,
@@ -85,7 +85,7 @@ export function CampaignPanel({
           <Save size={16} aria-hidden="true" />
         </button>
         {campaignPath && (
-          <button className="icon-button" aria-label="Open Backups Folder" title="Open Backups Folder" onClick={onOpenBackupsFolder}>
+          <button className="icon-button" aria-label="Restore Revision" title="Restore Revision" onClick={onOpenBackupRestore}>
             <ArchiveRestore size={16} aria-hidden="true" />
           </button>
         )}

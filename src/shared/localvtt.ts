@@ -681,6 +681,32 @@ export interface CampaignSummary {
   missingAssets: string[];
 }
 
+export type MetadataBackupKind = "campaign" | "scene";
+
+export interface MetadataBackupRef {
+  kind: MetadataBackupKind;
+  fileName: string;
+  sceneId?: string;
+}
+
+export interface MetadataBackupEntry extends MetadataBackupRef {
+  id: string;
+  timestamp: string | null;
+  label: string;
+  sizeBytes: number;
+}
+
+export interface MetadataBackupPreview extends MetadataBackupEntry {
+  summary: string;
+  json: string;
+}
+
+export interface MetadataBackupRestoreResult {
+  campaignSummary: CampaignSummary;
+  scene?: Scene;
+  restored: MetadataBackupEntry;
+}
+
 export interface PlayerSceneProjection {
   campaignName: string;
   playerDisplay: DisplayCalibration;
