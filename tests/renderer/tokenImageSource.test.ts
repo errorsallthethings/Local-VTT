@@ -59,6 +59,12 @@ describe("token image source parsing", () => {
     ]);
   });
 
+  it("falls back to token image paths when thumbnails are not available", () => {
+    const key = getTokenImageSourceKey([asset("asset-1", "C:/tokens/one.png")]);
+
+    expect(JSON.parse(key)).toEqual([{ id: "asset-1", path: "C:/tokens/one.png" }]);
+  });
+
   it("returns required token image asset ids from source keys", () => {
     const key = JSON.stringify([
       { id: "asset-1", path: "C:/tokens/one.png" },

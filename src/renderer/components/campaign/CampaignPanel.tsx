@@ -5,6 +5,7 @@ import type { Asset, Campaign, CampaignPlayer, PlayerIndicatorTheme } from "../.
 import { ColorInput } from "../controls/ColorPickerField";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
 import type { RecentCampaign } from "../../lib/campaign";
+import { getMissingAssetsWarningItems, MISSING_ASSETS_WARNING_MESSAGE } from "../../lib/assets/assetRecovery";
 
 const MAX_CAMPAIGN_PLAYERS = 7;
 
@@ -55,6 +56,7 @@ export function CampaignPanel({
   useEffect(() => {
     onPlayersPanelOpenChange(Boolean(campaign && !playersCollapsed));
   }, [campaign, onPlayersPanelOpenChange, playersCollapsed]);
+  const missingAssetItems = getMissingAssetsWarningItems(missingAssets);
 
   return (
     <section className="panel">
@@ -163,10 +165,10 @@ export function CampaignPanel({
           </div>
         </div>
       )}
-      {missingAssets.length > 0 && (
+      {missingAssetItems.length > 0 && (
         <div className="warning">
-          Some campaign assets could not be found. They may have been moved, renamed, or deleted. Re-import missing files or restore them from a backup:
-          {missingAssets.map((asset) => (
+          {MISSING_ASSETS_WARNING_MESSAGE}
+          {missingAssetItems.map((asset) => (
             <div key={asset}>{asset}</div>
           ))}
         </div>

@@ -74,6 +74,7 @@ describe("map source helpers", () => {
     expect(getMapOverlayMessage("loading", "image")).toBe("Loading map...");
     expect(getMapOverlayMessage("loading", "video")).toBe("Loading video map...");
     expect(getMapOverlayMessage("error", "video")).toBe("Map asset unavailable. It may have been moved, renamed, or deleted.");
+    expect(getMapOverlayMessage("error", "image")).toBe("Map asset unavailable. It may have been moved, renamed, or deleted.");
   });
 
   it("keeps small maps at full scale and downscales by edge or pixel limits", () => {

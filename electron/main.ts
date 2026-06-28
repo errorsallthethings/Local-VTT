@@ -25,6 +25,7 @@ import {
   LOCALVTT_ASSET_MISSING_MESSAGE,
   LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE
 } from "./assetProtocol.js";
+import { findMissingCampaignAssetFiles } from "./campaignAssetRecovery.js";
 import { createImageMapThumbnail, createSquareImageThumbnail, createVideoMapThumbnail } from "./assets.js";
 import { formatMetadataReadError, formatMetadataWriteError } from "./metadataErrors.js";
 import {
@@ -264,7 +265,7 @@ async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSumma
   return {
     campaignPath,
     campaign: resolveAssetPaths(campaignPath, campaignWithThumbnails),
-    missingAssets: await findMissingAssets(campaignPath, campaignWithThumbnails.assets)
+    missingAssets: (await findMissingCampaignAssetFiles(campaignPath, campaignWithThumbnails.assets)).map((asset) => asset.relativePath)
   };
 }
 
@@ -438,20 +439,6 @@ async function pruneMetadataBackups(backupFolder: string): Promise<void> {
 
 function createBackupTimestamp(): string {
   return new Date().toISOString().replace(/[:.]/g, "-");
-}
-
-async function findMissingAssets(campaignPath: string, assets: Asset[]): Promise<string[]> {
-  const missing: string[] = [];
-  for (const asset of assets) {
-    const assetPath = path.resolve(campaignPath, asset.relativePath);
-    try {
-      assertInsideCampaign(campaignPath, assetPath);
-      await stat(assetPath);
-    } catch {
-      missing.push(asset.relativePath);
-    }
-  }
-  return missing;
 }
 
 async function getTokenAssetUsage(campaignPath: string, campaign: Campaign, assetId: string): Promise<Array<{ sceneId: string; sceneName: string; count: number }>> {
