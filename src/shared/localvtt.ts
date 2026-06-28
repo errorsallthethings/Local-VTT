@@ -707,6 +707,28 @@ export interface MetadataBackupRestoreResult {
   restored: MetadataBackupEntry;
 }
 
+export interface ThumbnailRegenerationFailure {
+  assetId: string;
+  assetName: string;
+  kind: Asset["kind"];
+  relativePath: string;
+  reason: string;
+}
+
+export interface ThumbnailRegenerationResult {
+  campaignSummary: CampaignSummary;
+  regenerated: number;
+  skipped: number;
+  failed: ThumbnailRegenerationFailure[];
+}
+
+export interface ThumbnailRegenerationProgress {
+  current: number;
+  total: number;
+  assetName: string | null;
+  message: string;
+}
+
 export interface PlayerSceneProjection {
   campaignName: string;
   playerDisplay: DisplayCalibration;

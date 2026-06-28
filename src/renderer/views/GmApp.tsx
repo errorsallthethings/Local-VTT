@@ -28,11 +28,13 @@ import type {
   Point,
   Scene,
   SquareCropRect,
+  ThumbnailRegenerationResult,
   TokenPresentationDefaults
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { CampaignBusyOverlay } from "../components/modals/CampaignBusyOverlay";
 import { MetadataBackupRestoreDialog } from "../components/modals/MetadataBackupRestoreDialog";
+import { ThumbnailRegenerationResultDialog } from "../components/modals/ThumbnailRegenerationResultDialog";
 import { EnvironmentEffectEditorModal } from "../components/layers";
 import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
@@ -203,6 +205,7 @@ export function GmApp() {
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null);
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
   const [metadataRestoreOpen, setMetadataRestoreOpen] = useState(false);
+  const [thumbnailRegenerationResult, setThumbnailRegenerationResult] = useState<ThumbnailRegenerationResult | null>(null);
   const {
     activeCanvasTool,
     setActiveCanvasTool,
@@ -676,6 +679,7 @@ export function GmApp() {
     saveCampaign,
     saveCampaignBeforeClose,
     importMap,
+    regenerateThumbnails,
     confirmDeleteMapAsset,
     saveFolderScenes,
     duplicateFolder,
@@ -693,6 +697,7 @@ export function GmApp() {
     onMapAssetDeleteHandled: () => setMapAssetToDelete(null),
     onSceneDeleteHandled: () => setSceneToDelete(null),
     onFolderDeleteHandled: () => setFolderToDelete(null),
+    onThumbnailRegenerationComplete: setThumbnailRegenerationResult,
     shouldSyncSceneToPlayer: (sceneId) => sceneId === playerSceneId
   });
   const saveBeforeCloseRef = useRef(saveCampaignBeforeClose);
@@ -1477,6 +1482,7 @@ export function GmApp() {
         onSaveCampaign={() => void saveCampaign()}
         onRenameCampaign={openCampaignRenameDialog}
         onOpenBackupRestore={openMetadataRestoreDialog}
+        onRegenerateThumbnails={() => void regenerateThumbnails()}
         onAddPlayer={addCampaignPlayer}
         onUpdatePlayer={updateCampaignPlayer}
         onDeletePlayer={deleteCampaignPlayer}
@@ -2040,6 +2046,9 @@ export function GmApp() {
         />
       )}
       {busyState && <CampaignBusyOverlay busyState={busyState} />}
+      {thumbnailRegenerationResult && (
+        <ThumbnailRegenerationResultDialog result={thumbnailRegenerationResult} onClose={() => setThumbnailRegenerationResult(null)} />
+      )}
     </div>
   );
 }
