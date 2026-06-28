@@ -30,7 +30,7 @@ These notes summarize the 0.1.8 codebase audit work and the next practical clean
 1. Split `SceneCanvas` interaction modes into hooks or controllers: selection, token drag, drawing, templates, fog, effects, ruler, and calibration.
 2. Convert animated environmental effects into a formal registry with one module per effect family.
 3. Split `LayerPanel` by layer type after the scene canvas interaction split stabilizes.
-4. Add more tests around Player View projection, scene switching, missing assets, and campaign save/load recovery.
+4. Add more tests around Player View projection and campaign save/load recovery.
 5. Keep large renderer changes incremental and screenshot/smoke tested where visual behavior matters.
 
 ## Audit Guardrails

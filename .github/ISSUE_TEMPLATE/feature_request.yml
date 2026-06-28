@@ -52,7 +52,7 @@ body:
     attributes:
       label: Local VTT version
       description: If this is based on current behavior, note the app version or build/tag.
-      placeholder: "0.1.12"
+      placeholder: "0.1.13"
     validations:
       required: true
 

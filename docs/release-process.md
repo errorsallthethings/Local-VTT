@@ -42,7 +42,7 @@ git tag -a v0.1.6 -m "Local VTT v0.1.6"
 git push origin v0.1.6
 ```
 
-Pushing the tag triggers `.github/workflows/release.yml`, which packages the Windows and macOS builds and publishes the GitHub release assets. Use a new version/tag for each release; existing release assets are treated as immutable.
+Pushing the tag triggers `.github/workflows/release.yml`, which packages the Windows, macOS, and Linux builds and publishes the GitHub release assets. Use a new version/tag for each release; existing release assets are treated as immutable.
 
 ## Creating A Release
 
@@ -91,7 +91,7 @@ The release workflow listens for tags that match `v*.*.*`. Pushing the tag is wh
 
 6. In GitHub, open Actions -> Build Release and confirm the run is for the tag, such as `refs/tags/v0.1.1`, not a manual run on `main`.
 
-7. If the workflow succeeds, check GitHub Releases for the published release assets. The workflow also uploads Windows and macOS build artifacts to the workflow run page.
+7. If the workflow succeeds, check GitHub Releases for the published release assets. The workflow also uploads Windows, macOS, and Linux build artifacts to the workflow run page.
 
 GitHub Releases may be immutable after publishing. If a release workflow fails after creating a release, prepare a new version and tag instead of trying to replace assets on the existing release. If the release workflow fails before publishing the GitHub Release, read the failing step message first:
 
