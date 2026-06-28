@@ -1,0 +1,62 @@
+{
+  "id": "legacy-campaign",
+  "name": "Legacy Campaign",
+  "description": "Old campaign fixture",
+  "createdAt": "2026-06-01T00:00:00.000Z",
+  "updatedAt": "2026-06-01T00:00:00.000Z",
+  "sceneFolders": [
+    {
+      "id": "folder-a",
+      "name": "Act I",
+      "createdAt": "2026-06-01T00:00:00.000Z",
+      "color": "not-a-color"
+    }
+  ],
+  "sceneLibrary": {
+    "collapsedFolderIds": ["folder-a", "missing-folder"]
+  },
+  "scenes": [
+    {
+      "id": "scene-a",
+      "name": "Road",
+      "file": "scenes/scene-a.scene.json",
+      "folderId": "folder-a"
+    },
+    {
+      "id": "scene-b",
+      "name": "Tower",
+      "file": "scenes/scene-b.scene.json",
+      "folderId": "missing-folder"
+    }
+  ],
+  "players": [
+    {
+      "id": "",
+      "name": "",
+      "color": "red",
+      "defaultSeatEdge": "side",
+      "defaultSeatPosition": 9
+    }
+  ],
+  "assets": [
+    {
+      "id": "token-asset",
+      "name": "Hero",
+      "kind": "token",
+      "mediaType": "image",
+      "relativePath": "assets/tokens/hero.png",
+      "originalFileName": "hero.png",
+      "createdAt": "2026-06-01T00:00:00.000Z",
+      "absolutePath": "C:/Campaign/assets/tokens/hero.png",
+      "tokenDefaults": {
+        "borderStyle": "ring",
+        "borderWidth": 200,
+        "borderColor": "blue",
+        "customSizeCells": {
+          "width": 20,
+          "height": 0.1
+        }
+      }
+    }
+  ]
+}
