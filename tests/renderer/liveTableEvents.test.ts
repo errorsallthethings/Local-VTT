@@ -76,4 +76,21 @@ describe("live table event lifecycle", () => {
     expect(mergeLiveTableEvent([dice], hiddenPing, { now, respectPlayerVisibility: true })).toEqual([dice]);
     expect(mergeLiveTableEvent([visibleLaser], dice, { now, respectPlayerVisibility: true })).toEqual([dice, visibleLaser]);
   });
+
+  it("keeps dice visibility controlled by dice display settings instead of table visibility flags", () => {
+    const now = 10_000;
+    const hiddenDice: LiveTableEvent = {
+      id: "dice",
+      type: "dice",
+      die: "d20",
+      result: 20,
+      label: "20",
+      seed: 1,
+      createdAt: now,
+      visibleInPlayer: false,
+      playerDiceDisplay: "panel"
+    };
+
+    expect(mergeLiveTableEvent([], hiddenDice, { now, respectPlayerVisibility: true })).toEqual([hiddenDice]);
+  });
 });
