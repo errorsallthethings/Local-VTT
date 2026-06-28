@@ -1,0 +1,105 @@
+{
+  "id": "legacy-scene",
+  "name": "Legacy Scene",
+  "createdAt": "2026-06-01T00:00:00.000Z",
+  "updatedAt": "2026-06-01T00:00:00.000Z",
+  "layers": [],
+  "grid": {
+    "type": "square",
+    "sizePx": 80
+  },
+  "fog": {
+    "opacity": 0.75,
+    "shapes": [
+      {
+        "operation": "reveal",
+        "kind": "rectangle",
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 10,
+            "y": 10
+          }
+        ],
+        "visible": false
+      }
+    ]
+  },
+  "weather": {
+    "enabled": true,
+    "effect": "heavy-rain",
+    "intensity": 9,
+    "opacity": 9,
+    "speed": 9,
+    "color": "not-a-color"
+  },
+  "tokens": [
+    {
+      "id": "token-1",
+      "name": "Legacy Token",
+      "assetId": "token-asset",
+      "position": {
+        "x": 10,
+        "y": 20
+      },
+      "size": {
+        "width": 100,
+        "height": 100
+      },
+      "hidden": false,
+      "visibleInPlayer": true
+    }
+  ],
+  "tokenMovementPath": {
+    "tokenId": "token-1",
+    "points": [
+      {
+        "x": 1,
+        "y": 2
+      },
+      {
+        "x": "bad",
+        "y": 4
+      },
+      {
+        "x": 5,
+        "y": 6
+      }
+    ]
+  },
+  "drawings": [
+    {
+      "id": "",
+      "kind": "bad",
+      "points": [
+        {
+          "x": 10,
+          "y": 20
+        },
+        {
+          "x": "bad",
+          "y": 30
+        }
+      ],
+      "color": "nope",
+      "opacity": 8,
+      "strokeWidth": -2
+    }
+  ],
+  "tableTools": {
+    "pingSize": 9,
+    "pingColor": "red",
+    "laserThickness": 100,
+    "laserColor": "nope"
+  },
+  "videoPlayback": {
+    "paused": true
+  },
+  "playerView": {
+    "fitMode": "cover"
+  },
+  "notes": ""
+}
