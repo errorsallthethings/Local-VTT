@@ -69,7 +69,7 @@ import {
 import { useGmDialogEscape, useGmDialogState } from "../hooks/useGmDialogState";
 import { useGmToolOptions } from "../hooks/useGmToolOptions";
 import { useGmToolSelection } from "../hooks/useGmToolSelection";
-import { usePlayerViewState } from "../hooks/usePlayerViewState";
+import { shouldShowPlayerHoldAfterSceneDelete, usePlayerViewState } from "../hooks/usePlayerViewState";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { useSceneSelection } from "../hooks/useSceneSelection";
 import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assets";
@@ -1317,9 +1317,8 @@ export function GmApp() {
 
   const confirmDeleteScene = (scene: CampaignSceneEntry) =>
     run(async () => {
-      const deletedPlayerScene = scene.id === playerSceneId;
       const ok = await deleteScene(scene);
-      if (ok && deletedPlayerScene) {
+      if (shouldShowPlayerHoldAfterSceneDelete(scene.id, playerSceneId, ok)) {
         await showPlayerIdle();
       }
     });

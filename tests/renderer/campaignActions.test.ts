@@ -14,6 +14,7 @@ import {
   removeFolderFromCampaign,
   removeSceneDraft
 } from "../../src/renderer/lib/campaign";
+import { getPlayerSyncCampaignForScene } from "../../src/renderer/hooks/useCampaignActions";
 import { createDefaultCampaign, createDefaultScene } from "../../src/shared/localvtt";
 
 describe("campaign action helpers", () => {
@@ -233,6 +234,13 @@ describe("campaign action helpers", () => {
       folderId: "folder-a",
       mapAssetId: "map-new"
     });
+  });
+
+  it("only provides a Player View sync campaign for the currently displayed scene", () => {
+    const campaign = createDefaultCampaign("Campaign");
+
+    expect(getPlayerSyncCampaignForScene(campaign, "scene-1", (sceneId) => sceneId === "scene-1")).toBe(campaign);
+    expect(getPlayerSyncCampaignForScene(campaign, "scene-2", (sceneId) => sceneId === "scene-1")).toBeNull();
   });
 
   it("removes scene draft and dirty ids immutably", () => {

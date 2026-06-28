@@ -15,6 +15,10 @@ const PLAYER_TEMPLATE_PREVIEW_ID = "template-preview";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 
+export function shouldShowPlayerHoldAfterSceneDelete(deletedSceneId: string, playerSceneId: string | null, deleteSucceeded: boolean): boolean {
+  return deleteSucceeded && deletedSceneId === playerSceneId;
+}
+
 interface UsePlayerViewStateOptions {
   activeScene: Scene | null;
   campaign: Campaign | null;
