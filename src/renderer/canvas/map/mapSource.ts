@@ -45,7 +45,7 @@ export function isMapOverlayActive(canShowMap: boolean | undefined, hasMapAsset:
 
 export function getMapOverlayMessage(mapLoadStatus: MapLoadStatus, mediaType: "image" | "video" | undefined): string {
   if (mapLoadStatus === "error") {
-    return "Map asset unavailable";
+    return "Map asset unavailable. It may have been moved, renamed, or deleted.";
   }
   return mediaType === "video" ? "Loading video map..." : "Loading map...";
 }
