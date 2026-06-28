@@ -1,4 +1,4 @@
-import type { Asset, CampaignSummary, Scene } from "../../shared/localvtt";
+import type { Asset, Campaign, CampaignSummary, Scene } from "../../shared/localvtt";
 import {
   applyMapAssetToCampaign,
   getDuplicateFolderName,
@@ -15,6 +15,10 @@ import { stopActiveTurnOrder } from "../lib/turn-order";
 import type { useCampaignWorkspace } from "./useCampaignWorkspace";
 
 type CampaignWorkspace = ReturnType<typeof useCampaignWorkspace>;
+
+export function getPlayerSyncCampaignForScene(campaign: Campaign, sceneId: string, shouldSyncSceneToPlayer: (sceneId: string) => boolean): Campaign | null {
+  return shouldSyncSceneToPlayer(sceneId) ? campaign : null;
+}
 
 interface UseCampaignActionsOptions {
   workspace: CampaignWorkspace;
@@ -253,7 +257,7 @@ export function useCampaignActions({
       setMissingAssets(result.campaignSummary.missingAssets);
       setCampaign(nextCampaign);
       const nextScene = { ...activeScene, mapAssetId: result.asset.id, updatedAt: new Date().toISOString() };
-      updateScene(nextScene, shouldSyncSceneToPlayer(nextScene.id) ? nextCampaign : null);
+      updateScene(nextScene, getPlayerSyncCampaignForScene(nextCampaign, nextScene.id, shouldSyncSceneToPlayer));
     });
 
   const confirmDeleteMapAsset = () =>
