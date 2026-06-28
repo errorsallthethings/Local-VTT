@@ -60,4 +60,15 @@ describe("recentCampaigns", () => {
 
     expect(recents).toEqual([{ name: "Keep", path: "C:\\Campaigns\\Keep", openedAt: "2026-01-01T00:00:00.000Z" }]);
   });
+
+  it("supports removing a stale recent campaign after reopening fails", () => {
+    const recents = [
+      { name: "Stale", path: "C:\\Campaigns\\Moved", openedAt: "2026-01-02T00:00:00.000Z" },
+      { name: "Keep", path: "C:\\Campaigns\\Keep", openedAt: "2026-01-01T00:00:00.000Z" }
+    ];
+
+    expect(removeRecentCampaign(recents, "C:\\Campaigns\\Moved")).toEqual([
+      { name: "Keep", path: "C:\\Campaigns\\Keep", openedAt: "2026-01-01T00:00:00.000Z" }
+    ]);
+  });
 });
