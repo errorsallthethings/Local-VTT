@@ -132,6 +132,62 @@ Use `release/win-unpacked/Local VTT.exe` for quick local smoke testing before sh
 
 Code signing, macOS notarization, auto-update, and release-channel infrastructure are deferred.
 
+## Installer Upgrade And Downgrade Testing
+
+Run this checklist before publishing a Windows release installer. Use a disposable Windows user profile or VM when practical, and keep test campaign folders outside the application install directory so uninstall behavior is easy to verify.
+
+### Windows Upgrade Checklist
+
+1. Build or download the previous released Windows installer from GitHub Releases.
+2. Build the candidate installer from the release branch:
+
+```bash
+npm run package:win
+```
+
+3. Install the previous release with the default per-user installer options.
+4. Launch Local VTT from the Start Menu shortcut.
+5. Create or open a campaign in a normal user folder, such as Documents.
+6. Import at least one map and one token, save, close, and relaunch the previous release.
+7. Install the candidate release over the previous release.
+8. Launch Local VTT from the Start Menu shortcut and from the Desktop shortcut.
+9. Confirm the app opens without startup errors.
+10. Confirm the existing campaign opens and the campaign folder contents were not removed or rewritten unexpectedly.
+11. Confirm Player View can still open from the upgraded install.
+12. Uninstall Local VTT from Windows Apps or Programs and Features.
+13. Confirm the campaign folder and its backups still exist after uninstall.
+14. Reinstall the candidate release and confirm shortcuts are recreated.
+
+### Windows Downgrade Checklist
+
+1. Install and launch the candidate release.
+2. Create or open a campaign, save it, then close the app.
+3. Attempt to install the previous release over the candidate release.
+4. Record whether the installer blocks, warns, or allows the downgrade.
+5. If the downgrade is allowed, launch the previous release and try to open the campaign created or saved by the candidate release.
+6. Confirm any schema-version warning or file-access failure is understandable and does not corrupt the campaign folder.
+7. Uninstall the previous release and confirm the campaign folder remains intact.
+
+Downgrades are not a supported recovery path unless a release explicitly says otherwise. If a downgrade is allowed by the installer, treat the result as compatibility evidence only, and warn users to keep campaign backups before opening files with an older app version.
+
+### Result Log Template
+
+```text
+Release candidate:
+Previous release tested:
+Windows version:
+Install type:
+Upgrade result:
+Downgrade attempt result:
+Campaign folder retained after upgrade:
+Campaign folder retained after uninstall:
+Desktop shortcut result:
+Start Menu shortcut result:
+Notes or follow-up issues:
+```
+
+For macOS and Linux, test the closest equivalent flow where practical: install or unpack the previous artifact, open a campaign, replace it with the candidate artifact, confirm launch and campaign access, then remove the app artifact and confirm campaign folders remain.
+
 ## Smoke Test Checklist
 
 Before packaging or sharing a build, run through these workflows:
