@@ -1,4 +1,4 @@
-import type { Asset, Campaign, CampaignSummary, Scene } from "../../shared/localvtt";
+import type { Asset, Campaign, CampaignSummary, Scene, ThumbnailRegenerationResult } from "../../shared/localvtt";
 import {
   applyMapAssetToCampaign,
   getDuplicateFolderName,
@@ -31,6 +31,7 @@ interface UseCampaignActionsOptions {
   onMapAssetDeleteHandled: () => void;
   onSceneDeleteHandled: () => void;
   onFolderDeleteHandled: () => void;
+  onThumbnailRegenerationComplete: (result: ThumbnailRegenerationResult) => void;
   shouldSyncSceneToPlayer: (sceneId: string) => boolean;
 }
 
@@ -39,6 +40,7 @@ export interface CampaignBusyState {
   message: string;
   current: number;
   total: number;
+  unitLabel?: string;
 }
 
 export function useCampaignActions({
@@ -52,6 +54,7 @@ export function useCampaignActions({
   onMapAssetDeleteHandled,
   onSceneDeleteHandled,
   onFolderDeleteHandled,
+  onThumbnailRegenerationComplete,
   shouldSyncSceneToPlayer
 }: UseCampaignActionsOptions) {
   const {
@@ -75,7 +78,8 @@ export function useCampaignActions({
     setSceneClean,
     updateScene,
     updateCampaignDraft,
-    setSaveState
+    setSaveState,
+    setError
   } = workspace;
 
   const createCampaign = () =>
@@ -260,6 +264,46 @@ export function useCampaignActions({
       updateScene(nextScene, getPlayerSyncCampaignForScene(nextCampaign, nextScene.id, shouldSyncSceneToPlayer));
     });
 
+  const regenerateThumbnails = () =>
+    run(async () => {
+      if (!campaignPath || !campaign) {
+        return;
+      }
+      if (hasUnsavedChanges) {
+        const saved = await saveCampaign();
+        if (!saved) {
+          return;
+        }
+      }
+
+      const removeProgressListener = window.localVtt.onThumbnailRegenerationProgress((progress) => {
+        onBusyChange({
+          title: "Regenerating Thumbnails",
+          message: progress.message,
+          current: progress.current,
+          total: progress.total,
+          unitLabel: "assets"
+        });
+      });
+      onBusyChange({
+        title: "Regenerating Thumbnails",
+        message: "Preparing thumbnail regeneration.",
+        current: 0,
+        total: 0,
+        unitLabel: "assets"
+      });
+      try {
+        const result = await window.localVtt.regenerateThumbnails(campaignPath);
+        applySummary(result.campaignSummary);
+        setCampaignDirty(false);
+        setError(null);
+        onThumbnailRegenerationComplete(result);
+      } finally {
+        removeProgressListener();
+        onBusyChange(null);
+      }
+    });
+
   const confirmDeleteMapAsset = () =>
     run(async () => {
       if (!campaignPath || !activeScene || !mapAssetToDelete) {
@@ -416,6 +460,7 @@ export function useCampaignActions({
     saveCampaign,
     saveCampaignBeforeClose,
     importMap,
+    regenerateThumbnails,
     confirmDeleteMapAsset,
     saveFolderScenes,
     duplicateScene,

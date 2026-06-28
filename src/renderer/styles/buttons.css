@@ -33,6 +33,10 @@
   min-width: 132px;
 }
 
+.campaign-maintenance-menu {
+  min-width: 210px;
+}
+
 .scene-menu-portal {
   position: fixed;
   top: auto;
@@ -67,6 +71,16 @@
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
+}
+
+.campaign-maintenance-menu button svg {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.campaign-maintenance-menu button span {
+  min-width: 0;
 }
 
 .scene-menu .menu-section {

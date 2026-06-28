@@ -11,7 +11,9 @@ import type {
   PlayerIdleState,
   PlayerSceneProjection,
   Scene,
-  SquareCropRect
+  SquareCropRect,
+  ThumbnailRegenerationProgress,
+  ThumbnailRegenerationResult
 } from "../src/shared/localvtt.js";
 
 const api = {
@@ -44,6 +46,15 @@ const api = {
     ipcRenderer.invoke("asset:importToken", campaignPath) as Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>,
   updateTokenThumbnail: (campaignPath: string, assetId: string, crop: SquareCropRect) =>
     ipcRenderer.invoke("asset:updateTokenThumbnail", campaignPath, assetId, crop) as Promise<{ campaignSummary: CampaignSummary; asset: Asset }>,
+  regenerateThumbnails: (campaignPath: string) =>
+    ipcRenderer.invoke("asset:regenerateThumbnails", campaignPath) as Promise<ThumbnailRegenerationResult>,
+  onThumbnailRegenerationProgress: (callback: (progress: ThumbnailRegenerationProgress) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, progress: ThumbnailRegenerationProgress) => callback(progress);
+    ipcRenderer.on("asset:thumbnailRegenerationProgress", listener);
+    return () => {
+      ipcRenderer.removeListener("asset:thumbnailRegenerationProgress", listener);
+    };
+  },
   discardTokenImport: (campaignPath: string, assetId: string) =>
     ipcRenderer.invoke("asset:discardTokenImport", campaignPath, assetId) as Promise<CampaignSummary>,
   getTokenAssetUsage: (campaignPath: string, assetId: string) =>

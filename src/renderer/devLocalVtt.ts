@@ -12,7 +12,9 @@ import {
   type PlayerIdleState,
   type PlayerSceneProjection,
   type Scene,
-  type SquareCropRect
+  type SquareCropRect,
+  type ThumbnailRegenerationProgress,
+  type ThumbnailRegenerationResult
 } from "../shared/localvtt";
 
 const DEV_CAMPAIGN_PATH = "dev://local-vtt/browser-campaign";
@@ -33,6 +35,7 @@ export function installDevLocalVtt() {
   };
   const playerStateListeners = new Set<(state: unknown) => void>();
   const liveTableEventListeners = new Set<(event: unknown) => void>();
+  const thumbnailProgressListeners = new Set<(progress: ThumbnailRegenerationProgress) => void>();
   const devBackup: MetadataBackupEntry = {
     id: "campaign::dev-backup.campaign.json",
     kind: "campaign",
@@ -122,6 +125,27 @@ export function installDevLocalVtt() {
         throw new Error("Dev asset not found.");
       }
       return { campaignSummary: getSummary(), asset };
+    },
+    regenerateThumbnails: async (): Promise<ThumbnailRegenerationResult> => {
+      const eligibleAssets = campaign.assets.filter((asset) => asset.kind === "map" || asset.kind === "token");
+      thumbnailProgressListeners.forEach((listener) =>
+        listener({ current: 0, total: eligibleAssets.length, assetName: null, message: "Preparing thumbnail regeneration." })
+      );
+      eligibleAssets.forEach((asset, index) => {
+        thumbnailProgressListeners.forEach((listener) =>
+          listener({ current: index + 1, total: eligibleAssets.length, assetName: asset.name, message: `Processed ${asset.name}.` })
+        );
+      });
+      return {
+        campaignSummary: getSummary(),
+        regenerated: eligibleAssets.length,
+        skipped: campaign.assets.filter((asset) => asset.kind !== "map" && asset.kind !== "token").length,
+        failed: []
+      };
+    },
+    onThumbnailRegenerationProgress: (callback: (progress: ThumbnailRegenerationProgress) => void) => {
+      thumbnailProgressListeners.add(callback);
+      return () => thumbnailProgressListeners.delete(callback);
     },
     discardTokenImport: async () => getSummary(),
     getTokenAssetUsage: async () => [],
