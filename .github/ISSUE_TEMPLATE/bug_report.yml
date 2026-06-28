@@ -1,0 +1,107 @@
+name: Bug report
+description: Report something in Local VTT that is broken or behaving unexpectedly.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. Clear reproduction steps make release fixes much easier to verify.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Local VTT is affected?
+      options:
+        - Campaigns
+        - Scenes
+        - Maps
+        - Player View
+        - Grid / Measurement
+        - Fog
+        - Tokens
+        - Effects
+        - Drawings / Templates
+        - Dice
+        - Turn Order
+        - Table Tools
+        - Packaging
+        - Architecture
+        - Docs
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: Local VTT version
+      description: Use the app version or build/tag if known.
+      placeholder: "0.1.12"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other / unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the bug and the visible behavior.
+      placeholder: Local VTT...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps needed to see the problem.
+      placeholder: |
+        1. Open a campaign
+        2. Select a scene
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should Local VTT have done instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What did Local VTT do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots, logs, or files
+      description: Add screenshots, logs, sample campaign details, or other evidence when relevant.
+
+  - type: textarea
+    id: done-when
+    attributes:
+      label: Done when
+      description: What should be true when this bug is fixed?
+      placeholder: |
+        - The issue no longer reproduces.
+        - A regression test covers the failing workflow.
+    validations:
+      required: true

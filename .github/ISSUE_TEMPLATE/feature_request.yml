@@ -1,0 +1,110 @@
+name: Feature or enhancement
+description: Suggest a new Local VTT capability or improvement.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for user-facing features, workflow improvements, refactors, tests, docs, release work, and security tasks.
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      description: What kind of work is this?
+      options:
+        - Feature
+        - Enhancement
+        - Refactor
+        - Test
+        - Docs
+        - Release
+        - Security
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Local VTT does this primarily affect?
+      options:
+        - Campaigns
+        - Scenes
+        - Maps
+        - Player View
+        - Grid / Measurement
+        - Fog
+        - Tokens
+        - Effects
+        - Drawings / Templates
+        - Dice
+        - Turn Order
+        - Table Tools
+        - Packaging
+        - Architecture
+        - Docs
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: Local VTT version
+      description: If this is based on current behavior, note the app version or build/tag.
+      placeholder: "0.1.12"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating system
+      description: Choose the OS if this is platform-specific.
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Cross-platform / not OS-specific
+        - Other / unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or opportunity
+      description: What user problem, workflow gap, maintenance need, or release risk does this address?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed solution
+      description: Describe the outcome you want.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: What must be true for this issue to be considered complete?
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional. Note other approaches, workarounds, or why this should wait.
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots, logs, mockups, or examples
+      description: Optional. Add supporting context when useful.
