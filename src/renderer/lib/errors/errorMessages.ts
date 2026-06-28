@@ -6,7 +6,7 @@ export function formatUserFacingError(caught: unknown): string {
     return message;
   }
   if (message.includes("Campaign metadata could not be saved") || message.includes("Scene metadata could not be saved")) {
-    return message;
+    return formatMetadataSaveError(message);
   }
   if (message.includes("ENOENT") || message.includes("no such file or directory")) {
     return "That file or folder could not be found. It may have been moved, renamed, or deleted.";
@@ -50,4 +50,26 @@ export function formatUserFacingError(caught: unknown): string {
 
 function stripElectronIpcPrefix(message: string): string {
   return message.replace(/^Error invoking remote method '[^']+': Error: /, "").trim();
+}
+
+function formatMetadataSaveError(message: string): string {
+  const prefix = message.includes("Scene metadata could not be saved")
+    ? "Scene metadata could not be saved."
+    : "Campaign metadata could not be saved.";
+  const detail = message.slice(prefix.length).trim();
+  const action = formatKnownFilesystemError(detail);
+  return action ? `${prefix} ${action}` : message;
+}
+
+function formatKnownFilesystemError(message: string): string | null {
+  if (message.includes("ENOSPC") || message.includes("no space left on device")) {
+    return "There is not enough free disk space to save that change. Free up space and try again.";
+  }
+  if (message.includes("EACCES") || message.includes("EPERM") || message.includes("permission denied") || message.includes("operation not permitted")) {
+    return "Local VTT does not have permission to access that file or folder. Check the folder permissions or choose a different location.";
+  }
+  if (message.includes("ENOENT") || message.includes("no such file or directory")) {
+    return "That file or folder could not be found. It may have been moved, renamed, or deleted.";
+  }
+  return null;
 }
