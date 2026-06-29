@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.14
+
+### Added
+
+- Added Restore Revision so metadata backups can be reviewed and restored from inside Local VTT.
+- Added map asset replacement from the Map layer while preserving scene setup such as fog, tokens, drawings, effects, grid, and Player View settings.
+- Added batch thumbnail regeneration for imported map and token previews.
+- Added generated release notes from GitHub milestones.
+- Added a canvas performance budget with representative stress scenes and manual measurement guidance.
+
+### Changed
+
+- Improved release and smoke-test documentation for thumbnail regeneration, map replacement, metadata revision restore, and canvas-sensitive release checks.
+- Restricted Vitest discovery to the `tests/` directory so stale generated build output is not counted as test coverage.
+
+### Fixed
+
+- Added schema migration harness coverage for campaign and scene compatibility checks.
+- Expanded Player View projection coverage for scene switching and player-safe state.
+
 ## 0.1.13
 
 ### Added

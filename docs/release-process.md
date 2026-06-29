@@ -22,6 +22,7 @@ npm version 0.1.6 --no-git-tag-version
 Update `CHANGELOG.md`, then verify the release branch:
 
 ```bash
+npm run release:notes -- --milestone 0.1.6 --output docs/release-notes/v0.1.6.md
 npm run check
 npm run build
 npm run smoke:electron
@@ -30,7 +31,7 @@ npm run smoke:electron
 Commit the release metadata:
 
 ```bash
-git add package.json package-lock.json CHANGELOG.md
+git add package.json package-lock.json CHANGELOG.md docs/release-notes/v0.1.6.md
 git commit -m "Prepare 0.1.6 release"
 ```
 
@@ -60,9 +61,18 @@ git status
 - `package-lock.json` version if `npm version --no-git-tag-version` changed it.
 - `src/shared/localvtt.ts` campaign and scene schema constants if the release changes persisted campaign or scene JSON shape.
 - `CHANGELOG.md` release notes.
+- `docs/release-notes/vX.Y.Z.md` generated from the matching GitHub milestone, then reviewed for human-readable wording.
 - README known limitations or smoke checklist updates.
 
-3. Run local verification:
+3. Generate release notes from the GitHub milestone:
+
+```bash
+npm run release:notes -- --milestone 0.1.1 --output docs/release-notes/v0.1.1.md
+```
+
+Review the generated notes before committing. They are grouped by existing `type:*` labels and are used by the GitHub Release workflow when the release tag is pushed.
+
+4. Run local verification:
 
 ```bash
 npm run check
@@ -70,7 +80,7 @@ npm run build
 npm run smoke:electron
 ```
 
-4. Commit the release metadata changes:
+5. Commit the release metadata changes:
 
 ```bash
 git add package.json package-lock.json src/shared/localvtt.ts CHANGELOG.md README.md docs
@@ -80,7 +90,7 @@ git push
 
 Only include `package-lock.json` if the version or dependencies changed there.
 
-5. Create a tag on the exact commit you want to release:
+6. Create a tag on the exact commit you want to release:
 
 ```bash
 git tag v0.1.1
@@ -89,9 +99,9 @@ git push origin v0.1.1
 
 The release workflow listens for tags that match `v*.*.*`. Pushing the tag is what starts the release build. Creating a tag locally is not enough.
 
-6. In GitHub, open Actions -> Build Release and confirm the run is for the tag, such as `refs/tags/v0.1.1`, not a manual run on `main`.
+7. In GitHub, open Actions -> Build Release and confirm the run is for the tag, such as `refs/tags/v0.1.1`, not a manual run on `main`.
 
-7. If the workflow succeeds, check GitHub Releases for the published release assets. The workflow also uploads Windows, macOS, and Linux build artifacts to the workflow run page.
+8. If the workflow succeeds, check GitHub Releases for the published release assets. The workflow also uploads Windows, macOS, and Linux build artifacts to the workflow run page.
 
 GitHub Releases may be immutable after publishing. If a release workflow fails after creating a release, prepare a new version and tag instead of trying to replace assets on the existing release. If the release workflow fails before publishing the GitHub Release, read the failing step message first:
 
@@ -209,6 +219,9 @@ Before packaging or sharing a build, run through these workflows:
 - Draw, rename, reorder, toggle, and delete fog shapes.
 - Select weather and fog masks from the GM canvas and confirm token selection still takes priority.
 - Configure square, hex, and gridless scenes, including grid fit-to-map for static maps.
+- Replace a scene map asset from the Map layer and confirm dimension warnings are understandable.
+- Run Regenerate Thumbnails from the Campaign panel and confirm map and token previews are rebuilt.
+- Open Restore Revision from the Campaign panel, review available metadata backups, and confirm Open Backups Folder still opens Explorer.
 - Use Player View Setup and Map Calibration Assistant on at least one static image map.
 - Add, duplicate, move, rename, resize, restyle, and delete tokens.
 - Confirm token presentation and movement sync to Player View.
@@ -218,6 +231,7 @@ Before packaging or sharing a build, run through these workflows:
 - Open the Dice Bag from Tools; roll dice with quick dice, formulas with modifiers, custom presets, GM/Player Hidden display modes, 3D Panel, and 3D Scene Roll.
 - Close with unsaved scene changes, campaign-only changes, and both; confirm Save preserves changes and Close Without Saving discards them.
 - Confirm common failure messages are actionable, including missing recent campaigns, missing assets, and disconnected Player View displays.
+- For canvas-sensitive releases, run the representative stress scenes in `docs/canvas-performance-budget.md` and record any warning-threshold misses.
 - Run `npm run check` and `npm run build`.
 - Run `npm run smoke:electron` to launch the built Electron app, confirm the GM preload bridge is available, open Player View through IPC, send a Player View idle state, and verify display enumeration.
 
@@ -230,4 +244,4 @@ For packaged Windows builds, also run:
 - Move tokens with Shift waypoints on square, hex, and gridless scenes.
 - Confirm Player View token tweening/path behavior still works.
 - Confirm Player View fullscreen behavior remains stable during scene changes.
-- Confirm Open Backups Folder opens Explorer.
+- Confirm Restore Revision and Open Backups Folder work from the packaged app.

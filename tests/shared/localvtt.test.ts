@@ -163,6 +163,21 @@ it("normalizeScene clamps weather settings", () => {
   });
 });
 
+it("normalizeScene preserves and defaults weather mask player visibility", () => {
+  const scene = normalizeScene({
+    ...createDefaultScene("Scene"),
+    weather: {
+      ...createDefaultScene("Scene").weather,
+      masks: [
+        { id: "mask-1", kind: "rectangle", points: [{ x: 0, y: 0 }, { x: 1, y: 1 }], visible: true, visibleInPlayer: false },
+        { id: "mask-2", kind: "rectangle", points: [{ x: 2, y: 2 }, { x: 3, y: 3 }], visible: true }
+      ]
+    }
+  });
+
+  expect(scene.weather.masks.map((mask) => mask.visibleInPlayer)).toEqual([false, true]);
+});
+
 it("normalizeScene preserves fire environmental effects", () => {
   const scene = createDefaultScene("Fire Effects");
   scene.environment.effects = [
@@ -894,9 +909,20 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
     }
   ];
   scene.walls = [{ id: "wall", type: "wall", points: [{ x: 0, y: 0 }], color: "#fff", thickness: 2 }];
+  scene.lights = [
+    { id: "light", position: { x: 5, y: 5 }, color: "#ffffff", intensity: 1, brightRadius: 20, dimRadius: 40, opacity: 1, enabled: true, flicker: false }
+  ];
   scene.drawings = [
     { id: "drawing-visible", kind: "line", points: [], color: "#fff", opacity: 1, strokeWidth: 2, visibleInPlayer: true },
     { id: "drawing-hidden", kind: "line", points: [], color: "#fff", opacity: 1, strokeWidth: 2, visibleInPlayer: false }
+  ];
+  scene.weather.masks = [
+    { id: "weather-visible", kind: "rectangle", points: [], visible: true, visibleInPlayer: true },
+    { id: "weather-hidden", kind: "rectangle", points: [], visible: true, visibleInPlayer: false }
+  ];
+  scene.environment.effects = [
+    { id: "effect-visible", kind: "rectangle", effect: "fire", points: [], visibleInPlayer: true },
+    { id: "effect-hidden", kind: "rectangle", effect: "smoke", points: [], visibleInPlayer: false }
   ];
   scene.overlays = [
     { id: "overlay-visible", assetId: "overlay", layerId: "effects", position: { x: 0, y: 0 }, scale: 1, rotation: 0, opacity: 1, visibleInPlayer: true },
@@ -919,9 +945,12 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
     projection.scene.tokens.map((token) => token.id),
   ).toEqual(["token-1"]);
   expect(projection.scene.walls).toEqual([]);
+  expect(projection.scene.lights).toEqual([]);
   expect(
     projection.scene.drawings.map((drawing) => drawing.id),
   ).toEqual(["drawing-visible"]);
+  expect(projection.scene.weather.masks.map((mask) => mask.id)).toEqual(["weather-visible"]);
+  expect(projection.scene.environment.effects.map((effect) => effect.id)).toEqual(["effect-visible"]);
   expect(
     projection.scene.overlays.map((overlay) => overlay.id),
   ).toEqual(["overlay-visible"]);
@@ -930,6 +959,27 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   expect(
     projection.assets.map((projectionAsset) => projectionAsset.id).sort(),
   ).toEqual(["map", "overlay", "visible-token"]);
+});
+
+it("projectSceneForPlayer strips content owned by hidden Player View layers", () => {
+  const campaign = createDefaultCampaign("Hidden Layers");
+  campaign.assets = [asset("overlay")];
+  const scene = createDefaultScene("Hidden Layers");
+  scene.layers = scene.layers.map((layer) => (layer.id === "drawing" || layer.id === "effects" ? { ...layer, visibleInPlayer: false } : layer));
+  scene.drawings = [{ id: "drawing-visible", kind: "line", points: [], color: "#fff", opacity: 1, strokeWidth: 2, visibleInPlayer: true }];
+  scene.environment.effects = [{ id: "effect-visible", kind: "rectangle", effect: "fire", points: [], visibleInPlayer: true }];
+  scene.overlays = [
+    { id: "overlay-visible", assetId: "overlay", layerId: "effects", position: { x: 0, y: 0 }, scale: 1, rotation: 0, opacity: 1, visibleInPlayer: true }
+  ];
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.scene.layers.map((layer) => layer.id)).not.toContain("drawing");
+  expect(projection.scene.layers.map((layer) => layer.id)).not.toContain("effects");
+  expect(projection.scene.drawings).toEqual([]);
+  expect(projection.scene.environment.effects).toEqual([]);
+  expect(projection.scene.overlays).toEqual([]);
+  expect(projection.assets).toEqual([]);
 });
 
 it("projectSceneForPlayer preserves per-category weather tuning", () => {

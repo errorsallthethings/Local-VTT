@@ -681,6 +681,54 @@ export interface CampaignSummary {
   missingAssets: string[];
 }
 
+export type MetadataBackupKind = "campaign" | "scene";
+
+export interface MetadataBackupRef {
+  kind: MetadataBackupKind;
+  fileName: string;
+  sceneId?: string;
+}
+
+export interface MetadataBackupEntry extends MetadataBackupRef {
+  id: string;
+  timestamp: string | null;
+  label: string;
+  sizeBytes: number;
+}
+
+export interface MetadataBackupPreview extends MetadataBackupEntry {
+  summary: string;
+  json: string;
+}
+
+export interface MetadataBackupRestoreResult {
+  campaignSummary: CampaignSummary;
+  scene?: Scene;
+  restored: MetadataBackupEntry;
+}
+
+export interface ThumbnailRegenerationFailure {
+  assetId: string;
+  assetName: string;
+  kind: Asset["kind"];
+  relativePath: string;
+  reason: string;
+}
+
+export interface ThumbnailRegenerationResult {
+  campaignSummary: CampaignSummary;
+  regenerated: number;
+  skipped: number;
+  failed: ThumbnailRegenerationFailure[];
+}
+
+export interface ThumbnailRegenerationProgress {
+  current: number;
+  total: number;
+  assetName: string | null;
+  message: string;
+}
+
 export interface PlayerSceneProjection {
   campaignName: string;
   playerDisplay: DisplayCalibration;
@@ -2291,6 +2339,13 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
         ...normalizedScene.fog,
         shapes: normalizedScene.fog.shapes.filter((shape) => shape.visibleInPlayer ?? shape.visible ?? true)
       },
+      weather: {
+        ...normalizedScene.weather,
+        masks: normalizedScene.weather.masks.filter((mask) => mask.visibleInPlayer ?? mask.visible ?? true)
+      },
+      environment: {
+        effects: normalizedScene.environment.effects.filter((effect) => effect.visibleInPlayer !== false && playerLayerIds.has("effects"))
+      },
       // Projection is the Player View trust boundary: strip GM-only layers/content before sending across IPC.
       layers: normalizedScene.layers.filter((layer) => layer.visibleInPlayer),
       tokens: normalizedScene.tokens
@@ -2300,6 +2355,7 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
           conditions: (token.conditions ?? []).filter((condition) => condition.visibleInPlayer)
         })),
       walls: [],
+      lights: [],
       drawings: normalizedScene.drawings.filter((drawing) => drawing.visibleInPlayer && playerLayerIds.has("drawing")),
       overlays: normalizedScene.overlays.filter((overlay) => overlay.visibleInPlayer && playerLayerIds.has(overlay.layerId)),
       notes: ""

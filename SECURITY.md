@@ -15,11 +15,9 @@ If you are using an older release, please update to the latest available version
 
 Please do not report security vulnerabilities in public GitHub issues.
 
-To report a vulnerability, use GitHub’s private vulnerability reporting feature for this repository:
+To report a vulnerability, use GitHub's private vulnerability reporting feature for this repository:
 
-https://github.com/OWNER/REPO/security/advisories/new
-
-Replace `OWNER/REPO` with the actual repository path if needed.
+https://github.com/errorsallthethings/Local-VTT/security/advisories/new
 
 Please include as much detail as you can, including:
 

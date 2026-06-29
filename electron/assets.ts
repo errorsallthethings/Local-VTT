@@ -2,6 +2,16 @@ import { BrowserWindow, nativeImage } from "electron";
 import { pathToFileURL } from "node:url";
 import type { SquareCropRect } from "../src/shared/localvtt.js";
 
+export interface ThumbnailCreationResult {
+  thumbnail?: Buffer;
+  failureReason?: string;
+}
+
+export interface MediaDimensions {
+  width: number;
+  height: number;
+}
+
 export function createImageMapThumbnail(sourcePath: string): Buffer | undefined {
   const image = nativeImage.createFromPath(sourcePath);
   const sourceSize = image.getSize();
@@ -57,7 +67,63 @@ export async function createSquareImageThumbnail(sourcePath: string, crop?: Squa
   return thumbnail.toJPEG(86);
 }
 
-export async function createVideoMapThumbnail(sourcePath: string): Promise<Buffer | undefined> {
+export async function readMapMediaDimensions(sourcePath: string, mediaType: "image" | "video"): Promise<MediaDimensions | undefined> {
+  if (mediaType === "image") {
+    const image = nativeImage.createFromPath(sourcePath);
+    const size = image.getSize();
+    return image.isEmpty() || size.width <= 0 || size.height <= 0 ? undefined : size;
+  }
+
+  const win = new BrowserWindow({
+    show: false,
+    width: 220,
+    height: 140,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  });
+
+  try {
+    const sourceUrl = pathToFileURL(sourcePath).toString();
+    const result = (await win.webContents.executeJavaScript(
+      `
+        new Promise((resolve) => {
+          const video = document.createElement("video");
+          const finish = (value) => {
+            clearTimeout(timeoutId);
+            video.removeAttribute("src");
+            video.load();
+            video.remove();
+            resolve(value);
+          };
+          const timeoutId = setTimeout(() => finish(null), 5000);
+          video.muted = true;
+          video.preload = "metadata";
+          video.playsInline = true;
+          video.addEventListener("error", () => finish(null), { once: true });
+          video.addEventListener("loadedmetadata", () => {
+            finish(video.videoWidth > 0 && video.videoHeight > 0 ? { width: video.videoWidth, height: video.videoHeight } : null);
+          }, { once: true });
+          document.body.append(video);
+          video.src = ${JSON.stringify(sourceUrl)};
+          video.load();
+        })
+      `,
+      true
+    )) as MediaDimensions | null;
+    return result ?? undefined;
+  } catch {
+    return undefined;
+  } finally {
+    if (!win.isDestroyed()) {
+      win.destroy();
+    }
+  }
+}
+
+export async function createVideoMapThumbnail(sourcePath: string): Promise<ThumbnailCreationResult> {
   const win = new BrowserWindow({
     show: false,
     width: 220,
@@ -72,7 +138,7 @@ export async function createVideoMapThumbnail(sourcePath: string): Promise<Buffe
   try {
     const sourceUrl = pathToFileURL(sourcePath).toString();
     await win.loadURL(sourceUrl);
-    const dataUrl = (await win.webContents.executeJavaScript(
+    const result = (await win.webContents.executeJavaScript(
       `
         new Promise((resolve) => {
           const video = document.querySelector("video") ?? document.createElement("video");
@@ -85,7 +151,7 @@ export async function createVideoMapThumbnail(sourcePath: string): Promise<Buffe
           };
           const capture = () => {
             if (!video.videoWidth || !video.videoHeight) {
-              finish(null);
+              finish({ failureReason: "No video frame was available." });
               return;
             }
             const maxWidth = 180;
@@ -96,17 +162,17 @@ export async function createVideoMapThumbnail(sourcePath: string): Promise<Buffe
             canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
             const ctx = canvas.getContext("2d");
             if (!ctx) {
-              finish(null);
+              finish({ failureReason: "Video frame could not be drawn." });
               return;
             }
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            finish(canvas.toDataURL("image/jpeg", 0.78));
+            finish({ dataUrl: canvas.toDataURL("image/jpeg", 0.78) });
           };
-          const timeoutId = setTimeout(() => finish(null), 5000);
+          const timeoutId = setTimeout(() => finish({ failureReason: "Video metadata timed out." }), 5000);
           video.muted = true;
           video.preload = "metadata";
           video.playsInline = true;
-          video.addEventListener("error", () => finish(null), { once: true });
+          video.addEventListener("error", () => finish({ failureReason: "Video could not be decoded by Electron." }), { once: true });
           video.addEventListener("loadedmetadata", () => {
             const seekTime = Number.isFinite(video.duration) && video.duration > 0.1 ? 0.05 : 0;
             if (seekTime === 0) {
@@ -124,10 +190,14 @@ export async function createVideoMapThumbnail(sourcePath: string): Promise<Buffe
           }
         })
       `
-    )) as string | null;
-    return dataUrlToBuffer(dataUrl);
+    )) as { dataUrl?: string; failureReason?: string } | null;
+    const thumbnail = dataUrlToBuffer(result?.dataUrl ?? null);
+    if (!thumbnail) {
+      return { failureReason: result?.failureReason ?? "Video frame could not be converted to a thumbnail." };
+    }
+    return { thumbnail };
   } catch {
-    return undefined;
+    return { failureReason: "Video could not be decoded by Electron." };
   } finally {
     if (!win.isDestroyed()) {
       win.destroy();
@@ -135,7 +205,7 @@ export async function createVideoMapThumbnail(sourcePath: string): Promise<Buffe
   }
 }
 
-function dataUrlToBuffer(dataUrl: string | null): Buffer | undefined {
+export function dataUrlToBuffer(dataUrl: string | null): Buffer | undefined {
   const match = /^data:image\/jpeg;base64,(.+)$/i.exec(dataUrl ?? "");
   return match ? Buffer.from(match[1], "base64") : undefined;
 }

@@ -5,10 +5,16 @@ import {
   type Campaign,
   type CampaignSummary,
   type LiveTableEvent,
+  type MetadataBackupEntry,
+  type MetadataBackupPreview,
+  type MetadataBackupRef,
+  type MetadataBackupRestoreResult,
   type PlayerIdleState,
   type PlayerSceneProjection,
   type Scene,
-  type SquareCropRect
+  type SquareCropRect,
+  type ThumbnailRegenerationProgress,
+  type ThumbnailRegenerationResult
 } from "../shared/localvtt";
 
 const DEV_CAMPAIGN_PATH = "dev://local-vtt/browser-campaign";
@@ -29,6 +35,15 @@ export function installDevLocalVtt() {
   };
   const playerStateListeners = new Set<(state: unknown) => void>();
   const liveTableEventListeners = new Set<(event: unknown) => void>();
+  const thumbnailProgressListeners = new Set<(progress: ThumbnailRegenerationProgress) => void>();
+  const devBackup: MetadataBackupEntry = {
+    id: "campaign::dev-backup.campaign.json",
+    kind: "campaign",
+    fileName: "dev-backup.campaign.json",
+    timestamp: new Date().toISOString(),
+    label: "Campaign metadata",
+    sizeBytes: 0
+  };
 
   const getSummary = (): CampaignSummary => ({
     campaignPath: DEV_CAMPAIGN_PATH,
@@ -62,6 +77,17 @@ export function installDevLocalVtt() {
       return getSummary();
     },
     openBackupsFolder: async () => false,
+    listMetadataBackups: async () => [devBackup],
+    previewMetadataBackup: async (_campaignPath: string, ref: MetadataBackupRef): Promise<MetadataBackupPreview> => ({
+      ...devBackup,
+      ...ref,
+      summary: `${campaign.name} - ${campaign.scenes.length} scenes, ${campaign.assets.length} assets`,
+      json: JSON.stringify(campaign, null, 2)
+    }),
+    restoreMetadataBackup: async (): Promise<MetadataBackupRestoreResult> => ({
+      campaignSummary: getSummary(),
+      restored: devBackup
+    }),
     createScene: async (_campaignPath: string, sceneName: string) => {
       const scene = createDefaultScene(sceneName || "Dev Scene");
       upsertScene(scene);
@@ -92,6 +118,10 @@ export function installDevLocalVtt() {
       return getSummary();
     },
     importMap: async () => null,
+    previewMapReplacement: async () => null,
+    replaceMap: async () => {
+      throw new Error("Map replacement is unavailable in the dev fallback.");
+    },
     importToken: async () => null,
     updateTokenThumbnail: async (_campaignPath: string, assetId: string, _crop: SquareCropRect) => {
       const asset = campaign.assets.find((candidate) => candidate.id === assetId);
@@ -99,6 +129,27 @@ export function installDevLocalVtt() {
         throw new Error("Dev asset not found.");
       }
       return { campaignSummary: getSummary(), asset };
+    },
+    regenerateThumbnails: async (): Promise<ThumbnailRegenerationResult> => {
+      const eligibleAssets = campaign.assets.filter((asset) => asset.kind === "map" || asset.kind === "token");
+      thumbnailProgressListeners.forEach((listener) =>
+        listener({ current: 0, total: eligibleAssets.length, assetName: null, message: "Preparing thumbnail regeneration." })
+      );
+      eligibleAssets.forEach((asset, index) => {
+        thumbnailProgressListeners.forEach((listener) =>
+          listener({ current: index + 1, total: eligibleAssets.length, assetName: asset.name, message: `Processed ${asset.name}.` })
+        );
+      });
+      return {
+        campaignSummary: getSummary(),
+        regenerated: eligibleAssets.length,
+        skipped: campaign.assets.filter((asset) => asset.kind !== "map" && asset.kind !== "token").length,
+        failed: []
+      };
+    },
+    onThumbnailRegenerationProgress: (callback: (progress: ThumbnailRegenerationProgress) => void) => {
+      thumbnailProgressListeners.add(callback);
+      return () => thumbnailProgressListeners.delete(callback);
     },
     discardTokenImport: async () => getSummary(),
     getTokenAssetUsage: async () => [],

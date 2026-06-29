@@ -1,11 +1,14 @@
-import { ArchiveRestore, ChevronDown, ChevronRight, Clock3, Edit3, Eye, EyeOff, FolderOpen, Plus, Save, Settings2, Trash2, UserRoundPlus, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArchiveRestore, ChevronDown, ChevronRight, Clock3, Edit3, EllipsisVertical, Eye, EyeOff, FolderOpen, Plus, RefreshCw, Save, Settings2, Trash2, UserRoundPlus, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { PLAYER_INDICATOR_THEME_LABELS, PLAYER_INDICATOR_THEMES } from "../../../shared/localvtt";
 import type { Asset, Campaign, CampaignPlayer, PlayerIndicatorTheme } from "../../../shared/localvtt";
 import { ColorInput } from "../controls/ColorPickerField";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
 import type { RecentCampaign } from "../../lib/campaign";
 import { getMissingAssetsWarningItems, MISSING_ASSETS_WARNING_MESSAGE } from "../../lib/assets/assetRecovery";
+import { useDismissableMenu } from "../../hooks/useDismissableMenu";
+import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 
 const MAX_CAMPAIGN_PLAYERS = 7;
 
@@ -22,7 +25,8 @@ interface CampaignPanelProps {
   onRemoveRecentCampaign: (campaignPath: string) => void;
   onSaveCampaign: () => void;
   onRenameCampaign: () => void;
-  onOpenBackupsFolder: () => void;
+  onOpenBackupRestore: () => void;
+  onRegenerateThumbnails: () => void;
   onAddPlayer: () => void;
   onUpdatePlayer: (playerId: string, patch: Partial<CampaignPlayer>) => void;
   onDeletePlayer: (playerId: string) => void;
@@ -42,20 +46,29 @@ export function CampaignPanel({
   onRemoveRecentCampaign,
   onSaveCampaign,
   onRenameCampaign,
-  onOpenBackupsFolder,
+  onOpenBackupRestore,
+  onRegenerateThumbnails,
   onAddPlayer,
   onUpdatePlayer,
   onDeletePlayer,
   onPlayersPanelOpenChange
 }: CampaignPanelProps) {
   const [playersCollapsed, setPlayersCollapsed] = useState(true);
+  const [maintenanceMenuOpen, setMaintenanceMenuOpen] = useState(false);
+  const maintenanceButtonRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     setPlayersCollapsed(true);
+    setMaintenanceMenuOpen(false);
   }, [campaign?.id]);
 
   useEffect(() => {
     onPlayersPanelOpenChange(Boolean(campaign && !playersCollapsed));
   }, [campaign, onPlayersPanelOpenChange, playersCollapsed]);
+  useDismissableMenu({
+    enabled: maintenanceMenuOpen,
+    menuRootClass: "campaign-maintenance-menu-wrap",
+    onDismiss: () => setMaintenanceMenuOpen(false)
+  });
   const missingAssetItems = getMissingAssetsWarningItems(missingAssets);
 
   return (
@@ -85,9 +98,45 @@ export function CampaignPanel({
           <Save size={16} aria-hidden="true" />
         </button>
         {campaignPath && (
-          <button className="icon-button" aria-label="Open Backups Folder" title="Open Backups Folder" onClick={onOpenBackupsFolder}>
-            <ArchiveRestore size={16} aria-hidden="true" />
-          </button>
+          <div className="scene-menu-wrap campaign-maintenance-menu-wrap">
+            <button
+              ref={maintenanceButtonRef}
+              className="icon-button"
+              aria-label="Campaign maintenance actions"
+              title="Campaign maintenance actions"
+              aria-expanded={maintenanceMenuOpen}
+              onClick={() => setMaintenanceMenuOpen((open) => !open)}
+            >
+              <EllipsisVertical size={16} aria-hidden="true" />
+            </button>
+            {maintenanceMenuOpen && (
+              createPortal(
+                <FloatingCampaignMaintenanceMenu anchor={maintenanceButtonRef.current}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaintenanceMenuOpen(false);
+                      onOpenBackupRestore();
+                    }}
+                  >
+                    <ArchiveRestore size={16} aria-hidden="true" />
+                    <span>Restore Revision</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaintenanceMenuOpen(false);
+                      onRegenerateThumbnails();
+                    }}
+                  >
+                    <RefreshCw size={16} aria-hidden="true" />
+                    <span>Regenerate Thumbnails</span>
+                  </button>
+                </FloatingCampaignMaintenanceMenu>,
+                document.body
+              )
+            )}
+          </div>
         )}
       </div>
       {campaignPath && (
@@ -174,6 +223,26 @@ export function CampaignPanel({
         </div>
       )}
     </section>
+  );
+}
+
+function FloatingCampaignMaintenanceMenu({ anchor, children }: { anchor: HTMLElement | null; children: ReactNode }) {
+  const { menuRef, position } = useFloatingMenuPosition({
+    open: Boolean(anchor),
+    anchor,
+    fallbackWidth: 210,
+    fallbackHeight: 92
+  });
+
+  return (
+    <div
+      ref={menuRef}
+      className="scene-menu scene-menu-portal scene-menu-wrap campaign-maintenance-menu campaign-maintenance-menu-wrap"
+      style={{ top: position.top, left: position.left }}
+      onClick={(event) => event.stopPropagation()}
+    >
+      {children}
+    </div>
   );
 }
 

@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } from "electron";
+import type { WebContents } from "electron";
 import { copyFile, mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -8,8 +9,15 @@ import {
   Campaign,
   CampaignSummary,
   DEFAULT_LAYERS,
+  MetadataBackupEntry,
+  MetadataBackupPreview,
+  MetadataBackupRef,
+  MetadataBackupRestoreResult,
   Scene,
   SquareCropRect,
+  ThumbnailRegenerationFailure,
+  ThumbnailRegenerationProgress,
+  ThumbnailRegenerationResult,
   assertValidScene,
   createDefaultCampaign,
   createDefaultScene,
@@ -26,7 +34,14 @@ import {
   LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE
 } from "./assetProtocol.js";
 import { findMissingCampaignAssetFiles } from "./campaignAssetRecovery.js";
-import { createImageMapThumbnail, createSquareImageThumbnail, createVideoMapThumbnail } from "./assets.js";
+import {
+  createImageMapThumbnail,
+  createSquareImageThumbnail,
+  createVideoMapThumbnail,
+  readMapMediaDimensions,
+  type MediaDimensions,
+  type ThumbnailCreationResult
+} from "./assets.js";
 import { formatMetadataReadError, formatMetadataWriteError } from "./metadataErrors.js";
 import {
   hydrateCampaignSceneEntry,
@@ -41,6 +56,11 @@ const isDev = !app.isPackaged && !isSmokeTest;
 const devServerUrl = "http://127.0.0.1:5173";
 const MAX_METADATA_BACKUPS = 10;
 const appWindowIconPath = path.join(app.getAppPath(), "build", "icon.ico");
+
+interface MapThumbnailResult {
+  thumbnailRelativePath?: string;
+  failureReason?: string;
+}
 
 configureLinuxGraphicsSwitches();
 
@@ -332,18 +352,95 @@ async function ensureMapThumbnails(campaignPath: string, campaign: Campaign): Pr
         const sourcePath = path.resolve(campaignPath, asset.relativePath);
         assertInsideCampaign(campaignPath, sourcePath);
         await stat(sourcePath);
-        const thumbnailRelativePath = await createMapThumbnail(campaignPath, sourcePath, asset.id);
-        if (!thumbnailRelativePath) {
+        const thumbnailResult = await createMapThumbnail(campaignPath, sourcePath, asset.id);
+        if (!thumbnailResult.thumbnailRelativePath) {
           return asset;
         }
         changed = true;
-        return { ...asset, thumbnailRelativePath };
+        return { ...asset, thumbnailRelativePath: thumbnailResult.thumbnailRelativePath };
       } catch {
         return asset;
       }
     })
   );
   return changed ? { ...campaign, assets, updatedAt: new Date().toISOString() } : campaign;
+}
+
+async function regenerateCampaignThumbnails(
+  campaignPath: string,
+  onProgress?: (progress: ThumbnailRegenerationProgress) => void,
+  rendererWebContents?: WebContents
+): Promise<ThumbnailRegenerationResult> {
+  const summary = await loadCampaignFromPath(campaignPath);
+  const failures: ThumbnailRegenerationFailure[] = [];
+  const previousThumbnailPaths = new Map(summary.campaign.assets.map((asset) => [asset.id, asset.thumbnailRelativePath]));
+  const normalizedAssets = normalizeCampaign(summary.campaign).assets;
+  const eligibleAssetCount = normalizedAssets.filter((asset) => asset.kind === "map" || asset.kind === "token").length;
+  let regenerated = 0;
+  let skipped = 0;
+  let processed = 0;
+
+  const assets = [];
+  onProgress?.({ current: 0, total: eligibleAssetCount, assetName: null, message: "Preparing thumbnail regeneration." });
+  for (const asset of normalizedAssets) {
+    if (asset.kind !== "map" && asset.kind !== "token") {
+      skipped += 1;
+      assets.push(asset);
+      continue;
+    }
+
+    onProgress?.({ current: processed, total: eligibleAssetCount, assetName: asset.name, message: `Regenerating ${asset.name}.` });
+    const sourcePath = path.resolve(campaignPath, asset.relativePath);
+    try {
+      assertInsideCampaign(campaignPath, sourcePath);
+      await stat(sourcePath);
+      const thumbnailResult =
+        asset.kind === "map"
+          ? await createMapThumbnail(campaignPath, sourcePath, asset.id, rendererWebContents)
+          : { thumbnailRelativePath: await createTokenThumbnail(campaignPath, sourcePath, asset.id) };
+      if (!thumbnailResult.thumbnailRelativePath) {
+        failures.push(createThumbnailFailure(asset, thumbnailResult.failureReason ?? "Thumbnail could not be generated."));
+        assets.push(asset);
+        continue;
+      }
+      regenerated += 1;
+      assets.push({ ...asset, thumbnailRelativePath: thumbnailResult.thumbnailRelativePath });
+    } catch (caught) {
+      failures.push(createThumbnailFailure(asset, caught instanceof Error ? caught.message : "Asset could not be read."));
+      assets.push(asset);
+    }
+    processed += 1;
+    onProgress?.({ current: processed, total: eligibleAssetCount, assetName: asset.name, message: `Processed ${asset.name}.` });
+  }
+
+  const campaign: Campaign = {
+    ...summary.campaign,
+    assets,
+    updatedAt: regenerated > 0 ? new Date().toISOString() : summary.campaign.updatedAt
+  };
+  if (regenerated > 0) {
+    await writeCampaign(campaignPath, campaign);
+    for (const asset of assets) {
+      await removeThumbnailIfUnused(campaignPath, previousThumbnailPaths.get(asset.id), assets);
+    }
+  }
+
+  return {
+    campaignSummary: await loadCampaignFromPath(campaignPath),
+    regenerated,
+    skipped,
+    failed: failures
+  };
+}
+
+function createThumbnailFailure(asset: Asset, reason: string): ThumbnailRegenerationFailure {
+  return {
+    assetId: asset.id,
+    assetName: asset.name,
+    kind: asset.kind,
+    relativePath: asset.relativePath,
+    reason
+  };
 }
 
 async function writeCampaign(campaignPath: string, campaign: Campaign): Promise<void> {
@@ -441,6 +538,134 @@ function createBackupTimestamp(): string {
   return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
+async function listMetadataBackups(campaignPath: string): Promise<MetadataBackupEntry[]> {
+  const summary = await loadCampaignFromPath(campaignPath);
+  const sceneNames = new Map(summary.campaign.scenes.map((scene) => [scene.id, scene.name]));
+  const entries: MetadataBackupEntry[] = [];
+  entries.push(...(await listBackupFolder(campaignPath, campaignBackupFolder(campaignPath), "campaign")));
+
+  const scenesRoot = path.join(campaignPath, "backups", "scenes");
+  assertInsideCampaign(campaignPath, scenesRoot);
+  try {
+    const sceneFolders = await readdir(scenesRoot, { withFileTypes: true });
+    for (const folder of sceneFolders) {
+      if (!folder.isDirectory()) {
+        continue;
+      }
+      const sceneId = folder.name;
+      entries.push(...(await listBackupFolder(campaignPath, sceneBackupFolder(campaignPath, sceneId), "scene", sceneId, sceneNames.get(sceneId))));
+    }
+  } catch (caught) {
+    if ((caught as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw caught;
+    }
+  }
+
+  return entries.sort((left, right) => right.fileName.localeCompare(left.fileName));
+}
+
+async function listBackupFolder(campaignPath: string, backupFolder: string, kind: MetadataBackupEntry["kind"], sceneId?: string, sceneName?: string): Promise<MetadataBackupEntry[]> {
+  assertInsideCampaign(campaignPath, backupFolder);
+  try {
+    const entries = await readdir(backupFolder);
+    const backups: MetadataBackupEntry[] = [];
+    for (const fileName of entries.filter((entry) => entry.endsWith(".json"))) {
+      const backupPath = path.join(backupFolder, fileName);
+      assertInsideCampaign(campaignPath, backupPath);
+      const stats = await stat(backupPath);
+      backups.push(createMetadataBackupEntry(kind, fileName, stats.size, sceneId, sceneName));
+    }
+    return backups;
+  } catch (caught) {
+    if ((caught as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+    throw caught;
+  }
+}
+
+function createMetadataBackupEntry(kind: MetadataBackupEntry["kind"], fileName: string, sizeBytes: number, sceneId?: string, sceneName?: string): MetadataBackupEntry {
+  const timestamp = parseBackupTimestamp(fileName);
+  const label = kind === "campaign" ? "Campaign metadata" : sceneName ? `Scene metadata: ${sceneName}` : `Scene metadata: ${sceneId ?? "Unknown scene"}`;
+  return {
+    id: kind === "campaign" ? `campaign::${fileName}` : `scene:${sceneId ?? ""}:${fileName}`,
+    kind,
+    sceneId,
+    fileName,
+    timestamp,
+    label,
+    sizeBytes
+  };
+}
+
+function parseBackupTimestamp(fileName: string): string | null {
+  const timestamp = fileName.replace(/\.(campaign|[^.]+\.scene)\.json$/, "");
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2})-(\d{2})-(\d{2})-(\d{3}Z)$/.exec(timestamp);
+  if (!match) {
+    return null;
+  }
+  return `${match[1]}:${match[2]}:${match[3]}.${match[4]}`;
+}
+
+function backupPathFromRef(campaignPath: string, ref: MetadataBackupRef): string {
+  const backupFolder = ref.kind === "campaign" ? campaignBackupFolder(campaignPath) : sceneBackupFolder(campaignPath, requireSceneBackupId(ref));
+  const backupPath = path.join(backupFolder, path.basename(ref.fileName));
+  assertInsideCampaign(campaignPath, backupPath);
+  return backupPath;
+}
+
+function requireSceneBackupId(ref: MetadataBackupRef): string {
+  if (!ref.sceneId) {
+    throw new Error("Scene backup selection is missing a scene id.");
+  }
+  return ref.sceneId;
+}
+
+async function previewMetadataBackup(campaignPath: string, ref: MetadataBackupRef): Promise<MetadataBackupPreview> {
+  const backupPath = backupPathFromRef(campaignPath, ref);
+  const raw = await readFile(backupPath, "utf8");
+  const stats = await stat(backupPath);
+  if (ref.kind === "campaign") {
+    const campaign = parseCampaignMetadata(raw);
+    return {
+      ...createMetadataBackupEntry("campaign", path.basename(backupPath), stats.size),
+      summary: `${campaign.name} - ${campaign.scenes.length} scene${campaign.scenes.length === 1 ? "" : "s"}, ${campaign.assets.length} asset${campaign.assets.length === 1 ? "" : "s"}`,
+      json: JSON.stringify(toPortableCampaignMetadata(campaign), null, 2)
+    };
+  }
+
+  const scene = parseSceneMetadata(raw);
+  const sceneId = requireSceneBackupId(ref);
+  if (scene.id !== sceneId) {
+    throw new Error("Scene backup does not match the selected scene.");
+  }
+  return {
+    ...createMetadataBackupEntry("scene", path.basename(backupPath), stats.size, sceneId, scene.name),
+    summary: `${scene.name} - ${scene.tokens.length} token${scene.tokens.length === 1 ? "" : "s"}, ${scene.layers.length} layer${scene.layers.length === 1 ? "" : "s"}`,
+    json: JSON.stringify(toPortableSceneMetadata(scene), null, 2)
+  };
+}
+
+async function restoreMetadataBackup(campaignPath: string, ref: MetadataBackupRef): Promise<MetadataBackupRestoreResult> {
+  const preview = await previewMetadataBackup(campaignPath, ref);
+  const raw = await readFile(backupPathFromRef(campaignPath, ref), "utf8");
+  if (ref.kind === "campaign") {
+    const campaign = toPortableCampaignMetadata(parseCampaignMetadata(raw));
+    await backupExistingMetadataFile(campaignPath, campaignFile(campaignPath), campaignBackupFolder(campaignPath), "campaign.json");
+    await writeFile(campaignFile(campaignPath), `${JSON.stringify(campaign, null, 2)}\n`, "utf8");
+    return { campaignSummary: await loadCampaignFromPath(campaignPath), restored: preview };
+  }
+
+  const scene = toPortableSceneMetadata(parseSceneMetadata(raw));
+  const sceneId = requireSceneBackupId(ref);
+  if (scene.id !== sceneId) {
+    throw new Error("Scene backup does not match the selected scene.");
+  }
+  await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, sceneId), sceneBackupFolder(campaignPath, sceneId), `${sceneId}.scene.json`);
+  await writeFile(sceneFile(campaignPath, sceneId), `${JSON.stringify(scene, null, 2)}\n`, "utf8");
+  return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: normalizeScene(scene), restored: preview };
+}
+
 async function getTokenAssetUsage(campaignPath: string, campaign: Campaign, assetId: string): Promise<Array<{ sceneId: string; sceneName: string; count: number }>> {
   const usage = [];
   for (const entry of campaign.scenes) {
@@ -513,18 +738,315 @@ function mapMediaType(filePath: string): Asset["mediaType"] {
   return [".mp4", ".webm"].includes(path.extname(filePath).toLowerCase()) ? "video" : "image";
 }
 
-async function createMapThumbnail(campaignPath: string, sourcePath: string, assetId: string): Promise<string | undefined> {
+function getDimensionDifferenceWarning(currentDimensions: MediaDimensions | undefined, nextDimensions: MediaDimensions | undefined): string | null {
+  if (!currentDimensions || !nextDimensions) {
+    return null;
+  }
+
+  const widthRatio = getLargestRatio(currentDimensions.width, nextDimensions.width);
+  const heightRatio = getLargestRatio(currentDimensions.height, nextDimensions.height);
+  const currentAspect = currentDimensions.width / currentDimensions.height;
+  const nextAspect = nextDimensions.width / nextDimensions.height;
+  const aspectRatio = getLargestRatio(currentAspect, nextAspect);
+  if (widthRatio < 1.25 && heightRatio < 1.25 && aspectRatio < 1.12) {
+    return null;
+  }
+
+  return [
+    `Current map: ${currentDimensions.width} x ${currentDimensions.height}`,
+    `Replacement map: ${nextDimensions.width} x ${nextDimensions.height}`,
+    "The scene keeps its current grid, calibration, fog, drawings, tokens, and effects. Review alignment after replacing the map."
+  ].join("\n");
+}
+
+function getLargestRatio(first: number, second: number): number {
+  if (first <= 0 || second <= 0) {
+    return 1;
+  }
+  return Math.max(first, second) / Math.min(first, second);
+}
+
+async function getMapReplacementWarning(currentPath: string, currentMediaType: Asset["mediaType"], nextPath: string, nextMediaType: Asset["mediaType"]): Promise<{
+  currentDimensions?: MediaDimensions;
+  nextDimensions?: MediaDimensions;
+  warning?: string;
+}> {
+  const [currentDimensions, nextDimensions] = await Promise.all([
+    readMapMediaDimensions(currentPath, currentMediaType),
+    readMapMediaDimensions(nextPath, nextMediaType)
+  ]);
+  return { currentDimensions, nextDimensions, warning: getDimensionDifferenceWarning(currentDimensions, nextDimensions) ?? undefined };
+}
+
+async function mapAssetUsedByOtherScenes(campaignPath: string, campaign: Campaign, assetId: string, sceneId: string): Promise<boolean> {
+  for (const entry of campaign.scenes) {
+    if (entry.id === sceneId) {
+      continue;
+    }
+    try {
+      const scene = await readSceneMetadata(campaignPath, entry.id);
+      if (scene.mapAssetId === assetId) {
+        return true;
+      }
+    } catch {
+      // Missing or invalid scenes are reported elsewhere by scene loading.
+    }
+  }
+  return false;
+}
+
+async function deleteMapAssetFiles(campaignPath: string, asset: Asset): Promise<void> {
+  const assetPath = path.resolve(campaignPath, asset.relativePath);
+  assertInsideCampaign(campaignPath, assetPath);
+  try {
+    await unlink(assetPath);
+  } catch (caught) {
+    const error = caught as NodeJS.ErrnoException;
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
+  if (asset.thumbnailRelativePath) {
+    const thumbnailPath = path.resolve(campaignPath, asset.thumbnailRelativePath);
+    assertInsideCampaign(campaignPath, thumbnailPath);
+    try {
+      await unlink(thumbnailPath);
+    } catch (caught) {
+      const error = caught as NodeJS.ErrnoException;
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+}
+
+async function createMapThumbnail(campaignPath: string, sourcePath: string, assetId: string, rendererWebContents?: WebContents): Promise<MapThumbnailResult> {
   const mediaType = mapMediaType(sourcePath);
-  const thumbnail = mediaType === "video" ? await createVideoMapThumbnail(sourcePath) : createImageMapThumbnail(sourcePath);
+  const thumbnailResult = mediaType === "video" ? await createVideoMapThumbnailWithFallback(sourcePath, assetId, rendererWebContents) : { thumbnail: createImageMapThumbnail(sourcePath) };
+  const thumbnail = thumbnailResult.thumbnail;
   if (!thumbnail) {
-    return undefined;
+    return { failureReason: thumbnailResult.failureReason ?? "Image file could not be decoded by Electron." };
   }
 
   const relativePath = path.join("assets", "thumbnails", `${assetId}.jpg`).replaceAll(path.sep, "/");
   const destination = path.resolve(campaignPath, relativePath);
   assertInsideCampaign(campaignPath, destination);
   await writeFile(destination, thumbnail);
-  return relativePath;
+  return { thumbnailRelativePath: relativePath };
+}
+
+async function createVideoMapThumbnailWithFallback(sourcePath: string, assetId: string, rendererWebContents?: WebContents): Promise<ThumbnailCreationResult> {
+  const primaryResult = await createVideoMapThumbnail(sourcePath);
+  if (primaryResult.thumbnail || !rendererWebContents || rendererWebContents.isDestroyed()) {
+    return primaryResult;
+  }
+
+  const fallbackResult = await createRendererVideoMapThumbnail(sourcePath, assetId, rendererWebContents);
+  if (fallbackResult.thumbnail) {
+    return fallbackResult;
+  }
+
+  const primaryReason = primaryResult.failureReason ?? "Electron could not generate a video thumbnail.";
+  const fallbackReason = fallbackResult.failureReason ?? "Renderer capture did not return a thumbnail.";
+  return { failureReason: `${primaryReason} Renderer fallback also failed: ${fallbackReason}` };
+}
+
+async function createRendererVideoMapThumbnail(sourcePath: string, assetId: string, rendererWebContents: WebContents): Promise<ThumbnailCreationResult> {
+  const baseAssetUrl = `localvtt://asset/${encodeURIComponent(sourcePath)}`;
+  const thumbnailAssetUrl = `${baseAssetUrl}?thumbnail=1#t=0.05`;
+  const captureSurfaceId = `localvtt-video-thumbnail-${assetId}`;
+  try {
+    const result = (await rendererWebContents.executeJavaScript(
+      `
+        new Promise((resolve) => {
+          let captureSurface = null;
+          let createdVideo = null;
+          let readinessIntervalId = null;
+          let completed = false;
+          const describeVideos = () => {
+            const videos = Array.from(document.querySelectorAll("video"));
+            const descriptions = videos.map((candidate, index) => {
+              const source = candidate.currentSrc || candidate.src || "";
+              return [
+                "#" + index,
+                "assetId=" + (candidate.dataset.mapAssetId || "none"),
+                "ready=" + candidate.readyState,
+                "size=" + candidate.videoWidth + "x" + candidate.videoHeight,
+                "paused=" + candidate.paused,
+                "srcMatches=" + String(source.startsWith(${JSON.stringify(baseAssetUrl)}))
+              ].join(" ");
+            });
+            return descriptions.length > 0 ? descriptions.join("; ") : "no video elements mounted";
+          };
+          const finish = (value) => {
+            if (completed) {
+              return;
+            }
+            completed = true;
+            clearTimeout(timeoutId);
+            if (readinessIntervalId !== null) {
+              clearInterval(readinessIntervalId);
+            }
+            if (createdVideo && !value?.captureRect) {
+              createdVideo.removeAttribute("src");
+              createdVideo.load();
+            }
+            if (captureSurface && !value?.captureRect) {
+              captureSurface.remove();
+            }
+            resolve(value);
+          };
+          const finishAfterPaint = () => {
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                finish({ captureRect: { x: 24, y: 24, width: 180, height: 112 } });
+              });
+            });
+          };
+          const capture = (sourceVideo) => {
+            if (!sourceVideo.videoWidth || !sourceVideo.videoHeight) {
+              finish({ failureReason: "Renderer video frame was not available." });
+              return;
+            }
+            if (!captureSurface) {
+              captureSurface = document.createElement("div");
+              captureSurface.id = ${JSON.stringify(captureSurfaceId)};
+              captureSurface.style.cssText = [
+                "position:fixed",
+                "left:24px",
+                "top:24px",
+                "width:180px",
+                "height:112px",
+                "overflow:hidden",
+                "background:#101318",
+                "z-index:2147483647",
+                "pointer-events:none"
+              ].join(";");
+              document.body.append(captureSurface);
+            }
+            if (sourceVideo === createdVideo) {
+              sourceVideo.style.cssText = "width:100%;height:100%;object-fit:contain;display:block;";
+              captureSurface.replaceChildren(sourceVideo);
+              finishAfterPaint();
+              return;
+            }
+            const capturedVideo = sourceVideo.cloneNode(true);
+            capturedVideo.muted = true;
+            capturedVideo.pause();
+            capturedVideo.style.cssText = "width:100%;height:100%;object-fit:contain;display:block;";
+            captureSurface.replaceChildren(capturedVideo);
+            if (capturedVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+              finishAfterPaint();
+              return;
+            }
+            capturedVideo.addEventListener("loadeddata", finishAfterPaint, { once: true });
+            capturedVideo.addEventListener("canplay", finishAfterPaint, { once: true });
+            capturedVideo.addEventListener("error", () => finish({ failureReason: "Renderer capture surface could not load the video frame." }), { once: true });
+            capturedVideo.load();
+          };
+          const timeoutId = setTimeout(() => {
+            finish({ failureReason: "Renderer video metadata timed out. Mounted videos: " + describeVideos() });
+          }, 12000);
+          const matchesAsset = (candidate) => {
+            const currentSource = candidate.currentSrc || candidate.src || "";
+            return candidate.dataset.mapAssetId === ${JSON.stringify(assetId)} || currentSource.startsWith(${JSON.stringify(baseAssetUrl)});
+          };
+          const sceneVideos = Array.from(document.querySelectorAll("video"));
+          const matchingSceneVideo = sceneVideos.find(matchesAsset);
+          const readySceneVideo = sceneVideos.find((candidate) =>
+            matchesAsset(candidate) &&
+            candidate.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+            candidate.videoWidth > 0 &&
+            candidate.videoHeight > 0
+          );
+          if (readySceneVideo) {
+            capture(readySceneVideo);
+            return;
+          }
+          if (matchingSceneVideo) {
+            const captureWhenReady = () => {
+              if (
+                matchingSceneVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+                matchingSceneVideo.videoWidth > 0 &&
+                matchingSceneVideo.videoHeight > 0
+              ) {
+                capture(matchingSceneVideo);
+              }
+            };
+            matchingSceneVideo.addEventListener("loadeddata", captureWhenReady, { once: true });
+            matchingSceneVideo.addEventListener("canplay", captureWhenReady, { once: true });
+            matchingSceneVideo.addEventListener("playing", captureWhenReady, { once: true });
+          }
+          const captureReadyVideo = (candidate) => {
+            if (
+              candidate.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+              candidate.videoWidth > 0 &&
+              candidate.videoHeight > 0
+            ) {
+              capture(candidate);
+              return true;
+            }
+            return false;
+          };
+          const video = document.createElement("video");
+          createdVideo = video;
+          video.muted = true;
+          video.preload = "auto";
+          video.playsInline = true;
+          video.style.cssText = "position:absolute;left:-10000px;top:-10000px;width:1px;height:1px;opacity:0;pointer-events:none;";
+          video.addEventListener("error", () => finish({ failureReason: "Renderer could not decode the video map." }), { once: true });
+          video.addEventListener("loadedmetadata", () => {
+            const seekTime = Number.isFinite(video.duration) && video.duration > 0.1 ? 0.05 : 0;
+            if (seekTime === 0) {
+              if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                capture(video);
+              } else {
+                video.addEventListener("loadeddata", () => capture(video), { once: true });
+              }
+            } else {
+              video.addEventListener("seeked", () => capture(video), { once: true });
+              video.currentTime = seekTime;
+            }
+          }, { once: true });
+          document.body.append(video);
+          video.src = ${JSON.stringify(thumbnailAssetUrl)};
+          video.load();
+          readinessIntervalId = setInterval(() => {
+            const latestReadySceneVideo = Array.from(document.querySelectorAll("video")).find((candidate) => matchesAsset(candidate) && captureReadyVideo(candidate));
+            if (latestReadySceneVideo) {
+              return;
+            }
+            captureReadyVideo(video);
+          }, 100);
+        })
+      `,
+      true
+    )) as { captureRect?: { x: number; y: number; width: number; height: number }; failureReason?: string } | null;
+    if (!result?.captureRect) {
+      return { failureReason: result?.failureReason ?? "Renderer video frame could not be prepared for capture." };
+    }
+    const image = await rendererWebContents.capturePage(result.captureRect);
+    await rendererWebContents.executeJavaScript(
+      `
+        (() => {
+          const captureSurface = document.getElementById(${JSON.stringify(captureSurfaceId)});
+          captureSurface?.querySelectorAll("video").forEach((video) => {
+            video.removeAttribute("src");
+            video.load();
+          });
+          captureSurface?.remove();
+        })()
+      `,
+      true
+    );
+    const thumbnail = image.isEmpty() ? undefined : image.toJPEG(78);
+    if (!thumbnail) {
+      return { failureReason: "Renderer video frame could not be captured." };
+    }
+    return { thumbnail };
+  } catch {
+    return { failureReason: "Renderer video thumbnail capture failed." };
+  }
 }
 
 async function createTokenThumbnail(campaignPath: string, sourcePath: string, assetId: string): Promise<string | undefined> {
@@ -581,7 +1103,17 @@ app.whenReady().then(() => {
       }
       throw error;
     }
-    return net.fetch(pathToFileURL(filePath).toString());
+    const response = await net.fetch(pathToFileURL(filePath).toString());
+    const headers = new Headers(response.headers);
+    headers.set("Access-Control-Allow-Origin", "*");
+    headers.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+    headers.set("Access-Control-Allow-Headers", "Range");
+    headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers
+    });
   });
 
   gmWindow = createGmWindow();
@@ -780,6 +1312,21 @@ ipcMain.handle("campaign:openBackupsFolder", async (_event, campaignPath: string
   return true;
 });
 
+ipcMain.handle("campaign:listMetadataBackups", async (_event, campaignPath: string) => {
+  assertKnownCampaignPath(campaignPath);
+  return listMetadataBackups(campaignPath);
+});
+
+ipcMain.handle("campaign:previewMetadataBackup", async (_event, campaignPath: string, ref: MetadataBackupRef) => {
+  assertKnownCampaignPath(campaignPath);
+  return previewMetadataBackup(campaignPath, ref);
+});
+
+ipcMain.handle("campaign:restoreMetadataBackup", async (_event, campaignPath: string, ref: MetadataBackupRef) => {
+  assertKnownCampaignPath(campaignPath);
+  return restoreMetadataBackup(campaignPath, ref);
+});
+
 ipcMain.handle("scene:create", async (_event, campaignPath: string, sceneName: string) => {
   assertKnownCampaignPath(campaignPath);
   const summary = await loadCampaignFromPath(campaignPath);
@@ -900,7 +1447,7 @@ ipcMain.handle("scene:delete", async (_event, campaignPath: string, sceneId: str
   return loadCampaignFromPath(campaignPath);
 });
 
-ipcMain.handle("asset:importMap", async (_event, campaignPath: string) => {
+ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
   assertKnownCampaignPath(campaignPath);
   const sourcePath = await chooseMapFile();
   if (!sourcePath) {
@@ -917,9 +1464,11 @@ ipcMain.handle("asset:importMap", async (_event, campaignPath: string) => {
   const destination = path.resolve(campaignPath, relativePath);
   assertInsideCampaign(campaignPath, destination);
   await copyFile(sourcePath, destination);
+  knownAssetPaths.add(destination);
 
   const assetId = randomUUID();
-  const thumbnailRelativePath = await createMapThumbnail(campaignPath, sourcePath, assetId);
+  const thumbnailResult = await createMapThumbnail(campaignPath, destination, assetId, event.sender);
+  const thumbnailRelativePath = thumbnailResult.thumbnailRelativePath;
   const imported: Asset = {
     id: assetId,
     name: path.basename(sourcePath),
@@ -940,6 +1489,100 @@ ipcMain.handle("asset:importMap", async (_event, campaignPath: string) => {
   };
   await writeCampaign(campaignPath, campaign);
   return { campaignSummary: await loadCampaignFromPath(campaignPath), asset: imported };
+});
+
+ipcMain.handle("asset:previewMapReplacement", async (_event, campaignPath: string, sceneId: string, currentAssetId: string) => {
+  assertKnownCampaignPath(campaignPath);
+  const sourcePath = await chooseMapFile();
+  if (!sourcePath) {
+    return null;
+  }
+
+  if (!allowedMapExtension(sourcePath)) {
+    throw new Error("Unsupported map type. Use jpg, jpeg, png, webp, gif, mp4, or webm.");
+  }
+
+  const summary = await loadCampaignFromPath(campaignPath);
+  const currentAsset = summary.campaign.assets.find((candidate) => candidate.id === currentAssetId && candidate.kind === "map");
+  if (!currentAsset) {
+    throw new Error("Current map asset was not found in this campaign.");
+  }
+
+  const currentScene = await readSceneMetadata(campaignPath, sceneId);
+  if (currentScene.mapAssetId !== currentAssetId) {
+    throw new Error("The selected scene no longer uses this map asset.");
+  }
+
+  const currentAssetPath = path.resolve(campaignPath, currentAsset.relativePath);
+  assertInsideCampaign(campaignPath, currentAssetPath);
+  const nextMediaType = mapMediaType(sourcePath);
+  const dimensions = await getMapReplacementWarning(currentAssetPath, currentAsset.mediaType, sourcePath, nextMediaType);
+
+  return {
+    sourcePath,
+    sourceName: path.basename(sourcePath),
+    currentAssetName: currentAsset.name,
+    currentDimensions: dimensions.currentDimensions,
+    nextDimensions: dimensions.nextDimensions,
+    warning: dimensions.warning
+  };
+});
+
+ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: string, currentAssetId: string, sourcePath: string) => {
+  assertKnownCampaignPath(campaignPath);
+  if (!allowedMapExtension(sourcePath)) {
+    throw new Error("Unsupported map type. Use jpg, jpeg, png, webp, gif, mp4, or webm.");
+  }
+
+  const summary = await loadCampaignFromPath(campaignPath);
+  const currentAsset = summary.campaign.assets.find((candidate) => candidate.id === currentAssetId && candidate.kind === "map");
+  if (!currentAsset) {
+    throw new Error("Current map asset was not found in this campaign.");
+  }
+
+  const currentScene = await readSceneMetadata(campaignPath, sceneId);
+  if (currentScene.mapAssetId !== currentAssetId) {
+    throw new Error("The selected scene no longer uses this map asset.");
+  }
+
+  const fileName = safeAssetName(sourcePath);
+  const relativePath = path.join("assets", "maps", fileName).replaceAll(path.sep, "/");
+  const destination = path.resolve(campaignPath, relativePath);
+  assertInsideCampaign(campaignPath, destination);
+  await copyFile(sourcePath, destination);
+  knownAssetPaths.add(destination);
+
+  const assetId = randomUUID();
+  const thumbnailResult = await createMapThumbnail(campaignPath, destination, assetId, event.sender);
+  const thumbnailRelativePath = thumbnailResult.thumbnailRelativePath;
+  const imported: Asset = {
+    id: assetId,
+    name: path.basename(sourcePath),
+    kind: "map",
+    mediaType: mapMediaType(sourcePath),
+    relativePath,
+    thumbnailRelativePath,
+    originalFileName: path.basename(sourcePath),
+    createdAt: new Date().toISOString(),
+    absolutePath: destination,
+    thumbnailAbsolutePath: thumbnailRelativePath ? path.resolve(campaignPath, thumbnailRelativePath) : undefined
+  };
+
+  const updatedScene = normalizeScene({ ...currentScene, mapAssetId: imported.id, updatedAt: new Date().toISOString() });
+  await writeScene(campaignPath, updatedScene);
+
+  const keepCurrentAsset = await mapAssetUsedByOtherScenes(campaignPath, summary.campaign, currentAsset.id, sceneId);
+  const campaign: Campaign = {
+    ...summary.campaign,
+    assets: keepCurrentAsset ? [...summary.campaign.assets, imported] : [...summary.campaign.assets.filter((asset) => asset.id !== currentAsset.id), imported],
+    scenes: summary.campaign.scenes.map((entry) => (entry.id === sceneId ? { ...entry, mapAssetId: imported.id } : entry)),
+    updatedAt: new Date().toISOString()
+  };
+  await writeCampaign(campaignPath, campaign);
+  if (!keepCurrentAsset) {
+    await deleteMapAssetFiles(campaignPath, currentAsset);
+  }
+  return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: updatedScene, asset: imported };
 });
 
 ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
@@ -1012,6 +1655,13 @@ ipcMain.handle("asset:updateTokenThumbnail", async (_event, campaignPath: string
     throw new Error("Token asset was not available after updating thumbnail.");
   }
   return { campaignSummary, asset: updatedAsset };
+});
+
+ipcMain.handle("asset:regenerateThumbnails", async (event, campaignPath: string) => {
+  assertKnownCampaignPath(campaignPath);
+  return regenerateCampaignThumbnails(campaignPath, (progress) => {
+    event.sender.send("asset:thumbnailRegenerationProgress", progress);
+  }, event.sender);
 });
 
 ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, assetId: string) => {

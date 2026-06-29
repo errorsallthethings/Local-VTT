@@ -4,7 +4,7 @@ Local VTT is a lightweight, local-first Electron desktop app for in-person table
 
 No login, accounts, cloud sync, or internet connection are required during play. Campaigns are portable local folders.
 
-This version is intentionally not a full campaign-management VTT. Tokens are lightweight map markers, not character sheets or combat entities.
+Local VTT is intentionally not a full campaign-management VTT. Tokens are lightweight map markers, not character sheets or combat entities.
 
 ## Downloads
 
@@ -16,7 +16,12 @@ GitHub Releases provide packaged desktop builds:
 
 The Windows installer is not code signed, and macOS builds are not notarized yet, so operating systems may show publisher or security warnings on first launch.
 
-## Current MVP
+## Useful Links
+
+- [GitHub Releases](https://github.com/errorsallthethings/Local-VTT/releases): packaged builds and release notes.
+- [GitHub Wiki](https://github.com/errorsallthethings/Local-VTT/wiki): user guides, troubleshooting, and workflow documentation.
+
+## Current Capabilities
 
 - Create, open, save, and quickly reopen portable local campaigns.
 - Manage scenes, scene folders, scene thumbnails, and folder colors.
@@ -24,6 +29,7 @@ The Windows installer is not code signed, and macOS builds are not notarized yet
 - Use a private GM View with pan/zoom, resizable panels, layer controls, Token Library, and GM tools.
 - Open a separate Player View, send scenes to it, target a saved display, and preserve fullscreen behavior during scene changes.
 - Keep Player View open on a friendly waiting screen when the shown scene is deleted or unavailable.
+- Replace a scene's map asset while preserving the scene setup, with a confirmation when replacement dimensions differ.
 - Configure gridless, square, and hex scenes with per-scene measurement settings.
 - Draw manual fog of war with brush, rectangle, circle, and polygon tools.
 - Draw map annotations, shapes, and area templates with reusable tool settings and grid footprint previews.
@@ -34,6 +40,7 @@ The Windows installer is not code signed, and macOS builds are not notarized yet
 - Run turn orders with campaign players, initiative values, Player View turn indicators, and display placement controls.
 - Roll dice from the GM toolbar with formulas, custom presets, recent history, text results, 3D Panels, and scene-based 3D physics rolls.
 - Add per-scene weather effects and localized animated effects from the Effects layer.
+- Regenerate campaign thumbnails for imported maps and token assets when previews need to be rebuilt.
 - Store metadata-only backups for campaign and scene JSON before overwrites.
 
 ## Campaign Folder Format
@@ -103,7 +110,7 @@ Local VTT creates metadata-only JSON backups before overwriting `campaign.json` 
 
 Backups intentionally do not copy assets, maps, videos, token images, or thumbnails so campaign folders do not balloon in size.
 
-Use the Campaign panel's Open Backups Folder button to inspect backup files in Explorer. Manual recovery should be done while Local VTT is closed: copy a campaign backup over `campaign.json`, or copy a scene backup over the matching file in `scenes/`.
+Use the Campaign panel's Restore Revision option to review and restore available metadata revisions from inside Local VTT. The restore dialog also includes Open Backups Folder for inspecting backup files in Explorer. Manual recovery should still be done while Local VTT is closed: copy a campaign backup over `campaign.json`, or copy a scene backup over the matching file in `scenes/`.
 
 ## Feature Overview
 
@@ -115,12 +122,15 @@ Use the Campaign panel's Open Backups Folder button to inspect backup files in E
 - Scene folders support rename, color, collapse, drag/drop ordering, duplication, deletion, and saving all dirty scenes in a folder.
 - Deleting a folder does not delete its scenes; scenes move back to Unfiled Scenes.
 - Save indicators distinguish saved, unsaved scene, and unsaved campaign state.
+- Campaign tools include Restore Revision and Regenerate Thumbnails actions for recovery and preview maintenance.
 
 ### Maps And Player View
 
 - Static image, animated GIF, `.mp4`, and `.webm` maps can be imported.
 - Video maps render muted and looped in GM View and Player View.
 - Video map playback can be paused/resumed, muted/unmuted, and inspected with optional diagnostics from contextual GM canvas controls.
+- Map assets can be replaced from the Map layer while preserving scene fog, tokens, drawings, effects, grid, and Player View setup.
+- If a replacement map has different dimensions than the current map, Local VTT confirms the dimensions before applying the change.
 - Map fit modes include Manual, Fit contain, Fit cover, and Actual size.
 - Static image maps can use known map grid dimensions, such as `44` by `25`, to fit the grid to the map's native pixel size.
 - Map Calibration Assistant can align imported image maps to known grid dimensions or a drawn calibration area.
@@ -286,6 +296,7 @@ npm run smoke:electron
 ## Project Documentation
 
 - [`docs/architecture.md`](docs/architecture.md): runtime structure, data flow, and layer ownership rules.
+- [`docs/canvas-performance-budget.md`](docs/canvas-performance-budget.md): canvas performance targets, stress scenes, and measurement strategy.
 - [`docs/codebase-audit.md`](docs/codebase-audit.md): audit progress, current hotspots, and recommended refactor sequence.
 - [`docs/layer-ownership-rules.md`](docs/layer-ownership-rules.md): layer responsibilities, visibility rules, and guidance for placing new scene features.
 - [`docs/release-process.md`](docs/release-process.md): release branch flow, packaging notes, and smoke test checklist.
@@ -299,9 +310,9 @@ npm run smoke:electron
 - Backups cover campaign and scene JSON metadata only; map, video, token, and thumbnail assets are not duplicated.
 - macOS notarization, auto-update, and release-channel infrastructure are not configured yet.
 
-## Deferred / Future Enhancements
+## Deferred Ideas
 
-These ideas are intentionally outside the current MVP unless they become release blockers:
+These ideas are intentionally outside the current focus:
 
 - Token Library export/import packs.
 - Health bars, permissions, and advanced token sheets.

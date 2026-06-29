@@ -1,4 +1,4 @@
-import type { Asset, Campaign, CampaignSummary, Scene } from "../../shared/localvtt";
+import type { Asset, Campaign, CampaignSummary, Scene, ThumbnailRegenerationResult } from "../../shared/localvtt";
 import {
   applyMapAssetToCampaign,
   getDuplicateFolderName,
@@ -11,6 +11,7 @@ import {
   removeFolderFromCampaign,
   removeSceneDraft
 } from "../lib/campaign";
+import { updatePlayerSceneIfOpen } from "../lib/player-view";
 import { stopActiveTurnOrder } from "../lib/turn-order";
 import type { useCampaignWorkspace } from "./useCampaignWorkspace";
 
@@ -23,6 +24,8 @@ export function getPlayerSyncCampaignForScene(campaign: Campaign, sceneId: strin
 interface UseCampaignActionsOptions {
   workspace: CampaignWorkspace;
   mapAssetToDelete: Asset | null;
+  onMapReplacementPreview: (preview: MapReplacementPreview) => void;
+  onMapReplacementHandled: () => void;
   onBusyChange: (busyState: CampaignBusyState | null) => void;
   onResetSceneLibraryUi: () => void;
   onCloseSceneMenu: () => void;
@@ -31,6 +34,7 @@ interface UseCampaignActionsOptions {
   onMapAssetDeleteHandled: () => void;
   onSceneDeleteHandled: () => void;
   onFolderDeleteHandled: () => void;
+  onThumbnailRegenerationComplete: (result: ThumbnailRegenerationResult) => void;
   shouldSyncSceneToPlayer: (sceneId: string) => boolean;
 }
 
@@ -39,11 +43,24 @@ export interface CampaignBusyState {
   message: string;
   current: number;
   total: number;
+  unitLabel?: string;
+}
+
+export interface MapReplacementPreview {
+  currentAssetId: string;
+  sourcePath: string;
+  sourceName: string;
+  currentAssetName: string;
+  currentDimensions?: { width: number; height: number };
+  nextDimensions?: { width: number; height: number };
+  warning?: string;
 }
 
 export function useCampaignActions({
   workspace,
   mapAssetToDelete,
+  onMapReplacementPreview,
+  onMapReplacementHandled,
   onBusyChange,
   onResetSceneLibraryUi,
   onCloseSceneMenu,
@@ -52,6 +69,7 @@ export function useCampaignActions({
   onMapAssetDeleteHandled,
   onSceneDeleteHandled,
   onFolderDeleteHandled,
+  onThumbnailRegenerationComplete,
   shouldSyncSceneToPlayer
 }: UseCampaignActionsOptions) {
   const {
@@ -75,7 +93,8 @@ export function useCampaignActions({
     setSceneClean,
     updateScene,
     updateCampaignDraft,
-    setSaveState
+    setSaveState,
+    setError
   } = workspace;
 
   const createCampaign = () =>
@@ -260,6 +279,86 @@ export function useCampaignActions({
       updateScene(nextScene, getPlayerSyncCampaignForScene(nextCampaign, nextScene.id, shouldSyncSceneToPlayer));
     });
 
+  const commitMapReplacement = (preview: MapReplacementPreview) =>
+    run(async () => {
+      if (!campaignPath || !campaign || !activeScene) {
+        return;
+      }
+      const result = await window.localVtt.replaceMap(campaignPath, activeScene.id, preview.currentAssetId, preview.sourcePath);
+      applySummary(result.campaignSummary);
+      setActiveScene(result.scene);
+      setSceneClean(result.scene);
+      setError(null);
+      onMapReplacementHandled();
+      const syncCampaign = getPlayerSyncCampaignForScene(result.campaignSummary.campaign, result.scene.id, shouldSyncSceneToPlayer);
+      if (syncCampaign) {
+        void updatePlayerSceneIfOpen(window.localVtt, syncCampaign, result.scene);
+      }
+    });
+
+  const replaceMap = (asset: Asset) =>
+    run(async () => {
+      if (!campaignPath || !campaign || !activeScene) {
+        return;
+      }
+      if (hasUnsavedChanges) {
+        const saved = await saveCampaign();
+        if (!saved) {
+          return;
+        }
+      }
+      const preview = await window.localVtt.previewMapReplacement(campaignPath, activeScene.id, asset.id);
+      if (!preview) {
+        return;
+      }
+      const nextPreview = { ...preview, currentAssetId: asset.id };
+      if (nextPreview.warning) {
+        onMapReplacementPreview(nextPreview);
+        return;
+      }
+      await commitMapReplacement(nextPreview);
+    });
+
+  const regenerateThumbnails = () =>
+    run(async () => {
+      if (!campaignPath || !campaign) {
+        return;
+      }
+      if (hasUnsavedChanges) {
+        const saved = await saveCampaign();
+        if (!saved) {
+          return;
+        }
+      }
+
+      const removeProgressListener = window.localVtt.onThumbnailRegenerationProgress((progress) => {
+        onBusyChange({
+          title: "Regenerating Thumbnails",
+          message: progress.message,
+          current: progress.current,
+          total: progress.total,
+          unitLabel: "assets"
+        });
+      });
+      onBusyChange({
+        title: "Regenerating Thumbnails",
+        message: "Preparing thumbnail regeneration.",
+        current: 0,
+        total: 0,
+        unitLabel: "assets"
+      });
+      try {
+        const result = await window.localVtt.regenerateThumbnails(campaignPath);
+        applySummary(result.campaignSummary);
+        setCampaignDirty(false);
+        setError(null);
+        onThumbnailRegenerationComplete(result);
+      } finally {
+        removeProgressListener();
+        onBusyChange(null);
+      }
+    });
+
   const confirmDeleteMapAsset = () =>
     run(async () => {
       if (!campaignPath || !activeScene || !mapAssetToDelete) {
@@ -416,6 +515,9 @@ export function useCampaignActions({
     saveCampaign,
     saveCampaignBeforeClose,
     importMap,
+    replaceMap,
+    commitMapReplacement,
+    regenerateThumbnails,
     confirmDeleteMapAsset,
     saveFolderScenes,
     duplicateScene,
