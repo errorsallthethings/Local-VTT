@@ -34,7 +34,14 @@ import {
   LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE
 } from "./assetProtocol.js";
 import { findMissingCampaignAssetFiles } from "./campaignAssetRecovery.js";
-import { createImageMapThumbnail, createSquareImageThumbnail, createVideoMapThumbnail, type ThumbnailCreationResult } from "./assets.js";
+import {
+  createImageMapThumbnail,
+  createSquareImageThumbnail,
+  createVideoMapThumbnail,
+  readMapMediaDimensions,
+  type MediaDimensions,
+  type ThumbnailCreationResult
+} from "./assets.js";
 import { formatMetadataReadError, formatMetadataWriteError } from "./metadataErrors.js";
 import {
   hydrateCampaignSceneEntry,
@@ -731,6 +738,88 @@ function mapMediaType(filePath: string): Asset["mediaType"] {
   return [".mp4", ".webm"].includes(path.extname(filePath).toLowerCase()) ? "video" : "image";
 }
 
+function getDimensionDifferenceWarning(currentDimensions: MediaDimensions | undefined, nextDimensions: MediaDimensions | undefined): string | null {
+  if (!currentDimensions || !nextDimensions) {
+    return null;
+  }
+
+  const widthRatio = getLargestRatio(currentDimensions.width, nextDimensions.width);
+  const heightRatio = getLargestRatio(currentDimensions.height, nextDimensions.height);
+  const currentAspect = currentDimensions.width / currentDimensions.height;
+  const nextAspect = nextDimensions.width / nextDimensions.height;
+  const aspectRatio = getLargestRatio(currentAspect, nextAspect);
+  if (widthRatio < 1.25 && heightRatio < 1.25 && aspectRatio < 1.12) {
+    return null;
+  }
+
+  return [
+    `Current map: ${currentDimensions.width} x ${currentDimensions.height}`,
+    `Replacement map: ${nextDimensions.width} x ${nextDimensions.height}`,
+    "The scene keeps its current grid, calibration, fog, drawings, tokens, and effects. Review alignment after replacing the map."
+  ].join("\n");
+}
+
+function getLargestRatio(first: number, second: number): number {
+  if (first <= 0 || second <= 0) {
+    return 1;
+  }
+  return Math.max(first, second) / Math.min(first, second);
+}
+
+async function getMapReplacementWarning(currentPath: string, currentMediaType: Asset["mediaType"], nextPath: string, nextMediaType: Asset["mediaType"]): Promise<{
+  currentDimensions?: MediaDimensions;
+  nextDimensions?: MediaDimensions;
+  warning?: string;
+}> {
+  const [currentDimensions, nextDimensions] = await Promise.all([
+    readMapMediaDimensions(currentPath, currentMediaType),
+    readMapMediaDimensions(nextPath, nextMediaType)
+  ]);
+  return { currentDimensions, nextDimensions, warning: getDimensionDifferenceWarning(currentDimensions, nextDimensions) ?? undefined };
+}
+
+async function mapAssetUsedByOtherScenes(campaignPath: string, campaign: Campaign, assetId: string, sceneId: string): Promise<boolean> {
+  for (const entry of campaign.scenes) {
+    if (entry.id === sceneId) {
+      continue;
+    }
+    try {
+      const scene = await readSceneMetadata(campaignPath, entry.id);
+      if (scene.mapAssetId === assetId) {
+        return true;
+      }
+    } catch {
+      // Missing or invalid scenes are reported elsewhere by scene loading.
+    }
+  }
+  return false;
+}
+
+async function deleteMapAssetFiles(campaignPath: string, asset: Asset): Promise<void> {
+  const assetPath = path.resolve(campaignPath, asset.relativePath);
+  assertInsideCampaign(campaignPath, assetPath);
+  try {
+    await unlink(assetPath);
+  } catch (caught) {
+    const error = caught as NodeJS.ErrnoException;
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
+  if (asset.thumbnailRelativePath) {
+    const thumbnailPath = path.resolve(campaignPath, asset.thumbnailRelativePath);
+    assertInsideCampaign(campaignPath, thumbnailPath);
+    try {
+      await unlink(thumbnailPath);
+    } catch (caught) {
+      const error = caught as NodeJS.ErrnoException;
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+}
+
 async function createMapThumbnail(campaignPath: string, sourcePath: string, assetId: string, rendererWebContents?: WebContents): Promise<MapThumbnailResult> {
   const mediaType = mapMediaType(sourcePath);
   const thumbnailResult = mediaType === "video" ? await createVideoMapThumbnailWithFallback(sourcePath, assetId, rendererWebContents) : { thumbnail: createImageMapThumbnail(sourcePath) };
@@ -1400,6 +1489,100 @@ ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
   };
   await writeCampaign(campaignPath, campaign);
   return { campaignSummary: await loadCampaignFromPath(campaignPath), asset: imported };
+});
+
+ipcMain.handle("asset:previewMapReplacement", async (_event, campaignPath: string, sceneId: string, currentAssetId: string) => {
+  assertKnownCampaignPath(campaignPath);
+  const sourcePath = await chooseMapFile();
+  if (!sourcePath) {
+    return null;
+  }
+
+  if (!allowedMapExtension(sourcePath)) {
+    throw new Error("Unsupported map type. Use jpg, jpeg, png, webp, gif, mp4, or webm.");
+  }
+
+  const summary = await loadCampaignFromPath(campaignPath);
+  const currentAsset = summary.campaign.assets.find((candidate) => candidate.id === currentAssetId && candidate.kind === "map");
+  if (!currentAsset) {
+    throw new Error("Current map asset was not found in this campaign.");
+  }
+
+  const currentScene = await readSceneMetadata(campaignPath, sceneId);
+  if (currentScene.mapAssetId !== currentAssetId) {
+    throw new Error("The selected scene no longer uses this map asset.");
+  }
+
+  const currentAssetPath = path.resolve(campaignPath, currentAsset.relativePath);
+  assertInsideCampaign(campaignPath, currentAssetPath);
+  const nextMediaType = mapMediaType(sourcePath);
+  const dimensions = await getMapReplacementWarning(currentAssetPath, currentAsset.mediaType, sourcePath, nextMediaType);
+
+  return {
+    sourcePath,
+    sourceName: path.basename(sourcePath),
+    currentAssetName: currentAsset.name,
+    currentDimensions: dimensions.currentDimensions,
+    nextDimensions: dimensions.nextDimensions,
+    warning: dimensions.warning
+  };
+});
+
+ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: string, currentAssetId: string, sourcePath: string) => {
+  assertKnownCampaignPath(campaignPath);
+  if (!allowedMapExtension(sourcePath)) {
+    throw new Error("Unsupported map type. Use jpg, jpeg, png, webp, gif, mp4, or webm.");
+  }
+
+  const summary = await loadCampaignFromPath(campaignPath);
+  const currentAsset = summary.campaign.assets.find((candidate) => candidate.id === currentAssetId && candidate.kind === "map");
+  if (!currentAsset) {
+    throw new Error("Current map asset was not found in this campaign.");
+  }
+
+  const currentScene = await readSceneMetadata(campaignPath, sceneId);
+  if (currentScene.mapAssetId !== currentAssetId) {
+    throw new Error("The selected scene no longer uses this map asset.");
+  }
+
+  const fileName = safeAssetName(sourcePath);
+  const relativePath = path.join("assets", "maps", fileName).replaceAll(path.sep, "/");
+  const destination = path.resolve(campaignPath, relativePath);
+  assertInsideCampaign(campaignPath, destination);
+  await copyFile(sourcePath, destination);
+  knownAssetPaths.add(destination);
+
+  const assetId = randomUUID();
+  const thumbnailResult = await createMapThumbnail(campaignPath, destination, assetId, event.sender);
+  const thumbnailRelativePath = thumbnailResult.thumbnailRelativePath;
+  const imported: Asset = {
+    id: assetId,
+    name: path.basename(sourcePath),
+    kind: "map",
+    mediaType: mapMediaType(sourcePath),
+    relativePath,
+    thumbnailRelativePath,
+    originalFileName: path.basename(sourcePath),
+    createdAt: new Date().toISOString(),
+    absolutePath: destination,
+    thumbnailAbsolutePath: thumbnailRelativePath ? path.resolve(campaignPath, thumbnailRelativePath) : undefined
+  };
+
+  const updatedScene = normalizeScene({ ...currentScene, mapAssetId: imported.id, updatedAt: new Date().toISOString() });
+  await writeScene(campaignPath, updatedScene);
+
+  const keepCurrentAsset = await mapAssetUsedByOtherScenes(campaignPath, summary.campaign, currentAsset.id, sceneId);
+  const campaign: Campaign = {
+    ...summary.campaign,
+    assets: keepCurrentAsset ? [...summary.campaign.assets, imported] : [...summary.campaign.assets.filter((asset) => asset.id !== currentAsset.id), imported],
+    scenes: summary.campaign.scenes.map((entry) => (entry.id === sceneId ? { ...entry, mapAssetId: imported.id } : entry)),
+    updatedAt: new Date().toISOString()
+  };
+  await writeCampaign(campaignPath, campaign);
+  if (!keepCurrentAsset) {
+    await deleteMapAssetFiles(campaignPath, currentAsset);
+  }
+  return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: updatedScene, asset: imported };
 });
 
 ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {

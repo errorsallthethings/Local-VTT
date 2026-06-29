@@ -46,7 +46,7 @@ import { TurnOrderModal } from "../components/turn-order/TurnOrderModal";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
-import { useCampaignActions, type CampaignBusyState } from "../hooks/useCampaignActions";
+import { useCampaignActions, type CampaignBusyState, type MapReplacementPreview } from "../hooks/useCampaignActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import {
@@ -206,6 +206,7 @@ export function GmApp() {
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
   const [metadataRestoreOpen, setMetadataRestoreOpen] = useState(false);
   const [thumbnailRegenerationResult, setThumbnailRegenerationResult] = useState<ThumbnailRegenerationResult | null>(null);
+  const [mapReplacementPreview, setMapReplacementPreview] = useState<MapReplacementPreview | null>(null);
   const {
     activeCanvasTool,
     setActiveCanvasTool,
@@ -679,6 +680,8 @@ export function GmApp() {
     saveCampaign,
     saveCampaignBeforeClose,
     importMap,
+    replaceMap,
+    commitMapReplacement,
     regenerateThumbnails,
     confirmDeleteMapAsset,
     saveFolderScenes,
@@ -689,6 +692,8 @@ export function GmApp() {
   } = useCampaignActions({
     workspace,
     mapAssetToDelete,
+    onMapReplacementPreview: setMapReplacementPreview,
+    onMapReplacementHandled: () => setMapReplacementPreview(null),
     onBusyChange: setBusyState,
     onResetSceneLibraryUi: resetSceneLibraryUi,
     onCloseSceneMenu: () => setOpenSceneMenuId(null),
@@ -1868,6 +1873,7 @@ export function GmApp() {
         onFitGridToMapDimensions={fitGridToMapDimensions}
         onMoveLayer={moveLayer}
         onImportMap={importMap}
+        onReplaceMap={replaceMap}
         onImportToken={() => void importToken("scene")}
         onDeleteMap={setMapAssetToDelete}
         onSelectFogShape={(shapeId) => selectSceneItems({ fogShapeIds: shapeId ? [shapeId] : [] })}
@@ -1951,6 +1957,7 @@ export function GmApp() {
         sceneToDelete={sceneToDelete}
         folderToDelete={folderToDelete}
         mapAssetToDelete={mapAssetToDelete}
+        mapReplacementPreview={mapReplacementPreview}
         tokenAssetToDelete={tokenAssetToDelete}
         confirmClearFogOpen={confirmClearFogOpen}
         campaign={campaign}
@@ -1993,6 +2000,7 @@ export function GmApp() {
         onCancelSceneDelete={() => setSceneToDelete(null)}
         onCancelFolderDelete={() => setFolderToDelete(null)}
         onCancelMapAssetDelete={() => setMapAssetToDelete(null)}
+        onCancelMapReplacement={() => setMapReplacementPreview(null)}
         onCancelTokenAssetDelete={() => setTokenAssetToDelete(null)}
         onCancelClearFog={() => setConfirmClearFogOpen(false)}
         onSubmitSceneName={() => void submitSceneName()}
@@ -2030,6 +2038,11 @@ export function GmApp() {
         onConfirmDeleteScene={(scene) => void confirmDeleteScene(scene)}
         onConfirmDeleteFolder={deleteFolder}
         onConfirmDeleteMapAsset={() => void confirmDeleteMapAsset()}
+        onConfirmMapReplacement={() => {
+          if (mapReplacementPreview) {
+            void commitMapReplacement(mapReplacementPreview);
+          }
+        }}
         onConfirmDeleteTokenAsset={() => void confirmDeleteTokenAsset()}
         onConfirmClearFog={clearFogShapes}
       />

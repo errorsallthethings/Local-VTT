@@ -17,6 +17,7 @@ import { TokenCropDialog } from "../components/modals/TokenCropDialog";
 import { MapCalibrationAssistant, type MapCalibrationBox, type MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { TokenDefaultsPanel } from "../components/tokens/TokenDefaultsPanel";
+import type { MapReplacementPreview } from "../hooks/useCampaignActions";
 import { getFolderSceneDeleteDetail } from "../lib/scene";
 
 export type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
@@ -50,6 +51,7 @@ export function GmDialogs({
   sceneToDelete,
   folderToDelete,
   mapAssetToDelete,
+  mapReplacementPreview,
   tokenAssetToDelete,
   confirmClearFogOpen,
   campaign,
@@ -92,6 +94,7 @@ export function GmDialogs({
   onCancelSceneDelete,
   onCancelFolderDelete,
   onCancelMapAssetDelete,
+  onCancelMapReplacement,
   onCancelTokenAssetDelete,
   onCancelClearFog,
   onSubmitSceneName,
@@ -117,6 +120,7 @@ export function GmDialogs({
   onConfirmDeleteScene,
   onConfirmDeleteFolder,
   onConfirmDeleteMapAsset,
+  onConfirmMapReplacement,
   onConfirmDeleteTokenAsset,
   onConfirmClearFog
 }: {
@@ -137,6 +141,7 @@ export function GmDialogs({
   sceneToDelete: CampaignSceneEntry | null;
   folderToDelete: CampaignSceneFolder | null;
   mapAssetToDelete: Asset | null;
+  mapReplacementPreview: MapReplacementPreview | null;
   tokenAssetToDelete: TokenAssetDeleteDialog | null;
   confirmClearFogOpen: boolean;
   campaign: Campaign | null;
@@ -179,6 +184,7 @@ export function GmDialogs({
   onCancelSceneDelete: () => void;
   onCancelFolderDelete: () => void;
   onCancelMapAssetDelete: () => void;
+  onCancelMapReplacement: () => void;
   onCancelTokenAssetDelete: () => void;
   onCancelClearFog: () => void;
   onSubmitSceneName: () => void;
@@ -204,6 +210,7 @@ export function GmDialogs({
   onConfirmDeleteScene: (scene: CampaignSceneEntry) => void;
   onConfirmDeleteFolder: (folder: CampaignSceneFolder) => void;
   onConfirmDeleteMapAsset: () => void;
+  onConfirmMapReplacement: () => void;
   onConfirmDeleteTokenAsset: () => void;
   onConfirmClearFog: () => void;
 }) {
@@ -436,6 +443,20 @@ export function GmDialogs({
         </ConfirmDialog>
       )}
 
+      {mapReplacementPreview && (
+        <ConfirmDialog title="Replace Map Asset" confirmLabel="Replace Map" onCancel={onCancelMapReplacement} onConfirm={onConfirmMapReplacement}>
+          <p>
+            Replace <strong>{mapReplacementPreview.currentAssetName}</strong> with <strong>{mapReplacementPreview.sourceName}</strong>?
+          </p>
+          {mapReplacementPreview.currentDimensions && mapReplacementPreview.nextDimensions && (
+            <p>
+              Current map: {formatDimensions(mapReplacementPreview.currentDimensions)}. Replacement map: {formatDimensions(mapReplacementPreview.nextDimensions)}.
+            </p>
+          )}
+          <p>The scene keeps its current grid, calibration, fog, drawings, tokens, and effects. Review alignment after replacing the map.</p>
+        </ConfirmDialog>
+      )}
+
       {tokenAssetToDelete && (
         <ConfirmDialog title="Delete Library Token" confirmLabel="Delete" onCancel={onCancelTokenAssetDelete} onConfirm={onConfirmDeleteTokenAsset}>
           Delete <strong>{tokenAssetToDelete.asset.name}</strong> from the token library? This cannot be undone.
@@ -488,6 +509,10 @@ function formatFolderDeleteSceneCount(sceneCount: number): string {
     return "1 scene";
   }
   return `${sceneCount} scenes`;
+}
+
+function formatDimensions(dimensions: { width: number; height: number }): string {
+  return `${dimensions.width} x ${dimensions.height}`;
 }
 
 function formatTokenAssetUsage(usage: Array<{ sceneId: string; sceneName: string; count: number }>): string {

@@ -30,6 +30,7 @@ export function GmInspector({
   onFitGridToMapDimensions,
   onMoveLayer,
   onImportMap,
+  onReplaceMap,
   onImportToken,
   onDeleteMap,
   onSelectFogShape,
@@ -70,6 +71,7 @@ export function GmInspector({
   onFitGridToMapDimensions: () => void;
   onMoveLayer: (layerId: string, direction: "up" | "down") => void;
   onImportMap: () => void;
+  onReplaceMap: (asset: Asset) => void;
   onImportToken: () => void;
   onDeleteMap: (asset: Asset) => void;
   onSelectFogShape: (shapeId: string | null) => void;
@@ -146,6 +148,7 @@ export function GmInspector({
                 onFitGridToMapDimensions={onFitGridToMapDimensions}
                 onMoveLayer={onMoveLayer}
                 onImportMap={onImportMap}
+                onReplaceMap={onReplaceMap}
                 onImportToken={onImportToken}
                 onDeleteMap={onDeleteMap}
                 onSelectFogShape={onSelectFogShape}

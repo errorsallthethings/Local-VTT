@@ -7,6 +7,11 @@ export interface ThumbnailCreationResult {
   failureReason?: string;
 }
 
+export interface MediaDimensions {
+  width: number;
+  height: number;
+}
+
 export function createImageMapThumbnail(sourcePath: string): Buffer | undefined {
   const image = nativeImage.createFromPath(sourcePath);
   const sourceSize = image.getSize();
@@ -60,6 +65,62 @@ export async function createSquareImageThumbnail(sourcePath: string, crop?: Squa
   });
 
   return thumbnail.toJPEG(86);
+}
+
+export async function readMapMediaDimensions(sourcePath: string, mediaType: "image" | "video"): Promise<MediaDimensions | undefined> {
+  if (mediaType === "image") {
+    const image = nativeImage.createFromPath(sourcePath);
+    const size = image.getSize();
+    return image.isEmpty() || size.width <= 0 || size.height <= 0 ? undefined : size;
+  }
+
+  const win = new BrowserWindow({
+    show: false,
+    width: 220,
+    height: 140,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  });
+
+  try {
+    const sourceUrl = pathToFileURL(sourcePath).toString();
+    const result = (await win.webContents.executeJavaScript(
+      `
+        new Promise((resolve) => {
+          const video = document.createElement("video");
+          const finish = (value) => {
+            clearTimeout(timeoutId);
+            video.removeAttribute("src");
+            video.load();
+            video.remove();
+            resolve(value);
+          };
+          const timeoutId = setTimeout(() => finish(null), 5000);
+          video.muted = true;
+          video.preload = "metadata";
+          video.playsInline = true;
+          video.addEventListener("error", () => finish(null), { once: true });
+          video.addEventListener("loadedmetadata", () => {
+            finish(video.videoWidth > 0 && video.videoHeight > 0 ? { width: video.videoWidth, height: video.videoHeight } : null);
+          }, { once: true });
+          document.body.append(video);
+          video.src = ${JSON.stringify(sourceUrl)};
+          video.load();
+        })
+      `,
+      true
+    )) as MediaDimensions | null;
+    return result ?? undefined;
+  } catch {
+    return undefined;
+  } finally {
+    if (!win.isDestroyed()) {
+      win.destroy();
+    }
+  }
 }
 
 export async function createVideoMapThumbnail(sourcePath: string): Promise<ThumbnailCreationResult> {

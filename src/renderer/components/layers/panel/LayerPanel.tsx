@@ -88,6 +88,7 @@ export function LayerPanel({
   onFitGridToMapDimensions,
   onMoveLayer,
   onImportMap,
+  onReplaceMap,
   onImportToken,
   onDeleteMap,
   onSelectFogShape,
@@ -122,6 +123,7 @@ export function LayerPanel({
   onFitGridToMapDimensions: () => void;
   onMoveLayer: (layerId: string, direction: "up" | "down") => void;
   onImportMap: () => void;
+  onReplaceMap: (asset: Asset) => void;
   onImportToken: () => void;
   onDeleteMap: (asset: Asset) => void;
   onSelectFogShape: (shapeId: string | null) => void;
@@ -896,11 +898,32 @@ export function LayerPanel({
                   </button>
                 </div>
               )}
-              {layer.id === "map" && mapAsset && isExpanded && (
+              {layer.id === "map" && mapAsset && isExpanded && !areSettingsExpanded && (
                 <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
-                  <div className="layer-empty-state">
-                    <strong>Map Settings</strong>
-                    <span>Use the settings button to adjust map fit, transform, and asset actions.</span>
+                  <div className="map-asset-header">
+                    <span>Map asset</span>
+                    <small>1</small>
+                  </div>
+                  <div className="map-asset-row">
+                    <span className="map-asset-thumbnail" title={mapAsset.name} aria-hidden="true">
+                      {mapAsset.thumbnailAbsolutePath ? (
+                        <img src={window.localVtt.toAssetUrl(mapAsset.thumbnailAbsolutePath)} alt="" draggable={false} />
+                      ) : (
+                        <Image size={14} />
+                      )}
+                    </span>
+                    <div className="map-asset-summary">
+                      <span title={mapAsset.name}>{mapAsset.name}</span>
+                      <small>{mapAsset.mediaType}</small>
+                    </div>
+                    <div className="map-asset-actions" aria-label="Map asset actions">
+                      <button className="icon-button" aria-label="Replace map asset" title="Replace map asset" onClick={() => onReplaceMap(mapAsset)}>
+                        <RotateCcw size={15} aria-hidden="true" />
+                      </button>
+                      <button className="icon-button danger" aria-label="Delete map asset" title="Delete map asset" onClick={() => onDeleteMap(mapAsset)}>
+                        <Trash2 size={15} aria-hidden="true" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -908,15 +931,6 @@ export function LayerPanel({
                 <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
                   {mapAsset ? (
                     <>
-                      <div className="map-asset-header">
-                        <div className="map-asset-summary">
-                          <span title={mapAsset.name}>{mapAsset.name}</span>
-                          <small>{mapAsset.mediaType}</small>
-                        </div>
-                        <button className="icon-button danger" aria-label="Delete map asset" title="Delete map asset" onClick={() => onDeleteMap(mapAsset)}>
-                          <Trash2 size={15} aria-hidden="true" />
-                        </button>
-                      </div>
                       <label className="setting-row map-fit-mode-row">
                         <span>Fit Mode</span>
                         <select value={scene.mapTransform.fitMode} onChange={(event) => onUpdateMapTransform({ fitMode: event.target.value as MapTransform["fitMode"] })}>
