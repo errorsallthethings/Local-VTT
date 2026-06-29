@@ -228,6 +228,7 @@ Before packaging or sharing a build, run through these workflows:
 - Open the Dice Bag from Tools; roll dice with quick dice, formulas with modifiers, custom presets, GM/Player Hidden display modes, 3D Panel, and 3D Scene Roll.
 - Close with unsaved scene changes, campaign-only changes, and both; confirm Save preserves changes and Close Without Saving discards them.
 - Confirm common failure messages are actionable, including missing recent campaigns, missing assets, and disconnected Player View displays.
+- For canvas-sensitive releases, run the representative stress scenes in `docs/canvas-performance-budget.md` and record any warning-threshold misses.
 - Run `npm run check` and `npm run build`.
 - Run `npm run smoke:electron` to launch the built Electron app, confirm the GM preload bridge is available, open Player View through IPC, send a Player View idle state, and verify display enumeration.
 

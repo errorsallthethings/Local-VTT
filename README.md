@@ -286,6 +286,7 @@ npm run smoke:electron
 ## Project Documentation
 
 - [`docs/architecture.md`](docs/architecture.md): runtime structure, data flow, and layer ownership rules.
+- [`docs/canvas-performance-budget.md`](docs/canvas-performance-budget.md): canvas performance targets, stress scenes, and measurement strategy.
 - [`docs/codebase-audit.md`](docs/codebase-audit.md): audit progress, current hotspots, and recommended refactor sequence.
 - [`docs/layer-ownership-rules.md`](docs/layer-ownership-rules.md): layer responsibilities, visibility rules, and guidance for placing new scene features.
 - [`docs/release-process.md`](docs/release-process.md): release branch flow, packaging notes, and smoke test checklist.
