@@ -42,6 +42,17 @@ const api = {
     ipcRenderer.invoke("scene:delete", campaignPath, sceneId) as Promise<CampaignSummary>,
   importMap: (campaignPath: string) =>
     ipcRenderer.invoke("asset:importMap", campaignPath) as Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>,
+  previewMapReplacement: (campaignPath: string, sceneId: string, currentAssetId: string) =>
+    ipcRenderer.invoke("asset:previewMapReplacement", campaignPath, sceneId, currentAssetId) as Promise<{
+      sourcePath: string;
+      sourceName: string;
+      currentAssetName: string;
+      currentDimensions?: { width: number; height: number };
+      nextDimensions?: { width: number; height: number };
+      warning?: string;
+    } | null>,
+  replaceMap: (campaignPath: string, sceneId: string, currentAssetId: string, sourcePath: string) =>
+    ipcRenderer.invoke("asset:replaceMap", campaignPath, sceneId, currentAssetId, sourcePath) as Promise<{ campaignSummary: CampaignSummary; scene: Scene; asset: Asset }>,
   importToken: (campaignPath: string) =>
     ipcRenderer.invoke("asset:importToken", campaignPath) as Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>,
   updateTokenThumbnail: (campaignPath: string, assetId: string, crop: SquareCropRect) =>
