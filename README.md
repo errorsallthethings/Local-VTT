@@ -137,6 +137,7 @@ Use the Campaign panel's Restore Revision option to review and restore available
 - Advanced Map Calibration can align imported image maps to printed grids, borders, padding, or a drawn calibration area when normal fit presets are not enough.
 - GM View uses adaptive static map rendering quality to keep large maps responsive while Player View can preserve the source image where practical.
 - Player View can be opened, fullscreened, moved to a preferred display, exited from fullscreen, and closed from the Player View menu.
+- Player View Setup can save, rename, switch, and delete named display profiles for different tables, screens, or testing displays.
 - If a preferred Player View display is disconnected, Local VTT opens the Player View normally so the GM can drag it manually.
 - Table Display Setup, Player View Setup, and Advanced Map Calibration are available from the Player View menu.
 

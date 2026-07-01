@@ -123,6 +123,13 @@ export interface DisplayCalibration {
   defaultScaleLabel: string;
 }
 
+export interface PlayerDisplayProfile extends DisplayCalibration {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Layer {
   id: string;
   name: string;
@@ -670,6 +677,8 @@ export interface Campaign {
   defaultMeasurement: MeasurementSettings;
   defaultCalibration: DisplayCalibration;
   playerDisplay: DisplayCalibration;
+  activePlayerDisplayProfileId: string;
+  playerDisplayProfiles: PlayerDisplayProfile[];
   diceSettings: DiceSettings;
   sceneLibrary: SceneLibrarySettings;
   sceneFolders: CampaignSceneFolder[];
@@ -915,6 +924,18 @@ export const DEFAULT_CALIBRATION: DisplayCalibration = {
   screenResolutionHeight: 1440,
   defaultScaleLabel: "1 inch = 5 feet"
 };
+
+export const DEFAULT_PLAYER_DISPLAY_PROFILE_ID = "default";
+
+export function createPlayerDisplayProfile(id: string, name: string, calibration: DisplayCalibration = DEFAULT_CALIBRATION, timestamp = new Date().toISOString()): PlayerDisplayProfile {
+  return {
+    ...normalizeDisplayCalibration(calibration),
+    id: id.trim() || DEFAULT_PLAYER_DISPLAY_PROFILE_ID,
+    name: name.trim() || "Default",
+    createdAt: timestamp,
+    updatedAt: timestamp
+  };
+}
 
 export const DEFAULT_MAP_TRANSFORM: MapTransform = {
   x: 0,
@@ -1287,6 +1308,7 @@ export const DEFAULT_LAYERS: Layer[] = [
 
 export function createDefaultCampaign(name: string): Campaign {
   const now = new Date().toISOString();
+  const playerDisplay = { ...DEFAULT_CALIBRATION };
   return {
     schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION,
     id: crypto.randomUUID(),
@@ -1297,7 +1319,9 @@ export function createDefaultCampaign(name: string): Campaign {
     defaultGrid: { ...DEFAULT_GRID, measurement: { ...DEFAULT_MEASUREMENT } },
     defaultMeasurement: { ...DEFAULT_MEASUREMENT },
     defaultCalibration: { ...DEFAULT_CALIBRATION },
-    playerDisplay: { ...DEFAULT_CALIBRATION },
+    playerDisplay,
+    activePlayerDisplayProfileId: DEFAULT_PLAYER_DISPLAY_PROFILE_ID,
+    playerDisplayProfiles: [createPlayerDisplayProfile(DEFAULT_PLAYER_DISPLAY_PROFILE_ID, "Default", playerDisplay, now)],
     diceSettings: { ...DEFAULT_DICE_SETTINGS },
     sceneLibrary: { collapsedFolderIds: [] },
     sceneFolders: [],
@@ -2252,14 +2276,21 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
   const folderIds = new Set(sceneFolders.map((folder) => folder.id));
   // Drop collapsed folder ids that no longer exist so deleted folders do not linger in UI state.
   const collapsedFolderIds = (migratedCampaign.sceneLibrary?.collapsedFolderIds ?? []).filter((folderId) => folderIds.has(folderId));
+  const defaultCalibration = normalizeDisplayCalibration(migratedCampaign.defaultCalibration ?? DEFAULT_CALIBRATION);
+  const playerDisplayProfiles = normalizePlayerDisplayProfiles({
+    ...migratedCampaign,
+    defaultCalibration
+  });
 
   return {
     ...migratedCampaign,
     schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION,
     defaultGrid: { ...DEFAULT_GRID, ...(migratedCampaign.defaultGrid ?? {}), measurement: { ...DEFAULT_MEASUREMENT, ...(migratedCampaign.defaultGrid?.measurement ?? {}) } },
     defaultMeasurement: { ...DEFAULT_MEASUREMENT, ...(migratedCampaign.defaultMeasurement ?? {}) },
-    defaultCalibration: { ...DEFAULT_CALIBRATION, ...(migratedCampaign.defaultCalibration ?? {}) },
-    playerDisplay: { ...DEFAULT_CALIBRATION, ...(migratedCampaign.playerDisplay ?? migratedCampaign.defaultCalibration ?? {}) },
+    defaultCalibration,
+    playerDisplay: playerDisplayProfiles.playerDisplay,
+    activePlayerDisplayProfileId: playerDisplayProfiles.activePlayerDisplayProfileId,
+    playerDisplayProfiles: playerDisplayProfiles.playerDisplayProfiles,
     diceSettings: normalizeDiceSettings(migratedCampaign.diceSettings),
     sceneLibrary: { collapsedFolderIds },
     sceneFolders,
@@ -2323,6 +2354,79 @@ function normalizeColor(color: unknown, fallback = DEFAULT_SCENE_FOLDER_COLOR): 
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+}
+
+function normalizeDisplayCalibration(calibration: unknown): DisplayCalibration {
+  const source = isRecord(calibration) ? calibration : {};
+  const mode = source.mode === "manual" || source.mode === "screen-size" || source.mode === "grid-cell" ? source.mode : DEFAULT_CALIBRATION.mode;
+  const screenAspectRatio =
+    source.screenAspectRatio === "16:9" || source.screenAspectRatio === "16:10" || source.screenAspectRatio === "4:3" || source.screenAspectRatio === "custom"
+      ? source.screenAspectRatio
+      : DEFAULT_CALIBRATION.screenAspectRatio;
+
+  return {
+    physicalScaleEnabled: typeof source.physicalScaleEnabled === "boolean" ? source.physicalScaleEnabled : DEFAULT_CALIBRATION.physicalScaleEnabled,
+    mode,
+    ...(typeof source.selectedDisplayId === "number" && Number.isFinite(source.selectedDisplayId) ? { selectedDisplayId: source.selectedDisplayId } : {}),
+    ...(typeof source.selectedDisplayLabel === "string" && source.selectedDisplayLabel.trim() ? { selectedDisplayLabel: source.selectedDisplayLabel.trim() } : {}),
+    openPlayerViewFullscreen: typeof source.openPlayerViewFullscreen === "boolean" ? source.openPlayerViewFullscreen : DEFAULT_CALIBRATION.openPlayerViewFullscreen,
+    pixelsPerInch: clampNumber(source.pixelsPerInch, 1, 10000, DEFAULT_CALIBRATION.pixelsPerInch),
+    inchesPerGridCell: clampNumber(source.inchesPerGridCell, 0.1, 1000, DEFAULT_CALIBRATION.inchesPerGridCell),
+    screenDiagonalInches: clampNumber(source.screenDiagonalInches, 1, 1000, DEFAULT_CALIBRATION.screenDiagonalInches),
+    screenAspectRatio,
+    screenResolutionWidth: Math.round(clampNumber(source.screenResolutionWidth, 1, 100000, DEFAULT_CALIBRATION.screenResolutionWidth)),
+    screenResolutionHeight: Math.round(clampNumber(source.screenResolutionHeight, 1, 100000, DEFAULT_CALIBRATION.screenResolutionHeight)),
+    defaultScaleLabel: typeof source.defaultScaleLabel === "string" && source.defaultScaleLabel.trim() ? source.defaultScaleLabel.trim() : DEFAULT_CALIBRATION.defaultScaleLabel
+  };
+}
+
+function normalizePlayerDisplayProfiles(campaign: Campaign): { activePlayerDisplayProfileId: string; playerDisplay: DisplayCalibration; playerDisplayProfiles: PlayerDisplayProfile[] } {
+  const now = typeof campaign.updatedAt === "string" && campaign.updatedAt.trim() ? campaign.updatedAt : new Date().toISOString();
+  const fallbackDisplay = normalizeDisplayCalibration(campaign.playerDisplay ?? campaign.defaultCalibration ?? DEFAULT_CALIBRATION);
+  const rawProfiles = Array.isArray(campaign.playerDisplayProfiles) ? campaign.playerDisplayProfiles : [];
+  const usedIds = new Set<string>();
+  const profiles = rawProfiles
+    .filter(isRecord)
+    .map((profile, index) => {
+      const rawId = typeof profile.id === "string" && profile.id.trim() ? profile.id.trim() : index === 0 ? DEFAULT_PLAYER_DISPLAY_PROFILE_ID : `display-profile-${index + 1}`;
+      const id = getUniqueProfileId(rawId, usedIds);
+      usedIds.add(id);
+      const name = typeof profile.name === "string" && profile.name.trim() ? profile.name.trim() : index === 0 ? "Default" : `Display Profile ${index + 1}`;
+      const createdAt = typeof profile.createdAt === "string" && profile.createdAt.trim() ? profile.createdAt : now;
+      const updatedAt = typeof profile.updatedAt === "string" && profile.updatedAt.trim() ? profile.updatedAt : createdAt;
+      return {
+        ...normalizeDisplayCalibration(profile),
+        id,
+        name,
+        createdAt,
+        updatedAt
+      };
+    });
+
+  if (profiles.length === 0) {
+    profiles.push(createPlayerDisplayProfile(DEFAULT_PLAYER_DISPLAY_PROFILE_ID, "Default", fallbackDisplay, now));
+  }
+
+  const requestedActiveId =
+    typeof campaign.activePlayerDisplayProfileId === "string" && campaign.activePlayerDisplayProfileId.trim() ? campaign.activePlayerDisplayProfileId.trim() : profiles[0].id;
+  const activeProfile = profiles.find((profile) => profile.id === requestedActiveId) ?? profiles[0];
+  return {
+    activePlayerDisplayProfileId: activeProfile.id,
+    playerDisplay: normalizeDisplayCalibration(activeProfile),
+    playerDisplayProfiles: profiles
+  };
+}
+
+function getUniqueProfileId(rawId: string, usedIds: Set<string>): string {
+  const baseId = rawId.trim() || DEFAULT_PLAYER_DISPLAY_PROFILE_ID;
+  if (!usedIds.has(baseId)) {
+    return baseId;
+  }
+  let suffix = 2;
+  while (usedIds.has(`${baseId}-${suffix}`)) {
+    suffix += 1;
+  }
+  return `${baseId}-${suffix}`;
 }
 
 export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options: PlayerSceneProjectionOptions = {}): PlayerSceneProjection {
