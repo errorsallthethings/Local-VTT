@@ -14,8 +14,25 @@ export function drawSquareGrid(
   const top = -camera.y / camera.zoom;
   const right = left + viewportWidth / camera.zoom;
   const bottom = top + viewportHeight / camera.zoom;
-  const startX = Math.floor((left - grid.offsetX) / size) * size + grid.offsetX;
-  const startY = Math.floor((top - grid.offsetY) / size) * size + grid.offsetY;
+  const columns = Math.max(1, Math.round(grid.mapGridColumns));
+  const rows = Math.max(1, Math.round(grid.mapGridRows));
+  const gridLeft = grid.offsetX;
+  const gridTop = grid.offsetY;
+  const gridRight = gridLeft + columns * size;
+  const gridBottom = gridTop + rows * size;
+  const visibleLeft = Math.max(left, gridLeft);
+  const visibleTop = Math.max(top, gridTop);
+  const visibleRight = Math.min(right, gridRight);
+  const visibleBottom = Math.min(bottom, gridBottom);
+
+  if (visibleLeft > visibleRight || visibleTop > visibleBottom) {
+    return;
+  }
+
+  const startColumn = Math.max(0, Math.floor((visibleLeft - gridLeft) / size));
+  const endColumn = Math.min(columns, Math.ceil((visibleRight - gridLeft) / size));
+  const startRow = Math.max(0, Math.floor((visibleTop - gridTop) / size));
+  const endRow = Math.min(rows, Math.ceil((visibleBottom - gridTop) / size));
 
   // Grid is drawn in world coordinates so it stays aligned with map elements across both windows.
   ctx.save();
@@ -24,16 +41,55 @@ export function drawSquareGrid(
   ctx.lineWidth = grid.lineThickness / camera.zoom;
   ctx.beginPath();
 
-  for (let x = startX; x <= right; x += size) {
-    ctx.moveTo(x, top);
-    ctx.lineTo(x, bottom);
+  for (let column = startColumn; column <= endColumn; column += 1) {
+    const x = gridLeft + column * size;
+    ctx.moveTo(x, visibleTop);
+    ctx.lineTo(x, visibleBottom);
   }
-  for (let y = startY; y <= bottom; y += size) {
-    ctx.moveTo(left, y);
-    ctx.lineTo(right, y);
+  for (let row = startRow; row <= endRow; row += 1) {
+    const y = gridTop + row * size;
+    ctx.moveTo(visibleLeft, y);
+    ctx.lineTo(visibleRight, y);
   }
 
   ctx.stroke();
+  if (grid.showCoordinates) {
+    drawSquareGridCoordinates(ctx, scene, { startColumn, endColumn, startRow, endRow, size, camera });
+  }
+  ctx.restore();
+}
+
+function drawSquareGridCoordinates(
+  ctx: CanvasRenderingContext2D,
+  scene: Scene,
+  bounds: {
+    startColumn: number;
+    endColumn: number;
+    startRow: number;
+    endRow: number;
+    size: number;
+    camera: Camera;
+  }
+) {
+  const scale = 1 / Math.max(0.1, bounds.camera.zoom);
+  const fontSize = Math.max(9, Math.min(14, 11 * scale));
+  const padding = 4 * scale;
+
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, scene.grid.opacity + 0.25);
+  ctx.fillStyle = scene.grid.color;
+  ctx.font = `${fontSize}px system-ui, sans-serif`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+
+  for (let row = bounds.startRow; row < bounds.endRow; row += 1) {
+    const y = scene.grid.offsetY + row * bounds.size;
+    for (let column = bounds.startColumn; column < bounds.endColumn; column += 1) {
+      const x = scene.grid.offsetX + column * bounds.size;
+      ctx.fillText(`${column},${row}`, x + padding, y + padding);
+    }
+  }
+
   ctx.restore();
 }
 
@@ -54,10 +110,16 @@ export function drawHexGrid(
   const top = -camera.y / camera.zoom;
   const right = left + viewportWidth / camera.zoom;
   const bottom = top + viewportHeight / camera.zoom;
-  const startColumn = Math.floor((left - grid.offsetX) / columnStep) - 2;
-  const endColumn = Math.ceil((right - grid.offsetX) / columnStep) + 2;
-  const startRow = Math.floor((top - grid.offsetY) / rowStep) - 2;
-  const endRow = Math.ceil((bottom - grid.offsetY) / rowStep) + 2;
+  const maxColumns = Math.max(1, Math.round(grid.mapGridColumns));
+  const maxRows = Math.max(1, Math.round(grid.mapGridRows));
+  const startColumn = Math.max(0, Math.floor((left - grid.offsetX) / columnStep) - 2);
+  const endColumn = Math.min(maxColumns - 1, Math.ceil((right - grid.offsetX) / columnStep) + 2);
+  const startRow = Math.max(0, Math.floor((top - grid.offsetY) / rowStep) - 2);
+  const endRow = Math.min(maxRows - 1, Math.ceil((bottom - grid.offsetY) / rowStep) + 2);
+
+  if (startColumn > endColumn || startRow > endRow) {
+    return;
+  }
 
   ctx.save();
   ctx.strokeStyle = grid.color;
@@ -74,6 +136,44 @@ export function drawHexGrid(
   }
 
   ctx.stroke();
+  if (grid.showCoordinates) {
+    drawHexGridCoordinates(ctx, scene, { startColumn, endColumn, startRow, endRow, columnStep, rowStep, camera });
+  }
+  ctx.restore();
+}
+
+function drawHexGridCoordinates(
+  ctx: CanvasRenderingContext2D,
+  scene: Scene,
+  bounds: {
+    startColumn: number;
+    endColumn: number;
+    startRow: number;
+    endRow: number;
+    columnStep: number;
+    rowStep: number;
+    camera: Camera;
+  }
+) {
+  const scale = 1 / Math.max(0.1, bounds.camera.zoom);
+  const fontSize = Math.max(9, Math.min(14, 11 * scale));
+  const padding = 4 * scale;
+
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, scene.grid.opacity + 0.25);
+  ctx.fillStyle = scene.grid.color;
+  ctx.font = `${fontSize}px system-ui, sans-serif`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+
+  for (let row = bounds.startRow; row <= bounds.endRow; row += 1) {
+    for (let column = bounds.startColumn; column <= bounds.endColumn; column += 1) {
+      const x = scene.grid.offsetX + column * bounds.columnStep + (row % 2 === 0 ? 0 : bounds.columnStep / 2);
+      const y = scene.grid.offsetY + row * bounds.rowStep;
+      ctx.fillText(`${column},${row}`, x + padding, y + padding);
+    }
+  }
+
   ctx.restore();
 }
 

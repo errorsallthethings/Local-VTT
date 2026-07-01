@@ -15,10 +15,10 @@ export function MeasurementPanel({ measurement, onChange, embedded = false }: Me
 
   return (
     <section className={embedded ? "measurement-panel measurement-panel-embedded" : "panel measurement-panel"}>
-      <h2>Measurement</h2>
+      <h2>Measurements</h2>
       <div className={groupClassName}>
         <label className={rowClassName}>
-          <span>Units per cell</span>
+          <span>Units Per Cell</span>
           <input
             type="number"
             min={0.1}
@@ -37,19 +37,19 @@ export function MeasurementPanel({ measurement, onChange, embedded = false }: Me
         </label>
       </div>
       <label className={embedded ? "setting-row measurement-distance-field" : "measurement-distance-field"}>
-        <span>Distance mode</span>
+        <span>Distance Mode</span>
         <span className="measurement-distance-control">
           <select value={measurement.distanceMode} onChange={(event) => onChange({ distanceMode: event.target.value as GridSettings["measurement"]["distanceMode"] })}>
             <option value="euclidean">Euclidean</option>
             <option value="manhattan">Manhattan</option>
-            <option value="grid">Grid snapped</option>
-            <option value="diagonal-5-10">5/10/5/10 diagonals</option>
+            <option value="grid">Grid Snapped</option>
+            <option value="diagonal-5-10">5/10/5/10 Diagonals</option>
           </select>
           <button
             type="button"
             className="icon-button measurement-help-button"
-            aria-label="Distance mode help"
-            title="Distance mode help"
+            aria-label="Distance Mode Help"
+            title="Distance Mode Help"
             onClick={() => setDistanceHelpOpen((open) => !open)}
           >
             <CircleHelp size={15} aria-hidden="true" />

@@ -7,7 +7,6 @@ import {
   addSceneWeatherMask,
   duplicateSceneDrawing,
   duplicateSceneToken,
-  getFitGridPatch,
   moveLayerOrder,
   moveSceneLayer,
   patchSceneFog,
@@ -53,29 +52,6 @@ describe("scene editing helpers", () => {
 
     expect(moveLayerOrder(scene.layers, "missing", "up")).toEqual(scene.layers);
     expect(moveLayerOrder(scene.layers, "gm", "up")).toEqual(scene.layers);
-  });
-
-  it("calculates grid fit patches from map dimensions and scene grid counts", () => {
-    const scene = createDefaultScene("Fit");
-    scene.grid = { ...scene.grid, mapGridColumns: 20, mapGridRows: 10 };
-
-    expect(getFitGridPatch(scene, { width: 1000, height: 600 })).toEqual({
-      sizePx: 55,
-      offsetX: 0,
-      offsetY: 0
-    });
-  });
-
-  it("preserves manual map transform offsets when fitting the grid", () => {
-    const scene = createDefaultScene("Manual Fit");
-    scene.grid = { ...scene.grid, mapGridColumns: 10, mapGridRows: 10 };
-    scene.mapTransform = { ...scene.mapTransform, fitMode: "manual", x: 42, y: 18 };
-
-    expect(getFitGridPatch(scene, { width: 1000, height: 500 })).toEqual({
-      sizePx: 75,
-      offsetX: 42,
-      offsetY: 18
-    });
   });
 
   it("sets fog shape Player View visibility while preserving GM-visible shapes", () => {

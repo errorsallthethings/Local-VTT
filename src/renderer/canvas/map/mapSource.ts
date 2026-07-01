@@ -1,5 +1,5 @@
 import type { Scene } from "../../../shared/localvtt";
-import { resolveMapTransform } from "../map/mapRenderer";
+import { getMapScaleX, getMapScaleY, resolveMapTransform } from "../map/mapRenderer";
 
 const LARGE_MAP_CACHE_MAX_EDGE = 4096;
 const LARGE_MAP_CACHE_MAX_PIXELS = 16_000_000;
@@ -98,7 +98,7 @@ export function getMapDrawSource(
   }
 
   const transform = resolveMapTransform(scene, loadedMap.sourceWidth, loadedMap.sourceHeight, viewportWidth, viewportHeight);
-  const effectiveMapScale = Math.abs(transform.scale * cameraZoom);
+  const effectiveMapScale = Math.max(Math.abs(getMapScaleX(transform) * cameraZoom), Math.abs(getMapScaleY(transform) * cameraZoom));
   if (effectiveMapScale > loadedMap.optimizedScale * GM_FULL_QUALITY_MAP_SCALE_THRESHOLD) {
     return loadedMap.originalSource;
   }

@@ -684,6 +684,17 @@
   color: #f2f6fb;
 }
 
+.canvas-status-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.canvas-status-title svg {
+  flex: 0 0 auto;
+  color: var(--color-text-soft);
+}
+
 .map-calibration-actions {
   position: absolute;
   top: 12px;

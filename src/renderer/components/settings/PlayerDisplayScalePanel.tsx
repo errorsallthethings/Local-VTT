@@ -82,7 +82,7 @@ export function PlayerDisplayScalePanel({
     <section className="panel">
       <h2>Player View Setup</h2>
       <div className="inline-help">
-        Choose where Player View opens and how the scene grid should scale on that display. These settings do not change the GM View grid.
+        Choose where Player View opens and how manual scene grids should scale on that display. Fit presets in Grid & Maps already calculate their Player View size and do not apply physical table scaling again.
       </div>
       <CollapsibleSettingsSection title="Player View Window" meta="Saved Per Campaign" open={windowOpen} onToggle={() => setWindowOpen((open) => !open)}>
         <SettingsReadout label="Display Status">
@@ -161,7 +161,7 @@ export function PlayerDisplayScalePanel({
       <CollapsibleSettingsSection title="Table Scale" meta="Player View Only" open={tableScaleOpen} onToggle={() => setTableScaleOpen((open) => !open)}>
         <SettingsField
           label="Physical Scale"
-          help="When enabled, Player View is scaled so a grid cell can represent a real tabletop size on the TV. Leave it off if you want the scene to use its normal digital grid size."
+          help="When enabled, Player View scales manual scene grids so a grid cell can represent a real tabletop size on the TV. Fit Whole Map, Stretch to Grid, and Image Size presets keep their own fitted Player View sizing."
           helpId="physical-scale"
           openHelpId={helpTopic}
           onToggleHelp={setHelpTopic}
@@ -356,7 +356,7 @@ export function PlayerDisplayScalePanel({
                 <br />
                 Current scene grid cell: {scene.grid.sizePx} px.
                 <br />
-                Player View scale after Apply: {playerScale.toFixed(2)}x.
+                Manual Player View scale after Apply: {playerScale.toFixed(2)}x.
               </div>
             </SettingsReadout>
           </>

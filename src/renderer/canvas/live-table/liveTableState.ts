@@ -50,6 +50,9 @@ export function getPlayerDisplayScale(campaign: Campaign | null, scene: Scene | 
   if (mode !== "player" || !campaign?.playerDisplay?.physicalScaleEnabled || !scene || scene.grid.sizePx <= 0) {
     return 1;
   }
+  if (scene.mapTransform.fitMode !== "manual") {
+    return 1;
+  }
   const targetCellSize = campaign.playerDisplay.pixelsPerInch * campaign.playerDisplay.inchesPerGridCell;
   if (!Number.isFinite(targetCellSize) || targetCellSize <= 0) {
     return 1;

@@ -131,20 +131,21 @@ Use the Campaign panel's Restore Revision option to review and restore available
 - Video map playback can be paused/resumed, muted/unmuted, and inspected with optional diagnostics from contextual GM canvas controls.
 - Map assets can be replaced from the Map layer while preserving scene fog, tokens, drawings, effects, grid, and Player View setup.
 - If a replacement map has different dimensions than the current map, Local VTT confirms the dimensions before applying the change.
-- Map fit modes include Manual, Fit contain, Fit cover, and Actual size.
-- Static image maps can use known map grid dimensions, such as `44` by `25`, to fit the grid to the map's native pixel size.
-- Map Calibration Assistant can align imported image maps to known grid dimensions or a drawn calibration area.
+- Table Display Setup walks through the common flow for choosing the Player View display, previewing a test pattern, setting the scene grid, fitting the map, and previewing Player View.
+- Map fit presets include Manual, Fit Whole Map, Stretch to Grid, and Image Size.
+- Static image maps can use known map grid dimensions, such as `44` by `25`, or filename hints such as `44x25`, to help fit the map to the scene grid.
+- Advanced Map Calibration can align imported image maps to printed grids, borders, padding, or a drawn calibration area when normal fit presets are not enough.
 - GM View uses adaptive static map rendering quality to keep large maps responsive while Player View can preserve the source image where practical.
 - Player View can be opened, fullscreened, moved to a preferred display, exited from fullscreen, and closed from the Player View menu.
 - If a preferred Player View display is disconnected, Local VTT opens the Player View normally so the GM can drag it manually.
-- Player View Setup and Map Calibration Assistant are available from the Player View menu.
+- Table Display Setup, Player View Setup, and Advanced Map Calibration are available from the Player View menu.
 
 ### Grid, Measurement, And Ruler
 
 - Grid modes support gridless, square, and hex scenes.
-- Grid controls include quick visibility, opacity reset, reusable color swatches, and fit-to-map helpers for static image maps.
-- Measurement settings are available from the Grid Layer when square or hex grids are active.
-- Player View Setup stores campaign-level calibration for the external player-facing display.
+- Grid & Maps controls include quick grid visibility, coordinate labels, opacity reset, reusable color swatches, map fit presets, and advanced transform controls for static image maps.
+- Measurement settings are available from Grid & Maps when square or hex grids are active.
+- Player View Setup stores campaign-level calibration for the external player-facing display, including optional physical table scale for manual scene grids.
 - Table Tools include the GM-only ruler, configurable ping, and laser pointer.
 - The ruler supports square, hex, and gridless scenes.
 - Ctrl/Cmd snaps ruler points to square grid centers or hex centers. Gridless measurement stays freeform.
@@ -221,7 +222,7 @@ Use the Campaign panel's Restore Revision option to review and restore available
 - Layer settings are collapsible. Map, Grid, Fog of War, and Tokens expose controls only when relevant.
 - Empty Campaign, Scenes, Layers, and Token Library areas show contextual helper text.
 - Fog and Grid color controls open a modal picker with native color selection and reusable swatches.
-- Player View Setup and Map Calibration use collapsible sections, inline help, readouts, and fixed footer actions.
+- Player View Setup and Advanced Map Calibration use collapsible sections, inline help, readouts, and fixed footer actions.
 - The Tools Menu groups Fog of War Tools, Effects Tools, Drawing Tools, Text Tools, Template Tools, Dynamic Lighting, Dice Bag, Turn Order, and Table Tools.
 
 ## Future Ideas

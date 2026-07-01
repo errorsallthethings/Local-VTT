@@ -15,26 +15,26 @@ export function drawMapSource(
   ctx.save();
   ctx.translate(transform.x, transform.y);
   ctx.rotate((transform.rotation * Math.PI) / 180);
-  ctx.scale(transform.scale, transform.scale);
-  ctx.drawImage(source, 0, 0, sourceWidth, sourceHeight);
+  const scaleX = getMapScaleX(transform);
+  const scaleY = getMapScaleY(transform);
+  ctx.scale(scaleX, scaleY);
+  ctx.beginPath();
+  ctx.rect(0, 0, sourceWidth, sourceHeight);
+  ctx.clip();
+  const sourceRectWidth = getSourceWidth(source);
+  const sourceRectHeight = getSourceHeight(source);
+  ctx.drawImage(source, 0, 0, sourceRectWidth, sourceRectHeight, 0, 0, sourceWidth, sourceHeight);
   ctx.restore();
 }
 
 export function resolveMapTransform(scene: Scene, sourceWidth: number, sourceHeight: number, viewportWidth: number, viewportHeight: number) {
   const transform = scene.mapTransform;
-  if (transform.fitMode === "manual" || sourceWidth <= 0 || sourceHeight <= 0) {
+  if (sourceWidth <= 0 || sourceHeight <= 0) {
     return transform;
   }
-
-  const containScale = Math.min(viewportWidth / sourceWidth, viewportHeight / sourceHeight);
-  const coverScale = Math.max(viewportWidth / sourceWidth, viewportHeight / sourceHeight);
-  const scale = transform.fitMode === "cover" ? coverScale : transform.fitMode === "actual-size" ? 1 : containScale;
-  return {
-    ...transform,
-    x: (viewportWidth - sourceWidth * scale) / 2,
-    y: (viewportHeight - sourceHeight * scale) / 2,
-    scale
-  };
+  void viewportWidth;
+  void viewportHeight;
+  return transform;
 }
 
 export function getCameraForMapFit(scene: Scene, sourceWidth: number, sourceHeight: number, viewportWidth: number, viewportHeight: number): Camera {
@@ -52,8 +52,8 @@ export function getCameraForMapFit(scene: Scene, sourceWidth: number, sourceHeig
     { x: sourceWidth, y: sourceHeight },
     { x: 0, y: sourceHeight }
   ].map((corner) => {
-    const scaledX = corner.x * transform.scale;
-    const scaledY = corner.y * transform.scale;
+    const scaledX = corner.x * getMapScaleX(transform);
+    const scaledY = corner.y * getMapScaleY(transform);
     return {
       x: transform.x + scaledX * cos - scaledY * sin,
       y: transform.y + scaledX * sin + scaledY * cos
@@ -78,6 +78,14 @@ export function getCameraForMapFit(scene: Scene, sourceWidth: number, sourceHeig
     y: viewportHeight / 2 - centerY * zoom,
     zoom
   };
+}
+
+export function getMapScaleX(transform: Scene["mapTransform"]): number {
+  return Number.isFinite(transform.scaleX) ? transform.scaleX : transform.scale;
+}
+
+export function getMapScaleY(transform: Scene["mapTransform"]): number {
+  return Number.isFinite(transform.scaleY) ? transform.scaleY : transform.scale;
 }
 
 export function getSourceWidth(source: CanvasImageSource): number {

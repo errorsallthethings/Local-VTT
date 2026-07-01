@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, CircleHelp, EllipsisVertical, Eye, GripVertical, Map, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
 import type { Asset, Campaign, DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneRollTarget, DiceSceneSize, LiveTableEvent, Scene } from "../../../shared/localvtt";
+import type { PlayerDisplayMode } from "../../lib/player-view";
 import {
   DICE_TYPES,
   formatDieLabel,
@@ -63,11 +64,12 @@ interface WorkspaceTopbarProps {
   activeScene: Scene | null;
   mapAsset: Asset | null;
   playerMenuOpen: boolean;
-  playerDisplayMode: "scene" | "hold" | "blackout";
+  playerDisplayMode: PlayerDisplayMode;
   onSendToPlayer: () => void;
   onTogglePlayerMenu: () => void;
   onShowPlayerHold: () => void;
   onShowPlayerBlackout: () => void;
+  onOpenTableDisplaySetup: () => void;
   onOpenPlayerDisplayScale: () => void;
   onOpenMapCalibrationAssistant: () => void;
   onSetPlayerFullscreen: (fullscreen: boolean) => void;
@@ -118,6 +120,7 @@ export function WorkspaceTopbar({
   onTogglePlayerMenu,
   onShowPlayerHold,
   onShowPlayerBlackout,
+  onOpenTableDisplaySetup,
   onOpenPlayerDisplayScale,
   onOpenMapCalibrationAssistant,
   onSetPlayerFullscreen,
@@ -804,7 +807,7 @@ export function WorkspaceTopbar({
                 <EllipsisVertical size={16} aria-hidden="true" />
               </button>
               {playerMenuOpen && (
-                <div className="scene-menu toolbar-menu">
+                <div className="scene-menu toolbar-menu player-view-menu">
                   <div className="menu-section-label">Playback</div>
                   <div className="menu-section">
                     <button disabled={!activeScene || playerDisplayMode === "scene"} onClick={onSendToPlayer}>
@@ -837,13 +840,17 @@ export function WorkspaceTopbar({
                   </div>
                   <div className="menu-section-label">Setup</div>
                   <div className="menu-section">
+                    <button disabled={!activeScene} onClick={onOpenTableDisplaySetup}>
+                      <Settings2 size={14} aria-hidden="true" />
+                      Table Display Setup
+                    </button>
                     <button disabled={!activeScene} onClick={onOpenPlayerDisplayScale}>
                       <MonitorUp size={14} aria-hidden="true" />
                       Player View Setup
                     </button>
                     <button disabled={!activeScene} onClick={onOpenMapCalibrationAssistant}>
                       <Map size={14} aria-hidden="true" />
-                      Map Calibration
+                      Advanced Map Calibration
                     </button>
                   </div>
                 </div>

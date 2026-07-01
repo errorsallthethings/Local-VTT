@@ -1,6 +1,5 @@
-import type { Asset, FogSettings, GridSettings, MapTransform, Scene, VideoPlaybackSettings } from "../../shared/localvtt";
+import type { FogSettings, GridSettings, MapTransform, Scene, VideoPlaybackSettings } from "../../shared/localvtt";
 import {
-  getFitGridPatch,
   moveSceneLayer,
   patchSceneFog,
   patchSceneGrid,
@@ -9,18 +8,13 @@ import {
   setSceneLayerOrderLocked,
   type LayerMoveDirection
 } from "../lib/scene";
-import { loadImageDimensions } from "../lib/assets";
 
 export function useSceneEditingActions({
   activeScene,
-  mapAsset,
-  run,
   updateScene,
   onClearFogConfirmed
 }: {
   activeScene: Scene | null;
-  mapAsset: Asset | null;
-  run: (task: () => Promise<void>) => Promise<boolean>;
   updateScene: (nextScene: Scene) => void;
   onClearFogConfirmed: () => void;
 }) {
@@ -90,20 +84,6 @@ export function useSceneEditingActions({
     }
   };
 
-  const fitGridToMapDimensions = () =>
-    run(async () => {
-      if (!activeScene || !mapAsset?.absolutePath || mapAsset.mediaType !== "image") {
-        return;
-      }
-      const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath));
-      updateScene(
-        patchSceneGrid(activeScene, {
-          ...activeScene.grid,
-          ...getFitGridPatch(activeScene, dimensions)
-        })
-      );
-    });
-
   return {
     updateVideoPlayback,
     updateGrid,
@@ -113,7 +93,6 @@ export function useSceneEditingActions({
     updateMeasurement,
     updateMapTransform,
     setLayerOrderLocked,
-    moveLayer,
-    fitGridToMapDimensions
+    moveLayer
   };
 }

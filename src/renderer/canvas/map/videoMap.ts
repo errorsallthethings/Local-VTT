@@ -1,5 +1,6 @@
 import type { Scene } from "../../../shared/localvtt";
 import type { Camera } from "../core/camera";
+import { getMapScaleX, getMapScaleY } from "./mapRenderer";
 
 export function getVideoTransform(camera: Camera, scene: Scene | null): string {
   if (!scene) {
@@ -12,7 +13,7 @@ export function getVideoTransform(camera: Camera, scene: Scene | null): string {
     `scale(${camera.zoom})`,
     `translate(${transform.x}px, ${transform.y}px)`,
     `rotate(${transform.rotation}deg)`,
-    `scale(${transform.scale})`
+    `scale(${getMapScaleX(transform)}, ${getMapScaleY(transform)})`
   ].join(" ");
 }
 
