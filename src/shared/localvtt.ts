@@ -102,6 +102,7 @@ export interface GridSettings {
   color: string;
   opacity: number;
   lineThickness: number;
+  showCoordinates: boolean;
   showOnGm: boolean;
   showOnPlayer: boolean;
   measurement: MeasurementSettings;
@@ -148,6 +149,8 @@ export interface MapTransform {
   x: number;
   y: number;
   scale: number;
+  scaleX: number;
+  scaleY: number;
   rotation: number;
   fitMode: "manual" | "contain" | "cover" | "actual-size";
 }
@@ -744,9 +747,17 @@ export interface PlayerSceneProjectionOptions {
 
 export interface PlayerIdleState {
   type: "idle";
-  variant?: "hold" | "blackout";
+  variant?: "hold" | "blackout" | "test-pattern";
   title: string;
   message: string;
+  testPattern?: PlayerViewTestPattern;
+}
+
+export interface PlayerViewTestPattern {
+  gridMode: "none" | "square" | "hex" | "physical-square";
+  cellSizePx?: number;
+  displayLabel?: string;
+  nativeResolution?: { width: number; height: number };
 }
 
 export interface LiveTablePoint {
@@ -886,6 +897,7 @@ export const DEFAULT_GRID: GridSettings = {
   color: "#ffffff",
   opacity: 0.45,
   lineThickness: 1,
+  showCoordinates: false,
   showOnGm: true,
   showOnPlayer: true,
   measurement: DEFAULT_MEASUREMENT
@@ -908,6 +920,8 @@ export const DEFAULT_MAP_TRANSFORM: MapTransform = {
   x: 0,
   y: 0,
   scale: 1,
+  scaleX: 1,
+  scaleY: 1,
   rotation: 0,
   fitMode: "manual"
 };
@@ -1408,9 +1422,21 @@ export function isPlayerIdleState(value: unknown): value is PlayerIdleState {
   return (
     isRecord(value) &&
     value.type === "idle" &&
-    (!("variant" in value) || value.variant === "hold" || value.variant === "blackout") &&
+    (!("variant" in value) || value.variant === "hold" || value.variant === "blackout" || value.variant === "test-pattern") &&
     typeof value.title === "string" &&
-    typeof value.message === "string"
+    typeof value.message === "string" &&
+    (!("testPattern" in value) || isPlayerViewTestPattern(value.testPattern))
+  );
+}
+
+function isPlayerViewTestPattern(value: unknown): value is PlayerViewTestPattern {
+  return (
+    isRecord(value) &&
+    (value.gridMode === "none" || value.gridMode === "square" || value.gridMode === "hex" || value.gridMode === "physical-square") &&
+    (!("cellSizePx" in value) || typeof value.cellSizePx === "number") &&
+    (!("displayLabel" in value) || typeof value.displayLabel === "string") &&
+    (!("nativeResolution" in value) ||
+      (isRecord(value.nativeResolution) && typeof value.nativeResolution.width === "number" && typeof value.nativeResolution.height === "number"))
   );
 }
 

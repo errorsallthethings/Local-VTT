@@ -82,6 +82,8 @@ const api = {
     ipcRenderer.invoke("player:updateSceneIfOpen", projection) as Promise<boolean>,
   showPlayerIdle: (title: string, message: string, variant: PlayerIdleState["variant"] = "hold") =>
     ipcRenderer.invoke("player:showIdle", { type: "idle", variant, title, message }) as Promise<boolean>,
+  showPlayerTestPattern: (state: PlayerIdleState) =>
+    ipcRenderer.invoke("player:showIdle", state) as Promise<boolean>,
   sendLiveTableEvent: (event: LiveTableEvent) =>
     ipcRenderer.invoke("player:liveTableEvent", event) as Promise<boolean>,
   setPlayerFullscreen: (fullscreen: boolean) =>

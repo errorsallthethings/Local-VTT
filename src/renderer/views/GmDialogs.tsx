@@ -4,6 +4,8 @@ import type {
   CampaignSceneEntry,
   CampaignSceneFolder,
   DisplayCalibration,
+  GridType,
+  PlayerViewTestPattern,
   Scene,
   SquareCropRect,
   TokenPresentationDefaults
@@ -16,6 +18,7 @@ import { SettingsModal } from "../components/modals/SettingsModal";
 import { TokenCropDialog } from "../components/modals/TokenCropDialog";
 import { MapCalibrationAssistant, type MapCalibrationBox, type MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
 import { PlayerDisplayScalePanel, type DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
+import { TableDisplaySetupWizard, type WizardMapFitMode } from "../components/settings/TableDisplaySetupWizard";
 import { TokenDefaultsPanel } from "../components/tokens/TokenDefaultsPanel";
 import type { MapReplacementPreview } from "../hooks/useCampaignActions";
 import { getFolderSceneDeleteDetail } from "../lib/scene";
@@ -46,6 +49,7 @@ export function GmDialogs({
   sceneColorDialog,
   tokenColorDialog,
   campaignNameDialogOpen,
+  tableDisplayWizardOpen,
   playerDisplayDialogOpen,
   mapCalibrationAssistantOpen,
   sceneToDelete,
@@ -89,6 +93,7 @@ export function GmDialogs({
   onCancelSceneColorDialog,
   onCancelTokenColorDialog,
   onCancelCampaignNameDialog,
+  onCancelTableDisplayWizard,
   onCancelPlayerDisplayDialog,
   onCancelMapCalibrationAssistant,
   onCancelSceneDelete,
@@ -114,7 +119,14 @@ export function GmDialogs({
   onSubmitCampaignName,
   onUpdatePlayerDisplay,
   onApplyMapCalibration,
+  onFitMapToGrid,
+  onUpdateSceneGrid,
   onStartMapCalibrationBoxCapture,
+  onShowPlayerTestPattern,
+  onSendToPlayer,
+  onImportMap,
+  onOpenPlayerViewSetupFromWizard,
+  onOpenMapCalibrationAssistantFromWizard,
   onOpenPlayerViewSetupFromAssistant,
   onRefreshDisplays,
   onConfirmDeleteScene,
@@ -136,6 +148,7 @@ export function GmDialogs({
   sceneColorDialog: SceneColorDialog | null;
   tokenColorDialog: TokenColorDialog | null;
   campaignNameDialogOpen: boolean;
+  tableDisplayWizardOpen: boolean;
   playerDisplayDialogOpen: boolean;
   mapCalibrationAssistantOpen: boolean;
   sceneToDelete: CampaignSceneEntry | null;
@@ -179,6 +192,7 @@ export function GmDialogs({
   onCancelSceneColorDialog: () => void;
   onCancelTokenColorDialog: () => void;
   onCancelCampaignNameDialog: () => void;
+  onCancelTableDisplayWizard: () => void;
   onCancelPlayerDisplayDialog: () => void;
   onCancelMapCalibrationAssistant: () => void;
   onCancelSceneDelete: () => void;
@@ -205,6 +219,13 @@ export function GmDialogs({
   onUpdatePlayerDisplay: (nextDisplay: DisplayCalibration) => void;
   onApplyMapCalibration: (draft: MapCalibrationDraft) => void;
   onStartMapCalibrationBoxCapture: () => void;
+  onFitMapToGrid: (columns: number, rows: number, fitMode: WizardMapFitMode) => Promise<unknown>;
+  onUpdateSceneGrid: (gridType: GridType, sizePx: number, display: DisplayCalibration) => void;
+  onShowPlayerTestPattern: (gridMode: PlayerViewTestPattern["gridMode"], display: DisplayCalibration, cellSizePx: number) => Promise<unknown>;
+  onSendToPlayer: () => void;
+  onImportMap: () => void;
+  onOpenPlayerViewSetupFromWizard: () => void;
+  onOpenMapCalibrationAssistantFromWizard: () => void;
   onOpenPlayerViewSetupFromAssistant: () => void;
   onRefreshDisplays: () => Promise<boolean | undefined>;
   onConfirmDeleteScene: (scene: CampaignSceneEntry) => void;
@@ -367,6 +388,26 @@ export function GmDialogs({
           onCancel={onCancelCampaignNameDialog}
           onSubmit={onSubmitCampaignName}
         />
+      )}
+
+      {tableDisplayWizardOpen && campaign && activeScene && (
+        <SettingsModal onClose={onCancelTableDisplayWizard}>
+          <TableDisplaySetupWizard
+            scene={activeScene}
+            mapAsset={mapAsset}
+            calibration={campaign.playerDisplay}
+            displays={displays}
+            onApplyDisplay={onUpdatePlayerDisplay}
+            onFitMapToGrid={onFitMapToGrid}
+            onUpdateSceneGrid={onUpdateSceneGrid}
+            onRefreshDisplays={onRefreshDisplays}
+            onShowTestPattern={onShowPlayerTestPattern}
+            onSendToPlayer={onSendToPlayer}
+            onImportMap={onImportMap}
+            onOpenPlayerViewSetup={onOpenPlayerViewSetupFromWizard}
+            onOpenMapCalibrationAssistant={onOpenMapCalibrationAssistantFromWizard}
+          />
+        </SettingsModal>
       )}
 
       {playerDisplayDialogOpen && campaign && activeScene && (

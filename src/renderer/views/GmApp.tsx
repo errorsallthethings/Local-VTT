@@ -23,8 +23,10 @@ import type {
   DisplayCalibration,
   DiceSettings,
   EnvironmentEffectType,
+  GridType,
   LiveTableEvent,
   MetadataBackupRestoreResult,
+  PlayerViewTestPattern,
   Point,
   Scene,
   SquareCropRect,
@@ -38,9 +40,10 @@ import { ThumbnailRegenerationResultDialog } from "../components/modals/Thumbnai
 import { EnvironmentEffectEditorModal } from "../components/layers";
 import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
+import type { WizardMapFitMode } from "../components/settings/TableDisplaySetupWizard";
 import { ToolsMenu, type SelectorSelectionFilters } from "../components/tools";
 import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DarknessEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../canvas/effects";
-import { applyMapCalibrationDraft, type MapCalibrationDraft } from "../lib/map";
+import { applyMapCalibrationDraft, applyMapGridFit, buildWholeMapFitScene, type MapCalibrationDraft } from "../lib/map";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderModal } from "../components/turn-order/TurnOrderModal";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -192,6 +195,8 @@ export function GmApp() {
     setMapAssetToDelete,
     tokenAssetToDelete,
     setTokenAssetToDelete,
+    tableDisplayWizardOpen,
+    setTableDisplayWizardOpen,
     playerDisplayDialogOpen,
     setPlayerDisplayDialogOpen,
     mapCalibrationAssistantOpen,
@@ -711,6 +716,10 @@ export function GmApp() {
     saveBeforeCloseRef.current = saveCampaignBeforeClose;
   }, [saveCampaignBeforeClose]);
 
+  useEffect(() => {
+    setGmCanvasCenter(null);
+  }, [activeScene?.id]);
+
   const {
     updateVideoPlayback,
     updateGrid,
@@ -719,12 +728,9 @@ export function GmApp() {
     clearFogShapes,
     updateMapTransform,
     setLayerOrderLocked,
-    moveLayer,
-    fitGridToMapDimensions
+    moveLayer
   } = useSceneEditingActions({
     activeScene,
-    mapAsset,
-    run,
     updateScene,
     onClearFogConfirmed: () => setConfirmClearFogOpen(false)
   });
@@ -951,22 +957,161 @@ export function GmApp() {
     }
   };
 
+  const buildMapCalibratedScene = async (draft: MapCalibrationDraft) => {
+    if (!activeScene) {
+      return null;
+    }
+    if (mapCalibrationBox) {
+      return applyMapCalibrationDraft(activeScene, draft, { calibrationBox: mapCalibrationBox });
+    }
+    if (draft.alignGridToMap && mapAsset?.absolutePath && mapAsset.mediaType === "image") {
+      const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath));
+      return applyMapCalibrationDraft(activeScene, draft, { imageDimensions: dimensions });
+    }
+    return applyMapCalibrationDraft(activeScene, draft);
+  };
+
   const applyMapCalibration = (draft: MapCalibrationDraft) =>
     run(async () => {
-      if (!activeScene) {
+      const nextScene = await buildMapCalibratedScene(draft);
+      if (!nextScene) {
         return;
       }
-      if (mapCalibrationBox) {
-        updateScene(applyMapCalibrationDraft(activeScene, draft, { calibrationBox: mapCalibrationBox }));
-      } else if (draft.alignGridToMap && mapAsset?.absolutePath && mapAsset.mediaType === "image") {
-        const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath));
-        updateScene(applyMapCalibrationDraft(activeScene, draft, { imageDimensions: dimensions }));
-      } else {
-        updateScene(applyMapCalibrationDraft(activeScene, draft));
-      }
+      updateScene(nextScene);
       setMapCalibrationBox(null);
       setMapCalibrationAssistantOpen(false);
     });
+
+  const fitMapToGridFromWizard = (columns: number, rows: number, fitMode: WizardMapFitMode) =>
+    run(async () => {
+      if (!campaign || !activeScene || !mapAsset) {
+        return;
+      }
+      const nextScene =
+        fitMode === "whole-map"
+          ? mapAsset.absolutePath && mapAsset.mediaType === "image"
+            ? buildWholeMapFitScene(
+                activeScene,
+                { mapGridColumns: columns, mapGridRows: rows },
+                await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath)),
+                getPlayerViewTargetDimensions(campaign.playerDisplay, displays)
+              )
+            : null
+          : mapAsset.absolutePath && mapAsset.mediaType === "image"
+            ? applyMapGridFit(
+                {
+                  ...activeScene,
+                  grid: {
+                    ...activeScene.grid,
+                    showOnGm: true,
+                    showOnPlayer: true
+                  }
+                },
+                { mapGridColumns: columns, mapGridRows: rows, fitMode: "cover" },
+                await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath))
+              )
+            : null;
+      if (!nextScene) {
+        return;
+      }
+      updateScene(nextScene);
+      const openResult = await window.localVtt.openPlayerView({
+        displayId: campaign.playerDisplay.selectedDisplayId,
+        fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
+      });
+      await sendSceneToPlayer(window.localVtt, campaign, nextScene, { showPlayerSeatIndicators: playersPanelOpen });
+      setPlayerSceneId(nextScene.id);
+      setPlayerDisplayMode("scene");
+      setPlayerMenuOpen(false);
+      if (!openResult.displayFound && campaign.playerDisplay.selectedDisplayLabel) {
+        setError(`The saved Player View display (${campaign.playerDisplay.selectedDisplayLabel}) is not connected. Player View opened normally so you can move it manually.`);
+      }
+    });
+
+  const applyMapFitPreset = (fitMode: Exclude<Scene["mapTransform"]["fitMode"], "manual">, gridPatch: Partial<Scene["grid"]> = {}) =>
+    run(async () => {
+      if (!campaign || !activeScene || !mapAsset?.absolutePath || mapAsset.mediaType !== "image") {
+        return;
+      }
+      const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath));
+      const sceneForFit = {
+        ...activeScene,
+        grid: {
+          ...activeScene.grid,
+          ...gridPatch
+        }
+      };
+      const nextScene =
+        fitMode === "contain"
+          ? buildWholeMapFitScene(
+              sceneForFit,
+              { mapGridColumns: sceneForFit.grid.mapGridColumns, mapGridRows: sceneForFit.grid.mapGridRows },
+              dimensions,
+              getPlayerViewTargetDimensions(campaign.playerDisplay, displays)
+            )
+          : fitMode === "cover"
+            ? applyMapGridFit(
+                {
+                  ...sceneForFit,
+                  grid: {
+                    ...sceneForFit.grid,
+                    showOnGm: true,
+                    showOnPlayer: true
+                  }
+                },
+                { mapGridColumns: sceneForFit.grid.mapGridColumns, mapGridRows: sceneForFit.grid.mapGridRows, fitMode: "cover" },
+                dimensions
+              )
+            : {
+                ...sceneForFit,
+                grid: {
+                  ...sceneForFit.grid,
+                  mapGridColumns: Math.max(1, Math.ceil(dimensions.width / Math.max(1, sceneForFit.grid.sizePx))),
+                  mapGridRows: Math.max(1, Math.ceil(dimensions.height / Math.max(1, sceneForFit.grid.sizePx))),
+                  offsetX: 0,
+                  offsetY: 0,
+                  showOnGm: true,
+                  showOnPlayer: true
+                },
+                mapTransform: {
+                  ...activeScene.mapTransform,
+                  fitMode: "actual-size" as const,
+                  x: 0,
+                  y: 0,
+                  scale: 1,
+                  scaleX: 1,
+                  scaleY: 1
+                },
+                updatedAt: new Date().toISOString()
+              };
+      updateScene(nextScene);
+      if (playerSceneId === activeScene.id) {
+        await sendSceneToPlayer(window.localVtt, campaign, nextScene, { showPlayerSeatIndicators: playersPanelOpen });
+      }
+    });
+
+  const updateSceneGridFromWizard = (gridType: GridType, sizePx: number, nextDisplay: DisplayCalibration) => {
+    if (!campaign || !activeScene) {
+      return;
+    }
+    const nextCampaign = {
+      ...campaign,
+      playerDisplay: nextDisplay,
+      updatedAt: new Date().toISOString()
+    };
+    const nextScene = {
+      ...activeScene,
+      grid: {
+        ...activeScene.grid,
+        type: gridType,
+        sizePx: Math.max(4, Math.round(sizePx)),
+        showOnPlayer: gridType !== "gridless" ? true : activeScene.grid.showOnPlayer
+      },
+      updatedAt: new Date().toISOString()
+    };
+    updateWorkspaceCampaignDraft(nextCampaign, null);
+    updateScene(nextScene, nextCampaign, nextScene);
+  };
 
   const startMapCalibrationBoxCapture = () => {
     setMapCalibrationBox(null);
@@ -1345,6 +1490,33 @@ export function GmApp() {
       setPlayerMenuOpen(false);
     });
 
+  const showPlayerTestPattern = async (gridMode: PlayerViewTestPattern["gridMode"], display: DisplayCalibration, cellSizePx: number) =>
+    run(async () => {
+      const openResult = await window.localVtt.openPlayerView({
+        displayId: display.selectedDisplayId,
+        fullscreen: display.openPlayerViewFullscreen
+      });
+      const selectedDisplay = displays.find((candidate) => candidate.id === display.selectedDisplayId);
+      await window.localVtt.showPlayerTestPattern({
+        type: "idle",
+        variant: "test-pattern",
+        title: "Local VTT Test Pattern",
+        message: getTestPatternMessage(gridMode, display),
+        testPattern: {
+          gridMode,
+          cellSizePx: getTestPatternCellSize(gridMode, display, cellSizePx),
+          displayLabel: selectedDisplay?.label ?? display.selectedDisplayLabel,
+          nativeResolution: selectedDisplay?.nativeResolution
+        }
+      });
+      setPlayerSceneId(null);
+      setPlayerDisplayMode("test-pattern");
+      setPlayerMenuOpen(false);
+      if (!openResult.displayFound && display.selectedDisplayLabel) {
+        setError(`The saved Player View display (${display.selectedDisplayLabel}) is not connected. Player View opened normally so you can move it manually.`);
+      }
+    });
+
   const showPlayerIdle = async () => {
     await showDefaultPlayerHold();
     setPlayerSceneId(null);
@@ -1532,6 +1704,10 @@ export function GmApp() {
           }}
           onShowPlayerHold={showPlayerHold}
           onShowPlayerBlackout={showPlayerBlackout}
+          onOpenTableDisplaySetup={() => {
+            setTableDisplayWizardOpen(true);
+            setPlayerMenuOpen(false);
+          }}
           onOpenPlayerDisplayScale={() => {
             setPlayerDisplayDialogOpen(true);
             setPlayerMenuOpen(false);
@@ -1870,7 +2046,7 @@ export function GmApp() {
         onUpdateGrid={updateGrid}
         onUpdateFog={updateFog}
         onUpdateMapTransform={updateMapTransform}
-        onFitGridToMapDimensions={fitGridToMapDimensions}
+        onApplyMapFitPreset={applyMapFitPreset}
         onMoveLayer={moveLayer}
         onImportMap={importMap}
         onReplaceMap={replaceMap}
@@ -1952,6 +2128,7 @@ export function GmApp() {
         sceneColorDialog={sceneColorDialog}
         tokenColorDialog={tokenColorDialog}
         campaignNameDialogOpen={campaignNameDialogOpen}
+        tableDisplayWizardOpen={tableDisplayWizardOpen}
         playerDisplayDialogOpen={playerDisplayDialogOpen}
         mapCalibrationAssistantOpen={mapCalibrationAssistantOpen}
         sceneToDelete={sceneToDelete}
@@ -1995,6 +2172,7 @@ export function GmApp() {
         onCancelSceneColorDialog={() => setSceneColorDialog(null)}
         onCancelTokenColorDialog={() => setTokenColorDialog(null)}
         onCancelCampaignNameDialog={() => setCampaignNameDialogOpen(false)}
+        onCancelTableDisplayWizard={() => setTableDisplayWizardOpen(false)}
         onCancelPlayerDisplayDialog={() => setPlayerDisplayDialogOpen(false)}
         onCancelMapCalibrationAssistant={() => setMapCalibrationAssistantOpen(false)}
         onCancelSceneDelete={() => setSceneToDelete(null)}
@@ -2029,7 +2207,20 @@ export function GmApp() {
         onSubmitCampaignName={submitCampaignName}
         onUpdatePlayerDisplay={updatePlayerDisplay}
         onApplyMapCalibration={applyMapCalibration}
+        onFitMapToGrid={fitMapToGridFromWizard}
+        onUpdateSceneGrid={updateSceneGridFromWizard}
         onStartMapCalibrationBoxCapture={startMapCalibrationBoxCapture}
+        onShowPlayerTestPattern={showPlayerTestPattern}
+        onSendToPlayer={sendToPlayer}
+        onImportMap={importMap}
+        onOpenPlayerViewSetupFromWizard={() => {
+          setTableDisplayWizardOpen(false);
+          setPlayerDisplayDialogOpen(true);
+        }}
+        onOpenMapCalibrationAssistantFromWizard={() => {
+          setTableDisplayWizardOpen(false);
+          setMapCalibrationAssistantOpen(true);
+        }}
         onOpenPlayerViewSetupFromAssistant={() => {
           setMapCalibrationAssistantOpen(false);
           setPlayerDisplayDialogOpen(true);
@@ -2066,3 +2257,29 @@ export function GmApp() {
   );
 }
 
+function getTestPatternMessage(gridMode: PlayerViewTestPattern["gridMode"], display: DisplayCalibration): string {
+  if (gridMode === "none") {
+    return "Check that all corners and the center marker are visible.";
+  }
+  if (gridMode === "physical-square") {
+    return `${getTestPatternCellSize(gridMode, display)} px per physical grid cell.`;
+  }
+  return "Digital square grid test pattern.";
+}
+
+function getTestPatternCellSize(gridMode: PlayerViewTestPattern["gridMode"], display: DisplayCalibration, fallbackCellSize = 80): number {
+  if (gridMode === "physical-square") {
+    return Math.max(24, Math.round(display.pixelsPerInch * display.inchesPerGridCell));
+  }
+  return Math.max(24, Math.round(fallbackCellSize));
+}
+
+function getPlayerViewTargetDimensions(display: DisplayCalibration, displays: DisplayInfo[]): { width: number; height: number } {
+  const selectedDisplay = displays.find((candidate) => candidate.id === display.selectedDisplayId);
+  const width = selectedDisplay?.bounds.width ?? display.screenResolutionWidth;
+  const height = selectedDisplay?.bounds.height ?? display.screenResolutionHeight;
+  return {
+    width: Math.max(1, width || 1920),
+    height: Math.max(1, height || 1080)
+  };
+}

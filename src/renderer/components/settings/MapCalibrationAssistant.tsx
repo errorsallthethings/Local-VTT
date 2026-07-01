@@ -1,3 +1,4 @@
+import { Map } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Asset, DisplayCalibration, GridSettings, Scene } from "../../../shared/localvtt";
 import type { MapCalibrationBox } from "../../canvas/map";
@@ -70,9 +71,12 @@ export function MapCalibrationAssistant({ scene, mapAsset, calibration, calibrat
 
   return (
     <section className="panel calibration-assistant">
-      <h2>Map Calibration</h2>
+      <h2 className="settings-panel-title">
+        <Map size={18} aria-hidden="true" />
+        Advanced Map Calibration
+      </h2>
       <div className="inline-help">
-        Choose how Local VTT should line up the scene grid with the map image. Advanced map fit controls stay in the Map layer.
+        Use this when a map has a printed grid, border, padding, or needs drawn-area alignment. Use Grid & Maps for normal map fitting.
       </div>
 
       <CollapsibleSettingsSection title="Player View" meta="Reference" open={playerViewOpen} onToggle={() => setPlayerViewOpen((open) => !open)}>

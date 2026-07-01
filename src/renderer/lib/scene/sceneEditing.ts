@@ -637,15 +637,3 @@ export function moveLayerOrder(layers: readonly Layer[], layerId: string, direct
     order: (nextSortedLayers.length - index) * 10
   }));
 }
-
-export function getFitGridPatch(scene: Scene, dimensions: { width: number; height: number }): Pick<GridSettings, "sizePx" | "offsetX" | "offsetY"> {
-  const columns = Math.max(1, scene.grid.mapGridColumns);
-  const rows = Math.max(1, scene.grid.mapGridRows);
-  const cellWidth = dimensions.width / columns;
-  const cellHeight = dimensions.height / rows;
-  return {
-    sizePx: Math.max(1, Math.round(((cellWidth + cellHeight) / 2) * 100) / 100),
-    offsetX: scene.mapTransform.fitMode === "manual" ? scene.mapTransform.x : 0,
-    offsetY: scene.mapTransform.fitMode === "manual" ? scene.mapTransform.y : 0
-  };
-}

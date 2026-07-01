@@ -1053,7 +1053,18 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isPlayerIdleState({ type: "idle", title: "Waiting", message: "Preparing scene." })).toBe(true);
   expect(isPlayerIdleState({ type: "idle", variant: "hold", title: "Waiting", message: "Preparing scene." })).toBe(true);
   expect(isPlayerIdleState({ type: "idle", variant: "blackout", title: "", message: "" })).toBe(true);
+  expect(
+    isPlayerIdleState({
+      type: "idle",
+      variant: "test-pattern",
+      title: "Test Pattern",
+      message: "Check display bounds.",
+      testPattern: { gridMode: "physical-square", cellSizePx: 96, displayLabel: "TV", nativeResolution: { width: 1920, height: 1080 } }
+    })
+  ).toBe(true);
+  expect(isPlayerIdleState({ type: "idle", variant: "test-pattern", title: "Hex", message: "Check hex grid.", testPattern: { gridMode: "hex" } })).toBe(true);
   expect(isPlayerIdleState({ type: "idle", variant: "dim", title: "Waiting", message: "Preparing scene." })).toBe(false);
+  expect(isPlayerIdleState({ type: "idle", variant: "test-pattern", title: "Test", message: "Bad", testPattern: { gridMode: "triangle" } })).toBe(false);
   expect(isPlayerIdleState({ type: "idle", title: "Waiting" })).toBe(false);
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, size: 1.5, color: "#ffcc00", createdAt: 1 })).toBe(true);

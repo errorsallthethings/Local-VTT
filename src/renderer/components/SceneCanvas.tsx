@@ -1178,11 +1178,19 @@ export function SceneCanvas({
         }
         ctx.globalAlpha = 1;
       } else if (!isVideoMap && (!canShowMap || !mapAsset)) {
-        ctx.fillStyle = "#242a32";
-        ctx.fillRect(0, 0, 1600, 1000);
+        const visibleLeft = -renderCamera.x / renderCamera.zoom;
+        const visibleTop = -renderCamera.y / renderCamera.zoom;
+        const visibleWidth = width / renderCamera.zoom;
+        const visibleHeight = height / renderCamera.zoom;
+        ctx.fillStyle = "#111720";
+        ctx.fillRect(visibleLeft, visibleTop, visibleWidth, visibleHeight);
         ctx.fillStyle = "#8792a2";
         ctx.font = "24px system-ui, sans-serif";
-        ctx.fillText("Import a map to begin", 48, 64);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Import a map to begin", visibleLeft + visibleWidth / 2, visibleTop + visibleHeight / 2);
+        ctx.textAlign = "start";
+        ctx.textBaseline = "alphabetic";
       } else if (!isVideoMap) {
         ctx.fillStyle = "#111720";
         ctx.fillRect(0, 0, 1600, 1000);

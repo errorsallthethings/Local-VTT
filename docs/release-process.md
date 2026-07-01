@@ -218,11 +218,13 @@ Before packaging or sharing a build, run through these workflows:
 - Change layer visibility and settings.
 - Draw, rename, reorder, toggle, and delete fog shapes.
 - Select weather and fog masks from the GM canvas and confirm token selection still takes priority.
-- Configure square, hex, and gridless scenes, including grid fit-to-map for static maps.
+- Configure square, hex, and gridless scenes, including Grid & Maps coordinate labels and map fit presets for static maps.
+- Use Table Display Setup to choose a Player View display, preview no-grid/square/hex/physical test patterns, set the scene grid, import or fit a map, and preview Player View.
 - Replace a scene map asset from the Map layer and confirm dimension warnings are understandable.
 - Run Regenerate Thumbnails from the Campaign panel and confirm map and token previews are rebuilt.
 - Open Restore Revision from the Campaign panel, review available metadata backups, and confirm Open Backups Folder still opens Explorer.
-- Use Player View Setup and Map Calibration Assistant on at least one static image map.
+- Use Player View Setup for saved display/fullscreen and physical table scale on at least one manual-grid scene.
+- Use Advanced Map Calibration on at least one static image map with a drawn calibration area or printed-grid alignment case.
 - Add, duplicate, move, rename, resize, restyle, and delete tokens.
 - Confirm token presentation and movement sync to Player View.
 - Use the Token Library to import, rename, search, sort, set defaults, add, drag/drop, and delete tokens with usage warnings.

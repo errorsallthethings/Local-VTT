@@ -1,3 +1,4 @@
+import { Map } from "lucide-react";
 import type { EnvironmentEffectType, Scene } from "../../../shared/localvtt";
 import type { DrawingTool } from "../../canvas/drawings";
 import { isTemplateDrawingTool } from "../../canvas/drawings";
@@ -110,7 +111,10 @@ export function TableToolStatusStrip({ canvasTool }: { canvasTool: "ping" | "las
 export function MapCalibrationStatusStrip() {
   return (
     <div className="fog-tool-status" aria-live="polite">
-      <strong>Map Calibration</strong>
+      <strong className="canvas-status-title">
+        <Map size={14} aria-hidden="true" />
+        Advanced Map Calibration
+      </strong>
       <span>Drag over one printed grid square, or a larger block such as 5 x 5 squares.</span>
     </div>
   );

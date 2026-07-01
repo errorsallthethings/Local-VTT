@@ -42,6 +42,7 @@ export function useGmDialogState() {
   const [folderToDelete, setFolderToDelete] = useState<CampaignSceneFolder | null>(null);
   const [mapAssetToDelete, setMapAssetToDelete] = useState<Asset | null>(null);
   const [tokenAssetToDelete, setTokenAssetToDelete] = useState<TokenAssetDeleteDialog | null>(null);
+  const [tableDisplayWizardOpen, setTableDisplayWizardOpen] = useState(false);
   const [playerDisplayDialogOpen, setPlayerDisplayDialogOpen] = useState(false);
   const [mapCalibrationAssistantOpen, setMapCalibrationAssistantOpen] = useState(false);
   const [confirmClearFogOpen, setConfirmClearFogOpen] = useState(false);
@@ -80,6 +81,8 @@ export function useGmDialogState() {
     setMapAssetToDelete,
     tokenAssetToDelete,
     setTokenAssetToDelete,
+    tableDisplayWizardOpen,
+    setTableDisplayWizardOpen,
     playerDisplayDialogOpen,
     setPlayerDisplayDialogOpen,
     mapCalibrationAssistantOpen,
@@ -133,6 +136,8 @@ export function useGmDialogEscape({
     setMapAssetToDelete,
     tokenAssetToDelete,
     setTokenAssetToDelete,
+    tableDisplayWizardOpen,
+    setTableDisplayWizardOpen,
     playerDisplayDialogOpen,
     setPlayerDisplayDialogOpen,
     mapCalibrationAssistantOpen,
@@ -163,6 +168,7 @@ export function useGmDialogEscape({
       !folderToDelete &&
       !mapAssetToDelete &&
       !tokenAssetToDelete &&
+      !tableDisplayWizardOpen &&
       !confirmClearFogOpen &&
       !openSceneMenuId &&
       !openFolderMenuId &&
@@ -193,6 +199,7 @@ export function useGmDialogEscape({
       setFolderToDelete(null);
       setMapAssetToDelete(null);
       setTokenAssetToDelete(null);
+      setTableDisplayWizardOpen(false);
       setConfirmClearFogOpen(false);
       onCloseSceneMenu();
       onCloseFolderMenu();
@@ -215,6 +222,7 @@ export function useGmDialogEscape({
     folderToDelete,
     mapAssetToDelete,
     tokenAssetToDelete,
+    tableDisplayWizardOpen,
     openFolderMenuId,
     openSceneMenuId,
     mapCalibrationAssistantOpen,
@@ -243,6 +251,7 @@ export function useGmDialogEscape({
     setSceneToDelete,
     setTokenAssetDialog,
     setTokenAssetToDelete,
+    setTableDisplayWizardOpen,
     setTokenColorDialog,
     setTokenDefaultsDialog,
     setTokenDialog

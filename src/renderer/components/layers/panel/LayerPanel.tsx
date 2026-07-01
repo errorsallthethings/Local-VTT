@@ -4,6 +4,8 @@ import {
   ArrowDown,
   ArrowUp,
   Box,
+  ChevronDown,
+  ChevronRight,
   Circle,
   CircleHelp,
   CloudFog,
@@ -85,7 +87,7 @@ export function LayerPanel({
   onUpdateGrid,
   onUpdateFog,
   onUpdateMapTransform,
-  onFitGridToMapDimensions,
+  onApplyMapFitPreset,
   onMoveLayer,
   onImportMap,
   onReplaceMap,
@@ -120,7 +122,7 @@ export function LayerPanel({
   onUpdateGrid: (patch: Partial<GridSettings>) => void;
   onUpdateFog: (patch: Partial<FogSettings>) => void;
   onUpdateMapTransform: (patch: Partial<MapTransform>) => void;
-  onFitGridToMapDimensions: () => void;
+  onApplyMapFitPreset: (fitMode: Exclude<MapTransform["fitMode"], "manual">, gridPatch?: Partial<GridSettings>) => void;
   onMoveLayer: (layerId: string, direction: "up" | "down") => void;
   onImportMap: () => void;
   onReplaceMap: (asset: Asset) => void;
@@ -140,11 +142,9 @@ export function LayerPanel({
   onOpenTokenColor: (tokenId: string, value: string, kind: "border" | "glow") => void;
 }) {
   const sortedLayers = useMemo(() => [...scene.layers].sort((a, b) => b.order - a.order), [scene.layers]);
+  const visibleLayers = useMemo(() => sortedLayers.filter((layer) => layer.id !== "grid"), [sortedLayers]);
   const visualGridEnabled = scene.grid.type !== "gridless";
-  const canFitGridToMap = mapAsset?.mediaType === "image";
-  const fitModeHelp = getFitModeHelp(scene.mapTransform.fitMode);
   const gridFootprint = getGridFootprint(scene.grid);
-  const transformSummary = getMapTransformSummary(scene.mapTransform);
   const [expandedLayerIds, setExpandedLayerIds] = useState<Set<string>>(() => new Set());
   const [settingsLayerIds, setSettingsLayerIds] = useState<Set<string>>(() => new Set());
   const [draggedFogShapeId, setDraggedFogShapeId] = useState<string | null>(null);
@@ -153,6 +153,8 @@ export function LayerPanel({
   const [drawingDropTarget, setDrawingDropTarget] = useState<DrawingDropTarget>(null);
   const [expandedWeatherCategory, setExpandedWeatherCategory] = useState<ActiveWeatherCategory | null>(null);
   const [fogPlayerDefaultHelpOpen, setFogPlayerDefaultHelpOpen] = useState(false);
+  const [mapFitHelpOpen, setMapFitHelpOpen] = useState(false);
+  const [mapAdvancedOpen, setMapAdvancedOpen] = useState(false);
 
   const updateLayer = (layerId: string, patch: Partial<Layer>) => {
     const nextGrid =
@@ -385,14 +387,292 @@ export function LayerPanel({
   const expandedWeatherIntensityMax = expandedWeatherCategory ? getWeatherIntensityMax(expandedWeatherCategory) : 1;
   const expandedWeatherOpacityMax = expandedWeatherCategory ? getWeatherOpacityMax(expandedWeatherCategory) : 1;
   const expandedWeatherColorLabel = expandedWeatherCategory ? getWeatherColorLabel(expandedWeatherCategory) : "Tint";
+  const renderGridSubLayerRow = () => (
+    <div className="map-sub-layer-row">
+      <span className="map-sub-layer-icon" aria-hidden="true">
+        <Grid3X3 size={14} />
+      </span>
+      <div className="map-sub-layer-summary">
+        <strong>Grid</strong>
+        <small>
+          {scene.grid.type === "gridless"
+            ? "Gridless"
+            : `${getGridTypeLabel(scene.grid.type)} - ${scene.grid.mapGridColumns} x ${scene.grid.mapGridRows} at ${formatNumber(scene.grid.sizePx)}px`}
+        </small>
+      </div>
+      <div className="grid-visibility-controls" aria-label="Grid visibility">
+        <button
+          type="button"
+          className={scene.grid.showOnGm ? "icon-button layer-visibility-button layer-visibility-active" : "icon-button layer-visibility-button"}
+          aria-label={scene.grid.showOnGm ? "Hide grid on GM View" : "Show grid on GM View"}
+          aria-pressed={scene.grid.showOnGm}
+          title={scene.grid.showOnGm ? "Hide grid on GM View" : "Show grid on GM View"}
+          onClick={() => onUpdateGrid({ showOnGm: !scene.grid.showOnGm })}
+        >
+          <Crown size={14} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className={scene.grid.showOnPlayer ? "icon-button layer-visibility-button layer-visibility-active" : "icon-button layer-visibility-button"}
+          aria-label={scene.grid.showOnPlayer ? "Hide grid on Player View" : "Show grid on Player View"}
+          aria-pressed={scene.grid.showOnPlayer}
+          title={scene.grid.showOnPlayer ? "Hide grid on Player View" : "Show grid on Player View"}
+          onClick={() => onUpdateGrid({ showOnPlayer: !scene.grid.showOnPlayer })}
+        >
+          <User size={14} aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+  const renderGridSettings = () => (
+    <>
+      <div className="map-settings-section-heading">
+        <strong>Grid</strong>
+        <small>Controls the active scene grid used by maps, tokens, rulers, and templates.</small>
+      </div>
+      <label className="setting-row">
+        <span>Mode</span>
+        <select value={scene.grid.type} onChange={(event) => onUpdateGrid({ type: event.target.value as GridType })}>
+          <option value="gridless">Gridless</option>
+          <option value="square">Square</option>
+          <option value="hex">Hex</option>
+        </select>
+      </label>
+      {visualGridEnabled && (
+        <>
+          <div className="settings-grid map-settings-grid">
+            <label className="setting-row">
+              <span>Cell Size</span>
+              <DebouncedNumberInput
+                value={scene.grid.sizePx}
+                min={8}
+                max={1000}
+                delayMs={450}
+                onCommit={(value) => {
+                  if (scene.mapTransform.fitMode === "actual-size" && mapAsset?.mediaType === "image") {
+                    onApplyMapFitPreset("actual-size", { sizePx: value });
+                  } else {
+                    onUpdateGrid({ sizePx: value });
+                  }
+                }}
+              />
+            </label>
+            <label className="setting-row">
+              <span>Coordinates</span>
+              <input
+                type="checkbox"
+                checked={scene.grid.showCoordinates}
+                onChange={(event) => onUpdateGrid({ showCoordinates: event.target.checked })}
+              />
+            </label>
+            <div className="map-grid-dimension-fields setting-row">
+              <span>Map Grid</span>
+              <div className="map-grid-dimension-inputs">
+                <label>
+                  <span>Columns</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={scene.grid.mapGridColumns}
+                    onChange={(event) => {
+                      const mapGridColumns = Math.max(1, Number(event.target.value));
+                      if (scene.mapTransform.fitMode === "cover") {
+                        onApplyMapFitPreset("cover", { mapGridColumns });
+                      } else {
+                        onUpdateGrid({ mapGridColumns });
+                      }
+                    }}
+                  />
+                </label>
+                <label>
+                  <span>Rows</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={scene.grid.mapGridRows}
+                    onChange={(event) => {
+                      const mapGridRows = Math.max(1, Number(event.target.value));
+                      if (scene.mapTransform.fitMode === "cover") {
+                        onApplyMapFitPreset("cover", { mapGridRows });
+                      } else {
+                        onUpdateGrid({ mapGridRows });
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+            <div className="map-grid-footprint">
+              {gridFootprint.width}px x {gridFootprint.height}px from {scene.grid.mapGridColumns} x {scene.grid.mapGridRows} cells.
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+
+  const renderGridAdvancedSettings = () => (
+    <>
+      {visualGridEnabled && (
+        <>
+          <div className="map-settings-subsection-heading">Grid Appearance</div>
+          <div className="settings-grid map-settings-grid">
+            <label className="setting-row">
+              <span>Opacity</span>
+              <div className="grid-opacity-control">
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={scene.grid.opacity}
+                  onChange={(event) => onUpdateGrid({ opacity: Number(event.target.value) })}
+                />
+                <button
+                  type="button"
+                  className="icon-button grid-reset-button"
+                  aria-label="Reset grid opacity"
+                  title="Reset opacity"
+                  disabled={scene.grid.opacity === DEFAULT_GRID.opacity}
+                  onClick={() => onUpdateGrid({ opacity: DEFAULT_GRID.opacity })}
+                >
+                  <RotateCcw size={13} aria-hidden="true" />
+                </button>
+              </div>
+            </label>
+            <div className="setting-row">
+              <span>Grid Offset</span>
+              <div className="xy-inputs">
+                <label>
+                  X
+                  <input type="number" value={scene.grid.offsetX} onChange={(event) => onUpdateGrid({ offsetX: Number(event.target.value) })} />
+                </label>
+                <label>
+                  Y
+                  <input type="number" value={scene.grid.offsetY} onChange={(event) => onUpdateGrid({ offsetY: Number(event.target.value) })} />
+                </label>
+              </div>
+            </div>
+            <label className="setting-row">
+              <span>Thickness</span>
+              <input
+                type="number"
+                min={0.5}
+                max={10}
+                step={0.5}
+                value={scene.grid.lineThickness}
+                onChange={(event) => onUpdateGrid({ lineThickness: Number(event.target.value) })}
+              />
+            </label>
+            <ColorSettingRow label="Grid Color" value={scene.grid.color} onOpen={onOpenGridColor} />
+          </div>
+          <div className="control-divider" />
+          <MeasurementPanel
+            embedded
+            measurement={scene.grid.measurement}
+            onChange={(measurementPatch) => onUpdateGrid({ measurement: { ...scene.grid.measurement, ...measurementPatch } })}
+          />
+        </>
+      )}
+      {mapAsset && (
+        <>
+          <div className="control-divider" />
+          <div className="map-settings-subsection-heading">Map Transform</div>
+          <div className="settings-grid map-settings-grid">
+            <div className="setting-row">
+              <span>Map Position</span>
+              <div className="xy-inputs">
+                <label>
+                  X
+                  <input
+                    type="number"
+                    value={scene.mapTransform.x}
+                    onChange={(event) => onUpdateMapTransform({ x: Number(event.target.value) })}
+                  />
+                </label>
+                <label>
+                  Y
+                  <input
+                    type="number"
+                    value={scene.mapTransform.y}
+                    onChange={(event) => onUpdateMapTransform({ y: Number(event.target.value) })}
+                  />
+                </label>
+              </div>
+            </div>
+            <label className="setting-row">
+              <span>Scale</span>
+              <input
+                type="number"
+                min={0.01}
+                step={0.05}
+                value={scene.mapTransform.scale}
+                onChange={(event) => {
+                  const scale = Number(event.target.value);
+                  onUpdateMapTransform({ scale, scaleX: scale, scaleY: scale, fitMode: "manual" });
+                }}
+              />
+            </label>
+            <label className="setting-row">
+              <span>Rotation</span>
+              <input
+                type="number"
+                step={1}
+                value={scene.mapTransform.rotation}
+                onChange={(event) => onUpdateMapTransform({ rotation: Number(event.target.value), fitMode: "manual" })}
+              />
+            </label>
+          </div>
+          <div className="map-transform-note">Reset Transform restores the map to Manual, origin position, original scale, and no rotation.</div>
+          <div className="map-advanced-actions">
+            <button type="button" className="compact-button" onClick={() => onUpdateMapTransform({ ...DEFAULT_MAP_TRANSFORM })}>
+              Reset Transform
+            </button>
+          </div>
+        </>
+      )}
+    </>
+  );
+
+  const renderMapFitControl = () => (
+    <div className="setting-row map-fit-mode-row">
+      <span className="fog-default-label">
+        Fit Preset
+        <button
+          type="button"
+          className="icon-button measurement-help-button"
+          aria-label="Map Fit Help"
+          title="Map Fit Help"
+          onClick={() => setMapFitHelpOpen((open) => !open)}
+        >
+          <CircleHelp size={15} aria-hidden="true" />
+        </button>
+      </span>
+      <select
+        value={scene.mapTransform.fitMode}
+        onChange={(event) => {
+          const fitMode = event.target.value as MapTransform["fitMode"];
+          if (fitMode === "manual") {
+            onUpdateMapTransform({ fitMode: "manual" });
+          } else {
+            onApplyMapFitPreset(fitMode);
+          }
+        }}
+      >
+        <option value="manual">Manual</option>
+        <option value="contain">Fit Whole Map</option>
+        <option value="cover">Stretch to Grid</option>
+        <option value="actual-size">Image Size</option>
+      </select>
+    </div>
+  );
 
   return (
     <section className="panel">
       <div className="layer-list">
-        {sortedLayers.map((layer, index) => {
+        {visibleLayers.map((layer, index) => {
           const hasLayerSettings =
-            (layer.id === "map" && Boolean(mapAsset)) ||
-            layer.id === "grid" ||
+            layer.id === "map" ||
             layer.id === "fog" ||
             isEffectsLayerId(layer.id);
           const hasLayerContents = true;
@@ -400,22 +680,23 @@ export function LayerPanel({
           const areSettingsExpanded = settingsLayerIds.has(layer.id);
           const reservedLayerGuidance = getReservedLayerGuidance(layer);
           const layerCount = getLayerItemCount(layer.id, scene);
+          const layerName = layer.id === "map" ? "Grid & Maps" : layer.name;
           return (
             <div
               className={["layer-row", hasLayerContents ? "expandable-layer-row" : ""].filter(Boolean).join(" ")}
               key={layer.id}
               onClick={(event) => onLayerRowClick(event, layer.id, hasLayerContents)}
             >
-              <span className="layer-kind-icon" title={layer.name} aria-hidden="true">
+              <span className="layer-kind-icon" title={layerName} aria-hidden="true">
                 {getLayerIcon(layer)}
               </span>
-              <span className="layer-name" title={layer.name}>
-                {layer.name}
+              <span className="layer-name" title={layerName}>
+                {layerName}
                 {layerCount !== null && <span className="layer-count-badge" aria-label={`${layerCount} ${layerCount === 1 ? "item" : "items"}`}>{layerCount}</span>}
               </span>
               <button
                 className={layer.visibleInGm ? "icon-button layer-visibility-button layer-visibility-active" : "icon-button layer-visibility-button"}
-                aria-label={layer.visibleInGm ? `Hide ${layer.name} in GM View` : `Show ${layer.name} in GM View`}
+                aria-label={layer.visibleInGm ? `Hide ${layerName} in GM View` : `Show ${layerName} in GM View`}
                 aria-pressed={layer.visibleInGm}
                 title={layer.visibleInGm ? "Hide in GM View" : "Show in GM View"}
                 onClick={() => updateLayer(layer.id, { visibleInGm: !layer.visibleInGm })}
@@ -424,7 +705,7 @@ export function LayerPanel({
               </button>
               <button
                 className={layer.visibleInPlayer ? "icon-button layer-visibility-button layer-visibility-active" : "icon-button layer-visibility-button"}
-                aria-label={layer.visibleInPlayer ? `Hide ${layer.name} in Player View` : `Show ${layer.name} in Player View`}
+                aria-label={layer.visibleInPlayer ? `Hide ${layerName} in Player View` : `Show ${layerName} in Player View`}
                 aria-pressed={layer.visibleInPlayer}
                 title={layer.visibleInPlayer ? "Hide in Player View" : "Show in Player View"}
                 onClick={() => updateLayer(layer.id, { visibleInPlayer: !layer.visibleInPlayer })}
@@ -433,7 +714,7 @@ export function LayerPanel({
               </button>
               <button
                 className={areSettingsExpanded ? "icon-button layer-settings-button layer-settings-active" : "icon-button layer-settings-button"}
-                aria-label={hasLayerSettings ? (areSettingsExpanded ? `Hide ${layer.name} settings` : `Show ${layer.name} settings`) : `${layer.name} settings unavailable`}
+                aria-label={hasLayerSettings ? (areSettingsExpanded ? `Hide ${layerName} settings` : `Show ${layerName} settings`) : `${layerName} settings unavailable`}
                 title={hasLayerSettings ? (areSettingsExpanded ? "Hide layer settings" : "Show layer settings") : "No layer settings yet"}
                 disabled={!hasLayerSettings}
                 onClick={() => toggleLayerSettings(layer.id)}
@@ -444,7 +725,7 @@ export function LayerPanel({
                 <div className="layer-order-controls">
                   <button
                     className="icon-button"
-                    aria-label={`Move ${layer.name} up`}
+                    aria-label={`Move ${layerName} up`}
                     title="Move up"
                     disabled={index === 0}
                     onClick={() => onMoveLayer(layer.id, "up")}
@@ -453,9 +734,9 @@ export function LayerPanel({
                   </button>
                   <button
                     className="icon-button"
-                    aria-label={`Move ${layer.name} down`}
+                    aria-label={`Move ${layerName} down`}
                     title="Move down"
-                    disabled={index === sortedLayers.length - 1}
+                    disabled={index === visibleLayers.length - 1}
                     onClick={() => onMoveLayer(layer.id, "down")}
                   >
                     <ArrowDown size={14} aria-hidden="true" />
@@ -730,167 +1011,12 @@ export function LayerPanel({
                   onOpenTokenColor={onOpenTokenColor}
                 />
               )}
-              {layer.id === "grid" && isExpanded && !areSettingsExpanded && (
-                <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
-                  <div className="layer-empty-state">
-                    <strong>Grid Settings</strong>
-                    <span>Use the settings button to configure grid mode, cell size, visibility, colors, and measurement.</span>
-                  </div>
-                </div>
-              )}
-              {layer.id === "grid" && areSettingsExpanded && (
-                <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
-                  <label className="stacked-control">
-                    Mode
-                    <select value={scene.grid.type} onChange={(event) => onUpdateGrid({ type: event.target.value as GridType })}>
-                      <option value="gridless">Gridless</option>
-                      <option value="square">Square</option>
-                      <option value="hex">Hex</option>
-                    </select>
-                  </label>
-                  {visualGridEnabled && (
-                    <>
-                      <div className="control-divider" />
-                      <div className="settings-grid">
-                        <label className="setting-row">
-                          <span>Cell size</span>
-                          <DebouncedNumberInput
-                            value={scene.grid.sizePx}
-                            min={8}
-                            max={1000}
-                            delayMs={450}
-                            onCommit={(value) => onUpdateGrid({ sizePx: value })}
-                          />
-                        </label>
-                        <label className="setting-row">
-                          <span>Opacity</span>
-                          <div className="grid-opacity-control">
-                            <input
-                              type="range"
-                              min={0}
-                              max={1}
-                              step={0.05}
-                              value={scene.grid.opacity}
-                              onChange={(event) => onUpdateGrid({ opacity: Number(event.target.value) })}
-                            />
-                            <button
-                              type="button"
-                              className="icon-button grid-reset-button"
-                              aria-label="Reset grid opacity"
-                              title="Reset opacity"
-                              disabled={scene.grid.opacity === DEFAULT_GRID.opacity}
-                              onClick={() => onUpdateGrid({ opacity: DEFAULT_GRID.opacity })}
-                            >
-                              <RotateCcw size={13} aria-hidden="true" />
-                            </button>
-                          </div>
-                        </label>
-                        <div className="setting-row">
-                          <span>Visibility</span>
-                          <div className="grid-visibility-controls" aria-label="Grid visibility">
-                            <button
-                              type="button"
-                              className={scene.grid.showOnGm ? "icon-button layer-visibility-button layer-visibility-active" : "icon-button layer-visibility-button"}
-                              aria-label={scene.grid.showOnGm ? "Hide grid on GM View" : "Show grid on GM View"}
-                              aria-pressed={scene.grid.showOnGm}
-                              title={scene.grid.showOnGm ? "Hide grid on GM View" : "Show grid on GM View"}
-                              onClick={() => onUpdateGrid({ showOnGm: !scene.grid.showOnGm })}
-                            >
-                              <Crown size={14} aria-hidden="true" />
-                            </button>
-                            <button
-                              type="button"
-                              className={scene.grid.showOnPlayer ? "icon-button layer-visibility-button layer-visibility-active" : "icon-button layer-visibility-button"}
-                              aria-label={scene.grid.showOnPlayer ? "Hide grid on Player View" : "Show grid on Player View"}
-                              aria-pressed={scene.grid.showOnPlayer}
-                              title={scene.grid.showOnPlayer ? "Hide grid on Player View" : "Show grid on Player View"}
-                              onClick={() => onUpdateGrid({ showOnPlayer: !scene.grid.showOnPlayer })}
-                            >
-                              <User size={14} aria-hidden="true" />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="setting-row">
-                          <span>Offset</span>
-                          <div className="xy-inputs">
-                            <label>
-                              X
-                              <input type="number" value={scene.grid.offsetX} onChange={(event) => onUpdateGrid({ offsetX: Number(event.target.value) })} />
-                            </label>
-                            <label>
-                              Y
-                              <input type="number" value={scene.grid.offsetY} onChange={(event) => onUpdateGrid({ offsetY: Number(event.target.value) })} />
-                            </label>
-                          </div>
-                        </div>
-                        <label className="setting-row">
-                          <span>Thickness</span>
-                          <input
-                            type="number"
-                            min={0.5}
-                            max={10}
-                            step={0.5}
-                            value={scene.grid.lineThickness}
-                            onChange={(event) => onUpdateGrid({ lineThickness: Number(event.target.value) })}
-                          />
-                        </label>
-                        <ColorSettingRow label="Color" value={scene.grid.color} onOpen={onOpenGridColor} />
-                      </div>
-                      <div className="control-divider" />
-                      <div className="settings-grid">
-                        <div className="setting-row">
-                          <span>Map grid</span>
-                          <div className="xy-inputs">
-                            <label>
-                              W
-                              <input
-                                type="number"
-                                min={1}
-                                value={scene.grid.mapGridColumns}
-                                onChange={(event) => onUpdateGrid({ mapGridColumns: Number(event.target.value) })}
-                              />
-                            </label>
-                            <label>
-                              H
-                              <input
-                                type="number"
-                                min={1}
-                                value={scene.grid.mapGridRows}
-                                onChange={(event) => onUpdateGrid({ mapGridRows: Number(event.target.value) })}
-                              />
-                            </label>
-                          </div>
-                        </div>
-                        <button disabled={!canFitGridToMap} onClick={onFitGridToMapDimensions}>
-                          Fit grid to map dimensions
-                        </button>
-                        <div className="map-calibration-readout">
-                          <strong>Current footprint</strong>
-                          <span>
-                            {gridFootprint.width}px x {gridFootprint.height}px from {scene.grid.mapGridColumns} x {scene.grid.mapGridRows} cells at {formatNumber(scene.grid.sizePx)}px.
-                          </span>
-                          {canFitGridToMap ? (
-                            <span>Fit grid updates cell size and offsets from the imported image dimensions.</span>
-                          ) : (
-                            <span>Grid fitting currently supports static image maps.</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="control-divider" />
-                      <MeasurementPanel
-                        embedded
-                        measurement={scene.grid.measurement}
-                        onChange={(measurementPatch) => onUpdateGrid({ measurement: { ...scene.grid.measurement, ...measurementPatch } })}
-                      />
-                    </>
-                  )}
-                </div>
-              )}
-              {layer.id === "map" && !mapAsset && (isExpanded || areSettingsExpanded) && (
+              {layer.id === "map" && !mapAsset && isExpanded && !areSettingsExpanded && (
                 <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
+                  {renderGridSubLayerRow()}
                   <div className="layer-empty-state">
-                    <strong>Map Settings</strong>
-                    <span>Import a map asset here, then use the settings button for map fit and transform settings.</span>
+                    <strong>Map Asset</strong>
+                    <span>Import a map asset here, or open settings to configure the grid before adding a map.</span>
                   </div>
                   <button className="import-map-next-step" onClick={onImportMap}>
                     <Import size={16} aria-hidden="true" />
@@ -900,8 +1026,9 @@ export function LayerPanel({
               )}
               {layer.id === "map" && mapAsset && isExpanded && !areSettingsExpanded && (
                 <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
+                  {renderGridSubLayerRow()}
                   <div className="map-asset-header">
-                    <span>Map asset</span>
+                    <span>Map</span>
                     <small>1</small>
                   </div>
                   <div className="map-asset-row">
@@ -929,77 +1056,36 @@ export function LayerPanel({
               )}
               {layer.id === "map" && areSettingsExpanded && (
                 <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
+                  {renderGridSettings()}
+                  <div className="control-divider" />
+                  <div className="map-settings-section-heading">
+                    <strong>Map</strong>
+                    <small>{mapAsset ? "Controls the current map asset and fit preset." : "Import a map asset to enable map fitting and transforms."}</small>
+                  </div>
                   {mapAsset ? (
                     <>
-                      <label className="setting-row map-fit-mode-row">
-                        <span>Fit Mode</span>
-                        <select value={scene.mapTransform.fitMode} onChange={(event) => onUpdateMapTransform({ fitMode: event.target.value as MapTransform["fitMode"] })}>
-                          <option value="manual">Manual</option>
-                          <option value="contain">Fit contain</option>
-                          <option value="cover">Fit cover</option>
-                          <option value="actual-size">Actual size</option>
-                        </select>
-                      </label>
-                      <div className="inline-help">{fitModeHelp}</div>
-                      <div className="map-calibration-readout">
-                        <strong>Current transform</strong>
-                        <span>{transformSummary}</span>
-                        {visualGridEnabled && scene.mapTransform.fitMode !== "manual" && (
-                          <span>Viewport fit modes resize the map independently from the grid. Use Manual for grid-aligned maps.</span>
-                        )}
-                      </div>
-                      <div className="control-divider" />
-                      <div className="settings-grid">
-                        <div className="setting-row">
-                          <span>Position</span>
-                          <div className="xy-inputs">
-                            <label>
-                              X
-                              <input
-                                type="number"
-                                value={scene.mapTransform.x}
-                                disabled={scene.mapTransform.fitMode !== "manual"}
-                                onChange={(event) => onUpdateMapTransform({ x: Number(event.target.value), fitMode: "manual" })}
-                              />
-                            </label>
-                            <label>
-                              Y
-                              <input
-                                type="number"
-                                value={scene.mapTransform.y}
-                                disabled={scene.mapTransform.fitMode !== "manual"}
-                                onChange={(event) => onUpdateMapTransform({ y: Number(event.target.value), fitMode: "manual" })}
-                              />
-                            </label>
-                          </div>
+                      {renderMapFitControl()}
+                      {mapFitHelpOpen && (
+                        <div className="settings-help-panel layer-settings-help-panel" role="note">
+                          <p>Fit Whole Map keeps the image aspect ratio, centers it in Player View, and starts the grid at the map's top-left.</p>
+                          <p>Stretch to Grid stretches the image to the configured grid columns and rows, which can reveal incorrect map dimensions.</p>
+                          <p>Image Size places the image at its original pixel size from the scene origin.</p>
                         </div>
-                        <label className="setting-row">
-                          <span>Scale</span>
-                          <input
-                            type="number"
-                            min={0.01}
-                            step={0.05}
-                            value={scene.mapTransform.scale}
-                            disabled={scene.mapTransform.fitMode !== "manual"}
-                            onChange={(event) => onUpdateMapTransform({ scale: Number(event.target.value), fitMode: "manual" })}
-                          />
-                        </label>
-                        <label className="setting-row">
-                          <span>Rotation</span>
-                          <input
-                            type="number"
-                            step={1}
-                            value={scene.mapTransform.rotation}
-                            onChange={(event) => onUpdateMapTransform({ rotation: Number(event.target.value) })}
-                          />
-                        </label>
-                      </div>
-                      <button className="map-reset-transform-button" onClick={() => onUpdateMapTransform({ ...DEFAULT_MAP_TRANSFORM })}>
-                        <RotateCcw size={14} aria-hidden="true" />
-                        Reset map transform
-                      </button>
+                      )}
                     </>
-                  ) : null}
+                  ) : (
+                    <button className="import-map-next-step" onClick={onImportMap}>
+                      <Import size={16} aria-hidden="true" />
+                      Import Map
+                    </button>
+                  )}
+                  <div className="map-advanced-panel">
+                    <button type="button" className="map-advanced-toggle" aria-expanded={mapAdvancedOpen} onClick={() => setMapAdvancedOpen((open) => !open)}>
+                      {mapAdvancedOpen ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+                      <strong>Advanced Settings</strong>
+                    </button>
+                    {mapAdvancedOpen && <div className="map-advanced-body">{renderGridAdvancedSettings()}</div>}
+                  </div>
                 </div>
               )}
             </div>
@@ -1868,19 +1954,6 @@ function TypeIcon() {
   );
 }
 
-function getFitModeHelp(fitMode: MapTransform["fitMode"]): string {
-  switch (fitMode) {
-    case "manual":
-      return "Manual uses the X/Y position, scale, and rotation values directly.";
-    case "contain":
-      return "Fit contain scales the whole map into view without cropping.";
-    case "cover":
-      return "Fit cover fills the view and may crop map edges.";
-    case "actual-size":
-      return "Actual size draws the map at native pixel size and centers it.";
-  }
-}
-
 function getGridFootprint(grid: GridSettings): { width: number; height: number } {
   return {
     width: Math.round(Math.max(1, grid.mapGridColumns) * Math.max(1, grid.sizePx)),
@@ -1888,23 +1961,14 @@ function getGridFootprint(grid: GridSettings): { width: number; height: number }
   };
 }
 
-function getMapTransformSummary(transform: MapTransform): string {
-  if (transform.fitMode !== "manual") {
-    return `${getFitModeLabel(transform.fitMode)} controls map position and scale at render time. Rotation remains ${formatNumber(transform.rotation)}deg.`;
-  }
-  return `Manual position ${formatNumber(transform.x)}, ${formatNumber(transform.y)}; scale ${formatNumber(transform.scale)}x; rotation ${formatNumber(transform.rotation)}deg.`;
-}
-
-function getFitModeLabel(fitMode: MapTransform["fitMode"]): string {
-  switch (fitMode) {
-    case "contain":
-      return "Fit contain";
-    case "cover":
-      return "Fit cover";
-    case "actual-size":
-      return "Actual size";
-    case "manual":
-      return "Manual";
+function getGridTypeLabel(gridType: GridType): string {
+  switch (gridType) {
+    case "gridless":
+      return "Gridless";
+    case "square":
+      return "Square";
+    case "hex":
+      return "Hex";
   }
 }
 

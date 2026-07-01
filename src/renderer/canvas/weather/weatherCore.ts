@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { Camera } from "../core/camera";
-import { getSourceHeight, getSourceWidth, resolveMapTransform } from "../map/mapRenderer";
+import { getMapScaleX, getMapScaleY, getSourceHeight, getSourceWidth, resolveMapTransform } from "../map/mapRenderer";
 import type { FogWeatherEffectType, RainWeatherEffectType, SandWeatherEffectType, Scene, SnowWeatherEffectType, WeatherEffectType, WeatherMask, WeatherSettings } from "../../../shared/localvtt";
 
 export type WeatherBounds = {
@@ -384,8 +384,8 @@ export function getScreenWeatherArea(scene: Scene, viewportWidth: number, viewpo
       const transform = resolveMapTransform(scene, sourceWidth, sourceHeight, viewportWidth, viewportHeight);
       const left = camera.x + transform.x * camera.zoom;
       const top = camera.y + transform.y * camera.zoom;
-      const width = sourceWidth * transform.scale * camera.zoom;
-      const height = sourceHeight * transform.scale * camera.zoom;
+      const width = sourceWidth * getMapScaleX(transform) * camera.zoom;
+      const height = sourceHeight * getMapScaleY(transform) * camera.zoom;
       const padding = Math.min(width, height) * 0.16;
       return {
         clip: { left, top, width, height },

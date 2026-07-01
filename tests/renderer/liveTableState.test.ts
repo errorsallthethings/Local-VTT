@@ -86,6 +86,18 @@ describe("live table state helpers", () => {
     expect(getPlayerDisplayScale(campaign, { ...scene, grid: { ...scene.grid, sizePx: 0 } }, "player")).toBe(1);
   });
 
+  it("does not apply physical display scale on map fit presets", () => {
+    const campaign: Campaign = createDefaultCampaign("Campaign");
+    const scene: Scene = createDefaultScene("Scene");
+    campaign.playerDisplay.physicalScaleEnabled = true;
+    campaign.playerDisplay.pixelsPerInch = 96;
+    campaign.playerDisplay.inchesPerGridCell = 1;
+    scene.grid.sizePx = 48;
+    scene.mapTransform.fitMode = "contain";
+
+    expect(getPlayerDisplayScale(campaign, scene, "player")).toBe(1);
+  });
+
   it("uses current dice display modes before legacy presentation fields", () => {
     expect(shouldShowDiceOverlay(diceEvent({ gmDiceDisplay: "panel" }), "gm")).toBe(true);
     expect(shouldShowDiceOverlay(diceEvent({ playerDiceDisplay: "hidden", playerPresentation: "3d" }), "player")).toBe(false);

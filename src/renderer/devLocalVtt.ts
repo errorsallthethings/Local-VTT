@@ -2,6 +2,7 @@ import type { LocalVttApi } from "../../electron/preload";
 import {
   createDefaultCampaign,
   createDefaultScene,
+  type Asset,
   type Campaign,
   type CampaignSummary,
   type LiveTableEvent,
@@ -18,6 +19,15 @@ import {
 } from "../shared/localvtt";
 
 const DEV_CAMPAIGN_PATH = "dev://local-vtt/browser-campaign";
+const DEV_MAP_DATA_URL = `data:image/svg+xml,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="5000" height="1600" viewBox="0 0 5000 1600">
+  <rect width="5000" height="1600" fill="#151922"/>
+  <rect x="0" y="0" width="5000" height="1600" fill="none" stroke="#f5c542" stroke-width="12"/>
+  <path d="M0 800H5000M2500 0V1600" stroke="#7aa2f7" stroke-width="8"/>
+  <circle cx="800" cy="520" r="180" fill="#9ece6a"/>
+  <rect x="3400" y="320" width="900" height="520" rx="48" fill="#f7768e"/>
+  <text x="160" y="220" fill="#dfe6ef" font-family="Arial, sans-serif" font-size="96" font-weight="700">Dev Map 5000 x 1600</text>
+</svg>`)}`;
 
 export function installDevLocalVtt() {
   const viteEnv = (import.meta as ImportMeta & { env?: { DEV?: boolean } }).env;
@@ -117,7 +127,27 @@ export function installDevLocalVtt() {
       campaign = { ...campaign, scenes: campaign.scenes.filter((scene) => scene.id !== sceneId), updatedAt: new Date().toISOString() };
       return getSummary();
     },
-    importMap: async () => null,
+    importMap: async () => {
+      const now = new Date().toISOString();
+      const asset: Asset = {
+        id: crypto.randomUUID(),
+        name: "Dev Map 5000 x 1600",
+        kind: "map",
+        mediaType: "image",
+        relativePath: "dev/maps/dev-map-5000x1600.svg",
+        thumbnailRelativePath: "dev/maps/dev-map-5000x1600.svg",
+        originalFileName: "dev-map-5000x1600.svg",
+        createdAt: now,
+        absolutePath: DEV_MAP_DATA_URL,
+        thumbnailAbsolutePath: DEV_MAP_DATA_URL
+      };
+      campaign = {
+        ...campaign,
+        assets: [...campaign.assets, asset],
+        updatedAt: now
+      };
+      return { campaignSummary: getSummary(), asset };
+    },
     previewMapReplacement: async () => null,
     replaceMap: async () => {
       throw new Error("Map replacement is unavailable in the dev fallback.");
@@ -178,6 +208,11 @@ export function installDevLocalVtt() {
       const idleState: PlayerIdleState = { type: "idle", variant, title, message };
       lastPlayerState = idleState;
       playerStateListeners.forEach((listener) => listener(idleState));
+      return true;
+    },
+    showPlayerTestPattern: async (state: PlayerIdleState) => {
+      lastPlayerState = state;
+      playerStateListeners.forEach((listener) => listener(state));
       return true;
     },
     sendLiveTableEvent: async (event: LiveTableEvent) => {

@@ -10,7 +10,7 @@ Larger layer `order` values render above lower values. Layer ids are saved data 
 - Keep GM-only data out of Player View projection by default.
 - Keep reusable asset-library concepts separate from placed scene instances.
 - Prefer moving data between layers with explicit commands instead of making one layer serve several unrelated purposes.
-- Add new sub-layer collections only when the layer owns repeated placed items. Map and Grid currently expose settings but no sub-layers.
+- Add new sub-layer collections only when the layer owns repeated placed items. Grid and Map may be grouped together in the UI because setup workflows are tightly related, but their saved data ownership should remain separate.
 
 ## Layer Responsibilities
 
@@ -24,8 +24,8 @@ Larger layer `order` values render above lower values. Layer ids are saved data 
 | Tokens | Movable creature/NPC/object markers that participate in token selection, ordering, visibility, presentation, and movement paths. | Static map props, reusable library assets by themselves, fog, or overhead roof art. | Hidden |
 | Objects | Future reusable placed props and interactable objects that are not creatures/tokens. | Current token workflows until Objects is implemented. | Visible |
 | Dynamic Lighting | Future walls, doors, windows, light sources, vision blockers, and line-of-sight data. | Fog masks, decorative lighting effects, or map/grid calibration. | Visible |
-| Grid | Grid mode, visual grid styling, measurement settings, snapping, opacity, and fit/calibration helpers. | Map transform source data, ruler events, tokens, drawings, or templates. | Visible |
-| Map | Base scene image/GIF/video map, map transform, map asset state, and map fit behavior. | Grid settings, token placement, weather, fog, drawings, or foreground overlays. | Visible |
+| Grid | Grid mode, grid dimensions, visual grid styling, coordinate labels, measurement settings, snapping, and opacity. | Map transform source data, ruler events, tokens, drawings, or templates. | Visible |
+| Map | Base scene image/GIF/video map, map transform, map asset state, and map fit behavior. | Token placement, weather, fog, drawings, or foreground overlays. | Visible |
 
 ## Common Placement Decisions
 
@@ -38,8 +38,9 @@ Larger layer `order` values render above lower values. Layer ids are saved data 
 - **Creature, NPC, player, hazard marker, or movable point of interest**: Tokens Layer.
 - **Reusable chair, crate, door prop, trap tile, or interactable scenery**: Objects Layer once implemented. Until then, use Tokens only if it needs token-like movement/visibility.
 - **Vision wall, door, light source, or line-of-sight blocker**: Dynamic Lighting Layer once implemented.
-- **Grid color, opacity, square/hex mode, snapping, and measurement scale**: Grid Layer.
+- **Grid color, opacity, square/hex mode, coordinate labels, snapping, and measurement scale**: Grid Layer.
 - **Imported battle map image/video and fit/transform settings**: Map Layer.
+- **Guided table/display setup**: UI workflow that coordinates Player View display settings, Grid Layer settings, and Map Layer fit settings without changing ownership boundaries.
 
 ## Visibility And Projection
 
