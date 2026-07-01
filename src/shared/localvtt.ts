@@ -46,6 +46,9 @@ export type { EnvironmentEffectType } from "./environmentEffectCatalog.js";
 export type AssetKind = "map" | "token" | "overlay" | "effect" | "handout";
 export type AssetMediaType = "image" | "video";
 export type GridType = "square" | "hex" | "gridless";
+export type GridCoordinatePlacement = "inline" | "edge";
+export type GridCoordinateAxisFormat = "numeric" | "alpha";
+export type GridCoordinateCellPosition = "top-left" | "center";
 export type MeasurementUnit = "feet" | "meters" | "miles";
 export type WallType = "wall" | "door" | "window" | "terrain";
 export type DrawingKind = "freehand" | "line" | "rectangle" | "circle" | "ellipse" | "triangle" | "polygon" | "cone" | "text" | "ping" | "laser";
@@ -103,6 +106,13 @@ export interface GridSettings {
   opacity: number;
   lineThickness: number;
   showCoordinates: boolean;
+  coordinatePlacement: GridCoordinatePlacement;
+  coordinateXFormat: GridCoordinateAxisFormat;
+  coordinateYFormat: GridCoordinateAxisFormat;
+  coordinateCellPosition: GridCoordinateCellPosition;
+  coordinateColor: string;
+  coordinateGmFontSize: number;
+  coordinatePlayerFontSize: number;
   showOnGm: boolean;
   showOnPlayer: boolean;
   measurement: MeasurementSettings;
@@ -907,6 +917,13 @@ export const DEFAULT_GRID: GridSettings = {
   opacity: 0.45,
   lineThickness: 1,
   showCoordinates: false,
+  coordinatePlacement: "inline",
+  coordinateXFormat: "alpha",
+  coordinateYFormat: "numeric",
+  coordinateCellPosition: "top-left",
+  coordinateColor: "#ffffff",
+  coordinateGmFontSize: 12,
+  coordinatePlayerFontSize: 12,
   showOnGm: true,
   showOnPlayer: true,
   measurement: DEFAULT_MEASUREMENT
@@ -1660,7 +1677,7 @@ export function normalizeScene(scene: Scene): Scene {
   return {
     ...migratedScene,
     schemaVersion: CURRENT_SCENE_SCHEMA_VERSION,
-    grid: { ...DEFAULT_GRID, ...(migratedScene.grid ?? {}), measurement: { ...DEFAULT_MEASUREMENT, ...(migratedScene.grid?.measurement ?? {}) } },
+    grid: normalizeGridSettings(migratedScene.grid),
     calibration: { ...DEFAULT_CALIBRATION, ...(migratedScene.calibration ?? {}) },
     layers: [...normalizedLayers, ...customLayers],
     layerOrderLocked: migratedScene.layerOrderLocked ?? true,
@@ -1679,6 +1696,42 @@ export function normalizeScene(scene: Scene): Scene {
     tableTools: normalizeTableTools(migratedScene.tableTools),
     notes: migratedScene.notes ?? "",
     playerView: { ...DEFAULT_PLAYER_VIEW, ...(migratedScene.playerView ?? {}) }
+  };
+}
+
+function normalizeGridSettings(grid: unknown): GridSettings {
+  const source = isRecord(grid) ? grid : {};
+  const showCoordinates = typeof source.showCoordinates === "boolean" ? source.showCoordinates : DEFAULT_GRID.showCoordinates;
+  const coordinatePlacement =
+    source.coordinatePlacement === "inline" || source.coordinatePlacement === "edge" ? source.coordinatePlacement : DEFAULT_GRID.coordinatePlacement;
+  const legacyCoordinateFormat = source.coordinateFormat === "numeric" || source.coordinateFormat === "alpha-numeric" ? source.coordinateFormat : undefined;
+  const coordinateXFormat =
+    source.coordinateXFormat === "numeric" || source.coordinateXFormat === "alpha"
+      ? source.coordinateXFormat
+      : legacyCoordinateFormat === "numeric"
+        ? "numeric"
+        : DEFAULT_GRID.coordinateXFormat;
+  const coordinateYFormat =
+    source.coordinateYFormat === "numeric" || source.coordinateYFormat === "alpha"
+      ? source.coordinateYFormat
+      : legacyCoordinateFormat === "numeric"
+        ? "numeric"
+        : DEFAULT_GRID.coordinateYFormat;
+  const coordinateCellPosition =
+    source.coordinateCellPosition === "top-left" || source.coordinateCellPosition === "center" ? source.coordinateCellPosition : DEFAULT_GRID.coordinateCellPosition;
+
+  return {
+    ...DEFAULT_GRID,
+    ...source,
+    showCoordinates,
+    coordinatePlacement,
+    coordinateXFormat,
+    coordinateYFormat,
+    coordinateCellPosition,
+    coordinateColor: normalizeColor(source.coordinateColor, typeof source.color === "string" ? source.color : DEFAULT_GRID.coordinateColor),
+    coordinateGmFontSize: clampNumber(source.coordinateGmFontSize, 8, 48, DEFAULT_GRID.coordinateGmFontSize),
+    coordinatePlayerFontSize: clampNumber(source.coordinatePlayerFontSize, 8, 72, DEFAULT_GRID.coordinatePlayerFontSize),
+    measurement: { ...DEFAULT_MEASUREMENT, ...(isRecord(source.measurement) ? source.measurement : {}) }
   };
 }
 
@@ -2285,7 +2338,7 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
   return {
     ...migratedCampaign,
     schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION,
-    defaultGrid: { ...DEFAULT_GRID, ...(migratedCampaign.defaultGrid ?? {}), measurement: { ...DEFAULT_MEASUREMENT, ...(migratedCampaign.defaultGrid?.measurement ?? {}) } },
+    defaultGrid: normalizeGridSettings(migratedCampaign.defaultGrid),
     defaultMeasurement: { ...DEFAULT_MEASUREMENT, ...(migratedCampaign.defaultMeasurement ?? {}) },
     defaultCalibration,
     playerDisplay: playerDisplayProfiles.playerDisplay,

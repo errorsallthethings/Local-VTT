@@ -1,12 +1,15 @@
-import type { Scene } from "../../../shared/localvtt";
+import type { GridCoordinateAxisFormat, Scene } from "../../../shared/localvtt";
 import type { Camera } from "../core/camera";
+
+export type GridCoordinateView = "gm" | "player";
 
 export function drawSquareGrid(
   ctx: CanvasRenderingContext2D,
   scene: Scene,
   viewportWidth: number,
   viewportHeight: number,
-  camera: Camera
+  camera: Camera,
+  view: GridCoordinateView = "gm"
 ) {
   const grid = scene.grid;
   const size = Math.max(4, grid.sizePx);
@@ -54,7 +57,7 @@ export function drawSquareGrid(
 
   ctx.stroke();
   if (grid.showCoordinates) {
-    drawSquareGridCoordinates(ctx, scene, { startColumn, endColumn, startRow, endRow, size, camera });
+    drawSquareGridCoordinates(ctx, scene, { startColumn, endColumn, startRow, endRow, columns, rows, size, camera, view });
   }
   ctx.restore();
 }
@@ -67,30 +70,99 @@ function drawSquareGridCoordinates(
     endColumn: number;
     startRow: number;
     endRow: number;
+    columns: number;
+    rows: number;
     size: number;
     camera: Camera;
+    view: GridCoordinateView;
   }
 ) {
-  const scale = 1 / Math.max(0.1, bounds.camera.zoom);
-  const fontSize = Math.max(9, Math.min(14, 11 * scale));
-  const padding = 4 * scale;
+  const baseFontSize = bounds.view === "gm" ? scene.grid.coordinateGmFontSize : scene.grid.coordinatePlayerFontSize;
+  const fontSize = Math.max(8, baseFontSize);
+  const padding = 4;
+  const placement = scene.grid.coordinatePlacement;
 
   ctx.save();
   ctx.globalAlpha = Math.min(1, scene.grid.opacity + 0.25);
-  ctx.fillStyle = scene.grid.color;
+  ctx.fillStyle = scene.grid.coordinateColor;
   ctx.font = `${fontSize}px system-ui, sans-serif`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "top";
 
-  for (let row = bounds.startRow; row < bounds.endRow; row += 1) {
-    const y = scene.grid.offsetY + row * bounds.size;
-    for (let column = bounds.startColumn; column < bounds.endColumn; column += 1) {
-      const x = scene.grid.offsetX + column * bounds.size;
-      ctx.fillText(`${column},${row}`, x + padding, y + padding);
-    }
+  if (placement === "edge") {
+    drawSquareEdgeCoordinates(ctx, scene, bounds, padding);
+  } else {
+    drawSquareInlineCoordinates(ctx, scene, bounds, padding);
   }
 
   ctx.restore();
+}
+
+function drawSquareInlineCoordinates(
+  ctx: CanvasRenderingContext2D,
+  scene: Scene,
+  bounds: {
+    startColumn: number;
+    endColumn: number;
+    startRow: number;
+    endRow: number;
+    size: number;
+  },
+  padding: number
+) {
+  const centered = scene.grid.coordinateCellPosition === "center";
+  ctx.textAlign = centered ? "center" : "left";
+  ctx.textBaseline = centered ? "middle" : "top";
+  for (let row = bounds.startRow; row < bounds.endRow; row += 1) {
+    for (let column = bounds.startColumn; column < bounds.endColumn; column += 1) {
+      const x = scene.grid.offsetX + column * bounds.size;
+      const y = scene.grid.offsetY + row * bounds.size;
+      ctx.fillText(
+        formatGridCellCoordinate(column, row, scene.grid.coordinateXFormat, scene.grid.coordinateYFormat),
+        centered ? x + bounds.size / 2 : x + padding,
+        centered ? y + bounds.size / 2 : y + padding
+      );
+    }
+  }
+}
+
+function drawSquareEdgeCoordinates(
+  ctx: CanvasRenderingContext2D,
+  scene: Scene,
+  bounds: {
+    startColumn: number;
+    endColumn: number;
+    startRow: number;
+    endRow: number;
+    columns: number;
+    rows: number;
+    size: number;
+  },
+  padding: number
+) {
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const top = scene.grid.offsetY + padding;
+  const bottom = scene.grid.offsetY + bounds.rows * bounds.size - padding;
+  for (let column = bounds.startColumn; column < bounds.endColumn; column += 1) {
+    const x = scene.grid.offsetX + column * bounds.size + bounds.size / 2;
+    const label = formatGridAxisCoordinate(column, scene.grid.coordinateXFormat);
+    ctx.fillText(label, x, top);
+    ctx.textBaseline = "bottom";
+    ctx.fillText(label, x, bottom);
+    ctx.textBaseline = "top";
+  }
+
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  const left = scene.grid.offsetX + padding;
+  const right = scene.grid.offsetX + bounds.columns * bounds.size - padding;
+  for (let row = bounds.startRow; row < bounds.endRow; row += 1) {
+    const y = scene.grid.offsetY + row * bounds.size + bounds.size / 2;
+    const label = formatGridAxisCoordinate(row, scene.grid.coordinateYFormat);
+    ctx.fillText(label, left, y);
+    ctx.textAlign = "right";
+    ctx.fillText(label, right, y);
+    ctx.textAlign = "left";
+  }
 }
 
 export function drawHexGrid(
@@ -98,7 +170,8 @@ export function drawHexGrid(
   scene: Scene,
   viewportWidth: number,
   viewportHeight: number,
-  camera: Camera
+  camera: Camera,
+  view: GridCoordinateView = "gm"
 ) {
   const grid = scene.grid;
   const radius = Math.max(8, grid.sizePx / 2);
@@ -137,7 +210,7 @@ export function drawHexGrid(
 
   ctx.stroke();
   if (grid.showCoordinates) {
-    drawHexGridCoordinates(ctx, scene, { startColumn, endColumn, startRow, endRow, columnStep, rowStep, camera });
+    drawHexGridCoordinates(ctx, scene, { startColumn, endColumn, startRow, endRow, maxColumns, maxRows, columnStep, rowStep, camera, view });
   }
   ctx.restore();
 }
@@ -150,31 +223,117 @@ function drawHexGridCoordinates(
     endColumn: number;
     startRow: number;
     endRow: number;
+    maxColumns: number;
+    maxRows: number;
     columnStep: number;
     rowStep: number;
     camera: Camera;
+    view: GridCoordinateView;
   }
 ) {
-  const scale = 1 / Math.max(0.1, bounds.camera.zoom);
-  const fontSize = Math.max(9, Math.min(14, 11 * scale));
-  const padding = 4 * scale;
+  const baseFontSize = bounds.view === "gm" ? scene.grid.coordinateGmFontSize : scene.grid.coordinatePlayerFontSize;
+  const fontSize = Math.max(8, baseFontSize);
+  const padding = 4;
+  const placement = scene.grid.coordinatePlacement;
 
   ctx.save();
   ctx.globalAlpha = Math.min(1, scene.grid.opacity + 0.25);
-  ctx.fillStyle = scene.grid.color;
+  ctx.fillStyle = scene.grid.coordinateColor;
   ctx.font = `${fontSize}px system-ui, sans-serif`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "top";
 
+  if (placement === "edge") {
+    drawHexEdgeCoordinates(ctx, scene, bounds, padding);
+  } else {
+    drawHexInlineCoordinates(ctx, scene, bounds);
+  }
+
+  ctx.restore();
+}
+
+function drawHexInlineCoordinates(
+  ctx: CanvasRenderingContext2D,
+  scene: Scene,
+  bounds: {
+    startColumn: number;
+    endColumn: number;
+    startRow: number;
+    endRow: number;
+    columnStep: number;
+    rowStep: number;
+  }
+) {
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
   for (let row = bounds.startRow; row <= bounds.endRow; row += 1) {
     for (let column = bounds.startColumn; column <= bounds.endColumn; column += 1) {
       const x = scene.grid.offsetX + column * bounds.columnStep + (row % 2 === 0 ? 0 : bounds.columnStep / 2);
       const y = scene.grid.offsetY + row * bounds.rowStep;
-      ctx.fillText(`${column},${row}`, x + padding, y + padding);
+      ctx.fillText(formatGridCellCoordinate(column, row, scene.grid.coordinateXFormat, scene.grid.coordinateYFormat), x, y);
     }
   }
+}
 
-  ctx.restore();
+function drawHexEdgeCoordinates(
+  ctx: CanvasRenderingContext2D,
+  scene: Scene,
+  bounds: {
+    startColumn: number;
+    endColumn: number;
+    startRow: number;
+    endRow: number;
+    maxColumns: number;
+    maxRows: number;
+    columnStep: number;
+    rowStep: number;
+  },
+  padding: number
+) {
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const top = scene.grid.offsetY + padding;
+  const bottom = scene.grid.offsetY + (bounds.maxRows - 1) * bounds.rowStep + padding;
+  for (let column = bounds.startColumn; column <= bounds.endColumn; column += 1) {
+    const x = scene.grid.offsetX + column * bounds.columnStep;
+    const label = formatGridAxisCoordinate(column, scene.grid.coordinateXFormat);
+    ctx.fillText(label, x, top);
+    ctx.textBaseline = "bottom";
+    ctx.fillText(label, x, bottom);
+    ctx.textBaseline = "top";
+  }
+
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  const left = scene.grid.offsetX + padding;
+  const right = scene.grid.offsetX + (bounds.maxColumns - 1) * bounds.columnStep + bounds.columnStep - padding;
+  for (let row = bounds.startRow; row <= bounds.endRow; row += 1) {
+    const y = scene.grid.offsetY + row * bounds.rowStep;
+    const label = formatGridAxisCoordinate(row, scene.grid.coordinateYFormat);
+    ctx.fillText(label, left, y);
+    ctx.textAlign = "right";
+    ctx.fillText(label, right, y);
+    ctx.textAlign = "left";
+  }
+}
+
+export function formatGridCellCoordinate(column: number, row: number, xFormat: GridCoordinateAxisFormat, yFormat: GridCoordinateAxisFormat): string {
+  const xLabel = formatGridAxisCoordinate(column, xFormat);
+  const yLabel = formatGridAxisCoordinate(row, yFormat);
+  return xFormat === "alpha" && yFormat === "numeric" ? `${xLabel}${yLabel}` : `${xLabel},${yLabel}`;
+}
+
+function formatGridAxisCoordinate(index: number, format: GridCoordinateAxisFormat): string {
+  return format === "alpha" ? numberToLetters(index + 1) : String(index + 1);
+}
+
+function numberToLetters(value: number): string {
+  let remaining = Math.max(1, Math.floor(value));
+  let label = "";
+  while (remaining > 0) {
+    remaining -= 1;
+    label = String.fromCharCode(65 + (remaining % 26)) + label;
+    remaining = Math.floor(remaining / 26);
+  }
+  return label;
 }
 
 function tracePointyHex(ctx: CanvasRenderingContext2D, centerX: number, centerY: number, radius: number) {

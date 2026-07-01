@@ -552,6 +552,10 @@
   align-items: start !important;
 }
 
+.map-settings-inline-divider {
+  margin: 2px 0;
+}
+
 .map-grid-dimension-inputs {
   display: grid;
   gap: 7px;
