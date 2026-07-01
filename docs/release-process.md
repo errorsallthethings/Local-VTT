@@ -223,7 +223,7 @@ Before packaging or sharing a build, run through these workflows:
 - Replace a scene map asset from the Map layer and confirm dimension warnings are understandable.
 - Run Regenerate Thumbnails from the Campaign panel and confirm map and token previews are rebuilt.
 - Open Restore Revision from the Campaign panel, review available metadata backups, and confirm Open Backups Folder still opens Explorer.
-- Use Player View Setup for saved display/fullscreen and physical table scale on at least one manual-grid scene.
+- Use Player View Setup to save, rename, switch, and delete a display profile; confirm saved display/fullscreen and physical table scale still apply on at least one manual-grid scene.
 - Use Advanced Map Calibration on at least one static image map with a drawn calibration area or printed-grid alignment case.
 - Add, duplicate, move, rename, resize, restyle, and delete tokens.
 - Confirm token presentation and movement sync to Player View.

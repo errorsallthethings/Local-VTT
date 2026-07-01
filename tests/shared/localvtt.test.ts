@@ -17,6 +17,7 @@ import {
   DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
   DEFAULT_MAP_TRANSFORM,
   DEFAULT_MEASUREMENT,
+  DEFAULT_PLAYER_DISPLAY_PROFILE_ID,
   DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TABLE_TOOLS,
@@ -803,11 +804,90 @@ it("normalizeCampaign fills portable campaign defaults and empty collections", (
   expect(normalized.defaultMeasurement).toEqual(DEFAULT_MEASUREMENT);
   expect(normalized.defaultCalibration).toEqual(DEFAULT_CALIBRATION);
   expect(normalized.playerDisplay).toEqual(DEFAULT_CALIBRATION);
+  expect(normalized.activePlayerDisplayProfileId).toBe(DEFAULT_PLAYER_DISPLAY_PROFILE_ID);
+  expect(normalized.playerDisplayProfiles).toEqual([
+    {
+      ...DEFAULT_CALIBRATION,
+      id: DEFAULT_PLAYER_DISPLAY_PROFILE_ID,
+      name: "Default",
+      createdAt: now,
+      updatedAt: now
+    }
+  ]);
   expect(normalized.diceSettings).toEqual(DEFAULT_DICE_SETTINGS);
   expect(normalized.sceneLibrary).toEqual({ collapsedFolderIds: [] });
   expect(normalized.sceneFolders).toEqual([]);
   expect(normalized.players).toEqual([]);
   expect(normalized.assets).toEqual([]);
+});
+
+it("normalizeCampaign keeps the active player display profile and falls back when it is missing", () => {
+  const campaign = {
+    ...createDefaultCampaign("Display Profiles"),
+    activePlayerDisplayProfileId: "missing",
+    playerDisplayProfiles: [
+      {
+        ...DEFAULT_CALIBRATION,
+        id: "gaming-table",
+        name: "Gaming Table",
+        createdAt: now,
+        updatedAt: now,
+        selectedDisplayId: 2,
+        selectedDisplayLabel: "TV - 2560x1440",
+        pixelsPerInch: 120
+      },
+      {
+        ...DEFAULT_CALIBRATION,
+        id: "office-monitor",
+        name: "Office Monitor",
+        createdAt: now,
+        updatedAt: now,
+        selectedDisplayId: 3,
+        selectedDisplayLabel: "Monitor - 1920x1080",
+        pixelsPerInch: 96
+      }
+    ]
+  };
+
+  const normalized = normalizeCampaign(campaign);
+
+  expect(normalized.activePlayerDisplayProfileId).toBe("gaming-table");
+  expect(normalized.playerDisplay.selectedDisplayLabel).toBe("TV - 2560x1440");
+  expect(normalized.playerDisplay.pixelsPerInch).toBe(120);
+  expect(normalized.playerDisplayProfiles.map((profile) => profile.name)).toEqual(["Gaming Table", "Office Monitor"]);
+});
+
+it("normalizeCampaign preserves all player display profiles when the active profile is valid", () => {
+  const campaign = {
+    ...createDefaultCampaign("Display Profiles"),
+    activePlayerDisplayProfileId: "office-monitor",
+    playerDisplayProfiles: [
+      {
+        ...DEFAULT_CALIBRATION,
+        id: "gaming-table",
+        name: "Gaming Table",
+        createdAt: now,
+        updatedAt: now,
+        selectedDisplayLabel: "TV - 2560x1440",
+        pixelsPerInch: 120
+      },
+      {
+        ...DEFAULT_CALIBRATION,
+        id: "office-monitor",
+        name: "Office Monitor",
+        createdAt: now,
+        updatedAt: now,
+        selectedDisplayLabel: "Monitor - 1920x1080",
+        pixelsPerInch: 96
+      }
+    ]
+  };
+
+  const normalized = normalizeCampaign(campaign);
+
+  expect(normalized.activePlayerDisplayProfileId).toBe("office-monitor");
+  expect(normalized.playerDisplay.selectedDisplayLabel).toBe("Monitor - 1920x1080");
+  expect(normalized.playerDisplayProfiles.map((profile) => profile.name)).toEqual(["Gaming Table", "Office Monitor"]);
 });
 
 it("normalizeCampaign normalizes campaign dice settings", () => {
@@ -885,6 +965,9 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   const campaign = createDefaultCampaign("Player Safe Campaign");
   campaign.assets = [asset("map"), asset("visible-token"), asset("hidden-token"), asset("overlay"), asset("unused")];
   campaign.playerDisplay = { ...campaign.playerDisplay, physicalScaleEnabled: true, pixelsPerInch: 120 };
+  campaign.playerDisplayProfiles = campaign.playerDisplayProfiles.map((profile) =>
+    profile.id === campaign.activePlayerDisplayProfileId ? { ...profile, physicalScaleEnabled: true, pixelsPerInch: 120 } : profile
+  );
 
   const scene = createDefaultScene("Scene");
   scene.mapAssetId = "map";

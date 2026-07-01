@@ -113,6 +113,11 @@
   max-width: 328px;
 }
 
+.settings-profile-name-controls {
+  grid-template-columns: minmax(0, 228px) auto auto auto;
+  max-width: 330px;
+}
+
 .settings-inline-icon-button {
   width: 28px;
   min-width: 28px;

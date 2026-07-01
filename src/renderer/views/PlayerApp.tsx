@@ -3,7 +3,9 @@ import { Map as MapIcon } from "lucide-react";
 import {
   CURRENT_CAMPAIGN_SCHEMA_VERSION,
   DEFAULT_DICE_SETTINGS,
+  DEFAULT_PLAYER_DISPLAY_PROFILE_ID,
   createDefaultScene,
+  createPlayerDisplayProfile,
   isLiveTableEvent,
   isPlayerIdleState,
   isPlayerSceneProjection,
@@ -334,7 +336,9 @@ function PlayerScene({
       ...emptyCampaign(projection.campaignName),
       assets: projection.assets,
       players: projection.players ?? [],
-      playerDisplay: projection.playerDisplay
+      playerDisplay: projection.playerDisplay,
+      activePlayerDisplayProfileId: DEFAULT_PLAYER_DISPLAY_PROFILE_ID,
+      playerDisplayProfiles: [createPlayerDisplayProfile(DEFAULT_PLAYER_DISPLAY_PROFILE_ID, "Projected Display", projection.playerDisplay, "")]
     }),
     [projection]
   );
@@ -415,6 +419,8 @@ function emptyCampaign(name: string) {
       defaultScaleLabel: "1 inch = 5 feet"
     },
     playerDisplay: projectionDisplayFallback(),
+    activePlayerDisplayProfileId: DEFAULT_PLAYER_DISPLAY_PROFILE_ID,
+    playerDisplayProfiles: [createPlayerDisplayProfile(DEFAULT_PLAYER_DISPLAY_PROFILE_ID, "Projected Display", projectionDisplayFallback(), "")],
     diceSettings: { ...DEFAULT_DICE_SETTINGS }
   };
 }

@@ -118,6 +118,10 @@ export function GmDialogs({
   onSubmitTokenBorderColor,
   onSubmitCampaignName,
   onUpdatePlayerDisplay,
+  onCreatePlayerDisplayProfile,
+  onRenamePlayerDisplayProfile,
+  onSelectPlayerDisplayProfile,
+  onDeletePlayerDisplayProfile,
   onApplyMapCalibration,
   onFitMapToGrid,
   onUpdateSceneGrid,
@@ -217,6 +221,10 @@ export function GmDialogs({
   onSubmitTokenBorderColor: () => void;
   onSubmitCampaignName: () => void;
   onUpdatePlayerDisplay: (nextDisplay: DisplayCalibration) => void;
+  onCreatePlayerDisplayProfile: (name: string, calibration: DisplayCalibration) => void;
+  onRenamePlayerDisplayProfile: (profileId: string, name: string) => void;
+  onSelectPlayerDisplayProfile: (profileId: string) => void;
+  onDeletePlayerDisplayProfile: (profileId: string) => void;
   onApplyMapCalibration: (draft: MapCalibrationDraft) => void;
   onStartMapCalibrationBoxCapture: () => void;
   onFitMapToGrid: (columns: number, rows: number, fitMode: WizardMapFitMode) => Promise<unknown>;
@@ -415,8 +423,14 @@ export function GmDialogs({
           <PlayerDisplayScalePanel
             scene={activeScene}
             calibration={campaign.playerDisplay}
+            profiles={campaign.playerDisplayProfiles}
+            activeProfileId={campaign.activePlayerDisplayProfileId}
             displays={displays}
             onApply={onUpdatePlayerDisplay}
+            onCreateProfile={onCreatePlayerDisplayProfile}
+            onRenameProfile={onRenamePlayerDisplayProfile}
+            onSelectProfile={onSelectPlayerDisplayProfile}
+            onDeleteProfile={onDeletePlayerDisplayProfile}
             onRefreshDisplays={onRefreshDisplays}
             onFooterActionsChange={setPlayerDisplayFooterActions}
           />

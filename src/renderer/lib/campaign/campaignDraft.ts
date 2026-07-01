@@ -22,6 +22,8 @@ export function mergeCampaignDraft(summaryCampaign: Campaign, draftCampaign: Cam
     }),
     assets: summaryCampaign.assets.map((asset) => mergeAssetDraft(asset, draftAssetsById.get(asset.id))),
     playerDisplay: draftCampaign.playerDisplay,
+    activePlayerDisplayProfileId: draftCampaign.activePlayerDisplayProfileId,
+    playerDisplayProfiles: draftCampaign.playerDisplayProfiles,
     diceSettings: draftCampaign.diceSettings,
     updatedAt: draftCampaign.updatedAt
   };
