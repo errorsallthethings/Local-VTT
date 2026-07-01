@@ -219,6 +219,7 @@ Before packaging or sharing a build, run through these workflows:
 - Draw, rename, reorder, toggle, and delete fog shapes.
 - Select weather and fog masks from the GM canvas and confirm token selection still takes priority.
 - Configure square, hex, and gridless scenes, including Grid & Maps coordinate labels and map fit presets for static maps.
+- Confirm Grid Coordinates can be toggled through the Grid sub-layer, placed inside cells or on grid edges, formatted independently for X/Y axes, recolored, resized separately for GM and Player View, and rendered on square and hex grids.
 - Use Table Display Setup to choose a Player View display, preview no-grid/square/hex/physical test patterns, set the scene grid, import or fit a map, and preview Player View.
 - Replace a scene map asset from the Map layer and confirm dimension warnings are understandable.
 - Run Regenerate Thumbnails from the Campaign panel and confirm map and token previews are rebuilt.

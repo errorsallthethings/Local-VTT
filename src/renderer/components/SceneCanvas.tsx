@@ -1198,9 +1198,9 @@ export function SceneCanvas({
 
       const showGrid = Boolean(canShowGrid) && (mode === "gm" ? scene.grid.showOnGm : scene.grid.showOnPlayer);
       if (showGrid && scene.grid.type === "square") {
-        drawSquareGrid(ctx, scene, width, height, renderCamera);
+        drawSquareGrid(ctx, scene, width, height, renderCamera, mode);
       } else if (showGrid && scene.grid.type === "hex") {
-        drawHexGrid(ctx, scene, width, height, renderCamera);
+        drawHexGrid(ctx, scene, width, height, renderCamera, mode);
       }
 
       if (mode === "gm" && tokenDragPreview) {

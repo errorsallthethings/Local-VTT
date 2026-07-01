@@ -144,7 +144,8 @@ Use the Campaign panel's Restore Revision option to review and restore available
 ### Grid, Measurement, And Ruler
 
 - Grid modes support gridless, square, and hex scenes.
-- Grid & Maps controls include quick grid visibility, coordinate labels, opacity reset, reusable color swatches, map fit presets, and advanced transform controls for static image maps.
+- Grid & Maps controls include quick grid visibility, configurable coordinate labels, opacity reset, reusable color swatches, map fit presets, and advanced transform controls for static image maps.
+- Grid coordinate labels can be placed inside cells or along grid edges, use independent X/Y alpha or numeric formats, and have configurable GM/Player label sizes and color.
 - Measurement settings are available from Grid & Maps when square or hex grids are active.
 - Player View Setup stores campaign-level calibration for the external player-facing display, including optional physical table scale for manual scene grids.
 - Table Tools include the GM-only ruler, configurable ping, and laser pointer.

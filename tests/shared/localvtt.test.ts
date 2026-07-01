@@ -86,6 +86,14 @@ it("normalizeScene fills default settings for older scene files", () => {
   expect(normalized.grid.type).toBe("square");
   expect(normalized.grid.sizePx).toBe(80);
   expect(normalized.grid.measurement).toEqual(DEFAULT_MEASUREMENT);
+  expect(normalized.grid.showCoordinates).toBe(false);
+  expect(normalized.grid.coordinatePlacement).toBe("inline");
+  expect(normalized.grid.coordinateXFormat).toBe("alpha");
+  expect(normalized.grid.coordinateYFormat).toBe("numeric");
+  expect(normalized.grid.coordinateCellPosition).toBe("top-left");
+  expect(normalized.grid.coordinateColor).toBe(DEFAULT_GRID.coordinateColor);
+  expect(normalized.grid.coordinateGmFontSize).toBe(DEFAULT_GRID.coordinateGmFontSize);
+  expect(normalized.grid.coordinatePlayerFontSize).toBe(DEFAULT_GRID.coordinatePlayerFontSize);
   expect(normalized.calibration).toEqual(DEFAULT_CALIBRATION);
   expect(normalized.mapTransform).toEqual(DEFAULT_MAP_TRANSFORM);
   expect(normalized.videoPlayback).toEqual(DEFAULT_VIDEO_PLAYBACK);
@@ -96,6 +104,44 @@ it("normalizeScene fills default settings for older scene files", () => {
   expect(normalized.fog.gmOpacity).toBe(0.5);
   expect(normalized.fog.playerOpacity).toBe(0.8);
   expect(normalized.fog.newShapesVisibleInPlayer).toBe(true);
+});
+
+it("normalizeScene preserves legacy grid coordinate visibility and normalizes coordinate options", () => {
+  const {
+    coordinatePlacement: _coordinatePlacement,
+    coordinateFormat: _coordinateFormat,
+    coordinateXFormat: _coordinateXFormat,
+    coordinateYFormat: _coordinateYFormat,
+    coordinateCellPosition: _coordinateCellPosition,
+    coordinateColor: _coordinateColor,
+    coordinateGmFontSize: _coordinateGmFontSize,
+    coordinatePlayerFontSize: _coordinatePlayerFontSize,
+    ...legacyGrid
+  } = createDefaultScene("Coordinates").grid;
+  const scene = {
+    ...createDefaultScene("Coordinates"),
+    grid: {
+      ...legacyGrid,
+      type: "square",
+      showCoordinates: true,
+      coordinatePlacement: "sideways",
+      coordinateFormat: "numeric",
+      coordinateColor: "bad",
+      coordinateGmFontSize: 500,
+      coordinatePlayerFontSize: -1
+    }
+  } as unknown as Scene;
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.grid.showCoordinates).toBe(true);
+  expect(normalized.grid.coordinatePlacement).toBe("inline");
+  expect(normalized.grid.coordinateXFormat).toBe("numeric");
+  expect(normalized.grid.coordinateYFormat).toBe("numeric");
+  expect(normalized.grid.coordinateCellPosition).toBe("top-left");
+  expect(normalized.grid.coordinateColor).toBe(DEFAULT_GRID.color);
+  expect(normalized.grid.coordinateGmFontSize).toBe(48);
+  expect(normalized.grid.coordinatePlayerFontSize).toBe(8);
 });
 
 it("normalizeScene clamps weather settings", () => {

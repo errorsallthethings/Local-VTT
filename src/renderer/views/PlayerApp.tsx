@@ -393,6 +393,13 @@ function emptyCampaign(name: string) {
       opacity: 0.4,
       lineThickness: 1,
       showCoordinates: false,
+      coordinatePlacement: "inline" as const,
+      coordinateXFormat: "alpha" as const,
+      coordinateYFormat: "numeric" as const,
+      coordinateCellPosition: "top-left" as const,
+      coordinateColor: "#ffffff",
+      coordinateGmFontSize: 12,
+      coordinatePlayerFontSize: 12,
       showOnGm: false,
       showOnPlayer: true,
       measurement: {
