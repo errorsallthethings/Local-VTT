@@ -35,6 +35,11 @@ export function buildAssetThumbnailRelativePath(assetId: string, variant = ""): 
   return path.join("assets", "thumbnails", `${fileStem}.jpg`).replaceAll(path.sep, "/");
 }
 
+export function buildAssetImportRelativePath(kind: Asset["kind"], fileName: string): string {
+  const folder = kind === "map" ? "maps" : "tokens";
+  return path.join("assets", folder, fileName).replaceAll(path.sep, "/");
+}
+
 function dedupePaths(paths: Array<string | undefined>): string[] {
   const seen = new Set<string>();
   const result: string[] = [];

@@ -43,7 +43,7 @@ import {
   type MediaDimensions,
   type ThumbnailCreationResult
 } from "./assets.js";
-import { buildAssetThumbnailRelativePath, getAssetFileRemovalPaths, getKnownAssetPaths, hydrateCampaignAssetPaths } from "./assetFiles.js";
+import { buildAssetImportRelativePath, buildAssetThumbnailRelativePath, getAssetFileRemovalPaths, getKnownAssetPaths, hydrateCampaignAssetPaths } from "./assetFiles.js";
 import {
   mapMediaType,
   safeAssetName,
@@ -1338,7 +1338,7 @@ ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
 
   const summary = await loadCampaignFromPath(campaignPath);
   const fileName = safeAssetName(sourcePath);
-  const relativePath = path.join("assets", "maps", fileName).replaceAll(path.sep, "/");
+  const relativePath = buildAssetImportRelativePath("map", fileName);
   const destination = path.resolve(campaignPath, relativePath);
   assertInsideCampaign(campaignPath, destination);
   await copyFile(sourcePath, destination);
@@ -1434,7 +1434,7 @@ ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: 
   }
 
   const fileName = safeAssetName(sourcePath);
-  const relativePath = path.join("assets", "maps", fileName).replaceAll(path.sep, "/");
+  const relativePath = buildAssetImportRelativePath("map", fileName);
   const destination = path.resolve(campaignPath, relativePath);
   assertInsideCampaign(campaignPath, destination);
   await copyFile(sourcePath, destination);
@@ -1489,7 +1489,7 @@ ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
 
   const summary = await loadCampaignFromPath(campaignPath);
   const fileName = safeAssetName(sourcePath);
-  const relativePath = path.join("assets", "tokens", fileName).replaceAll(path.sep, "/");
+  const relativePath = buildAssetImportRelativePath("token", fileName);
   const destination = path.resolve(campaignPath, relativePath);
   assertInsideCampaign(campaignPath, destination);
   await copyFile(sourcePath, destination);

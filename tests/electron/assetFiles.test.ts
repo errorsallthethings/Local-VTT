@@ -1,6 +1,12 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildAssetThumbnailRelativePath, getAssetFileRemovalPaths, getKnownAssetPaths, hydrateCampaignAssetPaths } from "../../electron/assetFiles";
+import {
+  buildAssetImportRelativePath,
+  buildAssetThumbnailRelativePath,
+  getAssetFileRemovalPaths,
+  getKnownAssetPaths,
+  hydrateCampaignAssetPaths
+} from "../../electron/assetFiles";
 import { createDefaultCampaign } from "../../src/shared/localvtt";
 import type { Asset } from "../../src/shared/localvtt";
 
@@ -50,6 +56,11 @@ describe("asset file helpers", () => {
 
   it("builds variant thumbnail paths with safe variant characters only", () => {
     expect(buildAssetThumbnailRelativePath("asset-1", "crop-123:../bad value")).toBe("assets/thumbnails/asset-1-crop-123badvalue.jpg");
+  });
+
+  it("builds portable import paths for map and token assets", () => {
+    expect(buildAssetImportRelativePath("map", "dungeon.png")).toBe("assets/maps/dungeon.png");
+    expect(buildAssetImportRelativePath("token", "hero.png")).toBe("assets/tokens/hero.png");
   });
 
   it("hydrates campaign asset paths from portable paths", () => {
