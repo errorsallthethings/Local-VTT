@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
-import { applyResolvedDiceVisualState, disposeMaterial, disposeObjectMaterialsAndGeometry, setObjectMaterialOpacity, type ResolvedDiceResult } from "../../src/renderer/lib/dice";
+import { applyResolvedDiceVisualState, disposeMaterial, disposeObjectMaterialsAndGeometry, getFaceHighlightAnimationState, setObjectMaterialOpacity, type ResolvedDiceResult } from "../../src/renderer/lib/dice";
 
 function resolvedResult(kept: boolean): ResolvedDiceResult {
   return {
@@ -78,5 +78,27 @@ describe("dice material helpers", () => {
 
     expect(textureDispose).toHaveBeenCalledTimes(1);
     expect(materialDispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("calculates face highlight pulse state", () => {
+    expect(getFaceHighlightAnimationState(1000, 500)).toEqual({
+      opacity: 0.18,
+      progress: 0,
+      scale: 1,
+      visible: true
+    });
+
+    const active = getFaceHighlightAnimationState(0, 180, 1800);
+    expect(active.progress).toBe(0.1);
+    expect(active.opacity).toBeGreaterThan(0.18);
+    expect(active.scale).toBeGreaterThan(1);
+    expect(active.visible).toBe(true);
+
+    expect(getFaceHighlightAnimationState(0, 1800, 1800)).toEqual({
+      opacity: 0.18,
+      progress: 1,
+      scale: 1,
+      visible: false
+    });
   });
 });

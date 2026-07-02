@@ -3,7 +3,6 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import * as THREE from "three";
 import type { DiceDisplayMode, LiveTableEvent } from "../../../shared/localvtt";
 import {
-  DICE_FACE_HIGHLIGHT_DURATION_MS,
   DICE_SCENE_MAX_ROLL_MS,
   DICE_SCENE_MIN_ROLL_MS,
   DICE_SCENE_RESULT_TIMEOUT_MS,
@@ -27,6 +26,7 @@ import {
   getPublishedSceneResolvedLabel,
   getCoinCenterPush,
   getFaceHighlightColor,
+  getFaceHighlightAnimationState,
   getFaceLabelQuaternion,
   getFaceLabelFontSize,
   getGeometryTriangles,
@@ -732,22 +732,19 @@ function updateDieFaceHighlight(
   if (!entry.highlight) {
     return;
   }
-  const progress = Math.min(1, Math.max(0, (now - entry.highlightStartedAt) / DICE_FACE_HIGHLIGHT_DURATION_MS));
-  const pulse = Math.sin(progress * Math.PI * 5) * (1 - progress);
-  const opacity = 0.18 + Math.max(0, pulse) * 0.32;
-  const scale = 1 + Math.max(0, pulse) * 0.16;
-  entry.highlight.scale.setScalar(scale);
+  const highlightState = getFaceHighlightAnimationState(entry.highlightStartedAt, now);
+  entry.highlight.scale.setScalar(highlightState.scale);
   entry.highlight.traverse((object) => {
     if (object instanceof THREE.Mesh) {
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       materials.forEach((material) => {
         if ("opacity" in material) {
-          material.opacity = opacity;
+          material.opacity = highlightState.opacity;
         }
       });
     }
   });
-  if (progress >= 1) {
+  if (!highlightState.visible) {
     entry.highlight.visible = false;
   }
 }
