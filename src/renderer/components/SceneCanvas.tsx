@@ -43,12 +43,10 @@ import {
   drawFog,
   getFogDragFromPoint,
   getFogShapeFromDrag,
-  getFogShapeFromPolygonDraft,
   getFogVisibilityPatchForNewShape,
   getFogOperationForTool,
   getUpdatedFogDrag,
   isMeaningfulFogDrag,
-  isMeaningfulPolygon,
   isPolygonTool,
   type FogDrag,
   type FogPolygonDraft,
@@ -99,10 +97,14 @@ import {
   formatDefaultEnvironmentEffectName,
   formatDefaultWeatherMaskName,
   getDrawingContextMenu,
+  getDrawingPolygonDraftCommit,
   getEnvironmentEffectContextMenu,
+  getEnvironmentPolygonDraftCommit,
   getFogContextMenu,
+  getFogPolygonDraftCommit,
   getTokenContextMenu,
   getWeatherMaskContextMenu,
+  getWeatherPolygonDraftCommit,
   type DrawingContextMenu,
   type EnvironmentEffectContextMenu,
   type MaskContextMenu,
@@ -139,7 +141,6 @@ import { getSelectedItemIdList, getSelectedItemIds } from "../lib/scene";
 import { getTurnOrderTokenIndicators } from "../lib/turn-order";
 import {
   getDrawingElementFromPreview,
-  getDrawingPolygonElementFromDraft,
   getDrawingTemplateCurrentPoint,
   getTemplatePreviewDrawing
 } from "../canvas/drawings";
@@ -180,7 +181,6 @@ import {
   getEnvironmentEffectDragFromPoint,
   getEnvironmentEffectGroupSnapAnchor,
   getEnvironmentEffectFromDrag,
-  getEnvironmentEffectFromPolygonDraft,
   getEnvironmentEffectPointSnapshot,
   getEnvironmentEffectsWithPointOverrides,
   getUpdatedEnvironmentEffectDrag,
@@ -199,7 +199,6 @@ import {
 import {
   getWeatherMaskDragFromPoint,
   getWeatherMaskFromDrag,
-  getWeatherMaskFromPolygonDraft,
   getWeatherMaskPointSnapshot,
   getWeatherMasksWithPointOverrides,
   getUpdatedWeatherMaskDrag,
@@ -2144,86 +2143,72 @@ export function SceneCanvas({
 
   const commitPolygonDraft = () => {
     const draft = polygonDraftRef.current;
-    if (!scene || !onSceneChange || !draft || !isMeaningfulPolygon(draft.points)) {
+    if (!scene || !onSceneChange || !draft) {
+      return;
+    }
+    const commit = getFogPolygonDraftCommit(scene, draft, crypto.randomUUID());
+    if (!commit) {
       return;
     }
     polygonDraftRef.current = null;
     setPolygonDraft(null);
-    onSceneChange(
-      addSceneFogShape(
-        scene,
-        getFogShapeFromPolygonDraft(
-          draft,
-          crypto.randomUUID(),
-          formatDefaultFogShapeName(draft.operation, "polygon", scene.fog.shapes.length),
-          scene.fog.newShapesVisibleInPlayer
-        ),
-        getFogVisibilityPatchForNewShape(scene.fog, draft.operation)
-      )
-    );
+    onSceneChange(addSceneFogShape(scene, commit.shape, commit.fogPatch));
   };
 
   const commitDrawingPolygonDraft = () => {
     const draft = drawingPolygonDraftRef.current;
-    if (!scene || !onSceneChange || !draft || !isMeaningfulPolygon(draft.points)) {
+    if (!scene || !onSceneChange || !draft) {
+      return;
+    }
+    const drawing = getDrawingPolygonDraftCommit(scene, draft, crypto.randomUUID(), {
+      color: drawingColor,
+      opacity: drawingOpacity,
+      fillColor: drawingFillColor,
+      fillOpacity: drawingFillOpacity,
+      strokeStyle: drawingStrokeStyle,
+      strokeWidth: drawingStrokeWidth
+    });
+    if (!drawing) {
       return;
     }
     drawingPolygonDraftRef.current = null;
     setDrawingPolygonDraft(null);
-    onSceneChange(
-      addSceneDrawing(
-        scene,
-        getDrawingPolygonElementFromDraft(draft.points, crypto.randomUUID(), scene.drawings.length, {
-          color: drawingColor,
-          opacity: drawingOpacity,
-          fillColor: drawingFillColor,
-          fillOpacity: drawingFillOpacity,
-          strokeStyle: drawingStrokeStyle,
-          strokeWidth: drawingStrokeWidth
-        })
-      )
-    );
+    onSceneChange(addSceneDrawing(scene, drawing));
   };
 
   const commitWeatherPolygonDraft = () => {
     const draft = weatherPolygonDraftRef.current;
-    if (!scene || !onSceneChange || !draft || !isMeaningfulPolygon(draft.points)) {
+    if (!scene || !onSceneChange || !draft) {
+      return;
+    }
+    const mask = getWeatherPolygonDraftCommit(scene, draft, crypto.randomUUID());
+    if (!mask) {
       return;
     }
     weatherPolygonDraftRef.current = null;
     setWeatherPolygonDraft(null);
-    onSceneChange(
-      addSceneWeatherMask(
-        scene,
-        getWeatherMaskFromPolygonDraft(
-          draft,
-          crypto.randomUUID(),
-          formatDefaultWeatherMaskName(scene.weather.masks.length)
-        )
-      )
-    );
+    onSceneChange(addSceneWeatherMask(scene, mask));
   };
 
   const commitEnvironmentPolygonDraft = () => {
     const draft = environmentPolygonDraftRef.current;
-    if (!scene || !onSceneChange || !draft || !isMeaningfulPolygon(draft.points)) {
+    if (!scene || !onSceneChange || !draft) {
+      return;
+    }
+    const effect = getEnvironmentPolygonDraftCommit(
+      scene,
+      draft,
+      crypto.randomUUID(),
+      environmentEffectType,
+      environmentEffectFeather,
+      currentEnvironmentEffectTuning
+    );
+    if (!effect) {
       return;
     }
     environmentPolygonDraftRef.current = null;
     setEnvironmentPolygonDraft(null);
-    onSceneChange(
-      addEnvironmentEffect(
-        scene,
-        getEnvironmentEffectFromPolygonDraft(
-          draft,
-          crypto.randomUUID(),
-          formatDefaultEnvironmentEffectName(environmentEffectType, scene.environment.effects.length),
-          environmentEffectType,
-          environmentEffectFeather,
-          currentEnvironmentEffectTuning
-        )
-      )
-    );
+    onSceneChange(addEnvironmentEffect(scene, effect));
   };
 
   usePolygonDraftKeyboard({
