@@ -66,6 +66,12 @@ import { DebouncedNumberInput } from "../../controls/DebouncedNumberInput";
 import { MeasurementPanel } from "../../settings/MeasurementPanel";
 import { FogShapeList, type FogShapeDropTarget } from "../lists/FogShapeList";
 import { TokenList } from "../lists/TokenList";
+import {
+  formatEnvironmentShapeLabel,
+  formatLayerPanelMultiplier,
+  formatLayerPanelNumber,
+  formatLayerPanelPercent
+} from "./layerPanelFormat";
 
 type WeatherTuningKey = keyof WeatherTuningSettings;
 type DrawingDropTarget = { drawingId: string; placement: DropPlacement } | null;
@@ -398,7 +404,7 @@ export function LayerPanel({
         <small>
           {scene.grid.type === "gridless"
             ? "Gridless"
-            : `${getGridTypeLabel(scene.grid.type)} - ${scene.grid.mapGridColumns} x ${scene.grid.mapGridRows} at ${formatNumber(scene.grid.sizePx)}px`}
+            : `${getGridTypeLabel(scene.grid.type)} - ${scene.grid.mapGridColumns} x ${scene.grid.mapGridRows} at ${formatLayerPanelNumber(scene.grid.sizePx)}px`}
         </small>
       </div>
       <div className="grid-visibility-controls" aria-label="Grid visibility">
@@ -998,14 +1004,14 @@ export function LayerPanel({
                           <span>{expandedWeatherCategory === "sand" ? "Wind" : "Drift"}</span>
                           <WeatherDirectionDial weather={expandedWeatherSettings} onChange={(patch) => updateWeatherTuning(expandedWeatherCategory, patch)} onReset={() => resetWeatherDrift(expandedWeatherCategory)} />
                         </div>
-                        <WeatherRangeRow label={expandedWeatherAdvancedLabels.edgeBias} value={expandedWeatherSettings.edgeBias} min={0} max={1} step={0.05} format={formatPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { edgeBias: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "edgeBias")} />
-                        <WeatherRangeRow label={expandedWeatherAdvancedLabels.quietAreaSize} value={expandedWeatherSettings.quietAreaSize} min={0.35} max={0.9} step={0.05} format={formatPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { quietAreaSize: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "quietAreaSize")} />
-                        <WeatherRangeRow label={expandedWeatherAdvancedLabels.centerStrayDrops} value={expandedWeatherSettings.centerStrayDrops} min={0} max={1} step={0.05} format={formatPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { centerStrayDrops: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "centerStrayDrops")} />
-                        <WeatherRangeRow label={expandedWeatherAdvancedLabels.streakLength} value={expandedWeatherSettings.streakLength} min={0.4} max={2} step={0.05} format={formatMultiplier} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { streakLength: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "streakLength")} />
+                        <WeatherRangeRow label={expandedWeatherAdvancedLabels.edgeBias} value={expandedWeatherSettings.edgeBias} min={0} max={1} step={0.05} format={formatLayerPanelPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { edgeBias: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "edgeBias")} />
+                        <WeatherRangeRow label={expandedWeatherAdvancedLabels.quietAreaSize} value={expandedWeatherSettings.quietAreaSize} min={0.35} max={0.9} step={0.05} format={formatLayerPanelPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { quietAreaSize: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "quietAreaSize")} />
+                        <WeatherRangeRow label={expandedWeatherAdvancedLabels.centerStrayDrops} value={expandedWeatherSettings.centerStrayDrops} min={0} max={1} step={0.05} format={formatLayerPanelPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { centerStrayDrops: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "centerStrayDrops")} />
+                        <WeatherRangeRow label={expandedWeatherAdvancedLabels.streakLength} value={expandedWeatherSettings.streakLength} min={0.4} max={2} step={0.05} format={formatLayerPanelMultiplier} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { streakLength: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "streakLength")} />
                         {expandedWeatherSlot.pattern === "rain-storm" && (
                           <>
-                            <WeatherRangeRow label="Lightning" value={expandedWeatherSettings.lightningFrequency} min={0} max={1} step={0.05} format={formatPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { lightningFrequency: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "lightningFrequency")} />
-                            <WeatherRangeRow label="Flash" value={expandedWeatherSettings.flashStrength} min={0} max={1} step={0.05} format={formatPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { flashStrength: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "flashStrength")} />
+                            <WeatherRangeRow label="Lightning" value={expandedWeatherSettings.lightningFrequency} min={0} max={1} step={0.05} format={formatLayerPanelPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { lightningFrequency: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "lightningFrequency")} />
+                            <WeatherRangeRow label="Flash" value={expandedWeatherSettings.flashStrength} min={0} max={1} step={0.05} format={formatLayerPanelPercent} onChange={(value) => updateWeatherTuning(expandedWeatherCategory, { flashStrength: value })} onReset={() => resetWeatherTuning(expandedWeatherCategory, "flashStrength")} />
                           </>
                         )}
                         <div className="setting-row">
@@ -1424,14 +1430,6 @@ function DrawingList({
   );
 }
 
-function formatPercent(value: number): string {
-  return `${Math.round(value * 100)}%`;
-}
-
-function formatMultiplier(value: number): string {
-  return `${value.toFixed(2)}x`;
-}
-
 function EnvironmentEffectList({
   scene,
   selectedEnvironmentEffectId,
@@ -1771,10 +1769,6 @@ function WeatherMaskList({
   );
 }
 
-function formatEnvironmentShapeLabel(kind: "rectangle" | "polygon" | "circle"): string {
-  return kind === "circle" ? "Radius" : kind === "polygon" ? "Polygon" : "Rectangle";
-}
-
 function getWeatherEffectSettingsWithCurrent(weather: WeatherSettings): WeatherSettings["effectSettings"] {
   return {
     ...weather.effectSettings,
@@ -2034,6 +2028,3 @@ function getGridTypeLabel(gridType: GridType): string {
   }
 }
 
-function formatNumber(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2);
-}
