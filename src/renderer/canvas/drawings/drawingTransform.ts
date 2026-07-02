@@ -11,6 +11,27 @@ export type PointSnapshotMove = {
   snapAnchor?: Point;
   groupStartPoints: DrawingPointSnapshot;
 };
+export type DrawingTransformDragStart =
+  | {
+      kind: "rotate";
+      state: {
+        pointerId: number;
+        center: Point;
+        startAngle: number;
+        groupStartPoints: DrawingPointSnapshot;
+      };
+      preview: DrawingPointSnapshot;
+    }
+  | {
+      kind: "resize";
+      state: {
+        pointerId: number;
+        handle: DrawingResizeHandle;
+        bounds: DrawingBounds;
+        groupStartPoints: DrawingPointSnapshot;
+      };
+      preview: DrawingPointSnapshot;
+    };
 
 export function getDrawingRotationHandleAtPoint(
   drawings: Scene["drawings"],
@@ -52,6 +73,46 @@ export function getDrawingResizeHandleAtPoint(
       return { handle: handle.handle, bounds };
     }
   }
+  return null;
+}
+
+export function getDrawingTransformDragStart(
+  drawings: Scene["drawings"],
+  selectedDrawingIds: string[],
+  point: Point,
+  camera: Camera,
+  pointerId: number
+): DrawingTransformDragStart | null {
+  const rotateTarget = getDrawingRotationHandleAtPoint(drawings, selectedDrawingIds, point, camera);
+  if (rotateTarget) {
+    const groupStartPoints = getDrawingPointSnapshot(drawings, selectedDrawingIds);
+    return {
+      kind: "rotate",
+      state: {
+        pointerId,
+        center: rotateTarget.center,
+        startAngle: Math.atan2(point.y - rotateTarget.center.y, point.x - rotateTarget.center.x),
+        groupStartPoints
+      },
+      preview: groupStartPoints
+    };
+  }
+
+  const resizeTarget = getDrawingResizeHandleAtPoint(drawings, selectedDrawingIds, point, camera);
+  if (resizeTarget) {
+    const groupStartPoints = getDrawingPointSnapshot(drawings, selectedDrawingIds);
+    return {
+      kind: "resize",
+      state: {
+        pointerId,
+        handle: resizeTarget.handle,
+        bounds: resizeTarget.bounds,
+        groupStartPoints
+      },
+      preview: groupStartPoints
+    };
+  }
+
   return null;
 }
 

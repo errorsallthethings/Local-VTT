@@ -29,8 +29,7 @@ import {
 import {
   getDrawingGroupSnapAnchor,
   getDrawingPointSnapshot,
-  getDrawingResizeHandleAtPoint,
-  getDrawingRotationHandleAtPoint,
+  getDrawingTransformDragStart,
   getMovedPointSnapshotForMove,
   getResizedDrawingPointSnapshot,
   getRotatedDrawingPointSnapshot
@@ -1377,28 +1376,14 @@ export function SceneCanvas({
       onSelectToken?.(null);
       if (!authoringToolActive) {
         if ((mouseBehavior === "grabber" || mouseBehavior === "selector") && canShowDrawings && effectiveSelectedDrawingIds.length > 0) {
-          const rotateTarget = getDrawingRotationHandleAtPoint(scene.drawings, effectiveSelectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
-          if (rotateTarget) {
-            const groupStartPoints = getDrawingPointSnapshot(scene.drawings, effectiveSelectedDrawingIds);
-            drawingRotateRef.current = {
-              pointerId: event.pointerId,
-              center: rotateTarget.center,
-              startAngle: Math.atan2(point.y - rotateTarget.center.y, point.x - rotateTarget.center.x),
-              groupStartPoints
-            };
-            setDrawingDragPreview(groupStartPoints);
-            return;
-          }
-          const resizeTarget = getDrawingResizeHandleAtPoint(scene.drawings, effectiveSelectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale));
-          if (resizeTarget) {
-            const groupStartPoints = getDrawingPointSnapshot(scene.drawings, effectiveSelectedDrawingIds);
-            drawingResizeRef.current = {
-              pointerId: event.pointerId,
-              handle: resizeTarget.handle,
-              bounds: resizeTarget.bounds,
-              groupStartPoints
-            };
-            setDrawingDragPreview(groupStartPoints);
+          const transformDragStart = getDrawingTransformDragStart(scene.drawings, effectiveSelectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale), event.pointerId);
+          if (transformDragStart) {
+            if (transformDragStart.kind === "rotate") {
+              drawingRotateRef.current = transformDragStart.state;
+            } else {
+              drawingResizeRef.current = transformDragStart.state;
+            }
+            setDrawingDragPreview(transformDragStart.preview);
             return;
           }
         }
