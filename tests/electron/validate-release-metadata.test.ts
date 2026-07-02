@@ -36,6 +36,7 @@ describe("validateReleaseMetadata", () => {
       validateReleaseMetadata({
         packageJson: validPackageJson(),
         packageLock: validPackageLock(),
+        releaseNoteFiles: ["v0.1.15.md"],
         tagName: "v0.1.15",
         refType: "tag"
       })
@@ -46,7 +47,8 @@ describe("validateReleaseMetadata", () => {
     expect(
       validateReleaseMetadata({
         packageJson: validPackageJson(),
-        packageLock: validPackageLock({ version: "0.1.14" })
+        packageLock: validPackageLock({ version: "0.1.14" }),
+        releaseNoteFiles: ["v0.1.15.md"]
       })
     ).toContain("package-lock.json version (0.1.14) must match package.json version (0.1.15).");
   });
@@ -56,6 +58,7 @@ describe("validateReleaseMetadata", () => {
       validateReleaseMetadata({
         packageJson: validPackageJson(),
         packageLock: validPackageLock(),
+        releaseNoteFiles: ["v0.1.15.md"],
         tagName: "v0.1.14",
         refType: "tag"
       })
@@ -75,7 +78,7 @@ describe("validateReleaseMetadata", () => {
       }
     });
 
-    expect(validateReleaseMetadata({ packageJson, packageLock: validPackageLock() })).toEqual(
+    expect(validateReleaseMetadata({ packageJson, packageLock: validPackageLock(), releaseNoteFiles: ["v0.1.15.md"] })).toEqual(
       expect.arrayContaining([
         "build.productName must be configured.",
         "build.directories.output must be configured.",
@@ -86,5 +89,25 @@ describe("validateReleaseMetadata", () => {
         "build.linux.icon must be configured."
       ])
     );
+  });
+
+  it("reports missing versioned release notes", () => {
+    expect(
+      validateReleaseMetadata({
+        packageJson: validPackageJson(),
+        packageLock: validPackageLock(),
+        releaseNoteFiles: []
+      })
+    ).toContain("docs/release-notes must include v0.1.15.md or 0.1.15.md before release.");
+  });
+
+  it("accepts release notes without a v prefix", () => {
+    expect(
+      validateReleaseMetadata({
+        packageJson: validPackageJson(),
+        packageLock: validPackageLock(),
+        releaseNoteFiles: ["0.1.15.md"]
+      })
+    ).toEqual([]);
   });
 });

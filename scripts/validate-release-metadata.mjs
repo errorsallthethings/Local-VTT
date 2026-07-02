@@ -1,11 +1,11 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 
-export function validateReleaseMetadata({ packageJson, packageLock, tagName = process.env.GITHUB_REF_NAME, refType = process.env.GITHUB_REF_TYPE } = {}) {
+export function validateReleaseMetadata({ packageJson, packageLock, releaseNoteFiles = [], tagName = process.env.GITHUB_REF_NAME, refType = process.env.GITHUB_REF_TYPE } = {}) {
   const errors = [];
   const appVersion = packageJson?.version;
   const lockVersion = packageLock?.version;
@@ -26,6 +26,10 @@ export function validateReleaseMetadata({ packageJson, packageLock, tagName = pr
     if (tagVersion !== appVersion) {
       errors.push(`release tag ${formatValue(tagName)} must match package.json version ${formatValue(appVersion)}.`);
     }
+  }
+
+  if (isSemver(appVersion) && !hasReleaseNotesForVersion(releaseNoteFiles, appVersion)) {
+    errors.push(`docs/release-notes must include v${appVersion}.md or ${appVersion}.md before release.`);
   }
 
   const build = packageJson?.build;
@@ -49,7 +53,8 @@ export function validateReleaseMetadata({ packageJson, packageLock, tagName = pr
 export function loadReleaseMetadata(root = repoRoot) {
   return {
     packageJson: readJson(path.join(root, "package.json")),
-    packageLock: readJson(path.join(root, "package-lock.json"))
+    packageLock: readJson(path.join(root, "package-lock.json")),
+    releaseNoteFiles: listReleaseNoteFiles(path.join(root, "docs", "release-notes"))
   };
 }
 
@@ -66,6 +71,18 @@ function requireString(errors, value, label) {
 function requireFilesEntry(errors, files, expectedEntry) {
   if (!Array.isArray(files) || !files.includes(expectedEntry)) {
     errors.push(`build.files must include ${expectedEntry}.`);
+  }
+}
+
+function hasReleaseNotesForVersion(releaseNoteFiles, version) {
+  return Array.isArray(releaseNoteFiles) && (releaseNoteFiles.includes(`v${version}.md`) || releaseNoteFiles.includes(`${version}.md`));
+}
+
+function listReleaseNoteFiles(releaseNotesDir) {
+  try {
+    return readdirSync(releaseNotesDir).filter((fileName) => fileName.endsWith(".md"));
+  } catch {
+    return [];
   }
 }
 
