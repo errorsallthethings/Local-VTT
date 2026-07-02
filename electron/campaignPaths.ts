@@ -1,11 +1,12 @@
 import path from "node:path";
+import { assertSafePathSegment } from "./safePathSegments.js";
 
 export function campaignFile(campaignPath: string): string {
   return path.join(campaignPath, "campaign.json");
 }
 
 export function sceneFile(campaignPath: string, sceneId: string): string {
-  assertSafeCampaignPathSegment(sceneId, "scene id");
+  assertSafePathSegment(sceneId, "Unsafe campaign scene id.");
   return path.join(campaignPath, "scenes", `${sceneId}.scene.json`);
 }
 
@@ -20,17 +21,4 @@ export function requiredCampaignFolders(campaignPath: string): string[] {
     path.join(campaignPath, "assets", "thumbnails"),
     path.join(campaignPath, "scenes")
   ];
-}
-
-function assertSafeCampaignPathSegment(value: string, label: string): void {
-  if (
-    value.trim() === "" ||
-    value === "." ||
-    value === ".." ||
-    path.isAbsolute(value) ||
-    value.includes("/") ||
-    value.includes("\\")
-  ) {
-    throw new Error(`Unsafe campaign ${label}.`);
-  }
 }

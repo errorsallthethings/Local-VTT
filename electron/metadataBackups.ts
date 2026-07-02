@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import type { MetadataBackupEntry, MetadataBackupRef } from "../src/shared/localvtt.js";
+import { assertSafePathSegment } from "./safePathSegments.js";
 
 export function createBackupTimestamp(now = new Date()): string {
   return now.toISOString().replace(/[:.]/g, "-");
@@ -11,7 +12,7 @@ export function campaignBackupFolder(campaignPath: string): string {
 }
 
 export function sceneBackupFolder(campaignPath: string, sceneId: string): string {
-  assertSafeBackupPathSegment(sceneId, "scene id");
+  assertSafePathSegment(sceneId, "Unsafe backup scene id.");
   return path.join(campaignPath, "backups", "scenes", sceneId);
 }
 
@@ -24,21 +25,8 @@ export function requireSceneBackupId(ref: MetadataBackupRef): string {
   if (!ref.sceneId) {
     throw new Error("Scene backup selection is missing a scene id.");
   }
-  assertSafeBackupPathSegment(ref.sceneId, "scene id");
+  assertSafePathSegment(ref.sceneId, "Unsafe backup scene id.");
   return ref.sceneId;
-}
-
-function assertSafeBackupPathSegment(value: string, label: string): void {
-  if (
-    value.trim() === "" ||
-    value === "." ||
-    value === ".." ||
-    path.isAbsolute(value) ||
-    value.includes("/") ||
-    value.includes("\\")
-  ) {
-    throw new Error(`Unsafe backup ${label}.`);
-  }
 }
 
 export function createMetadataBackupEntry(
