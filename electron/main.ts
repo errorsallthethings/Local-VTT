@@ -43,7 +43,7 @@ import {
   type MediaDimensions,
   type ThumbnailCreationResult
 } from "./assets.js";
-import { buildAssetThumbnailRelativePath, getAssetFileRemovalPaths } from "./assetFiles.js";
+import { buildAssetThumbnailRelativePath, getAssetFileRemovalPaths, getKnownAssetPaths, hydrateCampaignAssetPaths } from "./assetFiles.js";
 import {
   mapMediaType,
   safeAssetName,
@@ -218,15 +218,7 @@ async function ensureCampaignFolders(campaignPath: string): Promise<void> {
 
 function resolveAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
   // Saved JSON stays portable with relative paths; absolute paths are runtime-only conveniences for renderers.
-  const normalizedCampaign = normalizeCampaign(campaign);
-  const resolvedCampaign = {
-    ...normalizedCampaign,
-    assets: normalizedCampaign.assets.map((asset) => ({
-      ...asset,
-      absolutePath: path.resolve(campaignPath, asset.relativePath),
-      thumbnailAbsolutePath: asset.thumbnailRelativePath ? path.resolve(campaignPath, asset.thumbnailRelativePath) : undefined
-    }))
-  };
+  const resolvedCampaign = hydrateCampaignAssetPaths(campaignPath, campaign);
   registerAssetPaths(resolvedCampaign);
   return resolvedCampaign;
 }
@@ -245,13 +237,8 @@ function registerCampaignPath(campaignPath: string): void {
 }
 
 function registerAssetPaths(campaign: Campaign): void {
-  for (const asset of normalizeCampaign(campaign).assets) {
-    if (asset.absolutePath) {
-      knownAssetPaths.add(path.resolve(asset.absolutePath));
-    }
-    if (asset.thumbnailAbsolutePath) {
-      knownAssetPaths.add(path.resolve(asset.thumbnailAbsolutePath));
-    }
+  for (const assetPath of getKnownAssetPaths(campaign)) {
+    knownAssetPaths.add(assetPath);
   }
 }
 

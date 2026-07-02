@@ -1,5 +1,26 @@
 import path from "node:path";
-import type { Asset } from "../src/shared/localvtt.js";
+import { normalizeCampaign, type Asset, type Campaign } from "../src/shared/localvtt.js";
+
+export function hydrateCampaignAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
+  const normalizedCampaign = normalizeCampaign(campaign);
+  return {
+    ...normalizedCampaign,
+    assets: normalizedCampaign.assets.map((asset) => ({
+      ...asset,
+      absolutePath: path.resolve(campaignPath, asset.relativePath),
+      thumbnailAbsolutePath: asset.thumbnailRelativePath ? path.resolve(campaignPath, asset.thumbnailRelativePath) : undefined
+    }))
+  };
+}
+
+export function getKnownAssetPaths(campaign: Campaign): string[] {
+  return dedupePaths(
+    normalizeCampaign(campaign).assets.flatMap((asset) => [
+      asset.absolutePath,
+      asset.thumbnailAbsolutePath
+    ])
+  );
+}
 
 export function getAssetFileRemovalPaths(campaignPath: string, asset: Pick<Asset, "relativePath" | "thumbnailRelativePath" | "absolutePath" | "thumbnailAbsolutePath">): string[] {
   return dedupePaths([
