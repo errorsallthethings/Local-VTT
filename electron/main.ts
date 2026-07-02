@@ -49,6 +49,7 @@ import {
   type AssetImportKind
 } from "./assetImportValidation.js";
 import { formatMetadataReadError, formatMetadataWriteError } from "./metadataErrors.js";
+import { createBackupTimestamp, createMetadataBackupEntry } from "./metadataBackups.js";
 import {
   hydrateCampaignSceneEntry,
   parseCampaignMetadata,
@@ -555,10 +556,6 @@ async function pruneMetadataBackups(backupFolder: string): Promise<void> {
   }
 }
 
-function createBackupTimestamp(): string {
-  return new Date().toISOString().replace(/[:.]/g, "-");
-}
-
 async function listMetadataBackups(campaignPath: string): Promise<MetadataBackupEntry[]> {
   const summary = await loadCampaignFromPath(campaignPath);
   const sceneNames = new Map(summary.campaign.scenes.map((scene) => [scene.id, scene.name]));
@@ -603,29 +600,6 @@ async function listBackupFolder(campaignPath: string, backupFolder: string, kind
     }
     throw caught;
   }
-}
-
-function createMetadataBackupEntry(kind: MetadataBackupEntry["kind"], fileName: string, sizeBytes: number, sceneId?: string, sceneName?: string): MetadataBackupEntry {
-  const timestamp = parseBackupTimestamp(fileName);
-  const label = kind === "campaign" ? "Campaign metadata" : sceneName ? `Scene metadata: ${sceneName}` : `Scene metadata: ${sceneId ?? "Unknown scene"}`;
-  return {
-    id: kind === "campaign" ? `campaign::${fileName}` : `scene:${sceneId ?? ""}:${fileName}`,
-    kind,
-    sceneId,
-    fileName,
-    timestamp,
-    label,
-    sizeBytes
-  };
-}
-
-function parseBackupTimestamp(fileName: string): string | null {
-  const timestamp = fileName.replace(/\.(campaign|[^.]+\.scene)\.json$/, "");
-  const match = /^(\d{4}-\d{2}-\d{2}T\d{2})-(\d{2})-(\d{2})-(\d{3}Z)$/.exec(timestamp);
-  if (!match) {
-    return null;
-  }
-  return `${match[1]}:${match[2]}:${match[3]}.${match[4]}`;
 }
 
 function backupPathFromRef(campaignPath: string, ref: MetadataBackupRef): string {
