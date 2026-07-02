@@ -1,4 +1,5 @@
 import React from "react";
+import { getRendererErrorMessage } from "./rendererErrorMessages";
 
 const SHOW_RENDERER_ERROR_DETAILS = Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV);
 
@@ -22,6 +23,8 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, A
       return this.props.children;
     }
 
+    const message = getRendererErrorMessage(this.state.error);
+
     return (
       <main
         style={{
@@ -32,10 +35,9 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, A
           fontFamily: "system-ui, sans-serif"
         }}
       >
-        <h1 style={{ margin: "0 0 12px", fontSize: 22 }}>Local VTT ran into a renderer error</h1>
+        <h1 style={{ margin: "0 0 12px", fontSize: 22 }}>{message.title}</h1>
         <p style={{ maxWidth: 760, color: "#aeb8c4", lineHeight: 1.5 }}>
-          The app stopped rendering, but the window is still alive. Your campaign files are stored separately from the
-          app, so close and reopen Local VTT before continuing.
+          {message.body} {message.recovery}
         </p>
         {SHOW_RENDERER_ERROR_DETAILS ? (
           <>
