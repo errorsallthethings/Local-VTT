@@ -60,8 +60,11 @@ import {
 } from "./assetImportValidation.js";
 import { formatMetadataReadError, formatMetadataWriteError } from "./metadataErrors.js";
 import {
+  backupExistingMetadataFile,
+  listMetadataBackupFolder
+} from "./metadataBackupFiles.js";
+import {
   campaignBackupFolder,
-  createBackupTimestamp,
   createMetadataBackupEntry,
   metadataBackupsRootFolder,
   metadataBackupPathFromRef,
@@ -91,7 +94,6 @@ const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
 const isDev = !app.isPackaged && !isSmokeTest;
 const devServerUrl = "http://127.0.0.1:5173";
-const MAX_METADATA_BACKUPS = 10;
 const appWindowIconPath = path.join(app.getAppPath(), "build", "icon.ico");
 
 interface MapThumbnailResult {
@@ -495,39 +497,11 @@ async function backupSceneBeforeDelete(campaignPath: string, sceneId: string): P
   await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, sceneId), sceneBackupFolder(campaignPath, sceneId), `${sceneId}.scene.json`);
 }
 
-async function backupExistingMetadataFile(campaignPath: string, sourcePath: string, backupFolder: string, backupName: string): Promise<void> {
-  assertInsideCampaign(campaignPath, sourcePath);
-  assertInsideCampaign(campaignPath, backupFolder);
-  try {
-    await stat(sourcePath);
-  } catch (caught) {
-    const error = caught as NodeJS.ErrnoException;
-    if (error.code === "ENOENT") {
-      return;
-    }
-    throw error;
-  }
-
-  await mkdir(backupFolder, { recursive: true });
-  const backupPath = path.join(backupFolder, `${createBackupTimestamp()}.${backupName}`);
-  assertInsideCampaign(campaignPath, backupPath);
-  await copyFile(sourcePath, backupPath);
-  await pruneMetadataBackups(backupFolder);
-}
-
-async function pruneMetadataBackups(backupFolder: string): Promise<void> {
-  const entries = await readdir(backupFolder);
-  const backupFiles = entries.filter((entry) => entry.endsWith(".json")).sort().reverse();
-  for (const entry of backupFiles.slice(MAX_METADATA_BACKUPS)) {
-    await unlinkIfExists(path.join(backupFolder, entry));
-  }
-}
-
 async function listMetadataBackups(campaignPath: string): Promise<MetadataBackupEntry[]> {
   const summary = await loadCampaignFromPath(campaignPath);
   const sceneNames = new Map(summary.campaign.scenes.map((scene) => [scene.id, scene.name]));
   const entries: MetadataBackupEntry[] = [];
-  entries.push(...(await listBackupFolder(campaignPath, campaignBackupFolder(campaignPath), "campaign")));
+  entries.push(...(await listMetadataBackupFolder(campaignPath, campaignBackupFolder(campaignPath), "campaign")));
 
   const scenesRoot = sceneBackupsRootFolder(campaignPath);
   assertInsideCampaign(campaignPath, scenesRoot);
@@ -538,7 +512,7 @@ async function listMetadataBackups(campaignPath: string): Promise<MetadataBackup
         continue;
       }
       const sceneId = folder.name;
-      entries.push(...(await listBackupFolder(campaignPath, sceneBackupFolder(campaignPath, sceneId), "scene", sceneId, sceneNames.get(sceneId))));
+      entries.push(...(await listMetadataBackupFolder(campaignPath, sceneBackupFolder(campaignPath, sceneId), "scene", sceneId, sceneNames.get(sceneId))));
     }
   } catch (caught) {
     if ((caught as NodeJS.ErrnoException).code !== "ENOENT") {
@@ -547,26 +521,6 @@ async function listMetadataBackups(campaignPath: string): Promise<MetadataBackup
   }
 
   return entries.sort((left, right) => right.fileName.localeCompare(left.fileName));
-}
-
-async function listBackupFolder(campaignPath: string, backupFolder: string, kind: MetadataBackupEntry["kind"], sceneId?: string, sceneName?: string): Promise<MetadataBackupEntry[]> {
-  assertInsideCampaign(campaignPath, backupFolder);
-  try {
-    const entries = await readdir(backupFolder);
-    const backups: MetadataBackupEntry[] = [];
-    for (const fileName of entries.filter((entry) => entry.endsWith(".json"))) {
-      const backupPath = path.join(backupFolder, fileName);
-      assertInsideCampaign(campaignPath, backupPath);
-      const stats = await stat(backupPath);
-      backups.push(createMetadataBackupEntry(kind, fileName, stats.size, sceneId, sceneName));
-    }
-    return backups;
-  } catch (caught) {
-    if ((caught as NodeJS.ErrnoException).code === "ENOENT") {
-      return [];
-    }
-    throw caught;
-  }
 }
 
 function backupPathFromRef(campaignPath: string, ref: MetadataBackupRef): string {
