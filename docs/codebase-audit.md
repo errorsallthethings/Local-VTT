@@ -1,6 +1,6 @@
 # Codebase Audit Notes
 
-These notes summarize the 0.1.8 codebase audit work and the next practical cleanup targets. The goal is to keep Local VTT reliable for live tabletop sessions while reducing large-component risk over time.
+These notes summarize the mid-0.1.x codebase audit work and the next practical cleanup targets. The goal is to keep Local VTT reliable for live tabletop sessions while reducing large-component risk over time.
 
 ## Completed Audit Improvements
 
@@ -15,6 +15,15 @@ These notes summarize the 0.1.8 codebase audit work and the next practical clean
   - dice history capping and deduplication
   - player idle state projection
   - turn-order player entry synchronization
+- Extracted and tested Electron main-process helpers for:
+  - campaign metadata paths and required campaign folders
+  - metadata backup naming, path resolution, and restore-preview entries
+  - asset import validation, safe filenames, import paths, thumbnail paths, and removal paths
+  - asset path hydration and local asset protocol allowlist registration
+  - map replacement warnings and map asset reuse checks
+  - token asset usage checks
+  - scene entry creation, duplication insertion, and save-time metadata updates
+  - thumbnail import and regeneration diagnostics
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
@@ -24,6 +33,7 @@ These notes summarize the 0.1.8 codebase audit work and the next practical clean
 - `src/renderer/canvas/drawingRenderer.ts`: large mixed renderer for drawings, templates, labels, and effect fills. Separate template rendering from freehand/shape rendering.
 - `src/renderer/components/layers/LayerPanel.tsx`: layer UI is feature rich but broad. Extract per-layer panels when touching those areas.
 - `src/renderer/views/GmApp.tsx`: smaller after audit work, but still coordinates many workflows. Prefer extracting domain helpers or feature hooks before adding new state.
+- `electron/main.ts`: smaller after audit work, but still coordinates app lifecycle, IPC, windows, file IO, asset copy/delete, and Player View control. Continue extracting pure helpers or injectable service functions before changing behavior.
 
 ## Next Recommended Refactors
 
@@ -31,7 +41,8 @@ These notes summarize the 0.1.8 codebase audit work and the next practical clean
 2. Convert animated environmental effects into a formal registry with one module per effect family.
 3. Split `LayerPanel` by layer type after the scene canvas interaction split stabilizes.
 4. Add more tests around Player View projection and campaign save/load recovery.
-5. Keep large renderer changes incremental and screenshot/smoke tested where visual behavior matters.
+5. Keep Electron file operations guarded by campaign-boundary checks and covered with focused helper tests.
+6. Keep large renderer changes incremental and screenshot/smoke tested where visual behavior matters.
 
 ## Audit Guardrails
 
