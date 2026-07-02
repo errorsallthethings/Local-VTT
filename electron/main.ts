@@ -43,6 +43,7 @@ import {
   type MediaDimensions,
   type ThumbnailCreationResult
 } from "./assets.js";
+import { getAssetFileRemovalPaths } from "./assetFiles.js";
 import {
   mapMediaType,
   safeAssetName,
@@ -754,21 +755,10 @@ async function mapAssetUsedByOtherScenes(campaignPath: string, campaign: Campaig
 }
 
 async function deleteMapAssetFiles(campaignPath: string, asset: Asset): Promise<void> {
-  const assetPath = path.resolve(campaignPath, asset.relativePath);
-  assertInsideCampaign(campaignPath, assetPath);
-  try {
-    await unlink(assetPath);
-  } catch (caught) {
-    const error = caught as NodeJS.ErrnoException;
-    if (error.code !== "ENOENT") {
-      throw error;
-    }
-  }
-  if (asset.thumbnailRelativePath) {
-    const thumbnailPath = path.resolve(campaignPath, asset.thumbnailRelativePath);
-    assertInsideCampaign(campaignPath, thumbnailPath);
+  for (const assetPath of getAssetFileRemovalPaths(campaignPath, asset)) {
+    assertInsideCampaign(campaignPath, assetPath);
     try {
-      await unlink(thumbnailPath);
+      await unlink(assetPath);
     } catch (caught) {
       const error = caught as NodeJS.ErrnoException;
       if (error.code !== "ENOENT") {
@@ -1660,8 +1650,7 @@ ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, 
     return summary;
   }
 
-  const pathsToRemove = [asset.absolutePath, asset.thumbnailAbsolutePath].filter((candidate): candidate is string => Boolean(candidate));
-  for (const assetPath of pathsToRemove) {
+  for (const assetPath of getAssetFileRemovalPaths(campaignPath, asset)) {
     assertInsideCampaign(campaignPath, assetPath);
     try {
       await unlink(assetPath);
@@ -1717,8 +1706,7 @@ ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId
     }
   }
 
-  const pathsToRemove = [asset.absolutePath ?? path.resolve(campaignPath, asset.relativePath), asset.thumbnailAbsolutePath ?? (asset.thumbnailRelativePath ? path.resolve(campaignPath, asset.thumbnailRelativePath) : undefined)].filter((candidate): candidate is string => Boolean(candidate));
-  for (const assetPath of pathsToRemove) {
+  for (const assetPath of getAssetFileRemovalPaths(campaignPath, asset)) {
     assertInsideCampaign(campaignPath, assetPath);
     try {
       await unlink(assetPath);
@@ -1768,21 +1756,10 @@ ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: 
     throw new Error(`This map asset is still used by: ${otherSceneNames.join(", ")}.`);
   }
 
-  const assetPath = path.resolve(campaignPath, asset.relativePath);
-  assertInsideCampaign(campaignPath, assetPath);
-  try {
-    await unlink(assetPath);
-  } catch (caught) {
-    const error = caught as NodeJS.ErrnoException;
-    if (error.code !== "ENOENT") {
-      throw error;
-    }
-  }
-  if (asset.thumbnailRelativePath) {
-    const thumbnailPath = path.resolve(campaignPath, asset.thumbnailRelativePath);
-    assertInsideCampaign(campaignPath, thumbnailPath);
+  for (const assetPath of getAssetFileRemovalPaths(campaignPath, asset)) {
+    assertInsideCampaign(campaignPath, assetPath);
     try {
-      await unlink(thumbnailPath);
+      await unlink(assetPath);
     } catch (caught) {
       const error = caught as NodeJS.ErrnoException;
       if (error.code !== "ENOENT") {
