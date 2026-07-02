@@ -58,7 +58,7 @@ import {
   hasActiveLiveTableEvents,
   RULER_RELEASE_LINGER_MS
 } from "../canvas/live-table";
-import { getPlayerDisplayScale, getRulerDragWithAppendedWaypoint, getRulerLabel } from "../canvas/live-table";
+import { getPlayerDisplayScale, getRulerDragWithAppendedWaypoint, getRulerDragWithRemovedWaypoint, getRulerLabel } from "../canvas/live-table";
 import {
   getCompletedMapCalibrationBox,
   getMapCalibrationDragFromPoint,
@@ -82,7 +82,6 @@ import {
   drawRuler,
   type RulerDrag
 } from "../canvas/measurement";
-import { removeLastWaypoint } from "../canvas/tokens";
 import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint, updatePolygonDraftCurrent } from "../canvas/scene";
 import {
   getDrawingContextMenu,
@@ -1854,7 +1853,7 @@ export function SceneCanvas({
 
     if (activeRulerDrag) {
       event.preventDefault();
-      const nextRulerDrag = removeLastWaypoint(activeRulerDrag);
+      const nextRulerDrag = getRulerDragWithRemovedWaypoint(activeRulerDrag);
       if (!nextRulerDrag) {
         return;
       }

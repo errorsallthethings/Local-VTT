@@ -4,6 +4,7 @@ import { createDefaultCampaign, createDefaultScene } from "../../src/shared/loca
 import {
   getPlayerDisplayScale,
   getRulerDragWithAppendedWaypoint,
+  getRulerDragWithRemovedWaypoint,
   getRulerLabel,
   getTokenCenterPoint,
   getTokenMoveLabel,
@@ -163,5 +164,21 @@ describe("live table state helpers", () => {
     expect(nextRulerDrag).not.toBe(rulerDrag);
     expect(nextRulerDrag.current).toEqual({ x: 150, y: 150 });
     expect(nextRulerDrag.waypoints).toEqual([{ x: 150, y: 150 }]);
+  });
+
+  it("removes the last ruler waypoint", () => {
+    expect(
+      getRulerDragWithRemovedWaypoint({
+        start: { x: 0, y: 0 },
+        current: { x: 30, y: 30 },
+        waypoints: [{ x: 10, y: 10 }, { x: 20, y: 20 }]
+      })
+    ).toEqual({
+      start: { x: 0, y: 0 },
+      current: { x: 30, y: 30 },
+      waypoints: [{ x: 10, y: 10 }]
+    });
+
+    expect(getRulerDragWithRemovedWaypoint({ start: { x: 0, y: 0 }, current: { x: 30, y: 30 }, waypoints: [] })).toBeNull();
   });
 });

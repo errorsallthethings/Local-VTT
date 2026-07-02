@@ -8,7 +8,7 @@ import {
   getRulerPathPoints,
   getStraightLineMeasurementDistance
 } from "../measurement/measurement";
-import { appendWaypoint } from "../tokens/movementPath";
+import { appendWaypoint, removeLastWaypoint } from "../tokens/movementPath";
 import { getRulerSnapPoint } from "../scene/sceneSnapping";
 import { distanceBetween } from "../tokens/tokenGeometry";
 import type { TokenDragPreview } from "../tokens/tokenRenderer";
@@ -161,4 +161,8 @@ export function getRulerDragWithAppendedWaypoint<TRulerDrag extends RulerDrag>(s
   const previousRoutePosition = rulerDrag.waypoints[rulerDrag.waypoints.length - 1] ?? rulerDrag.start;
   const nextRulerPath = appendWaypoint(rulerDrag, waypoint, previousRoutePosition, (previousPosition, nextWaypoint) => isDuplicateRulerWaypoint(previousPosition, nextWaypoint, scene));
   return nextRulerPath === rulerDrag ? rulerDrag : { ...nextRulerPath, current: waypoint };
+}
+
+export function getRulerDragWithRemovedWaypoint<TRulerDrag extends RulerDrag>(rulerDrag: TRulerDrag): TRulerDrag | null {
+  return removeLastWaypoint(rulerDrag);
 }
