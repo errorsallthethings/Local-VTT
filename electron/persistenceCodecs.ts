@@ -65,5 +65,10 @@ export function normalizePortableAssetPath(candidatePath: string, label = "Asset
     throw new Error(`${label} must be a relative path inside the campaign folder.`);
   }
 
-  return segments.filter((segment) => segment !== ".").join("/");
+  const portablePath = segments.filter((segment) => segment !== ".").join("/");
+  if (portablePath === "") {
+    throw new Error(`${label} must be a relative path inside the campaign folder.`);
+  }
+
+  return portablePath;
 }

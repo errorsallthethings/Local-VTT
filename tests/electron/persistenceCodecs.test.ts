@@ -78,6 +78,8 @@ describe("persistence codecs", () => {
     expect(() => normalizePortableAssetPath("C:\\Campaign\\assets\\map.png")).toThrow("Asset path must be a relative path inside the campaign folder.");
     expect(() => normalizePortableAssetPath("/Campaign/assets/map.png")).toThrow("Asset path must be a relative path inside the campaign folder.");
     expect(() => normalizePortableAssetPath("assets/maps/../outside.png")).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableAssetPath(".")).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableAssetPath("./.")).toThrow("Asset path must be a relative path inside the campaign folder.");
   });
 
   it("normalizes scene metadata before saving", () => {
