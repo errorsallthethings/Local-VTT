@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, CircleHelp, EllipsisVertical, Eye, GripVerti
 import type { Asset, Campaign, DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneRollTarget, DiceSceneSize, LiveTableEvent, Scene } from "../../../shared/localvtt";
 import type { PlayerDisplayMode } from "../../lib/player-view";
 import {
+  addCustomDicePreset,
   DICE_TYPES,
   formatDieLabel,
   formatDiceFeedBreakdown,
@@ -14,19 +15,16 @@ import {
   getDicePlacementFacingAvailable,
   getDicePlacementHelp,
   isPendingRecentDiceRoll,
+  loadCustomDicePresets,
   rollDiceExpression,
+  saveCustomDicePresets,
+  type CustomDicePreset,
   type DiceType
 } from "../../lib/dice";
 import { getActiveWeatherEffects } from "../../lib/effects";
 import { type ModalSize, useResizableModal } from "../../hooks/useResizableModal";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
-type CustomDicePreset = {
-  id: string;
-  label: string;
-  formula: string;
-};
-
 type DicePanelPosition = {
   x: number;
   y: number;
@@ -38,7 +36,6 @@ type DicePanelDrag = {
   offsetY: number;
 };
 
-const CUSTOM_DICE_PRESETS_STORAGE_KEY = "localvtt.customDicePresets";
 const DICE_DISPLAY_OPTIONS = [
   { value: "results", label: "Text Result Only" },
   { value: "panel", label: "3D Panel" },
@@ -166,7 +163,7 @@ export function WorkspaceTopbar({
 }: WorkspaceTopbarProps) {
   const [diceExpression, setDiceExpression] = useState("1d20");
   const [diceExpressionError, setDiceExpressionError] = useState<string | null>(null);
-  const [customDicePresets, setCustomDicePresets] = useState<CustomDicePreset[]>(() => loadCustomDicePresets());
+  const [customDicePresets, setCustomDicePresets] = useState<CustomDicePreset[]>(() => loadCustomDicePresets(window.localStorage));
   const [presetFormOpen, setPresetFormOpen] = useState(false);
   const [presetLabel, setPresetLabel] = useState("");
   const [presetFormula, setPresetFormula] = useState("");
@@ -201,7 +198,7 @@ export function WorkspaceTopbar({
       : "Create a campaign, add a scene, import a map, then send it to Player View.";
 
   useEffect(() => {
-    window.localStorage.setItem(CUSTOM_DICE_PRESETS_STORAGE_KEY, JSON.stringify(customDicePresets));
+    saveCustomDicePresets(window.localStorage, customDicePresets);
   }, [customDicePresets]);
 
   useEffect(() => {
@@ -384,7 +381,7 @@ export function WorkspaceTopbar({
       return;
     }
     const preset = { id: crypto.randomUUID(), label, formula };
-    setCustomDicePresets((presets) => [preset, ...presets].slice(0, 12));
+    setCustomDicePresets((presets) => addCustomDicePreset(presets, preset));
     setPresetFormOpen(false);
     setPresetLabel("");
     setPresetFormula("");
@@ -881,23 +878,6 @@ function clampDicePanelPosition(x: number, y: number, rect?: DOMRect | null): Di
 
 function getDiceDisplaySelectValue(mode: DiceDisplayMode): DiceDisplayMode {
   return mode === "panel" || mode === "hidden" || mode === "scene" ? mode : "results";
-}
-
-function loadCustomDicePresets(): CustomDicePreset[] {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(CUSTOM_DICE_PRESETS_STORAGE_KEY) ?? "[]");
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed
-      .filter(
-        (preset): preset is CustomDicePreset =>
-          typeof preset?.id === "string" && typeof preset.label === "string" && preset.label.trim().length > 0 && typeof preset.formula === "string" && preset.formula.trim().length > 0
-      )
-      .slice(0, 12);
-  } catch {
-    return [];
-  }
 }
 
 function ActiveWeatherIcons({ scene }: { scene: Scene }) {

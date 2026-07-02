@@ -1,3 +1,4 @@
+export * from "./customDicePresets";
 export * from "./dice";
 export * from "./diceFeed";
 export * from "./dicePlacement";
