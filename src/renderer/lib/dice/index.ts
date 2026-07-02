@@ -1,5 +1,6 @@
 export * from "./customDicePresets";
 export * from "./dice";
+export * from "./diceFaceStyle";
 export * from "./diceFeed";
 export * from "./diceOptions";
 export * from "./dicePanelPosition";

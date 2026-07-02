@@ -14,13 +14,20 @@ import {
   getDiceRevealDelay,
   getDiceSceneSize,
   getDiceSettleDuration,
+  getDieColor,
+  getDieFaceLabels,
+  getDieFaceTextColor,
   getDisplayedRollTone,
   getPanelDiceLanding,
   getDisplayedRollLabel,
   getDisplayedRollSummary,
   getPublishedSceneResolvedLabel,
+  formatD10StyleFaceLabel,
   getCoinCenterPush,
+  getFaceHighlightColor,
+  getFaceLabelFontSize,
   getPhysicsColliderScale,
+  getPolyhedralFaceLabelSize,
   getResolvedDisplayedLabel,
   getResolvedDisplayedSummary,
   getRollModifier,
@@ -38,6 +45,7 @@ import {
   getStaticRollResult,
   isSceneDieResting as isSceneDieRestingByMotion,
   shouldNudgeCoinOffEdge,
+  shouldUnderlineFaceLabel,
   getVisualDice,
   getVisualResultFaceLabel,
   shouldUnderlineResultLabel,
@@ -829,16 +837,6 @@ function createFaceHighlightMesh(placement: FaceLabelPlacement, die: DiceVisual[
   return mesh;
 }
 
-function getFaceHighlightColor(die: DiceVisual["die"]): number {
-  if (die === "coin") {
-    return 0xffd08a;
-  }
-  if (die === "d20") {
-    return 0xf6d365;
-  }
-  return 0xffffff;
-}
-
 function getResultFacingVector(event: DiceVisual, geometry: THREE.BufferGeometry): THREE.Vector3 | null {
   const resultLabel = getVisualResultFaceLabel(event);
   const matchingFaces = getDieFaceLabelPlacements(event.die, geometry).filter((placement) => placement.label === resultLabel);
@@ -1000,30 +998,6 @@ function getDieFaceLabelPlacements(die: DiceVisual["die"], geometry: THREE.Buffe
   return getOppositeSumFacePlacements(die, placements);
 }
 
-function getDieFaceLabels(die: DiceVisual["die"]): string[] {
-  if (die === "d00") {
-    return ["00", "10", "20", "30", "40", "50", "60", "70", "80", "90"];
-  }
-  if (die === "d10") {
-    return ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
-  }
-  const sides = die === "d4" ? 4 : die === "d8" ? 8 : die === "d12" ? 12 : 20;
-  return Array.from({ length: sides }, (_, index) => String(index + 1));
-}
-
-function getPolyhedralFaceLabelSize(die: DiceVisual["die"]): number {
-  if (die === "d10" || die === "d00") {
-    return 0.76;
-  }
-  if (die === "d8") {
-    return 1.0;
-  }
-  if (die === "d12") {
-    return 0.86;
-  }
-  return 0.84;
-}
-
 function getOppositeSumFacePlacements(die: DiceVisual["die"], placements: Array<Omit<FaceLabelPlacement, "label" | "size">>): FaceLabelPlacement[] {
   const oppositeSum = die === "d8" ? 9 : die === "d12" ? 13 : die === "d20" ? 21 : 0;
   const pairs = getOppositeFacePairs(placements);
@@ -1074,17 +1048,6 @@ function getD10StyleFacePlacements(die: "d10" | "d00", placements: Array<Omit<Fa
       }
     ];
   });
-}
-
-function formatD10StyleFaceLabel(die: "d10" | "d00", value: number): string {
-  if (die === "d10") {
-    return value === 0 ? "0" : String(value);
-  }
-  return value === 0 ? "00" : String(value * 10);
-}
-
-function shouldUnderlineFaceLabel(die: DiceVisual["die"], label: string): boolean {
-  return (die === "d10" || die === "d12" || die === "d20") && (label === "6" || label === "9");
 }
 
 function getOppositeFacePairs(placements: Array<Omit<FaceLabelPlacement, "label" | "size">>): Array<[Omit<FaceLabelPlacement, "label" | "size">, Omit<FaceLabelPlacement, "label" | "size">]> {
@@ -1282,19 +1245,6 @@ function getFaceLabelQuaternion(normal: THREE.Vector3, up?: THREE.Vector3): THRE
   return new THREE.Quaternion().setFromRotationMatrix(matrix);
 }
 
-function getFaceLabelFontSize(label: string): number {
-  if (label.length > 4) {
-    return 118;
-  }
-  if (label.length > 2) {
-    return 132;
-  }
-  if (label.length > 1) {
-    return 148;
-  }
-  return 170;
-}
-
 function createPentagonalTrapezohedronGeometry(): THREE.BufferGeometry {
   const vertices: number[] = [];
   const faces: number[] = [];
@@ -1328,28 +1278,6 @@ function createPentagonalTrapezohedronGeometry(): THREE.BufferGeometry {
   geometry.setIndex(faces);
   geometry.computeVertexNormals();
   return geometry;
-}
-
-function getDieColor(die: DiceVisual["die"]): number {
-  const colors = {
-    coin: 0xf97316,
-    d2: 0xd7dde8,
-    d4: 0xf2d35c,
-    d6: 0xdc2626,
-    d8: 0x2f9d68,
-    d10: 0x3b1f5f,
-    d00: 0x101010,
-    d12: 0x8fc9ff,
-    d20: 0xf4f1e8
-  } satisfies Record<DiceVisual["die"], number>;
-  return colors[die];
-}
-
-function getDieFaceTextColor(die: DiceVisual["die"]): string {
-  if (die === "d4" || die === "d12" || die === "d20") {
-    return "#10131a";
-  }
-  return "#f8fafc";
 }
 
 function disposeMaterial(material: THREE.Material) {
