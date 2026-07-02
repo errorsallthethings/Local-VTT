@@ -25,6 +25,10 @@ export function getAssetThumbnailPreviewMessage(asset: Asset | null | undefined)
   return "No thumbnail preview has been generated. Run Campaign Maintenance > Regenerate Thumbnails.";
 }
 
+export function getAssetThumbnailPreviewLabel(asset: Asset | null | undefined): string {
+  return getAssetThumbnailPreviewMessage(asset) ? "Missing preview" : "No preview";
+}
+
 export function buildSceneThumbnailAssets(
   scenes: readonly CampaignSceneEntry[],
   sceneDrafts: Record<string, Scene>,

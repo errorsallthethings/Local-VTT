@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../../shared/localvtt";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
+import { getAssetThumbnailPreviewLabel, getAssetThumbnailPreviewMessage } from "../../lib/assets";
 import { buildSceneLibraryGroups } from "../../lib/scene";
 import { getActiveWeatherEffects } from "../../lib/effects";
 
@@ -485,11 +486,12 @@ const SceneThumbnail = memo(function SceneThumbnail({ asset, activeWeather }: { 
   }
 
   if (!asset.thumbnailAbsolutePath) {
+    const previewMessage = getAssetThumbnailPreviewMessage(asset);
     return (
-      <div className="scene-thumbnail scene-thumbnail-empty" aria-label="No preview available">
+      <div className="scene-thumbnail scene-thumbnail-empty" aria-label={getAssetThumbnailPreviewLabel(asset)} title={previewMessage ?? undefined}>
         <SceneWeatherBadges activeWeather={activeWeather} />
         <ImageOff size={16} aria-hidden="true" />
-        <span>No preview</span>
+        <span>{getAssetThumbnailPreviewLabel(asset)}</span>
       </div>
     );
   }

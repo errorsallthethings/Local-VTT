@@ -5,6 +5,7 @@ import {
   buildAssetsById,
   buildAssetsByKind,
   buildSceneThumbnailAssets,
+  getAssetThumbnailPreviewLabel,
   getAssetThumbnailPreviewMessage,
   getAssetThumbnailPreviewPath
 } from "../../src/renderer/lib/assets";
@@ -43,6 +44,12 @@ describe("asset library helpers", () => {
     expect(getAssetThumbnailPreviewMessage({ ...asset("token-2", "token"), thumbnailRelativePath: "assets/thumbnails/missing.jpg" })).toContain("missing");
     expect(getAssetThumbnailPreviewMessage(asset("token-3", "token"))).toContain("No thumbnail preview");
     expect(getAssetThumbnailPreviewMessage(null)).toBeNull();
+  });
+
+  it("labels missing compact previews consistently", () => {
+    expect(getAssetThumbnailPreviewLabel({ ...asset("map-1", "map"), thumbnailAbsolutePath: "C:/maps/thumb.jpg" })).toBe("No preview");
+    expect(getAssetThumbnailPreviewLabel({ ...asset("map-2", "map"), thumbnailRelativePath: "assets/thumbnails/missing.jpg" })).toBe("Missing preview");
+    expect(getAssetThumbnailPreviewLabel(asset("map-3", "map"))).toBe("Missing preview");
   });
 
   it("uses draft and active scene map ids for scene thumbnails", () => {

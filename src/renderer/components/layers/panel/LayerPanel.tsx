@@ -50,6 +50,7 @@ import { DEFAULT_GRID, DEFAULT_MAP_TRANSFORM, DEFAULT_WEATHER_EFFECT_SETTINGS, f
 import { getSnappedTokenPosition } from "../../../canvas/tokens";
 import { useDismissableMenu } from "../../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../../hooks/useFloatingMenuPosition";
+import { getAssetThumbnailPreviewMessage } from "../../../lib/assets";
 import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../../../lib/effects";
 import { reorderByDropTarget, type DropPlacement } from "../../../lib/ui";
 import { duplicateEnvironmentEffect } from "../../../lib/scene";
@@ -1093,7 +1094,7 @@ export function LayerPanel({
                     <small>1</small>
                   </div>
                   <div className="map-asset-row">
-                    <span className="map-asset-thumbnail" title={mapAsset.name} aria-hidden="true">
+                    <span className="map-asset-thumbnail" title={getAssetThumbnailPreviewMessage(mapAsset) ?? mapAsset.name} aria-hidden="true">
                       {mapAsset.thumbnailAbsolutePath ? (
                         <img src={window.localVtt.toAssetUrl(mapAsset.thumbnailAbsolutePath)} alt="" draggable={false} />
                       ) : (
