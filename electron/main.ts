@@ -42,6 +42,11 @@ import {
   type MediaDimensions,
   type ThumbnailCreationResult
 } from "./assets.js";
+import {
+  mapMediaType,
+  validateAssetImportCandidate,
+  type AssetImportKind
+} from "./assetImportValidation.js";
 import { formatMetadataReadError, formatMetadataWriteError } from "./metadataErrors.js";
 import {
   hydrateCampaignSceneEntry,
@@ -735,16 +740,20 @@ function safeAssetName(originalPath: string): string {
   return `${cleanBase}-${Date.now()}-${randomUUID().slice(0, 8)}${parsed.ext.toLowerCase()}`;
 }
 
-function allowedMapExtension(filePath: string): boolean {
-  return [".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".webm"].includes(path.extname(filePath).toLowerCase());
-}
+async function assertAssetImportCandidate(sourcePath: string, kind: AssetImportKind): Promise<void> {
+  let sourceStats;
+  try {
+    sourceStats = await stat(sourcePath);
+  } catch {
+    throw new Error("Selected asset file could not be read. It may have been moved or deleted.");
+  }
 
-function allowedTokenExtension(filePath: string): boolean {
-  return [".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(path.extname(filePath).toLowerCase());
-}
-
-function mapMediaType(filePath: string): Asset["mediaType"] {
-  return [".mp4", ".webm"].includes(path.extname(filePath).toLowerCase()) ? "video" : "image";
+  validateAssetImportCandidate({
+    sourcePath,
+    kind,
+    sizeBytes: sourceStats.size,
+    isFile: sourceStats.isFile()
+  });
 }
 
 function getDimensionDifferenceWarning(currentDimensions: MediaDimensions | undefined, nextDimensions: MediaDimensions | undefined): string | null {
@@ -1476,9 +1485,7 @@ ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
     return null;
   }
 
-  if (!allowedMapExtension(sourcePath)) {
-    throw new Error("Unsupported map type. Use jpg, jpeg, png, webp, gif, mp4, or webm.");
-  }
+  await assertAssetImportCandidate(sourcePath, "map");
 
   const summary = await loadCampaignFromPath(campaignPath);
   const fileName = safeAssetName(sourcePath);
@@ -1520,9 +1527,7 @@ ipcMain.handle("asset:previewMapReplacement", async (_event, campaignPath: strin
     return null;
   }
 
-  if (!allowedMapExtension(sourcePath)) {
-    throw new Error("Unsupported map type. Use jpg, jpeg, png, webp, gif, mp4, or webm.");
-  }
+  await assertAssetImportCandidate(sourcePath, "map");
 
   const summary = await loadCampaignFromPath(campaignPath);
   const currentAsset = summary.campaign.assets.find((candidate) => candidate.id === currentAssetId && candidate.kind === "map");
@@ -1563,9 +1568,7 @@ ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: 
     sceneId,
     currentAssetId
   });
-  if (!allowedMapExtension(sourcePath)) {
-    throw new Error("Unsupported map type. Use jpg, jpeg, png, webp, gif, mp4, or webm.");
-  }
+  await assertAssetImportCandidate(sourcePath, "map");
 
   const summary = await loadCampaignFromPath(campaignPath);
   const currentAsset = summary.campaign.assets.find((candidate) => candidate.id === currentAssetId && candidate.kind === "map");
@@ -1625,9 +1628,7 @@ ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
     return null;
   }
 
-  if (!allowedTokenExtension(sourcePath)) {
-    throw new Error("Unsupported token type. Use jpg, jpeg, png, webp, or gif.");
-  }
+  await assertAssetImportCandidate(sourcePath, "token");
 
   const summary = await loadCampaignFromPath(campaignPath);
   const fileName = safeAssetName(sourcePath);
