@@ -43,7 +43,7 @@ import {
   type MediaDimensions,
   type ThumbnailCreationResult
 } from "./assets.js";
-import { getAssetFileRemovalPaths } from "./assetFiles.js";
+import { buildAssetThumbnailRelativePath, getAssetFileRemovalPaths } from "./assetFiles.js";
 import {
   mapMediaType,
   safeAssetName,
@@ -776,7 +776,7 @@ async function createMapThumbnail(campaignPath: string, sourcePath: string, asse
     return { failureReason: thumbnailResult.failureReason ?? "Image file could not be decoded by Electron." };
   }
 
-  const relativePath = path.join("assets", "thumbnails", `${assetId}.jpg`).replaceAll(path.sep, "/");
+  const relativePath = buildAssetThumbnailRelativePath(assetId);
   const destination = path.resolve(campaignPath, relativePath);
   assertInsideCampaign(campaignPath, destination);
   await writeFile(destination, thumbnail);
@@ -1006,9 +1006,7 @@ async function createTokenThumbnail(campaignPath: string, sourcePath: string, as
 }
 
 async function writeTokenThumbnail(campaignPath: string, assetId: string, thumbnail: Buffer, variant = ""): Promise<string> {
-  const safeVariant = variant.replace(/[^a-zA-Z0-9_-]/g, "");
-  const fileStem = safeVariant ? `${assetId}-${safeVariant}` : assetId;
-  const relativePath = path.join("assets", "thumbnails", `${fileStem}.jpg`).replaceAll(path.sep, "/");
+  const relativePath = buildAssetThumbnailRelativePath(assetId, variant);
   const destination = path.resolve(campaignPath, relativePath);
   assertInsideCampaign(campaignPath, destination);
   await writeFile(destination, thumbnail);

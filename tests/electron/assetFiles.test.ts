@@ -1,6 +1,6 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { getAssetFileRemovalPaths } from "../../electron/assetFiles";
+import { buildAssetThumbnailRelativePath, getAssetFileRemovalPaths } from "../../electron/assetFiles";
 
 describe("asset file helpers", () => {
   it("resolves portable asset paths relative to the campaign folder", () => {
@@ -40,5 +40,13 @@ describe("asset file helpers", () => {
         absolutePath: assetPath
       })
     ).toEqual([assetPath]);
+  });
+
+  it("builds portable thumbnail paths", () => {
+    expect(buildAssetThumbnailRelativePath("asset-1")).toBe("assets/thumbnails/asset-1.jpg");
+  });
+
+  it("builds variant thumbnail paths with safe variant characters only", () => {
+    expect(buildAssetThumbnailRelativePath("asset-1", "crop-123:../bad value")).toBe("assets/thumbnails/asset-1-crop-123badvalue.jpg");
   });
 });

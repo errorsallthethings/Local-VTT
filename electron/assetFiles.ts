@@ -8,6 +8,12 @@ export function getAssetFileRemovalPaths(campaignPath: string, asset: Pick<Asset
   ]);
 }
 
+export function buildAssetThumbnailRelativePath(assetId: string, variant = ""): string {
+  const safeVariant = variant.replace(/[^a-zA-Z0-9_-]/g, "");
+  const fileStem = safeVariant ? `${assetId}-${safeVariant}` : assetId;
+  return path.join("assets", "thumbnails", `${fileStem}.jpg`).replaceAll(path.sep, "/");
+}
+
 function dedupePaths(paths: Array<string | undefined>): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
