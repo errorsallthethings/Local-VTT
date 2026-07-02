@@ -5,6 +5,7 @@ import { getNearestHexCoordinate, hexAxialToPoint } from "../tokens/tokenGeometr
 import { distanceBetweenPoints, distanceToSegment, getConeTriangle, getTriangle, isPointInPolygon, isPointInTriangle } from "./drawingGeometry";
 import { getDrawingPreviewPoints, type DrawingPreview, type DrawingTool } from "./drawingPreview";
 import { getTemplateEffectStyle } from "./templateEffectStyles";
+import { getTemplateEffectTuning, TEMPLATE_EFFECT_TUNING_VERSION, type TemplateEffectTuning } from "./templateEffectTuning";
 import { getTemplateLabel, getTemplateLabelPosition } from "./templateLabels";
 
 export type DrawingPointOverrides = Map<string, Point[]>;
@@ -33,14 +34,6 @@ type TemplateEffectOverlayCacheEntry = {
   top: number;
 };
 
-type TemplateEffectTuning = {
-  density: number;
-  maxPlacements: number;
-  minPlacements: number;
-  opacity: number;
-  scale: number;
-};
-
 function disposeTransientRenderer(renderer: THREE.WebGLRenderer) {
   renderer.forceContextLoss();
   renderer.dispose();
@@ -60,23 +53,6 @@ function snapshotRendererCanvas(canvas: HTMLCanvasElement): HTMLCanvasElement {
 
 const TEMPLATE_EFFECT_RENDERABLE_WIDTH_PX = 800;
 const TEMPLATE_EFFECT_OVERLAY_CACHE_LIMIT = 80;
-const TEMPLATE_EFFECT_TUNING_VERSION = 2;
-const DEFAULT_TEMPLATE_EFFECT_TUNING: TemplateEffectTuning = {
-  density: 1,
-  maxPlacements: 14,
-  minPlacements: 5,
-  opacity: 1,
-  scale: 1
-};
-const TEMPLATE_EFFECT_TUNING: Partial<Record<DrawingTemplateEffect, Partial<TemplateEffectTuning>>> = {
-  arcane: { density: 1.12, maxPlacements: 16, opacity: 1.18, scale: 1.12 },
-  cold: { density: 1.08, maxPlacements: 16, opacity: 1.16, scale: 1.1 },
-  fog: { density: 1.18, maxPlacements: 18, opacity: 1.32 },
-  poison: { density: 1.15, maxPlacements: 18, opacity: 1.24 },
-  radiant: { density: 1.1, maxPlacements: 16, opacity: 1.22, scale: 1.12 },
-  storm: { density: 1.18, maxPlacements: 18, opacity: 1.26 },
-  thunder: { density: 1.08, maxPlacements: 16, opacity: 1.18, scale: 1.14 }
-};
 const templateEffectOverlayCache = new Map<string, TemplateEffectOverlayCacheEntry>();
 let acidTemplateRenderables: TemplateEffectRenderable[] | null = null;
 let arcaneTemplateRenderables: TemplateEffectRenderable[] | null = null;
@@ -2288,13 +2264,6 @@ function createTemplateAssetPlacements(
     });
   }
   return placements;
-}
-
-function getTemplateEffectTuning(effect: DrawingTemplateEffect): TemplateEffectTuning {
-  return {
-    ...DEFAULT_TEMPLATE_EFFECT_TUNING,
-    ...(TEMPLATE_EFFECT_TUNING[effect] ?? {})
-  };
 }
 
 function getTemplateEdgeBandPoint(
