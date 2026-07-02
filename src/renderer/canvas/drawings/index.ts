@@ -7,5 +7,6 @@ export * from "./drawingTransform";
 export * from "./templateEffectGeometry";
 export * from "./templateEffectStyles";
 export * from "./templateEffectTuning";
+export * from "./templateGridHighlights";
 export * from "./templateLabels";
 export * from "./templateDrawing";
