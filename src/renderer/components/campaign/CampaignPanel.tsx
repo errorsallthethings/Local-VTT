@@ -6,7 +6,7 @@ import type { Asset, Campaign, CampaignPlayer, PlayerIndicatorTheme } from "../.
 import { ColorInput } from "../controls/ColorPickerField";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
 import type { RecentCampaign } from "../../lib/campaign";
-import { getAssetThumbnailPreviewPath } from "../../lib/assets";
+import { getAssetThumbnailPreviewMessage, getAssetThumbnailPreviewPath } from "../../lib/assets";
 import { getMissingAssetsWarningItems, MISSING_ASSETS_WARNING_MESSAGE } from "../../lib/assets/assetRecovery";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
@@ -274,12 +274,13 @@ function CampaignPlayerRow({
   const selectedAsset = player.assetId ? tokenAssets.find((asset) => asset.id === player.assetId) : null;
   const hasSelectedAsset = Boolean(selectedAsset);
   const previewPath = getAssetThumbnailPreviewPath(selectedAsset);
+  const previewMessage = getAssetThumbnailPreviewMessage(selectedAsset);
   return (
     <article className="campaign-player-row">
       <button
         type="button"
         className={hasSelectedAsset ? "campaign-player-avatar" : "campaign-player-avatar campaign-player-avatar-drop"}
-        title={hasSelectedAsset ? "Remove thumbnail" : "Drag a token here to use its thumbnail"}
+        title={hasSelectedAsset ? (previewMessage ? `${previewMessage} Click to remove this player thumbnail.` : "Remove thumbnail") : "Drag a token here to use its thumbnail"}
         onClick={() => {
           if (hasSelectedAsset) {
             onUpdate({ assetId: undefined });

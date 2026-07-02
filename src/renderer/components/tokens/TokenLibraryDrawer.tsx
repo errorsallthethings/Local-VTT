@@ -22,7 +22,7 @@ import { createPortal } from "react-dom";
 import type { Asset } from "../../../shared/localvtt";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
-import { getAssetThumbnailPreviewPath } from "../../lib/assets";
+import { getAssetThumbnailPreviewMessage, getAssetThumbnailPreviewPath } from "../../lib/assets";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
 import {
   buildTokenLibraryAssetIndex,
@@ -427,6 +427,7 @@ function TokenLibraryItem({
   onDeleteToken: (asset: Asset) => void;
 }) {
   const previewPath = getAssetThumbnailPreviewPath(asset);
+  const previewMessage = getAssetThumbnailPreviewMessage(asset);
   const label = asset.name || asset.originalFileName || "Token";
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   return (
@@ -449,7 +450,7 @@ function TokenLibraryItem({
       <span className="token-library-drag-indicator token-library-drag-indicator-horizontal" aria-hidden="true">
         <GripHorizontal size={14} />
       </span>
-      <div className="token-library-thumb">
+      <div className="token-library-thumb" title={previewMessage ?? undefined}>
         {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" loading="lazy" decoding="async" draggable={false} /> : <PackageOpen size={18} aria-hidden="true" />}
       </div>
       <div className="token-library-item-meta">

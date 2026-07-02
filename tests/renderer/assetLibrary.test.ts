@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Asset, CampaignSceneEntry } from "../../src/shared/localvtt";
 import { createDefaultScene } from "../../src/shared/localvtt";
-import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets, getAssetThumbnailPreviewPath } from "../../src/renderer/lib/assets";
+import {
+  buildAssetsById,
+  buildAssetsByKind,
+  buildSceneThumbnailAssets,
+  getAssetThumbnailPreviewMessage,
+  getAssetThumbnailPreviewPath
+} from "../../src/renderer/lib/assets";
 
 function asset(id: string, kind: Asset["kind"]): Asset {
   return {
@@ -30,6 +36,13 @@ describe("asset library helpers", () => {
     );
     expect(getAssetThumbnailPreviewPath({ ...asset("token-2", "token"), absolutePath: "C:/tokens/original.png" })).toBeNull();
     expect(getAssetThumbnailPreviewPath(null)).toBeNull();
+  });
+
+  it("explains missing compact thumbnail previews", () => {
+    expect(getAssetThumbnailPreviewMessage({ ...asset("token-1", "token"), thumbnailAbsolutePath: "C:/tokens/thumb.jpg" })).toBeNull();
+    expect(getAssetThumbnailPreviewMessage({ ...asset("token-2", "token"), thumbnailRelativePath: "assets/thumbnails/missing.jpg" })).toContain("missing");
+    expect(getAssetThumbnailPreviewMessage(asset("token-3", "token"))).toContain("No thumbnail preview");
+    expect(getAssetThumbnailPreviewMessage(null)).toBeNull();
   });
 
   it("uses draft and active scene map ids for scene thumbnails", () => {

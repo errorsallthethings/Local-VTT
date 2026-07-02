@@ -4,7 +4,7 @@ import { Copy, Crown, Eye, EyeOff, GripVertical, MoreVertical, Trash2, User, Use
 import type { Asset, Scene, Token } from "../../../../shared/localvtt";
 import { useDismissableMenu } from "../../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../../hooks/useFloatingMenuPosition";
-import { getAssetThumbnailPreviewPath } from "../../../lib/assets";
+import { getAssetThumbnailPreviewMessage, getAssetThumbnailPreviewPath } from "../../../lib/assets";
 import { getSelectedItemIds } from "../../../lib/scene";
 import { buildTokenLayerRows } from "../../../lib/tokens";
 import { duplicateToken } from "../../../lib/tokens";
@@ -329,8 +329,9 @@ function FloatingTokenSettingsMenu({
 
 function TokenRowThumbnail({ asset, label }: { asset: Asset | null; label: string }) {
   const previewPath = getAssetThumbnailPreviewPath(asset);
+  const previewMessage = getAssetThumbnailPreviewMessage(asset);
   return (
-    <span className="token-row-thumbnail" title={label} aria-hidden="true">
+    <span className="token-row-thumbnail" title={previewMessage ?? label} aria-hidden="true">
       {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : <UsersRound size={13} />}
     </span>
   );

@@ -12,6 +12,19 @@ export function getAssetThumbnailPreviewPath(asset: Asset | null | undefined): s
   return asset?.thumbnailAbsolutePath ?? null;
 }
 
+export function getAssetThumbnailPreviewMessage(asset: Asset | null | undefined): string | null {
+  if (!asset) {
+    return null;
+  }
+  if (asset.thumbnailAbsolutePath) {
+    return null;
+  }
+  if (asset.thumbnailRelativePath) {
+    return "Thumbnail preview is missing. Run Campaign Maintenance > Regenerate Thumbnails.";
+  }
+  return "No thumbnail preview has been generated. Run Campaign Maintenance > Regenerate Thumbnails.";
+}
+
 export function buildSceneThumbnailAssets(
   scenes: readonly CampaignSceneEntry[],
   sceneDrafts: Record<string, Scene>,

@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import type { Asset, CampaignPlayer, Scene, Token, TurnOrderEntry, TurnOrderSettings, TurnOrderTrackerPlacement } from "../../../shared/localvtt";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
-import { getAssetThumbnailPreviewPath } from "../../lib/assets";
+import { getAssetThumbnailPreviewMessage, getAssetThumbnailPreviewPath } from "../../lib/assets";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
 import {
   addTurnOrderEntry,
@@ -529,6 +529,7 @@ function TurnOrderRow({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const previewPath = getAssetThumbnailPreviewPath(asset);
+  const previewMessage = getAssetThumbnailPreviewMessage(asset);
   const className = [
     active ? "turn-order-row turn-order-row-active" : "turn-order-row",
     entry.type === "count-tracker" ? "turn-order-row-count-tracker" : "",
@@ -596,7 +597,9 @@ function TurnOrderRow({
         <GripVertical size={14} aria-hidden="true" />
       </span>
       <span className="turn-order-rank">{index + 1}</span>
-      <span className="turn-order-avatar">{previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : entry.name.slice(0, 1).toUpperCase()}</span>
+      <span className="turn-order-avatar" title={previewMessage ?? undefined}>
+        {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : entry.name.slice(0, 1).toUpperCase()}
+      </span>
       <div className="turn-order-name-cell">
         <input className="turn-order-name" value={entry.name} aria-label="Entry name" onChange={(event) => onUpdate({ name: event.target.value })} />
         <span
