@@ -36,14 +36,29 @@ export function getAssetFileRemovalPaths(campaignPath: string, asset: Pick<Asset
 }
 
 export function buildAssetThumbnailRelativePath(assetId: string, variant = ""): string {
+  assertSafePathSegment(assetId, "asset id");
   const safeVariant = variant.replace(/[^a-zA-Z0-9_-]/g, "");
   const fileStem = safeVariant ? `${assetId}-${safeVariant}` : assetId;
   return path.join("assets", "thumbnails", `${fileStem}.jpg`).replaceAll(path.sep, "/");
 }
 
 export function buildAssetImportRelativePath(kind: Asset["kind"], fileName: string): string {
+  assertSafePathSegment(fileName, "asset file name");
   const folder = kind === "map" ? "maps" : "tokens";
   return path.join("assets", folder, fileName).replaceAll(path.sep, "/");
+}
+
+function assertSafePathSegment(value: string, label: string): void {
+  if (
+    value.trim() === "" ||
+    value === "." ||
+    value === ".." ||
+    path.isAbsolute(value) ||
+    value.includes("/") ||
+    value.includes("\\")
+  ) {
+    throw new Error(`Unsafe ${label}.`);
+  }
 }
 
 function resolveCampaignRelativePath(campaignPath: string, relativePath: string): string | undefined {

@@ -58,9 +58,21 @@ describe("asset file helpers", () => {
     expect(buildAssetThumbnailRelativePath("asset-1", "crop-123:../bad value")).toBe("assets/thumbnails/asset-1-crop-123badvalue.jpg");
   });
 
+  it("rejects unsafe thumbnail asset ids", () => {
+    expect(() => buildAssetThumbnailRelativePath("../asset-1")).toThrow("Unsafe asset id.");
+    expect(() => buildAssetThumbnailRelativePath("folder\\asset-1")).toThrow("Unsafe asset id.");
+    expect(() => buildAssetThumbnailRelativePath("")).toThrow("Unsafe asset id.");
+  });
+
   it("builds portable import paths for map and token assets", () => {
     expect(buildAssetImportRelativePath("map", "dungeon.png")).toBe("assets/maps/dungeon.png");
     expect(buildAssetImportRelativePath("token", "hero.png")).toBe("assets/tokens/hero.png");
+  });
+
+  it("rejects unsafe import file names", () => {
+    expect(() => buildAssetImportRelativePath("map", "../dungeon.png")).toThrow("Unsafe asset file name.");
+    expect(() => buildAssetImportRelativePath("map", "folder\\dungeon.png")).toThrow("Unsafe asset file name.");
+    expect(() => buildAssetImportRelativePath("token", ".")).toThrow("Unsafe asset file name.");
   });
 
   it("hydrates campaign asset paths from portable paths", () => {
