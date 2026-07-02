@@ -98,10 +98,15 @@ import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolyg
 import {
   formatDefaultEnvironmentEffectName,
   formatDefaultWeatherMaskName,
-  getDrawingContextLabel,
-  getEnvironmentEffectContextLabel,
-  getFogShapeContextLabel,
-  getWeatherMaskContextLabel
+  getDrawingContextMenu,
+  getEnvironmentEffectContextMenu,
+  getFogContextMenu,
+  getTokenContextMenu,
+  getWeatherMaskContextMenu,
+  type DrawingContextMenu,
+  type EnvironmentEffectContextMenu,
+  type MaskContextMenu,
+  type TokenContextMenu
 } from "../canvas/scene";
 import {
   getCompletedSceneMarqueeSelection,
@@ -339,55 +344,6 @@ interface SceneCanvasProps {
 type DrawingPolygonDraft = {
   points: Point[];
   current?: Point;
-};
-
-type TokenContextMenu = {
-  tokenId: string;
-  tokenName: string;
-  visibleInGm: boolean;
-  visibleInPlayer: boolean;
-  x: number;
-  y: number;
-};
-
-type MaskContextMenu =
-  | {
-      kind: "fog";
-      shapeId: string;
-      label: string;
-      visibleInGm: boolean;
-      visibleInPlayer: boolean;
-      x: number;
-      y: number;
-    }
-  | {
-      kind: "effects";
-      maskId: string;
-      label: string;
-      visible: boolean;
-      visibleInPlayer: boolean;
-      x: number;
-      y: number;
-    };
-
-type DrawingContextMenu = {
-  drawingId: string;
-  label: string;
-  isTemplate: boolean;
-  templateFootprintVisible: boolean;
-  visibleInGm: boolean;
-  visibleInPlayer: boolean;
-  x: number;
-  y: number;
-};
-
-type EnvironmentEffectContextMenu = {
-  effectId: string;
-  label: string;
-  visibleInGm: boolean;
-  visibleInPlayer: boolean;
-  x: number;
-  y: number;
 };
 
 type WeatherMaskMoveState = {
@@ -1982,14 +1938,7 @@ export function SceneCanvas({
           setMaskContextMenu(null);
           setDrawingContextMenu(null);
           setEnvironmentEffectContextMenu(null);
-          setTokenContextMenu({
-            tokenId: token.id,
-            tokenName: token.name || "Token",
-            visibleInGm: token.visibleInGm ?? !token.hidden,
-            visibleInPlayer: token.visibleInPlayer,
-            x: menuPosition.x,
-            y: menuPosition.y
-          });
+          setTokenContextMenu(getTokenContextMenu(token, menuPosition));
           return;
         }
         if (!authoringToolActive) {
@@ -2005,16 +1954,7 @@ export function SceneCanvas({
             setTokenContextMenu(null);
             setMaskContextMenu(null);
             setEnvironmentEffectContextMenu(null);
-            setDrawingContextMenu({
-              drawingId: drawingHit.id,
-              label: getDrawingContextLabel(drawingHit, drawingIndex),
-              isTemplate: drawingHit.measurementLabelVisible === true,
-              templateFootprintVisible: drawingHit.templateFootprintVisible === true,
-              visibleInGm: drawingHit.visibleInGm ?? true,
-              visibleInPlayer: drawingHit.visibleInPlayer,
-              x: menuPosition.x,
-              y: menuPosition.y
-            });
+            setDrawingContextMenu(getDrawingContextMenu(drawingHit, drawingIndex, menuPosition));
             return;
           }
           const maskHit = getMaskHitAtPoint(scene, point);
@@ -2029,34 +1969,15 @@ export function SceneCanvas({
               setTokenContextMenu(null);
               setDrawingContextMenu(null);
               setEnvironmentEffectContextMenu(null);
-              setMaskContextMenu({
-                kind: "effects",
-                maskId: maskHit.mask.id,
-                label: getWeatherMaskContextLabel(maskHit.mask),
-                visible: maskHit.mask.visible ?? true,
-                visibleInPlayer: maskHit.mask.visibleInPlayer ?? true,
-                x: menuPosition.x,
-                y: menuPosition.y
-              });
+              setMaskContextMenu(getWeatherMaskContextMenu(maskHit.mask, menuPosition));
             } else {
               const shapeIndex = scene.fog.shapes.findIndex((shape) => shape.id === maskHit.shape.id);
-              const label = getFogShapeContextLabel(maskHit.shape, shapeIndex);
-              const visibleInGm = maskHit.shape.visibleInGm ?? maskHit.shape.visible ?? true;
-              const visibleInPlayer = maskHit.shape.visibleInPlayer ?? maskHit.shape.visible ?? true;
               onSelectFogShape?.(maskHit.shape.id);
               onSelectWeatherMask?.(null);
               setTokenContextMenu(null);
               setDrawingContextMenu(null);
               setEnvironmentEffectContextMenu(null);
-              setMaskContextMenu({
-                kind: "fog",
-                shapeId: maskHit.shape.id,
-                label,
-                visibleInGm,
-                visibleInPlayer,
-                x: menuPosition.x,
-                y: menuPosition.y
-              });
+              setMaskContextMenu(getFogContextMenu(maskHit.shape, shapeIndex, menuPosition));
             }
             return;
           }
@@ -2073,14 +1994,7 @@ export function SceneCanvas({
             setTokenContextMenu(null);
             setMaskContextMenu(null);
             setDrawingContextMenu(null);
-            setEnvironmentEffectContextMenu({
-              effectId: environmentEffectHit.id,
-              label: getEnvironmentEffectContextLabel(environmentEffectHit, effectIndex),
-              visibleInGm: environmentEffectHit.visibleInGm !== false,
-              visibleInPlayer: environmentEffectHit.visibleInPlayer !== false,
-              x: menuPosition.x,
-              y: menuPosition.y
-            });
+            setEnvironmentEffectContextMenu(getEnvironmentEffectContextMenu(environmentEffectHit, effectIndex, menuPosition));
             return;
           }
         }
