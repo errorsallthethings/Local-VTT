@@ -460,10 +460,7 @@ async function pauseActiveTurnOrders(campaignPath: string): Promise<void> {
   const summary = await loadCampaignFromPath(campaignPath);
   for (const entry of summary.campaign.scenes) {
     try {
-      const raw = await readFile(sceneFile(campaignPath, entry.id), "utf8");
-      const scene = JSON.parse(raw) as unknown;
-      assertValidScene(scene);
-      const normalized = normalizeScene(scene);
+      const normalized = await readSceneMetadata(campaignPath, entry.id);
       if (!normalized.turnOrder.active && !normalized.turnOrder.playerViewVisible) {
         continue;
       }
@@ -1575,12 +1572,7 @@ ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, 
 ipcMain.handle("asset:getTokenUsage", async (_event, campaignPath: string, assetId: string) => {
   assertKnownCampaignPath(campaignPath);
   const summary = await loadCampaignFromPath(campaignPath);
-  return getTokenAssetUsage(summary.campaign, assetId, async (sceneId) => {
-    const raw = await readFile(sceneFile(campaignPath, sceneId), "utf8");
-    const scene = JSON.parse(raw) as unknown;
-    assertValidScene(scene);
-    return scene;
-  });
+  return getTokenAssetUsage(summary.campaign, assetId, (sceneId) => readSceneMetadata(campaignPath, sceneId));
 });
 
 ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId: string) => {
@@ -1594,9 +1586,7 @@ ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId
   const changedScenes: Scene[] = [];
   for (const entry of summary.campaign.scenes) {
     try {
-      const raw = await readFile(sceneFile(campaignPath, entry.id), "utf8");
-      const scene = JSON.parse(raw) as unknown;
-      assertValidScene(scene);
+      const scene = await readSceneMetadata(campaignPath, entry.id);
       if (!scene.tokens.some((token) => token.assetId === assetId)) {
         continue;
       }
@@ -1634,12 +1624,9 @@ ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: 
     throw new Error("Map asset was not found in this campaign.");
   }
 
-  const otherSceneNames = await getMapAssetSceneNames(summary.campaign, assetId, sceneId, async (candidateSceneId) => {
-    const raw = await readFile(sceneFile(campaignPath, candidateSceneId), "utf8");
-    const scene = JSON.parse(raw) as unknown;
-    assertValidScene(scene);
-    return scene;
-  });
+  const otherSceneNames = await getMapAssetSceneNames(summary.campaign, assetId, sceneId, (candidateSceneId) =>
+    readSceneMetadata(campaignPath, candidateSceneId)
+  );
 
   if (otherSceneNames.length > 0) {
     throw new Error(`This map asset is still used by: ${otherSceneNames.join(", ")}.`);
