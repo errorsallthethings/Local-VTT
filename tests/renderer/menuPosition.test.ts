@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateFloatingMenuPosition, type MenuRect } from "../../src/renderer/lib/ui";
+import { calculateCanvasContextMenuPosition, calculateFloatingMenuPosition, getEstimatedCanvasContextMenuSize, type MenuRect } from "../../src/renderer/lib/ui";
 
 function rect(partial: Partial<MenuRect>): MenuRect {
   return {
@@ -86,5 +86,50 @@ describe("calculateFloatingMenuPosition", () => {
         viewportPadding: 12
       })
     ).toEqual({ top: 122, left: 70 });
+  });
+});
+
+describe("calculateCanvasContextMenuPosition", () => {
+  it("opens down and right from the pointer when there is room", () => {
+    expect(
+      calculateCanvasContextMenuPosition({
+        anchorX: 100,
+        anchorY: 120,
+        kind: "drawing",
+        viewportWidth: 800,
+        viewportHeight: 600
+      })
+    ).toEqual({ x: 108, y: 128 });
+  });
+
+  it("flips left and up near the lower-right viewport edge", () => {
+    expect(
+      calculateCanvasContextMenuPosition({
+        anchorX: 780,
+        anchorY: 580,
+        kind: "token",
+        viewportWidth: 800,
+        viewportHeight: 600
+      })
+    ).toEqual({ x: 472, y: 32 });
+  });
+
+  it("clamps oversized context menus to the viewport padding", () => {
+    expect(
+      calculateCanvasContextMenuPosition({
+        anchorX: 40,
+        anchorY: 40,
+        kind: "token",
+        viewportWidth: 260,
+        viewportHeight: 300
+      })
+    ).toEqual({ x: 12, y: 12 });
+  });
+
+  it("uses stable menu size estimates by kind", () => {
+    expect(getEstimatedCanvasContextMenuSize("token")).toEqual({ width: 300, height: 540 });
+    expect(getEstimatedCanvasContextMenuSize("drawing")).toEqual({ width: 260, height: 270 });
+    expect(getEstimatedCanvasContextMenuSize("mask")).toEqual({ width: 230, height: 250 });
+    expect(getEstimatedCanvasContextMenuSize("environment")).toEqual({ width: 230, height: 250 });
   });
 });

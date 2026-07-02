@@ -211,6 +211,7 @@ import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { useWindowKeyDown } from "../hooks/useWindowKeyDown";
 import { getTokenConditionsVisibleInPlayer, getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag, setTokenCondition, setTokenConditionsPlayerVisibility } from "../lib/tokens";
+import { calculateCanvasContextMenuPosition, type CanvasContextMenuKind } from "../lib/ui";
 import {
   addEnvironmentEffect,
   addSceneDrawing,
@@ -389,8 +390,6 @@ type EnvironmentEffectContextMenu = {
   y: number;
 };
 
-type CanvasContextMenuKind = "token" | "mask" | "drawing" | "environment";
-
 type WeatherMaskMoveState = {
   pointerId: number;
   maskId: string;
@@ -407,33 +406,13 @@ type EnvironmentEffectMoveState = {
 };
 
 function getCanvasContextMenuPosition(event: React.MouseEvent<HTMLCanvasElement>, kind: CanvasContextMenuKind): { x: number; y: number } {
-  const menuSize = getEstimatedContextMenuSize(kind);
-  const margin = 12;
-  const offset = 8;
-  const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-  const hasRoomRight = event.clientX + offset + menuSize.width + margin <= viewportWidth;
-  const hasRoomBelow = event.clientY + offset + menuSize.height + margin <= viewportHeight;
-  const preferredX = hasRoomRight ? event.clientX + offset : event.clientX - menuSize.width - offset;
-  const preferredY = hasRoomBelow ? event.clientY + offset : event.clientY - menuSize.height - offset;
-
-  return {
-    x: Math.max(margin, Math.min(preferredX, viewportWidth - menuSize.width - margin)),
-    y: Math.max(margin, Math.min(preferredY, viewportHeight - menuSize.height - margin))
-  };
-}
-
-function getEstimatedContextMenuSize(kind: CanvasContextMenuKind): { width: number; height: number } {
-  if (kind === "token") {
-    return { width: 300, height: 540 };
-  }
-  if (kind === "drawing") {
-    return { width: 260, height: 270 };
-  }
-  if (kind === "environment") {
-    return { width: 230, height: 250 };
-  }
-  return { width: 230, height: 250 };
+  return calculateCanvasContextMenuPosition({
+    anchorX: event.clientX,
+    anchorY: event.clientY,
+    kind,
+    viewportWidth: window.innerWidth || document.documentElement.clientWidth,
+    viewportHeight: window.innerHeight || document.documentElement.clientHeight
+  });
 }
 
 export function SceneCanvas({
