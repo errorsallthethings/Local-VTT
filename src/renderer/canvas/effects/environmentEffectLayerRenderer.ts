@@ -58,9 +58,9 @@ import {
   drawEnvironmentShockwaveEffect,
   drawEnvironmentSmokeEffect,
   drawEnvironmentVoidEffect,
-  drawEnvironmentWaterEffect,
-  type ScreenBounds
+  drawEnvironmentWaterEffect
 } from "./environmentEffectsRenderer";
+import type { ScreenBounds } from "./environmentEffectRendererMath";
 import {
   environmentDragToMask,
   getClampedEnvironmentEffectFeather,

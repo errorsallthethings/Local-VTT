@@ -57,13 +57,7 @@ import {
   drawVoidFallback,
   drawWaterFallback
 } from "./environmentEffectFallbacks";
-
-export interface ScreenBounds {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+import { degreesToRadians, getEffectWorldOrigin, getEffectWorldSize, type ScreenBounds } from "./environmentEffectRendererMath";
 
 export const WATER_EFFECT_PRESETS = {
   stream: {
@@ -1009,22 +1003,14 @@ function disposeEnvironmentEffectRuntime(runtime: WaterRuntime | null) {
   runtime.meshB.material.dispose();
 }
 
-function getEffectWorldOrigin(bounds: ScreenBounds, cameraState: { x: number; y: number; zoom: number }) {
-  const zoom = Math.max(cameraState.zoom, 0.01);
-  return {
-    x: (bounds.x - cameraState.x) / zoom,
-    y: (bounds.y - cameraState.y) / zoom
-  };
-}
-
 function updateCameraUniforms(material: THREE.ShaderMaterial, bounds: ScreenBounds, cameraState: { x: number; y: number; zoom: number }) {
   const origin = getEffectWorldOrigin(bounds, cameraState);
-  const zoom = Math.max(cameraState.zoom, 0.01);
   material.uniforms.cameraOffset.value.set(cameraState.x, cameraState.y);
   material.uniforms.cameraZoom.value = cameraState.zoom;
   material.uniforms.effectOrigin.value.set(origin.x, origin.y);
   if (material.uniforms.effectSize) {
-    material.uniforms.effectSize.value.set(Math.max(bounds.width / zoom, 1), Math.max(bounds.height / zoom, 1));
+    const size = getEffectWorldSize(bounds, cameraState);
+    material.uniforms.effectSize.value.set(size.width, size.height);
   }
 }
 
@@ -5861,10 +5847,6 @@ function updateFogMaterialTuning(material: THREE.ShaderMaterial, tuning: FogEffe
   material.uniforms.shadowColor.value.set(tuning.shadowColor);
   material.uniforms.smokeColor.value.set(tuning.smokeColor);
   material.uniforms.highlightColor.value.set(tuning.highlightColor);
-}
-
-function degreesToRadians(degrees: number): number {
-  return (degrees * Math.PI) / 180;
 }
 
 function positionWaterMesh(mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>, width: number, height: number, scale: number) {
