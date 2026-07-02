@@ -18,18 +18,15 @@ import {
   loadCustomDicePresets,
   rollDiceExpression,
   saveCustomDicePresets,
+  clampDicePanelPosition as clampDicePanelPositionToViewport,
   type CustomDicePreset,
+  type DicePanelPosition,
   type DiceType
 } from "../../lib/dice";
 import { getActiveWeatherEffects } from "../../lib/effects";
 import { type ModalSize, useResizableModal } from "../../hooks/useResizableModal";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
-type DicePanelPosition = {
-  x: number;
-  y: number;
-};
-
 type DicePanelDrag = {
   pointerId: number;
   offsetX: number;
@@ -865,15 +862,7 @@ export function WorkspaceTopbar({
 }
 
 function clampDicePanelPosition(x: number, y: number, rect?: DOMRect | null): DicePanelPosition {
-  const margin = 8;
-  const width = rect?.width ?? 300;
-  const height = rect?.height ?? 520;
-  const maxX = Math.max(margin, window.innerWidth - width - margin);
-  const maxY = Math.max(margin, window.innerHeight - height - margin);
-  return {
-    x: Math.min(Math.max(margin, x), maxX),
-    y: Math.min(Math.max(margin, y), maxY)
-  };
+  return clampDicePanelPositionToViewport(x, y, { width: window.innerWidth, height: window.innerHeight }, rect);
 }
 
 function getDiceDisplaySelectValue(mode: DiceDisplayMode): DiceDisplayMode {
