@@ -42,6 +42,7 @@ import {
   getEnvironmentEffectFeatherSelectValue,
   getEnvironmentEffectPresetOptions
 } from "../../../lib/effects";
+import { getToolCategoryLabel, type ToolCategory } from "./toolCategoryLabels";
 
 export type FogOperation = "reveal" | "hide";
 export type CanvasTool = "ruler" | "ping" | "laser";
@@ -50,7 +51,6 @@ export type EnvironmentEffectTool = "rectangle" | "circle" | "polygon";
 export type { DrawingTemplateSize, DrawingTemplateWidth } from "../settings/DrawingToolSettings";
 export type { SelectorSelectionCounts, SelectorSelectionFilters } from "../settings/SelectorToolControls";
 type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
-type ToolCategory = "mouse" | "drawing" | "templates" | "text" | "table" | "dice" | "turn-order" | "pin" | "fog" | "effects" | "lighting";
 export type MouseBehavior = "selector" | "grabber";
 
 const DEFAULT_DRAWING_COLOR = "#ff0000";
@@ -193,16 +193,16 @@ type ToolCategoryEntry =
   | { kind: "divider"; id: string };
 
 const TOOL_CATEGORIES: ToolCategoryEntry[] = [
-  { kind: "category", id: "fog", label: "Fog Of War Tools", icon: CloudFog, hasPanelTools: true },
-  { kind: "category", id: "effects", label: "Effects Tools", icon: Sparkles, hasPanelTools: true },
-  { kind: "category", id: "drawing", label: "Drawing Tools", icon: LineSquiggle, hasPanelTools: true },
-  { kind: "category", id: "text", label: "Text Tool", icon: Type, hasPanelTools: false },
-  { kind: "category", id: "templates", label: "Template Tools", icon: Triangle, hasPanelTools: true },
-  { kind: "category", id: "lighting", label: "Dynamic Lighting", icon: Lightbulb, hasPanelTools: false },
+  { kind: "category", id: "fog", label: getToolCategoryLabel("fog"), icon: CloudFog, hasPanelTools: true },
+  { kind: "category", id: "effects", label: getToolCategoryLabel("effects"), icon: Sparkles, hasPanelTools: true },
+  { kind: "category", id: "drawing", label: getToolCategoryLabel("drawing"), icon: LineSquiggle, hasPanelTools: true },
+  { kind: "category", id: "text", label: getToolCategoryLabel("text"), icon: Type, hasPanelTools: false },
+  { kind: "category", id: "templates", label: getToolCategoryLabel("templates"), icon: Triangle, hasPanelTools: true },
+  { kind: "category", id: "lighting", label: getToolCategoryLabel("lighting"), icon: Lightbulb, hasPanelTools: false },
   { kind: "divider", id: "tools-primary-secondary-divider" },
-  { kind: "category", id: "dice", label: "Dice Bag", icon: Dices, hasPanelTools: false },
-  { kind: "category", id: "turn-order", label: "Turn Order", icon: ListOrdered, hasPanelTools: false },
-  { kind: "category", id: "table", label: "Table Tools", icon: Table2, hasPanelTools: true }
+  { kind: "category", id: "dice", label: getToolCategoryLabel("dice"), icon: Dices, hasPanelTools: false },
+  { kind: "category", id: "turn-order", label: getToolCategoryLabel("turn-order"), icon: ListOrdered, hasPanelTools: false },
+  { kind: "category", id: "table", label: getToolCategoryLabel("table"), icon: Table2, hasPanelTools: true }
 ];
 
 export function ToolsMenu({
@@ -644,8 +644,8 @@ export function ToolsMenu({
           })}
       </div>
       {activeCategory && (
-        <div className="tools-subpanel" aria-label={`${getCategoryLabel(activeCategory)} panel`}>
-          <PanelHeader title={getCategoryLabel(activeCategory)} />
+        <div className="tools-subpanel" aria-label={`${getToolCategoryLabel(activeCategory)} panel`}>
+          <PanelHeader title={getToolCategoryLabel(activeCategory)} />
           {activeCategory === "mouse" && (
             <div className="tools-panel-section">
               <div className="tools-button-row">
@@ -1277,14 +1277,3 @@ function isTemplateDrawingTool(tool: DrawingTool | null): boolean {
   return tool === "template-line" || tool === "template-rectangle" || tool === "template-circle" || tool === "template-cone";
 }
 
-function getCategoryLabel(category: ToolCategory): string {
-  if (category === "mouse") {
-    return "Mouse Behavior";
-  }
-  for (const toolCategory of TOOL_CATEGORIES) {
-    if (toolCategory.kind === "category" && toolCategory.id === category) {
-      return toolCategory.label;
-    }
-  }
-  return "Tools";
-}
