@@ -72,6 +72,7 @@ import {
   type MapReplacementTokenStore
 } from "./mapReplacementTokens.js";
 import { getDimensionDifferenceWarning } from "./mapReplacementWarnings.js";
+import { mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
 import { createThumbnailImportFailureDiagnostic, createThumbnailRegenerationFailure } from "./thumbnailDiagnostics.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
 
@@ -680,23 +681,6 @@ async function getMapReplacementWarning(currentPath: string, currentMediaType: A
     readMapMediaDimensions(nextPath, nextMediaType)
   ]);
   return { currentDimensions, nextDimensions, warning: getDimensionDifferenceWarning(currentDimensions, nextDimensions) ?? undefined };
-}
-
-async function mapAssetUsedByOtherScenes(campaignPath: string, campaign: Campaign, assetId: string, sceneId: string): Promise<boolean> {
-  for (const entry of campaign.scenes) {
-    if (entry.id === sceneId) {
-      continue;
-    }
-    try {
-      const scene = await readSceneMetadata(campaignPath, entry.id);
-      if (scene.mapAssetId === assetId) {
-        return true;
-      }
-    } catch {
-      // Missing or invalid scenes are reported elsewhere by scene loading.
-    }
-  }
-  return false;
 }
 
 async function deleteMapAssetFiles(campaignPath: string, asset: Asset): Promise<void> {
@@ -1490,7 +1474,9 @@ ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: 
   const updatedScene = normalizeScene({ ...currentScene, mapAssetId: imported.id, updatedAt: new Date().toISOString() });
   await writeScene(campaignPath, updatedScene);
 
-  const keepCurrentAsset = await mapAssetUsedByOtherScenes(campaignPath, summary.campaign, currentAsset.id, sceneId);
+  const keepCurrentAsset = await mapAssetUsedByOtherScenes(summary.campaign, currentAsset.id, sceneId, (candidateSceneId) =>
+    readSceneMetadata(campaignPath, candidateSceneId)
+  );
   const campaign: Campaign = {
     ...summary.campaign,
     assets: keepCurrentAsset ? [...summary.campaign.assets, imported] : [...summary.campaign.assets.filter((asset) => asset.id !== currentAsset.id), imported],
