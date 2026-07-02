@@ -17,6 +17,7 @@
     "test": "vitest run",
     "electron:install": "node scripts/ensure-electron.mjs",
     "smoke:electron": "npm run build && npm run electron:install && node tests/electron/smoke.mjs",
+    "smoke:visual": "npm run build && npm run electron:install && node tests/electron/visual-smoke.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "generate:icon": "node scripts/generate-icon.mjs",
     "release:notes": "node scripts/generate-release-notes.mjs",

@@ -296,6 +296,14 @@ npm run smoke:electron
 
 `npm run smoke:electron` builds the app, launches the production Electron entrypoint, verifies the GM preload bridge, opens Player View through IPC, sends a Player View idle state, and checks Electron display enumeration.
 
+Run the visual Electron smoke test for canvas-sensitive changes:
+
+```bash
+npm run smoke:visual
+```
+
+`npm run smoke:visual` builds the app, launches the production Electron entrypoint with deterministic visual fixtures, sends a rendered scene and a test pattern to Player View, verifies that the scene canvas has nonblank visual output, checks Player View dice, turn order, and seat overlays, and writes Player View screenshots to the OS temp folder for failure evidence. It is the current dependency-light visual smoke path; Playwright remains a good future option for broader click-through workflow tests. Automated video-map visual coverage is deferred, so video maps still need the manual release smoke pass.
+
 ## Project Documentation
 
 - [`docs/architecture.md`](docs/architecture.md): runtime structure, data flow, and layer ownership rules.
