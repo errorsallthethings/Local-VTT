@@ -1,7 +1,29 @@
-import type { MetadataBackupEntry } from "../src/shared/localvtt.js";
+import path from "node:path";
+
+import type { MetadataBackupEntry, MetadataBackupRef } from "../src/shared/localvtt.js";
 
 export function createBackupTimestamp(now = new Date()): string {
   return now.toISOString().replace(/[:.]/g, "-");
+}
+
+export function campaignBackupFolder(campaignPath: string): string {
+  return path.join(campaignPath, "backups", "campaign");
+}
+
+export function sceneBackupFolder(campaignPath: string, sceneId: string): string {
+  return path.join(campaignPath, "backups", "scenes", sceneId);
+}
+
+export function metadataBackupPathFromRef(campaignPath: string, ref: MetadataBackupRef): string {
+  const backupFolder = ref.kind === "campaign" ? campaignBackupFolder(campaignPath) : sceneBackupFolder(campaignPath, requireSceneBackupId(ref));
+  return path.join(backupFolder, path.basename(ref.fileName));
+}
+
+export function requireSceneBackupId(ref: MetadataBackupRef): string {
+  if (!ref.sceneId) {
+    throw new Error("Scene backup selection is missing a scene id.");
+  }
+  return ref.sceneId;
 }
 
 export function createMetadataBackupEntry(

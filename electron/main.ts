@@ -49,7 +49,14 @@ import {
   type AssetImportKind
 } from "./assetImportValidation.js";
 import { formatMetadataReadError, formatMetadataWriteError } from "./metadataErrors.js";
-import { createBackupTimestamp, createMetadataBackupEntry } from "./metadataBackups.js";
+import {
+  campaignBackupFolder,
+  createBackupTimestamp,
+  createMetadataBackupEntry,
+  metadataBackupPathFromRef,
+  requireSceneBackupId,
+  sceneBackupFolder
+} from "./metadataBackups.js";
 import {
   hydrateCampaignSceneEntry,
   parseCampaignMetadata,
@@ -219,14 +226,6 @@ function campaignFile(campaignPath: string): string {
 
 function sceneFile(campaignPath: string, sceneId: string): string {
   return path.join(campaignPath, "scenes", `${sceneId}.scene.json`);
-}
-
-function campaignBackupFolder(campaignPath: string): string {
-  return path.join(campaignPath, "backups", "campaign");
-}
-
-function sceneBackupFolder(campaignPath: string, sceneId: string): string {
-  return path.join(campaignPath, "backups", "scenes", sceneId);
 }
 
 function resolveAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
@@ -603,17 +602,9 @@ async function listBackupFolder(campaignPath: string, backupFolder: string, kind
 }
 
 function backupPathFromRef(campaignPath: string, ref: MetadataBackupRef): string {
-  const backupFolder = ref.kind === "campaign" ? campaignBackupFolder(campaignPath) : sceneBackupFolder(campaignPath, requireSceneBackupId(ref));
-  const backupPath = path.join(backupFolder, path.basename(ref.fileName));
+  const backupPath = metadataBackupPathFromRef(campaignPath, ref);
   assertInsideCampaign(campaignPath, backupPath);
   return backupPath;
-}
-
-function requireSceneBackupId(ref: MetadataBackupRef): string {
-  if (!ref.sceneId) {
-    throw new Error("Scene backup selection is missing a scene id.");
-  }
-  return ref.sceneId;
 }
 
 async function previewMetadataBackup(campaignPath: string, ref: MetadataBackupRef): Promise<MetadataBackupPreview> {
