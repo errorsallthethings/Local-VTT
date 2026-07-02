@@ -138,6 +138,14 @@ Package for macOS:
 
 ```bash
 npm run package:mac
+npm run package:mac:check
+```
+
+Package for Linux:
+
+```bash
+npm run package:linux
+npm run package:linux:check
 ```
 
 Successful Windows packaging creates:

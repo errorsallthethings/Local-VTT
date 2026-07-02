@@ -6,11 +6,19 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 
 export function validatePackageArtifacts({ platform = "win", files = [] } = {}) {
-  if (platform !== "win") {
-    return [`Unsupported package artifact platform ${formatValue(platform)}.`];
+  if (platform === "win") {
+    return validateWindowsPackageArtifacts(files);
   }
 
-  return validateWindowsPackageArtifacts(files);
+  if (platform === "mac" || platform === "macos") {
+    return validateMacPackageArtifacts(files);
+  }
+
+  if (platform === "linux") {
+    return validateLinuxPackageArtifacts(files);
+  }
+
+  return [`Unsupported package artifact platform ${formatValue(platform)}.`];
 }
 
 export function validateWindowsPackageArtifacts(files) {
@@ -25,6 +33,40 @@ export function validateWindowsPackageArtifacts(files) {
   }
   if (!normalizedFiles.includes("release/win-unpacked/Local VTT.exe")) {
     errors.push("Windows packaging must produce release/win-unpacked/Local VTT.exe for local smoke testing.");
+  }
+
+  return errors;
+}
+
+export function validateMacPackageArtifacts(files) {
+  const normalizedFiles = normalizeRelativeFiles(files);
+  const errors = [];
+
+  if (!normalizedFiles.some((file) => file.startsWith("release/") && !file.slice("release/".length).includes("/") && (file.endsWith(".dmg") || file.endsWith(".zip")))) {
+    errors.push("macOS packaging must produce a release/*.dmg or release/*.zip package.");
+  }
+  if (!normalizedFiles.includes("release/latest-mac.yml")) {
+    errors.push("macOS packaging must produce release/latest-mac.yml.");
+  }
+
+  return errors;
+}
+
+export function validateLinuxPackageArtifacts(files) {
+  const normalizedFiles = normalizeRelativeFiles(files);
+  const errors = [];
+
+  if (!normalizedFiles.some((file) => file.startsWith("release/") && !file.slice("release/".length).includes("/") && file.endsWith(".AppImage"))) {
+    errors.push("Linux packaging must produce a release/*.AppImage package.");
+  }
+  if (!normalizedFiles.some((file) => file.startsWith("release/") && !file.slice("release/".length).includes("/") && file.endsWith(".deb"))) {
+    errors.push("Linux packaging must produce a release/*.deb package.");
+  }
+  if (!normalizedFiles.some((file) => file.startsWith("release/") && !file.slice("release/".length).includes("/") && file.endsWith(".rpm"))) {
+    errors.push("Linux packaging must produce a release/*.rpm package.");
+  }
+  if (!normalizedFiles.includes("release/latest-linux.yml")) {
+    errors.push("Linux packaging must produce release/latest-linux.yml.");
   }
 
   return errors;

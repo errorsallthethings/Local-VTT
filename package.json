@@ -22,6 +22,8 @@
     "generate:icon": "node scripts/generate-icon.mjs",
     "release:check-metadata": "node scripts/validate-release-metadata.mjs",
     "package:win:check": "node scripts/validate-package-artifacts.mjs win",
+    "package:mac:check": "node scripts/validate-package-artifacts.mjs mac",
+    "package:linux:check": "node scripts/validate-package-artifacts.mjs linux",
     "release:notes": "node scripts/generate-release-notes.mjs",
     "package:mac": "npm run build && electron-builder --mac",
     "package:win": "npm run build && electron-builder --win",
