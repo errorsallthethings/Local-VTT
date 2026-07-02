@@ -5,6 +5,7 @@ export function campaignFile(campaignPath: string): string {
 }
 
 export function sceneFile(campaignPath: string, sceneId: string): string {
+  assertSafeCampaignPathSegment(sceneId, "scene id");
   return path.join(campaignPath, "scenes", `${sceneId}.scene.json`);
 }
 
@@ -19,4 +20,17 @@ export function requiredCampaignFolders(campaignPath: string): string[] {
     path.join(campaignPath, "assets", "thumbnails"),
     path.join(campaignPath, "scenes")
   ];
+}
+
+function assertSafeCampaignPathSegment(value: string, label: string): void {
+  if (
+    value.trim() === "" ||
+    value === "." ||
+    value === ".." ||
+    path.isAbsolute(value) ||
+    value.includes("/") ||
+    value.includes("\\")
+  ) {
+    throw new Error(`Unsafe campaign ${label}.`);
+  }
 }

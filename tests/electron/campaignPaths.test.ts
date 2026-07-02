@@ -8,6 +8,12 @@ describe("campaign path helpers", () => {
     expect(sceneFile("campaign-root", "scene-1")).toBe(path.join("campaign-root", "scenes", "scene-1.scene.json"));
   });
 
+  it("rejects unsafe scene ids", () => {
+    expect(() => sceneFile("campaign-root", "../campaign")).toThrow("Unsafe campaign scene id.");
+    expect(() => sceneFile("campaign-root", "folder\\scene-1")).toThrow("Unsafe campaign scene id.");
+    expect(() => sceneFile("campaign-root", "")).toThrow("Unsafe campaign scene id.");
+  });
+
   it("lists required campaign folders", () => {
     expect(requiredCampaignFolders("campaign-root")).toEqual([
       "campaign-root",
