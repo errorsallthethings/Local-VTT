@@ -1,3 +1,4 @@
+export * from "./drawingBounds";
 export * from "./drawingGeometry";
 export * from "./drawingPreview";
 export * from "./drawingRenderer";

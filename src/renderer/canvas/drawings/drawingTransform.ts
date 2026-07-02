@@ -1,10 +1,9 @@
 import type { Point, Scene } from "../../../shared/localvtt";
 import type { Camera } from "../core/camera";
 import type { DrawingResizeHandle } from "../core/canvasInteraction";
-import { getDrawingBounds } from "../drawings/drawingRenderer";
+import { getDrawingBounds, type DrawingBounds } from "../drawings/drawingBounds";
 import { distanceBetween } from "../tokens/tokenGeometry";
 
-export type DrawingBounds = { left: number; top: number; right: number; bottom: number };
 export type DrawingPointSnapshot = Map<string, Point[]>;
 export type PointSnapshotMove = {
   start: Point;
