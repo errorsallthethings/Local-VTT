@@ -1,6 +1,6 @@
 import type { Point, Scene } from "../../../shared/localvtt";
 import type { Camera } from "../core/camera";
-import { getDrawingAtPoint } from "../drawings/drawingRenderer";
+import { getDrawingAtPoint } from "../drawings/drawingHitTesting";
 import { getDrawingHitRadius } from "../drawings/drawingPreview";
 import { getDrawingResizeHandleAtPoint, getDrawingRotationHandleAtPoint } from "../drawings/drawingTransform";
 import { getMaskHitAtPoint, isMaskHitVisibleForLayers } from "../scene/sceneHitTesting";

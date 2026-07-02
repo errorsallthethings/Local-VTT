@@ -1,5 +1,6 @@
 export * from "./drawingBounds";
 export * from "./drawingGeometry";
+export * from "./drawingHitTesting";
 export * from "./drawingPreview";
 export * from "./drawingRenderer";
 export * from "./drawingTransform";
