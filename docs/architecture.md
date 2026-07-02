@@ -16,6 +16,7 @@ Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog 
 
 - Campaigns are stored as local folders with `campaign.json`, scene JSON files, and relative asset paths.
 - Electron resolves absolute asset paths at runtime after a campaign is opened.
+- Saved campaign metadata must not contain absolute asset paths. Persistence codecs strip runtime-only absolute paths and reject asset paths that are absolute, contain drive prefixes, or traverse outside the campaign folder.
 - Renderer code saves campaign and scene changes through the preload API.
 - Player View receives a projected scene payload that strips GM-only content before crossing the IPC boundary.
 - Campaign and scene files include schema versions so future migrations have an explicit upgrade path. Local VTT `0.1.8` writes campaign and scene schema version `2`.

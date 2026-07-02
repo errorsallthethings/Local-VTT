@@ -67,6 +67,14 @@ Assets are stored with relative paths in JSON so campaign folders can be backed 
 
 Imported static image and video maps generate small JPEG thumbnails in `assets/thumbnails/` for the scene list. Video thumbnails are captured from the first frame during import when Electron can decode the source video. Imported token assets also generate square JPEG thumbnails for token sub-layer previews and the Token Library.
 
+### Sharing And Moving Campaigns
+
+To share or move a campaign, close Local VTT and copy the entire campaign folder. Keep `campaign.json`, `scenes/`, and `assets/` together; the JSON metadata references assets with relative paths inside that folder.
+
+Avoid editing asset paths in `campaign.json` by hand. Local VTT expects asset and thumbnail paths to be relative paths inside the campaign folder, such as `assets/maps/dungeon.png`. Absolute paths like `C:\Maps\dungeon.png`, paths that climb out of the folder with `..`, or paths to files beside the campaign are rejected or reported as missing.
+
+If a moved or shared campaign opens with missing assets, use Campaign Health from the Campaign panel to see which files are missing, stale, unreferenced, or referenced by scene metadata.
+
 ## Install Troubleshooting
 
 `npm install` may report deprecation warnings from transitive Electron packaging dependencies, such as `rimraf`, `inflight`, `glob`, or `boolean`. To see why a package is installed, run:
