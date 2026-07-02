@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createDefaultScene, type Scene, type Token, type WeatherMask } from "../../src/shared/localvtt";
 import {
   getCompletedSceneMarqueeSelection,
+  getMarqueeSelectionMode,
   getSceneMarqueeSelection,
   getSelectionDragFromPoint,
   getUpdatedSelectionDrag,
@@ -39,6 +40,14 @@ describe("selection geometry", () => {
       current: { x: 12, y: 18 },
       mode: "add"
     });
+  });
+
+  it("maps keyboard modifiers to marquee selection modes", () => {
+    expect(getMarqueeSelectionMode({})).toBe("replace");
+    expect(getMarqueeSelectionMode({ shiftKey: true })).toBe("add");
+    expect(getMarqueeSelectionMode({ ctrlKey: true })).toBe("subtract");
+    expect(getMarqueeSelectionMode({ metaKey: true })).toBe("subtract");
+    expect(getMarqueeSelectionMode({ ctrlKey: true, shiftKey: true })).toBe("subtract");
   });
 
   it("detects populated scene item selections", () => {

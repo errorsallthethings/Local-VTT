@@ -106,6 +106,7 @@ import {
 } from "../canvas/scene";
 import {
   getCompletedSceneMarqueeSelection,
+  getMarqueeSelectionMode,
   hasSelectedSceneItems,
   getSelectionDragFromPoint,
   getUpdatedSelectionDrag
@@ -1349,7 +1350,7 @@ export function SceneCanvas({
     }
     if (mode === "gm" && mouseBehavior === "selector" && scene && !authoringToolActive && event.button === 0 && (event.shiftKey || event.ctrlKey || event.metaKey)) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const selectionMode: SelectionMode = event.ctrlKey || event.metaKey ? "subtract" : "add";
+      const selectionMode: SelectionMode = getMarqueeSelectionMode(event);
       const nextSelectionDrag = getSelectionDragFromPoint(event.pointerId, point, selectionMode);
       selectionDragRef.current = nextSelectionDrag;
       setSelectionDrag(nextSelectionDrag);
@@ -1483,7 +1484,7 @@ export function SceneCanvas({
     }
     if (mode === "gm" && mouseBehavior === "selector" && scene && !authoringToolActive && event.button === 0) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const selectionMode: SelectionMode = event.ctrlKey || event.metaKey ? "subtract" : event.shiftKey ? "add" : "replace";
+      const selectionMode: SelectionMode = getMarqueeSelectionMode(event);
       const nextSelectionDrag = getSelectionDragFromPoint(event.pointerId, point, selectionMode);
       selectionDragRef.current = nextSelectionDrag;
       setSelectionDrag(nextSelectionDrag);

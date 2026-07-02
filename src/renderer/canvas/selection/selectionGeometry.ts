@@ -29,10 +29,19 @@ export type SceneMarqueeSelection = {
 
 export type SceneSelectionIds = SceneMarqueeSelection;
 
+export type MarqueeSelectionMode = "replace" | "add" | "subtract";
+
 export type SelectionDragLike = {
   start: Point;
   current: Point;
 };
+
+export function getMarqueeSelectionMode(modifiers: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean }): MarqueeSelectionMode {
+  if (modifiers.ctrlKey || modifiers.metaKey) {
+    return "subtract";
+  }
+  return modifiers.shiftKey ? "add" : "replace";
+}
 
 export function getUpdatedSelectionDrag<TDrag extends { current: Point }>(drag: TDrag, point: Point): TDrag {
   return { ...drag, current: point };
