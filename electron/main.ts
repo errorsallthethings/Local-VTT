@@ -34,6 +34,7 @@ import {
   LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE
 } from "./assetProtocol.js";
 import { campaignFile, requiredCampaignFolders, sceneFile } from "./campaignPaths.js";
+import { assertInsidePath } from "./campaignPathSafety.js";
 import { inspectCampaignHealth } from "./campaignHealth.js";
 import {
   createImageMapThumbnail,
@@ -236,12 +237,7 @@ function resolveAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
 }
 
 function assertInsideCampaign(campaignPath: string, candidatePath: string): void {
-  const root = path.resolve(campaignPath);
-  const candidate = path.resolve(candidatePath);
-  const relative = path.relative(root, candidate);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw new Error("Path is outside the selected campaign folder.");
-  }
+  assertInsidePath(campaignPath, candidatePath);
 }
 
 function registerCampaignPath(campaignPath: string): void {

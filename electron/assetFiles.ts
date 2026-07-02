@@ -1,5 +1,6 @@
 import path from "node:path";
 import { normalizeCampaign, type Asset, type Campaign } from "../src/shared/localvtt.js";
+import { isInsidePath } from "./campaignPathSafety.js";
 import { assertSafePathSegment } from "./safePathSegments.js";
 
 export function hydrateCampaignAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
@@ -60,11 +61,6 @@ export function buildAssetImportRelativePath(kind: Asset["kind"], fileName: stri
 export function resolveCampaignRelativePath(campaignPath: string, relativePath: string): string | undefined {
   const resolvedPath = path.resolve(campaignPath, relativePath);
   return isInsidePath(campaignPath, resolvedPath) ? resolvedPath : undefined;
-}
-
-function isInsidePath(rootPath: string, candidatePath: string): boolean {
-  const relative = path.relative(path.resolve(rootPath), path.resolve(candidatePath));
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
 function dedupePaths(paths: Array<string | undefined>): string[] {
