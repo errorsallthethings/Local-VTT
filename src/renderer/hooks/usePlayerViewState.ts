@@ -15,9 +15,66 @@ import { logRendererWarning } from "../lib/rendererDiagnostics";
 const PLAYER_TEMPLATE_PREVIEW_ID = "template-preview";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
+type PlayerSceneAutoSyncAction = "ignore" | "skip-once" | "sync";
 
 export function shouldShowPlayerHoldAfterSceneDelete(deletedSceneId: string, playerSceneId: string | null, deleteSucceeded: boolean): boolean {
   return deleteSucceeded && deletedSceneId === playerSceneId;
+}
+
+export function getPlayerSceneAutoSyncAction({
+  hasCampaign,
+  activeSceneId,
+  playerSceneId,
+  playerDisplayMode,
+  skipNextAutoSync
+}: {
+  hasCampaign: boolean;
+  activeSceneId: string | null;
+  playerSceneId: string | null;
+  playerDisplayMode: PlayerDisplayMode;
+  skipNextAutoSync: boolean;
+}): PlayerSceneAutoSyncAction {
+  if (!hasCampaign || !activeSceneId || activeSceneId !== playerSceneId || playerDisplayMode !== "scene") {
+    return "ignore";
+  }
+  return skipNextAutoSync ? "skip-once" : "sync";
+}
+
+export function getPlayerTemplatePreviewSyncScene({
+  activeScene,
+  hasCampaign,
+  playerSceneId,
+  playerDisplayMode,
+  templatePreviewVisibleInPlayer,
+  playerTemplatePreviewDrawing,
+  previewPublished
+}: {
+  activeScene: Scene | null;
+  hasCampaign: boolean;
+  playerSceneId: string | null;
+  playerDisplayMode: PlayerDisplayMode;
+  templatePreviewVisibleInPlayer: boolean;
+  playerTemplatePreviewDrawing: DrawingElement | null;
+  previewPublished: boolean;
+}): { scene: Scene | null; previewPublished: boolean } {
+  if (!hasCampaign || !activeScene || activeScene.id !== playerSceneId || playerDisplayMode !== "scene") {
+    return { scene: null, previewPublished: false };
+  }
+
+  const previewDrawing = templatePreviewVisibleInPlayer ? playerTemplatePreviewDrawing : null;
+  if (!previewDrawing && !previewPublished) {
+    return { scene: null, previewPublished: false };
+  }
+
+  return {
+    scene: previewDrawing
+      ? {
+          ...activeScene,
+          drawings: [...activeScene.drawings.filter((drawing) => drawing.id !== PLAYER_TEMPLATE_PREVIEW_ID), previewDrawing]
+        }
+      : activeScene,
+    previewPublished: Boolean(previewDrawing)
+  };
 }
 
 interface UsePlayerViewStateOptions {
@@ -137,33 +194,39 @@ export function usePlayerViewState({
   }, [campaign?.scenes]);
 
   useEffect(() => {
-    if (!campaign || !activeScene || activeScene.id !== playerSceneId || playerDisplayMode !== "scene") {
+    const action = getPlayerSceneAutoSyncAction({
+      hasCampaign: Boolean(campaign),
+      activeSceneId: activeScene?.id ?? null,
+      playerSceneId,
+      playerDisplayMode,
+      skipNextAutoSync: skipNextPlayerSceneAutoSyncRef.current
+    });
+    if (action === "ignore") {
       return;
     }
-    if (skipNextPlayerSceneAutoSyncRef.current) {
+    if (action === "skip-once") {
       skipNextPlayerSceneAutoSyncRef.current = false;
       return;
     }
-    void updatePlayerSceneIfOpen(window.localVtt, campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
+    if (campaign && activeScene) {
+      void updatePlayerSceneIfOpen(window.localVtt, campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
+    }
   }, [activeScene, campaign, playerDisplayMode, playerSceneId, playersPanelOpen]);
 
   useEffect(() => {
-    if (!campaign || !activeScene || activeScene.id !== playerSceneId || playerDisplayMode !== "scene") {
-      playerTemplatePreviewPublishedRef.current = false;
-      return;
+    const syncState = getPlayerTemplatePreviewSyncScene({
+      activeScene,
+      hasCampaign: Boolean(campaign),
+      playerSceneId,
+      playerDisplayMode,
+      templatePreviewVisibleInPlayer,
+      playerTemplatePreviewDrawing,
+      previewPublished: playerTemplatePreviewPublishedRef.current
+    });
+    playerTemplatePreviewPublishedRef.current = syncState.previewPublished;
+    if (campaign && syncState.scene) {
+      void updatePlayerSceneIfOpen(window.localVtt, campaign, syncState.scene, { showPlayerSeatIndicators: playersPanelOpen });
     }
-    const previewDrawing = templatePreviewVisibleInPlayer ? playerTemplatePreviewDrawing : null;
-    if (!previewDrawing && !playerTemplatePreviewPublishedRef.current) {
-      return;
-    }
-    const previewScene = previewDrawing
-      ? {
-          ...activeScene,
-          drawings: [...activeScene.drawings.filter((drawing) => drawing.id !== PLAYER_TEMPLATE_PREVIEW_ID), previewDrawing]
-        }
-      : activeScene;
-    playerTemplatePreviewPublishedRef.current = Boolean(previewDrawing);
-    void updatePlayerSceneIfOpen(window.localVtt, campaign, previewScene, { showPlayerSeatIndicators: playersPanelOpen });
   }, [activeScene, campaign, playerDisplayMode, playerSceneId, playerTemplatePreviewDrawing, playersPanelOpen, templatePreviewVisibleInPlayer]);
 
   return {
