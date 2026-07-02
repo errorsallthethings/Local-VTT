@@ -60,6 +60,7 @@ import {
   createMapReplacementToken,
   type MapReplacementTokenStore
 } from "./mapReplacementTokens.js";
+import { createThumbnailImportFailureDiagnostic } from "./thumbnailDiagnostics.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -411,7 +412,7 @@ async function regenerateCampaignThumbnails(
       const thumbnailResult =
         asset.kind === "map"
           ? await createMapThumbnail(campaignPath, sourcePath, asset.id, rendererWebContents)
-          : { thumbnailRelativePath: await createTokenThumbnail(campaignPath, sourcePath, asset.id) };
+          : await createTokenThumbnail(campaignPath, sourcePath, asset.id);
       if (!thumbnailResult.thumbnailRelativePath) {
         failures.push(createThumbnailFailure(asset, thumbnailResult.failureReason ?? "Thumbnail could not be generated."));
         assets.push(asset);
@@ -455,6 +456,11 @@ function createThumbnailFailure(asset: Asset, reason: string): ThumbnailRegenera
     relativePath: asset.relativePath,
     reason
   };
+}
+
+function logThumbnailImportFailure(kind: "map" | "token", sourcePath: string, reason: string | undefined): void {
+  const diagnostic = createThumbnailImportFailureDiagnostic(kind, sourcePath, reason);
+  console.warn(diagnostic.label, diagnostic.kind, diagnostic.fileName, diagnostic.reason);
 }
 
 async function writeCampaign(campaignPath: string, campaign: Campaign): Promise<void> {
@@ -1067,12 +1073,12 @@ async function createRendererVideoMapThumbnail(sourcePath: string, assetId: stri
   }
 }
 
-async function createTokenThumbnail(campaignPath: string, sourcePath: string, assetId: string): Promise<string | undefined> {
+async function createTokenThumbnail(campaignPath: string, sourcePath: string, assetId: string): Promise<MapThumbnailResult> {
   const thumbnail = await createSquareImageThumbnail(sourcePath);
   if (!thumbnail) {
-    return undefined;
+    return { failureReason: "Image file could not be decoded by Electron." };
   }
-  return writeTokenThumbnail(campaignPath, assetId, thumbnail);
+  return { thumbnailRelativePath: await writeTokenThumbnail(campaignPath, assetId, thumbnail) };
 }
 
 async function writeTokenThumbnail(campaignPath: string, assetId: string, thumbnail: Buffer, variant = ""): Promise<string> {
@@ -1498,6 +1504,9 @@ ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
   const assetId = randomUUID();
   const thumbnailResult = await createMapThumbnail(campaignPath, destination, assetId, event.sender);
   const thumbnailRelativePath = thumbnailResult.thumbnailRelativePath;
+  if (!thumbnailRelativePath) {
+    logThumbnailImportFailure("map", sourcePath, thumbnailResult.failureReason);
+  }
   const imported: Asset = {
     id: assetId,
     name: path.basename(sourcePath),
@@ -1591,6 +1600,9 @@ ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: 
   const assetId = randomUUID();
   const thumbnailResult = await createMapThumbnail(campaignPath, destination, assetId, event.sender);
   const thumbnailRelativePath = thumbnailResult.thumbnailRelativePath;
+  if (!thumbnailRelativePath) {
+    logThumbnailImportFailure("map", sourcePath, thumbnailResult.failureReason);
+  }
   const imported: Asset = {
     id: assetId,
     name: path.basename(sourcePath),
@@ -1638,7 +1650,11 @@ ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
   await copyFile(sourcePath, destination);
 
   const assetId = randomUUID();
-  const thumbnailRelativePath = await createTokenThumbnail(campaignPath, sourcePath, assetId);
+  const thumbnailResult = await createTokenThumbnail(campaignPath, sourcePath, assetId);
+  const thumbnailRelativePath = thumbnailResult.thumbnailRelativePath;
+  if (!thumbnailRelativePath) {
+    logThumbnailImportFailure("token", sourcePath, thumbnailResult.failureReason);
+  }
   const imported: Asset = {
     id: assetId,
     name: path.basename(sourcePath),
