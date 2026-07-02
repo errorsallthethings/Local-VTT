@@ -75,6 +75,7 @@ import { getDimensionDifferenceWarning } from "./mapReplacementWarnings.js";
 import { getMapAssetSceneNames, mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
 import { createThumbnailImportFailureDiagnostic, createThumbnailRegenerationFailure } from "./thumbnailDiagnostics.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
+import { createCampaignSceneEntry, insertSceneEntryAfter, updateSceneEntryFromScene } from "./sceneEntries.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -1227,7 +1228,7 @@ ipcMain.handle("scene:create", async (_event, campaignPath: string, sceneName: s
 
   const campaign: Campaign = {
     ...summary.campaign,
-    scenes: [...summary.campaign.scenes, { id: scene.id, name: scene.name, file: `scenes/${scene.id}.scene.json`, weather: scene.weather }],
+    scenes: [...summary.campaign.scenes, createCampaignSceneEntry(scene)],
     updatedAt: new Date().toISOString()
   };
   await writeCampaign(campaignPath, campaign);
@@ -1241,20 +1242,9 @@ ipcMain.handle("scene:duplicate", async (_event, campaignPath: string, sourceSce
   const scene = duplicateScene(sourceScene, sceneName || `${sourceScene.name} Copy`);
   await writeScene(campaignPath, scene);
 
-  const duplicateEntry = {
-    id: scene.id,
-    name: scene.name,
-    file: `scenes/${scene.id}.scene.json`,
-    mapAssetId: scene.mapAssetId,
-    weather: scene.weather,
-    folderId
-  };
-  const sourceIndex = summary.campaign.scenes.findIndex((entry) => entry.id === afterSceneId);
-  const scenes = [...summary.campaign.scenes];
-  scenes.splice(sourceIndex >= 0 ? sourceIndex + 1 : scenes.length, 0, duplicateEntry);
   const campaign: Campaign = {
     ...summary.campaign,
-    scenes,
+    scenes: insertSceneEntryAfter(summary.campaign.scenes, createCampaignSceneEntry(scene, folderId), afterSceneId),
     updatedAt: new Date().toISOString()
   };
   await writeCampaign(campaignPath, campaign);
@@ -1279,9 +1269,7 @@ ipcMain.handle("scene:save", async (_event, campaignPath: string, scene: Scene) 
   const summary = await loadCampaignFromPath(campaignPath);
   const campaign: Campaign = {
     ...summary.campaign,
-    scenes: summary.campaign.scenes.map((entry) =>
-      entry.id === scene.id ? { ...entry, name: scene.name, mapAssetId: updated.mapAssetId, weather: updated.weather } : entry
-    ),
+    scenes: summary.campaign.scenes.map((entry) => (entry.id === scene.id ? updateSceneEntryFromScene(entry, updated) : entry)),
     updatedAt: new Date().toISOString()
   };
   await writeCampaign(campaignPath, campaign);
