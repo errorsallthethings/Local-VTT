@@ -1,15 +1,10 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
+import type { CampaignHealthAssetKind, CampaignHealthMissingAssetFile } from "../src/shared/campaignHealth.js";
 import type { Asset } from "../src/shared/localvtt.js";
 
-export type MissingCampaignAssetKind = Asset["kind"] | "thumbnail";
-
-export interface MissingCampaignAssetFile {
-  assetId: string;
-  assetName: string;
-  kind: MissingCampaignAssetKind;
-  relativePath: string;
-}
+export type MissingCampaignAssetKind = CampaignHealthAssetKind;
+export type MissingCampaignAssetFile = CampaignHealthMissingAssetFile;
 
 type FileExists = (absolutePath: string) => Promise<boolean>;
 

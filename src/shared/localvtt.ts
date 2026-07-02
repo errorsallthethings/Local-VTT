@@ -40,8 +40,26 @@ import type {
   VoidEffectTuningSettings,
   WaterEffectTuningSettings
 } from "./environmentEffectTuning.js";
+import {
+  CURRENT_CAMPAIGN_SCHEMA_VERSION,
+  CURRENT_SCENE_SCHEMA_VERSION,
+  isSupportedSchemaVersion,
+  migrateCampaignToCurrent,
+  migrateSceneToCurrent
+} from "./schemaMigrations.js";
+import type { CampaignHealthReport } from "./campaignHealth.js";
 
 export type { EnvironmentEffectType } from "./environmentEffectCatalog.js";
+export type { CampaignHealthReport } from "./campaignHealth.js";
+export {
+  CURRENT_CAMPAIGN_SCHEMA_VERSION,
+  CURRENT_SCENE_SCHEMA_VERSION,
+  LEGACY_SCHEMA_VERSION,
+  isSupportedSchemaVersion,
+  migrateCampaignToCurrent,
+  migrateSceneToCurrent,
+  normalizeSchemaVersion
+} from "./schemaMigrations.js";
 
 export type AssetKind = "map" | "token" | "overlay" | "effect" | "handout";
 export type AssetMediaType = "image" | "video";
@@ -56,10 +74,6 @@ export type TokenSizePreset = "tiny" | "medium" | "large" | "huge" | "gargantuan
 export type TokenMask = "none" | "circle" | "square";
 export type TokenBorderStyle = "none" | "solid" | "dashed" | "dotted" | "double-line" | "embossed" | "inner-shadow" | "glow";
 export type TokenBorderWidthPreset = "thin" | "medium" | "thick" | "custom";
-
-export const CURRENT_CAMPAIGN_SCHEMA_VERSION = 2;
-export const CURRENT_SCENE_SCHEMA_VERSION = 2;
-const LEGACY_SCHEMA_VERSION = 0;
 
 export interface TokenPresentationDefaults {
   sizePreset?: TokenSizePreset;
@@ -701,6 +715,7 @@ export interface CampaignSummary {
   campaignPath: string;
   campaign: Campaign;
   missingAssets: string[];
+  health: CampaignHealthReport;
 }
 
 export type MetadataBackupKind = "campaign" | "scene";
@@ -1639,20 +1654,6 @@ function normalizeSceneOverlays(overlays?: SceneOverlay[]): SceneOverlay[] {
   }));
 }
 
-function migrateSceneToCurrent(scene: Scene): Scene {
-  const schemaVersion = normalizeSchemaVersion(scene.schemaVersion, CURRENT_SCENE_SCHEMA_VERSION);
-  if (schemaVersion === LEGACY_SCHEMA_VERSION) {
-    return {
-      ...scene,
-      schemaVersion: CURRENT_SCENE_SCHEMA_VERSION
-    };
-  }
-  return {
-    ...scene,
-    schemaVersion: CURRENT_SCENE_SCHEMA_VERSION
-  };
-}
-
 function isUnitNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
@@ -1978,17 +1979,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function isSupportedSchemaVersion(value: unknown, currentVersion: number): boolean {
-  if (value === undefined) {
-    return true;
-  }
-  return typeof value === "number" && Number.isInteger(value) && value >= LEGACY_SCHEMA_VERSION && value <= currentVersion;
-}
-
-function normalizeSchemaVersion(value: unknown, currentVersion: number): number {
-  return isSupportedSchemaVersion(value, currentVersion) && typeof value === "number" ? value : LEGACY_SCHEMA_VERSION;
-}
-
 function normalizeFog(fog?: Partial<FogSettings>): FogSettings {
   const legacyOpacity = fog?.opacity ?? DEFAULT_FOG.opacity;
   const usedShapeIds = new Set<string>();
@@ -2303,20 +2293,6 @@ function normalizeDiceSettings(settings?: Partial<DiceSettings>): DiceSettings {
     playerPanelPosition: clampNumber(settings?.playerPanelPosition, 0, 1, DEFAULT_DICE_SETTINGS.playerPanelPosition),
     gmPanelAdvanced: typeof settings?.gmPanelAdvanced === "boolean" ? settings.gmPanelAdvanced : DEFAULT_DICE_SETTINGS.gmPanelAdvanced,
     playerPanelAdvanced: typeof settings?.playerPanelAdvanced === "boolean" ? settings.playerPanelAdvanced : DEFAULT_DICE_SETTINGS.playerPanelAdvanced
-  };
-}
-
-function migrateCampaignToCurrent(campaign: Campaign): Campaign {
-  const schemaVersion = normalizeSchemaVersion(campaign.schemaVersion, CURRENT_CAMPAIGN_SCHEMA_VERSION);
-  if (schemaVersion === LEGACY_SCHEMA_VERSION) {
-    return {
-      ...campaign,
-      schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION
-    };
-  }
-  return {
-    ...campaign,
-    schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION
   };
 }
 

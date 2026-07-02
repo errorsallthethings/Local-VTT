@@ -37,6 +37,7 @@ import type {
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { CampaignBusyOverlay } from "../components/modals/CampaignBusyOverlay";
+import { CampaignHealthDialog } from "../components/modals/CampaignHealthDialog";
 import { MetadataBackupRestoreDialog } from "../components/modals/MetadataBackupRestoreDialog";
 import { ThumbnailRegenerationResultDialog } from "../components/modals/ThumbnailRegenerationResultDialog";
 import { EnvironmentEffectEditorModal } from "../components/layers";
@@ -161,6 +162,7 @@ export function GmApp() {
     campaignPath,
     campaign,
     missingAssets,
+    campaignHealth,
     activeScene,
     setActiveScene,
     sceneDrafts,
@@ -229,6 +231,7 @@ export function GmApp() {
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null);
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
   const [metadataRestoreOpen, setMetadataRestoreOpen] = useState(false);
+  const [campaignHealthOpen, setCampaignHealthOpen] = useState(false);
   const [thumbnailRegenerationResult, setThumbnailRegenerationResult] = useState<ThumbnailRegenerationResult | null>(null);
   const [mapReplacementPreview, setMapReplacementPreview] = useState<MapReplacementPreview | null>(null);
   const {
@@ -1765,6 +1768,7 @@ export function GmApp() {
         onRemoveRecentCampaign={removeRecentCampaignPath}
         onSaveCampaign={() => void saveCampaign()}
         onRenameCampaign={openCampaignRenameDialog}
+        onOpenCampaignHealth={() => setCampaignHealthOpen(true)}
         onOpenBackupRestore={openMetadataRestoreDialog}
         onRegenerateThumbnails={() => void regenerateThumbnails()}
         onAddPlayer={addCampaignPlayer}
@@ -2360,6 +2364,7 @@ export function GmApp() {
           }}
         />
       )}
+      {campaignHealthOpen && <CampaignHealthDialog health={campaignHealth} onClose={() => setCampaignHealthOpen(false)} />}
       {busyState && <CampaignBusyOverlay busyState={busyState} />}
       {thumbnailRegenerationResult && (
         <ThumbnailRegenerationResultDialog result={thumbnailRegenerationResult} onClose={() => setThumbnailRegenerationResult(null)} />

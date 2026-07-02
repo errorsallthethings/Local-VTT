@@ -20,6 +20,13 @@ import {
   type Campaign,
   type Scene
 } from "../../src/shared/localvtt";
+import {
+  LEGACY_SCHEMA_VERSION,
+  isSupportedSchemaVersion,
+  migrateCampaignToCurrent,
+  migrateSceneToCurrent,
+  normalizeSchemaVersion
+} from "../../src/shared/schemaMigrations";
 
 describe("schema migration harness", () => {
   it("migrates legacy campaign fixtures to the current schema", () => {
@@ -122,5 +129,15 @@ describe("schema migration harness", () => {
     expect(() => assertValidScene({ ...structuredClone(legacySceneFixture), schemaVersion: CURRENT_SCENE_SCHEMA_VERSION + 1 })).toThrow(
       `Unsupported scene schema version. This app supports scene schema version ${CURRENT_SCENE_SCHEMA_VERSION}.`
     );
+  });
+
+  it("keeps schema version policy centralized for future migrations", () => {
+    expect(isSupportedSchemaVersion(undefined, CURRENT_SCENE_SCHEMA_VERSION)).toBe(true);
+    expect(isSupportedSchemaVersion(LEGACY_SCHEMA_VERSION, CURRENT_SCENE_SCHEMA_VERSION)).toBe(true);
+    expect(isSupportedSchemaVersion(CURRENT_SCENE_SCHEMA_VERSION + 1, CURRENT_SCENE_SCHEMA_VERSION)).toBe(false);
+    expect(normalizeSchemaVersion(undefined, CURRENT_SCENE_SCHEMA_VERSION)).toBe(LEGACY_SCHEMA_VERSION);
+
+    expect(migrateCampaignToCurrent(structuredClone(legacyCampaignFixture) as Campaign).schemaVersion).toBe(CURRENT_CAMPAIGN_SCHEMA_VERSION);
+    expect(migrateSceneToCurrent(structuredClone(legacySceneFixture) as Scene).schemaVersion).toBe(CURRENT_SCENE_SCHEMA_VERSION);
   });
 });

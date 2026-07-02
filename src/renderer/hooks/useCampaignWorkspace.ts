@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Campaign, CampaignSummary, Scene } from "../../shared/localvtt";
+import { createEmptyCampaignHealthReport, type CampaignHealthReport } from "../../shared/campaignHealth";
 import { mergeCampaignDraft } from "../lib/campaign";
 import { formatUserFacingError } from "../lib/errors";
 import { showDefaultPlayerHold } from "../lib/player-view";
@@ -11,6 +12,7 @@ export function useCampaignWorkspace() {
   const [campaignPath, setCampaignPath] = useState<string | null>(null);
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [missingAssets, setMissingAssets] = useState<string[]>([]);
+  const [campaignHealth, setCampaignHealth] = useState<CampaignHealthReport>(() => createEmptyCampaignHealthReport());
   const [activeScene, setActiveScene] = useState<Scene | null>(null);
   const [sceneDrafts, setSceneDrafts] = useState<Record<string, Scene>>({});
   const [dirtySceneIds, setDirtySceneIds] = useState<Set<string>>(() => new Set());
@@ -44,6 +46,7 @@ export function useCampaignWorkspace() {
       preserveCampaignDraft && currentCampaign ? mergeCampaignDraft(summary.campaign, currentCampaign) : summary.campaign
     );
     setMissingAssets(summary.missingAssets);
+    setCampaignHealth(summary.health);
   };
 
   const clearWorkspaceState = () => {
@@ -51,6 +54,7 @@ export function useCampaignWorkspace() {
     setActiveScene(null);
     setSceneDrafts({});
     setDirtySceneIds(new Set());
+    setCampaignHealth(createEmptyCampaignHealthReport());
     setCampaignDirty(false);
     setSaveState("idle");
   };
@@ -112,6 +116,8 @@ export function useCampaignWorkspace() {
     setCampaign,
     missingAssets,
     setMissingAssets,
+    campaignHealth,
+    setCampaignHealth,
     activeScene,
     setActiveScene,
     sceneDrafts,

@@ -33,7 +33,7 @@ import {
   LOCALVTT_ASSET_MISSING_MESSAGE,
   LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE
 } from "./assetProtocol.js";
-import { findMissingCampaignAssetFiles } from "./campaignAssetRecovery.js";
+import { inspectCampaignHealth } from "./campaignHealth.js";
 import {
   createImageMapThumbnail,
   createSquareImageThumbnail,
@@ -50,6 +50,11 @@ import {
   toPortableCampaignMetadata,
   toPortableSceneMetadata
 } from "./persistenceCodecs.js";
+import {
+  consumeMapReplacementToken,
+  createMapReplacementToken,
+  type MapReplacementTokenStore
+} from "./mapReplacementTokens.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -78,6 +83,7 @@ let forceCloseGmWindow = false;
 let currentCampaignPath: string | null = null;
 const openedCampaignPaths = new Set<string>();
 const knownAssetPaths = new Set<string>();
+const mapReplacementTokens: MapReplacementTokenStore = new Map();
 
 function configureLinuxGraphicsSwitches(): void {
   if (process.platform !== "linux") {
@@ -283,10 +289,12 @@ async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSumma
   if (campaignWithThumbnails !== campaignWithSceneSummaries) {
     await writeCampaign(campaignPath, campaignWithThumbnails);
   }
+  const health = await inspectCampaignHealth(campaignPath, campaignWithThumbnails);
   return {
     campaignPath,
     campaign: resolveAssetPaths(campaignPath, campaignWithThumbnails),
-    missingAssets: (await findMissingCampaignAssetFiles(campaignPath, campaignWithThumbnails.assets)).map((asset) => asset.relativePath)
+    missingAssets: health.missingAssetFiles.map((asset) => asset.relativePath),
+    health
   };
 }
 
@@ -1531,9 +1539,15 @@ ipcMain.handle("asset:previewMapReplacement", async (_event, campaignPath: strin
   assertInsideCampaign(campaignPath, currentAssetPath);
   const nextMediaType = mapMediaType(sourcePath);
   const dimensions = await getMapReplacementWarning(currentAssetPath, currentAsset.mediaType, sourcePath, nextMediaType);
+  const replacementToken = createMapReplacementToken(mapReplacementTokens, {
+    campaignPath,
+    sceneId,
+    currentAssetId,
+    sourcePath
+  });
 
   return {
-    sourcePath,
+    replacementId: replacementToken.id,
     sourceName: path.basename(sourcePath),
     currentAssetName: currentAsset.name,
     currentDimensions: dimensions.currentDimensions,
@@ -1542,8 +1556,13 @@ ipcMain.handle("asset:previewMapReplacement", async (_event, campaignPath: strin
   };
 });
 
-ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: string, currentAssetId: string, sourcePath: string) => {
+ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: string, currentAssetId: string, replacementId: string) => {
   assertKnownCampaignPath(campaignPath);
+  const sourcePath = consumeMapReplacementToken(mapReplacementTokens, replacementId, {
+    campaignPath,
+    sceneId,
+    currentAssetId
+  });
   if (!allowedMapExtension(sourcePath)) {
     throw new Error("Unsupported map type. Use jpg, jpeg, png, webp, gif, mp4, or webm.");
   }

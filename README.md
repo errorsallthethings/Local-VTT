@@ -108,7 +108,7 @@ These options are opt-in because the best combination depends on the compositor,
 
 Local VTT creates metadata-only JSON backups before overwriting `campaign.json` or existing scene JSON files. It keeps the latest 10 campaign backups and latest 10 backups per scene.
 
-Backups intentionally do not copy assets, maps, videos, token images, or thumbnails so campaign folders do not balloon in size.
+Backups intentionally do not copy assets, maps, videos, token images, or thumbnails so campaign folders do not balloon in size. To make a complete backup that can be restored on another computer, copy the entire campaign folder, including `campaign.json`, `scenes/`, `assets/`, and `backups/`.
 
 Use the Campaign panel's Restore Revision option to review and restore available metadata revisions from inside Local VTT. The restore dialog also includes Open Backups Folder for inspecting backup files in Explorer. Manual recovery should still be done while Local VTT is closed: copy a campaign backup over `campaign.json`, or copy a scene backup over the matching file in `scenes/`.
 
@@ -318,7 +318,7 @@ npm run smoke:visual
 - Local VTT does not currently include health bars, permissions, character sheets, or combat automation.
 - Dynamic lighting, walls, doors, windows, and vision-aware fog are not implemented yet.
 - Token Library export/import packs are deferred.
-- Backups cover campaign and scene JSON metadata only; map, video, token, and thumbnail assets are not duplicated.
+- Restore Revision backups cover campaign and scene JSON metadata only; map, video, token, and thumbnail assets are not duplicated. Copy the full campaign folder for a complete backup.
 - macOS notarization, auto-update, and release-channel infrastructure are not configured yet.
 
 ## Deferred Ideas

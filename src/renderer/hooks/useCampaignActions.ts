@@ -48,7 +48,7 @@ export interface CampaignBusyState {
 
 export interface MapReplacementPreview {
   currentAssetId: string;
-  sourcePath: string;
+  replacementId: string;
   sourceName: string;
   currentAssetName: string;
   currentDimensions?: { width: number; height: number };
@@ -284,7 +284,7 @@ export function useCampaignActions({
       if (!campaignPath || !campaign || !activeScene) {
         return;
       }
-      const result = await window.localVtt.replaceMap(campaignPath, activeScene.id, preview.currentAssetId, preview.sourcePath);
+      const result = await window.localVtt.replaceMap(campaignPath, activeScene.id, preview.currentAssetId, preview.replacementId);
       applySummary(result.campaignSummary);
       setActiveScene(result.scene);
       setSceneClean(result.scene);

@@ -1,4 +1,4 @@
-import { ArchiveRestore, ChevronDown, ChevronRight, Clock3, Edit3, EllipsisVertical, Eye, EyeOff, FolderOpen, Plus, RefreshCw, Save, Settings2, Trash2, UserRoundPlus, X } from "lucide-react";
+import { Activity, ArchiveRestore, ChevronDown, ChevronRight, Clock3, Edit3, EllipsisVertical, Eye, EyeOff, FolderOpen, Plus, RefreshCw, Save, Settings2, Trash2, UserRoundPlus, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { PLAYER_INDICATOR_THEME_LABELS, PLAYER_INDICATOR_THEMES } from "../../../shared/localvtt";
@@ -25,6 +25,7 @@ interface CampaignPanelProps {
   onRemoveRecentCampaign: (campaignPath: string) => void;
   onSaveCampaign: () => void;
   onRenameCampaign: () => void;
+  onOpenCampaignHealth: () => void;
   onOpenBackupRestore: () => void;
   onRegenerateThumbnails: () => void;
   onAddPlayer: () => void;
@@ -46,6 +47,7 @@ export function CampaignPanel({
   onRemoveRecentCampaign,
   onSaveCampaign,
   onRenameCampaign,
+  onOpenCampaignHealth,
   onOpenBackupRestore,
   onRegenerateThumbnails,
   onAddPlayer,
@@ -112,6 +114,16 @@ export function CampaignPanel({
             {maintenanceMenuOpen && (
               createPortal(
                 <FloatingCampaignMaintenanceMenu anchor={maintenanceButtonRef.current}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaintenanceMenuOpen(false);
+                      onOpenCampaignHealth();
+                    }}
+                  >
+                    <Activity size={16} aria-hidden="true" />
+                    <span>Campaign Health</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -231,7 +243,7 @@ function FloatingCampaignMaintenanceMenu({ anchor, children }: { anchor: HTMLEle
     open: Boolean(anchor),
     anchor,
     fallbackWidth: 210,
-    fallbackHeight: 92
+    fallbackHeight: 132
   });
 
   return (

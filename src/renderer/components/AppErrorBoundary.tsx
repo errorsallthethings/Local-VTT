@@ -1,5 +1,7 @@
 import React from "react";
 
+const SHOW_RENDERER_ERROR_DETAILS = Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV);
+
 type AppErrorBoundaryState = {
   error: Error | null;
 };
@@ -32,24 +34,31 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, A
       >
         <h1 style={{ margin: "0 0 12px", fontSize: 22 }}>Local VTT ran into a renderer error</h1>
         <p style={{ maxWidth: 760, color: "#aeb8c4", lineHeight: 1.5 }}>
-          The app stopped rendering, but the window is still alive. Check the dev terminal or DevTools console for
-          <code style={{ margin: "0 4px" }}>LOCALVTT_RENDERER_ERROR_BOUNDARY</code>
-          details.
+          The app stopped rendering, but the window is still alive. Your campaign files are stored separately from the
+          app, so close and reopen Local VTT before continuing.
         </p>
-        <pre
-          style={{
-            maxWidth: 960,
-            overflow: "auto",
-            marginTop: 20,
-            padding: 16,
-            border: "1px solid rgb(255 255 255 / 0.14)",
-            borderRadius: 6,
-            background: "rgb(0 0 0 / 0.28)",
-            whiteSpace: "pre-wrap"
-          }}
-        >
-          {this.state.error.stack ?? this.state.error.message}
-        </pre>
+        {SHOW_RENDERER_ERROR_DETAILS ? (
+          <>
+            <p style={{ maxWidth: 760, color: "#aeb8c4", lineHeight: 1.5 }}>
+              Dev details were logged as
+              <code style={{ margin: "0 4px" }}>LOCALVTT_RENDERER_ERROR_BOUNDARY</code>.
+            </p>
+            <pre
+              style={{
+                maxWidth: 960,
+                overflow: "auto",
+                marginTop: 20,
+                padding: 16,
+                border: "1px solid rgb(255 255 255 / 0.14)",
+                borderRadius: 6,
+                background: "rgb(0 0 0 / 0.28)",
+                whiteSpace: "pre-wrap"
+              }}
+            >
+              {this.state.error.stack ?? this.state.error.message}
+            </pre>
+          </>
+        ) : null}
       </main>
     );
   }

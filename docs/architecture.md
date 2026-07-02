@@ -20,6 +20,16 @@ Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog 
 - Player View receives a projected scene payload that strips GM-only content before crossing the IPC boundary.
 - Campaign and scene files include schema versions so future migrations have an explicit upgrade path. Local VTT `0.1.8` writes campaign and scene schema version `2`.
 
+## Schema Migrations
+
+Schema version constants and version-support checks live in `src/shared/schemaMigrations.ts`. `src/shared/localvtt.ts` still owns broad normalization and default backfills, but version policy should stay in the migration module so future persisted-data changes have one obvious entry point.
+
+When a release changes `campaign.json` or `*.scene.json` shape, update the relevant current schema version, add an explicit migration step in `schemaMigrations.ts`, and extend `tests/shared/schemaMigrationHarness.test.ts` with a legacy fixture or targeted regression. Future schema versions should continue to fail with a clear unsupported-version message instead of being silently rewritten.
+
+## Campaign Health
+
+Campaign summaries include a structured health report from `electron/campaignHealth.ts`. The current UI still uses the existing `missingAssets` list for compatibility, while the richer report tracks missing asset files, stale thumbnails, unreadable scene files, unknown asset references, and unreferenced campaign assets. This keeps JSON-folder campaigns auditable without committing Local VTT to a database before there is a concrete need.
+
 ## Layer Ownership
 
 Layer responsibilities are intentionally narrow so tools, rendering, visibility, and persistence stay predictable as Local VTT grows. See [`layer-ownership-rules.md`](layer-ownership-rules.md) for detailed ownership rules, examples, visibility guidance, and feature-placement questions.

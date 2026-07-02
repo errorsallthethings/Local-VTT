@@ -1,4 +1,5 @@
-import type { Campaign, LiveTableEvent, Point, Scene, Token } from "../../../shared/localvtt";
+import type { Campaign, LiveTableEvent, Point, Scene, TableToolSettings, Token } from "../../../shared/localvtt";
+import type { LaserDragState } from "../scene/sceneInteractionTypes";
 import type { RulerDrag, RulerLabel } from "../measurement/measurement";
 import {
   formatMeasurementDistance,
@@ -71,6 +72,79 @@ export function shouldShowDiceOverlay(event: Extract<LiveTableEvent, { type: "di
   }
   const presentation = mode === "gm" ? event.gmPresentation : event.playerPresentation;
   return presentation ? presentation === "3d" : event.presentation === "3d";
+}
+
+export type RulerPointerDrag = RulerDrag & { pointerId: number };
+
+export function createRulerDrag(pointerId: number, point: Point): RulerPointerDrag {
+  return { pointerId, start: point, current: point, waypoints: [] };
+}
+
+export function createRulerLiveTableEvent(rulerDrag: RulerDrag, scene: Scene, visibleInPlayer: boolean, now = Date.now(), expiresAt?: number): Extract<LiveTableEvent, { type: "ruler" }> {
+  const label = getRulerLabel(rulerDrag, scene);
+  return {
+    id: "ruler-live",
+    type: "ruler",
+    points: getRulerPathPoints(rulerDrag),
+    primary: label.primary,
+    secondary: label.secondary,
+    visibleInPlayer,
+    createdAt: now,
+    ...(expiresAt === undefined ? {} : { expiresAt })
+  };
+}
+
+export function createRulerClearEvent(now = Date.now()): Extract<LiveTableEvent, { type: "ruler-clear" }> {
+  return {
+    id: "ruler-clear",
+    type: "ruler-clear",
+    createdAt: now
+  };
+}
+
+export function createPingLiveTableEvent(id: string, point: Point, settings: TableToolSettings, visibleInPlayer: boolean, now = Date.now()): Extract<LiveTableEvent, { type: "ping" }> {
+  return {
+    id,
+    type: "ping",
+    point,
+    size: settings.pingSize,
+    color: settings.pingColor,
+    visibleInPlayer,
+    createdAt: now
+  };
+}
+
+export function createLaserDragStart(
+  pointerId: number,
+  eventId: string,
+  point: Point,
+  settings: TableToolSettings,
+  visibleInPlayer: boolean,
+  now = Date.now()
+): { drag: LaserDragState; event: Extract<LiveTableEvent, { type: "laser" }> } {
+  const points = [{ point, createdAt: now }];
+  return {
+    drag: { pointerId, eventId, points },
+    event: createLaserLiveTableEvent(eventId, points, settings, visibleInPlayer, now)
+  };
+}
+
+export function createLaserLiveTableEvent(
+  id: string,
+  points: LaserDragState["points"],
+  settings: TableToolSettings,
+  visibleInPlayer: boolean,
+  now = Date.now()
+): Extract<LiveTableEvent, { type: "laser" }> {
+  return {
+    id,
+    type: "laser",
+    createdAt: points[0]?.createdAt ?? now,
+    points,
+    thickness: settings.laserThickness,
+    color: settings.laserColor,
+    visibleInPlayer
+  };
 }
 
 export function isDuplicateRulerWaypoint(existingPosition: Point, waypoint: Point, scene: Scene): boolean {

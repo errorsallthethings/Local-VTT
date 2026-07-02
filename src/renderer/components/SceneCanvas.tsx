@@ -57,6 +57,12 @@ import {
 import { drawHexGrid, drawSquareGrid } from "../canvas/grid";
 import { constrainSquarePoint } from "../canvas/grid";
 import {
+  createLaserDragStart,
+  createLaserLiveTableEvent,
+  createPingLiveTableEvent,
+  createRulerClearEvent,
+  createRulerDrag,
+  createRulerLiveTableEvent,
   drawLiveTableEvents,
   getUpdatedLaserDrag,
   hasActiveLiveTableEvents,
@@ -85,7 +91,6 @@ import {
 } from "../canvas/map";
 import {
   drawRuler,
-  getRulerPathPoints,
   type RulerDrag
 } from "../canvas/measurement";
 import { removeLastWaypoint } from "../canvas/tokens";
@@ -720,16 +725,7 @@ export function SceneCanvas({
     if (!scene) {
       return;
     }
-    const label = getRulerLabel(nextRulerDrag, scene);
-    onLiveTableEvent?.({
-      id: "ruler-live",
-      type: "ruler",
-      points: getRulerPathPoints(nextRulerDrag),
-      primary: label.primary,
-      secondary: label.secondary,
-      visibleInPlayer: tableToolsVisibleInPlayer,
-      createdAt: Date.now()
-    });
+    onLiveTableEvent?.(createRulerLiveTableEvent(nextRulerDrag, scene, tableToolsVisibleInPlayer));
   }, [onLiveTableEvent, scene, tableToolsVisibleInPlayer]);
 
   const cancelRulerDrag = useCallback(() => {
@@ -740,11 +736,7 @@ export function SceneCanvas({
     rulerDragRef.current = null;
     setRulerDrag(null);
     setReleasedRulerDrag(null);
-    onLiveTableEvent?.({
-      id: "ruler-clear",
-      type: "ruler-clear",
-      createdAt: Date.now()
-    });
+    onLiveTableEvent?.(createRulerClearEvent());
   }, [onLiveTableEvent]);
 
   const finishRulerDrag = useCallback(() => {
@@ -756,7 +748,6 @@ export function SceneCanvas({
       cancelRulerDrag();
       return;
     }
-    const label = getRulerLabel(activeRulerDrag, scene);
     const now = Date.now();
     if (releasedRulerTimeoutRef.current !== null) {
       window.clearTimeout(releasedRulerTimeoutRef.current);
@@ -768,16 +759,7 @@ export function SceneCanvas({
       setReleasedRulerDrag(null);
       releasedRulerTimeoutRef.current = null;
     }, RULER_RELEASE_LINGER_MS);
-    onLiveTableEvent?.({
-      id: "ruler-live",
-      type: "ruler",
-      points: getRulerPathPoints(activeRulerDrag),
-      primary: label.primary,
-      secondary: label.secondary,
-      visibleInPlayer: tableToolsVisibleInPlayer,
-      createdAt: now,
-      expiresAt: now + RULER_RELEASE_LINGER_MS
-    });
+    onLiveTableEvent?.(createRulerLiveTableEvent(activeRulerDrag, scene, tableToolsVisibleInPlayer, now, now + RULER_RELEASE_LINGER_MS));
   }, [activeTableTools.rulerLinger, cancelRulerDrag, onLiveTableEvent, scene, tableToolsVisibleInPlayer]);
 
   useEffect(() => {
@@ -1470,7 +1452,7 @@ export function SceneCanvas({
     }
     if (mode === "gm" && canvasTool === "ruler" && scene && event.button === 0) {
       const point = getRulerPoint(event);
-      const nextRulerDrag = { pointerId: event.pointerId, start: point, current: point, waypoints: [] };
+      const nextRulerDrag = createRulerDrag(event.pointerId, point);
       if (releasedRulerTimeoutRef.current !== null) {
         window.clearTimeout(releasedRulerTimeoutRef.current);
         releasedRulerTimeoutRef.current = null;
@@ -1483,17 +1465,8 @@ export function SceneCanvas({
     }
     if (mode === "gm" && canvasTool === "laser" && scene && event.button === 0) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const now = Date.now();
-      const laserEvent = {
-        id: crypto.randomUUID(),
-        type: "laser",
-        createdAt: now,
-        points: [{ point, createdAt: now }],
-        thickness: activeTableTools.laserThickness,
-        color: activeTableTools.laserColor,
-        visibleInPlayer: tableToolsVisibleInPlayer
-      } satisfies LiveTableEvent;
-      laserDragRef.current = { pointerId: event.pointerId, eventId: laserEvent.id, points: laserEvent.points };
+      const { drag, event: laserEvent } = createLaserDragStart(event.pointerId, crypto.randomUUID(), point, activeTableTools, tableToolsVisibleInPlayer);
+      laserDragRef.current = drag;
       onLiveTableEvent?.(laserEvent);
       return;
     }
@@ -1728,15 +1701,7 @@ export function SceneCanvas({
       const nextLaserDrag = getUpdatedLaserDrag(laserDrag, point, Date.now());
       if (nextLaserDrag) {
         laserDragRef.current = nextLaserDrag;
-        onLiveTableEvent?.({
-          id: laserDrag.eventId,
-          type: "laser",
-          createdAt: laserDrag.points[0]?.createdAt ?? Date.now(),
-          points: nextLaserDrag.points,
-          thickness: activeTableTools.laserThickness,
-          color: activeTableTools.laserColor,
-          visibleInPlayer: tableToolsVisibleInPlayer
-        });
+        onLiveTableEvent?.(createLaserLiveTableEvent(laserDrag.eventId, nextLaserDrag.points, activeTableTools, tableToolsVisibleInPlayer));
       }
       return;
     }
@@ -2072,15 +2037,14 @@ export function SceneCanvas({
   };
 
   const emitPing = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    onLiveTableEvent?.({
-      id: crypto.randomUUID(),
-      type: "ping",
-      point: clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale)),
-      size: activeTableTools.pingSize,
-      color: activeTableTools.pingColor,
-      visibleInPlayer: tableToolsVisibleInPlayer,
-      createdAt: Date.now()
-    });
+    onLiveTableEvent?.(
+      createPingLiveTableEvent(
+        crypto.randomUUID(),
+        clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale)),
+        activeTableTools,
+        tableToolsVisibleInPlayer
+      )
+    );
   };
 
   const onClick = (event: React.MouseEvent<HTMLCanvasElement>) => {

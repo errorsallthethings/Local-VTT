@@ -17,6 +17,7 @@ import {
   type ThumbnailRegenerationProgress,
   type ThumbnailRegenerationResult
 } from "../shared/localvtt";
+import { createEmptyCampaignHealthReport } from "../shared/campaignHealth";
 
 const DEV_CAMPAIGN_PATH = "dev://local-vtt/browser-campaign";
 const DEV_MAP_DATA_URL = `data:image/svg+xml,${encodeURIComponent(`
@@ -58,7 +59,8 @@ export function installDevLocalVtt() {
   const getSummary = (): CampaignSummary => ({
     campaignPath: DEV_CAMPAIGN_PATH,
     campaign,
-    missingAssets: []
+    missingAssets: [],
+    health: createEmptyCampaignHealthReport()
   });
 
   const upsertScene = (scene: Scene) => {
