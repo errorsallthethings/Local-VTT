@@ -33,6 +33,7 @@ import {
   getAssetProtocolStatResultFailureResponse,
   LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE
 } from "./assetProtocol.js";
+import { campaignFile, requiredCampaignFolders, sceneFile } from "./campaignPaths.js";
 import { inspectCampaignHealth } from "./campaignHealth.js";
 import {
   createImageMapThumbnail,
@@ -212,22 +213,7 @@ function sendToPlayerWhenReady(payload: unknown): void {
 }
 
 async function ensureCampaignFolders(campaignPath: string): Promise<void> {
-  await mkdir(campaignPath, { recursive: true });
-  await mkdir(path.join(campaignPath, "assets", "maps"), { recursive: true });
-  await mkdir(path.join(campaignPath, "assets", "tokens"), { recursive: true });
-  await mkdir(path.join(campaignPath, "assets", "overlays"), { recursive: true });
-  await mkdir(path.join(campaignPath, "assets", "effects"), { recursive: true });
-  await mkdir(path.join(campaignPath, "assets", "handouts"), { recursive: true });
-  await mkdir(path.join(campaignPath, "assets", "thumbnails"), { recursive: true });
-  await mkdir(path.join(campaignPath, "scenes"), { recursive: true });
-}
-
-function campaignFile(campaignPath: string): string {
-  return path.join(campaignPath, "campaign.json");
-}
-
-function sceneFile(campaignPath: string, sceneId: string): string {
-  return path.join(campaignPath, "scenes", `${sceneId}.scene.json`);
+  await Promise.all(requiredCampaignFolders(campaignPath).map((folder) => mkdir(folder, { recursive: true })));
 }
 
 function resolveAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
