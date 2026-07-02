@@ -1,5 +1,5 @@
 import { formatDefaultDrawingName, type DrawingElement, type DrawingKind, type DrawingStrokeStyle, type DrawingTemplateEffect, type Point, type Scene } from "../../../shared/localvtt";
-import { getDrawingPreviewPoints, type DrawingPreview, type DrawingTool } from "../drawings/drawingRenderer";
+import { getDrawingPreviewPoints, shouldAddDrawingPoint, type DrawingPreview, type DrawingTool } from "../drawings/drawingRenderer";
 import { constrainSquarePoint } from "../grid/gridMath";
 
 export type DrawingTemplateSize = "custom" | 5 | 10 | 15 | 20 | 30 | 60 | 100;
@@ -69,6 +69,27 @@ export function getTemplatePreviewDrawing(preview: DrawingPreview): DrawingEleme
     visibleInGm: false,
     visibleInPlayer: true
   };
+}
+
+export function getUpdatedDrawingPreview(
+  preview: DrawingPreview,
+  point: Point,
+  scene: Scene | null,
+  templateSize: DrawingTemplateSize,
+  squareConstrained: boolean
+): DrawingPreview {
+  const start = preview.points[0];
+  const templateCurrent = getDrawingTemplateCurrentPoint(start, point, preview.kind, scene, templateSize);
+  const current = (preview.kind === "rectangle" || preview.kind === "circle") && squareConstrained
+    ? constrainSquarePoint(start, templateCurrent)
+    : templateCurrent;
+  const ellipse = preview.kind === "circle" && !squareConstrained;
+  const points =
+    preview.kind === "freehand" && shouldAddDrawingPoint(preview.points[preview.points.length - 1], current)
+      ? [...preview.points, current]
+      : preview.points;
+
+  return { ...preview, current, points, ellipse };
 }
 
 export function getDrawingElementFromPreview(preview: DrawingPreview, id: string, index: number): DrawingElement {

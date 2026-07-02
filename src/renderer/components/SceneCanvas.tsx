@@ -22,7 +22,6 @@ import {
   getDrawingHitRadius,
   getDrawingAtPoint,
   getDrawingPreviewFromPoint,
-  shouldAddDrawingPoint,
   type DrawingPointOverrides,
   type DrawingPreview,
   type DrawingTool
@@ -48,7 +47,6 @@ import {
   type FogTool
 } from "../canvas/fog";
 import { drawHexGrid, drawSquareGrid } from "../canvas/grid";
-import { constrainSquarePoint } from "../canvas/grid";
 import {
   createLaserDragStart,
   createLaserLiveTableEvent,
@@ -137,9 +135,9 @@ import { getNearestSceneSnapPoint, resolveDrawingToolEventPoint, resolveRulerEve
 import { getSelectedItemIdList, getSelectedItemIds } from "../lib/scene";
 import { getTurnOrderTokenIndicators } from "../lib/turn-order";
 import {
-  getDrawingTemplateCurrentPoint,
   getTemplatePreviewDrawing
 } from "../canvas/drawings";
+import { getUpdatedDrawingPreview } from "../canvas/drawings";
 import { getTokenAtPoint } from "../canvas/tokens";
 import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey } from "../canvas/tokens";
 import {
@@ -1546,14 +1544,7 @@ export function SceneCanvas({
 
     if (drawingDrag?.pointerId === event.pointerId) {
       const point = getDrawingToolPoint(event, drawingDrag.kind);
-      const templateCurrent = getDrawingTemplateCurrentPoint(drawingDrag.points[0], point, drawingDrag.kind, scene, drawingTemplateSize);
-      const current = (drawingDrag.kind === "rectangle" || drawingDrag.kind === "circle") && event.shiftKey ? constrainSquarePoint(drawingDrag.points[0], templateCurrent) : templateCurrent;
-      const ellipse = drawingDrag.kind === "circle" && !event.shiftKey;
-      const nextPoints =
-        drawingDrag.kind === "freehand" && shouldAddDrawingPoint(drawingDrag.points[drawingDrag.points.length - 1], current)
-          ? [...drawingDrag.points, current]
-          : drawingDrag.points;
-      const nextDrawingDrag = { ...drawingDrag, current, points: nextPoints, ellipse };
+      const nextDrawingDrag = getUpdatedDrawingPreview(drawingDrag, point, scene, drawingTemplateSize, event.shiftKey);
       drawingPreviewRef.current = nextDrawingDrag;
       setDrawingPreview(nextDrawingDrag);
       onTemplatePreviewChange?.(getTemplatePreviewDrawing(nextDrawingDrag));
