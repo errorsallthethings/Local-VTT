@@ -158,7 +158,9 @@ function getCalibrationFromProfile(profile: PlayerDisplayProfile): DisplayCalibr
 }
 
 export function GmApp() {
-  const workspace = useCampaignWorkspace();
+  const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
+  const playerViewSyncOptions = useMemo(() => ({ showPlayerSeatIndicators: playersPanelOpen }), [playersPanelOpen]);
+  const workspace = useCampaignWorkspace({ playerViewSyncOptions });
   const {
     campaignPath,
     campaign,
@@ -367,7 +369,6 @@ export function GmApp() {
   const [turnOrderModalPosition, setTurnOrderModalPosition] = useState<{ x: number; y: number } | null>(null);
   const [turnOrderModalSize, setTurnOrderModalSize] = useState<{ width: number; height: number } | null>(null);
   const [turnOrderSettingsOpen, setTurnOrderSettingsOpen] = useState(false);
-  const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
   const [gmCanvasCenter, setGmCanvasCenter] = useState<Point | null>(null);
   const [tokenLibraryHeight, setTokenLibraryHeight] = useState(() => loadTokenLibraryHeight());
@@ -731,7 +732,8 @@ export function GmApp() {
     onSceneDeleteHandled: () => setSceneToDelete(null),
     onFolderDeleteHandled: () => setFolderToDelete(null),
     onThumbnailRegenerationComplete: setThumbnailRegenerationResult,
-    shouldSyncSceneToPlayer: (sceneId) => sceneId === playerSceneId
+    shouldSyncSceneToPlayer: (sceneId) => sceneId === playerSceneId,
+    playerViewSyncOptions
   });
   const saveBeforeCloseRef = useRef(saveCampaignBeforeClose);
 

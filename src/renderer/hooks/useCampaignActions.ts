@@ -1,4 +1,4 @@
-import type { Asset, Campaign, CampaignSummary, Scene, ThumbnailRegenerationResult } from "../../shared/localvtt";
+import type { Asset, Campaign, CampaignSummary, PlayerSceneProjectionOptions, Scene, ThumbnailRegenerationResult } from "../../shared/localvtt";
 import {
   applyMapAssetToCampaign,
   getDuplicateFolderName,
@@ -36,6 +36,7 @@ interface UseCampaignActionsOptions {
   onFolderDeleteHandled: () => void;
   onThumbnailRegenerationComplete: (result: ThumbnailRegenerationResult) => void;
   shouldSyncSceneToPlayer: (sceneId: string) => boolean;
+  playerViewSyncOptions?: PlayerSceneProjectionOptions;
 }
 
 export interface CampaignBusyState {
@@ -70,7 +71,8 @@ export function useCampaignActions({
   onSceneDeleteHandled,
   onFolderDeleteHandled,
   onThumbnailRegenerationComplete,
-  shouldSyncSceneToPlayer
+  shouldSyncSceneToPlayer,
+  playerViewSyncOptions = {}
 }: UseCampaignActionsOptions) {
   const {
     campaignPath,
@@ -292,7 +294,7 @@ export function useCampaignActions({
       onMapReplacementHandled();
       const syncCampaign = getPlayerSyncCampaignForScene(result.campaignSummary.campaign, result.scene.id, shouldSyncSceneToPlayer);
       if (syncCampaign) {
-        void updatePlayerSceneIfOpen(window.localVtt, syncCampaign, result.scene);
+        void updatePlayerSceneIfOpen(window.localVtt, syncCampaign, result.scene, playerViewSyncOptions);
       }
     });
 
