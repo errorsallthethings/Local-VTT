@@ -37,6 +37,26 @@ import {
   type VoidEffectTuning,
   type WaterEffectTuning
 } from "./environmentEffectTuningDefaults";
+import {
+  drawAcidFallback,
+  drawArcaneFallback,
+  drawChaosFallback,
+  drawColdFallback,
+  drawDarknessFallback,
+  drawDistortionFallback,
+  drawFireFallback,
+  drawFogFallback,
+  drawForceFieldFallback,
+  drawLavaFallback,
+  drawLightningFallback,
+  drawNatureFallback,
+  drawPoisonFallback,
+  drawRadiantFallback,
+  drawShockwaveFallback,
+  drawSmokeFallback,
+  drawVoidFallback,
+  drawWaterFallback
+} from "./environmentEffectFallbacks";
 
 export interface ScreenBounds {
   x: number;
@@ -1336,11 +1356,11 @@ export function drawEnvironmentLightningEffect(
   const height = ctx.canvas.clientHeight || ctx.canvas.height;
   const runtime = getLightningRuntime(width, height);
   if (!runtime) {
-    _drawLightningFallback(ctx, bounds, layerOpacity);
+    drawLightningFallback(ctx, bounds, layerOpacity);
     return;
   }
 
-  _drawLightningFallback(ctx, bounds, layerOpacity * 0.32);
+  drawLightningFallback(ctx, bounds, layerOpacity * 0.32);
 
   const time = (timestamp - runtime.startedAt) / 1000;
   positionWaterMesh(runtime.meshA, width, height, 1);
@@ -5853,158 +5873,3 @@ function positionWaterMesh(mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMat
   mesh.scale.x = width * scale;
   mesh.scale.y = height * scale;
 }
-
-function drawWaterFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.18;
-  ctx.fillStyle = "rgb(0, 145, 190)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawAcidFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.36;
-  ctx.fillStyle = "rgb(132, 204, 22)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawPoisonFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.32;
-  ctx.fillStyle = "rgb(101, 163, 13)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawColdFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.3;
-  ctx.fillStyle = "rgb(191, 219, 254)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawDarknessFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.5;
-  ctx.fillStyle = "rgb(2, 6, 23)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawLavaFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.42;
-  ctx.fillStyle = "rgb(216, 67, 21)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawFireFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.36;
-  ctx.fillStyle = "rgb(249, 115, 22)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function _drawLightningFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.34;
-  ctx.fillStyle = "rgb(96, 165, 250)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawArcaneFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.3;
-  ctx.fillStyle = "rgb(192, 132, 252)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawChaosFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.34;
-  ctx.fillStyle = "rgb(244, 114, 182)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawVoidFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.36;
-  ctx.fillStyle = "rgb(76, 29, 149)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawNatureFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.36;
-  ctx.fillStyle = "rgb(22, 101, 52)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawRadiantFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.32;
-  ctx.fillStyle = "rgb(253, 230, 138)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawForceFieldFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.3;
-  ctx.fillStyle = "rgb(103, 232, 249)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawShockwaveFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.28;
-  ctx.strokeStyle = "rgb(147, 197, 253)";
-  ctx.lineWidth = Math.max(2, Math.min(bounds.width, bounds.height) * 0.035);
-  const centerX = bounds.x + bounds.width / 2;
-  const centerY = bounds.y + bounds.height / 2;
-  const maxRadius = Math.min(bounds.width, bounds.height) * 0.46;
-  for (let index = 1; index <= 3; index += 1) {
-    ctx.beginPath();
-    ctx.ellipse(centerX, centerY, maxRadius * (index / 3), maxRadius * (index / 3), 0, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-function drawDistortionFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.2;
-  ctx.fillStyle = "rgb(103, 232, 249)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawSmokeFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.24;
-  ctx.fillStyle = "rgb(140, 152, 165)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-function drawFogFallback(ctx: CanvasRenderingContext2D, bounds: ScreenBounds, layerOpacity: number) {
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, layerOpacity)) * 0.18;
-  ctx.fillStyle = "rgb(190, 204, 216)";
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
-}
-
-
-
