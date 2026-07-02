@@ -50,6 +50,12 @@ describe("metadata backup helpers", () => {
     expect(sceneBackupFolder("campaign-root", "scene-1")).toBe(path.join("campaign-root", "backups", "scenes", "scene-1"));
   });
 
+  it("rejects unsafe scene backup folder ids", () => {
+    expect(() => sceneBackupFolder("campaign-root", "../campaign")).toThrow("Unsafe backup scene id.");
+    expect(() => sceneBackupFolder("campaign-root", "folder\\scene-1")).toThrow("Unsafe backup scene id.");
+    expect(() => sceneBackupFolder("campaign-root", "")).toThrow("Unsafe backup scene id.");
+  });
+
   it("resolves backup refs through the expected backup folders", () => {
     expect(metadataBackupPathFromRef("campaign-root", { kind: "campaign", fileName: "backup.campaign.json" })).toBe(
       path.join("campaign-root", "backups", "campaign", "backup.campaign.json")
@@ -69,6 +75,15 @@ describe("metadata backup helpers", () => {
     expect(() => requireSceneBackupId({ kind: "scene", fileName: "backup.scene.json" })).toThrow("Scene backup selection is missing a scene id.");
     expect(() => metadataBackupPathFromRef("campaign-root", { kind: "scene", fileName: "backup.scene.json" })).toThrow(
       "Scene backup selection is missing a scene id."
+    );
+  });
+
+  it("rejects unsafe scene backup refs", () => {
+    expect(() => requireSceneBackupId({ kind: "scene", sceneId: "../campaign", fileName: "backup.scene.json" })).toThrow(
+      "Unsafe backup scene id."
+    );
+    expect(() => metadataBackupPathFromRef("campaign-root", { kind: "scene", sceneId: "../campaign", fileName: "backup.scene.json" })).toThrow(
+      "Unsafe backup scene id."
     );
   });
 });

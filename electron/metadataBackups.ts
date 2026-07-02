@@ -11,6 +11,7 @@ export function campaignBackupFolder(campaignPath: string): string {
 }
 
 export function sceneBackupFolder(campaignPath: string, sceneId: string): string {
+  assertSafeBackupPathSegment(sceneId, "scene id");
   return path.join(campaignPath, "backups", "scenes", sceneId);
 }
 
@@ -23,7 +24,21 @@ export function requireSceneBackupId(ref: MetadataBackupRef): string {
   if (!ref.sceneId) {
     throw new Error("Scene backup selection is missing a scene id.");
   }
+  assertSafeBackupPathSegment(ref.sceneId, "scene id");
   return ref.sceneId;
+}
+
+function assertSafeBackupPathSegment(value: string, label: string): void {
+  if (
+    value.trim() === "" ||
+    value === "." ||
+    value === ".." ||
+    path.isAbsolute(value) ||
+    value.includes("/") ||
+    value.includes("\\")
+  ) {
+    throw new Error(`Unsafe backup ${label}.`);
+  }
 }
 
 export function createMetadataBackupEntry(
