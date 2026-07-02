@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { Asset } from "../src/shared/localvtt.js";
 
@@ -52,6 +53,12 @@ export function allowedTokenExtension(filePath: string): boolean {
 
 export function mapMediaType(filePath: string): Asset["mediaType"] {
   return [".mp4", ".webm"].includes(path.extname(filePath).toLowerCase()) ? "video" : "image";
+}
+
+export function safeAssetName(originalPath: string, timestamp = Date.now(), uniqueId = randomUUID()): string {
+  const parsed = path.parse(originalPath);
+  const cleanBase = parsed.name.replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "") || "asset";
+  return `${cleanBase}-${timestamp}-${uniqueId.slice(0, 8)}${parsed.ext.toLowerCase()}`;
 }
 
 function formatByteLimit(bytes: number): string {

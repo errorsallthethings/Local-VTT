@@ -45,6 +45,7 @@ import {
 } from "./assets.js";
 import {
   mapMediaType,
+  safeAssetName,
   validateAssetImportCandidate,
   type AssetImportKind
 } from "./assetImportValidation.js";
@@ -704,12 +705,6 @@ async function chooseTokenFile(): Promise<string | null> {
   };
   const result = gmWindow ? await dialog.showOpenDialog(gmWindow, options) : await dialog.showOpenDialog(options);
   return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
-}
-
-function safeAssetName(originalPath: string): string {
-  const parsed = path.parse(originalPath);
-  const cleanBase = parsed.name.replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "") || "asset";
-  return `${cleanBase}-${Date.now()}-${randomUUID().slice(0, 8)}${parsed.ext.toLowerCase()}`;
 }
 
 async function assertAssetImportCandidate(sourcePath: string, kind: AssetImportKind): Promise<void> {

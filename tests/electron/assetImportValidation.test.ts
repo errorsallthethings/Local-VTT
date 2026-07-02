@@ -5,6 +5,7 @@ import {
   allowedMapExtension,
   allowedTokenExtension,
   mapMediaType,
+  safeAssetName,
   validateAssetImportCandidate
 } from "../../electron/assetImportValidation";
 
@@ -48,5 +49,17 @@ describe("asset import validation", () => {
     expect(() =>
       validateAssetImportCandidate({ sourcePath: "C:/Tokens/max.png", kind: "token", sizeBytes: TOKEN_ASSET_MAX_BYTES, isFile: true })
     ).not.toThrow();
+  });
+
+  it("creates safe deterministic asset filenames", () => {
+    expect(safeAssetName("C:/Maps/Ancient Tomb!!.PNG", 12345, "abcdef123456")).toBe("Ancient-Tomb-12345-abcdef12.png");
+  });
+
+  it("falls back to an asset basename when the original name has no safe characters", () => {
+    expect(safeAssetName("C:/Maps/!!!.WEBP", 12345, "abcdef123456")).toBe("asset-12345-abcdef12.webp");
+  });
+
+  it("keeps hyphens and underscores while trimming generated edge separators", () => {
+    expect(safeAssetName("C:/Maps/--Boss_room--.JPG", 12345, "abcdef123456")).toBe("Boss_room-12345-abcdef12.jpg");
   });
 });
