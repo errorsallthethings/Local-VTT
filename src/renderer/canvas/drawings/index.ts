@@ -5,6 +5,7 @@ export * from "./drawingPreview";
 export * from "./drawingRenderer";
 export * from "./drawingTransform";
 export * from "./templateEffectGeometry";
+export * from "./templateEffectPlacement";
 export * from "./templateEffectStyles";
 export * from "./templateEffectTuning";
 export * from "./templateGridHighlights";
