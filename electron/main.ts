@@ -55,6 +55,7 @@ import {
   campaignBackupFolder,
   createBackupTimestamp,
   createMetadataBackupEntry,
+  metadataBackupsRootFolder,
   metadataBackupPathFromRef,
   requireSceneBackupId,
   sceneBackupFolder
@@ -529,7 +530,7 @@ async function listMetadataBackups(campaignPath: string): Promise<MetadataBackup
   const entries: MetadataBackupEntry[] = [];
   entries.push(...(await listBackupFolder(campaignPath, campaignBackupFolder(campaignPath), "campaign")));
 
-  const scenesRoot = path.join(campaignPath, "backups", "scenes");
+  const scenesRoot = path.join(metadataBackupsRootFolder(campaignPath), "scenes");
   assertInsideCampaign(campaignPath, scenesRoot);
   try {
     const sceneFolders = await readdir(scenesRoot, { withFileTypes: true });
@@ -1195,7 +1196,7 @@ ipcMain.handle("campaign:save", async (_event, campaignPath: string, campaign: C
 
 ipcMain.handle("campaign:openBackupsFolder", async (_event, campaignPath: string) => {
   assertKnownCampaignPath(campaignPath);
-  const backupsPath = path.join(campaignPath, "backups");
+  const backupsPath = metadataBackupsRootFolder(campaignPath);
   assertInsideCampaign(campaignPath, backupsPath);
   await mkdir(backupsPath, { recursive: true });
   const errorMessage = await shell.openPath(backupsPath);

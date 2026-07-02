@@ -8,12 +8,16 @@ export function createBackupTimestamp(now = new Date()): string {
 }
 
 export function campaignBackupFolder(campaignPath: string): string {
-  return path.join(campaignPath, "backups", "campaign");
+  return path.join(metadataBackupsRootFolder(campaignPath), "campaign");
+}
+
+export function metadataBackupsRootFolder(campaignPath: string): string {
+  return path.join(campaignPath, "backups");
 }
 
 export function sceneBackupFolder(campaignPath: string, sceneId: string): string {
   assertSafePathSegment(sceneId, "Unsafe backup scene id.");
-  return path.join(campaignPath, "backups", "scenes", sceneId);
+  return path.join(metadataBackupsRootFolder(campaignPath), "scenes", sceneId);
 }
 
 export function metadataBackupPathFromRef(campaignPath: string, ref: MetadataBackupRef): string {

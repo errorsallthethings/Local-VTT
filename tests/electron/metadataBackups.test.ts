@@ -4,6 +4,7 @@ import {
   campaignBackupFolder,
   createBackupTimestamp,
   createMetadataBackupEntry,
+  metadataBackupsRootFolder,
   metadataBackupPathFromRef,
   parseBackupTimestamp,
   requireSceneBackupId,
@@ -46,6 +47,7 @@ describe("metadata backup helpers", () => {
   });
 
   it("builds campaign and scene backup folders", () => {
+    expect(metadataBackupsRootFolder("campaign-root")).toBe(path.join("campaign-root", "backups"));
     expect(campaignBackupFolder("campaign-root")).toBe(path.join("campaign-root", "backups", "campaign"));
     expect(sceneBackupFolder("campaign-root", "scene-1")).toBe(path.join("campaign-root", "backups", "scenes", "scene-1"));
   });
