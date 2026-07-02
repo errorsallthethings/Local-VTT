@@ -8,6 +8,9 @@ export function formatUserFacingError(caught: unknown): string {
   if (message.includes("Campaign metadata could not be saved") || message.includes("Scene metadata could not be saved")) {
     return formatMetadataSaveError(message);
   }
+  if (message.includes("must be a relative path inside the campaign folder")) {
+    return formatPortableAssetPathError();
+  }
   if (message.includes("ENOENT") || message.includes("no such file or directory")) {
     return "That file or folder could not be found. It may have been moved, renamed, or deleted.";
   }
@@ -62,6 +65,9 @@ function formatMetadataSaveError(message: string): string {
 }
 
 function formatKnownFilesystemError(message: string): string | null {
+  if (message.includes("must be a relative path inside the campaign folder")) {
+    return formatPortableAssetPathError();
+  }
   if (message.includes("ENOSPC") || message.includes("no space left on device")) {
     return "There is not enough free disk space to save that change. Free up space and try again.";
   }
@@ -72,4 +78,8 @@ function formatKnownFilesystemError(message: string): string | null {
     return "That file or folder could not be found. It may have been moved, renamed, or deleted.";
   }
   return null;
+}
+
+function formatPortableAssetPathError(): string {
+  return "Campaign metadata contains an asset path that points outside the campaign folder. Keep imported assets inside the campaign folder, then reopen or restore a metadata backup.";
 }

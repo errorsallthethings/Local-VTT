@@ -44,6 +44,21 @@ describe("formatUserFacingError", () => {
     expect(formatUserFacingError(new Error(message))).toBe(message);
   });
 
+  it("turns unsafe asset path errors into campaign recovery guidance", () => {
+    const action =
+      "Campaign metadata contains an asset path that points outside the campaign folder. Keep imported assets inside the campaign folder, then reopen or restore a metadata backup.";
+
+    expect(formatUserFacingError(new Error("Asset path must be a relative path inside the campaign folder."))).toBe(action);
+    expect(
+      formatUserFacingError(new Error("Campaign metadata could not be saved. Asset thumbnail path must be a relative path inside the campaign folder."))
+    ).toBe(`Campaign metadata could not be saved. ${action}`);
+    expect(
+      formatUserFacingError(
+        new Error("Error invoking remote method 'campaign:save': Error: Campaign metadata could not be saved. Asset path must be a relative path inside the campaign folder.")
+      )
+    ).toBe(`Campaign metadata could not be saved. ${action}`);
+  });
+
   it("turns permission errors into an actionable message", () => {
     expect(formatUserFacingError(new Error("EACCES: permission denied, open 'C:\\Campaign\\campaign.json'"))).toBe(
       "Local VTT does not have permission to access that file or folder. Check the folder permissions or choose a different location."
