@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Asset, DisplayCalibration, GridType, PlayerViewTestPattern, Scene } from "../../../shared/localvtt";
 import { loadImageDimensions } from "../../lib/assets";
 import { getMapGridDimensionHint, getMapGridFitPreview, type MapGridFitPreview, type MapImageDimensions } from "../../lib/map";
+import { getInitialPlayerTestPatternGridMode, getPhysicalGridCellSizePx, getPlayerTestPatternCellSize } from "../../lib/player-view";
 import type { DisplayInfo } from "./PlayerDisplayScalePanel";
 import { SettingsField, SettingsReadout } from "./SettingsSection";
 
@@ -39,7 +40,7 @@ export function TableDisplaySetupWizard({
   onOpenMapCalibrationAssistant: () => void;
 }) {
   const [displayDraft, setDisplayDraft] = useState<DisplayCalibration>(calibration);
-  const [testGridMode, setTestGridMode] = useState<TestPatternGridMode>(getInitialTestGridMode(scene.grid.type, calibration));
+  const [testGridMode, setTestGridMode] = useState<TestPatternGridMode>(getInitialPlayerTestPatternGridMode(scene.grid.type, calibration));
   const [patternCellSize, setPatternCellSize] = useState(Math.max(24, Math.round(scene.grid.sizePx)));
   const [helpTopic, setHelpTopic] = useState<string | null>(null);
   const selectedDisplay = displays.find((display) => display.id === displayDraft.selectedDisplayId) ?? null;
@@ -197,7 +198,7 @@ export function TableDisplaySetupWizard({
             {displayDraft.physicalScaleEnabled && (
               <>
                 <br />
-                Physical Scale: Player View keeps manual scene grid cells at {getTestPatternCellSize(displayDraft)}px. Fit presets keep their own fitted Player View sizing.
+                Physical Scale: Player View keeps manual scene grid cells at {getPhysicalGridCellSizePx(displayDraft)}px. Fit presets keep their own fitted Player View sizing.
               </>
             )}
           </div>
@@ -417,12 +418,8 @@ function normalizeDisplayDraft(display: DisplayCalibration): DisplayCalibration 
   };
 }
 
-function getTestPatternCellSize(display: DisplayCalibration): number {
-  return Math.max(24, Math.round(display.pixelsPerInch * display.inchesPerGridCell));
-}
-
 function getPatternCellSize(gridMode: TestPatternGridMode, patternCellSize: number, display: DisplayCalibration): number {
-  return gridMode === "physical-square" ? getTestPatternCellSize(display) : Math.max(24, Math.round(patternCellSize));
+  return getPlayerTestPatternCellSize(gridMode, display, patternCellSize);
 }
 
 function getDisplayForGridMode(gridMode: TestPatternGridMode, display: DisplayCalibration, patternCellSize: number): DisplayCalibration {
@@ -436,16 +433,6 @@ function getDisplayForGridMode(gridMode: TestPatternGridMode, display: DisplayCa
     };
   }
   return { ...display, physicalScaleEnabled: false };
-}
-
-function getInitialTestGridMode(gridType: GridType, display: DisplayCalibration): TestPatternGridMode {
-  if (gridType === "gridless") {
-    return "none";
-  }
-  if (gridType === "hex") {
-    return "hex";
-  }
-  return display.physicalScaleEnabled ? "physical-square" : "square";
 }
 
 function formatGridType(gridType: GridType): string {

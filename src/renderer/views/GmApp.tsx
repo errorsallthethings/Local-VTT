@@ -89,7 +89,7 @@ import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/d
 import { formatUserFacingError } from "../lib/errors";
 import { logRendererError } from "../lib/rendererDiagnostics";
 import { loadImageDimensions } from "../lib/assets";
-import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/player-view";
+import { getPlayerTestPatternCellSize, getPlayerTestPatternMessage, showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/player-view";
 import { sendSceneToPlayer, updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
 import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/scene";
 import { patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
@@ -1602,10 +1602,10 @@ export function GmApp() {
         type: "idle",
         variant: "test-pattern",
         title: "Local VTT Test Pattern",
-        message: getTestPatternMessage(gridMode, display),
+        message: getPlayerTestPatternMessage(gridMode, display),
         testPattern: {
           gridMode,
-          cellSizePx: getTestPatternCellSize(gridMode, display, cellSizePx),
+          cellSizePx: getPlayerTestPatternCellSize(gridMode, display, cellSizePx),
           displayLabel: selectedDisplay?.label ?? display.selectedDisplayLabel,
           nativeResolution: selectedDisplay?.nativeResolution
         }
@@ -2362,23 +2362,6 @@ export function GmApp() {
       )}
     </div>
   );
-}
-
-function getTestPatternMessage(gridMode: PlayerViewTestPattern["gridMode"], display: DisplayCalibration): string {
-  if (gridMode === "none") {
-    return "Check that all corners and the center marker are visible.";
-  }
-  if (gridMode === "physical-square") {
-    return `${getTestPatternCellSize(gridMode, display)} px per physical grid cell.`;
-  }
-  return "Digital square grid test pattern.";
-}
-
-function getTestPatternCellSize(gridMode: PlayerViewTestPattern["gridMode"], display: DisplayCalibration, fallbackCellSize = 80): number {
-  if (gridMode === "physical-square") {
-    return Math.max(24, Math.round(display.pixelsPerInch * display.inchesPerGridCell));
-  }
-  return Math.max(24, Math.round(fallbackCellSize));
 }
 
 function getPlayerViewTargetDimensions(display: DisplayCalibration, displays: DisplayInfo[]): { width: number; height: number } {
