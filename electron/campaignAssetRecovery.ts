@@ -55,8 +55,7 @@ function isInsideCampaignPath(campaignPath: string, candidatePath: string): bool
 
 async function pathExists(absolutePath: string): Promise<boolean> {
   try {
-    await stat(absolutePath);
-    return true;
+    return (await stat(absolutePath)).isFile();
   } catch {
     return false;
   }
