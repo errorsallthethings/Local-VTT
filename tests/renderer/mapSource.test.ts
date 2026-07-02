@@ -127,7 +127,7 @@ describe("map source helpers", () => {
     expect(close).toHaveBeenCalledOnce();
   });
 
-  it("uses original source for player view, animated maps, and maps without an optimized source", () => {
+  it("uses original source for full-scale maps, animated maps, and maps without an optimized source", () => {
     const scene = createDefaultScene("Map");
     const map = loadedMap();
 
@@ -143,6 +143,15 @@ describe("map source helpers", () => {
 
     expect(getMapDrawSource(map, scene, 1000, 1000, 0.4, "gm")).toBe(map.optimizedSource);
     expect(getMapDrawSource(map, scene, 1000, 1000, 0.57, "gm")).toBe(map.originalSource);
+  });
+
+  it("uses optimized source for zoomed-out Player View maps when the cache matches output scale", () => {
+    const scene = createDefaultScene("Map");
+    scene.mapTransform = { ...scene.mapTransform, fitMode: "manual", scale: 1 };
+    const map = loadedMap({ optimizedScale: 0.5 });
+
+    expect(getMapDrawSource(map, scene, 1000, 1000, 0.4, "player", 1)).toBe(map.optimizedSource);
+    expect(getMapDrawSource(map, scene, 1000, 1000, 0.4, "player", 2)).toBe(map.originalSource);
   });
 
   it("returns ready image map source only when the requested asset matches", () => {

@@ -1073,7 +1073,7 @@ export function SceneCanvas({
 
       const renderCamera = getRenderCamera(camera, playerDisplayScale);
       const activeVideo = isVideoMap ? (videoRefs.current[activeVideoIndex] ?? null) : null;
-      const mapDrawSource = loadedMap?.ready ? getMapDrawSource(loadedMap, scene, width, height, renderCamera.zoom, mode) : null;
+      const mapDrawSource = loadedMap?.ready ? getMapDrawSource(loadedMap, scene, width, height, renderCamera.zoom, mode, window.devicePixelRatio || 1) : null;
       const weatherMapSource = loadedMap?.ready ? loadedMap.originalSource : (activeVideo && activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA ? activeVideo : null);
       const weatherMapReady = !canShowMap || !mapAsset || Boolean(weatherMapSource);
 

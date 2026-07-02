@@ -3,7 +3,7 @@ import { getMapScaleX, getMapScaleY, resolveMapTransform } from "../map/mapRende
 
 const LARGE_MAP_CACHE_MAX_EDGE = 4096;
 const LARGE_MAP_CACHE_MAX_PIXELS = 16_000_000;
-const GM_FULL_QUALITY_MAP_SCALE_THRESHOLD = 1.12;
+const FULL_QUALITY_MAP_SCALE_THRESHOLD = 1.12;
 const MEDIA_HAVE_METADATA_READY_STATE = 1;
 
 export type MapLoadStatus = "idle" | "loading" | "ready" | "error";
@@ -91,15 +91,17 @@ export function getMapDrawSource(
   viewportWidth: number,
   viewportHeight: number,
   cameraZoom: number,
-  mode: "gm" | "player"
+  _mode: "gm" | "player",
+  outputPixelRatio = 1
 ): CanvasImageSource {
-  if (mode === "player" || loadedMap.animate || !loadedMap.optimizedSource) {
+  if (loadedMap.animate || !loadedMap.optimizedSource) {
     return loadedMap.originalSource;
   }
 
   const transform = resolveMapTransform(scene, loadedMap.sourceWidth, loadedMap.sourceHeight, viewportWidth, viewportHeight);
   const effectiveMapScale = Math.max(Math.abs(getMapScaleX(transform) * cameraZoom), Math.abs(getMapScaleY(transform) * cameraZoom));
-  if (effectiveMapScale > loadedMap.optimizedScale * GM_FULL_QUALITY_MAP_SCALE_THRESHOLD) {
+  const effectiveOutputScale = effectiveMapScale * Math.max(1, Number.isFinite(outputPixelRatio) ? outputPixelRatio : 1);
+  if (effectiveOutputScale > loadedMap.optimizedScale * FULL_QUALITY_MAP_SCALE_THRESHOLD) {
     return loadedMap.originalSource;
   }
   return loadedMap.optimizedSource;
