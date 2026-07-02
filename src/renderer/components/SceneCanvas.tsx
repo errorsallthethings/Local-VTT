@@ -95,6 +95,7 @@ import {
   getFogDragCommit,
   getFogContextMenu,
   getFogPolygonDraftCommit,
+  getSceneItemDragGroup,
   getTokenContextMenu,
   getWeatherMaskDragCommit,
   getWeatherMaskContextMenu,
@@ -132,7 +133,7 @@ import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEf
 import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/scene";
 import { getSceneLayerVisibility } from "../canvas/scene";
 import { getNearestSceneSnapPoint, getSnapAwarePointSnapshotMovePreview, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/scene";
-import { getSelectedItemIdList, getSelectedItemIds } from "../lib/scene";
+import { getSelectedItemIdList } from "../lib/scene";
 import { getTurnOrderTokenIndicators } from "../lib/turn-order";
 import {
   getTemplatePreviewDrawing
@@ -630,10 +631,8 @@ export function SceneCanvas({
   const { failedTokenImageIds, loadedTokenImages } = useTokenImageLoader(tokenImageSourceKey);
   const { tokenTweenPositions: playerTokenTweenPositions, tokenTweenPositionsRef: playerTokenTweenPositionsRef } = usePlayerTokenTweens(scene, mode);
   const effectiveSelectedTokenIds = useMemo(() => getSelectedItemIdList(selectedTokenId, selectedTokenIds), [selectedTokenId, selectedTokenIds]);
-  const effectiveSelectedTokenIdSet = useMemo(() => getSelectedItemIds(selectedTokenId, selectedTokenIds), [selectedTokenId, selectedTokenIds]);
   const turnOrderTokenIndicators = useMemo(() => (scene && mode === "gm" ? getTurnOrderTokenIndicators(scene) : null), [mode, scene]);
   const effectiveSelectedDrawingIds = useMemo(() => getSelectedItemIdList(selectedDrawingId, selectedDrawingIds), [selectedDrawingId, selectedDrawingIds]);
-  const effectiveSelectedDrawingIdSet = useMemo(() => getSelectedItemIds(selectedDrawingId, selectedDrawingIds), [selectedDrawingId, selectedDrawingIds]);
   const effectiveSelectedFogShapeIds = useMemo(() => getSelectedItemIdList(selectedFogShapeId, selectedFogShapeIds), [selectedFogShapeId, selectedFogShapeIds]);
   const effectiveSelectedWeatherMaskIds = useMemo(() => getSelectedItemIdList(selectedWeatherMaskId, selectedWeatherMaskIds), [selectedWeatherMaskId, selectedWeatherMaskIds]);
   const authoringToolActive = useMemo(
@@ -1360,9 +1359,8 @@ export function SceneCanvas({
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const token = canShowTokens ? getTokenAtPoint(scene.tokens, point) : null;
       if (token) {
-        const shouldDragSelectedGroup = mouseBehavior === "grabber" && effectiveSelectedTokenIdSet.has(token.id) && effectiveSelectedTokenIds.length > 1;
-        const groupTokenIds = shouldDragSelectedGroup ? effectiveSelectedTokenIds : [token.id];
-        if (!shouldDragSelectedGroup) {
+        const dragGroup = getSceneItemDragGroup(token.id, effectiveSelectedTokenIds, mouseBehavior);
+        if (dragGroup.shouldSelectHitItem) {
           onSelectToken?.(token.id);
         }
         onSelectFogShape?.(null);
@@ -1370,7 +1368,7 @@ export function SceneCanvas({
         onSelectEnvironmentEffect?.(null);
         onSelectDrawing?.(null);
         if (mouseBehavior === "grabber") {
-          const tokenDragStart = getTokenDragStart(scene, token, point, event.pointerId, groupTokenIds);
+          const tokenDragStart = getTokenDragStart(scene, token, point, event.pointerId, dragGroup.itemIds);
           tokenDragRef.current = tokenDragStart.drag;
           setTokenDragPreview(tokenDragStart.preview);
         }
@@ -1406,12 +1404,12 @@ export function SceneCanvas({
         }
         const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, getDrawingHitRadius(getRenderCamera(camera, playerDisplayScale).zoom), scene.grid) : null;
         if (drawingHit) {
-          const shouldDragSelectedGroup = mouseBehavior === "grabber" && effectiveSelectedDrawingIdSet.has(drawingHit.id) && effectiveSelectedDrawingIds.length > 1;
-          const groupDrawingIds = shouldDragSelectedGroup ? effectiveSelectedDrawingIds : [drawingHit.id];
+          const dragGroup = getSceneItemDragGroup(drawingHit.id, effectiveSelectedDrawingIds, mouseBehavior);
+          const groupDrawingIds = dragGroup.itemIds;
           const groupStartPoints = getDrawingPointSnapshot(scene.drawings, groupDrawingIds, { includeTemplates: true });
           const snapAnchor = getDrawingGroupSnapAnchor(scene.drawings, groupDrawingIds, point);
           onSelectToken?.(null);
-          if (!shouldDragSelectedGroup) {
+          if (dragGroup.shouldSelectHitItem) {
             onSelectDrawing?.(drawingHit.id);
           }
           onSelectFogShape?.(null);
@@ -1451,14 +1449,13 @@ export function SceneCanvas({
         }
         const maskHit = getMaskHitAtPoint(scene, point);
         if (maskHit?.kind === "weather") {
-          const shouldDragSelectedGroup = mouseBehavior === "grabber" && effectiveSelectedWeatherMaskIds.includes(maskHit.mask.id) && effectiveSelectedWeatherMaskIds.length > 1;
-          const groupWeatherMaskIds = shouldDragSelectedGroup ? effectiveSelectedWeatherMaskIds : [maskHit.mask.id];
+          const dragGroup = getSceneItemDragGroup(maskHit.mask.id, effectiveSelectedWeatherMaskIds, mouseBehavior);
           onSelectWeatherMask?.(maskHit.mask.id);
           onSelectFogShape?.(null);
           onSelectEnvironmentEffect?.(null);
           onSelectDrawing?.(null);
           if (mouseBehavior === "grabber") {
-            const groupStartPoints = getWeatherMaskPointSnapshot(scene, groupWeatherMaskIds);
+            const groupStartPoints = getWeatherMaskPointSnapshot(scene, dragGroup.itemIds);
             weatherMaskMoveRef.current = {
               pointerId: event.pointerId,
               maskId: maskHit.mask.id,
