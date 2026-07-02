@@ -4,9 +4,12 @@ import {
   environmentDragToMask,
   getClampedEnvironmentEffectFeather,
   getEnvironmentEffectDragFromPoint,
+  getEnvironmentEffectGroupSnapAnchor,
   getEnvironmentEffectFromDrag,
   getEnvironmentEffectFromPolygonDraft,
   getEnvironmentEffectPathCommands,
+  getEnvironmentEffectPointSnapshot,
+  getEnvironmentEffectsWithPointOverrides,
   getUpdatedEnvironmentEffectDrag,
   isEnvironmentEffectVisibleForMode,
   isMeaningfulEnvironmentEffectDrag,
@@ -264,5 +267,46 @@ describe("environment effect geometry", () => {
 
     expect(shouldAnimateEnvironmentEffects(scene, "gm", true)).toBe(true);
     expect(shouldAnimateEnvironmentEffects(scene, "player", true)).toBe(true);
+  });
+
+  it("captures cloned environment effect point snapshots for selected ids", () => {
+    const scene = createDefaultScene("Effect Snapshot");
+    scene.environment.effects = [
+      { id: "effect-1", kind: "polygon", effect: "water", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }, { x: 5, y: 6 }] },
+      { id: "effect-2", kind: "rectangle", effect: "fire", points: [{ x: 10, y: 20 }, { x: 30, y: 40 }] }
+    ];
+
+    const snapshot = getEnvironmentEffectPointSnapshot(scene, ["effect-1", "missing"]);
+
+    expect([...snapshot.keys()]).toEqual(["effect-1"]);
+    expect(snapshot.get("effect-1")).toEqual([{ x: 1, y: 2 }, { x: 3, y: 4 }, { x: 5, y: 6 }]);
+    expect(snapshot.get("effect-1")).not.toBe(scene.environment.effects[0].points);
+  });
+
+  it("applies environment effect point overrides without mutating other effects", () => {
+    const scene = createDefaultScene("Effect Overrides");
+    scene.environment.effects = [
+      { id: "effect-1", kind: "rectangle", effect: "water", points: [{ x: 0, y: 0 }, { x: 10, y: 10 }] },
+      { id: "effect-2", kind: "rectangle", effect: "fire", points: [{ x: 20, y: 20 }, { x: 30, y: 30 }] }
+    ];
+    const overridePoints = [{ x: 5, y: 5 }, { x: 15, y: 15 }];
+
+    const effects = getEnvironmentEffectsWithPointOverrides(scene, new Map([["effect-1", overridePoints]]));
+
+    expect(effects[0]).toEqual({ ...scene.environment.effects[0], points: overridePoints });
+    expect(effects[0]).not.toBe(scene.environment.effects[0]);
+    expect(effects[1]).toBe(scene.environment.effects[1]);
+    expect(getEnvironmentEffectsWithPointOverrides(scene, null)).toBe(scene.environment.effects);
+  });
+
+  it("uses the combined environment effect bounds center as a snap anchor", () => {
+    const scene = createDefaultScene("Effect Snap Anchor");
+    scene.environment.effects = [
+      { id: "effect-1", kind: "rectangle", effect: "water", points: [{ x: 0, y: 0 }, { x: 10, y: 10 }] },
+      { id: "effect-2", kind: "rectangle", effect: "fire", points: [{ x: 20, y: 20 }, { x: 40, y: 60 }] }
+    ];
+
+    expect(getEnvironmentEffectGroupSnapAnchor(scene, ["effect-1", "effect-2"], { x: 99, y: 99 })).toEqual({ x: 20, y: 30 });
+    expect(getEnvironmentEffectGroupSnapAnchor(scene, ["missing"], { x: 99, y: 99 })).toEqual({ x: 99, y: 99 });
   });
 });

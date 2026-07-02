@@ -78,7 +78,6 @@ import {
   type MapCalibrationDrag
 } from "../canvas/map";
 import { drawMapSource, getCameraForMapFit } from "../canvas/map";
-import { getEnvironmentEffectBounds } from "../canvas/scene";
 import {
   getInitialMapLoadStatus,
   getMapDrawSource,
@@ -173,8 +172,11 @@ import {
 } from "../canvas/effects";
 import {
   getEnvironmentEffectDragFromPoint,
+  getEnvironmentEffectGroupSnapAnchor,
   getEnvironmentEffectFromDrag,
   getEnvironmentEffectFromPolygonDraft,
+  getEnvironmentEffectPointSnapshot,
+  getEnvironmentEffectsWithPointOverrides,
   getUpdatedEnvironmentEffectDrag,
   isMeaningfulEnvironmentEffectDrag,
   shouldAnimateEnvironmentEffects,
@@ -192,6 +194,8 @@ import {
   getWeatherMaskDragFromPoint,
   getWeatherMaskFromDrag,
   getWeatherMaskFromPolygonDraft,
+  getWeatherMaskPointSnapshot,
+  getWeatherMasksWithPointOverrides,
   getUpdatedWeatherMaskDrag,
   isMeaningfulWeatherMaskDrag,
   type WeatherMaskDrag,
@@ -464,67 +468,6 @@ function getEstimatedContextMenuSize(kind: CanvasContextMenuKind): { width: numb
     return { width: 230, height: 250 };
   }
   return { width: 230, height: 250 };
-}
-
-function getWeatherMaskPointSnapshot(scene: Scene, maskIds: string[]): Map<string, Point[]> {
-  const ids = new Set(maskIds);
-  const snapshot = new Map<string, Point[]>();
-  for (const mask of scene.weather.masks) {
-    if (ids.has(mask.id)) {
-      snapshot.set(mask.id, mask.points.map((point) => ({ ...point })));
-    }
-  }
-  return snapshot;
-}
-
-function getEnvironmentEffectPointSnapshot(scene: Scene, effectIds: string[]): Map<string, Point[]> {
-  const ids = new Set(effectIds);
-  const snapshot = new Map<string, Point[]>();
-  for (const effect of scene.environment.effects) {
-    if (ids.has(effect.id)) {
-      snapshot.set(effect.id, effect.points.map((point) => ({ ...point })));
-    }
-  }
-  return snapshot;
-}
-
-function getEnvironmentEffectGroupSnapAnchor(scene: Scene, effectIds: string[], fallback: Point): Point {
-  const ids = new Set(effectIds);
-  const bounds = scene.environment.effects
-    .filter((effect) => ids.has(effect.id))
-    .map(getEnvironmentEffectBounds)
-    .filter((bounds): bounds is NonNullable<ReturnType<typeof getEnvironmentEffectBounds>> => Boolean(bounds));
-  if (bounds.length === 0) {
-    return fallback;
-  }
-  const left = Math.min(...bounds.map((bound) => bound.x));
-  const top = Math.min(...bounds.map((bound) => bound.y));
-  const right = Math.max(...bounds.map((bound) => bound.x + bound.width));
-  const bottom = Math.max(...bounds.map((bound) => bound.y + bound.height));
-  return {
-    x: (left + right) / 2,
-    y: (top + bottom) / 2
-  };
-}
-
-function getEnvironmentEffectsWithPointOverrides(scene: Scene, environmentEffectPoints: Map<string, Point[]> | null) {
-  if (!environmentEffectPoints) {
-    return scene.environment.effects;
-  }
-  return scene.environment.effects.map((effect) => {
-    const points = environmentEffectPoints.get(effect.id);
-    return points ? { ...effect, points } : effect;
-  });
-}
-
-function getWeatherMasksWithPointOverrides(scene: Scene, weatherMaskPoints: Map<string, Point[]> | null) {
-  if (!weatherMaskPoints) {
-    return scene.weather.masks;
-  }
-  return scene.weather.masks.map((mask) => {
-    const points = weatherMaskPoints.get(mask.id);
-    return points ? { ...mask, points } : mask;
-  });
 }
 
 export function SceneCanvas({
@@ -1624,13 +1567,14 @@ export function SceneCanvas({
           onSelectEnvironmentEffect?.(null);
           onSelectDrawing?.(null);
           if (mouseBehavior === "grabber") {
+            const groupStartPoints = getWeatherMaskPointSnapshot(scene, groupWeatherMaskIds);
             weatherMaskMoveRef.current = {
               pointerId: event.pointerId,
               maskId: maskHit.mask.id,
               start: point,
-              groupStartPoints: getWeatherMaskPointSnapshot(scene, groupWeatherMaskIds)
+              groupStartPoints
             };
-            setWeatherMaskMovePreview(getWeatherMaskPointSnapshot(scene, groupWeatherMaskIds));
+            setWeatherMaskMovePreview(groupStartPoints);
           }
           return;
         }

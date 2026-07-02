@@ -1,4 +1,4 @@
-import type { Point, WeatherMask } from "../../../shared/localvtt";
+import type { Point, Scene, WeatherMask } from "../../../shared/localvtt";
 import { constrainSquarePoint } from "../grid/gridMath";
 import { distanceBetween } from "../tokens/tokenGeometry";
 import type { ScreenRect } from "../core/viewportGeometry";
@@ -84,4 +84,25 @@ export function getUpdatedWeatherMaskDrag(drag: WeatherMaskDrag, point: Point, s
 
 export function getVisibleWeatherMasks(masks: WeatherMask[]): WeatherMask[] {
   return masks.filter((mask) => mask.visible !== false);
+}
+
+export function getWeatherMaskPointSnapshot(scene: Scene, maskIds: string[]): Map<string, Point[]> {
+  const ids = new Set(maskIds);
+  const snapshot = new Map<string, Point[]>();
+  for (const mask of scene.weather.masks) {
+    if (ids.has(mask.id)) {
+      snapshot.set(mask.id, mask.points.map((point) => ({ ...point })));
+    }
+  }
+  return snapshot;
+}
+
+export function getWeatherMasksWithPointOverrides(scene: Scene, weatherMaskPoints: Map<string, Point[]> | null): WeatherMask[] {
+  if (!weatherMaskPoints) {
+    return scene.weather.masks;
+  }
+  return scene.weather.masks.map((mask) => {
+    const points = weatherMaskPoints.get(mask.id);
+    return points ? { ...mask, points } : mask;
+  });
 }

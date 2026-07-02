@@ -24,6 +24,7 @@ import type { Camera } from "../core/camera";
 import { getEnvironmentEffectTuningFields } from "./environmentEffectTuning";
 import { constrainSquarePoint } from "../grid/gridMath";
 import { worldToScreenPoint } from "../core/viewportGeometry";
+import { getEnvironmentEffectBounds } from "../scene/boundsGeometry";
 
 export type EnvironmentEffectShapeKind = "rectangle" | "polygon" | "circle";
 
@@ -137,6 +138,46 @@ export function getUpdatedEnvironmentEffectDrag(drag: EnvironmentEffectDrag, poi
     ...drag,
     current: drag.kind === "rectangle" && squareConstrained ? constrainSquarePoint(drag.start, point) : point
   };
+}
+
+export function getEnvironmentEffectPointSnapshot(scene: Scene, effectIds: string[]): Map<string, Point[]> {
+  const ids = new Set(effectIds);
+  const snapshot = new Map<string, Point[]>();
+  for (const effect of scene.environment.effects) {
+    if (ids.has(effect.id)) {
+      snapshot.set(effect.id, effect.points.map((point) => ({ ...point })));
+    }
+  }
+  return snapshot;
+}
+
+export function getEnvironmentEffectGroupSnapAnchor(scene: Scene, effectIds: string[], fallback: Point): Point {
+  const ids = new Set(effectIds);
+  const bounds = scene.environment.effects
+    .filter((effect) => ids.has(effect.id))
+    .map(getEnvironmentEffectBounds)
+    .filter((bounds): bounds is NonNullable<ReturnType<typeof getEnvironmentEffectBounds>> => Boolean(bounds));
+  if (bounds.length === 0) {
+    return fallback;
+  }
+  const left = Math.min(...bounds.map((bound) => bound.x));
+  const top = Math.min(...bounds.map((bound) => bound.y));
+  const right = Math.max(...bounds.map((bound) => bound.x + bound.width));
+  const bottom = Math.max(...bounds.map((bound) => bound.y + bound.height));
+  return {
+    x: (left + right) / 2,
+    y: (top + bottom) / 2
+  };
+}
+
+export function getEnvironmentEffectsWithPointOverrides(scene: Scene, environmentEffectPoints: Map<string, Point[]> | null): EnvironmentEffectMask[] {
+  if (!environmentEffectPoints) {
+    return scene.environment.effects;
+  }
+  return scene.environment.effects.map((effect) => {
+    const points = environmentEffectPoints.get(effect.id);
+    return points ? { ...effect, points } : effect;
+  });
 }
 
 export function isEnvironmentEffectVisibleForMode(effect: EnvironmentEffectMask, mode: "gm" | "player"): boolean {
