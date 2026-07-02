@@ -144,7 +144,8 @@ import {
   getSceneAfterTokenDrag,
   getTokenDragStart,
   getTokenDragPreviewFromPoint,
-  getTokenDragWithAppendedWaypoint,
+  getTokenDragWaypointAppendUpdate,
+  getTokenDragWaypointRemovalUpdate
 } from "../canvas/tokens";
 import { drawTokenDragHighlights, drawTokens, hasVisibleTokenConditions, type TokenDragPreview } from "../canvas/tokens";
 import { getVideoTransform } from "../canvas/map";
@@ -1068,19 +1069,18 @@ export function SceneCanvas({
       return;
     }
     const tokenDrag = tokenDragRef.current;
-    const token = scene.tokens.find((candidate) => candidate.id === tokenDragPreview.tokenId);
-    if (!tokenDrag || !token || tokenDrag.tokenId !== token.id) {
+    if (!tokenDrag) {
+      return;
+    }
+
+    const update = getTokenDragWaypointAppendUpdate(scene, tokenDrag, tokenDragPreview);
+    if (!update) {
       return;
     }
 
     event.preventDefault();
-    const nextTokenDrag = getTokenDragWithAppendedWaypoint(scene, tokenDrag, token, tokenDragPreview.currentPosition);
-    if (nextTokenDrag === tokenDrag) {
-      return;
-    }
-
-    tokenDragRef.current = nextTokenDrag;
-    setTokenDragPreview((preview) => (preview?.tokenId === token.id ? { ...preview, waypoints: nextTokenDrag.waypoints } : preview));
+    tokenDragRef.current = update.drag;
+    setTokenDragPreview(update.preview);
   }, [scene, tokenDragPreview]);
   useWindowKeyDown(mode === "gm" && Boolean(scene && tokenDragPreview), appendTokenWaypointOnShift);
 
@@ -2085,12 +2085,12 @@ export function SceneCanvas({
     }
     if (tokenDrag) {
       event.preventDefault();
-      const nextTokenDrag = removeLastWaypoint(tokenDrag);
-      if (!nextTokenDrag) {
+      const update = getTokenDragWaypointRemovalUpdate(tokenDrag, tokenDragPreview);
+      if (!update) {
         return;
       }
-      tokenDragRef.current = nextTokenDrag;
-      setTokenDragPreview((preview) => (preview?.tokenId === nextTokenDrag.tokenId ? { ...preview, waypoints: nextTokenDrag.waypoints } : preview));
+      tokenDragRef.current = update.drag;
+      setTokenDragPreview(update.preview);
       return;
     }
 
