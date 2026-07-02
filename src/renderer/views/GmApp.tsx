@@ -90,7 +90,7 @@ import { formatUserFacingError } from "../lib/errors";
 import { logRendererError } from "../lib/rendererDiagnostics";
 import { loadImageDimensions } from "../lib/assets";
 import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/player-view";
-import { sendSceneToPlayer, updatePlayerSceneIfOpen } from "../lib/player-view";
+import { sendSceneToPlayer, updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
 import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/scene";
 import { patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
 import {
@@ -1407,7 +1407,7 @@ export function GmApp() {
       if (nextActiveScene) {
         setActiveScene(nextActiveScene);
         if (nextActiveScene.id === playerSceneId) {
-          void updatePlayerSceneIfOpen(window.localVtt, result.campaignSummary.campaign, nextActiveScene, playerViewSyncOptions);
+          updatePlayerSceneIfOpenInBackground(window.localVtt, result.campaignSummary.campaign, nextActiveScene, playerViewSyncOptions);
         }
       }
       selectTokens(nextActiveScene ? selectedTokenIds.filter((tokenId) => nextActiveScene.tokens.some((token) => token.id === tokenId)) : []);

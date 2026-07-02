@@ -11,7 +11,7 @@ import {
   removeFolderFromCampaign,
   removeSceneDraft
 } from "../lib/campaign";
-import { updatePlayerSceneIfOpen } from "../lib/player-view";
+import { updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
 import { stopActiveTurnOrder } from "../lib/turn-order";
 import type { useCampaignWorkspace } from "./useCampaignWorkspace";
 
@@ -294,7 +294,7 @@ export function useCampaignActions({
       onMapReplacementHandled();
       const syncCampaign = getPlayerSyncCampaignForScene(result.campaignSummary.campaign, result.scene.id, shouldSyncSceneToPlayer);
       if (syncCampaign) {
-        void updatePlayerSceneIfOpen(window.localVtt, syncCampaign, result.scene, playerViewSyncOptions);
+        updatePlayerSceneIfOpenInBackground(window.localVtt, syncCampaign, result.scene, playerViewSyncOptions);
       }
     });
 

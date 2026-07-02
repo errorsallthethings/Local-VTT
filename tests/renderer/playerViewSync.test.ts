@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createDefaultCampaign, createDefaultScene, type Asset } from "../../src/shared/localvtt";
-import { sendSceneToPlayer, updatePlayerSceneIfOpen, type PlayerViewSceneSyncApi } from "../../src/renderer/lib/player-view";
+import { sendSceneToPlayer, updatePlayerSceneIfOpen, updatePlayerSceneIfOpenInBackground, type PlayerViewSceneSyncApi } from "../../src/renderer/lib/player-view";
 
 describe("player view sync", () => {
   it("sends a projected scene through the Player View IPC API", async () => {
@@ -127,5 +127,28 @@ describe("player view sync", () => {
     expect(projection.scene.name).toBe("Player Send Scene");
     expect(projection.scene.notes).toBe("");
     expect(projection.showPlayerSeatIndicators).toBe(true);
+  });
+
+  it("logs background Player View sync failures without throwing", async () => {
+    const campaign = createDefaultCampaign("Background Sync Campaign");
+    const scene = createDefaultScene("Background Sync Scene");
+    const caught = new Error("Player window closed");
+    const warningSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const api: PlayerViewSceneSyncApi = {
+      sendSceneToPlayer: vi.fn().mockResolvedValue(true),
+      updatePlayerSceneIfOpen: vi.fn().mockRejectedValue(caught)
+    };
+
+    try {
+      expect(() => updatePlayerSceneIfOpenInBackground(api, campaign, scene)).not.toThrow();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(api.updatePlayerSceneIfOpen).toHaveBeenCalledOnce();
+      expect(warningSpy).toHaveBeenCalledWith(
+        "LOCALVTT_PLAYER_VIEW_SYNC_FAILED",
+        expect.objectContaining({ name: "Error", message: "Player window closed" })
+      );
+    } finally {
+      warningSpy.mockRestore();
+    }
   });
 });

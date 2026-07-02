@@ -7,7 +7,7 @@ import {
   getPlayerViewDisplayStateFromLastState,
   mergeLiveTableEvent,
   showDefaultPlayerHold,
-  updatePlayerSceneIfOpen,
+  updatePlayerSceneIfOpenInBackground,
   type PlayerDisplayMode
 } from "../lib/player-view";
 import { logRendererWarning } from "../lib/rendererDiagnostics";
@@ -209,7 +209,7 @@ export function usePlayerViewState({
       return;
     }
     if (campaign && activeScene) {
-      void updatePlayerSceneIfOpen(window.localVtt, campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
+      updatePlayerSceneIfOpenInBackground(window.localVtt, campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
     }
   }, [activeScene, campaign, playerDisplayMode, playerSceneId, playersPanelOpen]);
 
@@ -225,7 +225,7 @@ export function usePlayerViewState({
     });
     playerTemplatePreviewPublishedRef.current = syncState.previewPublished;
     if (campaign && syncState.scene) {
-      void updatePlayerSceneIfOpen(window.localVtt, campaign, syncState.scene, { showPlayerSeatIndicators: playersPanelOpen });
+      updatePlayerSceneIfOpenInBackground(window.localVtt, campaign, syncState.scene, { showPlayerSeatIndicators: playersPanelOpen });
     }
   }, [activeScene, campaign, playerDisplayMode, playerSceneId, playerTemplatePreviewDrawing, playersPanelOpen, templatePreviewVisibleInPlayer]);
 
