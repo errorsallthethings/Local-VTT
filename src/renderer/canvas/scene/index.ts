@@ -6,5 +6,6 @@ export * from "./sceneHitTesting";
 export * from "./sceneInteractionTypes";
 export * from "./sceneLayerVisibility";
 export * from "./sceneOverlayRenderer";
+export * from "./sceneDragCommits";
 export * from "./scenePolygonDraftCommits";
 export * from "./sceneSnapping";

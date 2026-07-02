@@ -6,8 +6,7 @@ import {
   DEFAULT_TOKEN_FOOTPRINT_VISIBLE,
   DEFAULT_VIDEO_PLAYBACK,
   TOKEN_CONDITION_IDS,
-  TOKEN_CONDITION_LABELS,
-  formatDefaultFogShapeName
+  TOKEN_CONDITION_LABELS
 } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings } from "../../shared/localvtt";
 import { areCamerasEqual, getCameraForPanDrag, getCameraForWheelZoom, getRenderCamera, type Camera, type CameraPanDrag } from "../canvas/core";
@@ -23,7 +22,6 @@ import {
   getDrawingHitRadius,
   getDrawingAtPoint,
   getDrawingPreviewFromPoint,
-  isMeaningfulDrawingPreview,
   shouldAddDrawingPoint,
   type DrawingPointOverrides,
   type DrawingPreview,
@@ -42,11 +40,8 @@ import {
 import {
   drawFog,
   getFogDragFromPoint,
-  getFogShapeFromDrag,
-  getFogVisibilityPatchForNewShape,
   getFogOperationForTool,
   getUpdatedFogDrag,
-  isMeaningfulFogDrag,
   isPolygonTool,
   type FogDrag,
   type FogPolygonDraft,
@@ -94,15 +89,17 @@ import {
 import { removeLastWaypoint } from "../canvas/tokens";
 import { appendPolygonDraftPoint, appendScopedPolygonDraftPoint, removeLastPolygonDraftPoint, updatePolygonDraftCurrent } from "../canvas/scene";
 import {
-  formatDefaultEnvironmentEffectName,
-  formatDefaultWeatherMaskName,
   getDrawingContextMenu,
+  getDrawingDragCommit,
   getDrawingPolygonDraftCommit,
   getEnvironmentEffectContextMenu,
+  getEnvironmentEffectDragCommit,
   getEnvironmentPolygonDraftCommit,
+  getFogDragCommit,
   getFogContextMenu,
   getFogPolygonDraftCommit,
   getTokenContextMenu,
+  getWeatherMaskDragCommit,
   getWeatherMaskContextMenu,
   getWeatherPolygonDraftCommit,
   type DrawingContextMenu,
@@ -140,7 +137,6 @@ import { getNearestSceneSnapPoint, resolveDrawingToolEventPoint, resolveRulerEve
 import { getSelectedItemIdList, getSelectedItemIds } from "../lib/scene";
 import { getTurnOrderTokenIndicators } from "../lib/turn-order";
 import {
-  getDrawingElementFromPreview,
   getDrawingTemplateCurrentPoint,
   getTemplatePreviewDrawing
 } from "../canvas/drawings";
@@ -180,11 +176,9 @@ import {
 import {
   getEnvironmentEffectDragFromPoint,
   getEnvironmentEffectGroupSnapAnchor,
-  getEnvironmentEffectFromDrag,
   getEnvironmentEffectPointSnapshot,
   getEnvironmentEffectsWithPointOverrides,
   getUpdatedEnvironmentEffectDrag,
-  isMeaningfulEnvironmentEffectDrag,
   shouldAnimateEnvironmentEffects,
   type EnvironmentEffectDrag,
   type EnvironmentPolygonDraft
@@ -198,11 +192,9 @@ import {
 } from "../canvas/weather";
 import {
   getWeatherMaskDragFromPoint,
-  getWeatherMaskFromDrag,
   getWeatherMaskPointSnapshot,
   getWeatherMasksWithPointOverrides,
   getUpdatedWeatherMaskDrag,
-  isMeaningfulWeatherMaskDrag,
   type WeatherMaskDrag,
   type WeatherPolygonDraft
 } from "../canvas/weather";
@@ -1695,8 +1687,11 @@ export function SceneCanvas({
     const drawingDrag = drawingPreviewRef.current;
     if (drawingDrag?.pointerId === event.pointerId) {
       clearDrawingPreview();
-      if (scene && onSceneChange && isMeaningfulDrawingPreview(drawingDrag)) {
-        onSceneChange(addSceneDrawing(scene, getDrawingElementFromPreview(drawingDrag, crypto.randomUUID(), scene.drawings.length)));
+      if (scene && onSceneChange) {
+        const drawing = getDrawingDragCommit(scene, drawingDrag, crypto.randomUUID());
+        if (drawing) {
+          onSceneChange(addSceneDrawing(scene, drawing));
+        }
       }
       return;
     }
@@ -1704,17 +1699,11 @@ export function SceneCanvas({
     const weatherMaskDrag = weatherMaskDragRef.current;
     if (weatherMaskDrag?.pointerId === event.pointerId) {
       clearWeatherMaskPreview();
-      if (scene && onSceneChange && isMeaningfulWeatherMaskDrag(weatherMaskDrag)) {
-        onSceneChange(
-          addSceneWeatherMask(
-            scene,
-            getWeatherMaskFromDrag(
-              weatherMaskDrag,
-              crypto.randomUUID(),
-              formatDefaultWeatherMaskName(scene.weather.masks.length)
-            )
-          )
-        );
+      if (scene && onSceneChange) {
+        const mask = getWeatherMaskDragCommit(scene, weatherMaskDrag, crypto.randomUUID());
+        if (mask) {
+          onSceneChange(addSceneWeatherMask(scene, mask));
+        }
       }
       return;
     }
@@ -1722,18 +1711,11 @@ export function SceneCanvas({
     const environmentEffectDrag = environmentEffectDragRef.current;
     if (environmentEffectDrag?.pointerId === event.pointerId) {
       clearEnvironmentEffectPreview();
-      if (scene && onSceneChange && isMeaningfulEnvironmentEffectDrag(environmentEffectDrag)) {
-        onSceneChange(
-          addEnvironmentEffect(
-            scene,
-            getEnvironmentEffectFromDrag(
-              environmentEffectDrag,
-              crypto.randomUUID(),
-              formatDefaultEnvironmentEffectName(environmentEffectDrag.effect, scene.environment.effects.length),
-              currentEnvironmentEffectTuning
-            )
-          )
-        );
+      if (scene && onSceneChange) {
+        const effect = getEnvironmentEffectDragCommit(scene, environmentEffectDrag, crypto.randomUUID(), currentEnvironmentEffectTuning);
+        if (effect) {
+          onSceneChange(addEnvironmentEffect(scene, effect));
+        }
       }
       return;
     }
@@ -1741,19 +1723,11 @@ export function SceneCanvas({
     const fogDrag = fogDragRef.current;
     if (fogDrag?.pointerId === event.pointerId) {
       clearFogPreview();
-      if (scene && onSceneChange && isMeaningfulFogDrag(fogDrag)) {
-        onSceneChange(
-          addSceneFogShape(
-            scene,
-            getFogShapeFromDrag(
-              fogDrag,
-              crypto.randomUUID(),
-              formatDefaultFogShapeName(fogDrag.operation, fogDrag.kind, scene.fog.shapes.length),
-              scene.fog.newShapesVisibleInPlayer
-            ),
-            getFogVisibilityPatchForNewShape(scene.fog, fogDrag.operation)
-          )
-        );
+      if (scene && onSceneChange) {
+        const commit = getFogDragCommit(scene, fogDrag, crypto.randomUUID());
+        if (commit) {
+          onSceneChange(addSceneFogShape(scene, commit.shape, commit.fogPatch));
+        }
       }
       return;
     }
