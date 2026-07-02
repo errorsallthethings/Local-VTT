@@ -52,6 +52,7 @@ import {
 } from "./persistenceCodecs.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
+const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
 const isDev = !app.isPackaged && !isSmokeTest;
 const devServerUrl = "http://127.0.0.1:5173";
 const MAX_METADATA_BACKUPS = 10;
@@ -1197,7 +1198,7 @@ function runSmokeTest(win: BrowserWindow): void {
     completed = true;
     console.error("LOCALVTT_SMOKE_ERROR GM window did not finish loading in time.");
     app.exit(1);
-  }, 15000);
+  }, isVisualSmokeTest ? 45000 : 15000);
 
   const finish = () => {
     if (completed) {
@@ -1225,6 +1226,19 @@ function runSmokeTest(win: BrowserWindow): void {
           };
         })()`
       )
+      .then(async (result: unknown) => {
+        if (isVisualSmokeTest) {
+          const { runVisualSmokeTest } = await import("./visualSmokeTest.js");
+          return {
+            ...(result as Record<string, unknown>),
+            visualSmoke: await runVisualSmokeTest(win, {
+              getPlayerWindow: () => playerWindow,
+              registerAssetPaths
+            })
+          };
+        }
+        return result;
+      })
       .then((result: unknown) => {
         clearTimeout(timeout);
         console.log(`LOCALVTT_SMOKE_RESULT ${JSON.stringify(result)}`);

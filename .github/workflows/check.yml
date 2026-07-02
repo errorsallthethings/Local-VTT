@@ -34,3 +34,6 @@ jobs:
 
       - name: Run Electron smoke test
         run: npm run smoke:electron
+
+      - name: Run Electron visual smoke test
+        run: npm run smoke:visual
