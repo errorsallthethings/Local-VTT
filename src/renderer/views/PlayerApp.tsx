@@ -13,7 +13,6 @@ import {
   type PlayerIdleState,
   type PlayerSceneProjection
 } from "../../shared/localvtt";
-import { SceneCanvas } from "../components/SceneCanvas";
 import { drawHexGrid, drawSquareGrid } from "../canvas/grid/gridRenderer";
 import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/player-view";
 
@@ -21,6 +20,7 @@ const PLAYER_SCENE_SPLASH_FADE_MS = 320;
 const PLAYER_SCENE_SPLASH_MIN_MS = 2000;
 const PLAYER_SCENE_READY_FALLBACK_MS = 3000;
 const DiceRollOverlay = lazy(() => import("../components/dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
+const SceneCanvas = lazy(() => import("../components/SceneCanvas").then((module) => ({ default: module.SceneCanvas })));
 
 export function PlayerApp() {
   const [projection, setProjection] = useState<PlayerSceneProjection | null>(null);
@@ -346,15 +346,17 @@ function PlayerScene({
 
   return (
     <div className={className}>
-      <SceneCanvas
-        campaign={campaign}
-        scene={projection.scene}
-        mode="player"
-        interactive={false}
-        liveTableEvents={liveTableEvents}
-        showPlayerSeatIndicators={projection.showPlayerSeatIndicators ?? false}
-        onReady={onReady}
-      />
+      <Suspense fallback={null}>
+        <SceneCanvas
+          campaign={campaign}
+          scene={projection.scene}
+          mode="player"
+          interactive={false}
+          liveTableEvents={liveTableEvents}
+          showPlayerSeatIndicators={projection.showPlayerSeatIndicators ?? false}
+          onReady={onReady}
+        />
+      </Suspense>
     </div>
   );
 }
