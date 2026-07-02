@@ -6,6 +6,11 @@ import { distanceBetween } from "../tokens/tokenGeometry";
 
 export type DrawingBounds = { left: number; top: number; right: number; bottom: number };
 export type DrawingPointSnapshot = Map<string, Point[]>;
+export type PointSnapshotMove = {
+  start: Point;
+  snapAnchor?: Point;
+  groupStartPoints: DrawingPointSnapshot;
+};
 
 export function getDrawingRotationHandleAtPoint(
   drawings: Scene["drawings"],
@@ -98,6 +103,10 @@ export function getDrawingGroupSnapAnchor(drawings: Scene["drawings"], drawingId
 }
 
 export function getMovedDrawingPointSnapshot(groupStartPoints: DrawingPointSnapshot, delta: Point): DrawingPointSnapshot {
+  return getMovedPointSnapshot(groupStartPoints, delta);
+}
+
+export function getMovedPointSnapshot(groupStartPoints: DrawingPointSnapshot, delta: Point): DrawingPointSnapshot {
   return new Map(
     [...groupStartPoints.entries()].map(([drawingId, points]) => [
       drawingId,
@@ -107,6 +116,13 @@ export function getMovedDrawingPointSnapshot(groupStartPoints: DrawingPointSnaps
       }))
     ])
   );
+}
+
+export function getProjectedSnapAnchor(start: Point, snapAnchor: Point, current: Point): Point {
+  return {
+    x: snapAnchor.x + current.x - start.x,
+    y: snapAnchor.y + current.y - start.y
+  };
 }
 
 export function getDrawingMoveDelta(start: Point, snapAnchor: Point, current: Point, snappedPoint: Point | null): Point {
@@ -119,7 +135,21 @@ export function getDrawingMoveDelta(start: Point, snapAnchor: Point, current: Po
         x: snappedPoint.x - snapAnchor.x,
         y: snappedPoint.y - snapAnchor.y
       }
-    : pointerDelta;
+      : pointerDelta;
+}
+
+export function getPointSnapshotMoveDelta(move: Pick<PointSnapshotMove, "start" | "snapAnchor">, current: Point, snappedPoint: Point | null = null): Point {
+  if (move.snapAnchor) {
+    return getDrawingMoveDelta(move.start, move.snapAnchor, current, snappedPoint);
+  }
+  return {
+    x: current.x - move.start.x,
+    y: current.y - move.start.y
+  };
+}
+
+export function getMovedPointSnapshotForMove(move: PointSnapshotMove, current: Point, snappedPoint: Point | null = null): DrawingPointSnapshot {
+  return getMovedPointSnapshot(move.groupStartPoints, getPointSnapshotMoveDelta(move, current, snappedPoint));
 }
 
 export function getResizedDrawingPointSnapshot(

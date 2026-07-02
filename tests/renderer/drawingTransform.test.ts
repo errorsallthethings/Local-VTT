@@ -5,7 +5,11 @@ import {
   getDrawingGroupSnapAnchor,
   getDrawingMoveDelta,
   getDrawingPointSnapshot,
+  getMovedPointSnapshot,
+  getMovedPointSnapshotForMove,
   getMovedDrawingPointSnapshot,
+  getPointSnapshotMoveDelta,
+  getProjectedSnapAnchor,
   getDrawingResizeHandleAtPoint,
   getDrawingResizeHandles,
   getDrawingRotationHandle,
@@ -91,11 +95,51 @@ describe("drawing transform geometry", () => {
     const snapshot = new Map([["a", [{ x: 1, y: 2 }, { x: 3, y: 4 }]]]);
 
     expect(getMovedDrawingPointSnapshot(snapshot, { x: 5, y: -2 }).get("a")).toEqual([{ x: 6, y: 0 }, { x: 8, y: 2 }]);
+    expect(getMovedPointSnapshot(snapshot, { x: 5, y: -2 }).get("a")).toEqual([{ x: 6, y: 0 }, { x: 8, y: 2 }]);
   });
 
   it("prefers snap anchor delta when calculating drawing movement", () => {
     expect(getDrawingMoveDelta({ x: 10, y: 20 }, { x: 50, y: 60 }, { x: 20, y: 25 }, null)).toEqual({ x: 10, y: 5 });
     expect(getDrawingMoveDelta({ x: 10, y: 20 }, { x: 50, y: 60 }, { x: 20, y: 25 }, { x: 80, y: 100 })).toEqual({ x: 30, y: 40 });
+  });
+
+  it("projects snap anchors from pointer movement", () => {
+    expect(getProjectedSnapAnchor({ x: 10, y: 20 }, { x: 50, y: 60 }, { x: 20, y: 25 })).toEqual({ x: 60, y: 65 });
+  });
+
+  it("moves generic point snapshots with and without snap anchors", () => {
+    const snapshot = new Map([["item", [{ x: 1, y: 2 }, { x: 3, y: 4 }]]]);
+
+    expect(
+      getPointSnapshotMoveDelta(
+        {
+          start: { x: 10, y: 20 },
+          groupStartPoints: snapshot
+        },
+        { x: 15, y: 30 }
+      )
+    ).toEqual({ x: 5, y: 10 });
+    expect(
+      getPointSnapshotMoveDelta(
+        {
+          start: { x: 10, y: 20 },
+          snapAnchor: { x: 50, y: 60 },
+          groupStartPoints: snapshot
+        },
+        { x: 15, y: 30 },
+        { x: 70, y: 90 }
+      )
+    ).toEqual({ x: 20, y: 30 });
+
+    expect(
+      getMovedPointSnapshotForMove(
+        {
+          start: { x: 10, y: 20 },
+          groupStartPoints: snapshot
+        },
+        { x: 15, y: 30 }
+      ).get("item")
+    ).toEqual([{ x: 6, y: 12 }, { x: 8, y: 14 }]);
   });
 
   it("resizes drawing point snapshots and skips missing drawings", () => {

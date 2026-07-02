@@ -31,11 +31,11 @@ import {
 } from "../canvas/drawings";
 import {
   getDrawingGroupSnapAnchor,
-  getDrawingMoveDelta,
   getDrawingPointSnapshot,
   getDrawingResizeHandleAtPoint,
   getDrawingRotationHandleAtPoint,
-  getMovedDrawingPointSnapshot,
+  getMovedPointSnapshotForMove,
+  getProjectedSnapAnchor,
   getResizedDrawingPointSnapshot,
   getRotatedDrawingPointSnapshot
 } from "../canvas/drawings";
@@ -505,20 +505,6 @@ function getEnvironmentEffectGroupSnapAnchor(scene: Scene, effectIds: string[], 
     x: (left + right) / 2,
     y: (top + bottom) / 2
   };
-}
-
-function getMovedSceneItemPointSnapshot(groupStartPoints: Map<string, Point[]>, delta: Point): Map<string, Point[]> {
-  const movedPoints = new Map<string, Point[]>();
-  for (const [itemId, points] of groupStartPoints) {
-    movedPoints.set(
-      itemId,
-      points.map((point) => ({
-        x: point.x + delta.x,
-        y: point.y + delta.y
-      }))
-    );
-  }
-  return movedPoints;
 }
 
 function getEnvironmentEffectsWithPointOverrides(scene: Scene, environmentEffectPoints: Map<string, Point[]> | null) {
@@ -1751,43 +1737,25 @@ export function SceneCanvas({
 
     if (drawingDragValue?.pointerId === event.pointerId) {
       const worldPoint = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const pointerDelta = {
-        x: worldPoint.x - drawingDragValue.start.x,
-        y: worldPoint.y - drawingDragValue.start.y
-      };
-      const projectedAnchor = {
-        x: drawingDragValue.snapAnchor.x + pointerDelta.x,
-        y: drawingDragValue.snapAnchor.y + pointerDelta.y
-      };
+      const projectedAnchor = getProjectedSnapAnchor(drawingDragValue.start, drawingDragValue.snapAnchor, worldPoint);
       const snappedPoint = scene && isSnapModifier(event) ? getNearestSceneSnapPoint(projectedAnchor, scene) : null;
       setSnapPoint(snappedPoint);
-      setDrawingDragPreview(getMovedDrawingPointSnapshot(drawingDragValue.groupStartPoints, getDrawingMoveDelta(drawingDragValue.start, drawingDragValue.snapAnchor, worldPoint, snappedPoint)));
+      setDrawingDragPreview(getMovedPointSnapshotForMove(drawingDragValue, worldPoint, snappedPoint));
       return;
     }
 
     if (weatherMaskMoveValue?.pointerId === event.pointerId) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const delta = {
-        x: point.x - weatherMaskMoveValue.start.x,
-        y: point.y - weatherMaskMoveValue.start.y
-      };
-      setWeatherMaskMovePreview(getMovedSceneItemPointSnapshot(weatherMaskMoveValue.groupStartPoints, delta));
+      setWeatherMaskMovePreview(getMovedPointSnapshotForMove(weatherMaskMoveValue, point));
       return;
     }
 
     if (environmentEffectMoveValue?.pointerId === event.pointerId) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const pointerDelta = {
-        x: point.x - environmentEffectMoveValue.start.x,
-        y: point.y - environmentEffectMoveValue.start.y
-      };
-      const projectedAnchor = {
-        x: environmentEffectMoveValue.snapAnchor.x + pointerDelta.x,
-        y: environmentEffectMoveValue.snapAnchor.y + pointerDelta.y
-      };
+      const projectedAnchor = getProjectedSnapAnchor(environmentEffectMoveValue.start, environmentEffectMoveValue.snapAnchor, point);
       const snappedPoint = scene && isSnapModifier(event) ? getNearestSceneSnapPoint(projectedAnchor, scene) : null;
       setSnapPoint(snappedPoint);
-      setEnvironmentEffectMovePreview(getMovedSceneItemPointSnapshot(environmentEffectMoveValue.groupStartPoints, getDrawingMoveDelta(environmentEffectMoveValue.start, environmentEffectMoveValue.snapAnchor, point, snappedPoint)));
+      setEnvironmentEffectMovePreview(getMovedPointSnapshotForMove(environmentEffectMoveValue, point, snappedPoint));
       return;
     }
 
