@@ -52,6 +52,7 @@ import { FogShapeList, type FogShapeDropTarget } from "../lists/FogShapeList";
 import { TokenList } from "../lists/TokenList";
 import { DrawingList, type DrawingDropTarget } from "./DrawingList";
 import { EnvironmentEffectList } from "./EnvironmentEffectList";
+import { FogSettingsPanel } from "./FogSettingsPanel";
 import { WeatherCategoryRow, WeatherDirectionDial, WeatherRangeRow } from "./WeatherControls";
 import { WeatherMaskList } from "./WeatherMaskList";
 import {
@@ -270,16 +271,6 @@ export function LayerPanel({
       return;
     }
     toggleLayerExpanded(layerId);
-  };
-
-  const updateFogStartMode = (mode: FogSettings["mode"]) => {
-    const opacity = mode === "revealed" ? 0 : mode === "partial" ? 0.5 : 1;
-    onUpdateFog({
-      mode,
-      gmOpacity: mode === "revealed" ? 0 : 0.5,
-      playerOpacity: opacity,
-      opacity
-    });
   };
 
   const updateWeather = (patch: Partial<WeatherSettings>) => {
@@ -822,73 +813,13 @@ export function LayerPanel({
                 </div>
               )}
               {layer.id === "fog" && areSettingsExpanded && (
-                <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
-                  <label className="stacked-control">
-                    Mode
-                    <select value={scene.fog.mode} onChange={(event) => updateFogStartMode(event.target.value as FogSettings["mode"])}>
-                      <option value="revealed">Fully revealed</option>
-                      <option value="hidden">Fully hidden</option>
-                      <option value="partial">Partially revealed</option>
-                    </select>
-                  </label>
-                  <div className="settings-grid">
-                    <label className="setting-row">
-                      <span>GM opacity</span>
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={scene.fog.gmOpacity}
-                        onChange={(event) => onUpdateFog({ gmOpacity: Number(event.target.value) })}
-                      />
-                    </label>
-                    <label className="setting-row">
-                      <span>Player opacity</span>
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={scene.fog.playerOpacity}
-                        onChange={(event) => onUpdateFog({ playerOpacity: Number(event.target.value), opacity: Number(event.target.value) })}
-                      />
-                    </label>
-                    <ColorSettingRow label="Color" value={scene.fog.color} onOpen={onOpenFogColor} />
-                  </div>
-                  <div className="setting-row fog-new-shape-row">
-                    <span className="fog-default-label">
-                      New Shapes
-                      <button
-                        type="button"
-                        className="icon-button measurement-help-button"
-                        aria-label="New Shapes Help"
-                        title="New Shapes Help"
-                        onClick={() => setFogPlayerDefaultHelpOpen((open) => !open)}
-                      >
-                        <CircleHelp size={15} aria-hidden="true" />
-                      </button>
-                    </span>
-                    <div className="fog-new-shape-control">
-                      <label className="fog-operation-switch fog-new-shape-switch" title="Player View default for newly drawn fog shapes">
-                        <span>Reveal</span>
-                        <input
-                          aria-label="Player View default for new fog shapes"
-                          type="checkbox"
-                          checked={!scene.fog.newShapesVisibleInPlayer}
-                          onChange={(event) => onUpdateFog({ newShapesVisibleInPlayer: !event.target.checked })}
-                        />
-                        <span>Hidden</span>
-                      </label>
-                    </div>
-                  </div>
-                  {fogPlayerDefaultHelpOpen && (
-                    <div className="settings-help-panel layer-settings-help-panel" role="note">
-                      <p>Sets the Player View default for newly drawn fog shapes.</p>
-                    </div>
-                  )}
-                  <div className="inline-help">Fog drawing tools are available from the floating Tools Menu in the GM canvas.</div>
-                </div>
+                <FogSettingsPanel
+                  fog={scene.fog}
+                  isNewShapeHelpOpen={fogPlayerDefaultHelpOpen}
+                  onToggleNewShapeHelp={() => setFogPlayerDefaultHelpOpen((open) => !open)}
+                  onUpdateFog={onUpdateFog}
+                  onOpenFogColor={onOpenFogColor}
+                />
               )}
               {layer.id === "fog" && isExpanded && (
                 <FogShapeList
