@@ -6,7 +6,7 @@ import { distanceBetweenPoints, distanceToSegment, getConeTriangle, getTriangle,
 import { getDrawingPreviewPoints, type DrawingPreview, type DrawingTool } from "./drawingPreview";
 import { getTemplateEffectStyle } from "./templateEffectStyles";
 import { getTemplateEffectTuning, TEMPLATE_EFFECT_TUNING_VERSION, type TemplateEffectTuning } from "./templateEffectTuning";
-import { getTemplateLabel, getTemplateLabelPosition } from "./templateLabels";
+import { getLineTemplateEffectWidthPixels, getTemplateLabel, getTemplateLabelPosition } from "./templateLabels";
 
 export type DrawingPointOverrides = Map<string, Point[]>;
 
@@ -756,17 +756,6 @@ function getTemplateEffectBounds(drawing: DrawingElement, grid?: GridSettings): 
     right: bounds.right + padding,
     bottom: bounds.bottom + padding
   };
-}
-
-function getLineTemplateEffectWidthPixels(drawing: DrawingElement, grid?: GridSettings): number {
-  const widthFeet = drawing.templateWidth ?? 5;
-  if (widthFeet <= 0) {
-    return Math.max(12, drawing.strokeWidth * 2.5);
-  }
-  if (grid && grid.type !== "gridless" && grid.sizePx > 0 && grid.measurement.unitsPerGridCell > 0) {
-    return (widthFeet / grid.measurement.unitsPerGridCell) * grid.sizePx;
-  }
-  return Math.max(drawing.strokeWidth * 1.8, widthFeet * 10);
 }
 
 function getTemplateEffectRenderables(effect: DrawingTemplateEffect): TemplateEffectRenderable[] {

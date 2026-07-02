@@ -1,4 +1,4 @@
-import type { DrawingElement, Point, Scene } from "../../../shared/localvtt";
+import type { DrawingElement, GridSettings, Point, Scene } from "../../../shared/localvtt";
 import { formatMeasurementDistance, getStraightLineMeasurementDistance } from "../measurement/measurement";
 import { getConeTriangle } from "./drawingGeometry";
 
@@ -69,6 +69,17 @@ export function getTemplateLabelPosition(drawing: DrawingElement): { position: P
     },
     angle
   };
+}
+
+export function getLineTemplateEffectWidthPixels(drawing: DrawingElement, grid?: GridSettings): number {
+  const widthFeet = drawing.templateWidth ?? 5;
+  if (widthFeet <= 0) {
+    return Math.max(12, drawing.strokeWidth * 2.5);
+  }
+  if (grid && grid.type !== "gridless" && grid.sizePx > 0 && grid.measurement.unitsPerGridCell > 0) {
+    return (widthFeet / grid.measurement.unitsPerGridCell) * grid.sizePx;
+  }
+  return Math.max(drawing.strokeWidth * 1.8, widthFeet * 10);
 }
 
 function getTemplateRectangleSideDistance(start: Point, end: Point, scene: Scene): number {
