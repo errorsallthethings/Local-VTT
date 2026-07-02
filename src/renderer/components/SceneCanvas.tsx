@@ -9,7 +9,7 @@ import {
   TOKEN_CONDITION_LABELS,
   formatDefaultFogShapeName
 } from "../../shared/localvtt";
-import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings, Token, TokenConditionId } from "../../shared/localvtt";
+import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings } from "../../shared/localvtt";
 import { areCamerasEqual, getCameraForPanDrag, getCameraForWheelZoom, getRenderCamera, type Camera, type CameraPanDrag } from "../canvas/core";
 import {
   getCanvasInteractionClass,
@@ -210,7 +210,7 @@ import { useSyncedRef } from "../hooks/useSyncedRef";
 import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { useWindowKeyDown } from "../hooks/useWindowKeyDown";
-import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/tokens";
+import { getTokenConditionsVisibleInPlayer, getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag, setTokenCondition, setTokenConditionsPlayerVisibility } from "../lib/tokens";
 import {
   addEnvironmentEffect,
   addSceneDrawing,
@@ -388,41 +388,6 @@ type EnvironmentEffectContextMenu = {
   x: number;
   y: number;
 };
-
-function getTokenConditionsVisibleInPlayer(token: Token): boolean {
-  const conditions = token.conditions ?? [];
-  return conditions.length === 0 || conditions.every((condition) => condition.visibleInPlayer);
-}
-
-function setTokenCondition(tokens: Token[], tokenId: string, conditionId: TokenConditionId, enabled: boolean, visibleInPlayer: boolean): Token[] {
-  return tokens.map((token) => {
-    if (token.id !== tokenId) {
-      return token;
-    }
-    const conditions = token.conditions ?? [];
-    if (!enabled) {
-      return { ...token, conditions: conditions.filter((condition) => condition.id !== conditionId) };
-    }
-    if (conditions.some((condition) => condition.id === conditionId)) {
-      return token;
-    }
-    return { ...token, conditions: [...conditions, { id: conditionId, visibleInPlayer }] };
-  });
-}
-
-function setTokenConditionsPlayerVisibility(tokens: Token[], tokenId: string, visibleInPlayer: boolean): Token[] {
-  return tokens.map((token) => {
-    if (token.id !== tokenId) {
-      return token;
-    }
-    return {
-      ...token,
-      conditions: (token.conditions ?? []).map((condition) => (
-        { ...condition, visibleInPlayer }
-      ))
-    };
-  });
-}
 
 type CanvasContextMenuKind = "token" | "mask" | "drawing" | "environment";
 
