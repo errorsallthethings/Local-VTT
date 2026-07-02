@@ -8,6 +8,7 @@ import {
   type CampaignHealthSceneReferenceKind
 } from "../src/shared/campaignHealth.js";
 import { assertValidScene, normalizeCampaign, normalizeScene, type Asset, type Campaign, type Scene } from "../src/shared/localvtt.js";
+import { requireCampaignRelativePath } from "./assetFiles.js";
 import { findMissingCampaignAssetFiles, type MissingCampaignAssetFile } from "./campaignAssetRecovery.js";
 
 export type ReadSceneMetadata = (campaignPath: string, sceneId: string, sceneFile: string) => Promise<Scene>;
@@ -61,8 +62,7 @@ export async function inspectCampaignHealth(
 }
 
 async function readSceneFromDisk(campaignPath: string, sceneId: string, sceneFile: string): Promise<Scene> {
-  const filePath = path.resolve(campaignPath, sceneFile || path.join("scenes", `${sceneId}.scene.json`));
-  assertInsideCampaign(campaignPath, filePath);
+  const filePath = requireCampaignRelativePath(campaignPath, sceneFile || path.join("scenes", `${sceneId}.scene.json`), "Scene file is outside the selected campaign folder.");
   const raw = await readFile(filePath, "utf8");
   const parsed = JSON.parse(raw) as unknown;
   assertValidScene(parsed);
@@ -97,15 +97,6 @@ function toUnreferencedAsset(asset: Asset) {
     kind: asset.kind,
     relativePath: asset.relativePath
   };
-}
-
-function assertInsideCampaign(campaignPath: string, candidatePath: string): void {
-  const root = path.resolve(campaignPath);
-  const candidate = path.resolve(candidatePath);
-  const relative = path.relative(root, candidate);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw new Error("Scene file is outside the selected campaign folder.");
-  }
 }
 
 export async function campaignFileExists(absolutePath: string): Promise<boolean> {
