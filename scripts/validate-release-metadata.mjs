@@ -5,7 +5,14 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 
-export function validateReleaseMetadata({ packageJson, packageLock, releaseNoteFiles = [], tagName = process.env.GITHUB_REF_NAME, refType = process.env.GITHUB_REF_TYPE } = {}) {
+export function validateReleaseMetadata({
+  packageJson,
+  packageLock,
+  releaseNoteFiles = [],
+  releaseNoteContents,
+  tagName = process.env.GITHUB_REF_NAME,
+  refType = process.env.GITHUB_REF_TYPE
+} = {}) {
   const errors = [];
   const appVersion = packageJson?.version;
   const lockVersion = packageLock?.version;
@@ -28,8 +35,16 @@ export function validateReleaseMetadata({ packageJson, packageLock, releaseNoteF
     }
   }
 
-  if (isSemver(appVersion) && !hasReleaseNotesForVersion(releaseNoteFiles, appVersion)) {
-    errors.push(`docs/release-notes must include v${appVersion}.md or ${appVersion}.md before release.`);
+  if (isSemver(appVersion)) {
+    const releaseNoteFileName = getReleaseNotesFileForVersion(releaseNoteFiles, appVersion);
+    if (!releaseNoteFileName) {
+      errors.push(`docs/release-notes must include v${appVersion}.md or ${appVersion}.md before release.`);
+    } else if (isRecord(releaseNoteContents)) {
+      const releaseNoteContent = releaseNoteContents[releaseNoteFileName];
+      if (typeof releaseNoteContent !== "string" || !releaseNoteHasVersionHeading(releaseNoteContent, appVersion)) {
+        errors.push(`${path.posix.join("docs", "release-notes", releaseNoteFileName)} must start with '# Local VTT v${appVersion}'.`);
+      }
+    }
   }
 
   const build = packageJson?.build;
@@ -51,10 +66,13 @@ export function validateReleaseMetadata({ packageJson, packageLock, releaseNoteF
 }
 
 export function loadReleaseMetadata(root = repoRoot) {
+  const releaseNotesDir = path.join(root, "docs", "release-notes");
+  const releaseNoteFiles = listReleaseNoteFiles(releaseNotesDir);
   return {
     packageJson: readJson(path.join(root, "package.json")),
     packageLock: readJson(path.join(root, "package-lock.json")),
-    releaseNoteFiles: listReleaseNoteFiles(path.join(root, "docs", "release-notes"))
+    releaseNoteFiles,
+    releaseNoteContents: readReleaseNoteContents(releaseNotesDir, releaseNoteFiles)
   };
 }
 
@@ -74,8 +92,19 @@ function requireFilesEntry(errors, files, expectedEntry) {
   }
 }
 
-function hasReleaseNotesForVersion(releaseNoteFiles, version) {
-  return Array.isArray(releaseNoteFiles) && (releaseNoteFiles.includes(`v${version}.md`) || releaseNoteFiles.includes(`${version}.md`));
+function getReleaseNotesFileForVersion(releaseNoteFiles, version) {
+  if (!Array.isArray(releaseNoteFiles)) {
+    return null;
+  }
+  return releaseNoteFiles.find((fileName) => fileName === `v${version}.md` || fileName === `${version}.md`) ?? null;
+}
+
+function releaseNoteHasVersionHeading(content, version) {
+  return new RegExp(`^# Local VTT v${escapeRegExp(version)}(?:\\r?\\n|$)`).test(content.trimStart());
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function listReleaseNoteFiles(releaseNotesDir) {
@@ -84,6 +113,10 @@ function listReleaseNoteFiles(releaseNotesDir) {
   } catch {
     return [];
   }
+}
+
+function readReleaseNoteContents(releaseNotesDir, releaseNoteFiles) {
+  return Object.fromEntries(releaseNoteFiles.map((fileName) => [fileName, readFileSync(path.join(releaseNotesDir, fileName), "utf8")]));
 }
 
 function isRecord(value) {

@@ -110,4 +110,30 @@ describe("validateReleaseMetadata", () => {
       })
     ).toEqual([]);
   });
+
+  it("reports release notes heading drift when contents are available", () => {
+    expect(
+      validateReleaseMetadata({
+        packageJson: validPackageJson(),
+        packageLock: validPackageLock(),
+        releaseNoteFiles: ["v0.1.15.md"],
+        releaseNoteContents: {
+          "v0.1.15.md": "# Local VTT v0.1.14\n\nOld notes."
+        }
+      })
+    ).toContain("docs/release-notes/v0.1.15.md must start with '# Local VTT v0.1.15'.");
+  });
+
+  it("accepts release notes content with the matching version heading", () => {
+    expect(
+      validateReleaseMetadata({
+        packageJson: validPackageJson(),
+        packageLock: validPackageLock(),
+        releaseNoteFiles: ["v0.1.15.md"],
+        releaseNoteContents: {
+          "v0.1.15.md": "# Local VTT v0.1.15\r\n\r\nReady."
+        }
+      })
+    ).toEqual([]);
+  });
 });

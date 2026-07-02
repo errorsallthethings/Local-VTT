@@ -84,7 +84,7 @@ npm run smoke:electron
 npm run smoke:visual
 ```
 
-`npm run release:check-metadata` verifies that `package.json` and `package-lock.json` versions agree, that tag-triggered release builds match the package version, that `docs/release-notes/` contains notes for the package version, and that the core `electron-builder` metadata needed for packaged app identity is present. It is also included in `npm run check`.
+`npm run release:check-metadata` verifies that `package.json` and `package-lock.json` versions agree, that tag-triggered release builds match the package version, that `docs/release-notes/` contains notes for the package version with a matching `# Local VTT vX.Y.Z` heading, and that the core `electron-builder` metadata needed for packaged app identity is present. It is also included in `npm run check`.
 
 5. Commit the release metadata changes:
 
