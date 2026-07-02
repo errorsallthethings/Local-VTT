@@ -65,6 +65,7 @@ import {
   metadataBackupsRootFolder,
   metadataBackupPathFromRef,
   requireSceneBackupId,
+  sceneBackupsRootFolder,
   sceneBackupFolder
 } from "./metadataBackups.js";
 import {
@@ -532,7 +533,7 @@ async function listMetadataBackups(campaignPath: string): Promise<MetadataBackup
   const entries: MetadataBackupEntry[] = [];
   entries.push(...(await listBackupFolder(campaignPath, campaignBackupFolder(campaignPath), "campaign")));
 
-  const scenesRoot = path.join(metadataBackupsRootFolder(campaignPath), "scenes");
+  const scenesRoot = sceneBackupsRootFolder(campaignPath);
   assertInsideCampaign(campaignPath, scenesRoot);
   try {
     const sceneFolders = await readdir(scenesRoot, { withFileTypes: true });

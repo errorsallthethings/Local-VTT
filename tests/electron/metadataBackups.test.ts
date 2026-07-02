@@ -8,6 +8,7 @@ import {
   metadataBackupPathFromRef,
   parseBackupTimestamp,
   requireSceneBackupId,
+  sceneBackupsRootFolder,
   sceneBackupFolder
 } from "../../electron/metadataBackups";
 
@@ -49,6 +50,7 @@ describe("metadata backup helpers", () => {
   it("builds campaign and scene backup folders", () => {
     expect(metadataBackupsRootFolder("campaign-root")).toBe(path.join("campaign-root", "backups"));
     expect(campaignBackupFolder("campaign-root")).toBe(path.join("campaign-root", "backups", "campaign"));
+    expect(sceneBackupsRootFolder("campaign-root")).toBe(path.join("campaign-root", "backups", "scenes"));
     expect(sceneBackupFolder("campaign-root", "scene-1")).toBe(path.join("campaign-root", "backups", "scenes", "scene-1"));
   });
 

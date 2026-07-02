@@ -15,9 +15,13 @@ export function metadataBackupsRootFolder(campaignPath: string): string {
   return path.join(campaignPath, "backups");
 }
 
+export function sceneBackupsRootFolder(campaignPath: string): string {
+  return path.join(metadataBackupsRootFolder(campaignPath), "scenes");
+}
+
 export function sceneBackupFolder(campaignPath: string, sceneId: string): string {
   assertSafePathSegment(sceneId, "Unsafe backup scene id.");
-  return path.join(metadataBackupsRootFolder(campaignPath), "scenes", sceneId);
+  return path.join(sceneBackupsRootFolder(campaignPath), sceneId);
 }
 
 export function metadataBackupPathFromRef(campaignPath: string, ref: MetadataBackupRef): string {
