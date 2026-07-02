@@ -2,11 +2,34 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import RAPIER from "@dimforge/rapier3d-compat";
 import * as THREE from "three";
 import type { DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneSize, LiveTableEvent } from "../../../shared/localvtt";
-import { annotateKeptDiceForFormula, DICE_EVENT_DURATION_MS, formatDiceRollSummary, formatDieLabel, getDiceRollTone, getDiceVisualTotal, getDieSides, getPercentileTotal, type DiceRollTone } from "../../lib/dice";
+import {
+  annotateKeptDiceForFormula,
+  DICE_EVENT_DURATION_MS,
+  formatDieLabel,
+  getDiceRollTone,
+  getDiceVisualTotal,
+  getDieSides,
+  getDisplayedRollLabel,
+  getDisplayedRollSummary,
+  getPublishedSceneResolvedLabel,
+  getResolvedDieValue,
+  getResolvedDisplayedLabel,
+  getResolvedDisplayedSummary,
+  getRollModifier,
+  getRollSummary,
+  getRollingSummary,
+  getShuffledRollLabel,
+  getVisualDice,
+  getVisualResultFaceLabel,
+  shouldUnderlineResultLabel,
+  type DiceRollTone,
+  type DiceVisualRoll,
+  type ResolvedDiceResult
+} from "../../lib/dice";
 import { logRendererWarning } from "../../lib/rendererDiagnostics";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
-type DiceVisual = NonNullable<DiceRollEvent["dice"]>[number];
+type DiceVisual = DiceVisualRoll;
 const DICE_SETTLE_DURATION_MS = 2800;
 const COIN_SCENE_SETTLE_DURATION_MS = 3400;
 const DICE_RESULTS_SHUFFLE_DURATION_MS = 900;
@@ -18,13 +41,6 @@ const DICE_SCENE_MAX_ROLL_MS = 10000;
 const DICE_FACE_HIGHLIGHT_DURATION_MS = 1800;
 const RAPIER_READY = RAPIER.init();
 let sharedDiceRenderer: THREE.WebGLRenderer | null = null;
-
-type ResolvedDiceResult = {
-  label: string;
-  summary: string;
-  result: number;
-  dice: Array<{ kept?: boolean; label: string; value: number }>;
-};
 
 function acquireDiceRenderer(mount: HTMLDivElement): THREE.WebGLRenderer {
   if (!sharedDiceRenderer || sharedDiceRenderer.getContext().isContextLost()) {
@@ -380,10 +396,6 @@ function getDiceRevealDelay(event: DiceRollEvent, mode: "gm" | "player"): number
   return pairedDisplayMode === "panel" || pairedDisplayMode === "scene" ? getDiceSettleDuration(event) : DICE_RESULTS_SHUFFLE_DURATION_MS;
 }
 
-function shouldUnderlineResultLabel(label: string): boolean {
-  return label === "6" || label === "9";
-}
-
 function getDiceSettleDuration(event: DiceRollEvent): number {
   return getVisualDice(event).some((die) => die.die === "coin") ? COIN_SCENE_SETTLE_DURATION_MS : DICE_SETTLE_DURATION_MS;
 }
@@ -413,22 +425,6 @@ function getDicePanelPlacement(event: DiceRollEvent, mode: "gm" | "player"): Dic
   };
 }
 
-function getVisualDice(event: DiceRollEvent): DiceVisual[] {
-  return event.dice ?? [{ die: event.die, result: event.result, label: event.label, seed: event.seed }];
-}
-
-function getRollSummary(event: DiceRollEvent): string {
-  return formatDiceRollSummary(event);
-}
-
-function getDisplayedRollSummary(event: DiceRollEvent): string {
-  return event.sceneResolvedSummary ?? getRollSummary(event);
-}
-
-function getDisplayedRollLabel(event: DiceRollEvent): string {
-  return event.sceneResolvedLabel ?? event.label;
-}
-
 function getDiceResultContent(
   event: DiceRollEvent,
   resultVisible: boolean,
@@ -452,23 +448,6 @@ function getDiceResultContent(
     summary: resolvedPhysicsResult ? getResolvedDisplayedSummary(event, resolvedPhysicsResult) : getDisplayedRollSummary(event),
     label: resolvedPhysicsResult ? getResolvedDisplayedLabel(event, resolvedPhysicsResult) : getDisplayedRollLabel(event)
   };
-}
-
-function getResolvedDisplayedSummary(event: DiceRollEvent, resolvedPhysicsResult: ResolvedDiceResult): string {
-  const modifier = getRollModifier(event);
-  if (modifier === 0) {
-    return resolvedPhysicsResult.summary;
-  }
-  const modifierLabel = modifier > 0 ? `+ ${modifier}` : `- ${Math.abs(modifier)}`;
-  return `${resolvedPhysicsResult.summary} ${resolvedPhysicsResult.label} ${modifierLabel}`;
-}
-
-function getResolvedDisplayedLabel(event: DiceRollEvent, resolvedPhysicsResult: ResolvedDiceResult): string {
-  const modifier = getRollModifier(event);
-  if (modifier === 0) {
-    return resolvedPhysicsResult.label;
-  }
-  return String(resolvedPhysicsResult.result + modifier);
 }
 
 function getDisplayedRollTone(event: DiceRollEvent, displayMode: DiceDisplayMode, resultVisible: boolean, resolvedPhysicsResult: ResolvedDiceResult | null): DiceRollTone {
@@ -528,58 +507,6 @@ function getResolvedD20Tone(event: DiceRollEvent, resolvedPhysicsResult: Resolve
     return "fumble";
   }
   return "normal";
-}
-
-function getRollModifier(event: DiceRollEvent): number {
-  const dice = getVisualDice(event);
-  if (dice.length === 0) {
-    return 0;
-  }
-  return event.result - getDiceVisualTotal(dice);
-}
-
-function getRollingSummary(event: DiceRollEvent): string {
-  const prefix = event.rollLabel ? `${event.rollLabel}: ` : "";
-  if (event.formula) {
-    return `${prefix}${event.formula}`;
-  }
-  const dice = getVisualDice(event);
-  if (event.die === "d00" && hasPercentileDice(dice)) {
-    return `${prefix}${formatDieLabel(event.die)}`;
-  }
-  if (dice.length <= 1) {
-    return `${prefix}${formatDieLabel(event.die)}`;
-  }
-  return `${prefix}${dice.map((die) => formatDieLabel(die.die)).join(" + ")}`;
-}
-
-function getShuffledRollLabel(event: DiceRollEvent, tick: number): string {
-  const dice = getVisualDice(event);
-  if (event.die === "coin" && dice.length === 1) {
-    return seedRange(event.seed + tick, 30, 1) < 0.5 ? "Heads" : "Tails";
-  }
-  if (event.die === "d00" && hasPercentileDice(dice)) {
-    const tens = Math.floor(seedRange(event.seed + tick, 31, 10)) * 10;
-    const ones = Math.floor(seedRange(event.seed + tick, 32, 10));
-    return String(getPercentileTotal(tens === 0 ? "00" : String(tens), String(ones)));
-  }
-  const total = dice.reduce((sum, die, index) => {
-    if (die.kept === false) {
-      return sum;
-    }
-    return sum + getShuffledDieValue(die.die, die.seed, tick, index);
-  }, 0);
-  return String(total);
-}
-
-function getShuffledDieValue(die: DiceVisual["die"], seed: number, tick: number, index: number): number {
-  if (die === "coin") {
-    return seedRange(seed + tick, index + 31, 1) < 0.5 ? 1 : 2;
-  }
-  if (die === "d00") {
-    return Math.floor(seedRange(seed + tick, index + 31, 10)) * 10;
-  }
-  return Math.floor(seedRange(seed + tick, index + 31, getDieSides(die))) + 1;
 }
 
 function getDiceRollOverlayClassName(displayMode: "panel" | "scene", placement: DicePanelPlacement | null): string {
@@ -1218,19 +1145,6 @@ function getResultFacingVector(event: DiceVisual, geometry: THREE.BufferGeometry
   return matchingFaces[0].normal.clone().normalize();
 }
 
-function getVisualResultFaceLabel(event: DiceVisual): string {
-  if (event.die === "d10" && event.result === 10) {
-    return "0";
-  }
-  if (event.die === "d00" && event.result === 0) {
-    return "00";
-  }
-  if (event.die === "d00" && event.result === 100) {
-    return "00";
-  }
-  return event.label;
-}
-
 function getPhysicsRollResult(
   event: DiceRollEvent,
   dice: Array<{
@@ -1318,13 +1232,6 @@ function publishSceneRollResult(event: DiceRollEvent, mode: "gm" | "player", res
   }
 }
 
-function getPublishedSceneResolvedLabel(event: DiceRollEvent, resolvedResult: ResolvedDiceResult, sceneResolvedResult: number): string {
-  if (event.die === "coin" && resolvedResult.dice.length === 1) {
-    return `${resolvedResult.label} (${sceneResolvedResult})`;
-  }
-  return String(sceneResolvedResult);
-}
-
 function getResolvedEventDice(event: DiceRollEvent, resolvedResult: ResolvedDiceResult): DiceVisual[] {
   const dice = getVisualDice(event);
   return dice.map((visual, index) => {
@@ -1367,19 +1274,6 @@ function getPhysicsVisualResult(visual: DiceVisual, quaternion: THREE.Quaternion
   return { label, value: Number(label) };
 }
 
-function getResolvedDieValue(die: DiceVisual): number {
-  if (die.die === "coin") {
-    return die.label === "Tails" ? 2 : 1;
-  }
-  if (die.die === "d10") {
-    return die.label === "0" ? 10 : die.result;
-  }
-  if (die.die === "d00") {
-    return die.label === "00" ? 100 : die.result;
-  }
-  return die.result;
-}
-
 function applyResolvedDiceVisualState(
   dice: Array<{
     die: THREE.Group;
@@ -1409,10 +1303,6 @@ function setObjectMaterialOpacity(object: THREE.Mesh | THREE.LineSegments, opaci
     material.opacity = opacity;
     material.needsUpdate = true;
   });
-}
-
-function hasPercentileDice(dice: DiceVisual[]): boolean {
-  return dice.length === 2 && dice[0]?.die === "d00" && dice[1]?.die === "d10";
 }
 
 function hasResolvedPercentileDice(
