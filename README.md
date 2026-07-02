@@ -63,7 +63,7 @@ Local VTT Campaign/
       scene-id/
 ```
 
-Assets are stored with relative paths in JSON so campaign folders can be backed up or moved between computers.
+Campaign metadata is stored as readable JSON for transparency, backups, troubleshooting, and lightweight sharing between Local VTT installs. Imported assets are copied into the campaign folder and stored with relative paths in JSON so campaign folders can be backed up or moved between computers.
 
 Imported static image and video maps generate small JPEG thumbnails in `assets/thumbnails/` for the scene list. Video thumbnails are captured from the first frame during import when Electron can decode the source video. Imported token assets also generate square JPEG thumbnails for token sub-layer previews and the Token Library.
 
@@ -71,7 +71,11 @@ Imported static image and video maps generate small JPEG thumbnails in `assets/t
 
 To share or move a campaign, close Local VTT and copy the entire campaign folder. Keep `campaign.json`, `scenes/`, and `assets/` together; the JSON metadata references assets with relative paths inside that folder.
 
+Share the folder itself, not only `campaign.json`. A campaign without its `assets/` folder can still open, but maps, videos, token images, and thumbnails that were not copied will be reported as missing.
+
 Avoid editing asset paths in `campaign.json` by hand. Local VTT expects asset and thumbnail paths to be relative paths inside the campaign folder, such as `assets/maps/dungeon.png`. Absolute paths like `C:\Maps\dungeon.png`, paths that climb out of the folder with `..`, or paths to files beside the campaign are rejected or reported as missing.
+
+The JSON files are intentionally readable, but they are not currently a stable manual-editing API. If you edit them outside Local VTT, close the app first, keep a copy of the whole campaign folder, preserve schema versions, and keep asset paths relative to the campaign folder.
 
 If a moved or shared campaign opens with missing assets, use Campaign Health from the Campaign panel to see which files are missing, stale, unreferenced, or referenced by scene metadata.
 
@@ -125,6 +129,7 @@ Use the Campaign panel's Restore Revision option to review and restore available
 ### Campaigns And Scenes
 
 - Campaigns are local folders with portable JSON metadata.
+- Campaign portability depends on copying the full folder, including `campaign.json`, `scenes/`, `assets/`, and any backups you want to keep.
 - Recent Campaigns lets the GM reopen recently used campaigns and remove stale entries.
 - Scene cards show compact map thumbnails when available.
 - Scene folders support rename, color, collapse, drag/drop ordering, duplication, deletion, and saving all dirty scenes in a folder.

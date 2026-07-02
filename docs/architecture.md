@@ -15,7 +15,10 @@ Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog 
 ## Data Flow
 
 - Campaigns are stored as local folders with `campaign.json`, scene JSON files, and relative asset paths.
+- JSON is the current persistence format for readability, backup friendliness, and easy sharing between Local VTT users. It should not be treated as a stable external editing API until import/export or a documented file contract exists.
+- A portable campaign is the full campaign folder, not only `campaign.json`. Shared or backed-up campaigns must keep `campaign.json`, `scenes/`, and `assets/` together.
 - Electron resolves absolute asset paths at runtime after a campaign is opened.
+- Imported map, video, and token assets are copied into campaign-owned asset folders before being referenced by metadata. Thumbnail generation is best-effort; missing thumbnails should not make campaign metadata invalid.
 - Saved campaign metadata must not contain absolute asset paths. Persistence codecs strip runtime-only absolute paths and reject asset paths that are absolute, contain drive prefixes, or traverse outside the campaign folder.
 - Renderer code saves campaign and scene changes through the preload API.
 - Player View receives a projected scene payload that strips GM-only content before crossing the IPC boundary.
