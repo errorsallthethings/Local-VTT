@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapAssetUsedByOtherScenes } from "../../electron/mapAssetUsage";
+import { getMapAssetSceneNames, mapAssetUsedByOtherScenes } from "../../electron/mapAssetUsage";
 import { createDefaultCampaign, createDefaultScene, type Scene } from "../../src/shared/localvtt";
 
 describe("map asset usage", () => {
@@ -18,6 +18,20 @@ describe("map asset usage", () => {
     ]);
 
     await expect(mapAssetUsedByOtherScenes(campaign, "map-1", "scene-1", async (sceneId) => requiredScene(scenes, sceneId))).resolves.toBe(true);
+  });
+
+  it("returns other scene names that use a map asset", async () => {
+    const campaign = createCampaignWithScenes(["scene-1", "scene-2", "scene-3"]);
+    const scenes = new Map<string, Scene>([
+      ["scene-1", sceneWithMap("scene-1", "map-1")],
+      ["scene-2", sceneWithMap("scene-2", "map-1")],
+      ["scene-3", sceneWithMap("scene-3", "map-1")]
+    ]);
+
+    await expect(getMapAssetSceneNames(campaign, "map-1", "scene-1", async (sceneId) => requiredScene(scenes, sceneId))).resolves.toEqual([
+      "Scene 2",
+      "Scene 3"
+    ]);
   });
 
   it("ignores scenes that cannot be read", async () => {

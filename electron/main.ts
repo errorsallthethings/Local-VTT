@@ -72,7 +72,7 @@ import {
   type MapReplacementTokenStore
 } from "./mapReplacementTokens.js";
 import { getDimensionDifferenceWarning } from "./mapReplacementWarnings.js";
-import { mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
+import { getMapAssetSceneNames, mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
 import { createThumbnailImportFailureDiagnostic, createThumbnailRegenerationFailure } from "./thumbnailDiagnostics.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
 
@@ -1669,22 +1669,12 @@ ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: 
     throw new Error("Map asset was not found in this campaign.");
   }
 
-  const otherSceneNames: string[] = [];
-  for (const entry of summary.campaign.scenes) {
-    if (entry.id === sceneId) {
-      continue;
-    }
-    try {
-      const raw = await readFile(sceneFile(campaignPath, entry.id), "utf8");
-      const scene = JSON.parse(raw) as unknown;
-      assertValidScene(scene);
-      if (scene.mapAssetId === assetId) {
-        otherSceneNames.push(entry.name);
-      }
-    } catch {
-      // Missing or invalid scenes are reported elsewhere by scene loading.
-    }
-  }
+  const otherSceneNames = await getMapAssetSceneNames(summary.campaign, assetId, sceneId, async (candidateSceneId) => {
+    const raw = await readFile(sceneFile(campaignPath, candidateSceneId), "utf8");
+    const scene = JSON.parse(raw) as unknown;
+    assertValidScene(scene);
+    return scene;
+  });
 
   if (otherSceneNames.length > 0) {
     throw new Error(`This map asset is still used by: ${otherSceneNames.join(", ")}.`);
