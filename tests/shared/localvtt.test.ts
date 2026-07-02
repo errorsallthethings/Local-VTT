@@ -1009,7 +1009,27 @@ it("normalizeCampaign preserves valid collapsed scene folders only", () => {
 
 it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   const campaign = createDefaultCampaign("Player Safe Campaign");
-  campaign.assets = [asset("map"), asset("visible-token"), asset("hidden-token"), asset("overlay"), asset("unused")];
+  campaign.assets = [asset("map"), asset("visible-token"), asset("hidden-token"), asset("overlay"), asset("visible-player"), asset("hidden-player"), asset("unused")];
+  campaign.players = [
+    {
+      id: "visible-player",
+      name: "Visible Player",
+      color: "#7aa2f7",
+      assetId: "visible-player",
+      defaultSeatEdge: "bottom",
+      defaultSeatPosition: 0.5,
+      visibleInPlayer: true
+    },
+    {
+      id: "hidden-player",
+      name: "Hidden Player",
+      color: "#f7768e",
+      assetId: "hidden-player",
+      defaultSeatEdge: "top",
+      defaultSeatPosition: 0.5,
+      visibleInPlayer: false
+    }
+  ];
   campaign.playerDisplay = { ...campaign.playerDisplay, physicalScaleEnabled: true, pixelsPerInch: 120 };
   campaign.playerDisplayProfiles = campaign.playerDisplayProfiles.map((profile) =>
     profile.id === campaign.activePlayerDisplayProfileId ? { ...profile, physicalScaleEnabled: true, pixelsPerInch: 120 } : profile
@@ -1067,6 +1087,7 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
 
   expect(projection.campaignName).toBe(campaign.name);
   expect(projection.playerDisplay.pixelsPerInch).toBe(120);
+  expect(projection.players.map((player) => player.id)).toEqual(["visible-player"]);
   expect(
     projection.scene.layers.map((layer) => layer.id),
   ).toEqual(["fog", "effects", "drawing", "foreground", "object", "lighting", "grid", "map"]);
@@ -1087,7 +1108,7 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   expect(projection.scene.fog.shapes.map((shape) => shape.id)).toEqual(["player-fog"]);
   expect(
     projection.assets.map((projectionAsset) => projectionAsset.id).sort(),
-  ).toEqual(["map", "overlay", "visible-token"]);
+  ).toEqual(["map", "overlay", "visible-player", "visible-token"]);
 });
 
 it("projectSceneForPlayer strips content owned by hidden Player View layers", () => {

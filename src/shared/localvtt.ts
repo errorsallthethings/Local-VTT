@@ -2461,6 +2461,7 @@ function getUniqueProfileId(rawId: string, usedIds: Set<string>): string {
 export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options: PlayerSceneProjectionOptions = {}): PlayerSceneProjection {
   const normalizedCampaign = normalizeCampaign(campaign);
   const normalizedScene = normalizeScene(scene);
+  const projectedPlayers = normalizedCampaign.players.filter((player) => player.visibleInPlayer);
   const playerLayerIds = new Set(normalizedScene.layers.filter((layer) => layer.visibleInPlayer).map((layer) => layer.id));
   const usedAssetIds = new Set<string>();
   if (normalizedScene.mapAssetId && playerLayerIds.has("map")) {
@@ -2481,7 +2482,7 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
       usedAssetIds.add(entry.assetId);
     }
   }
-  for (const player of normalizedCampaign.players) {
+  for (const player of projectedPlayers) {
     if (player.assetId) {
       usedAssetIds.add(player.assetId);
     }
@@ -2490,7 +2491,7 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
   return {
     campaignName: normalizedCampaign.name,
     playerDisplay: normalizedCampaign.playerDisplay,
-    players: normalizedCampaign.players,
+    players: projectedPlayers,
     showPlayerSeatIndicators: options.showPlayerSeatIndicators ?? false,
     scene: {
       ...normalizedScene,

@@ -23,15 +23,43 @@ describe("player view sync", () => {
       originalFileName: "hidden.png",
       createdAt: "2026-06-01T00:00:00.000Z"
     };
-    campaign.assets = [visibleAsset, hiddenAsset];
+    const visiblePlayerAsset: Asset = {
+      id: "visible-player-avatar",
+      name: "Visible Player Avatar",
+      kind: "token",
+      mediaType: "image",
+      relativePath: "assets/tokens/visible-player.png",
+      originalFileName: "visible-player.png",
+      createdAt: "2026-06-01T00:00:00.000Z"
+    };
+    const hiddenPlayerAsset: Asset = {
+      id: "hidden-player-avatar",
+      name: "Hidden Player Avatar",
+      kind: "token",
+      mediaType: "image",
+      relativePath: "assets/tokens/hidden-player.png",
+      originalFileName: "hidden-player.png",
+      createdAt: "2026-06-01T00:00:00.000Z"
+    };
+    campaign.assets = [visibleAsset, hiddenAsset, visiblePlayerAsset, hiddenPlayerAsset];
     campaign.players = [
       {
         id: "player-1",
         name: "Rhea",
         color: "#ff0000",
+        assetId: "visible-player-avatar",
         defaultSeatEdge: "bottom",
         defaultSeatPosition: 50,
         visibleInPlayer: true
+      },
+      {
+        id: "player-2",
+        name: "Hidden Player",
+        color: "#00ff00",
+        assetId: "hidden-player-avatar",
+        defaultSeatEdge: "top",
+        defaultSeatPosition: 50,
+        visibleInPlayer: false
       }
     ];
 
@@ -63,7 +91,7 @@ describe("player view sync", () => {
     expect(projection.scene.name).toBe("Sync Scene");
     expect(projection.scene.notes).toBe("");
     expect(projection.scene.tokens).toEqual([]);
-    expect(projection.assets.map((asset) => asset.id)).toEqual(["visible-map"]);
+    expect(projection.assets.map((asset) => asset.id)).toEqual(["visible-map", "visible-player-avatar"]);
     expect(projection.players.map((player) => player.id)).toEqual(["player-1"]);
     expect(projection.showPlayerSeatIndicators).toBe(true);
   });
