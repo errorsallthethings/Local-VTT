@@ -5,10 +5,12 @@ import type { PlayerDisplayMode } from "../../lib/player-view";
 import {
   DICE_TYPES,
   formatDieLabel,
-  formatDiceRollBreakdown,
-  formatDiceRollBreakdownTooltip,
+  formatDiceFeedBreakdown,
+  formatDiceFeedBreakdownTooltip,
+  formatDiceFeedLabel,
   formatDiceRollSummary,
-  getDiceRollTone,
+  getDiceFeedTone,
+  isPendingRecentDiceRoll,
   rollDiceExpression,
   type DiceType
 } from "../../lib/dice";
@@ -34,7 +36,6 @@ type DicePanelDrag = {
 };
 
 const CUSTOM_DICE_PRESETS_STORAGE_KEY = "localvtt.customDicePresets";
-const DICE_PANEL_REVEAL_DELAY_MS = 2800;
 const DICE_DISPLAY_OPTIONS = [
   { value: "results", label: "Text Result Only" },
   { value: "panel", label: "3D Panel" },
@@ -208,7 +209,7 @@ export function WorkspaceTopbar({
   }, [dicePanelOpen]);
 
   useEffect(() => {
-    if (!diceHistory.some(isPendingRecentDiceRoll)) {
+    if (!diceHistory.some((roll) => isPendingRecentDiceRoll(roll))) {
       return;
     }
     const timer = window.setInterval(() => setDiceRecentTick((tick) => tick + 1), 120);
@@ -861,43 +862,6 @@ export function WorkspaceTopbar({
       </div>
     </div>
   );
-}
-
-function formatDiceFeedBreakdown(roll: DiceRollEvent, tick = 0): string {
-  if (isPendingRecentDiceRoll(roll, tick)) {
-    return "Waiting for dice to settle";
-  }
-  if (!roll.dice) {
-    return roll.label;
-  }
-  return formatDiceRollBreakdown(roll);
-}
-
-function formatDiceFeedBreakdownTooltip(roll: DiceRollEvent, tick = 0): string | undefined {
-  return isPendingRecentDiceRoll(roll, tick) ? undefined : formatDiceRollBreakdownTooltip(roll);
-}
-
-function formatDiceFeedLabel(roll: DiceRollEvent, tick = 0): string {
-  return isPendingRecentDiceRoll(roll, tick) ? "Rolling" : roll.label;
-}
-
-function getDiceFeedTone(roll: DiceRollEvent, tick = 0) {
-  return isPendingRecentDiceRoll(roll, tick) ? "normal" : getDiceRollTone(roll);
-}
-
-function isPendingRecentDiceRoll(roll: DiceRollEvent, _tick = 0): boolean {
-  return isUnresolvedSceneDiceRoll(roll) || isUnrevealedPanelDiceRoll(roll);
-}
-
-function isUnresolvedSceneDiceRoll(roll: DiceRollEvent): boolean {
-  return (roll.gmDiceDisplay === "scene" || roll.gmDiceDisplay === "scene-result" || roll.playerDiceDisplay === "scene") && !roll.sceneResolvedLabel;
-}
-
-function isUnrevealedPanelDiceRoll(roll: DiceRollEvent): boolean {
-  if (roll.sceneResolvedLabel || (roll.gmDiceDisplay !== "panel" && roll.playerDiceDisplay !== "panel")) {
-    return false;
-  }
-  return Date.now() - roll.createdAt < DICE_PANEL_REVEAL_DELAY_MS;
 }
 
 function clampDicePanelPosition(x: number, y: number, rect?: DOMRect | null): DicePanelPosition {
