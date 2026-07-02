@@ -4,6 +4,7 @@ import { drawSelectionBox } from "../selection/selectionRenderer";
 import { getNearestHexCoordinate, hexAxialToPoint } from "../tokens/tokenGeometry";
 import { distanceBetweenPoints, distanceToSegment, getConeTriangle, getTriangle, isPointInPolygon, isPointInTriangle } from "./drawingGeometry";
 import { getDrawingPreviewPoints, type DrawingPreview, type DrawingTool } from "./drawingPreview";
+import { createSeededRandom, getLineTemplateCorridorPoints, getRectanglePathPoints, hashString, pointsSeed, scalePointsToCenter } from "./templateEffectGeometry";
 import { getTemplateEffectStyle } from "./templateEffectStyles";
 import { getTemplateEffectTuning, TEMPLATE_EFFECT_TUNING_VERSION, type TemplateEffectTuning } from "./templateEffectTuning";
 import { getLineTemplateEffectWidthPixels, getTemplateLabel, getTemplateLabelPosition } from "./templateLabels";
@@ -2369,55 +2370,6 @@ function traceLineTemplateCorridor(ctx: CanvasRenderingContext2D, drawing: Drawi
   traceClosedPath(ctx, points);
 }
 
-function getLineTemplateCorridorPoints(drawing: DrawingElement, scale = 1, grid?: GridSettings): Point[] | null {
-  const [start, end] = drawing.points;
-  if (!start || !end) {
-    return null;
-  }
-  const length = distanceBetweenPoints(start, end);
-  if (length <= 0.001) {
-    return null;
-  }
-  const halfWidth = (getLineTemplateEffectWidthPixels(drawing, grid) / 2) * scale;
-  if (halfWidth <= 0) {
-    return null;
-  }
-  const normal = { x: (-(end.y - start.y) / length) * halfWidth, y: ((end.x - start.x) / length) * halfWidth };
-  return [
-    { x: start.x + normal.x, y: start.y + normal.y },
-    { x: end.x + normal.x, y: end.y + normal.y },
-    { x: end.x - normal.x, y: end.y - normal.y },
-    { x: start.x - normal.x, y: start.y - normal.y }
-  ];
-}
-
-function getRectanglePathPoints(points: Point[]): Point[] {
-  const [start, end] = points;
-  if (!start || !end) {
-    return [];
-  }
-  return [
-    { x: start.x, y: start.y },
-    { x: end.x, y: start.y },
-    { x: end.x, y: end.y },
-    { x: start.x, y: end.y }
-  ];
-}
-
-function scalePointsToCenter(points: Point[], scale: number): Point[] {
-  if (points.length === 0) {
-    return [];
-  }
-  const center = {
-    x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
-    y: points.reduce((sum, point) => sum + point.y, 0) / points.length
-  };
-  return points.map((point) => ({
-    x: center.x + (point.x - center.x) * scale,
-    y: center.y + (point.y - center.y) * scale
-  }));
-}
-
 function traceClosedPath(ctx: CanvasRenderingContext2D, points: Point[]) {
   if (points.length === 0) {
     return;
@@ -2427,27 +2379,6 @@ function traceClosedPath(ctx: CanvasRenderingContext2D, points: Point[]) {
     ctx.lineTo(point.x, point.y);
   }
   ctx.closePath();
-}
-
-function pointsSeed(points: Point[]): string {
-  return points.map((point) => `${Math.round(point.x * 10)},${Math.round(point.y * 10)}`).join("|");
-}
-
-function hashString(value: string): number {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-function createSeededRandom(seed: number): () => number {
-  let state = seed || 1;
-  return () => {
-    state = Math.imul(1664525, state) + 1013904223;
-    return (state >>> 0) / 4294967296;
-  };
 }
 
 function drawTemplateLabelHalo(ctx: CanvasRenderingContext2D, label: string, scale: number) {
