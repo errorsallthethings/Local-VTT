@@ -18,7 +18,7 @@ import type {
   SmokeEffectTuning,
   VoidEffectTuning,
   WaterEffectTuning
-} from "./environmentEffectsRenderer";
+} from "./environmentEffectTuningDefaults";
 import { distanceBetween } from "../tokens/tokenGeometry";
 import type { Camera } from "../core/camera";
 import { getEnvironmentEffectTuningFields } from "./environmentEffectTuning";

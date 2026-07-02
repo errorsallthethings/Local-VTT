@@ -18,7 +18,7 @@ import {
   cloneSmokeEffectTuning,
   cloneVoidEffectTuning,
   cloneWaterEffectTuning
-} from "./environmentEffectsRenderer";
+} from "./environmentEffectTuningDefaults";
 
 type EnvironmentEffectTuningSource = Partial<EnvironmentEffectMask>;
 
