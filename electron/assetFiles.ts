@@ -36,6 +36,14 @@ export function getAssetFileRemovalPaths(campaignPath: string, asset: Pick<Asset
   ]);
 }
 
+export function requireCampaignRelativePath(campaignPath: string, relativePath: string, errorMessage = "Path is outside the selected campaign folder."): string {
+  const resolvedPath = resolveCampaignRelativePath(campaignPath, relativePath);
+  if (!resolvedPath) {
+    throw new Error(errorMessage);
+  }
+  return resolvedPath;
+}
+
 export function buildAssetThumbnailRelativePath(assetId: string, variant = ""): string {
   assertSafePathSegment(assetId, "Unsafe asset id.");
   const safeVariant = variant.replace(/[^a-zA-Z0-9_-]/g, "");
@@ -49,7 +57,7 @@ export function buildAssetImportRelativePath(kind: Asset["kind"], fileName: stri
   return path.join("assets", folder, fileName).replaceAll(path.sep, "/");
 }
 
-function resolveCampaignRelativePath(campaignPath: string, relativePath: string): string | undefined {
+export function resolveCampaignRelativePath(campaignPath: string, relativePath: string): string | undefined {
   const resolvedPath = path.resolve(campaignPath, relativePath);
   return isInsidePath(campaignPath, resolvedPath) ? resolvedPath : undefined;
 }

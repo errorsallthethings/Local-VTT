@@ -5,7 +5,9 @@ import {
   buildAssetThumbnailRelativePath,
   getAssetFileRemovalPaths,
   getKnownAssetPaths,
-  hydrateCampaignAssetPaths
+  hydrateCampaignAssetPaths,
+  requireCampaignRelativePath,
+  resolveCampaignRelativePath
 } from "../../electron/assetFiles";
 import { createDefaultCampaign } from "../../src/shared/localvtt";
 import type { Asset } from "../../src/shared/localvtt";
@@ -48,6 +50,13 @@ describe("asset file helpers", () => {
         absolutePath: assetPath
       })
     ).toEqual([assetPath]);
+  });
+
+  it("resolves campaign-relative paths only when they stay inside the campaign", () => {
+    expect(resolveCampaignRelativePath("campaign-root", "assets/maps/map.png")).toBe(path.resolve("campaign-root", "assets/maps/map.png"));
+    expect(resolveCampaignRelativePath("campaign-root", "../outside/map.png")).toBeUndefined();
+    expect(requireCampaignRelativePath("campaign-root", "assets/tokens/hero.png")).toBe(path.resolve("campaign-root", "assets/tokens/hero.png"));
+    expect(() => requireCampaignRelativePath("campaign-root", "../outside/map.png", "Outside campaign.")).toThrow("Outside campaign.");
   });
 
   it("builds portable thumbnail paths", () => {

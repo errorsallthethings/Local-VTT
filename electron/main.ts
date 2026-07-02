@@ -43,7 +43,14 @@ import {
   type MediaDimensions,
   type ThumbnailCreationResult
 } from "./assets.js";
-import { buildAssetImportRelativePath, buildAssetThumbnailRelativePath, getAssetFileRemovalPaths, getKnownAssetPaths, hydrateCampaignAssetPaths } from "./assetFiles.js";
+import {
+  buildAssetImportRelativePath,
+  buildAssetThumbnailRelativePath,
+  getAssetFileRemovalPaths,
+  getKnownAssetPaths,
+  hydrateCampaignAssetPaths,
+  requireCampaignRelativePath
+} from "./assetFiles.js";
 import {
   mapMediaType,
   safeAssetName,
@@ -334,7 +341,7 @@ async function ensureMapThumbnails(campaignPath: string, campaign: Campaign): Pr
         return asset;
       }
       if (asset.thumbnailRelativePath) {
-        const thumbnailPath = path.resolve(campaignPath, asset.thumbnailRelativePath);
+        const thumbnailPath = requireCampaignRelativePath(campaignPath, asset.thumbnailRelativePath);
         try {
           assertInsideCampaign(campaignPath, thumbnailPath);
           await stat(thumbnailPath);
@@ -344,8 +351,7 @@ async function ensureMapThumbnails(campaignPath: string, campaign: Campaign): Pr
         }
       }
       try {
-        const sourcePath = path.resolve(campaignPath, asset.relativePath);
-        assertInsideCampaign(campaignPath, sourcePath);
+        const sourcePath = requireCampaignRelativePath(campaignPath, asset.relativePath);
         await stat(sourcePath);
         const thumbnailResult = await createMapThumbnail(campaignPath, sourcePath, asset.id);
         if (!thumbnailResult.thumbnailRelativePath) {
@@ -385,9 +391,8 @@ async function regenerateCampaignThumbnails(
     }
 
     onProgress?.({ current: processed, total: eligibleAssetCount, assetName: asset.name, message: `Regenerating ${asset.name}.` });
-    const sourcePath = path.resolve(campaignPath, asset.relativePath);
+    const sourcePath = requireCampaignRelativePath(campaignPath, asset.relativePath);
     try {
-      assertInsideCampaign(campaignPath, sourcePath);
       await stat(sourcePath);
       const thumbnailResult =
         asset.kind === "map"
@@ -698,8 +703,7 @@ async function createMapThumbnail(campaignPath: string, sourcePath: string, asse
   }
 
   const relativePath = buildAssetThumbnailRelativePath(assetId);
-  const destination = path.resolve(campaignPath, relativePath);
-  assertInsideCampaign(campaignPath, destination);
+  const destination = requireCampaignRelativePath(campaignPath, relativePath);
   await writeFile(destination, thumbnail);
   return { thumbnailRelativePath: relativePath };
 }
@@ -928,8 +932,7 @@ async function createTokenThumbnail(campaignPath: string, sourcePath: string, as
 
 async function writeTokenThumbnail(campaignPath: string, assetId: string, thumbnail: Buffer, variant = ""): Promise<string> {
   const relativePath = buildAssetThumbnailRelativePath(assetId, variant);
-  const destination = path.resolve(campaignPath, relativePath);
-  assertInsideCampaign(campaignPath, destination);
+  const destination = requireCampaignRelativePath(campaignPath, relativePath);
   await writeFile(destination, thumbnail);
   return relativePath;
 }
@@ -938,8 +941,7 @@ async function removeThumbnailIfUnused(campaignPath: string, relativePath: strin
   if (!relativePath || assets.some((asset) => asset.thumbnailRelativePath === relativePath)) {
     return;
   }
-  const thumbnailPath = path.resolve(campaignPath, relativePath);
-  assertInsideCampaign(campaignPath, thumbnailPath);
+  const thumbnailPath = requireCampaignRelativePath(campaignPath, relativePath);
   await unlinkIfExists(thumbnailPath);
 }
 
@@ -1327,8 +1329,7 @@ ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
   const summary = await loadCampaignFromPath(campaignPath);
   const fileName = safeAssetName(sourcePath);
   const relativePath = buildAssetImportRelativePath("map", fileName);
-  const destination = path.resolve(campaignPath, relativePath);
-  assertInsideCampaign(campaignPath, destination);
+  const destination = requireCampaignRelativePath(campaignPath, relativePath);
   await copyFile(sourcePath, destination);
   knownAssetPaths.add(destination);
 
@@ -1348,7 +1349,7 @@ ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
     originalFileName: path.basename(sourcePath),
     createdAt: new Date().toISOString(),
     absolutePath: destination,
-    thumbnailAbsolutePath: thumbnailRelativePath ? path.resolve(campaignPath, thumbnailRelativePath) : undefined
+    thumbnailAbsolutePath: thumbnailRelativePath ? requireCampaignRelativePath(campaignPath, thumbnailRelativePath) : undefined
   };
 
   const campaign: Campaign = {
@@ -1380,8 +1381,7 @@ ipcMain.handle("asset:previewMapReplacement", async (_event, campaignPath: strin
     throw new Error("The selected scene no longer uses this map asset.");
   }
 
-  const currentAssetPath = path.resolve(campaignPath, currentAsset.relativePath);
-  assertInsideCampaign(campaignPath, currentAssetPath);
+  const currentAssetPath = requireCampaignRelativePath(campaignPath, currentAsset.relativePath);
   const nextMediaType = mapMediaType(sourcePath);
   const dimensions = await getMapReplacementWarning(currentAssetPath, currentAsset.mediaType, sourcePath, nextMediaType);
   const replacementToken = createMapReplacementToken(mapReplacementTokens, {
@@ -1423,8 +1423,7 @@ ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: 
 
   const fileName = safeAssetName(sourcePath);
   const relativePath = buildAssetImportRelativePath("map", fileName);
-  const destination = path.resolve(campaignPath, relativePath);
-  assertInsideCampaign(campaignPath, destination);
+  const destination = requireCampaignRelativePath(campaignPath, relativePath);
   await copyFile(sourcePath, destination);
   knownAssetPaths.add(destination);
 
@@ -1444,7 +1443,7 @@ ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: 
     originalFileName: path.basename(sourcePath),
     createdAt: new Date().toISOString(),
     absolutePath: destination,
-    thumbnailAbsolutePath: thumbnailRelativePath ? path.resolve(campaignPath, thumbnailRelativePath) : undefined
+    thumbnailAbsolutePath: thumbnailRelativePath ? requireCampaignRelativePath(campaignPath, thumbnailRelativePath) : undefined
   };
 
   const updatedScene = normalizeScene({ ...currentScene, mapAssetId: imported.id, updatedAt: new Date().toISOString() });
@@ -1478,8 +1477,7 @@ ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
   const summary = await loadCampaignFromPath(campaignPath);
   const fileName = safeAssetName(sourcePath);
   const relativePath = buildAssetImportRelativePath("token", fileName);
-  const destination = path.resolve(campaignPath, relativePath);
-  assertInsideCampaign(campaignPath, destination);
+  const destination = requireCampaignRelativePath(campaignPath, relativePath);
   await copyFile(sourcePath, destination);
 
   const assetId = randomUUID();
@@ -1498,7 +1496,7 @@ ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
     originalFileName: path.basename(sourcePath),
     createdAt: new Date().toISOString(),
     absolutePath: destination,
-    thumbnailAbsolutePath: thumbnailRelativePath ? path.resolve(campaignPath, thumbnailRelativePath) : undefined
+    thumbnailAbsolutePath: thumbnailRelativePath ? requireCampaignRelativePath(campaignPath, thumbnailRelativePath) : undefined
   };
 
   const campaign: Campaign = {
