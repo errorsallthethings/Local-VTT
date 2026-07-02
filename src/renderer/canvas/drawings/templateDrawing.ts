@@ -1,5 +1,5 @@
 import { formatDefaultDrawingName, type DrawingElement, type DrawingKind, type DrawingStrokeStyle, type DrawingTemplateEffect, type Point, type Scene } from "../../../shared/localvtt";
-import { getDrawingPreviewPoints, shouldAddDrawingPoint, type DrawingPreview, type DrawingTool } from "../drawings/drawingRenderer";
+import { getDrawingPreviewPoints, shouldAddDrawingPoint, type DrawingPreview, type DrawingTool } from "./drawingPreview";
 import { constrainSquarePoint } from "../grid/gridMath";
 
 export type DrawingTemplateSize = "custom" | 5 | 10 | 15 | 20 | 30 | 60 | 100;
