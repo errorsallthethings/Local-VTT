@@ -1,14 +1,23 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import RAPIER from "@dimforge/rapier3d-compat";
 import * as THREE from "three";
-import type { DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneSize, LiveTableEvent } from "../../../shared/localvtt";
+import type { DiceDisplayMode, DiceSceneSize, LiveTableEvent } from "../../../shared/localvtt";
 import {
   annotateKeptDiceForFormula,
-  DICE_EVENT_DURATION_MS,
+  DICE_FACE_HIGHLIGHT_DURATION_MS,
+  DICE_SCENE_MAX_ROLL_MS,
+  DICE_SCENE_MIN_ROLL_MS,
+  DICE_SCENE_RESULT_TIMEOUT_MS,
+  DICE_SCENE_STABLE_MS,
   formatDieLabel,
-  getDiceRollTone,
   getDiceVisualTotal,
-  getDieSides,
+  getDiceDisplayMode,
+  getDiceEventDuration,
+  getDicePanelPlacement,
+  getDiceRevealDelay,
+  getDiceSceneSize,
+  getDiceSettleDuration,
+  getDisplayedRollTone,
   getDisplayedRollLabel,
   getDisplayedRollSummary,
   getPublishedSceneResolvedLabel,
@@ -22,7 +31,7 @@ import {
   getVisualDice,
   getVisualResultFaceLabel,
   shouldUnderlineResultLabel,
-  type DiceRollTone,
+  type DicePanelPlacement,
   type DiceVisualRoll,
   type ResolvedDiceResult
 } from "../../lib/dice";
@@ -30,15 +39,6 @@ import { logRendererWarning } from "../../lib/rendererDiagnostics";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 type DiceVisual = DiceVisualRoll;
-const DICE_SETTLE_DURATION_MS = 2800;
-const COIN_SCENE_SETTLE_DURATION_MS = 3400;
-const DICE_RESULTS_SHUFFLE_DURATION_MS = 900;
-const DICE_SCENE_EVENT_DURATION_MS = 12000;
-const DICE_SCENE_RESULT_TIMEOUT_MS = 11000;
-const DICE_SCENE_MIN_ROLL_MS = 900;
-const DICE_SCENE_STABLE_MS = 420;
-const DICE_SCENE_MAX_ROLL_MS = 10000;
-const DICE_FACE_HIGHLIGHT_DURATION_MS = 1800;
 const RAPIER_READY = RAPIER.init();
 let sharedDiceRenderer: THREE.WebGLRenderer | null = null;
 
@@ -375,56 +375,6 @@ function DiceResultRing({ resultContent, compact = false, showCore = false }: { 
   );
 }
 
-function getDiceDisplayMode(event: DiceRollEvent, mode: "gm" | "player"): DiceDisplayMode {
-  const displayMode = mode === "gm" ? event.gmDiceDisplay : event.playerDiceDisplay;
-  if (displayMode) {
-    return displayMode;
-  }
-  const presentation = mode === "gm" ? event.gmPresentation : event.playerPresentation;
-  return (presentation ?? event.presentation) === "3d" ? "panel" : "results";
-}
-
-function getDiceRevealDelay(event: DiceRollEvent, mode: "gm" | "player"): number {
-  const displayMode = getDiceDisplayMode(event, mode);
-  if (displayMode === "scene-result") {
-    return event.sceneResolvedLabel ? 0 : getDiceSettleDuration(event);
-  }
-  if (displayMode !== "results") {
-    return getDiceSettleDuration(event);
-  }
-  const pairedDisplayMode = getDiceDisplayMode(event, mode === "gm" ? "player" : "gm");
-  return pairedDisplayMode === "panel" || pairedDisplayMode === "scene" ? getDiceSettleDuration(event) : DICE_RESULTS_SHUFFLE_DURATION_MS;
-}
-
-function getDiceSettleDuration(event: DiceRollEvent): number {
-  return getVisualDice(event).some((die) => die.die === "coin") ? COIN_SCENE_SETTLE_DURATION_MS : DICE_SETTLE_DURATION_MS;
-}
-
-function getDiceEventDuration(event: DiceRollEvent, mode: "gm" | "player"): number {
-  const displayMode = getDiceDisplayMode(event, mode);
-  return displayMode === "scene" || displayMode === "scene-result" ? DICE_SCENE_EVENT_DURATION_MS : DICE_EVENT_DURATION_MS;
-}
-
-function getDiceSceneSize(event: DiceRollEvent, mode: "gm" | "player"): DiceSceneSize {
-  return (mode === "gm" ? event.gmDiceSceneSize : event.playerDiceSceneSize) ?? "md";
-}
-
-type DicePanelPlacement = {
-  advanced: boolean;
-  edge: DicePanelEdge;
-  facing: DicePanelFacing;
-  position: number;
-};
-
-function getDicePanelPlacement(event: DiceRollEvent, mode: "gm" | "player"): DicePanelPlacement {
-  return {
-    advanced: (mode === "gm" ? event.gmDicePanelAdvanced : event.playerDicePanelAdvanced) ?? false,
-    edge: (mode === "gm" ? event.gmDicePanelEdge : event.playerDicePanelEdge) ?? "top",
-    facing: (mode === "gm" ? event.gmDicePanelFacing : event.playerDicePanelFacing) ?? "inward",
-    position: clampUnitNumber((mode === "gm" ? event.gmDicePanelPosition : event.playerDicePanelPosition) ?? 0.5)
-  };
-}
-
 function getDiceResultContent(
   event: DiceRollEvent,
   resultVisible: boolean,
@@ -450,65 +400,6 @@ function getDiceResultContent(
   };
 }
 
-function getDisplayedRollTone(event: DiceRollEvent, displayMode: DiceDisplayMode, resultVisible: boolean, resolvedPhysicsResult: ResolvedDiceResult | null): DiceRollTone {
-  if (!resultVisible) {
-    return "normal";
-  }
-  if (displayMode !== "scene" && displayMode !== "scene-result") {
-    return getDiceRollTone(event);
-  }
-  if (displayMode === "scene-result" && !resolvedPhysicsResult) {
-    return getDiceRollTone(event);
-  }
-  const label = resolvedPhysicsResult?.label ?? event.sceneResolvedLabel;
-  const dice = getVisualDice(event);
-  if (dice.some((die) => die.die === "coin")) {
-    return "normal";
-  }
-  const resolvedD20Tone = getResolvedD20Tone(event, resolvedPhysicsResult);
-  if (resolvedD20Tone !== "normal") {
-    return resolvedD20Tone;
-  }
-  if (event.die === "d00" && label) {
-    return Number(label) === 100 ? "max" : "normal";
-  }
-  if (!label || dice.length !== 1) {
-    return "normal";
-  }
-  const die = dice[0]?.die;
-  if (die === "d20") {
-    if (label === "20") {
-      return "critical";
-    }
-    if (label === "1") {
-      return "fumble";
-    }
-  }
-  if (die && die !== "coin" && die !== "d00" && Number(label) === getDieSides(die)) {
-    return "max";
-  }
-  return "normal";
-}
-
-function getResolvedD20Tone(event: DiceRollEvent, resolvedPhysicsResult: ResolvedDiceResult | null): DiceRollTone {
-  const dice = getVisualDice(event);
-  const resolvedDice = resolvedPhysicsResult?.dice;
-  const keptD20Results = dice
-    .map((die, index) => ({ die, resolvedDie: resolvedDice?.[index] }))
-    .filter(({ die, resolvedDie }) => die.die === "d20" && (resolvedDie?.kept ?? die.kept ?? true) !== false);
-  if (keptD20Results.length !== 1) {
-    return "normal";
-  }
-  const value = keptD20Results[0]?.resolvedDie?.value ?? keptD20Results[0]?.die.result;
-  if (value === 20) {
-    return "critical";
-  }
-  if (value === 1) {
-    return "fumble";
-  }
-  return "normal";
-}
-
 function getDiceRollOverlayClassName(displayMode: "panel" | "scene", placement: DicePanelPlacement | null): string {
   if (displayMode === "scene") {
     return "dice-roll-overlay dice-roll-overlay-scene";
@@ -528,10 +419,6 @@ function getDicePanelOverlayStyle(placement: DicePanelPlacement): CSSProperties 
     return { left: position, [placement.edge]: "18px" };
   }
   return { top: position, [placement.edge]: "18px" };
-}
-
-function clampUnitNumber(value: number): number {
-  return Math.min(1, Math.max(0, value));
 }
 
 function getDiceRollCardClassName(displayMode: DiceDisplayMode, tone: string, visualCount: number, panelPlacement: DicePanelPlacement | null): string {
