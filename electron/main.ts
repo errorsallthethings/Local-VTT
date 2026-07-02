@@ -73,6 +73,7 @@ import {
 } from "./mapReplacementTokens.js";
 import { getDimensionDifferenceWarning } from "./mapReplacementWarnings.js";
 import { createThumbnailImportFailureDiagnostic, createThumbnailRegenerationFailure } from "./thumbnailDiagnostics.js";
+import { getTokenAssetUsage } from "./tokenAssetUsage.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -615,24 +616,6 @@ async function restoreMetadataBackup(campaignPath: string, ref: MetadataBackupRe
   await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, sceneId), sceneBackupFolder(campaignPath, sceneId), `${sceneId}.scene.json`);
   await writeFile(sceneFile(campaignPath, sceneId), `${JSON.stringify(scene, null, 2)}\n`, "utf8");
   return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: normalizeScene(scene), restored: preview };
-}
-
-async function getTokenAssetUsage(campaignPath: string, campaign: Campaign, assetId: string): Promise<Array<{ sceneId: string; sceneName: string; count: number }>> {
-  const usage = [];
-  for (const entry of campaign.scenes) {
-    try {
-      const raw = await readFile(sceneFile(campaignPath, entry.id), "utf8");
-      const scene = JSON.parse(raw) as unknown;
-      assertValidScene(scene);
-      const count = scene.tokens.filter((token) => token.assetId === assetId).length;
-      if (count > 0) {
-        usage.push({ sceneId: entry.id, sceneName: entry.name, count });
-      }
-    } catch {
-      // Missing or invalid scenes are reported elsewhere by scene loading.
-    }
-  }
-  return usage;
 }
 
 async function chooseDirectory(title: string, createDirectory = false): Promise<string | null> {
@@ -1634,7 +1617,12 @@ ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, 
 ipcMain.handle("asset:getTokenUsage", async (_event, campaignPath: string, assetId: string) => {
   assertKnownCampaignPath(campaignPath);
   const summary = await loadCampaignFromPath(campaignPath);
-  return getTokenAssetUsage(campaignPath, summary.campaign, assetId);
+  return getTokenAssetUsage(summary.campaign, assetId, async (sceneId) => {
+    const raw = await readFile(sceneFile(campaignPath, sceneId), "utf8");
+    const scene = JSON.parse(raw) as unknown;
+    assertValidScene(scene);
+    return scene;
+  });
 });
 
 ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId: string) => {
