@@ -988,9 +988,6 @@ export function GmApp() {
       updatedAt: now
     };
     updateCampaignDraft(nextCampaign);
-    if (activeScene) {
-      void updatePlayerSceneIfOpen(window.localVtt, nextCampaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
-    }
   };
 
   const selectPlayerDisplayProfile = (profileId: string) => {
@@ -1009,9 +1006,6 @@ export function GmApp() {
       updatedAt: new Date().toISOString()
     };
     updateCampaignDraft(nextCampaign);
-    if (activeScene) {
-      void updatePlayerSceneIfOpen(window.localVtt, nextCampaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
-    }
   };
 
   const createPlayerDisplayProfileFromDraft = (name: string, calibration: DisplayCalibration) => {
@@ -1029,9 +1023,6 @@ export function GmApp() {
       updatedAt: now
     };
     updateCampaignDraft(nextCampaign);
-    if (activeScene) {
-      void updatePlayerSceneIfOpen(window.localVtt, nextCampaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
-    }
   };
 
   const renamePlayerDisplayProfile = (profileId: string, name: string) => {
@@ -1065,9 +1056,6 @@ export function GmApp() {
       updatedAt: new Date().toISOString()
     };
     updateCampaignDraft(nextCampaign);
-    if (activeScene) {
-      void updatePlayerSceneIfOpen(window.localVtt, nextCampaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
-    }
   };
 
   const buildMapCalibratedScene = async (draft: MapCalibrationDraft) => {
@@ -1132,7 +1120,7 @@ export function GmApp() {
         displayId: campaign.playerDisplay.selectedDisplayId,
         fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
       });
-      await sendSceneToPlayer(window.localVtt, campaign, nextScene, { showPlayerSeatIndicators: playersPanelOpen });
+      await sendSceneToPlayer(window.localVtt, campaign, nextScene, playerViewSyncOptions);
       setPlayerSceneId(nextScene.id);
       setPlayerDisplayMode("scene");
       setPlayerMenuOpen(false);
@@ -1199,7 +1187,7 @@ export function GmApp() {
               };
       updateScene(nextScene);
       if (playerSceneId === activeScene.id) {
-        await sendSceneToPlayer(window.localVtt, campaign, nextScene, { showPlayerSeatIndicators: playersPanelOpen });
+        await sendSceneToPlayer(window.localVtt, campaign, nextScene, playerViewSyncOptions);
       }
     });
 
@@ -1419,7 +1407,7 @@ export function GmApp() {
       if (nextActiveScene) {
         setActiveScene(nextActiveScene);
         if (nextActiveScene.id === playerSceneId) {
-          void updatePlayerSceneIfOpen(window.localVtt, result.campaignSummary.campaign, nextActiveScene, { showPlayerSeatIndicators: playersPanelOpen });
+          void updatePlayerSceneIfOpen(window.localVtt, result.campaignSummary.campaign, nextActiveScene, playerViewSyncOptions);
         }
       }
       selectTokens(nextActiveScene ? selectedTokenIds.filter((tokenId) => nextActiveScene.tokens.some((token) => token.id === tokenId)) : []);
@@ -1565,7 +1553,7 @@ export function GmApp() {
         displayId: campaign.playerDisplay.selectedDisplayId,
         fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
       });
-      await sendSceneToPlayer(window.localVtt, campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
+      await sendSceneToPlayer(window.localVtt, campaign, activeScene, playerViewSyncOptions);
       setPlayerSceneId(activeScene.id);
       setPlayerDisplayMode("scene");
       if (!openResult.displayFound && campaign.playerDisplay.selectedDisplayLabel) {
