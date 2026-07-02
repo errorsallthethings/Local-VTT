@@ -23,14 +23,19 @@ import {
   getDisplayedRollLabel,
   getDisplayedRollSummary,
   getPublishedSceneResolvedLabel,
+  getCoinCenterPush,
+  getPhysicsColliderScale,
   getResolvedDieValue,
   getResolvedDisplayedLabel,
   getResolvedDisplayedSummary,
   getRollModifier,
   getRollSummary,
   getRollingSummary,
+  getSceneDiceLaunchParameters,
   getSceneDiceLanding,
+  getSceneInitialRotation,
   getSceneRollBounds,
+  getSceneThrowVelocity,
   getShuffledRollLabel,
   getVisualDice,
   getVisualResultFaceLabel,
@@ -476,27 +481,15 @@ function createScenePhysicsWorld(bounds: SceneRollBounds): RAPIER.World {
 }
 
 function createSceneDiceBody(world: RAPIER.World, startX: number, startY: number, vx: number, vy: number, radius: number, visual: DiceVisual, index: number): RAPIER.RigidBody {
-  const coinLike = visual.die === "coin" || visual.die === "d2";
-  const launchZ = coinLike ? 7.8 + seedRange(visual.seed, 50 + index, 2.8) : 8.4 + seedRange(visual.seed, 50 + index, 3.6);
-  const angularVelocity = coinLike
-    ? {
-        x: (seedRange(visual.seed, 60 + index, 2) - 1) * 8 + 38,
-        y: (seedRange(visual.seed, 70 + index, 2) - 1) * 2.5,
-        z: (seedRange(visual.seed, 80 + index, 2) - 1) * 6
-      }
-    : {
-        x: (seedRange(visual.seed, 60 + index, 2) - 1) * 23 + 36,
-        y: (seedRange(visual.seed, 70 + index, 2) - 1) * 21 + 26,
-        z: (seedRange(visual.seed, 80 + index, 2) - 1) * 23 + 31
-      };
+  const launch = getSceneDiceLaunchParameters(visual, index, radius);
   const body = world.createRigidBody(
     RAPIER.RigidBodyDesc.dynamic()
-      .setTranslation(startX, startY, 1.02 + radius * (coinLike ? 1.36 : 1.08))
+      .setTranslation(startX, startY, launch.startZ)
       .setRotation(getSceneInitialRotation(visual, index))
-      .setLinvel(vx, vy, launchZ)
-      .setAngvel(angularVelocity)
+      .setLinvel(vx, vy, launch.launchZ)
+      .setAngvel(launch.angularVelocity)
       .setLinearDamping(0.32)
-      .setAngularDamping(coinLike ? 0.28 : 0.3)
+      .setAngularDamping(launch.angularDamping)
       .setCcdEnabled(true)
       .setAdditionalSolverIterations(10)
   );
@@ -510,11 +503,6 @@ function createDiePhysicsCollider(die: DiceVisual["die"], radius: number): RAPIE
   const points = getScaledGeometryPoints(geometry, getPhysicsColliderScale(die, radius));
   geometry.dispose();
   return RAPIER.ColliderDesc.roundConvexHull(points, Math.max(0.018, radius * 0.035)) ?? RAPIER.ColliderDesc.ball(radius);
-}
-
-function getPhysicsColliderScale(die: DiceVisual["die"], radius: number): number {
-  const baseRadius = die === "d6" ? 0.95 : die === "coin" || die === "d2" ? 1.28 : die === "d4" ? 1.45 : die === "d8" ? 1.55 : die === "d10" || die === "d00" ? 1.32 : 1.48;
-  return (radius / baseRadius) * 1.18;
 }
 
 function getScaledGeometryPoints(geometry: THREE.BufferGeometry, scale: number): Float32Array {
@@ -670,38 +658,6 @@ function nudgeCoinOffEdge(
   }
   entry.coinEdgeNudgeCount += 1;
   entry.coinEdgeLastNudgedAt = now;
-}
-
-function getCoinCenterPush(entry: { x: number; y: number }, bounds: SceneRollBounds, linearSpeed: number, angularSpeed: number): RAPIER.Vector | null {
-  if (linearSpeed > 0.2 || angularSpeed > 0.45) {
-    return null;
-  }
-  const wallMargin = 0.7;
-  const push = { x: 0, y: 0, z: 0.004 };
-  if (entry.x < bounds.minX + wallMargin) {
-    push.x = 0.005;
-  } else if (entry.x > bounds.maxX - wallMargin) {
-    push.x = -0.005;
-  }
-  if (entry.y < bounds.minY + wallMargin) {
-    push.y = 0.005;
-  } else if (entry.y > bounds.maxY - wallMargin) {
-    push.y = -0.005;
-  }
-  return push.x === 0 && push.y === 0 ? null : push;
-}
-
-function getSceneThrowVelocity(start: number, end: number, seed: number, offset: number, visual: DiceVisual): number {
-  const coinLike = visual.die === "coin" || visual.die === "d2";
-  const travelTime = coinLike ? 0.28 + seedRange(seed, offset + 32, 0.16) : 0.23 + seedRange(seed, offset + 32, 0.13);
-  const push = (seedRange(seed, offset + 42, 2) - 1) * (coinLike ? 9.4 : 13.2);
-  return (end - start) / travelTime + push;
-}
-
-function getSceneInitialRotation(visual: DiceVisual, index: number): RAPIER.Rotation {
-  const euler = new THREE.Euler(seedRange(visual.seed, 90 + index, Math.PI * 2), seedRange(visual.seed, 100 + index, Math.PI * 2), seedRange(visual.seed, 110 + index, Math.PI * 2));
-  const quaternion = new THREE.Quaternion().setFromEuler(euler);
-  return { x: quaternion.x, y: quaternion.y, z: quaternion.z, w: quaternion.w };
 }
 
 function createDieMesh(event: DiceVisual): THREE.Group {
