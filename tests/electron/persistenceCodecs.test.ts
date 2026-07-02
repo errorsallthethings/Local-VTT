@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   hydrateCampaignSceneEntry,
-  normalizePortableAssetPath,
+  normalizePortableCampaignPath,
   parseCampaignMetadata,
   parseSceneMetadata,
   toPortableCampaignMetadata,
@@ -88,11 +88,11 @@ describe("persistence codecs", () => {
     ];
 
     expect(() => toPortableCampaignMetadata(campaign)).toThrow("Asset path must be a relative path inside the campaign folder.");
-    expect(() => normalizePortableAssetPath("C:\\Campaign\\assets\\map.png")).toThrow("Asset path must be a relative path inside the campaign folder.");
-    expect(() => normalizePortableAssetPath("/Campaign/assets/map.png")).toThrow("Asset path must be a relative path inside the campaign folder.");
-    expect(() => normalizePortableAssetPath("assets/maps/../outside.png")).toThrow("Asset path must be a relative path inside the campaign folder.");
-    expect(() => normalizePortableAssetPath(".")).toThrow("Asset path must be a relative path inside the campaign folder.");
-    expect(() => normalizePortableAssetPath("./.")).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableCampaignPath("C:\\Campaign\\assets\\map.png", "Asset path")).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableCampaignPath("/Campaign/assets/map.png", "Asset path")).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableCampaignPath("assets/maps/../outside.png", "Asset path")).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableCampaignPath(".", "Asset path")).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableCampaignPath("./.", "Asset path")).toThrow("Asset path must be a relative path inside the campaign folder.");
   });
 
   it("rejects absolute and traversal scene file paths before campaign metadata is saved", () => {
@@ -106,7 +106,7 @@ describe("persistence codecs", () => {
     ];
 
     expect(() => toPortableCampaignMetadata(campaign)).toThrow("Scene file path must be a relative path inside the campaign folder.");
-    expect(() => normalizePortableAssetPath("C:\\Campaign\\scenes\\scene.scene.json", "Scene file path")).toThrow(
+    expect(() => normalizePortableCampaignPath("C:\\Campaign\\scenes\\scene.scene.json", "Scene file path")).toThrow(
       "Scene file path must be a relative path inside the campaign folder."
     );
   });

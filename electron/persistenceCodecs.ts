@@ -28,12 +28,12 @@ export function toPortableCampaignMetadata(campaign: Campaign): Campaign {
     ...normalizedCampaign,
     scenes: normalizedCampaign.scenes.map((entry) => ({
       ...entry,
-      file: normalizePortableAssetPath(entry.file, "Scene file path")
+      file: normalizePortableCampaignPath(entry.file, "Scene file path")
     })),
     assets: normalizedCampaign.assets.map(({ absolutePath: _absolutePath, thumbnailAbsolutePath: _thumbnailAbsolutePath, ...asset }) => ({
       ...asset,
-      relativePath: normalizePortableAssetPath(asset.relativePath, "Asset path"),
-      thumbnailRelativePath: asset.thumbnailRelativePath ? normalizePortableAssetPath(asset.thumbnailRelativePath, "Asset thumbnail path") : undefined
+      relativePath: normalizePortableCampaignPath(asset.relativePath, "Asset path"),
+      thumbnailRelativePath: asset.thumbnailRelativePath ? normalizePortableCampaignPath(asset.thumbnailRelativePath, "Asset thumbnail path") : undefined
     }))
   };
 }
@@ -51,7 +51,7 @@ export function hydrateCampaignSceneEntry(entry: CampaignSceneEntry, scene: Scen
   };
 }
 
-export function normalizePortableAssetPath(candidatePath: string, label = "Asset path"): string {
+export function normalizePortableCampaignPath(candidatePath: string, label = "Campaign path"): string {
   if (typeof candidatePath !== "string") {
     throw new Error(`${label} must be a relative path inside the campaign folder.`);
   }
