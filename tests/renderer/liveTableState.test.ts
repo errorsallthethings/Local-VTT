@@ -7,6 +7,7 @@ import {
   getRulerLabel,
   getTokenCenterPoint,
   getTokenMoveLabel,
+  getVisibleDiceOverlayEvents,
   isDuplicateRulerWaypoint,
   isVisibleDiceOverlayEvent,
   shouldShowDiceOverlay
@@ -114,6 +115,19 @@ describe("live table state helpers", () => {
     expect(isVisibleDiceOverlayEvent(ping, "player")).toBe(false);
     expect(isVisibleDiceOverlayEvent(hiddenDice, "player")).toBe(false);
     expect(isVisibleDiceOverlayEvent(panelDice, "player")).toBe(true);
+  });
+
+  it("returns only visible dice overlay events so the lazy dice renderer can stay unloaded when idle", () => {
+    const events: LiveTableEvent[] = [
+      { id: "ping", type: "ping", point: { x: 0, y: 0 }, createdAt: 1 },
+      diceEvent({ id: "gm-hidden", gmDiceDisplay: "hidden", playerDiceDisplay: "panel" }),
+      diceEvent({ id: "gm-panel", gmDiceDisplay: "panel", playerDiceDisplay: "hidden" }),
+      diceEvent({ id: "scene", gmDiceDisplay: "scene", playerDiceDisplay: "scene" })
+    ];
+
+    expect(getVisibleDiceOverlayEvents(events, "gm").map((event) => event.id)).toEqual(["gm-panel", "scene"]);
+    expect(getVisibleDiceOverlayEvents(events, "player").map((event) => event.id)).toEqual(["gm-hidden", "scene"]);
+    expect(getVisibleDiceOverlayEvents([], "gm")).toEqual([]);
   });
 
   it("uses a forgiving duplicate ruler waypoint distance on gridless scenes", () => {

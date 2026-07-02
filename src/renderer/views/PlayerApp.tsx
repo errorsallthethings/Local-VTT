@@ -37,6 +37,7 @@ export function PlayerApp() {
     title: "Waiting for GM View",
     message: "The next scene will appear here."
   });
+  const visibleIdleDiceOverlayEvents = useMemo(() => liveTableEvents.filter(isVisiblePlayerDiceOverlayEvent), [liveTableEvents]);
 
   useEffect(() => {
     const removeListener = window.localVtt.onPlayerState((state) => {
@@ -207,9 +208,9 @@ export function PlayerApp() {
       ) : (
         <PlayerEmpty state={idleState} />
       )}
-      {!projection && (
+      {!projection && visibleIdleDiceOverlayEvents.length > 0 && (
         <Suspense fallback={null}>
-          <DiceRollOverlay events={liveTableEvents.filter(isVisiblePlayerDiceOverlayEvent)} mode="player" />
+          <DiceRollOverlay events={visibleIdleDiceOverlayEvents} mode="player" />
         </Suspense>
       )}
     </div>

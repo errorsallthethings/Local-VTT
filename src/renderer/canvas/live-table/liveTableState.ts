@@ -65,6 +65,10 @@ export function isVisibleDiceOverlayEvent(event: LiveTableEvent, mode: "gm" | "p
   return event.type === "dice" && shouldShowDiceOverlay(event, mode);
 }
 
+export function getVisibleDiceOverlayEvents(liveTableEvents: readonly LiveTableEvent[], mode: "gm" | "player"): Array<Extract<LiveTableEvent, { type: "dice" }>> {
+  return liveTableEvents.filter((event) => isVisibleDiceOverlayEvent(event, mode));
+}
+
 export function shouldShowDiceOverlay(event: Extract<LiveTableEvent, { type: "dice" }>, mode: "gm" | "player"): boolean {
   const displayMode = mode === "gm" ? event.gmDiceDisplay : event.playerDiceDisplay;
   if (displayMode) {

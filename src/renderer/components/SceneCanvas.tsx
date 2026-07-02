@@ -64,11 +64,12 @@ import {
   createRulerDrag,
   createRulerLiveTableEvent,
   drawLiveTableEvents,
+  getVisibleDiceOverlayEvents,
   getUpdatedLaserDrag,
   hasActiveLiveTableEvents,
   RULER_RELEASE_LINGER_MS
 } from "../canvas/live-table";
-import { getPlayerDisplayScale, getRulerDragWithAppendedWaypoint, getRulerLabel, isVisibleDiceOverlayEvent } from "../canvas/live-table";
+import { getPlayerDisplayScale, getRulerDragWithAppendedWaypoint, getRulerLabel } from "../canvas/live-table";
 import {
   getCompletedMapCalibrationBox,
   getMapCalibrationDragFromPoint,
@@ -606,6 +607,7 @@ export function SceneCanvas({
   const autoFitCameraRef = useRef(true);
   const activeTableTools = tableTools ?? scene?.tableTools ?? DEFAULT_TABLE_TOOLS;
   const activeFogBrushSize = fogBrushSize ?? scene?.fog.brushSize ?? 80;
+  const visibleDiceOverlayEvents = useMemo(() => getVisibleDiceOverlayEvents(liveTableEvents, mode), [liveTableEvents, mode]);
 
   const clearDrawingPreview = useCallback(() => {
     drawingPreviewRef.current = null;
@@ -2548,9 +2550,11 @@ export function SceneCanvas({
       {mode === "gm" && weatherMaskTool && <WeatherMaskStatusStrip weatherMaskTool={weatherMaskTool} pointCount={weatherPolygonDraft?.points.length ?? 0} />}
       {mode === "gm" && environmentEffectTool && <EnvironmentEffectStatusStrip environmentEffectTool={environmentEffectTool} effect={environmentEffectType} pointCount={environmentPolygonDraft?.points.length ?? 0} />}
       {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
-      <Suspense fallback={null}>
-        <DiceRollOverlay events={liveTableEvents.filter((event) => isVisibleDiceOverlayEvent(event, mode))} mode={mode} onDiceRollResolved={onDiceRollResolved} />
-      </Suspense>
+      {visibleDiceOverlayEvents.length > 0 && (
+        <Suspense fallback={null}>
+          <DiceRollOverlay events={visibleDiceOverlayEvents} mode={mode} onDiceRollResolved={onDiceRollResolved} />
+        </Suspense>
+      )}
       {mode === "player" && scene && <TurnOrderPlayerBar scene={scene} campaign={campaign} />}
       {mode === "player" && scene && showPlayerSeatIndicators && <PlayerSeatIndicators campaign={campaign} />}
       {mode === "player" && scene && <PlayerTurnStatusIndicators scene={scene} campaign={campaign} />}
