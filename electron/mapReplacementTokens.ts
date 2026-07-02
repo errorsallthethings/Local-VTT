@@ -25,6 +25,8 @@ export function createMapReplacementToken(
   pruneExpiredMapReplacementTokens(store, now);
   const token: MapReplacementToken = {
     ...input,
+    campaignPath: path.resolve(input.campaignPath),
+    sourcePath: path.resolve(input.sourcePath),
     id: randomUUID(),
     createdAt: now
   };
