@@ -10,6 +10,7 @@ import { getAssetThumbnailPreviewMessage, getAssetThumbnailPreviewPath } from ".
 import { getMissingAssetsWarningItems, MISSING_ASSETS_WARNING_MESSAGE } from "../../lib/assets/assetRecovery";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
+import { CompactAssetThumbnail } from "../assets/CompactAssetThumbnail";
 
 const MAX_CAMPAIGN_PLAYERS = 7;
 
@@ -302,7 +303,7 @@ function CampaignPlayerRow({
           onUpdate({ assetId });
         }}
       >
-        {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : player.name.slice(0, 1).toUpperCase()}
+        <CompactAssetThumbnail previewPath={previewPath} fallback={player.name.slice(0, 1).toUpperCase()} />
         {hasSelectedAsset && <span className="campaign-player-avatar-reset">Reset</span>}
       </button>
       <input className="campaign-player-name" value={player.name} aria-label="Player name" onChange={(event) => onUpdate({ name: event.target.value })} />

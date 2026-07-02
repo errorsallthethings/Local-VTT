@@ -9,6 +9,7 @@ import { getSelectedItemIds } from "../../../lib/scene";
 import { buildTokenLayerRows } from "../../../lib/tokens";
 import { duplicateToken } from "../../../lib/tokens";
 import { reorderByDropTarget, type DropPlacement } from "../../../lib/ui";
+import { CompactAssetThumbnail } from "../../assets/CompactAssetThumbnail";
 import { TokenSettings } from "../settings/TokenSettings";
 
 type TokenDropTarget = { tokenId: string; placement: DropPlacement } | null;
@@ -332,7 +333,7 @@ function TokenRowThumbnail({ asset, label }: { asset: Asset | null; label: strin
   const previewMessage = getAssetThumbnailPreviewMessage(asset);
   return (
     <span className="token-row-thumbnail" title={previewMessage ?? label} aria-hidden="true">
-      {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : <UsersRound size={13} />}
+      <CompactAssetThumbnail previewPath={previewPath} fallback={<UsersRound size={13} />} />
     </span>
   );
 }

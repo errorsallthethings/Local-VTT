@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import type { Campaign, Scene, TurnOrderTrackerPlacement } from "../../../shared/localvtt";
+import { CompactAssetThumbnail } from "../assets/CompactAssetThumbnail";
 import { buildAssetsById, getAssetThumbnailPreviewPath } from "../../lib/assets";
 import {
   easeInCubic,
@@ -29,7 +30,7 @@ export function PlayerSeatIndicators({ campaign }: { campaign: Campaign | null }
         return (
           <div key={seat.id} className={`player-seat-indicator player-seat-indicator-${seat.defaultSeatEdge}`} style={style}>
             <span className="player-seat-indicator-avatar">
-              {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : seat.name.slice(0, 1).toUpperCase()}
+              <CompactAssetThumbnail previewPath={previewPath} fallback={seat.name.slice(0, 1).toUpperCase()} />
             </span>
             <span className="player-seat-indicator-name">{seat.name}</span>
           </div>
@@ -108,7 +109,7 @@ export function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign
                     }
                   >
                     <span className={`turn-order-player-avatar avatar-mask-${turnOrder.trackerAvatarMask}`}>
-                      {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : entryName.slice(0, 1).toUpperCase()}
+                      <CompactAssetThumbnail previewPath={previewPath} fallback={entryName.slice(0, 1).toUpperCase()} />
                       {isCountTracker && <span className={entry.countdown === 0 ? "turn-order-player-count-center turn-order-player-count-center-expired" : "turn-order-player-count-center"}>{entry.countdown ?? 0}</span>}
                       {isTurnGroup && <span className="turn-order-player-count-center">x{entry.tokenIds?.length ?? 0}</span>}
                     </span>
@@ -189,7 +190,7 @@ export function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; 
           >
             <PlayerTurnStatusFrame />
             <span className={`player-turn-status-avatar avatar-mask-${turnOrder.playerTurnAvatarMask}`}>
-              {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : player.name.slice(0, 1).toUpperCase()}
+              <CompactAssetThumbnail previewPath={previewPath} fallback={player.name.slice(0, 1).toUpperCase()} />
             </span>
             <span className="player-turn-status-copy">
               <strong>{player.name}</strong>

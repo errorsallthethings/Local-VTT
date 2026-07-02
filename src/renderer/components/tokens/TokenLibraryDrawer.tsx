@@ -24,6 +24,7 @@ import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { getAssetThumbnailPreviewMessage, getAssetThumbnailPreviewPath } from "../../lib/assets";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
+import { CompactAssetThumbnail } from "../assets/CompactAssetThumbnail";
 import {
   buildTokenLibraryAssetIndex,
   filterTokenLibraryAssetIndex,
@@ -451,7 +452,7 @@ function TokenLibraryItem({
         <GripHorizontal size={14} />
       </span>
       <div className="token-library-thumb" title={previewMessage ?? undefined}>
-        {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" loading="lazy" decoding="async" draggable={false} /> : <PackageOpen size={18} aria-hidden="true" />}
+        <CompactAssetThumbnail previewPath={previewPath} fallback={<PackageOpen size={18} aria-hidden="true" />} lazy />
       </div>
       <div className="token-library-item-meta">
         <strong>{label}</strong>

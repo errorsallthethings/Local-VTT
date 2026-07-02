@@ -6,6 +6,7 @@ import type { Asset, CampaignPlayer, Scene, Token, TurnOrderEntry, TurnOrderSett
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { getAssetThumbnailPreviewMessage, getAssetThumbnailPreviewPath } from "../../lib/assets";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
+import { CompactAssetThumbnail } from "../assets/CompactAssetThumbnail";
 import {
   addTurnOrderEntry,
   addPlayersToTurnOrder,
@@ -598,7 +599,7 @@ function TurnOrderRow({
       </span>
       <span className="turn-order-rank">{index + 1}</span>
       <span className="turn-order-avatar" title={previewMessage ?? undefined}>
-        {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : entry.name.slice(0, 1).toUpperCase()}
+        <CompactAssetThumbnail previewPath={previewPath} fallback={entry.name.slice(0, 1).toUpperCase()} />
       </span>
       <div className="turn-order-name-cell">
         <input className="turn-order-name" value={entry.name} aria-label="Entry name" onChange={(event) => onUpdate({ name: event.target.value })} />
