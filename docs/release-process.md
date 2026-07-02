@@ -23,6 +23,7 @@ Update `CHANGELOG.md`, then verify the release branch:
 
 ```bash
 npm run release:notes -- --milestone 0.1.6 --output docs/release-notes/v0.1.6.md
+npm run release:check-metadata
 npm run check
 npm run build
 npm run smoke:electron
@@ -76,11 +77,14 @@ Review the generated notes before committing. They are grouped by existing `type
 4. Run local verification:
 
 ```bash
+npm run release:check-metadata
 npm run check
 npm run build
 npm run smoke:electron
 npm run smoke:visual
 ```
+
+`npm run release:check-metadata` verifies that `package.json` and `package-lock.json` versions agree, that tag-triggered release builds match the package version, and that the core `electron-builder` metadata needed for packaged app identity is present. It is also included in `npm run check`.
 
 5. Commit the release metadata changes:
 
