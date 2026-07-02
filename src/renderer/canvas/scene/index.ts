@@ -5,6 +5,7 @@ export * from "./sceneContextMenus";
 export * from "./sceneHitTesting";
 export * from "./sceneInteractionTypes";
 export * from "./sceneLayerVisibility";
+export * from "./sceneMovePreviews";
 export * from "./sceneOverlayRenderer";
 export * from "./sceneDragCommits";
 export * from "./scenePolygonDraftCommits";

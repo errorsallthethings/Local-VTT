@@ -32,7 +32,6 @@ import {
   getDrawingResizeHandleAtPoint,
   getDrawingRotationHandleAtPoint,
   getMovedPointSnapshotForMove,
-  getProjectedSnapAnchor,
   getResizedDrawingPointSnapshot,
   getRotatedDrawingPointSnapshot
 } from "../canvas/drawings";
@@ -131,7 +130,7 @@ import {
 import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/effects";
 import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/scene";
 import { getSceneLayerVisibility } from "../canvas/scene";
-import { getNearestSceneSnapPoint, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/scene";
+import { getNearestSceneSnapPoint, getSnapAwarePointSnapshotMovePreview, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/scene";
 import { getSelectedItemIdList, getSelectedItemIds } from "../lib/scene";
 import { getTurnOrderTokenIndicators } from "../lib/turn-order";
 import {
@@ -1565,10 +1564,9 @@ export function SceneCanvas({
 
     if (drawingDragValue?.pointerId === event.pointerId) {
       const worldPoint = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const projectedAnchor = getProjectedSnapAnchor(drawingDragValue.start, drawingDragValue.snapAnchor, worldPoint);
-      const snappedPoint = scene && isSnapModifier(event) ? getNearestSceneSnapPoint(projectedAnchor, scene) : null;
-      setSnapPoint(snappedPoint);
-      setDrawingDragPreview(getMovedPointSnapshotForMove(drawingDragValue, worldPoint, snappedPoint));
+      const preview = getSnapAwarePointSnapshotMovePreview(scene, drawingDragValue, worldPoint, isSnapModifier(event));
+      setSnapPoint(preview.snapPoint);
+      setDrawingDragPreview(preview.points);
       return;
     }
 
@@ -1580,10 +1578,9 @@ export function SceneCanvas({
 
     if (environmentEffectMoveValue?.pointerId === event.pointerId) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const projectedAnchor = getProjectedSnapAnchor(environmentEffectMoveValue.start, environmentEffectMoveValue.snapAnchor, point);
-      const snappedPoint = scene && isSnapModifier(event) ? getNearestSceneSnapPoint(projectedAnchor, scene) : null;
-      setSnapPoint(snappedPoint);
-      setEnvironmentEffectMovePreview(getMovedPointSnapshotForMove(environmentEffectMoveValue, point, snappedPoint));
+      const preview = getSnapAwarePointSnapshotMovePreview(scene, environmentEffectMoveValue, point, isSnapModifier(event));
+      setSnapPoint(preview.snapPoint);
+      setEnvironmentEffectMovePreview(preview.points);
       return;
     }
 
