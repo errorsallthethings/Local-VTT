@@ -6,7 +6,6 @@ import {
   CloudFog,
   Crown,
   Grid3X3,
-  Import,
   Image,
   Layers,
   Lightbulb,
@@ -15,7 +14,6 @@ import {
   Shield,
   Settings2,
   Sparkles,
-  Trash2,
   User,
   UsersRound
 } from "lucide-react";
@@ -33,7 +31,6 @@ import type {
 } from "../../../../shared/localvtt";
 import { DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultFogShapeName, type Token } from "../../../../shared/localvtt";
 import { getSnappedTokenPosition } from "../../../canvas/tokens";
-import { getAssetThumbnailPreviewMessage } from "../../../lib/assets";
 import { reorderByDropTarget, type DropPlacement } from "../../../lib/ui";
 import {
   WEATHER_CATEGORY_OPTIONS,
@@ -43,20 +40,19 @@ import {
 } from "../../../lib/effects";
 import { ColorInput } from "../../controls/ColorPickerField";
 import { FogShapeList, type FogShapeDropTarget } from "../lists/FogShapeList";
-import { TokenList } from "../lists/TokenList";
 import { DrawingList, type DrawingDropTarget } from "./DrawingList";
 import { EnvironmentEffectList } from "./EnvironmentEffectList";
 import { FogSettingsPanel } from "./FogSettingsPanel";
+import { MapLayerContent } from "./MapLayerContent";
 import { MapLayerSettingsPanel } from "./MapLayerSettingsPanel";
+import { TokenLayerContent } from "./TokenLayerContent";
 import { WeatherCategoryRow, WeatherDirectionDial, WeatherRangeRow } from "./WeatherControls";
 import { WeatherMaskList } from "./WeatherMaskList";
 import {
-  getGridTypeLabel,
   getLayerItemCount,
   getReservedLayerGuidance,
   isEffectsLayerId,
   formatLayerPanelMultiplier,
-  formatLayerPanelNumber,
   formatLayerPanelPercent
 } from "./layerPanelFormat";
 import {
@@ -379,43 +375,6 @@ export function LayerPanel({
   const expandedWeatherIntensityMax = expandedWeatherCategory ? getWeatherIntensityMax(expandedWeatherCategory) : 1;
   const expandedWeatherOpacityMax = expandedWeatherCategory ? getWeatherOpacityMax(expandedWeatherCategory) : 1;
   const expandedWeatherColorLabel = expandedWeatherCategory ? getWeatherColorLabel(expandedWeatherCategory) : "Tint";
-  const renderGridSubLayerRow = () => (
-    <div className="map-sub-layer-row">
-      <span className="map-sub-layer-icon" aria-hidden="true">
-        <Grid3X3 size={14} />
-      </span>
-      <div className="map-sub-layer-summary">
-        <strong>Grid</strong>
-        <small>
-          {scene.grid.type === "gridless"
-            ? "Gridless"
-            : `${getGridTypeLabel(scene.grid.type)} - ${scene.grid.mapGridColumns} x ${scene.grid.mapGridRows} at ${formatLayerPanelNumber(scene.grid.sizePx)}px`}
-        </small>
-      </div>
-      <div className="grid-visibility-controls" aria-label="Grid visibility">
-        <button
-          type="button"
-          className={scene.grid.showOnGm ? "icon-button layer-visibility-button layer-visibility-active" : "icon-button layer-visibility-button"}
-          aria-label={scene.grid.showOnGm ? "Hide grid on GM View" : "Show grid on GM View"}
-          aria-pressed={scene.grid.showOnGm}
-          title={scene.grid.showOnGm ? "Hide grid on GM View" : "Show grid on GM View"}
-          onClick={() => onUpdateGrid({ showOnGm: !scene.grid.showOnGm })}
-        >
-          <Crown size={14} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className={scene.grid.showOnPlayer ? "icon-button layer-visibility-button layer-visibility-active" : "icon-button layer-visibility-button"}
-          aria-label={scene.grid.showOnPlayer ? "Hide grid on Player View" : "Show grid on Player View"}
-          aria-pressed={scene.grid.showOnPlayer}
-          title={scene.grid.showOnPlayer ? "Hide grid on Player View" : "Show grid on Player View"}
-          onClick={() => onUpdateGrid({ showOnPlayer: !scene.grid.showOnPlayer })}
-        >
-          <User size={14} aria-hidden="true" />
-        </button>
-      </div>
-    </div>
-  );
 
   return (
     <section className="panel">
@@ -681,19 +640,12 @@ export function LayerPanel({
                 </>
               )}
               {layer.id === "token" && isExpanded && (
-                <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
-                  <button className={scene.tokens.length === 0 ? "import-map-next-step" : "token-import-button"} onClick={onImportToken}>
-                    <Import size={16} aria-hidden="true" />
-                    Import Token
-                  </button>
-                </div>
-              )}
-              {layer.id === "token" && isExpanded && (
-                <TokenList
+                <TokenLayerContent
                   scene={scene}
                   tokenAssets={tokenAssets}
                   selectedTokenId={selectedTokenId}
                   selectedTokenIds={selectedTokenIds}
+                  onImportToken={onImportToken}
                   onSelectToken={onSelectToken}
                   onRenameToken={onRenameToken}
                   onUpdateToken={updateToken}
@@ -701,48 +653,15 @@ export function LayerPanel({
                   onOpenTokenColor={onOpenTokenColor}
                 />
               )}
-              {layer.id === "map" && !mapAsset && isExpanded && !areSettingsExpanded && (
-                <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
-                  {renderGridSubLayerRow()}
-                  <div className="layer-empty-state">
-                    <strong>Map Asset</strong>
-                    <span>Import a map asset here, or open settings to configure the grid before adding a map.</span>
-                  </div>
-                  <button className="import-map-next-step" onClick={onImportMap}>
-                    <Import size={16} aria-hidden="true" />
-                    Import Map
-                  </button>
-                </div>
-              )}
-              {layer.id === "map" && mapAsset && isExpanded && !areSettingsExpanded && (
-                <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
-                  {renderGridSubLayerRow()}
-                  <div className="map-asset-header">
-                    <span>Map</span>
-                    <small>1</small>
-                  </div>
-                  <div className="map-asset-row">
-                    <span className="map-asset-thumbnail" title={getAssetThumbnailPreviewMessage(mapAsset) ?? mapAsset.name} aria-hidden="true">
-                      {mapAsset.thumbnailAbsolutePath ? (
-                        <img src={window.localVtt.toAssetUrl(mapAsset.thumbnailAbsolutePath)} alt="" draggable={false} />
-                      ) : (
-                        <Image size={14} />
-                      )}
-                    </span>
-                    <div className="map-asset-summary">
-                      <span title={mapAsset.name}>{mapAsset.name}</span>
-                      <small>{mapAsset.mediaType}</small>
-                    </div>
-                    <div className="map-asset-actions" aria-label="Map asset actions">
-                      <button className="icon-button" aria-label="Replace map asset" title="Replace map asset" onClick={() => onReplaceMap(mapAsset)}>
-                        <RotateCcw size={15} aria-hidden="true" />
-                      </button>
-                      <button className="icon-button danger" aria-label="Delete map asset" title="Delete map asset" onClick={() => onDeleteMap(mapAsset)}>
-                        <Trash2 size={15} aria-hidden="true" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+              {layer.id === "map" && isExpanded && !areSettingsExpanded && (
+                <MapLayerContent
+                  scene={scene}
+                  mapAsset={mapAsset}
+                  onUpdateGrid={onUpdateGrid}
+                  onImportMap={onImportMap}
+                  onReplaceMap={onReplaceMap}
+                  onDeleteMap={onDeleteMap}
+                />
               )}
               {layer.id === "map" && areSettingsExpanded && (
                 <MapLayerSettingsPanel
