@@ -520,7 +520,7 @@ async function pruneMetadataBackups(backupFolder: string): Promise<void> {
   const entries = await readdir(backupFolder);
   const backupFiles = entries.filter((entry) => entry.endsWith(".json")).sort().reverse();
   for (const entry of backupFiles.slice(MAX_METADATA_BACKUPS)) {
-    await unlink(path.join(backupFolder, entry));
+    await unlinkIfExists(path.join(backupFolder, entry));
   }
 }
 
@@ -688,14 +688,7 @@ async function getMapReplacementWarning(currentPath: string, currentMediaType: A
 async function deleteMapAssetFiles(campaignPath: string, asset: Asset): Promise<void> {
   for (const assetPath of getAssetFileRemovalPaths(campaignPath, asset)) {
     assertInsideCampaign(campaignPath, assetPath);
-    try {
-      await unlink(assetPath);
-    } catch (caught) {
-      const error = caught as NodeJS.ErrnoException;
-      if (error.code !== "ENOENT") {
-        throw error;
-      }
-    }
+    await unlinkIfExists(assetPath);
   }
 }
 
@@ -950,8 +943,12 @@ async function removeThumbnailIfUnused(campaignPath: string, relativePath: strin
   }
   const thumbnailPath = path.resolve(campaignPath, relativePath);
   assertInsideCampaign(campaignPath, thumbnailPath);
+  await unlinkIfExists(thumbnailPath);
+}
+
+async function unlinkIfExists(filePath: string): Promise<void> {
   try {
-    await unlink(thumbnailPath);
+    await unlink(filePath);
   } catch (caught) {
     const error = caught as NodeJS.ErrnoException;
     if (error.code !== "ENOENT") {
@@ -1309,14 +1306,7 @@ ipcMain.handle("scene:delete", async (_event, campaignPath: string, sceneId: str
   const filePath = sceneFile(campaignPath, sceneId);
   assertInsideCampaign(campaignPath, filePath);
   await backupSceneBeforeDelete(campaignPath, sceneId);
-  try {
-    await unlink(filePath);
-  } catch (caught) {
-    const error = caught as NodeJS.ErrnoException;
-    if (error.code !== "ENOENT") {
-      throw error;
-    }
-  }
+  await unlinkIfExists(filePath);
 
   const summary = await loadCampaignFromPath(campaignPath);
   const campaign: Campaign = {
@@ -1570,14 +1560,7 @@ ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, 
 
   for (const assetPath of getAssetFileRemovalPaths(campaignPath, asset)) {
     assertInsideCampaign(campaignPath, assetPath);
-    try {
-      await unlink(assetPath);
-    } catch (caught) {
-      const error = caught as NodeJS.ErrnoException;
-      if (error.code !== "ENOENT") {
-        throw error;
-      }
-    }
+    await unlinkIfExists(assetPath);
   }
 
   const campaign: Campaign = {
@@ -1631,14 +1614,7 @@ ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId
 
   for (const assetPath of getAssetFileRemovalPaths(campaignPath, asset)) {
     assertInsideCampaign(campaignPath, assetPath);
-    try {
-      await unlink(assetPath);
-    } catch (caught) {
-      const error = caught as NodeJS.ErrnoException;
-      if (error.code !== "ENOENT") {
-        throw error;
-      }
-    }
+    await unlinkIfExists(assetPath);
   }
 
   const campaign: Campaign = {
@@ -1671,14 +1647,7 @@ ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: 
 
   for (const assetPath of getAssetFileRemovalPaths(campaignPath, asset)) {
     assertInsideCampaign(campaignPath, assetPath);
-    try {
-      await unlink(assetPath);
-    } catch (caught) {
-      const error = caught as NodeJS.ErrnoException;
-      if (error.code !== "ENOENT") {
-        throw error;
-      }
-    }
+    await unlinkIfExists(assetPath);
   }
 
   const currentScene = await readSceneMetadata(campaignPath, sceneId);
