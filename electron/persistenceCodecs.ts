@@ -26,6 +26,10 @@ export function toPortableCampaignMetadata(campaign: Campaign): Campaign {
   const normalizedCampaign = normalizeCampaign(campaign);
   return {
     ...normalizedCampaign,
+    scenes: normalizedCampaign.scenes.map((entry) => ({
+      ...entry,
+      file: normalizePortableAssetPath(entry.file, "Scene file path")
+    })),
     assets: normalizedCampaign.assets.map(({ absolutePath: _absolutePath, thumbnailAbsolutePath: _thumbnailAbsolutePath, ...asset }) => ({
       ...asset,
       relativePath: normalizePortableAssetPath(asset.relativePath, "Asset path"),

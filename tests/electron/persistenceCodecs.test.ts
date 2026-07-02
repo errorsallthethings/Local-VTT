@@ -60,6 +60,19 @@ describe("persistence codecs", () => {
     expect(portable.assets[0].thumbnailRelativePath).toBe("assets/thumbnails/map-1.jpg");
   });
 
+  it("normalizes campaign scene file path separators before campaign metadata is saved", () => {
+    const campaign = createDefaultCampaign("Portable Scene Files");
+    campaign.scenes = [
+      {
+        id: "scene-1",
+        name: "Scene",
+        file: "scenes\\.\\scene-1.scene.json"
+      }
+    ];
+
+    expect(toPortableCampaignMetadata(campaign).scenes[0].file).toBe("scenes/scene-1.scene.json");
+  });
+
   it("rejects absolute and traversal asset paths before campaign metadata is saved", () => {
     const campaign = createDefaultCampaign("Unsafe Paths");
     campaign.assets = [
@@ -80,6 +93,22 @@ describe("persistence codecs", () => {
     expect(() => normalizePortableAssetPath("assets/maps/../outside.png")).toThrow("Asset path must be a relative path inside the campaign folder.");
     expect(() => normalizePortableAssetPath(".")).toThrow("Asset path must be a relative path inside the campaign folder.");
     expect(() => normalizePortableAssetPath("./.")).toThrow("Asset path must be a relative path inside the campaign folder.");
+  });
+
+  it("rejects absolute and traversal scene file paths before campaign metadata is saved", () => {
+    const campaign = createDefaultCampaign("Unsafe Scene Files");
+    campaign.scenes = [
+      {
+        id: "scene-1",
+        name: "Scene",
+        file: "../outside.scene.json"
+      }
+    ];
+
+    expect(() => toPortableCampaignMetadata(campaign)).toThrow("Scene file path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableAssetPath("C:\\Campaign\\scenes\\scene.scene.json", "Scene file path")).toThrow(
+      "Scene file path must be a relative path inside the campaign folder."
+    );
   });
 
   it("normalizes scene metadata before saving", () => {
