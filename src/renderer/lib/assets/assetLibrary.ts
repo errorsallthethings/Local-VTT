@@ -8,6 +8,10 @@ export function buildAssetsByKind(assets: readonly Asset[], kind: AssetKind): Ma
   return new Map(assets.filter((asset) => asset.kind === kind).map((asset) => [asset.id, asset]));
 }
 
+export function getAssetThumbnailPreviewPath(asset: Asset | null | undefined): string | null {
+  return asset?.thumbnailAbsolutePath ?? null;
+}
+
 export function buildSceneThumbnailAssets(
   scenes: readonly CampaignSceneEntry[],
   sceneDrafts: Record<string, Scene>,

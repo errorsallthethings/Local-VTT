@@ -6,6 +6,7 @@ import type { Asset, Campaign, CampaignPlayer, PlayerIndicatorTheme } from "../.
 import { ColorInput } from "../controls/ColorPickerField";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
 import type { RecentCampaign } from "../../lib/campaign";
+import { getAssetThumbnailPreviewPath } from "../../lib/assets";
 import { getMissingAssetsWarningItems, MISSING_ASSETS_WARNING_MESSAGE } from "../../lib/assets/assetRecovery";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
@@ -271,15 +272,16 @@ function CampaignPlayerRow({
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const selectedAsset = player.assetId ? tokenAssets.find((asset) => asset.id === player.assetId) : null;
-  const previewPath = selectedAsset?.thumbnailAbsolutePath ?? selectedAsset?.absolutePath;
+  const hasSelectedAsset = Boolean(selectedAsset);
+  const previewPath = getAssetThumbnailPreviewPath(selectedAsset);
   return (
     <article className="campaign-player-row">
       <button
         type="button"
-        className={previewPath ? "campaign-player-avatar" : "campaign-player-avatar campaign-player-avatar-drop"}
-        title={previewPath ? "Remove thumbnail" : "Drag a token here to use its thumbnail"}
+        className={hasSelectedAsset ? "campaign-player-avatar" : "campaign-player-avatar campaign-player-avatar-drop"}
+        title={hasSelectedAsset ? "Remove thumbnail" : "Drag a token here to use its thumbnail"}
         onClick={() => {
-          if (previewPath) {
+          if (hasSelectedAsset) {
             onUpdate({ assetId: undefined });
           }
         }}
@@ -300,7 +302,7 @@ function CampaignPlayerRow({
         }}
       >
         {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : player.name.slice(0, 1).toUpperCase()}
-        {previewPath && <span className="campaign-player-avatar-reset">Reset</span>}
+        {hasSelectedAsset && <span className="campaign-player-avatar-reset">Reset</span>}
       </button>
       <input className="campaign-player-name" value={player.name} aria-label="Player name" onChange={(event) => onUpdate({ name: event.target.value })} />
       <ColorInput className="campaign-player-color" value={player.color} aria-label="Player color" onChange={(color) => onUpdate({ color })} />

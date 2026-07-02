@@ -22,6 +22,7 @@ import { createPortal } from "react-dom";
 import type { Asset } from "../../../shared/localvtt";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
+import { getAssetThumbnailPreviewPath } from "../../lib/assets";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
 import {
   buildTokenLibraryAssetIndex,
@@ -425,7 +426,7 @@ function TokenLibraryItem({
   onRenameToken: (asset: Asset) => void;
   onDeleteToken: (asset: Asset) => void;
 }) {
-  const previewPath = asset.thumbnailAbsolutePath ?? asset.absolutePath;
+  const previewPath = getAssetThumbnailPreviewPath(asset);
   const label = asset.name || asset.originalFileName || "Token";
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   return (

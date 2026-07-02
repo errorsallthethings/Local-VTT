@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import type { Asset, CampaignPlayer, Scene, Token, TurnOrderEntry, TurnOrderSettings, TurnOrderTrackerPlacement } from "../../../shared/localvtt";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
+import { getAssetThumbnailPreviewPath } from "../../lib/assets";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
 import {
   addTurnOrderEntry,
@@ -527,7 +528,7 @@ function TurnOrderRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
-  const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
+  const previewPath = getAssetThumbnailPreviewPath(asset);
   const className = [
     active ? "turn-order-row turn-order-row-active" : "turn-order-row",
     entry.type === "count-tracker" ? "turn-order-row-count-tracker" : "",

@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import type { Campaign, Scene, TurnOrderTrackerPlacement } from "../../../shared/localvtt";
-import { buildAssetsById } from "../../lib/assets";
+import { buildAssetsById, getAssetThumbnailPreviewPath } from "../../lib/assets";
 import {
   easeInCubic,
   easeOutCubic,
@@ -24,7 +24,7 @@ export function PlayerSeatIndicators({ campaign }: { campaign: Campaign | null }
     <>
       {seats.map((seat) => {
         const asset = seat.assetId ? assetsById.get(seat.assetId) : null;
-        const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
+        const previewPath = getAssetThumbnailPreviewPath(asset);
         const style = getPlayerSeatStyle(seat.defaultSeatEdge, seat.defaultSeatPosition, seat.color);
         return (
           <div key={seat.id} className={`player-seat-indicator player-seat-indicator-${seat.defaultSeatEdge}`} style={style}>
@@ -88,7 +88,7 @@ export function TurnOrderPlayerBar({ scene, campaign }: { scene: Scene; campaign
               const player = entry.playerId ? playersById.get(entry.playerId) : null;
               const assetId = player?.assetId ?? entry.assetId;
               const asset = assetId ? assetsById.get(assetId) : null;
-              const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
+              const previewPath = getAssetThumbnailPreviewPath(asset);
               const active = entry.id === turnOrder.currentEntryId;
               const next = entry.id === nextEntryId;
               const entryName = player?.name ?? entry.name;
@@ -177,7 +177,7 @@ export function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; 
           return null;
         }
         const asset = player.assetId ? assetsById.get(player.assetId) : null;
-        const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
+        const previewPath = getAssetThumbnailPreviewPath(asset);
         const status = entry.id === turnOrder.currentEntryId ? "current" : entry.id === nextEntry?.id ? "next" : "waiting";
         const theme = player.indicatorTheme ?? "generic";
         const style = getPlayerTurnStatusStyle(player.defaultSeatEdge, player.defaultSeatPosition, player.color, reveal.progress);
