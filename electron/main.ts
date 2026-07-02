@@ -30,7 +30,8 @@ import {
 } from "../src/shared/localvtt.js";
 import {
   createAssetProtocolErrorResponse,
-  LOCALVTT_ASSET_MISSING_MESSAGE,
+  getAssetProtocolStatFailureResponse,
+  getAssetProtocolStatResultFailureResponse,
   LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE
 } from "./assetProtocol.js";
 import { inspectCampaignHealth } from "./campaignHealth.js";
@@ -1119,13 +1120,17 @@ app.whenReady().then(() => {
       return createAssetProtocolErrorResponse(LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE, 403);
     }
     try {
-      await stat(filePath);
-    } catch (caught) {
-      const error = caught as NodeJS.ErrnoException;
-      if (error.code === "ENOENT") {
-        return createAssetProtocolErrorResponse(LOCALVTT_ASSET_MISSING_MESSAGE, 404);
+      const stats = await stat(filePath);
+      const failureResponse = getAssetProtocolStatResultFailureResponse(stats);
+      if (failureResponse) {
+        return failureResponse;
       }
-      throw error;
+    } catch (caught) {
+      const failureResponse = getAssetProtocolStatFailureResponse(caught);
+      if (failureResponse) {
+        return failureResponse;
+      }
+      throw caught;
     }
     const response = await net.fetch(pathToFileURL(filePath).toString());
     const headers = new Headers(response.headers);
