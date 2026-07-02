@@ -4,6 +4,10 @@ import type { Asset, Campaign, DiceDisplayMode, DicePanelEdge, DicePanelFacing, 
 import type { PlayerDisplayMode } from "../../lib/player-view";
 import {
   addCustomDicePreset,
+  DICE_DISPLAY_OPTIONS,
+  DICE_PANEL_EDGE_OPTIONS,
+  DICE_PANEL_FACING_OPTIONS,
+  DICE_SCENE_SIZE_OPTIONS,
   DICE_TYPES,
   formatDieLabel,
   formatDiceFeedBreakdown,
@@ -14,6 +18,7 @@ import {
   getDicePlacementAvailable,
   getDicePlacementFacingAvailable,
   getDicePlacementHelp,
+  getDiceDisplaySelectValue,
   isPendingRecentDiceRoll,
   loadCustomDicePresets,
   rollDiceExpression,
@@ -32,30 +37,6 @@ type DicePanelDrag = {
   offsetX: number;
   offsetY: number;
 };
-
-const DICE_DISPLAY_OPTIONS = [
-  { value: "results", label: "Text Result Only" },
-  { value: "panel", label: "3D Panel" },
-  { value: "scene", label: "3D Scene Roll" },
-  { value: "hidden", label: "Hidden" }
-] as const satisfies Array<{ value: DiceDisplayMode; label: string }>;
-const DICE_SCENE_SIZE_OPTIONS = [
-  { value: "xs", label: "Extra small" },
-  { value: "sm", label: "Small" },
-  { value: "md", label: "Medium" },
-  { value: "lg", label: "Large" },
-  { value: "xl", label: "Extra large" }
-] as const satisfies Array<{ value: DiceSceneSize; label: string }>;
-const DICE_PANEL_EDGE_OPTIONS = [
-  { value: "top", label: "Top" },
-  { value: "right", label: "Right" },
-  { value: "bottom", label: "Bottom" },
-  { value: "left", label: "Left" }
-] as const satisfies Array<{ value: DicePanelEdge; label: string }>;
-const DICE_PANEL_FACING_OPTIONS = [
-  { value: "inward", label: "Inward" },
-  { value: "outward", label: "Outward" }
-] as const satisfies Array<{ value: DicePanelFacing; label: string }>;
 
 interface WorkspaceTopbarProps {
   campaign: Campaign | null;
@@ -863,10 +844,6 @@ export function WorkspaceTopbar({
 
 function clampDicePanelPosition(x: number, y: number, rect?: DOMRect | null): DicePanelPosition {
   return clampDicePanelPositionToViewport(x, y, { width: window.innerWidth, height: window.innerHeight }, rect);
-}
-
-function getDiceDisplaySelectValue(mode: DiceDisplayMode): DiceDisplayMode {
-  return mode === "panel" || mode === "hidden" || mode === "scene" ? mode : "results";
 }
 
 function ActiveWeatherIcons({ scene }: { scene: Scene }) {
