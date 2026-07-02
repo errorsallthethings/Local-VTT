@@ -21,6 +21,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "generate:icon": "node scripts/generate-icon.mjs",
     "release:check-metadata": "node scripts/validate-release-metadata.mjs",
+    "package:win:check": "node scripts/validate-package-artifacts.mjs win",
     "release:notes": "node scripts/generate-release-notes.mjs",
     "package:mac": "npm run build && electron-builder --mac",
     "package:win": "npm run build && electron-builder --win",

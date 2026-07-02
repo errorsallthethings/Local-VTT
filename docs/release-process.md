@@ -131,6 +131,7 @@ Package for Windows:
 
 ```bash
 npm run package:win
+npm run package:win:check
 ```
 
 Package for macOS:
@@ -250,6 +251,7 @@ Playwright is a good fit for future end-to-end workflow coverage, especially onc
 For packaged Windows builds, also run:
 
 - `npm run package:win`.
+- `npm run package:win:check`.
 - Open `release/win-unpacked/Local VTT.exe`.
 - Confirm the app gets past the startup splash.
 - Load a campaign and send static and video map scenes to Player View.
