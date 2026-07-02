@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   hydrateCampaignSceneEntry,
+  normalizePortableAssetPath,
   parseCampaignMetadata,
   parseSceneMetadata,
   toPortableCampaignMetadata,
@@ -36,6 +37,47 @@ describe("persistence codecs", () => {
     expect(portable.assets[0]).not.toHaveProperty("absolutePath");
     expect(portable.assets[0]).not.toHaveProperty("thumbnailAbsolutePath");
     expect(persistedJson).not.toContain("C:\\Campaign");
+  });
+
+  it("normalizes portable asset path separators before campaign metadata is saved", () => {
+    const campaign = createDefaultCampaign("Portable Separators");
+    campaign.assets = [
+      {
+        id: "map-1",
+        name: "Map",
+        kind: "map",
+        mediaType: "image",
+        relativePath: "assets\\maps\\map.png",
+        thumbnailRelativePath: "assets\\thumbnails\\.\\map-1.jpg",
+        originalFileName: "map.png",
+        createdAt: "2026-06-01T00:00:00.000Z"
+      }
+    ];
+
+    const portable = toPortableCampaignMetadata(campaign);
+
+    expect(portable.assets[0].relativePath).toBe("assets/maps/map.png");
+    expect(portable.assets[0].thumbnailRelativePath).toBe("assets/thumbnails/map-1.jpg");
+  });
+
+  it("rejects absolute and traversal asset paths before campaign metadata is saved", () => {
+    const campaign = createDefaultCampaign("Unsafe Paths");
+    campaign.assets = [
+      {
+        id: "map-1",
+        name: "Map",
+        kind: "map",
+        mediaType: "image",
+        relativePath: "../outside.png",
+        originalFileName: "map.png",
+        createdAt: "2026-06-01T00:00:00.000Z"
+      }
+    ];
+
+    expect(() => toPortableCampaignMetadata(campaign)).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableAssetPath("C:\\Campaign\\assets\\map.png")).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableAssetPath("/Campaign/assets/map.png")).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableAssetPath("assets/maps/../outside.png")).toThrow("Asset path must be a relative path inside the campaign folder.");
   });
 
   it("normalizes scene metadata before saving", () => {
