@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createThumbnailImportFailureDiagnostic } from "../../electron/thumbnailDiagnostics";
+import { createThumbnailImportFailureDiagnostic, createThumbnailRegenerationFailure } from "../../electron/thumbnailDiagnostics";
+import type { Asset } from "../../src/shared/localvtt";
 
 describe("thumbnail diagnostics", () => {
   it("formats import thumbnail failures with a stable label and file name only", () => {
@@ -17,6 +18,26 @@ describe("thumbnail diagnostics", () => {
       kind: "token",
       fileName: "Hero.png",
       reason: "Thumbnail could not be generated."
+    });
+  });
+
+  it("formats regeneration failures from the asset metadata used by the UI", () => {
+    const asset: Asset = {
+      id: "asset-1",
+      name: "Ancient Cave",
+      kind: "map",
+      mediaType: "video",
+      relativePath: "assets/maps/ancient-cave.mp4",
+      originalFileName: "Ancient Cave.mp4",
+      createdAt: "2026-07-02T00:00:00.000Z"
+    };
+
+    expect(createThumbnailRegenerationFailure(asset, "Video metadata timed out.")).toEqual({
+      assetId: "asset-1",
+      assetName: "Ancient Cave",
+      kind: "map",
+      relativePath: "assets/maps/ancient-cave.mp4",
+      reason: "Video metadata timed out."
     });
   });
 });

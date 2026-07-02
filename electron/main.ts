@@ -15,7 +15,6 @@ import {
   MetadataBackupRestoreResult,
   Scene,
   SquareCropRect,
-  ThumbnailRegenerationFailure,
   ThumbnailRegenerationProgress,
   ThumbnailRegenerationResult,
   assertValidScene,
@@ -72,7 +71,7 @@ import {
   type MapReplacementTokenStore
 } from "./mapReplacementTokens.js";
 import { getDimensionDifferenceWarning } from "./mapReplacementWarnings.js";
-import { createThumbnailImportFailureDiagnostic } from "./thumbnailDiagnostics.js";
+import { createThumbnailImportFailureDiagnostic, createThumbnailRegenerationFailure } from "./thumbnailDiagnostics.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -391,7 +390,7 @@ async function regenerateCampaignThumbnails(
   rendererWebContents?: WebContents
 ): Promise<ThumbnailRegenerationResult> {
   const summary = await loadCampaignFromPath(campaignPath);
-  const failures: ThumbnailRegenerationFailure[] = [];
+  const failures: ThumbnailRegenerationResult["failed"] = [];
   const previousThumbnailPaths = new Map(summary.campaign.assets.map((asset) => [asset.id, asset.thumbnailRelativePath]));
   const normalizedAssets = normalizeCampaign(summary.campaign).assets;
   const eligibleAssetCount = normalizedAssets.filter((asset) => asset.kind === "map" || asset.kind === "token").length;
@@ -418,14 +417,14 @@ async function regenerateCampaignThumbnails(
           ? await createMapThumbnail(campaignPath, sourcePath, asset.id, rendererWebContents)
           : await createTokenThumbnail(campaignPath, sourcePath, asset.id);
       if (!thumbnailResult.thumbnailRelativePath) {
-        failures.push(createThumbnailFailure(asset, thumbnailResult.failureReason ?? "Thumbnail could not be generated."));
+        failures.push(createThumbnailRegenerationFailure(asset, thumbnailResult.failureReason ?? "Thumbnail could not be generated."));
         assets.push(asset);
         continue;
       }
       regenerated += 1;
       assets.push({ ...asset, thumbnailRelativePath: thumbnailResult.thumbnailRelativePath });
     } catch (caught) {
-      failures.push(createThumbnailFailure(asset, caught instanceof Error ? caught.message : "Asset could not be read."));
+      failures.push(createThumbnailRegenerationFailure(asset, caught instanceof Error ? caught.message : "Asset could not be read."));
       assets.push(asset);
     }
     processed += 1;
@@ -449,16 +448,6 @@ async function regenerateCampaignThumbnails(
     regenerated,
     skipped,
     failed: failures
-  };
-}
-
-function createThumbnailFailure(asset: Asset, reason: string): ThumbnailRegenerationFailure {
-  return {
-    assetId: asset.id,
-    assetName: asset.name,
-    kind: asset.kind,
-    relativePath: asset.relativePath,
-    reason
   };
 }
 
