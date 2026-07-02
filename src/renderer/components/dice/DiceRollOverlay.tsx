@@ -8,6 +8,8 @@ import {
   DICE_SCENE_MIN_ROLL_MS,
   DICE_SCENE_RESULT_TIMEOUT_MS,
   createDieGeometry,
+  applyResolvedDiceVisualState,
+  disposeObjectMaterialsAndGeometry,
   getDiceDisplayMode,
   getDiceEventDuration,
   getDicePanelPlacement,
@@ -336,13 +338,7 @@ function DiceRollCard({ event, mode, onDiceRollResolved }: { event: DiceRollEven
       physicsWorld?.free();
       dice.forEach(({ die }) => {
         scene.remove(die);
-        die.traverse((object) => {
-          if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments) {
-            object.geometry.dispose();
-            const materials = Array.isArray(object.material) ? object.material : [object.material];
-            materials.forEach(disposeMaterial);
-          }
-        });
+        disposeObjectMaterialsAndGeometry(die);
       });
       releaseDiceRenderer(renderer);
     };
@@ -870,37 +866,6 @@ function getPhysicsVisualResult(visual: DiceVisual, quaternion: THREE.Quaternion
   return { label, value: Number(label) };
 }
 
-function applyResolvedDiceVisualState(
-  dice: Array<{
-    die: THREE.Group;
-  }>,
-  resolvedResult: ResolvedDiceResult
-): void {
-  dice.forEach((entry, index) => {
-    const kept = resolvedResult.dice[index]?.kept !== false;
-    entry.die.traverse((object) => {
-      if (object instanceof THREE.LineSegments) {
-        setObjectMaterialOpacity(object, kept ? 0.36 : 0.16);
-        return;
-      }
-      if (!(object instanceof THREE.Mesh)) {
-        return;
-      }
-      const opacity = object.material instanceof THREE.MeshStandardMaterial ? (kept ? 1 : 0.42) : kept ? 0.92 : 0.38;
-      setObjectMaterialOpacity(object, opacity);
-    });
-  });
-}
-
-function setObjectMaterialOpacity(object: THREE.Mesh | THREE.LineSegments, opacity: number): void {
-  const materials = Array.isArray(object.material) ? object.material : [object.material];
-  materials.forEach((material) => {
-    material.transparent = opacity < 1;
-    material.opacity = opacity;
-    material.needsUpdate = true;
-  });
-}
-
 function getPhysicsD4TopLabel(quaternion: THREE.Quaternion): string {
   const geometry = createDieGeometry("d4");
   const triangles = getGeometryTriangles(geometry);
@@ -975,12 +940,6 @@ function makeFaceLabelMesh(
   mesh.quaternion.copy(getFaceLabelQuaternion(normal, up));
   mesh.renderOrder = 2;
   return mesh;
-}
-
-function disposeMaterial(material: THREE.Material) {
-  const textureMaterial = material as THREE.Material & { map?: THREE.Texture | null };
-  textureMaterial.map?.dispose();
-  material.dispose();
 }
 
 function seedRange(seed: number, offset: number, max: number): number {

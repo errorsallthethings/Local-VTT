@@ -4,6 +4,7 @@ export * from "./diceFaceGeometry";
 export * from "./diceFaceStyle";
 export * from "./diceFeed";
 export * from "./diceGeometry";
+export * from "./diceMaterials";
 export * from "./diceOptions";
 export * from "./dicePanelPosition";
 export * from "./dicePlacement";
