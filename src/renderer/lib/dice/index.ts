@@ -7,5 +7,6 @@ export * from "./dicePlacement";
 export * from "./dicePoolLayout";
 export * from "./diceRollDisplay";
 export * from "./diceRollLabels";
+export * from "./diceRollResults";
 export * from "./diceScenePhysics";
 export * from "./diceSettingsPreference";

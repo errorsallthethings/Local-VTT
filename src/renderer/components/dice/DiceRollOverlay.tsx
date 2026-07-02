@@ -3,14 +3,11 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import * as THREE from "three";
 import type { DiceDisplayMode, LiveTableEvent } from "../../../shared/localvtt";
 import {
-  annotateKeptDiceForFormula,
   DICE_FACE_HIGHLIGHT_DURATION_MS,
   DICE_SCENE_MAX_ROLL_MS,
   DICE_SCENE_MIN_ROLL_MS,
   DICE_SCENE_RESULT_TIMEOUT_MS,
   DICE_SCENE_STABLE_MS,
-  formatDieLabel,
-  getDiceVisualTotal,
   getDiceDisplayMode,
   getDiceEventDuration,
   getDicePanelPlacement,
@@ -25,18 +22,19 @@ import {
   getPublishedSceneResolvedLabel,
   getCoinCenterPush,
   getPhysicsColliderScale,
-  getResolvedDieValue,
   getResolvedDisplayedLabel,
   getResolvedDisplayedSummary,
   getRollModifier,
-  getRollSummary,
   getRollingSummary,
+  getResolvedDiceRollResult,
+  getResolvedEventDice,
   getSceneDiceLaunchParameters,
   getSceneDiceLanding,
   getSceneInitialRotation,
   getSceneRollBounds,
   getSceneThrowVelocity,
   getShuffledRollLabel,
+  getStaticRollResult,
   getVisualDice,
   getVisualResultFaceLabel,
   shouldUnderlineResultLabel,
@@ -854,54 +852,11 @@ function getPhysicsRollResult(
   }>
 ): ResolvedDiceResult {
   const resolvedDice = dice.map(({ visual, die }) => getPhysicsVisualResult(visual, die.quaternion));
-  if (resolvedDice.length === 1 && dice[0]?.visual.die === "coin") {
-    return {
-      label: resolvedDice[0]?.label ?? "Heads",
-      summary: formatDieLabel("coin"),
-      result: resolvedDice[0]?.value ?? 1,
-      dice: resolvedDice
-    };
-  }
-  const resolvedVisualDice = annotateResolvedVisualDice(event, dice, resolvedDice);
-  const percentileDice = hasResolvedPercentileDice(dice, resolvedDice);
-  const total = getDiceVisualTotal(resolvedVisualDice);
-  const summary = percentileDice
-    ? formatDieLabel("d00")
-    : resolvedDice.length <= 1
-      ? formatDieLabel(dice[0]?.visual.die ?? "d20")
-      : resolvedDice.map((result, index) => `${formatDieLabel(dice[index]?.visual.die ?? "d20")} ${result.label}`).join(" + ");
-  return {
-    label: String(total),
-    summary,
-    result: total,
-    dice: resolvedVisualDice.map((die) => ({ kept: die.kept, label: die.label, value: getResolvedDieValue(die) }))
-  };
-}
-
-function getStaticRollResult(event: DiceRollEvent): ResolvedDiceResult {
-  const dice = getVisualDice(event);
-  return {
-    label: event.label,
-    summary: getRollSummary(event),
-    result: event.result,
-    dice: dice.map((die) => ({ kept: die.kept ?? true, label: die.label, value: getResolvedDieValue(die) }))
-  };
-}
-
-function annotateResolvedVisualDice(
-  event: DiceRollEvent,
-  dice: Array<{
-    visual: DiceVisual;
-    die: THREE.Group;
-  }>,
-  resolvedDice: Array<{ label: string; value: number }>
-): DiceVisual[] {
-  const resolvedVisualDice = dice.map(({ visual }, index) => ({
-    ...visual,
-    label: resolvedDice[index]?.label ?? visual.label,
-    result: resolvedDice[index]?.value ?? visual.result
-  }));
-  return annotateKeptDiceForFormula(event.formula, resolvedVisualDice);
+  return getResolvedDiceRollResult(
+    event,
+    dice.map(({ visual }) => visual),
+    resolvedDice
+  );
 }
 
 function publishSceneRollResult(event: DiceRollEvent, mode: "gm" | "player", resolvedResult: ResolvedDiceResult, onDiceRollResolved?: (event: DiceRollEvent) => void): void {
@@ -931,22 +886,6 @@ function publishSceneRollResult(event: DiceRollEvent, mode: "gm" | "player", res
       logRendererWarning("LOCALVTT_LIVE_TABLE_EVENT_SEND_FAILED", caught);
     });
   }
-}
-
-function getResolvedEventDice(event: DiceRollEvent, resolvedResult: ResolvedDiceResult): DiceVisual[] {
-  const dice = getVisualDice(event);
-  return dice.map((visual, index) => {
-    const resolvedDie = resolvedResult.dice[index];
-    if (!resolvedDie) {
-      return visual;
-    }
-    return {
-      ...visual,
-      kept: resolvedDie.kept ?? true,
-      label: resolvedDie.label,
-      result: resolvedDie.value
-    };
-  });
 }
 
 function getPhysicsVisualResult(visual: DiceVisual, quaternion: THREE.Quaternion): { label: string; value: number } {
@@ -1004,16 +943,6 @@ function setObjectMaterialOpacity(object: THREE.Mesh | THREE.LineSegments, opaci
     material.opacity = opacity;
     material.needsUpdate = true;
   });
-}
-
-function hasResolvedPercentileDice(
-  dice: Array<{
-    visual: DiceVisual;
-    die: THREE.Group;
-  }>,
-  resolvedDice: Array<{ label: string; value: number }>
-): boolean {
-  return dice.length === 2 && resolvedDice.length === 2 && dice[0]?.visual.die === "d00" && dice[1]?.visual.die === "d10";
 }
 
 function getPhysicsD4TopLabel(quaternion: THREE.Quaternion): string {
