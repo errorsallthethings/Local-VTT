@@ -7,7 +7,6 @@ import {
   DICE_SCENE_MAX_ROLL_MS,
   DICE_SCENE_MIN_ROLL_MS,
   DICE_SCENE_RESULT_TIMEOUT_MS,
-  DICE_SCENE_STABLE_MS,
   getDiceDisplayMode,
   getDiceEventDuration,
   getDicePanelPlacement,
@@ -26,6 +25,8 @@ import {
   getResolvedDisplayedSummary,
   getRollModifier,
   getRollingSummary,
+  getUpdatedSceneDieSettleState,
+  getVectorSpeed,
   getResolvedDiceRollResult,
   getResolvedEventDice,
   getSceneDiceLaunchParameters,
@@ -35,6 +36,8 @@ import {
   getSceneThrowVelocity,
   getShuffledRollLabel,
   getStaticRollResult,
+  isSceneDieResting as isSceneDieRestingByMotion,
+  shouldNudgeCoinOffEdge,
   getVisualDice,
   getVisualResultFaceLabel,
   shouldUnderlineResultLabel,
@@ -574,18 +577,17 @@ function updateSceneDieSettleState(
   },
   now: number
 ): boolean {
-  if (!isSceneDieResting(entry)) {
-    entry.stableLabel = null;
-    entry.stableStartedAt = 0;
-    return false;
-  }
   const label = getPhysicsVisualResult(entry.visual, entry.die.quaternion).label;
-  if (entry.stableLabel !== label) {
-    entry.stableLabel = label;
-    entry.stableStartedAt = now;
-    return false;
-  }
-  return now - entry.stableStartedAt >= DICE_SCENE_STABLE_MS;
+  const update = getUpdatedSceneDieSettleState({
+    label,
+    now,
+    resting: isSceneDieResting(entry),
+    stableLabel: entry.stableLabel,
+    stableStartedAt: entry.stableStartedAt
+  });
+  entry.stableLabel = update.stableLabel;
+  entry.stableStartedAt = update.stableStartedAt;
+  return update.settled;
 }
 
 function isSceneDieResting(entry: {
@@ -598,15 +600,12 @@ function isSceneDieResting(entry: {
   }
   const velocity = entry.body.linvel();
   const angularVelocity = entry.body.angvel();
-  const linearSpeed = Math.hypot(velocity.x, velocity.y, velocity.z);
-  const angularSpeed = Math.hypot(angularVelocity.x, angularVelocity.y, angularVelocity.z);
-  if (linearSpeed > 0.18 || angularSpeed > 0.32) {
-    return false;
-  }
-  if (entry.visual.die === "coin") {
-    return Math.abs(getCoinFaceNormal(entry.die).z) >= 0.62;
-  }
-  return true;
+  return isSceneDieRestingByMotion({
+    angularSpeed: getVectorSpeed(angularVelocity),
+    coinFaceNormalZ: entry.visual.die === "coin" ? getCoinFaceNormal(entry.die).z : undefined,
+    die: entry.visual.die,
+    linearSpeed: getVectorSpeed(velocity)
+  });
 }
 
 function getCoinFaceNormal(die: THREE.Group): THREE.Vector3 {
@@ -631,15 +630,23 @@ function nudgeCoinOffEdge(
     return;
   }
   const faceNormal = getCoinFaceNormal(entry.die);
-  if (Math.abs(faceNormal.z) > 0.38) {
-    return;
-  }
   const velocity = entry.body.linvel();
   const angularVelocity = entry.body.angvel();
-  const linearSpeed = Math.hypot(velocity.x, velocity.y, velocity.z);
-  const angularSpeed = Math.hypot(angularVelocity.x, angularVelocity.y, angularVelocity.z);
+  const linearSpeed = getVectorSpeed(velocity);
+  const angularSpeed = getVectorSpeed(angularVelocity);
   const translation = entry.body.translation();
-  if (translation.z > 0.92 || Math.abs(velocity.z) > 0.12 || linearSpeed > 0.45 || angularSpeed > 0.85) {
+  if (
+    !shouldNudgeCoinOffEdge({
+      angularSpeed,
+      coinEdgeNudgeCount: entry.coinEdgeNudgeCount,
+      die: entry.visual.die,
+      faceNormalZ: faceNormal.z,
+      linearSpeed,
+      msSinceLastNudge: now - entry.coinEdgeLastNudgedAt,
+      translationZ: translation.z,
+      velocityZ: velocity.z
+    })
+  ) {
     return;
   }
   const directionSeed = seedRange(entry.visual.seed, 130 + index + entry.coinEdgeNudgeCount * 11, 1) < 0.5 ? -1 : 1;

@@ -4,7 +4,11 @@ import {
   getPhysicsColliderScale,
   getSceneDiceLaunchParameters,
   getSceneInitialRotation,
-  getSceneThrowVelocity
+  getSceneThrowVelocity,
+  getUpdatedSceneDieSettleState,
+  getVectorSpeed,
+  isSceneDieResting,
+  shouldNudgeCoinOffEdge
 } from "../../src/renderer/lib/dice";
 
 describe("dice scene physics helpers", () => {
@@ -52,5 +56,63 @@ describe("dice scene physics helpers", () => {
     expect(getCoinCenterPush({ x: 0, y: 0 }, bounds, 0.1, 0.1)).toBeNull();
     expect(getCoinCenterPush({ x: -4.5, y: 0 }, bounds, 0.21, 0.1)).toBeNull();
     expect(getCoinCenterPush({ x: -4.5, y: 0 }, bounds, 0.1, 0.46)).toBeNull();
+  });
+
+  it("calculates vector speed from x/y/z components", () => {
+    expect(getVectorSpeed({ x: 3, y: 4, z: 12 })).toBe(13);
+  });
+
+  it("checks die resting thresholds with coin face-normal requirements", () => {
+    expect(isSceneDieResting({ die: "d20", linearSpeed: 0.18, angularSpeed: 0.32 })).toBe(true);
+    expect(isSceneDieResting({ die: "d20", linearSpeed: 0.181, angularSpeed: 0.1 })).toBe(false);
+    expect(isSceneDieResting({ die: "d20", linearSpeed: 0.1, angularSpeed: 0.321 })).toBe(false);
+    expect(isSceneDieResting({ die: "coin", linearSpeed: 0.1, angularSpeed: 0.1, coinFaceNormalZ: 0.61 })).toBe(false);
+    expect(isSceneDieResting({ die: "coin", linearSpeed: 0.1, angularSpeed: 0.1, coinFaceNormalZ: -0.62 })).toBe(true);
+  });
+
+  it("updates stable label state until a die has held the same face long enough", () => {
+    expect(getUpdatedSceneDieSettleState({ label: "8", now: 1000, resting: false, stableLabel: "8", stableStartedAt: 500 })).toEqual({
+      settled: false,
+      stableLabel: null,
+      stableStartedAt: 0
+    });
+    expect(getUpdatedSceneDieSettleState({ label: "12", now: 1200, resting: true, stableLabel: "8", stableStartedAt: 500 })).toEqual({
+      settled: false,
+      stableLabel: "12",
+      stableStartedAt: 1200
+    });
+    expect(getUpdatedSceneDieSettleState({ label: "12", now: 1500, resting: true, stableLabel: "12", stableStartedAt: 1200 })).toEqual({
+      settled: false,
+      stableLabel: "12",
+      stableStartedAt: 1200
+    });
+    expect(getUpdatedSceneDieSettleState({ label: "12", now: 1620, resting: true, stableLabel: "12", stableStartedAt: 1200 })).toEqual({
+      settled: true,
+      stableLabel: "12",
+      stableStartedAt: 1200
+    });
+  });
+
+  it("gates coin edge nudges by timing, face angle, and motion", () => {
+    const ready = {
+      angularSpeed: 0.5,
+      coinEdgeNudgeCount: 0,
+      die: "coin" as const,
+      faceNormalZ: 0.2,
+      linearSpeed: 0.2,
+      msSinceLastNudge: 650,
+      translationZ: 0.9,
+      velocityZ: 0.1
+    };
+
+    expect(shouldNudgeCoinOffEdge(ready)).toBe(true);
+    expect(shouldNudgeCoinOffEdge({ ...ready, die: "d2" })).toBe(false);
+    expect(shouldNudgeCoinOffEdge({ ...ready, coinEdgeNudgeCount: 8 })).toBe(false);
+    expect(shouldNudgeCoinOffEdge({ ...ready, msSinceLastNudge: 649 })).toBe(false);
+    expect(shouldNudgeCoinOffEdge({ ...ready, faceNormalZ: 0.381 })).toBe(false);
+    expect(shouldNudgeCoinOffEdge({ ...ready, translationZ: 0.921 })).toBe(false);
+    expect(shouldNudgeCoinOffEdge({ ...ready, velocityZ: 0.121 })).toBe(false);
+    expect(shouldNudgeCoinOffEdge({ ...ready, linearSpeed: 0.451 })).toBe(false);
+    expect(shouldNudgeCoinOffEdge({ ...ready, angularSpeed: 0.851 })).toBe(false);
   });
 });

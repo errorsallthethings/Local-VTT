@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { DiceVisualRoll } from "./dice";
 import type { SceneRollBounds } from "./dicePoolLayout";
+import { DICE_SCENE_STABLE_MS } from "./diceRollDisplay";
 
 export type Vector3Like = {
   x: number;
@@ -18,6 +19,33 @@ export type SceneDiceLaunchParameters = {
   coinLike: boolean;
   launchZ: number;
   startZ: number;
+};
+
+export type SceneDieSettleState = {
+  stableLabel: string | null;
+  stableStartedAt: number;
+};
+
+export type SceneDieSettleUpdate = SceneDieSettleState & {
+  settled: boolean;
+};
+
+export type SceneDieRestingInput = {
+  angularSpeed: number;
+  coinFaceNormalZ?: number;
+  die: DiceVisualRoll["die"];
+  linearSpeed: number;
+};
+
+export type CoinEdgeNudgeInput = {
+  angularSpeed: number;
+  coinEdgeNudgeCount: number;
+  die: DiceVisualRoll["die"];
+  faceNormalZ: number;
+  linearSpeed: number;
+  msSinceLastNudge: number;
+  translationZ: number;
+  velocityZ: number;
 };
 
 export function getSceneDiceLaunchParameters(visual: DiceVisualRoll, index: number, radius: number): SceneDiceLaunchParameters {
@@ -66,6 +94,44 @@ export function getCoinCenterPush(entry: { x: number; y: number }, bounds: Scene
     push.y = -0.005;
   }
   return push.x === 0 && push.y === 0 ? null : push;
+}
+
+export function getVectorSpeed(vector: Vector3Like): number {
+  return Math.hypot(vector.x, vector.y, vector.z);
+}
+
+export function isSceneDieResting(input: SceneDieRestingInput): boolean {
+  if (input.linearSpeed > 0.18 || input.angularSpeed > 0.32) {
+    return false;
+  }
+  if (input.die === "coin") {
+    return Math.abs(input.coinFaceNormalZ ?? 0) >= 0.62;
+  }
+  return true;
+}
+
+export function getUpdatedSceneDieSettleState(input: SceneDieSettleState & { label: string; now: number; resting: boolean; stableMs?: number }): SceneDieSettleUpdate {
+  if (!input.resting) {
+    return { settled: false, stableLabel: null, stableStartedAt: 0 };
+  }
+  if (input.stableLabel !== input.label) {
+    return { settled: false, stableLabel: input.label, stableStartedAt: input.now };
+  }
+  return {
+    settled: input.now - input.stableStartedAt >= (input.stableMs ?? DICE_SCENE_STABLE_MS),
+    stableLabel: input.stableLabel,
+    stableStartedAt: input.stableStartedAt
+  };
+}
+
+export function shouldNudgeCoinOffEdge(input: CoinEdgeNudgeInput): boolean {
+  if (input.die !== "coin" || input.coinEdgeNudgeCount >= 8 || input.msSinceLastNudge < 650) {
+    return false;
+  }
+  if (Math.abs(input.faceNormalZ) > 0.38) {
+    return false;
+  }
+  return input.translationZ <= 0.92 && Math.abs(input.velocityZ) <= 0.12 && input.linearSpeed <= 0.45 && input.angularSpeed <= 0.85;
 }
 
 function getSceneDiceLaunchZ(visual: DiceVisualRoll, index: number): number {
