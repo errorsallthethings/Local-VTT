@@ -5,11 +5,17 @@ export function hydrateCampaignAssetPaths(campaignPath: string, campaign: Campai
   const normalizedCampaign = normalizeCampaign(campaign);
   return {
     ...normalizedCampaign,
-    assets: normalizedCampaign.assets.map((asset) => ({
-      ...asset,
-      absolutePath: path.resolve(campaignPath, asset.relativePath),
-      thumbnailAbsolutePath: asset.thumbnailRelativePath ? path.resolve(campaignPath, asset.thumbnailRelativePath) : undefined
-    }))
+    assets: normalizedCampaign.assets.map((asset) => {
+      const absolutePath = resolveCampaignRelativePath(campaignPath, asset.relativePath);
+      const thumbnailAbsolutePath = asset.thumbnailRelativePath
+        ? resolveCampaignRelativePath(campaignPath, asset.thumbnailRelativePath)
+        : undefined;
+      return {
+        ...asset,
+        absolutePath,
+        thumbnailAbsolutePath
+      };
+    })
   };
 }
 
@@ -38,6 +44,16 @@ export function buildAssetThumbnailRelativePath(assetId: string, variant = ""): 
 export function buildAssetImportRelativePath(kind: Asset["kind"], fileName: string): string {
   const folder = kind === "map" ? "maps" : "tokens";
   return path.join("assets", folder, fileName).replaceAll(path.sep, "/");
+}
+
+function resolveCampaignRelativePath(campaignPath: string, relativePath: string): string | undefined {
+  const resolvedPath = path.resolve(campaignPath, relativePath);
+  return isInsidePath(campaignPath, resolvedPath) ? resolvedPath : undefined;
+}
+
+function isInsidePath(rootPath: string, candidatePath: string): boolean {
+  const relative = path.relative(path.resolve(rootPath), path.resolve(candidatePath));
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
 function dedupePaths(paths: Array<string | undefined>): string[] {

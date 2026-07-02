@@ -84,6 +84,37 @@ describe("asset file helpers", () => {
     ]);
   });
 
+  it("does not hydrate asset paths outside the campaign folder", () => {
+    const campaign = createDefaultCampaign("Test Campaign");
+    campaign.assets = [
+      asset({
+        id: "map-1",
+        relativePath: "../outside/map.png",
+        thumbnailRelativePath: "assets/thumbnails/map.jpg",
+        absolutePath: path.resolve("outside", "stale-map.png")
+      }),
+      asset({
+        id: "map-2",
+        relativePath: "assets/maps/map.png",
+        thumbnailRelativePath: "../outside/thumb.jpg",
+        thumbnailAbsolutePath: path.resolve("outside", "stale-thumb.jpg")
+      })
+    ];
+
+    expect(hydrateCampaignAssetPaths("campaign-root", campaign).assets).toMatchObject([
+      {
+        id: "map-1",
+        absolutePath: undefined,
+        thumbnailAbsolutePath: path.resolve("campaign-root", "assets/thumbnails/map.jpg")
+      },
+      {
+        id: "map-2",
+        absolutePath: path.resolve("campaign-root", "assets/maps/map.png"),
+        thumbnailAbsolutePath: undefined
+      }
+    ]);
+  });
+
   it("returns deduped known asset paths from hydrated assets", () => {
     const sharedPath = path.resolve("campaign-root", "assets/maps/map.png");
     const campaign = createDefaultCampaign("Test Campaign");
