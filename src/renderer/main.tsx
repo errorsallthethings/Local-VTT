@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { installDevLocalVtt } from "./devLocalVtt";
+import { logRendererError } from "./lib/rendererDiagnostics";
 import { getRendererRoute } from "./router";
 import "./styles.css";
 
@@ -11,11 +12,11 @@ const PlayerApp = lazy(() => import("./views/PlayerApp").then((module) => ({ def
 installDevLocalVtt();
 
 window.addEventListener("error", (event) => {
-  console.error("LOCALVTT_WINDOW_ERROR", event.error ?? event.message);
+  logRendererError("LOCALVTT_WINDOW_ERROR", event.error ?? event.message);
 });
 
 window.addEventListener("unhandledrejection", (event) => {
-  console.error("LOCALVTT_UNHANDLED_REJECTION", event.reason);
+  logRendererError("LOCALVTT_UNHANDLED_REJECTION", event.reason);
 });
 
 const route = getRendererRoute(window.location.hash);

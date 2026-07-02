@@ -87,6 +87,7 @@ import { moveSceneFolder } from "../lib/campaign";
 import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/dice";
 import { formatUserFacingError } from "../lib/errors";
+import { logRendererError } from "../lib/rendererDiagnostics";
 import { loadImageDimensions } from "../lib/assets";
 import { showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/player-view";
 import { sendSceneToPlayer, updatePlayerSceneIfOpen } from "../lib/player-view";
@@ -2359,7 +2360,7 @@ export function GmApp() {
           onOpenBackupsFolder={() => void openBackupsFolder()}
           onRestore={handleMetadataRestore}
           onError={(caught) => {
-            console.error(caught);
+            logRendererError("LOCALVTT_METADATA_BACKUP_RESTORE_FAILED", caught);
             setError(formatUserFacingError(caught));
           }}
         />

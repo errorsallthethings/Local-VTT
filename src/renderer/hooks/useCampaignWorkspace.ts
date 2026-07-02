@@ -5,6 +5,7 @@ import { mergeCampaignDraft } from "../lib/campaign";
 import { formatUserFacingError } from "../lib/errors";
 import { showDefaultPlayerHold } from "../lib/player-view";
 import { updatePlayerSceneIfOpen } from "../lib/player-view";
+import { logRendererError } from "../lib/rendererDiagnostics";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -34,7 +35,7 @@ export function useCampaignWorkspace() {
       await action();
       return true;
     } catch (caught) {
-      console.error(caught);
+      logRendererError("LOCALVTT_CAMPAIGN_WORKSPACE_ACTION_FAILED", caught);
       setError(formatUserFacingError(caught));
       return false;
     }

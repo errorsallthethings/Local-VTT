@@ -10,6 +10,7 @@ import {
   updatePlayerSceneIfOpen,
   type PlayerDisplayMode
 } from "../lib/player-view";
+import { logRendererWarning } from "../lib/rendererDiagnostics";
 
 const PLAYER_TEMPLATE_PREVIEW_ID = "template-preview";
 
@@ -49,7 +50,7 @@ export function usePlayerViewState({
 
   const emitLiveTableEvent = useCallback((event: LiveTableEvent) => {
     if (!isLiveTableEvent(event)) {
-      console.warn("LOCALVTT_INVALID_LIVE_TABLE_EVENT", event);
+      logRendererWarning("LOCALVTT_INVALID_LIVE_TABLE_EVENT", event);
       return;
     }
     setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
@@ -59,7 +60,7 @@ export function usePlayerViewState({
       onDiceRollHistoryChange([]);
     }
     void window.localVtt.sendLiveTableEvent(event).catch((caught) => {
-      console.warn("LOCALVTT_LIVE_TABLE_EVENT_SEND_FAILED", caught);
+      logRendererWarning("LOCALVTT_LIVE_TABLE_EVENT_SEND_FAILED", caught);
     });
   }, [onDiceRollHistoryChange, updateDiceRollHistory]);
 

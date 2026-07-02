@@ -1,4 +1,5 @@
 import React from "react";
+import { logRendererError } from "../lib/rendererDiagnostics";
 import { getRendererErrorMessage } from "./rendererErrorMessages";
 
 const SHOW_RENDERER_ERROR_DETAILS = Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV);
@@ -15,7 +16,7 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, A
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
-    console.error("LOCALVTT_RENDERER_ERROR_BOUNDARY", error, info.componentStack);
+    logRendererError("LOCALVTT_RENDERER_ERROR_BOUNDARY", error, info.componentStack);
   }
 
   render() {

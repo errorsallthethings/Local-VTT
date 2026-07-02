@@ -3,6 +3,7 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import * as THREE from "three";
 import type { DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneSize, LiveTableEvent } from "../../../shared/localvtt";
 import { annotateKeptDiceForFormula, DICE_EVENT_DURATION_MS, formatDiceRollSummary, formatDieLabel, getDiceRollTone, getDiceVisualTotal, getDieSides, getPercentileTotal, type DiceRollTone } from "../../lib/dice";
+import { logRendererWarning } from "../../lib/rendererDiagnostics";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 type DiceVisual = NonNullable<DiceRollEvent["dice"]>[number];
@@ -1312,7 +1313,7 @@ function publishSceneRollResult(event: DiceRollEvent, mode: "gm" | "player", res
   }
   if (getDiceDisplayMode(event, "gm") === "scene-result") {
     void window.localVtt.sendLiveTableEvent(resolvedEvent).catch((caught) => {
-      console.warn("LOCALVTT_LIVE_TABLE_EVENT_SEND_FAILED", caught);
+      logRendererWarning("LOCALVTT_LIVE_TABLE_EVENT_SEND_FAILED", caught);
     });
   }
 }
