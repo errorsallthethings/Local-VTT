@@ -86,6 +86,22 @@ describe("formatUserFacingError", () => {
     );
   });
 
+  it("turns asset import validation errors into actionable messages", () => {
+    expect(formatUserFacingError(new Error("Selected asset file could not be read. It may have been moved or deleted."))).toBe(
+      "That asset file could not be read. It may have been moved, deleted, or locked by another app."
+    );
+    expect(formatUserFacingError(new Error("Selected asset must be a file."))).toBe("Choose an image or video file instead of a folder.");
+    expect(formatUserFacingError(new Error("Selected asset file is empty or could not be read."))).toBe(
+      "That asset file is empty or could not be read. Choose a different image or video file."
+    );
+    expect(formatUserFacingError(new Error("Map assets must be 2 GB or smaller."))).toBe(
+      "That map file is too large to import. Use a smaller map file, or reduce the video/image size and try again."
+    );
+    expect(formatUserFacingError(new Error("Token image assets must be 100 MB or smaller."))).toBe(
+      "That token image is too large to import. Use a smaller image file and try again."
+    );
+  });
+
   it("falls back to the source message or a generic message", () => {
     expect(formatUserFacingError(new Error("Scene name cannot be empty."))).toBe("Scene name cannot be empty.");
     expect(formatUserFacingError(null)).toBe("Something went wrong.");

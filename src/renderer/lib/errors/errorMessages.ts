@@ -35,6 +35,21 @@ export function formatUserFacingError(caught: unknown): string {
   if (message.includes("Unsupported token type")) {
     return "That token file type is not supported. Use JPG, PNG, WebP, or GIF.";
   }
+  if (message.includes("Selected asset file could not be read")) {
+    return "That asset file could not be read. It may have been moved, deleted, or locked by another app.";
+  }
+  if (message.includes("Selected asset must be a file")) {
+    return "Choose an image or video file instead of a folder.";
+  }
+  if (message.includes("Selected asset file is empty")) {
+    return "That asset file is empty or could not be read. Choose a different image or video file.";
+  }
+  if (message.includes("Map assets must be")) {
+    return "That map file is too large to import. Use a smaller map file, or reduce the video/image size and try again.";
+  }
+  if (message.includes("Token image assets must be")) {
+    return "That token image is too large to import. Use a smaller image file and try again.";
+  }
   if (message.includes("Unable to generate token thumbnail")) {
     return "Local VTT could not create a token thumbnail from that image. Try a different image file.";
   }

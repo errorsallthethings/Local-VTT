@@ -14,7 +14,7 @@ export function ThumbnailRegenerationResultDialog({ result, onClose }: Thumbnail
           <p>
             {result.regenerated} regenerated, {result.skipped} skipped, {result.failed.length} failed.
           </p>
-          {result.failed.length > 0 && <p>These assets were left unchanged:</p>}
+          {result.failed.length > 0 && <p>These assets still import and remain usable, but their thumbnail previews were left unchanged:</p>}
         </div>
         {result.failed.length > 0 && (
           <ul className="thumbnail-result-list">
