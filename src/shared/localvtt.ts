@@ -759,6 +759,13 @@ export interface ThumbnailRegenerationResult {
   failed: ThumbnailRegenerationFailure[];
 }
 
+export interface TokenAssetPromotionResult {
+  campaignSummary: CampaignSummary;
+  promoted: number;
+  skipped: number;
+  failed: ThumbnailRegenerationFailure[];
+}
+
 export interface ThumbnailRegenerationProgress {
   current: number;
   total: number;

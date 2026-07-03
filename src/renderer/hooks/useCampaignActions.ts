@@ -1,4 +1,4 @@
-import type { Asset, Campaign, CampaignSummary, PlayerSceneProjectionOptions, Scene, ThumbnailRegenerationResult } from "../../shared/localvtt";
+import type { Asset, Campaign, CampaignSummary, PlayerSceneProjectionOptions, Scene, ThumbnailRegenerationResult, TokenAssetPromotionResult } from "../../shared/localvtt";
 import {
   applyMapAssetToCampaign,
   getDuplicateFolderName,
@@ -35,6 +35,7 @@ interface UseCampaignActionsOptions {
   onSceneDeleteHandled: () => void;
   onFolderDeleteHandled: () => void;
   onThumbnailRegenerationComplete: (result: ThumbnailRegenerationResult) => void;
+  onTokenAssetPromotionComplete: (result: TokenAssetPromotionResult) => void;
   shouldSyncSceneToPlayer: (sceneId: string) => boolean;
   playerViewSyncOptions?: PlayerSceneProjectionOptions;
 }
@@ -71,6 +72,7 @@ export function useCampaignActions({
   onSceneDeleteHandled,
   onFolderDeleteHandled,
   onThumbnailRegenerationComplete,
+  onTokenAssetPromotionComplete,
   shouldSyncSceneToPlayer,
   playerViewSyncOptions = {}
 }: UseCampaignActionsOptions) {
@@ -361,6 +363,36 @@ export function useCampaignActions({
       }
     });
 
+  const promoteTokenAssets = () =>
+    run(async () => {
+      if (!campaignPath || !campaign) {
+        return;
+      }
+      if (hasUnsavedChanges) {
+        const saved = await saveCampaign();
+        if (!saved) {
+          return;
+        }
+      }
+
+      onBusyChange({
+        title: "Optimizing Tokens",
+        message: "Promoting framed token images.",
+        current: 0,
+        total: 0,
+        unitLabel: "assets"
+      });
+      try {
+        const result = await window.localVtt.promoteTokenAssets(campaignPath);
+        applySummary(result.campaignSummary);
+        setCampaignDirty(false);
+        setError(null);
+        onTokenAssetPromotionComplete(result);
+      } finally {
+        onBusyChange(null);
+      }
+    });
+
   const confirmDeleteMapAsset = () =>
     run(async () => {
       if (!campaignPath || !activeScene || !mapAssetToDelete) {
@@ -520,6 +552,7 @@ export function useCampaignActions({
     replaceMap,
     commitMapReplacement,
     regenerateThumbnails,
+    promoteTokenAssets,
     confirmDeleteMapAsset,
     saveFolderScenes,
     duplicateScene,

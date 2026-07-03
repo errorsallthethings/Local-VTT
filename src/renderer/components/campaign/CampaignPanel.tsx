@@ -30,6 +30,7 @@ interface CampaignPanelProps {
   onOpenCampaignHealth: () => void;
   onOpenBackupRestore: () => void;
   onRegenerateThumbnails: () => void;
+  onPromoteTokenAssets: () => void;
   onAddPlayer: () => void;
   onUpdatePlayer: (playerId: string, patch: Partial<CampaignPlayer>) => void;
   onDeletePlayer: (playerId: string) => void;
@@ -52,6 +53,7 @@ export function CampaignPanel({
   onOpenCampaignHealth,
   onOpenBackupRestore,
   onRegenerateThumbnails,
+  onPromoteTokenAssets,
   onAddPlayer,
   onUpdatePlayer,
   onDeletePlayer,
@@ -145,6 +147,16 @@ export function CampaignPanel({
                   >
                     <RefreshCw size={16} aria-hidden="true" />
                     <span>Regenerate Thumbnails</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaintenanceMenuOpen(false);
+                      onPromoteTokenAssets();
+                    }}
+                  >
+                    <Settings2 size={16} aria-hidden="true" />
+                    <span>Optimize Token Assets</span>
                   </button>
                 </FloatingCampaignMaintenanceMenu>,
                 document.body

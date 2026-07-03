@@ -88,6 +88,7 @@ export function installDevLocalVtt() {
       campaign = nextCampaign;
       return getSummary();
     },
+    refreshCampaign: async () => getSummary(),
     openBackupsFolder: async () => false,
     listMetadataBackups: async () => [devBackup],
     previewMetadataBackup: async (_campaignPath: string, ref: MetadataBackupRef): Promise<MetadataBackupPreview> => ({
@@ -179,6 +180,12 @@ export function installDevLocalVtt() {
         failed: []
       };
     },
+    promoteTokenAssets: async () => ({
+      campaignSummary: getSummary(),
+      promoted: 0,
+      skipped: campaign.assets.filter((asset) => asset.kind !== "map").length,
+      failed: []
+    }),
     onThumbnailRegenerationProgress: (callback: (progress: ThumbnailRegenerationProgress) => void) => {
       thumbnailProgressListeners.add(callback);
       return () => thumbnailProgressListeners.delete(callback);

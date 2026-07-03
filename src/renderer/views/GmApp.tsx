@@ -33,6 +33,7 @@ import type {
   Scene,
   SquareCropRect,
   ThumbnailRegenerationResult,
+  TokenAssetPromotionResult,
   TokenPresentationDefaults
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
@@ -40,6 +41,7 @@ import { CampaignBusyOverlay } from "../components/modals/CampaignBusyOverlay";
 import { CampaignHealthDialog } from "../components/modals/CampaignHealthDialog";
 import { MetadataBackupRestoreDialog } from "../components/modals/MetadataBackupRestoreDialog";
 import { ThumbnailRegenerationResultDialog } from "../components/modals/ThumbnailRegenerationResultDialog";
+import { TokenAssetPromotionResultDialog } from "../components/modals/TokenAssetPromotionResultDialog";
 import { EnvironmentEffectEditorModal } from "../components/layers";
 import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
@@ -236,6 +238,7 @@ export function GmApp() {
   const [metadataRestoreOpen, setMetadataRestoreOpen] = useState(false);
   const [campaignHealthOpen, setCampaignHealthOpen] = useState(false);
   const [thumbnailRegenerationResult, setThumbnailRegenerationResult] = useState<ThumbnailRegenerationResult | null>(null);
+  const [tokenAssetPromotionResult, setTokenAssetPromotionResult] = useState<TokenAssetPromotionResult | null>(null);
   const [mapReplacementPreview, setMapReplacementPreview] = useState<MapReplacementPreview | null>(null);
   const {
     activeCanvasTool,
@@ -712,6 +715,7 @@ export function GmApp() {
     replaceMap,
     commitMapReplacement,
     regenerateThumbnails,
+    promoteTokenAssets,
     confirmDeleteMapAsset,
     saveFolderScenes,
     duplicateFolder,
@@ -732,9 +736,26 @@ export function GmApp() {
     onSceneDeleteHandled: () => setSceneToDelete(null),
     onFolderDeleteHandled: () => setFolderToDelete(null),
     onThumbnailRegenerationComplete: setThumbnailRegenerationResult,
+    onTokenAssetPromotionComplete: setTokenAssetPromotionResult,
     shouldSyncSceneToPlayer: (sceneId) => sceneId === playerSceneId,
     playerViewSyncOptions
   });
+  const openCampaignHealthDialog = useCallback(() => {
+    void run(async () => {
+      if (!campaignPath || !campaign) {
+        return;
+      }
+      if (hasUnsavedChanges) {
+        const saved = await saveCampaign();
+        if (!saved) {
+          return;
+        }
+      }
+      const summary = await window.localVtt.refreshCampaign(campaignPath);
+      applySummary(summary, false);
+      setCampaignHealthOpen(true);
+    });
+  }, [applySummary, campaign, campaignPath, hasUnsavedChanges, run, saveCampaign]);
   const saveBeforeCloseRef = useRef(saveCampaignBeforeClose);
 
   useEffect(() => {
@@ -1759,9 +1780,10 @@ export function GmApp() {
         onRemoveRecentCampaign={removeRecentCampaignPath}
         onSaveCampaign={() => void saveCampaign()}
         onRenameCampaign={openCampaignRenameDialog}
-        onOpenCampaignHealth={() => setCampaignHealthOpen(true)}
+        onOpenCampaignHealth={openCampaignHealthDialog}
         onOpenBackupRestore={openMetadataRestoreDialog}
         onRegenerateThumbnails={() => void regenerateThumbnails()}
+        onPromoteTokenAssets={() => void promoteTokenAssets()}
         onAddPlayer={addCampaignPlayer}
         onUpdatePlayer={updateCampaignPlayer}
         onDeletePlayer={deleteCampaignPlayer}
@@ -2349,6 +2371,9 @@ export function GmApp() {
       {busyState && <CampaignBusyOverlay busyState={busyState} />}
       {thumbnailRegenerationResult && (
         <ThumbnailRegenerationResultDialog result={thumbnailRegenerationResult} onClose={() => setThumbnailRegenerationResult(null)} />
+      )}
+      {tokenAssetPromotionResult && (
+        <TokenAssetPromotionResultDialog result={tokenAssetPromotionResult} onClose={() => setTokenAssetPromotionResult(null)} />
       )}
     </div>
   );

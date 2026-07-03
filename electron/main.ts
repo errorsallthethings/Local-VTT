@@ -10,6 +10,7 @@ import {
   MetadataBackupRef,
   Scene,
   SquareCropRect,
+  TokenAssetPromotionResult,
   ThumbnailRegenerationProgress,
   ThumbnailRegenerationResult,
   assertValidScene,
@@ -36,9 +37,7 @@ import { inspectCampaignHealth } from "./campaignHealth.js";
 import { CampaignSessionRegistry } from "./campaignSessionRegistry.js";
 import {
   createImageMapThumbnail,
-  createSquareImageThumbnail,
-  createVideoMapThumbnail,
-  type ThumbnailCreationResult
+  createSquareImageThumbnail
 } from "./assets.js";
 import { buildTokenAssetRelativePath, hydrateCampaignAssetPaths, requireCampaignRelativePath } from "./assetFiles.js";
 import {
@@ -74,7 +73,7 @@ import { removeMapAssetFromCampaign, removeMapAssetFromScene, replaceSceneMapAss
 import { ensureMapThumbnails, type MapThumbnailResult } from "./mapThumbnailRepair.js";
 import { getMapReplacementPreview } from "./mapReplacementPreview.js";
 import { getMapAssetSceneNames, mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
-import { createThumbnailImportFailureDiagnostic, createVideoThumbnailFallbackFailure } from "./thumbnailDiagnostics.js";
+import { createThumbnailImportFailureDiagnostic } from "./thumbnailDiagnostics.js";
 import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.js";
 import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
@@ -87,17 +86,13 @@ import { createSmokeTestScript, getSmokeTestTimeoutMs } from "./smokeTestPlan.js
 import { addImportedAssetToCampaign, createImportedAsset, createStagedTokenImportAsset } from "./importedAssets.js";
 import { tokenThumbnailVariant, updateTokenThumbnailInCampaign } from "./tokenThumbnailUpdate.js";
 import { removeTokenAssetFromCampaignScenes } from "./tokenAssetSceneCleanup.js";
+import { promoteTokenAssetThumbnails } from "./tokenAssetPromotion.js";
 import { assertSceneUsesMapAsset, requireCurrentMapAsset } from "./mapReplacementValidation.js";
 import { findCampaignAsset, requireCampaignAsset, requireTokenAssetWithAbsolutePath } from "./campaignAssetLookup.js";
 import { createAppWindowOptions, createWindowLoadTarget } from "./windowConfig.js";
 import { prepareLoadedScene } from "./sceneLoadDefaults.js";
 import { createCampaignForFolder, resolveCurrentCampaignPath } from "./campaignOpenState.js";
-import {
-  createRendererVideoThumbnailCleanupScript,
-  createRendererVideoThumbnailPlan,
-  getRendererVideoThumbnailCaptureRect,
-  type RendererVideoThumbnailPreparationResult
-} from "./rendererVideoThumbnailPlan.js";
+import { createVideoMapThumbnailWithFallback } from "./videoThumbnailFallback.js";
 import {
   createSceneForCampaign,
   deleteSceneFromCampaign,
@@ -310,6 +305,29 @@ async function regenerateCampaignThumbnails(
   };
 }
 
+async function promoteCampaignTokenAssets(campaignPath: string): Promise<TokenAssetPromotionResult> {
+  const summary = await loadCampaignFromPath(campaignPath);
+  const plan = await promoteTokenAssetThumbnails(campaignPath, summary.campaign);
+  if (plan.promoted > 0) {
+    await writeCampaign(campaignPath, plan.campaign);
+    for (const replacedPaths of plan.replacedPaths.values()) {
+      for (const replacedPath of replacedPaths) {
+        if (plan.campaign.assets.some((asset) => asset.relativePath === replacedPath || asset.thumbnailRelativePath === replacedPath)) {
+          continue;
+        }
+        await unlinkIfExists(requireCampaignRelativePath(campaignPath, replacedPath));
+      }
+    }
+  }
+
+  return {
+    campaignSummary: await loadCampaignFromPath(campaignPath),
+    promoted: plan.promoted,
+    skipped: plan.skipped,
+    failed: plan.failed
+  };
+}
+
 function logThumbnailImportFailure(kind: "map" | "token", sourcePath: string, reason: string | undefined): void {
   const diagnostic = createThumbnailImportFailureDiagnostic(kind, sourcePath, reason);
   console.warn(diagnostic.label, diagnostic.kind, diagnostic.fileName, diagnostic.reason);
@@ -367,205 +385,6 @@ async function createMapThumbnail(campaignPath: string, sourcePath: string, asse
   }
 
   return { thumbnailRelativePath: await writeAssetThumbnail(campaignPath, assetId, thumbnail) };
-}
-
-async function createVideoMapThumbnailWithFallback(sourcePath: string, assetId: string, rendererWebContents?: WebContents): Promise<ThumbnailCreationResult> {
-  const primaryResult = await createVideoMapThumbnail(sourcePath);
-  if (primaryResult.thumbnail || !rendererWebContents || rendererWebContents.isDestroyed()) {
-    return primaryResult;
-  }
-
-  const fallbackResult = await createRendererVideoMapThumbnail(sourcePath, assetId, rendererWebContents);
-  if (fallbackResult.thumbnail) {
-    return fallbackResult;
-  }
-
-  return { failureReason: createVideoThumbnailFallbackFailure(primaryResult.failureReason, fallbackResult.failureReason) };
-}
-
-async function createRendererVideoMapThumbnail(sourcePath: string, assetId: string, rendererWebContents: WebContents): Promise<ThumbnailCreationResult> {
-  const thumbnailPlan = createRendererVideoThumbnailPlan(sourcePath, assetId);
-  try {
-    const result = (await rendererWebContents.executeJavaScript(
-      `
-        new Promise((resolve) => {
-          let captureSurface = null;
-          let createdVideo = null;
-          let readinessIntervalId = null;
-          let completed = false;
-          const describeVideos = () => {
-            const videos = Array.from(document.querySelectorAll("video"));
-            const descriptions = videos.map((candidate, index) => {
-              const source = candidate.currentSrc || candidate.src || "";
-              return [
-                "#" + index,
-                "assetId=" + (candidate.dataset.mapAssetId || "none"),
-                "ready=" + candidate.readyState,
-                "size=" + candidate.videoWidth + "x" + candidate.videoHeight,
-                "paused=" + candidate.paused,
-                "srcMatches=" + String(source.startsWith(${JSON.stringify(thumbnailPlan.baseAssetUrl)}))
-              ].join(" ");
-            });
-            return descriptions.length > 0 ? descriptions.join("; ") : "no video elements mounted";
-          };
-          const finish = (value) => {
-            if (completed) {
-              return;
-            }
-            completed = true;
-            clearTimeout(timeoutId);
-            if (readinessIntervalId !== null) {
-              clearInterval(readinessIntervalId);
-            }
-            if (createdVideo && !value?.captureRect) {
-              createdVideo.removeAttribute("src");
-              createdVideo.load();
-            }
-            if (captureSurface && !value?.captureRect) {
-              captureSurface.remove();
-            }
-            resolve(value);
-          };
-          const finishAfterPaint = () => {
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                finish({ captureRect: ${JSON.stringify(thumbnailPlan.captureRect)} });
-              });
-            });
-          };
-          const capture = (sourceVideo) => {
-            if (!sourceVideo.videoWidth || !sourceVideo.videoHeight) {
-              finish({ failureReason: "Renderer video frame was not available." });
-              return;
-            }
-            if (!captureSurface) {
-              captureSurface = document.createElement("div");
-              captureSurface.id = ${JSON.stringify(thumbnailPlan.captureSurfaceId)};
-              captureSurface.style.cssText = [
-                "position:fixed",
-                "left:24px",
-                "top:24px",
-                "width:180px",
-                "height:112px",
-                "overflow:hidden",
-                "background:#101318",
-                "z-index:2147483647",
-                "pointer-events:none"
-              ].join(";");
-              document.body.append(captureSurface);
-            }
-            if (sourceVideo === createdVideo) {
-              sourceVideo.style.cssText = "width:100%;height:100%;object-fit:contain;display:block;";
-              captureSurface.replaceChildren(sourceVideo);
-              finishAfterPaint();
-              return;
-            }
-            const capturedVideo = sourceVideo.cloneNode(true);
-            capturedVideo.muted = true;
-            capturedVideo.pause();
-            capturedVideo.style.cssText = "width:100%;height:100%;object-fit:contain;display:block;";
-            captureSurface.replaceChildren(capturedVideo);
-            if (capturedVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-              finishAfterPaint();
-              return;
-            }
-            capturedVideo.addEventListener("loadeddata", finishAfterPaint, { once: true });
-            capturedVideo.addEventListener("canplay", finishAfterPaint, { once: true });
-            capturedVideo.addEventListener("error", () => finish({ failureReason: "Renderer capture surface could not load the video frame." }), { once: true });
-            capturedVideo.load();
-          };
-          const timeoutId = setTimeout(() => {
-            finish({ failureReason: "Renderer video metadata timed out. Mounted videos: " + describeVideos() });
-          }, ${thumbnailPlan.timeoutMs});
-          const matchesAsset = (candidate) => {
-            const currentSource = candidate.currentSrc || candidate.src || "";
-            return candidate.dataset.mapAssetId === ${JSON.stringify(assetId)} || currentSource.startsWith(${JSON.stringify(thumbnailPlan.baseAssetUrl)});
-          };
-          const sceneVideos = Array.from(document.querySelectorAll("video"));
-          const matchingSceneVideo = sceneVideos.find(matchesAsset);
-          const readySceneVideo = sceneVideos.find((candidate) =>
-            matchesAsset(candidate) &&
-            candidate.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
-            candidate.videoWidth > 0 &&
-            candidate.videoHeight > 0
-          );
-          if (readySceneVideo) {
-            capture(readySceneVideo);
-            return;
-          }
-          if (matchingSceneVideo) {
-            const captureWhenReady = () => {
-              if (
-                matchingSceneVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
-                matchingSceneVideo.videoWidth > 0 &&
-                matchingSceneVideo.videoHeight > 0
-              ) {
-                capture(matchingSceneVideo);
-              }
-            };
-            matchingSceneVideo.addEventListener("loadeddata", captureWhenReady, { once: true });
-            matchingSceneVideo.addEventListener("canplay", captureWhenReady, { once: true });
-            matchingSceneVideo.addEventListener("playing", captureWhenReady, { once: true });
-          }
-          const captureReadyVideo = (candidate) => {
-            if (
-              candidate.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
-              candidate.videoWidth > 0 &&
-              candidate.videoHeight > 0
-            ) {
-              capture(candidate);
-              return true;
-            }
-            return false;
-          };
-          const video = document.createElement("video");
-          createdVideo = video;
-          video.muted = true;
-          video.preload = "auto";
-          video.playsInline = true;
-          video.style.cssText = "position:absolute;left:-10000px;top:-10000px;width:1px;height:1px;opacity:0;pointer-events:none;";
-          video.addEventListener("error", () => finish({ failureReason: "Renderer could not decode the video map." }), { once: true });
-          video.addEventListener("loadedmetadata", () => {
-            const seekTime = Number.isFinite(video.duration) && video.duration > 0.1 ? 0.05 : 0;
-            if (seekTime === 0) {
-              if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-                capture(video);
-              } else {
-                video.addEventListener("loadeddata", () => capture(video), { once: true });
-              }
-            } else {
-              video.addEventListener("seeked", () => capture(video), { once: true });
-              video.currentTime = seekTime;
-            }
-          }, { once: true });
-          document.body.append(video);
-          video.src = ${JSON.stringify(thumbnailPlan.thumbnailAssetUrl)};
-          video.load();
-          readinessIntervalId = setInterval(() => {
-            const latestReadySceneVideo = Array.from(document.querySelectorAll("video")).find((candidate) => matchesAsset(candidate) && captureReadyVideo(candidate));
-            if (latestReadySceneVideo) {
-              return;
-            }
-            captureReadyVideo(video);
-          }, 100);
-        })
-      `,
-      true
-    )) as RendererVideoThumbnailPreparationResult | null;
-    const captureRect = getRendererVideoThumbnailCaptureRect(result);
-    if (typeof captureRect === "string") {
-      return { failureReason: captureRect };
-    }
-    const image = await rendererWebContents.capturePage(captureRect);
-    await rendererWebContents.executeJavaScript(createRendererVideoThumbnailCleanupScript(thumbnailPlan.captureSurfaceId), true);
-    const thumbnail = image.isEmpty() ? undefined : image.toJPEG(78);
-    if (!thumbnail) {
-      return { failureReason: "Renderer video frame could not be captured." };
-    }
-    return { thumbnail };
-  } catch {
-    return { failureReason: "Renderer video thumbnail capture failed." };
-  }
 }
 
 async function createTokenThumbnail(campaignPath: string, sourcePath: string, assetId: string): Promise<MapThumbnailResult> {
@@ -776,6 +595,11 @@ ipcMain.handle("campaign:openRecent", async (_event, campaignPath: string) => {
 ipcMain.handle("campaign:save", async (_event, campaignPath: string, campaign: Campaign) => {
   assertKnownCampaignPath(campaignPath);
   await writeCampaign(campaignPath, campaign);
+  return loadCampaignFromPath(campaignPath);
+});
+
+ipcMain.handle("campaign:refresh", async (_event, campaignPath: string) => {
+  assertKnownCampaignPath(campaignPath);
   return loadCampaignFromPath(campaignPath);
 });
 
@@ -1072,6 +896,11 @@ ipcMain.handle("asset:regenerateThumbnails", async (event, campaignPath: string)
   return regenerateCampaignThumbnails(campaignPath, (progress) => {
     event.sender.send("asset:thumbnailRegenerationProgress", progress);
   }, event.sender);
+});
+
+ipcMain.handle("asset:promoteTokenAssets", async (_event, campaignPath: string) => {
+  assertKnownCampaignPath(campaignPath);
+  return promoteCampaignTokenAssets(campaignPath);
 });
 
 ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, assetId: string) => {
