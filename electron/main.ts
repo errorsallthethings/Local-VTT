@@ -93,6 +93,12 @@ import { findCampaignAsset, requireCampaignAsset, requireTokenAssetWithAbsoluteP
 import { createAppWindowOptions, createWindowLoadTarget } from "./windowConfig.js";
 import { prepareLoadedScene } from "./sceneLoadDefaults.js";
 import {
+  createRendererVideoThumbnailCleanupScript,
+  createRendererVideoThumbnailPlan,
+  getRendererVideoThumbnailCaptureRect,
+  type RendererVideoThumbnailPreparationResult
+} from "./rendererVideoThumbnailPlan.js";
+import {
   createSceneForCampaign,
   deleteSceneFromCampaign,
   duplicateSceneForCampaign,
@@ -359,9 +365,7 @@ async function createVideoMapThumbnailWithFallback(sourcePath: string, assetId: 
 }
 
 async function createRendererVideoMapThumbnail(sourcePath: string, assetId: string, rendererWebContents: WebContents): Promise<ThumbnailCreationResult> {
-  const baseAssetUrl = `localvtt://asset/${encodeURIComponent(sourcePath)}`;
-  const thumbnailAssetUrl = `${baseAssetUrl}?thumbnail=1#t=0.05`;
-  const captureSurfaceId = `localvtt-video-thumbnail-${assetId}`;
+  const thumbnailPlan = createRendererVideoThumbnailPlan(sourcePath, assetId);
   try {
     const result = (await rendererWebContents.executeJavaScript(
       `
@@ -380,7 +384,7 @@ async function createRendererVideoMapThumbnail(sourcePath: string, assetId: stri
                 "ready=" + candidate.readyState,
                 "size=" + candidate.videoWidth + "x" + candidate.videoHeight,
                 "paused=" + candidate.paused,
-                "srcMatches=" + String(source.startsWith(${JSON.stringify(baseAssetUrl)}))
+                "srcMatches=" + String(source.startsWith(${JSON.stringify(thumbnailPlan.baseAssetUrl)}))
               ].join(" ");
             });
             return descriptions.length > 0 ? descriptions.join("; ") : "no video elements mounted";
@@ -406,7 +410,7 @@ async function createRendererVideoMapThumbnail(sourcePath: string, assetId: stri
           const finishAfterPaint = () => {
             requestAnimationFrame(() => {
               requestAnimationFrame(() => {
-                finish({ captureRect: { x: 24, y: 24, width: 180, height: 112 } });
+                finish({ captureRect: ${JSON.stringify(thumbnailPlan.captureRect)} });
               });
             });
           };
@@ -417,7 +421,7 @@ async function createRendererVideoMapThumbnail(sourcePath: string, assetId: stri
             }
             if (!captureSurface) {
               captureSurface = document.createElement("div");
-              captureSurface.id = ${JSON.stringify(captureSurfaceId)};
+              captureSurface.id = ${JSON.stringify(thumbnailPlan.captureSurfaceId)};
               captureSurface.style.cssText = [
                 "position:fixed",
                 "left:24px",
@@ -453,10 +457,10 @@ async function createRendererVideoMapThumbnail(sourcePath: string, assetId: stri
           };
           const timeoutId = setTimeout(() => {
             finish({ failureReason: "Renderer video metadata timed out. Mounted videos: " + describeVideos() });
-          }, 12000);
+          }, ${thumbnailPlan.timeoutMs});
           const matchesAsset = (candidate) => {
             const currentSource = candidate.currentSrc || candidate.src || "";
-            return candidate.dataset.mapAssetId === ${JSON.stringify(assetId)} || currentSource.startsWith(${JSON.stringify(baseAssetUrl)});
+            return candidate.dataset.mapAssetId === ${JSON.stringify(assetId)} || currentSource.startsWith(${JSON.stringify(thumbnailPlan.baseAssetUrl)});
           };
           const sceneVideos = Array.from(document.querySelectorAll("video"));
           const matchingSceneVideo = sceneVideos.find(matchesAsset);
@@ -516,7 +520,7 @@ async function createRendererVideoMapThumbnail(sourcePath: string, assetId: stri
             }
           }, { once: true });
           document.body.append(video);
-          video.src = ${JSON.stringify(thumbnailAssetUrl)};
+          video.src = ${JSON.stringify(thumbnailPlan.thumbnailAssetUrl)};
           video.load();
           readinessIntervalId = setInterval(() => {
             const latestReadySceneVideo = Array.from(document.querySelectorAll("video")).find((candidate) => matchesAsset(candidate) && captureReadyVideo(candidate));
@@ -528,24 +532,13 @@ async function createRendererVideoMapThumbnail(sourcePath: string, assetId: stri
         })
       `,
       true
-    )) as { captureRect?: { x: number; y: number; width: number; height: number }; failureReason?: string } | null;
-    if (!result?.captureRect) {
-      return { failureReason: result?.failureReason ?? "Renderer video frame could not be prepared for capture." };
+    )) as RendererVideoThumbnailPreparationResult | null;
+    const captureRect = getRendererVideoThumbnailCaptureRect(result);
+    if (typeof captureRect === "string") {
+      return { failureReason: captureRect };
     }
-    const image = await rendererWebContents.capturePage(result.captureRect);
-    await rendererWebContents.executeJavaScript(
-      `
-        (() => {
-          const captureSurface = document.getElementById(${JSON.stringify(captureSurfaceId)});
-          captureSurface?.querySelectorAll("video").forEach((video) => {
-            video.removeAttribute("src");
-            video.load();
-          });
-          captureSurface?.remove();
-        })()
-      `,
-      true
-    );
+    const image = await rendererWebContents.capturePage(captureRect);
+    await rendererWebContents.executeJavaScript(createRendererVideoThumbnailCleanupScript(thumbnailPlan.captureSurfaceId), true);
     const thumbnail = image.isEmpty() ? undefined : image.toJPEG(78);
     if (!thumbnail) {
       return { failureReason: "Renderer video frame could not be captured." };
