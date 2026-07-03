@@ -17,13 +17,20 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
   - turn-order player entry synchronization
 - Extracted and tested Electron main-process helpers for:
   - campaign metadata paths and required campaign folders
+  - atomic campaign/scene metadata writes
   - metadata backup naming, path resolution, and restore-preview entries
+  - atomic metadata backup creation
   - asset import validation, safe filenames, import paths, thumbnail paths, and removal paths
+  - unreferenced asset pruning with shared-file protection
   - asset path hydration and local asset protocol allowlist registration
   - map replacement warnings and map asset reuse checks
   - token asset usage checks
+  - token asset promotion from legacy source-plus-thumbnail assets to canonical cropped assets
   - scene entry creation, duplication insertion, and save-time metadata updates
-  - thumbnail import and regeneration diagnostics
+  - thumbnail import, regeneration diagnostics, and video thumbnail fallback capture
+- Hardened metadata read diagnostics so invalid JSON, invalid structure, and newer-schema files produce clearer recovery guidance.
+- Added Campaign Health refresh-on-open and a maintenance action for pruning unreferenced assets.
+- Changed new token imports to persist the cropped/token-ready image as the canonical token asset instead of retaining oversized source art in the campaign folder.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
@@ -40,9 +47,10 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 1. Split `SceneCanvas` interaction modes into hooks or controllers: selection, token drag, drawing, templates, fog, effects, ruler, and calibration.
 2. Convert animated environmental effects into a formal registry with one module per effect family.
 3. Split `LayerPanel` by layer type after the scene canvas interaction split stabilizes.
-4. Add more tests around Player View projection and campaign save/load recovery.
-5. Keep Electron file operations guarded by campaign-boundary checks and covered with focused helper tests.
-6. Keep large renderer changes incremental and screenshot/smoke tested where visual behavior matters.
+4. Add more tests around Player View projection, especially GM-only data filtering and one-way sync behavior.
+5. Expand campaign recovery tests around restore flows, missing scene files, and malformed metadata fixtures as future schema changes land.
+6. Keep Electron file operations guarded by campaign-boundary checks and covered with focused helper tests.
+7. Keep large renderer changes incremental and screenshot/smoke tested where visual behavior matters.
 
 ## Audit Guardrails
 
