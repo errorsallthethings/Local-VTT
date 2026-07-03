@@ -31,6 +31,15 @@ export interface PreparedLoadedImageMap {
   optimizedScale: number;
 }
 
+export type MapCanvasBackgroundPlan = "image-map" | "empty-map-prompt" | "fallback-fill" | "video-map";
+
+export interface MapCanvasBackgroundPlanOptions {
+  isVideoMap: boolean;
+  canShowMap: boolean | undefined;
+  hasMapAsset: boolean;
+  imageMapReady: boolean;
+}
+
 export function getInitialMapLoadStatus(mediaType: "image" | "video" | undefined, assetUrl: string | null): MapLoadStatus {
   return mediaType === "video" && assetUrl ? "loading" : "idle";
 }
@@ -48,6 +57,24 @@ export function getMapOverlayMessage(mapLoadStatus: MapLoadStatus, mediaType: "i
     return "Map asset unavailable. It may have been moved, renamed, or deleted.";
   }
   return mediaType === "video" ? "Loading video map..." : "Loading map...";
+}
+
+export function getMapCanvasBackgroundPlan({
+  isVideoMap,
+  canShowMap,
+  hasMapAsset,
+  imageMapReady
+}: MapCanvasBackgroundPlanOptions): MapCanvasBackgroundPlan {
+  if (isVideoMap) {
+    return "video-map";
+  }
+  if (canShowMap && hasMapAsset && imageMapReady) {
+    return "image-map";
+  }
+  if (!canShowMap || !hasMapAsset) {
+    return "empty-map-prompt";
+  }
+  return "fallback-fill";
 }
 
 export function getLargeMapCacheScale(width: number, height: number): number {

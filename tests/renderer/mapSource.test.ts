@@ -4,6 +4,7 @@ import {
   closeCanvasImageSource,
   getInitialMapLoadStatus,
   getLargeMapCacheScale,
+  getMapCanvasBackgroundPlan,
   getMapDrawSource,
   getMapOverlayMessage,
   getReadyMapSourceForFit,
@@ -75,6 +76,14 @@ describe("map source helpers", () => {
     expect(getMapOverlayMessage("loading", "video")).toBe("Loading video map...");
     expect(getMapOverlayMessage("error", "video")).toBe("Map asset unavailable. It may have been moved, renamed, or deleted.");
     expect(getMapOverlayMessage("error", "image")).toBe("Map asset unavailable. It may have been moved, renamed, or deleted.");
+  });
+
+  it("chooses the canvas map background branch without requiring a canvas context", () => {
+    expect(getMapCanvasBackgroundPlan({ isVideoMap: true, canShowMap: true, hasMapAsset: true, imageMapReady: false })).toBe("video-map");
+    expect(getMapCanvasBackgroundPlan({ isVideoMap: false, canShowMap: true, hasMapAsset: true, imageMapReady: true })).toBe("image-map");
+    expect(getMapCanvasBackgroundPlan({ isVideoMap: false, canShowMap: false, hasMapAsset: true, imageMapReady: true })).toBe("empty-map-prompt");
+    expect(getMapCanvasBackgroundPlan({ isVideoMap: false, canShowMap: true, hasMapAsset: false, imageMapReady: false })).toBe("empty-map-prompt");
+    expect(getMapCanvasBackgroundPlan({ isVideoMap: false, canShowMap: true, hasMapAsset: true, imageMapReady: false })).toBe("fallback-fill");
   });
 
   it("keeps small maps at full scale and downscales by edge or pixel limits", () => {
