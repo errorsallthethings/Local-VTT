@@ -34,12 +34,7 @@ import {
   type DrawingTool
 } from "../canvas/drawings";
 import {
-  getDrawingGroupSnapAnchor,
-  getDrawingPointSnapshot,
-  getDrawingTransformDragStart,
-  getMovedPointSnapshotForMove,
-  getResizedDrawingPointSnapshot,
-  getRotatedDrawingPointSnapshot
+  getMovedPointSnapshotForMove
 } from "../canvas/drawings";
 import {
   drawFog,
@@ -216,6 +211,7 @@ import { getFogPointerMove, getFogPointerStart } from "./scene/sceneFogPointer";
 import { getMapCalibrationPointerComplete, getMapCalibrationPointerMove, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
 import { getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
 import { getTokenPointerMove, getTokenPointerStart } from "./scene/sceneTokenPointer";
+import { getDrawingTransformPointerMove, getDrawingTransformPointerStart } from "./scene/sceneDrawingTransformPointer";
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
@@ -1425,40 +1421,35 @@ export function SceneCanvas({
       }
       onSelectToken?.(null);
       if (!authoringToolActive) {
-        if ((mouseBehavior === "grabber" || mouseBehavior === "selector") && canShowDrawings && effectiveSelectedDrawingIds.length > 0) {
-          const transformDragStart = getDrawingTransformDragStart(scene.drawings, effectiveSelectedDrawingIds, point, getRenderCamera(camera, playerDisplayScale), event.pointerId);
-          if (transformDragStart) {
-            if (transformDragStart.kind === "rotate") {
-              drawingRotateRef.current = transformDragStart.state;
-            } else {
-              drawingResizeRef.current = transformDragStart.state;
-            }
-            setDrawingDragPreview(transformDragStart.preview);
-            return;
+        const drawingTransformStart = getDrawingTransformPointerStart({
+          authoringToolActive,
+          camera: getRenderCamera(camera, playerDisplayScale),
+          canShowDrawings: Boolean(canShowDrawings),
+          mouseBehavior,
+          point,
+          pointerId: event.pointerId,
+          scene,
+          selectedDrawingIds: effectiveSelectedDrawingIds
+        });
+        if (drawingTransformStart?.kind === "transform") {
+          if (drawingTransformStart.transformKind === "rotate") {
+            drawingRotateRef.current = drawingTransformStart.state;
+          } else {
+            drawingResizeRef.current = drawingTransformStart.state;
           }
+          setDrawingDragPreview(drawingTransformStart.preview);
+          return;
         }
-        const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, getDrawingHitRadius(getRenderCamera(camera, playerDisplayScale).zoom), scene.grid) : null;
-        if (drawingHit) {
-          const dragGroup = getSceneItemDragGroup(drawingHit.id, effectiveSelectedDrawingIds, mouseBehavior);
-          const groupDrawingIds = dragGroup.itemIds;
-          const groupStartPoints = getDrawingPointSnapshot(scene.drawings, groupDrawingIds, { includeTemplates: true });
-          const snapAnchor = getDrawingGroupSnapAnchor(scene.drawings, groupDrawingIds, point);
-          onSelectToken?.(null);
-          if (dragGroup.shouldSelectHitItem) {
-            onSelectDrawing?.(drawingHit.id);
+        if (drawingTransformStart?.kind === "hit") {
+          if (drawingTransformStart.dragGroup.shouldSelectHitItem) {
+            onSelectDrawing?.(drawingTransformStart.drawingId);
           }
           onSelectFogShape?.(null);
           onSelectWeatherMask?.(null);
           onSelectEnvironmentEffect?.(null);
-          if (mouseBehavior === "grabber") {
-            drawingDragRef.current = {
-              pointerId: event.pointerId,
-              drawingId: drawingHit.id,
-              start: point,
-              snapAnchor,
-              groupStartPoints
-            };
-            setDrawingDragPreview(groupStartPoints);
+          if (drawingTransformStart.dragStart) {
+            drawingDragRef.current = drawingTransformStart.dragStart;
+            setDrawingDragPreview(drawingTransformStart.preview);
           }
           return;
         }
@@ -1591,23 +1582,21 @@ export function SceneCanvas({
       return;
     }
 
-    if (drawingResizeValue?.pointerId === event.pointerId) {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      setDrawingDragPreview(scene ? getResizedDrawingPointSnapshot(scene.drawings, drawingResizeValue.groupStartPoints, drawingResizeValue.bounds, drawingResizeValue.handle, point, event.shiftKey) : new Map());
-      return;
-    }
-
-    if (drawingRotateValue?.pointerId === event.pointerId) {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      setDrawingDragPreview(scene ? getRotatedDrawingPointSnapshot(scene.drawings, drawingRotateValue.groupStartPoints, drawingRotateValue.center, drawingRotateValue.startAngle, point) : new Map());
-      return;
-    }
-
-    if (drawingDragValue?.pointerId === event.pointerId) {
-      const worldPoint = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const preview = getSnapAwarePointSnapshotMovePreview(scene, drawingDragValue, worldPoint, isSnapModifier(event));
-      setSnapPoint(preview.snapPoint);
-      setDrawingDragPreview(preview.points);
+    const drawingTransformMove = getDrawingTransformPointerMove({
+      dragState: drawingDragValue,
+      point: eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)),
+      pointerId: event.pointerId,
+      resizeState: drawingResizeValue,
+      rotateState: drawingRotateValue,
+      scene,
+      snapEnabled: isSnapModifier(event),
+      squareConstrained: event.shiftKey
+    });
+    if (drawingTransformMove) {
+      if (drawingTransformMove.kind === "move") {
+        setSnapPoint(drawingTransformMove.snapPoint);
+      }
+      setDrawingDragPreview(drawingTransformMove.preview);
       return;
     }
 
