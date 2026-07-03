@@ -93,7 +93,7 @@ import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
 import { removeAssetFromCampaign, removeTokenAssetFromScene } from "./tokenAssetMutations.js";
 import { pauseSceneTurnOrder } from "./turnOrderPause.js";
-import { liveTableEventRoute, summarizeDisplay } from "./playerViewIpc.js";
+import { createPlayerOpenPlan, liveTableEventRoute, summarizeDisplay } from "./playerViewIpc.js";
 import {
   createSceneForCampaign,
   deleteSceneFromCampaign,
@@ -1294,20 +1294,20 @@ ipcMain.handle("player:open", async (_event, options?: { displayId?: number; ful
       playerWindow = null;
     });
   }
-  const targetDisplay = typeof options?.displayId === "number" ? screen.getAllDisplays().find((display) => display.id === options.displayId) : null;
-  if (targetDisplay && (createdPlayerWindow || !playerWindow.isFullScreen())) {
+  const openPlan = createPlayerOpenPlan(options, { created: createdPlayerWindow, fullscreen: playerWindow.isFullScreen() }, screen.getAllDisplays());
+  if (openPlan.targetDisplay && openPlan.shouldSetBounds) {
     playerWindow.setFullScreen(false);
-    playerWindow.setBounds(targetDisplay.bounds);
+    playerWindow.setBounds(openPlan.targetDisplay.bounds);
   }
   playerWindow.show();
   playerWindow.focus();
-  if (options?.fullscreen && targetDisplay) {
+  if (openPlan.shouldSetFullscreen) {
     playerWindow.setFullScreen(true);
   }
   if (lastPlayerProjection) {
     sendToPlayerWhenReady(lastPlayerProjection);
   }
-  return { ok: true, displayFound: typeof options?.displayId === "number" ? Boolean(targetDisplay) : true };
+  return { ok: true, displayFound: openPlan.displayFound };
 });
 
 ipcMain.handle("player:sendScene", async (_event, projection: PlayerSceneProjection) => {

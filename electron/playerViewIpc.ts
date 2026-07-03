@@ -30,6 +30,23 @@ export interface PlayerDisplaySummary extends PlayerDisplayLike {
   };
 }
 
+export interface PlayerOpenOptions {
+  displayId?: number;
+  fullscreen?: boolean;
+}
+
+export interface PlayerOpenWindowState {
+  created: boolean;
+  fullscreen: boolean;
+}
+
+export interface PlayerOpenPlan {
+  targetDisplay: PlayerDisplayLike | null;
+  displayFound: boolean;
+  shouldSetBounds: boolean;
+  shouldSetFullscreen: boolean;
+}
+
 export function liveTableEventRoute(
   senderId: number,
   playerWindow: PlayerViewWindowState,
@@ -43,6 +60,23 @@ export function liveTableEventRoute(
   }
 
   return playerAvailable ? "player" : null;
+}
+
+export function createPlayerOpenPlan(
+  options: PlayerOpenOptions | undefined,
+  windowState: PlayerOpenWindowState,
+  displays: PlayerDisplayLike[]
+): PlayerOpenPlan {
+  const requestedDisplay = typeof options?.displayId === "number";
+  const targetDisplay = requestedDisplay ? displays.find((display) => display.id === options.displayId) ?? null : null;
+  const shouldSetBounds = Boolean(targetDisplay && (windowState.created || !windowState.fullscreen));
+
+  return {
+    targetDisplay,
+    displayFound: requestedDisplay ? Boolean(targetDisplay) : true,
+    shouldSetBounds,
+    shouldSetFullscreen: Boolean(options?.fullscreen && targetDisplay)
+  };
 }
 
 export function summarizeDisplay(display: PlayerDisplayLike): PlayerDisplaySummary {
