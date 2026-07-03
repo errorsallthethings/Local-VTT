@@ -171,3 +171,44 @@ export function getDrawingTransformPointerMove(options: DrawingTransformPointerM
 
   return null;
 }
+
+export type DrawingTransformPointerComplete =
+  | { kind: "move"; preview: DrawingPointOverrides | null; clearSnapPoint: true }
+  | { kind: "resize"; preview: DrawingPointOverrides | null; clearSnapPoint: false }
+  | { kind: "rotate"; preview: DrawingPointOverrides | null; clearSnapPoint: false };
+
+export interface DrawingTransformPointerCompleteOptions {
+  dragState: DrawingDragState | null;
+  pointerId: number;
+  preview: DrawingPointOverrides | null;
+  resizeState: DrawingResizeState | null;
+  rotateState: DrawingRotateState | null;
+}
+
+export function getDrawingTransformPointerComplete(options: DrawingTransformPointerCompleteOptions): DrawingTransformPointerComplete | null {
+  if (options.dragState?.pointerId === options.pointerId) {
+    return {
+      kind: "move",
+      preview: options.preview,
+      clearSnapPoint: true
+    };
+  }
+
+  if (options.resizeState?.pointerId === options.pointerId) {
+    return {
+      kind: "resize",
+      preview: options.preview,
+      clearSnapPoint: false
+    };
+  }
+
+  if (options.rotateState?.pointerId === options.pointerId) {
+    return {
+      kind: "rotate",
+      preview: options.preview,
+      clearSnapPoint: false
+    };
+  }
+
+  return null;
+}

@@ -147,3 +147,33 @@ export function getMaskEffectPointerMove(options: MaskEffectPointerMoveOptions):
 
   return null;
 }
+
+export type MaskEffectPointerComplete =
+  | { kind: "weather"; preview: Map<string, Point[]> | null }
+  | { kind: "environment-effect"; preview: Map<string, Point[]> | null };
+
+export interface MaskEffectPointerCompleteOptions {
+  environmentEffectMoveState: EnvironmentEffectMoveState | null;
+  environmentEffectPreview: Map<string, Point[]> | null;
+  pointerId: number;
+  weatherMaskMoveState: WeatherMaskMoveState | null;
+  weatherMaskPreview: Map<string, Point[]> | null;
+}
+
+export function getMaskEffectPointerComplete(options: MaskEffectPointerCompleteOptions): MaskEffectPointerComplete | null {
+  if (options.weatherMaskMoveState?.pointerId === options.pointerId) {
+    return {
+      kind: "weather",
+      preview: options.weatherMaskPreview
+    };
+  }
+
+  if (options.environmentEffectMoveState?.pointerId === options.pointerId) {
+    return {
+      kind: "environment-effect",
+      preview: options.environmentEffectPreview
+    };
+  }
+
+  return null;
+}

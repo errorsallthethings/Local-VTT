@@ -203,6 +203,7 @@ import { getLaserPointerMove, getLaserPointerStart, shouldEndLaserPointer } from
 import { getFogPointerMove, getFogPointerStart } from "./scene/sceneFogPointer";
 import {
   getEnvironmentEffectHitPointerStart,
+  getMaskEffectPointerComplete,
   getMaskEffectPointerMove,
   getMaskPointerStart,
   type EnvironmentEffectMoveState,
@@ -211,7 +212,7 @@ import {
 import { getMapCalibrationPointerComplete, getMapCalibrationPointerMove, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
 import { getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
 import { getTokenPointerMove, getTokenPointerStart } from "./scene/sceneTokenPointer";
-import { getDrawingTransformPointerMove, getDrawingTransformPointerStart } from "./scene/sceneDrawingTransformPointer";
+import { getDrawingTransformPointerComplete, getDrawingTransformPointerMove, getDrawingTransformPointerStart } from "./scene/sceneDrawingTransformPointer";
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
@@ -1761,50 +1762,49 @@ export function SceneCanvas({
       return;
     }
 
-    if (drawingDragRef.current?.pointerId === event.pointerId) {
-      const movedPoints = drawingDragPreview;
-      if (scene && onSceneChange && movedPoints) {
-        onSceneChange(updateSceneDrawingPoints(scene, movedPoints));
+    const drawingTransformComplete = getDrawingTransformPointerComplete({
+      dragState: drawingDragRef.current,
+      pointerId: event.pointerId,
+      preview: drawingDragPreview,
+      resizeState: drawingResizeRef.current,
+      rotateState: drawingRotateRef.current
+    });
+    if (drawingTransformComplete) {
+      if (scene && onSceneChange && drawingTransformComplete.preview) {
+        onSceneChange(updateSceneDrawingPoints(scene, drawingTransformComplete.preview));
       }
-      drawingDragRef.current = null;
+      if (drawingTransformComplete.kind === "move") {
+        drawingDragRef.current = null;
+      } else if (drawingTransformComplete.kind === "resize") {
+        drawingResizeRef.current = null;
+      } else {
+        drawingRotateRef.current = null;
+      }
       setDrawingDragPreview(null);
-      setSnapPoint(null);
+      if (drawingTransformComplete.clearSnapPoint) {
+        setSnapPoint(null);
+      }
       return;
     }
 
-    if (drawingResizeRef.current?.pointerId === event.pointerId) {
-      const resizedPoints = drawingDragPreview;
-      if (scene && onSceneChange && resizedPoints) {
-        onSceneChange(updateSceneDrawingPoints(scene, resizedPoints));
-      }
-      drawingResizeRef.current = null;
-      setDrawingDragPreview(null);
-      return;
-    }
-
-    if (drawingRotateRef.current?.pointerId === event.pointerId) {
-      const rotatedPoints = drawingDragPreview;
-      if (scene && onSceneChange && rotatedPoints) {
-        onSceneChange(updateSceneDrawingPoints(scene, rotatedPoints));
-      }
-      drawingRotateRef.current = null;
-      setDrawingDragPreview(null);
-      return;
-    }
-
-    if (weatherMaskMoveRef.current?.pointerId === event.pointerId) {
-      const movedPoints = weatherMaskMovePreview;
-      if (scene && onSceneChange && movedPoints) {
-        onSceneChange(updateSceneWeatherMaskPoints(scene, movedPoints));
+    const maskEffectComplete = getMaskEffectPointerComplete({
+      environmentEffectMoveState: environmentEffectMoveRef.current,
+      environmentEffectPreview: environmentEffectMovePreview,
+      pointerId: event.pointerId,
+      weatherMaskMoveState: weatherMaskMoveRef.current,
+      weatherMaskPreview: weatherMaskMovePreview
+    });
+    if (maskEffectComplete?.kind === "weather") {
+      if (scene && onSceneChange && maskEffectComplete.preview) {
+        onSceneChange(updateSceneWeatherMaskPoints(scene, maskEffectComplete.preview));
       }
       cancelWeatherMaskMove();
       return;
     }
 
-    if (environmentEffectMoveRef.current?.pointerId === event.pointerId) {
-      const movedPoints = environmentEffectMovePreview;
-      if (scene && onSceneChange && movedPoints) {
-        onSceneChange(updateSceneEnvironmentEffectPoints(scene, movedPoints));
+    if (maskEffectComplete?.kind === "environment-effect") {
+      if (scene && onSceneChange && maskEffectComplete.preview) {
+        onSceneChange(updateSceneEnvironmentEffectPoints(scene, maskEffectComplete.preview));
       }
       cancelEnvironmentEffectMove();
       return;

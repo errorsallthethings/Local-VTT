@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene, type DrawingElement } from "../../src/shared/localvtt";
 import type { DrawingDragState, DrawingResizeState, DrawingRotateState } from "../../src/renderer/canvas/scene";
-import { getDrawingTransformPointerMove, getDrawingTransformPointerStart } from "../../src/renderer/components/scene/sceneDrawingTransformPointer";
+import {
+  getDrawingTransformPointerComplete,
+  getDrawingTransformPointerMove,
+  getDrawingTransformPointerStart
+} from "../../src/renderer/components/scene/sceneDrawingTransformPointer";
 
 function drawing(overrides: Partial<DrawingElement> = {}): DrawingElement {
   return {
@@ -237,5 +241,65 @@ describe("scene drawing transform pointer helpers", () => {
     expect(rotate?.kind).toBe("rotate");
     expect(rotate?.preview.get("drawing-1")?.[0].x).toBeCloseTo(0);
     expect(rotate?.preview.get("drawing-1")?.[0].y).toBeCloseTo(10);
+  });
+
+  it("completes matching drawing transform pointers with the active preview", () => {
+    const preview = new Map([["drawing-1", [{ x: 10, y: 20 }, { x: 30, y: 40 }]]]);
+    const dragState: DrawingDragState = {
+      pointerId: 10,
+      drawingId: "drawing-1",
+      start: { x: 0, y: 0 },
+      snapAnchor: { x: 0, y: 0 },
+      groupStartPoints: new Map()
+    };
+    const resizeState: DrawingResizeState = {
+      pointerId: 11,
+      handle: "se",
+      bounds: { left: 0, top: 0, right: 100, bottom: 100 },
+      groupStartPoints: new Map()
+    };
+    const rotateState: DrawingRotateState = {
+      pointerId: 12,
+      center: { x: 0, y: 0 },
+      startAngle: 0,
+      groupStartPoints: new Map()
+    };
+
+    expect(
+      getDrawingTransformPointerComplete({
+        dragState,
+        pointerId: 10,
+        preview,
+        resizeState,
+        rotateState
+      })
+    ).toEqual({ kind: "move", preview, clearSnapPoint: true });
+    expect(
+      getDrawingTransformPointerComplete({
+        dragState,
+        pointerId: 11,
+        preview,
+        resizeState,
+        rotateState
+      })
+    ).toEqual({ kind: "resize", preview, clearSnapPoint: false });
+    expect(
+      getDrawingTransformPointerComplete({
+        dragState,
+        pointerId: 12,
+        preview,
+        resizeState,
+        rotateState
+      })
+    ).toEqual({ kind: "rotate", preview, clearSnapPoint: false });
+    expect(
+      getDrawingTransformPointerComplete({
+        dragState,
+        pointerId: 99,
+        preview,
+        resizeState,
+        rotateState
+      })
+    ).toBeNull();
   });
 });

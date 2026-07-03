@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createDefaultScene, type EnvironmentEffectMask, type FogShape, type WeatherMask } from "../../src/shared/localvtt";
 import {
   getEnvironmentEffectHitPointerStart,
+  getMaskEffectPointerComplete,
   getMaskEffectPointerMove,
   getMaskPointerStart,
   type EnvironmentEffectMoveState,
@@ -185,5 +186,51 @@ describe("scene mask and effect pointer helpers", () => {
       preview: new Map([["effect-1", [{ x: 20, y: 30 }, { x: 120, y: 130 }]]]),
       snapPoint: null
     });
+  });
+
+  it("completes matching weather and environment effect move pointers", () => {
+    const weatherPreview = new Map([["weather-1", [{ x: 10, y: 20 }, { x: 30, y: 40 }]]]);
+    const environmentEffectPreview = new Map([["effect-1", [{ x: 50, y: 60 }, { x: 70, y: 80 }]]]);
+    const weatherMaskMoveState: WeatherMaskMoveState = {
+      pointerId: 8,
+      maskId: "weather-1",
+      start: { x: 0, y: 0 },
+      groupStartPoints: new Map()
+    };
+    const environmentEffectMoveState: EnvironmentEffectMoveState = {
+      pointerId: 9,
+      effectId: "effect-1",
+      start: { x: 0, y: 0 },
+      snapAnchor: { x: 0, y: 0 },
+      groupStartPoints: new Map()
+    };
+
+    expect(
+      getMaskEffectPointerComplete({
+        environmentEffectMoveState,
+        environmentEffectPreview,
+        pointerId: 8,
+        weatherMaskMoveState,
+        weatherMaskPreview: weatherPreview
+      })
+    ).toEqual({ kind: "weather", preview: weatherPreview });
+    expect(
+      getMaskEffectPointerComplete({
+        environmentEffectMoveState,
+        environmentEffectPreview,
+        pointerId: 9,
+        weatherMaskMoveState,
+        weatherMaskPreview: weatherPreview
+      })
+    ).toEqual({ kind: "environment-effect", preview: environmentEffectPreview });
+    expect(
+      getMaskEffectPointerComplete({
+        environmentEffectMoveState,
+        environmentEffectPreview,
+        pointerId: 99,
+        weatherMaskMoveState,
+        weatherMaskPreview: weatherPreview
+      })
+    ).toBeNull();
   });
 });
