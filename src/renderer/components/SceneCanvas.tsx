@@ -26,8 +26,6 @@ import {
 } from "../canvas/core";
 import {
   drawDrawings,
-  getDrawingHitRadius,
-  getDrawingAtPoint,
   getDrawingPolygonDraftPreview,
   type DrawingPointOverrides,
   type DrawingPreview,
@@ -119,7 +117,6 @@ import {
   drawSnapMarker
 } from "../canvas/scene";
 import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/effects";
-import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/scene";
 import { getSceneEffectRenderState, getSceneLayerVisibility } from "../canvas/scene";
 import { getNearestSceneSnapPoint, getSceneSnapMarkerOperations, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/scene";
 import { getSelectedItemIdList } from "../lib/scene";
@@ -127,7 +124,6 @@ import { getTurnOrderTokenIndicators } from "../lib/turn-order";
 import {
   getTemplatePreviewDrawing
 } from "../canvas/drawings";
-import { getTokenAtPoint } from "../canvas/tokens";
 import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey } from "../canvas/tokens";
 import {
   getSceneAfterTokenDrag,
@@ -197,6 +193,7 @@ import {
   MapLoadOverlay,
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
+import { getSceneContextMenuTarget } from "./scene/sceneContextMenuTarget";
 import { getDrawingPointerMove, getDrawingPointerStart } from "./scene/sceneDrawingPointer";
 import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerStart } from "./scene/sceneEnvironmentEffectPointer";
 import { getLaserPointerMove, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
@@ -1914,76 +1911,76 @@ export function SceneCanvas({
     if (!draft && !drawingDraft && !weatherDraft && !environmentDraft) {
       if (mode === "gm" && scene) {
         const point = clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale));
-        const token = canShowTokens ? getTokenAtPoint(scene.tokens, point) : null;
-        if (token && onAddTokenToTurnOrder) {
+        const contextTarget = getSceneContextMenuTarget({
+          authoringToolActive,
+          camera: getRenderCamera(camera, playerDisplayScale),
+          canOpenTokenMenu: Boolean(onAddTokenToTurnOrder),
+          canShowDrawings: Boolean(canShowDrawings),
+          canShowTokens: Boolean(canShowTokens),
+          point,
+          scene
+        });
+        if (contextTarget?.kind === "token") {
           const menuPosition = getCanvasContextMenuPosition(event, "token");
           event.preventDefault();
-          onSelectToken?.(token.id);
+          onSelectToken?.(contextTarget.token.id);
           onSelectFogShape?.(null);
           onSelectWeatherMask?.(null);
           onSelectDrawing?.(null);
           setMaskContextMenu(null);
           setDrawingContextMenu(null);
           setEnvironmentEffectContextMenu(null);
-          setTokenContextMenu(getTokenContextMenu(token, menuPosition));
+          setTokenContextMenu(getTokenContextMenu(contextTarget.token, menuPosition));
           return;
         }
-        if (!authoringToolActive) {
-          const drawingHit = canShowDrawings ? getDrawingAtPoint(scene.drawings, point, getDrawingHitRadius(getRenderCamera(camera, playerDisplayScale).zoom), scene.grid) : null;
-          if (drawingHit) {
-            const menuPosition = getCanvasContextMenuPosition(event, "drawing");
-            const drawingIndex = scene.drawings.findIndex((drawing) => drawing.id === drawingHit.id);
-            event.preventDefault();
-            onSelectToken?.(null);
+        if (contextTarget?.kind === "drawing") {
+          const menuPosition = getCanvasContextMenuPosition(event, "drawing");
+          event.preventDefault();
+          onSelectToken?.(null);
+          onSelectFogShape?.(null);
+          onSelectWeatherMask?.(null);
+          onSelectDrawing?.(contextTarget.drawing.id);
+          setTokenContextMenu(null);
+          setMaskContextMenu(null);
+          setEnvironmentEffectContextMenu(null);
+          setDrawingContextMenu(getDrawingContextMenu(contextTarget.drawing, contextTarget.drawingIndex, menuPosition));
+          return;
+        }
+        if (contextTarget?.kind === "weather-mask" || contextTarget?.kind === "fog") {
+          const menuPosition = getCanvasContextMenuPosition(event, "mask");
+          event.preventDefault();
+          onSelectToken?.(null);
+          onSelectDrawing?.(null);
+          if (contextTarget.kind === "weather-mask") {
+            onSelectWeatherMask?.(contextTarget.mask.id);
             onSelectFogShape?.(null);
-            onSelectWeatherMask?.(null);
-            onSelectDrawing?.(drawingHit.id);
             setTokenContextMenu(null);
-            setMaskContextMenu(null);
-            setEnvironmentEffectContextMenu(null);
-            setDrawingContextMenu(getDrawingContextMenu(drawingHit, drawingIndex, menuPosition));
-            return;
-          }
-          const maskHit = getMaskHitAtPoint(scene, point);
-          if (maskHit) {
-            const menuPosition = getCanvasContextMenuPosition(event, "mask");
-            event.preventDefault();
-            onSelectToken?.(null);
-            onSelectDrawing?.(null);
-            if (maskHit.kind === "weather") {
-              onSelectWeatherMask?.(maskHit.mask.id);
-              onSelectFogShape?.(null);
-              setTokenContextMenu(null);
-              setDrawingContextMenu(null);
-              setEnvironmentEffectContextMenu(null);
-              setMaskContextMenu(getWeatherMaskContextMenu(maskHit.mask, menuPosition));
-            } else {
-              const shapeIndex = scene.fog.shapes.findIndex((shape) => shape.id === maskHit.shape.id);
-              onSelectFogShape?.(maskHit.shape.id);
-              onSelectWeatherMask?.(null);
-              setTokenContextMenu(null);
-              setDrawingContextMenu(null);
-              setEnvironmentEffectContextMenu(null);
-              setMaskContextMenu(getFogContextMenu(maskHit.shape, shapeIndex, menuPosition));
-            }
-            return;
-          }
-          const environmentEffectHit = getEnvironmentEffectAtPoint(scene, point);
-          if (environmentEffectHit) {
-            const menuPosition = getCanvasContextMenuPosition(event, "environment");
-            event.preventDefault();
-            const effectIndex = scene.environment.effects.findIndex((effect) => effect.id === environmentEffectHit.id);
-            onSelectToken?.(null);
-            onSelectDrawing?.(null);
-            onSelectFogShape?.(null);
-            onSelectWeatherMask?.(null);
-            onSelectEnvironmentEffect?.(environmentEffectHit.id);
-            setTokenContextMenu(null);
-            setMaskContextMenu(null);
             setDrawingContextMenu(null);
-            setEnvironmentEffectContextMenu(getEnvironmentEffectContextMenu(environmentEffectHit, effectIndex, menuPosition));
-            return;
+            setEnvironmentEffectContextMenu(null);
+            setMaskContextMenu(getWeatherMaskContextMenu(contextTarget.mask, menuPosition));
+          } else {
+            onSelectFogShape?.(contextTarget.shape.id);
+            onSelectWeatherMask?.(null);
+            setTokenContextMenu(null);
+            setDrawingContextMenu(null);
+            setEnvironmentEffectContextMenu(null);
+            setMaskContextMenu(getFogContextMenu(contextTarget.shape, contextTarget.shapeIndex, menuPosition));
           }
+          return;
+        }
+        if (contextTarget?.kind === "environment-effect") {
+          const menuPosition = getCanvasContextMenuPosition(event, "environment");
+          event.preventDefault();
+          onSelectToken?.(null);
+          onSelectDrawing?.(null);
+          onSelectFogShape?.(null);
+          onSelectWeatherMask?.(null);
+          onSelectEnvironmentEffect?.(contextTarget.effect.id);
+          setTokenContextMenu(null);
+          setMaskContextMenu(null);
+          setDrawingContextMenu(null);
+          setEnvironmentEffectContextMenu(getEnvironmentEffectContextMenu(contextTarget.effect, contextTarget.effectIndex, menuPosition));
+          return;
         }
       }
       return;
