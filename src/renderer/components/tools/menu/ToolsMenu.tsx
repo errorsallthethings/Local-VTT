@@ -43,15 +43,23 @@ import {
   getEnvironmentEffectPresetOptions
 } from "../../../lib/effects";
 import { getToolCategoryLabel, type ToolCategory } from "./toolCategoryLabels";
+import {
+  createFogTool,
+  getActiveFogShape,
+  getActiveToolCategory,
+  isTemplateDrawingTool,
+  isToolCategoryActive,
+  type CanvasTool,
+  type EnvironmentEffectTool,
+  type FogOperation,
+  type FogToolShape,
+  type MouseBehavior,
+  type WeatherMaskTool
+} from "./toolMenuState";
 
-export type FogOperation = "reveal" | "hide";
-export type CanvasTool = "ruler" | "ping" | "laser";
-export type WeatherMaskTool = "rectangle" | "circle" | "polygon";
-export type EnvironmentEffectTool = "rectangle" | "circle" | "polygon";
 export type { DrawingTemplateSize, DrawingTemplateWidth } from "../settings/DrawingToolSettings";
 export type { SelectorSelectionCounts, SelectorSelectionFilters } from "../settings/SelectorToolControls";
-type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
-export type MouseBehavior = "selector" | "grabber";
+export type { CanvasTool, EnvironmentEffectTool, FogOperation, MouseBehavior, WeatherMaskTool } from "./toolMenuState";
 
 const DEFAULT_DRAWING_COLOR = "#ff0000";
 const DEFAULT_TEMPLATE_COLOR = "#7dd3fc";
@@ -418,28 +426,17 @@ export function ToolsMenu({
   };
 
   useEffect(() => {
-    if (activeFogTool) {
-      setActiveCategory("fog");
+    const category = getActiveToolCategory({
+      activeCanvasTool,
+      activeFogTool,
+      activeWeatherMaskTool,
+      activeEnvironmentEffectTool,
+      activeDrawingTool
+    });
+    if (category) {
+      setActiveCategory(category);
     }
-    if (activeWeatherMaskTool) {
-      setActiveCategory("effects");
-    }
-    if (activeEnvironmentEffectTool) {
-      setActiveCategory("effects");
-    }
-  }, [activeFogTool, activeWeatherMaskTool, activeEnvironmentEffectTool]);
-
-  useEffect(() => {
-    if (activeCanvasTool) {
-      setActiveCategory("table");
-    }
-  }, [activeCanvasTool]);
-
-  useEffect(() => {
-    if (activeDrawingTool) {
-      setActiveCategory(isTemplateDrawingTool(activeDrawingTool) ? "templates" : "drawing");
-    }
-  }, [activeDrawingTool]);
+  }, [activeCanvasTool, activeDrawingTool, activeEnvironmentEffectTool, activeFogTool, activeWeatherMaskTool]);
 
   useEffect(() => {
     if (!weatherToolsEnabled) {
@@ -579,31 +576,16 @@ export function ToolsMenu({
   };
 
   const isCategoryActive = (category: ToolCategory): boolean => {
-    if (activeCategory === category) {
-      return true;
-    }
-    if (category === "drawing") {
-      return Boolean(activeDrawingTool && !isTemplateDrawingTool(activeDrawingTool));
-    }
-    if (category === "templates") {
-      return isTemplateDrawingTool(activeDrawingTool);
-    }
-    if (category === "table") {
-      return Boolean(activeCanvasTool);
-    }
-    if (category === "fog") {
-      return Boolean(activeFogTool);
-    }
-    if (category === "effects") {
-      return Boolean(activeWeatherMaskTool || activeEnvironmentEffectTool);
-    }
-    if (category === "dice") {
-      return dicePanelOpen;
-    }
-    if (category === "turn-order") {
-      return turnOrderModalOpen;
-    }
-    return false;
+    return isToolCategoryActive(category, {
+      activeCategory,
+      activeCanvasTool,
+      activeFogTool,
+      activeWeatherMaskTool,
+      activeEnvironmentEffectTool,
+      activeDrawingTool,
+      dicePanelOpen,
+      turnOrderModalOpen
+    });
   };
 
   return (
@@ -1251,29 +1233,5 @@ function SettingsToggle({ open, label, onToggle }: { open: boolean; label: strin
 
 function Placeholder({ message }: { message: string }) {
   return <div className="tools-placeholder">{message}</div>;
-}
-
-function createFogTool(operation: FogOperation, shape: FogToolShape): FogTool {
-  return `${operation}-${shape}` as FogTool;
-}
-
-function getActiveFogShape(tool: FogTool | null): FogToolShape | null {
-  if (!tool) {
-    return null;
-  }
-  if (tool.includes("brush")) {
-    return "brush";
-  }
-  if (tool.includes("polygon")) {
-    return "polygon";
-  }
-  if (tool.includes("circle")) {
-    return "circle";
-  }
-  return "rectangle";
-}
-
-function isTemplateDrawingTool(tool: DrawingTool | null): boolean {
-  return tool === "template-line" || tool === "template-rectangle" || tool === "template-circle" || tool === "template-cone";
 }
 
