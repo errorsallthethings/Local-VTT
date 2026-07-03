@@ -25,6 +25,7 @@ import {
 } from "../src/shared/localvtt.js";
 import {
   createAssetProtocolErrorResponse,
+  createAssetProtocolFileResponse,
   getAssetProtocolStatFailureResponse,
   getAssetProtocolStatResultFailureResponse,
   LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE
@@ -664,17 +665,7 @@ app.whenReady().then(() => {
       }
       throw caught;
     }
-    const response = await net.fetch(pathToFileURL(filePath).toString());
-    const headers = new Headers(response.headers);
-    headers.set("Access-Control-Allow-Origin", "*");
-    headers.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
-    headers.set("Access-Control-Allow-Headers", "Range");
-    headers.set("Cross-Origin-Resource-Policy", "cross-origin");
-    return new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers
-    });
+    return createAssetProtocolFileResponse(await net.fetch(pathToFileURL(filePath).toString()));
   });
 
   gmWindow = createGmWindow();

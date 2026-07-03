@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createAssetProtocolErrorResponse,
+  createAssetProtocolFileResponse,
   getAssetProtocolStatFailureResponse,
   getAssetProtocolStatResultFailureResponse,
   LOCALVTT_ASSET_MISSING_MESSAGE,
@@ -38,5 +39,28 @@ describe("asset protocol responses", () => {
 
     expect(response?.status).toBe(404);
     await expect(response?.text()).resolves.toBe(LOCALVTT_ASSET_MISSING_MESSAGE);
+  });
+
+  it("decorates fetched file responses for renderer asset access", async () => {
+    const response = createAssetProtocolFileResponse(
+      new Response("map-bytes", {
+        status: 206,
+        statusText: "Partial Content",
+        headers: {
+          "content-type": "image/png",
+          "content-range": "bytes 0-8/9"
+        }
+      })
+    );
+
+    expect(response.status).toBe(206);
+    expect(response.statusText).toBe("Partial Content");
+    expect(response.headers.get("content-type")).toBe("image/png");
+    expect(response.headers.get("content-range")).toBe("bytes 0-8/9");
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Access-Control-Allow-Methods")).toBe("GET, HEAD, OPTIONS");
+    expect(response.headers.get("Access-Control-Allow-Headers")).toBe("Range");
+    expect(response.headers.get("Cross-Origin-Resource-Policy")).toBe("cross-origin");
+    await expect(response.text()).resolves.toBe("map-bytes");
   });
 });
