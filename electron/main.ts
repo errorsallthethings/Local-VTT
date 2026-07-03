@@ -10,9 +10,7 @@ import {
   CampaignSummary,
   DEFAULT_LAYERS,
   MetadataBackupEntry,
-  MetadataBackupPreview,
   MetadataBackupRef,
-  MetadataBackupRestoreResult,
   Scene,
   SquareCropRect,
   ThumbnailRegenerationProgress,
@@ -70,21 +68,16 @@ import {
   listMetadataBackupFolder
 } from "./metadataBackupFiles.js";
 import {
+  previewMetadataBackup,
+  restoreMetadataBackup
+} from "./metadataBackupRestore.js";
+import {
   campaignBackupFolder,
-  createMetadataBackupEntry,
   metadataBackupsRootFolder,
-  metadataBackupPathFromRef,
-  requireSceneBackupId,
   sceneBackupsRootFolder,
   sceneBackupFolder
 } from "./metadataBackups.js";
-import {
-  hydrateCampaignSceneEntry,
-  parseCampaignMetadata,
-  parseSceneMetadata,
-  toPortableCampaignMetadata,
-  toPortableSceneMetadata
-} from "./persistenceCodecs.js";
+import { hydrateCampaignSceneEntry } from "./persistenceCodecs.js";
 import {
   consumeMapReplacementToken,
   createMapReplacementToken,
@@ -481,57 +474,6 @@ async function listMetadataBackups(campaignPath: string): Promise<MetadataBackup
   }
 
   return entries.sort((left, right) => right.fileName.localeCompare(left.fileName));
-}
-
-function backupPathFromRef(campaignPath: string, ref: MetadataBackupRef): string {
-  const backupPath = metadataBackupPathFromRef(campaignPath, ref);
-  assertInsideCampaign(campaignPath, backupPath);
-  return backupPath;
-}
-
-async function previewMetadataBackup(campaignPath: string, ref: MetadataBackupRef): Promise<MetadataBackupPreview> {
-  const backupPath = backupPathFromRef(campaignPath, ref);
-  const raw = await readFile(backupPath, "utf8");
-  const stats = await stat(backupPath);
-  if (ref.kind === "campaign") {
-    const campaign = parseCampaignMetadata(raw);
-    return {
-      ...createMetadataBackupEntry("campaign", path.basename(backupPath), stats.size),
-      summary: `${campaign.name} - ${campaign.scenes.length} scene${campaign.scenes.length === 1 ? "" : "s"}, ${campaign.assets.length} asset${campaign.assets.length === 1 ? "" : "s"}`,
-      json: JSON.stringify(toPortableCampaignMetadata(campaign), null, 2)
-    };
-  }
-
-  const scene = parseSceneMetadata(raw);
-  const sceneId = requireSceneBackupId(ref);
-  if (scene.id !== sceneId) {
-    throw new Error("Scene backup does not match the selected scene.");
-  }
-  return {
-    ...createMetadataBackupEntry("scene", path.basename(backupPath), stats.size, sceneId, scene.name),
-    summary: `${scene.name} - ${scene.tokens.length} token${scene.tokens.length === 1 ? "" : "s"}, ${scene.layers.length} layer${scene.layers.length === 1 ? "" : "s"}`,
-    json: JSON.stringify(toPortableSceneMetadata(scene), null, 2)
-  };
-}
-
-async function restoreMetadataBackup(campaignPath: string, ref: MetadataBackupRef): Promise<MetadataBackupRestoreResult> {
-  const preview = await previewMetadataBackup(campaignPath, ref);
-  const raw = await readFile(backupPathFromRef(campaignPath, ref), "utf8");
-  if (ref.kind === "campaign") {
-    const campaign = toPortableCampaignMetadata(parseCampaignMetadata(raw));
-    await backupExistingMetadataFile(campaignPath, campaignFile(campaignPath), campaignBackupFolder(campaignPath), "campaign.json");
-    await writeFile(campaignFile(campaignPath), `${JSON.stringify(campaign, null, 2)}\n`, "utf8");
-    return { campaignSummary: await loadCampaignFromPath(campaignPath), restored: preview };
-  }
-
-  const scene = toPortableSceneMetadata(parseSceneMetadata(raw));
-  const sceneId = requireSceneBackupId(ref);
-  if (scene.id !== sceneId) {
-    throw new Error("Scene backup does not match the selected scene.");
-  }
-  await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, sceneId), sceneBackupFolder(campaignPath, sceneId), `${sceneId}.scene.json`);
-  await writeFile(sceneFile(campaignPath, sceneId), `${JSON.stringify(scene, null, 2)}\n`, "utf8");
-  return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: normalizeScene(scene), restored: preview };
 }
 
 async function chooseDirectory(title: string, createDirectory = false): Promise<string | null> {
@@ -1125,7 +1067,7 @@ ipcMain.handle("campaign:previewMetadataBackup", async (_event, campaignPath: st
 
 ipcMain.handle("campaign:restoreMetadataBackup", async (_event, campaignPath: string, ref: MetadataBackupRef) => {
   assertKnownCampaignPath(campaignPath);
-  return restoreMetadataBackup(campaignPath, ref);
+  return restoreMetadataBackup(campaignPath, ref, loadCampaignFromPath);
 });
 
 ipcMain.handle("scene:create", async (_event, campaignPath: string, sceneName: string) => {
