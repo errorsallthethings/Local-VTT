@@ -96,7 +96,7 @@ import {
   submitSceneFolderName,
   updateCampaignPlayerInCampaign
 } from "../lib/campaign";
-import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
+import { buildLiveTableDiceClearEvent, buildLiveTableDiceRollEvent, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/dice";
 import { formatUserFacingError } from "../lib/errors";
 import { logRendererError } from "../lib/rendererDiagnostics";
@@ -562,53 +562,15 @@ export function GmApp() {
 
   const rollTableDie = (die: DiceType) => {
     const roll = rollDiceEvent(die);
-    const diceDisplayModes = getEffectiveDiceDisplayModes(diceSettings);
     setError(null);
-    emitLiveTableEvent({
-      ...roll,
-      id: crypto.randomUUID(),
-      type: "dice",
-      gmDiceDisplay: diceDisplayModes.gmDisplayMode,
-      playerDiceDisplay: diceDisplayModes.playerDisplayMode,
-      gmDiceSceneSize: diceSettings.gmSceneSize,
-      playerDiceSceneSize: diceSettings.playerSceneSize,
-      gmDicePanelEdge: diceSettings.gmPanelEdge,
-      playerDicePanelEdge: diceSettings.playerPanelEdge,
-      gmDicePanelFacing: diceSettings.gmPanelFacing,
-      playerDicePanelFacing: diceSettings.playerPanelFacing,
-      gmDicePanelPosition: diceSettings.gmPanelPosition,
-      playerDicePanelPosition: diceSettings.playerPanelPosition,
-      gmDicePanelAdvanced: diceDisplayModes.gmPanelAdvanced,
-      playerDicePanelAdvanced: diceDisplayModes.playerPanelAdvanced,
-      createdAt: Date.now()
-    });
+    emitLiveTableEvent(buildLiveTableDiceRollEvent(roll, diceSettings, crypto.randomUUID(), Date.now()));
   };
 
   const rollTableExpression = (expression: string, rollLabel?: string) => {
     try {
       const roll = rollDiceExpression(expression);
-      const trimmedLabel = rollLabel?.trim();
-      const diceDisplayModes = getEffectiveDiceDisplayModes(diceSettings);
       setError(null);
-      emitLiveTableEvent({
-        ...roll,
-        id: crypto.randomUUID(),
-        type: "dice",
-        ...(trimmedLabel ? { rollLabel: trimmedLabel } : {}),
-        gmDiceDisplay: diceDisplayModes.gmDisplayMode,
-        playerDiceDisplay: diceDisplayModes.playerDisplayMode,
-        gmDiceSceneSize: diceSettings.gmSceneSize,
-        playerDiceSceneSize: diceSettings.playerSceneSize,
-        gmDicePanelEdge: diceSettings.gmPanelEdge,
-        playerDicePanelEdge: diceSettings.playerPanelEdge,
-        gmDicePanelFacing: diceSettings.gmPanelFacing,
-        playerDicePanelFacing: diceSettings.playerPanelFacing,
-        gmDicePanelPosition: diceSettings.gmPanelPosition,
-        playerDicePanelPosition: diceSettings.playerPanelPosition,
-        gmDicePanelAdvanced: diceDisplayModes.gmPanelAdvanced,
-        playerDicePanelAdvanced: diceDisplayModes.playerPanelAdvanced,
-        createdAt: Date.now()
-      });
+      emitLiveTableEvent(buildLiveTableDiceRollEvent(roll, diceSettings, crypto.randomUUID(), Date.now(), rollLabel));
       return null;
     } catch (caught) {
       return caught instanceof Error ? caught.message : "Could not roll that dice expression.";
@@ -617,11 +579,7 @@ export function GmApp() {
 
   const clearDiceRolls = () => {
     setError(null);
-    emitLiveTableEvent({
-      id: crypto.randomUUID(),
-      type: "dice-clear",
-      createdAt: Date.now()
-    });
+    emitLiveTableEvent(buildLiveTableDiceClearEvent(crypto.randomUUID(), Date.now()));
   };
 
   const refreshDisplays = useCallback(() =>
