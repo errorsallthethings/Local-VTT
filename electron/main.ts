@@ -63,6 +63,12 @@ import {
   validateAssetImportCandidate,
   type AssetImportKind
 } from "./assetImportValidation.js";
+import {
+  directoryDialogOptions,
+  mapFileDialogOptions,
+  selectedDialogPath,
+  tokenFileDialogOptions
+} from "./fileDialogOptions.js";
 import { unlinkIfExists } from "./fileOperations.js";
 import {
   backupExistingMetadataFile,
@@ -466,39 +472,21 @@ async function listMetadataBackups(campaignPath: string): Promise<MetadataBackup
 }
 
 async function chooseDirectory(title: string, createDirectory = false): Promise<string | null> {
-  const options: Electron.OpenDialogOptions = {
-    title,
-    properties: createDirectory ? ["openDirectory", "createDirectory"] : ["openDirectory"]
-  };
+  const options = directoryDialogOptions(title, createDirectory);
   const result = gmWindow ? await dialog.showOpenDialog(gmWindow, options) : await dialog.showOpenDialog(options);
-  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+  return selectedDialogPath(result);
 }
 
 async function chooseMapFile(): Promise<string | null> {
-  const options: Electron.OpenDialogOptions = {
-    title: "Import a battle map",
-    properties: ["openFile"],
-    filters: [
-      { name: "Battle maps", extensions: ["jpg", "jpeg", "png", "webp", "gif", "mp4", "webm"] },
-      { name: "Images", extensions: ["jpg", "jpeg", "png", "webp", "gif"] },
-      { name: "Videos", extensions: ["mp4", "webm"] }
-    ]
-  };
+  const options = mapFileDialogOptions();
   const result = gmWindow ? await dialog.showOpenDialog(gmWindow, options) : await dialog.showOpenDialog(options);
-  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+  return selectedDialogPath(result);
 }
 
 async function chooseTokenFile(): Promise<string | null> {
-  const options: Electron.OpenDialogOptions = {
-    title: "Import a token image",
-    properties: ["openFile"],
-    filters: [
-      { name: "Token images", extensions: ["jpg", "jpeg", "png", "webp", "gif"] },
-      { name: "Images", extensions: ["jpg", "jpeg", "png", "webp", "gif"] }
-    ]
-  };
+  const options = tokenFileDialogOptions();
   const result = gmWindow ? await dialog.showOpenDialog(gmWindow, options) : await dialog.showOpenDialog(options);
-  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+  return selectedDialogPath(result);
 }
 
 async function assertAssetImportCandidate(sourcePath: string, kind: AssetImportKind): Promise<void> {
