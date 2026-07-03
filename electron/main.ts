@@ -95,6 +95,7 @@ import { removeAssetFromCampaign, removeTokenAssetFromScene } from "./tokenAsset
 import { pauseSceneTurnOrder } from "./turnOrderPause.js";
 import { createPlayerOpenPlan, liveTableEventRoute, summarizeDisplay } from "./playerViewIpc.js";
 import { getGmCloseRequestAction, getUnsavedChangesDialogAction } from "./gmWindowClose.js";
+import { getLinuxGraphicsSwitches } from "./linuxGraphicsSwitches.js";
 import {
   createSceneForCampaign,
   deleteSceneFromCampaign,
@@ -126,22 +127,9 @@ const campaignSessions = new CampaignSessionRegistry();
 const mapReplacementTokens: MapReplacementTokenStore = new Map();
 
 function configureLinuxGraphicsSwitches(): void {
-  if (process.platform !== "linux") {
-    return;
-  }
-
-  const ozonePlatform = process.env.LOCALVTT_OZONE_PLATFORM;
-  if (ozonePlatform === "wayland" || ozonePlatform === "x11") {
-    app.commandLine.appendSwitch("ozone-platform", ozonePlatform);
-  } else if (ozonePlatform === "auto") {
-    app.commandLine.appendSwitch("ozone-platform-hint", "auto");
-  }
-
-  if (process.env.LOCALVTT_DISABLE_VULKAN === "1") {
-    app.commandLine.appendSwitch("disable-features", "Vulkan");
-  } else if (process.env.LOCALVTT_ENABLE_VULKAN === "1") {
-    app.commandLine.appendSwitch("enable-features", "Vulkan");
-  }
+  getLinuxGraphicsSwitches(process.platform, process.env).forEach((commandLineSwitch) => {
+    app.commandLine.appendSwitch(commandLineSwitch.name, commandLineSwitch.value);
+  });
 }
 
 // localvtt://asset URLs let renderer code display campaign files without exposing arbitrary filesystem access.
