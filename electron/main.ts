@@ -97,6 +97,7 @@ import { pauseSceneTurnOrder } from "./turnOrderPause.js";
 import { createPlayerOpenPlan, liveTableEventRoute, summarizeDisplay } from "./playerViewIpc.js";
 import { getGmCloseRequestAction, getUnsavedChangesDialogAction } from "./gmWindowClose.js";
 import { getLinuxGraphicsSwitches } from "./linuxGraphicsSwitches.js";
+import { createSmokeTestScript, getSmokeTestTimeoutMs } from "./smokeTestPlan.js";
 import {
   createSceneForCampaign,
   deleteSceneFromCampaign,
@@ -751,7 +752,7 @@ function runSmokeTest(win: BrowserWindow): void {
     completed = true;
     console.error("LOCALVTT_SMOKE_ERROR GM window did not finish loading in time.");
     app.exit(1);
-  }, isVisualSmokeTest ? 45000 : 15000);
+  }, getSmokeTestTimeoutMs(isVisualSmokeTest));
 
   const finish = () => {
     if (completed) {
@@ -759,26 +760,7 @@ function runSmokeTest(win: BrowserWindow): void {
     }
     completed = true;
     void win.webContents
-      .executeJavaScript(
-        `(async () => {
-          const playerOpenResult = await window.localVtt.openPlayerView({ fullscreen: false });
-          const playerIdleDelivered = await window.localVtt.showPlayerIdle("Smoke Test", "Player View IPC is available.", "hold");
-          const lastPlayerState = await window.localVtt.getLastPlayerState();
-          const displays = await window.localVtt.getDisplays();
-          return {
-            hash: window.location.hash,
-            hasPreloadBridge: Boolean(window.localVtt),
-            hasCreateCampaign: typeof window.localVtt?.createCampaign === "function",
-            hasPlayerBridge: typeof window.localVtt?.openPlayerView === "function",
-            playerOpenResult,
-            playerIdleDelivered,
-            lastPlayerState,
-            displayCount: displays.length,
-            title: document.title,
-            bodyText: document.body.innerText.slice(0, 500)
-          };
-        })()`
-      )
+      .executeJavaScript(createSmokeTestScript())
       .then(async (result: unknown) => {
         if (isVisualSmokeTest) {
           const { runVisualSmokeTest } = await import("./visualSmokeTest.js");
