@@ -111,7 +111,6 @@ export function GmDialogs({
   onSubmitTokenAssetName,
   onUpdateTokenDefaultsDraft,
   onSubmitTokenDefaults,
-  onUseDefaultTokenCrop,
   onSubmitFolderColor,
   onUpdateSceneColorDraft,
   onSubmitSceneColor,
@@ -214,7 +213,6 @@ export function GmDialogs({
   onSubmitTokenAssetName: () => void;
   onUpdateTokenDefaultsDraft: (draft: TokenPresentationDefaults) => void;
   onSubmitTokenDefaults: () => void;
-  onUseDefaultTokenCrop: () => void;
   onSubmitFolderColor: () => void;
   onUpdateSceneColorDraft: (value: string) => void;
   onSubmitSceneColor: () => void;
@@ -316,7 +314,6 @@ export function GmDialogs({
           title={tokenCropDialog.mode === "library" ? "Add Token to Library" : "Frame Token"}
           submitLabel={tokenCropDialog.mode === "library" ? "Add to Library" : "Add Token"}
           onCancel={onCancelTokenCropDialog}
-          onUseDefault={onUseDefaultTokenCrop}
           onSubmit={onSubmitTokenCrop}
         />
       )}

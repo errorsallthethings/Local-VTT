@@ -2292,16 +2292,6 @@ export function GmApp() {
         onSubmitTokenAssetName={submitTokenAssetName}
         onUpdateTokenDefaultsDraft={updateTokenDefaultsDraft}
         onSubmitTokenDefaults={submitTokenDefaults}
-        onUseDefaultTokenCrop={() => {
-          if (!tokenCropDialog) {
-            return;
-          }
-          if (tokenCropDialog.mode === "scene") {
-            addImportedTokenToScene(tokenCropDialog.asset);
-          } else {
-            setTokenCropDialog(null);
-          }
-        }}
         onSubmitFolderColor={submitFolderColor}
         onUpdateSceneColorDraft={updateSceneColorDraft}
         onSubmitSceneColor={submitSceneColor}

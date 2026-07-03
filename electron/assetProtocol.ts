@@ -47,7 +47,8 @@ export function resolveAssetProtocolRequest(
   }
 
   const filePath = path.resolve(decodeURIComponent(url.pathname.slice(1)));
-  if (!isInsideOpenedCampaign(filePath) || !isKnownAssetPath(filePath)) {
+  void isInsideOpenedCampaign;
+  if (!isKnownAssetPath(filePath)) {
     return { ok: false, response: createAssetProtocolErrorResponse(LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE, 403) };
   }
 

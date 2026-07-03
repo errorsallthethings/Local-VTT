@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAssetImportRelativePath,
   buildAssetThumbnailRelativePath,
+  buildTokenAssetRelativePath,
   getAssetFileRemovalPaths,
   getKnownAssetPaths,
   hydrateCampaignAssetPaths,
@@ -65,6 +66,11 @@ describe("asset file helpers", () => {
 
   it("builds variant thumbnail paths with safe variant characters only", () => {
     expect(buildAssetThumbnailRelativePath("asset-1", "crop-123:../bad value")).toBe("assets/thumbnails/asset-1-crop-123badvalue.jpg");
+  });
+
+  it("builds canonical cropped token asset paths", () => {
+    expect(buildTokenAssetRelativePath("asset-1")).toBe("assets/tokens/asset-1.jpg");
+    expect(() => buildTokenAssetRelativePath("../asset-1")).toThrow("Unsafe asset id.");
   });
 
   it("rejects unsafe thumbnail asset ids", () => {

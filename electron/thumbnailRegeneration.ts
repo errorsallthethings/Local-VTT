@@ -16,6 +16,23 @@ export interface ThumbnailRegenerationPlan {
 export type CreateAssetThumbnail = (asset: Asset, sourcePath: string) => Promise<MapThumbnailResult>;
 export type StatFile = (filePath: string) => Promise<unknown>;
 
+export function isManualTokenCropThumbnail(asset: Pick<Asset, "kind" | "thumbnailRelativePath">): boolean {
+  return asset.kind === "token" && /(^|\/)[^/]+-crop-[^/]+\.jpg$/i.test(asset.thumbnailRelativePath ?? "");
+}
+
+export function shouldRegenerateAssetThumbnail(asset: Pick<Asset, "kind" | "relativePath" | "thumbnailRelativePath">): boolean {
+  if (asset.kind === "map") {
+    return true;
+  }
+  if (asset.kind !== "token") {
+    return false;
+  }
+  if (asset.thumbnailRelativePath === asset.relativePath) {
+    return false;
+  }
+  return !isManualTokenCropThumbnail(asset);
+}
+
 export async function regenerateThumbnailAssets(
   campaignPath: string,
   campaign: Campaign,
@@ -26,7 +43,7 @@ export async function regenerateThumbnailAssets(
   const failures: ThumbnailRegenerationFailure[] = [];
   const previousThumbnailPaths = new Map(campaign.assets.map((asset) => [asset.id, asset.thumbnailRelativePath]));
   const normalizedAssets = normalizeCampaign(campaign).assets;
-  const eligibleAssetCount = normalizedAssets.filter((asset) => asset.kind === "map" || asset.kind === "token").length;
+  const eligibleAssetCount = normalizedAssets.filter((asset) => shouldRegenerateAssetThumbnail(asset)).length;
   let regenerated = 0;
   let skipped = 0;
   let processed = 0;
@@ -34,7 +51,7 @@ export async function regenerateThumbnailAssets(
   const assets = [];
   onProgress?.({ current: 0, total: eligibleAssetCount, assetName: null, message: "Preparing thumbnail regeneration." });
   for (const asset of normalizedAssets) {
-    if (asset.kind !== "map" && asset.kind !== "token") {
+    if (!shouldRegenerateAssetThumbnail(asset)) {
       skipped += 1;
       assets.push(asset);
       continue;

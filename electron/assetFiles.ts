@@ -52,6 +52,11 @@ export function buildAssetThumbnailRelativePath(assetId: string, variant = ""): 
   return path.join("assets", "thumbnails", `${fileStem}.jpg`).replaceAll(path.sep, "/");
 }
 
+export function buildTokenAssetRelativePath(assetId: string): string {
+  assertSafePathSegment(assetId, "Unsafe asset id.");
+  return path.join("assets", "tokens", `${assetId}.jpg`).replaceAll(path.sep, "/");
+}
+
 export function buildAssetImportRelativePath(kind: Asset["kind"], fileName: string): string {
   assertSafePathSegment(fileName, "Unsafe asset file name.");
   const folder = kind === "map" ? "maps" : "tokens";

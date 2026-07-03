@@ -22,6 +22,10 @@ export class CampaignSessionRegistry {
     this.knownAssetPaths.add(path.resolve(assetPath));
   }
 
+  unregisterAssetPath(assetPath: string): void {
+    this.knownAssetPaths.delete(path.resolve(assetPath));
+  }
+
   assertKnownCampaignPath(campaignPath: string): void {
     if (!this.openedCampaignPaths.has(path.resolve(campaignPath))) {
       throw new Error("Campaign folder is not open.");

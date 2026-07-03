@@ -56,5 +56,7 @@ describe("CampaignSessionRegistry", () => {
     registry.registerAssetPath(assetPath);
 
     expect(registry.isKnownAssetPath(path.resolve(assetPath))).toBe(true);
+    registry.unregisterAssetPath(assetPath);
+    expect(registry.isKnownAssetPath(path.resolve(assetPath))).toBe(false);
   });
 });

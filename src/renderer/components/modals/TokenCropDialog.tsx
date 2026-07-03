@@ -9,11 +9,10 @@ interface TokenCropDialogProps {
   title?: string;
   submitLabel?: string;
   onCancel: () => void;
-  onUseDefault: () => void;
   onSubmit: (crop: SquareCropRect) => void;
 }
 
-export function TokenCropDialog({ asset, title = "Frame Token", submitLabel = "Add Token", onCancel, onUseDefault, onSubmit }: TokenCropDialogProps) {
+export function TokenCropDialog({ asset, title = "Frame Token", submitLabel = "Add Token", onCancel, onSubmit }: TokenCropDialogProps) {
   const imageUrl = asset.absolutePath ? window.localVtt.toAssetUrl(asset.absolutePath) : "";
   const imageRef = useRef<HTMLImageElement | null>(null);
   const dragRef = useRef<{ pointerId: number; startClient: Point; startOffset: Point } | null>(null);
@@ -64,6 +63,21 @@ export function TokenCropDialog({ asset, title = "Frame Token", submitLabel = "A
       return;
     }
     onSubmit(getTokenCropSourceRect(clampedCropInput));
+  };
+
+  const submitDefaultCrop = () => {
+    if (!naturalSize) {
+      return;
+    }
+    onSubmit(
+      getTokenCropSourceRect({
+        naturalWidth: naturalSize.width,
+        naturalHeight: naturalSize.height,
+        previewSize: PREVIEW_SIZE,
+        zoom: 1,
+        offset: { x: 0, y: 0 }
+      })
+    );
   };
 
   return (
@@ -147,7 +161,7 @@ export function TokenCropDialog({ asset, title = "Frame Token", submitLabel = "A
         </label>
         <div className="button-row modal-actions">
           <button onClick={onCancel}>Cancel</button>
-          <button onClick={onUseDefault}>Use Auto Crop</button>
+          <button disabled={!naturalSize} onClick={submitDefaultCrop}>Use Auto Crop</button>
           <button disabled={!naturalSize} onClick={submitCrop}>
             {submitLabel}
           </button>

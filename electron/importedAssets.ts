@@ -14,6 +14,14 @@ export interface ImportedAssetInput {
   createdAt: string;
 }
 
+export interface StagedTokenImportInput {
+  assetId: string;
+  sourcePath: string;
+  finalRelativePath: string;
+  campaignPath: string;
+  createdAt: string;
+}
+
 export function createImportedAsset(input: ImportedAssetInput): Asset {
   const sourceName = path.basename(input.sourcePath);
 
@@ -28,6 +36,20 @@ export function createImportedAsset(input: ImportedAssetInput): Asset {
     createdAt: input.createdAt,
     absolutePath: input.destination,
     thumbnailAbsolutePath: input.thumbnailRelativePath ? requireCampaignRelativePath(input.campaignPath, input.thumbnailRelativePath) : undefined
+  };
+}
+
+export function createStagedTokenImportAsset(input: StagedTokenImportInput): Asset {
+  const sourceName = path.basename(input.sourcePath);
+  return {
+    id: input.assetId,
+    name: sourceName,
+    kind: "token",
+    mediaType: "image",
+    relativePath: input.finalRelativePath,
+    originalFileName: sourceName,
+    createdAt: input.createdAt,
+    absolutePath: input.sourcePath
   };
 }
 

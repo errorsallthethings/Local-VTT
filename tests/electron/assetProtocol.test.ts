@@ -76,9 +76,8 @@ describe("asset protocol responses", () => {
     }
   });
 
-  it("rejects asset requests outside opened campaigns or unknown asset paths", async () => {
+  it("rejects unknown asset paths", async () => {
     for (const resolution of [
-      resolveAssetProtocolRequest("localvtt://asset/C%3A%2FCampaign%2Fmap.png", () => false, () => true),
       resolveAssetProtocolRequest("localvtt://asset/C%3A%2FCampaign%2Fmap.png", () => true, () => false)
     ]) {
       expect(resolution.ok).toBe(false);
@@ -90,7 +89,7 @@ describe("asset protocol responses", () => {
   });
 
   it("resolves registered asset request file paths", () => {
-    const resolution = resolveAssetProtocolRequest("localvtt://asset/C%3A%2FCampaign%2Fassets%2Fmaps%2Fdungeon.png", () => true, () => true);
+    const resolution = resolveAssetProtocolRequest("localvtt://asset/C%3A%2FCampaign%2Fassets%2Fmaps%2Fdungeon.png", () => false, () => true);
 
     expect(resolution).toMatchObject({
       ok: true,

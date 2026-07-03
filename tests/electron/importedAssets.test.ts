@@ -1,7 +1,7 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { createDefaultCampaign } from "../../src/shared/localvtt";
-import { addImportedAssetToCampaign, createImportedAsset } from "../../electron/importedAssets";
+import { addImportedAssetToCampaign, createImportedAsset, createStagedTokenImportAsset } from "../../electron/importedAssets";
 
 describe("imported assets", () => {
   it("creates imported asset metadata with resolved thumbnail paths", () => {
@@ -48,6 +48,29 @@ describe("imported assets", () => {
 
     expect(asset.thumbnailRelativePath).toBeUndefined();
     expect(asset.thumbnailAbsolutePath).toBeUndefined();
+  });
+
+  it("creates staged token import metadata without adding a campaign thumbnail or copied source", () => {
+    const sourcePath = path.resolve("source", "Large Hero Portrait.PNG");
+
+    expect(
+      createStagedTokenImportAsset({
+        assetId: "token-1",
+        sourcePath,
+        finalRelativePath: "assets/tokens/token-1.jpg",
+        campaignPath: path.resolve("fixtures", "campaign"),
+        createdAt: "2026-07-02T12:00:00.000Z"
+      })
+    ).toEqual({
+      id: "token-1",
+      name: "Large Hero Portrait.PNG",
+      kind: "token",
+      mediaType: "image",
+      relativePath: "assets/tokens/token-1.jpg",
+      originalFileName: "Large Hero Portrait.PNG",
+      createdAt: "2026-07-02T12:00:00.000Z",
+      absolutePath: sourcePath
+    });
   });
 
   it("appends imported assets while updating campaign timestamps", () => {
