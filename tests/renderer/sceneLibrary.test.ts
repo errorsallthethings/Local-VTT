@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildSceneLibraryGroups, getFolderSceneDeleteDetail } from "../../src/renderer/lib/scene";
+import {
+  buildSceneLibraryGroups,
+  getCollapsedFolderIds,
+  getFolderSceneDeleteDetail,
+  pruneExpandedFolderIds,
+  toggleExpandedFolderId
+} from "../../src/renderer/lib/scene";
 import type { CampaignSceneEntry, CampaignSceneFolder } from "../../src/shared/localvtt";
 
 describe("scene library helpers", () => {
@@ -78,5 +84,36 @@ describe("scene library helpers", () => {
       dirtySceneCount: 1,
       sceneCount: 2
     });
+  });
+
+  it("derives collapsed folder ids from expanded folder state", () => {
+    const folders: CampaignSceneFolder[] = [
+      { id: "folder-a", name: "A", color: "#111111", createdAt: "now" },
+      { id: "folder-b", name: "B", color: "#222222", createdAt: "now" }
+    ];
+
+    expect([...getCollapsedFolderIds(folders, new Set(["folder-a"]))]).toEqual(["folder-b"]);
+    expect([...getCollapsedFolderIds(undefined, new Set(["folder-a"]))]).toEqual([]);
+  });
+
+  it("toggles expanded folder ids", () => {
+    expect([...toggleExpandedFolderId(new Set(["folder-a"]), "folder-b")]).toEqual(["folder-a", "folder-b"]);
+    expect([...toggleExpandedFolderId(new Set(["folder-a", "folder-b"]), "folder-a")]).toEqual(["folder-b"]);
+  });
+
+  it("prunes expanded folder ids when campaign folders change", () => {
+    const folders: CampaignSceneFolder[] = [{ id: "folder-a", name: "A", color: "#111111", createdAt: "now" }];
+    const expanded = new Set(["folder-a", "missing-folder"]);
+    const pruned = pruneExpandedFolderIds(expanded, folders);
+
+    expect([...pruned]).toEqual(["folder-a"]);
+    expect(pruned).not.toBe(expanded);
+
+    const unchanged = new Set(["folder-a"]);
+    expect(pruneExpandedFolderIds(unchanged, folders)).toBe(unchanged);
+    expect([...pruneExpandedFolderIds(unchanged, undefined)]).toEqual([]);
+
+    const empty = new Set<string>();
+    expect(pruneExpandedFolderIds(empty, undefined)).toBe(empty);
   });
 });

@@ -112,7 +112,14 @@ import {
   applyPlayerDisplayProfileAction,
 } from "../lib/player-display/playerDisplayProfiles";
 import { sendSceneToPlayer, updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
-import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/scene";
+import {
+  getCollapsedFolderIds,
+  pruneExpandedFolderIds,
+  removeLastDrawing,
+  removeLastEnvironmentEffect,
+  removeLastWeatherMask,
+  toggleExpandedFolderId
+} from "../lib/scene";
 import { patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
 import {
   applySceneColorDialog,
@@ -429,7 +436,7 @@ export function GmApp() {
   const diceSettings = useMemo<DiceSettings>(() => getEffectiveDiceSettings(campaign, diceSettingsPreference), [campaign, diceSettingsPreference]);
   const diceSettingsDraftRef = useRef<DiceSettings>(diceSettings);
   const collapsedFolderIds = useMemo(
-    () => new Set((campaign?.sceneFolders ?? []).filter((folder) => !expandedFolderIds.has(folder.id)).map((folder) => folder.id)),
+    () => getCollapsedFolderIds(campaign?.sceneFolders, expandedFolderIds),
     [campaign?.sceneFolders, expandedFolderIds]
   );
   const sceneThumbnailAssets = useMemo(
@@ -1514,26 +1521,11 @@ export function GmApp() {
     });
 
   const toggleFolderCollapsed = (folderId: string) => {
-    setExpandedFolderIds((ids) => {
-      const nextIds = new Set(ids);
-      if (nextIds.has(folderId)) {
-        nextIds.delete(folderId);
-      } else {
-        nextIds.add(folderId);
-      }
-      return nextIds;
-    });
+    setExpandedFolderIds((ids) => toggleExpandedFolderId(ids, folderId));
   };
 
   useEffect(() => {
-    setExpandedFolderIds((ids) => {
-      if (!campaign) {
-        return ids.size === 0 ? ids : new Set();
-      }
-      const folderIds = new Set(campaign.sceneFolders.map((folder) => folder.id));
-      const nextIds = new Set([...ids].filter((folderId) => folderIds.has(folderId)));
-      return nextIds.size === ids.size ? ids : nextIds;
-    });
+    setExpandedFolderIds((ids) => pruneExpandedFolderIds(ids, campaign?.sceneFolders));
   }, [campaign?.sceneFolders, campaign]);
 
   const toggleWorkspacePanel = (side: WorkspacePanelSide) => {

@@ -72,3 +72,26 @@ export function getFolderSceneDeleteDetail(
 
   return { containsPlayerScene, dirtySceneCount, sceneCount };
 }
+
+export function getCollapsedFolderIds(folders: readonly CampaignSceneFolder[] | undefined, expandedFolderIds: ReadonlySet<string>): Set<string> {
+  return new Set((folders ?? []).filter((folder) => !expandedFolderIds.has(folder.id)).map((folder) => folder.id));
+}
+
+export function toggleExpandedFolderId(expandedFolderIds: ReadonlySet<string>, folderId: string): Set<string> {
+  const nextIds = new Set(expandedFolderIds);
+  if (nextIds.has(folderId)) {
+    nextIds.delete(folderId);
+  } else {
+    nextIds.add(folderId);
+  }
+  return nextIds;
+}
+
+export function pruneExpandedFolderIds(expandedFolderIds: Set<string>, folders: readonly CampaignSceneFolder[] | undefined): Set<string> {
+  if (!folders) {
+    return expandedFolderIds.size === 0 ? expandedFolderIds : new Set();
+  }
+  const folderIds = new Set(folders.map((folder) => folder.id));
+  const nextIds = new Set([...expandedFolderIds].filter((folderId) => folderIds.has(folderId)));
+  return nextIds.size === expandedFolderIds.size ? expandedFolderIds : nextIds;
+}
