@@ -21,6 +21,7 @@ import {
   drawDrawings,
   getDrawingHitRadius,
   getDrawingAtPoint,
+  getDrawingPolygonDraftPreview,
   getDrawingPreviewFromPoint,
   type DrawingPointOverrides,
   type DrawingPreview,
@@ -1034,26 +1035,14 @@ export function SceneCanvas({
       }
 
       if (canShowDrawings) {
-        const drawingPolygonPreview =
-          drawingPolygonDraft && drawingPolygonDraft.points[0]
-            ? ({
-                pointerId: -1,
-                kind: "polygon",
-                points: drawingPolygonDraft.points,
-                current: drawingPolygonDraft.current ?? drawingPolygonDraft.points[drawingPolygonDraft.points.length - 1],
-                color: drawingColor,
-                opacity: drawingOpacity,
-                strokeColor: drawingColor,
-                strokeOpacity: drawingOpacity,
-                fillColor: drawingFillColor,
-                fillOpacity: drawingFillOpacity,
-                strokeStyle: drawingStrokeStyle,
-                strokeWidth: drawingStrokeWidth,
-                templateEffect: "plain",
-                templateWidth: 5,
-                measurementLabelVisible: false
-              } satisfies DrawingPreview)
-            : null;
+        const drawingPolygonPreview = getDrawingPolygonDraftPreview(drawingPolygonDraft, {
+          color: drawingColor,
+          opacity: drawingOpacity,
+          fillColor: drawingFillColor,
+          fillOpacity: drawingFillOpacity,
+          strokeStyle: drawingStrokeStyle,
+          strokeWidth: drawingStrokeWidth
+        });
         drawDrawings(
           ctx,
           scene,

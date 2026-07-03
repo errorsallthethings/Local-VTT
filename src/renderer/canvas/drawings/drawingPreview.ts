@@ -44,6 +44,20 @@ export type DrawingPreviewStyle = {
   templateWidth: number;
 };
 
+export type DrawingPolygonDraftPreviewStyle = {
+  color: string;
+  opacity: number;
+  fillColor?: string;
+  fillOpacity?: number;
+  strokeStyle?: DrawingStrokeStyle;
+  strokeWidth: number;
+};
+
+export type DrawingPolygonDraftLike = {
+  points: Point[];
+  current?: Point;
+};
+
 export function getDrawingPreviewFromPoint(pointerId: number, tool: DrawingTool, point: Point, style: DrawingPreviewStyle): DrawingPreview {
   const isTemplate = tool.startsWith("template-");
   return {
@@ -62,6 +76,29 @@ export function getDrawingPreviewFromPoint(pointerId: number, tool: DrawingTool,
     templateEffect: isTemplate ? style.templateEffect : "plain",
     templateWidth: isTemplate ? style.templateWidth : 5,
     measurementLabelVisible: isTemplate
+  };
+}
+
+export function getDrawingPolygonDraftPreview(draft: DrawingPolygonDraftLike | null | undefined, style: DrawingPolygonDraftPreviewStyle): DrawingPreview | null {
+  if (!draft?.points[0]) {
+    return null;
+  }
+  return {
+    pointerId: -1,
+    kind: "polygon",
+    points: draft.points,
+    current: draft.current ?? draft.points[draft.points.length - 1],
+    color: style.color,
+    opacity: style.opacity,
+    strokeColor: style.color,
+    strokeOpacity: style.opacity,
+    fillColor: style.fillColor,
+    fillOpacity: style.fillOpacity,
+    strokeStyle: style.strokeStyle,
+    strokeWidth: style.strokeWidth,
+    templateEffect: "plain",
+    templateWidth: 5,
+    measurementLabelVisible: false
   };
 }
 

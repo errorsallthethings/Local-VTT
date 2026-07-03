@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getTemplateLabel,
   getConeTriangle,
+  getDrawingPolygonDraftPreview,
   getDrawingPreviewPoints,
   getDrawingPreviewFromPoint,
   getDrawingAtPoint,
@@ -70,6 +71,63 @@ describe("drawing renderer helpers", () => {
       templateWidth: 15,
       measurementLabelVisible: true
     });
+  });
+
+  it("creates polygon drawing previews from active polygon drafts", () => {
+    expect(
+      getDrawingPolygonDraftPreview(
+        {
+          points: [{ x: 10, y: 20 }, { x: 30, y: 40 }],
+          current: { x: 50, y: 60 }
+        },
+        {
+          color: "#ff0000",
+          opacity: 0.8,
+          fillColor: "#00ff00",
+          fillOpacity: 0.4,
+          strokeStyle: "dashed",
+          strokeWidth: 12
+        }
+      )
+    ).toEqual({
+      pointerId: -1,
+      kind: "polygon",
+      points: [{ x: 10, y: 20 }, { x: 30, y: 40 }],
+      current: { x: 50, y: 60 },
+      color: "#ff0000",
+      opacity: 0.8,
+      strokeColor: "#ff0000",
+      strokeOpacity: 0.8,
+      fillColor: "#00ff00",
+      fillOpacity: 0.4,
+      strokeStyle: "dashed",
+      strokeWidth: 12,
+      templateEffect: "plain",
+      templateWidth: 5,
+      measurementLabelVisible: false
+    });
+  });
+
+  it("uses the final polygon draft point when the draft has no current pointer", () => {
+    expect(
+      getDrawingPolygonDraftPreview(
+        {
+          points: [{ x: 10, y: 20 }, { x: 30, y: 40 }]
+        },
+        {
+          color: "#ff0000",
+          opacity: 0.8,
+          strokeWidth: 12
+        }
+      )?.current
+    ).toEqual({ x: 30, y: 40 });
+  });
+
+  it("does not create polygon drawing previews without draft points", () => {
+    const style = { color: "#ff0000", opacity: 0.8, strokeWidth: 12 };
+
+    expect(getDrawingPolygonDraftPreview(null, style)).toBeNull();
+    expect(getDrawingPolygonDraftPreview({ points: [] }, style)).toBeNull();
   });
 
   it("keeps line previews to start and current points", () => {
