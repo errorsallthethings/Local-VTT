@@ -83,6 +83,7 @@ import {
   createMapReplacementToken,
   type MapReplacementTokenStore
 } from "./mapReplacementTokens.js";
+import { removeMapAssetFromCampaign, removeMapAssetFromScene } from "./mapAssetMutations.js";
 import { ensureMapThumbnails, type MapThumbnailResult } from "./mapThumbnailRepair.js";
 import { getMapReplacementPreview } from "./mapReplacementPreview.js";
 import { getMapAssetSceneNames, mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
@@ -1273,17 +1274,10 @@ ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: 
   }
 
   const currentScene = await readSceneMetadata(campaignPath, sceneId);
-  const updatedScene = normalizeScene(
-    currentScene.mapAssetId === assetId ? { ...currentScene, mapAssetId: undefined, updatedAt: new Date().toISOString() } : currentScene
-  );
+  const updatedScene = removeMapAssetFromScene(currentScene, assetId);
   await writeScene(campaignPath, updatedScene);
 
-  const campaign: Campaign = {
-    ...summary.campaign,
-    scenes: summary.campaign.scenes.map((entry) => (entry.mapAssetId === assetId ? { ...entry, mapAssetId: undefined } : entry)),
-    assets: summary.campaign.assets.filter((candidate) => candidate.id !== assetId),
-    updatedAt: new Date().toISOString()
-  };
+  const campaign = removeMapAssetFromCampaign(summary.campaign, assetId);
   await writeCampaign(campaignPath, campaign);
   return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: updatedScene };
 });
