@@ -68,9 +68,6 @@ import {
 } from "../canvas/live-table";
 import { getPlayerDisplayScale, getRulerDragWithRemovedWaypoint, getRulerLabel } from "../canvas/live-table";
 import {
-  getCompletedMapCalibrationBox,
-  getMapCalibrationDragFromPoint,
-  getUpdatedMapCalibrationDrag,
   getVisibleMapCalibrationBox,
   type MapCalibrationBox,
   type MapCalibrationDrag
@@ -225,6 +222,7 @@ import {
   MapLoadOverlay,
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
+import { getMapCalibrationPointerComplete, getMapCalibrationPointerMove, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
 import { getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
@@ -1231,8 +1229,20 @@ export function SceneCanvas({
     event.currentTarget.setPointerCapture(event.pointerId);
     if (mode === "gm" && scene && onMapCalibrationBox && event.button === 0) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const editableBox = mapCalibrationDraftBox ?? mapCalibrationBox;
-      const drag = getMapCalibrationDragFromPoint(event.pointerId, point, editableBox, getRenderCamera(camera, playerDisplayScale));
+      const drag = getMapCalibrationPointerStart({
+        button: event.button,
+        camera: getRenderCamera(camera, playerDisplayScale),
+        draftBox: mapCalibrationDraftBox,
+        existingBox: mapCalibrationBox ?? null,
+        hasScene: Boolean(scene),
+        mode,
+        point,
+        pointerId: event.pointerId,
+        toolActive: Boolean(onMapCalibrationBox)
+      });
+      if (!drag) {
+        return;
+      }
       mapCalibrationDragRef.current = drag;
       setMapCalibrationDrag(drag);
       return;
@@ -1472,10 +1482,12 @@ export function SceneCanvas({
     const mapCalibrationDragValue = mapCalibrationDragRef.current;
     if (mapCalibrationDragValue?.pointerId === event.pointerId) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const { drag: nextDrag, draftBox } = getUpdatedMapCalibrationDrag(mapCalibrationDragValue, point);
-      mapCalibrationDragRef.current = nextDrag;
-      setMapCalibrationDrag(nextDrag);
-      setMapCalibrationDraftBox(draftBox);
+      const update = getMapCalibrationPointerMove(mapCalibrationDragValue, event.pointerId, point);
+      if (update) {
+        mapCalibrationDragRef.current = update.drag;
+        setMapCalibrationDrag(update.drag);
+        setMapCalibrationDraftBox(update.draftBox);
+      }
       return;
     }
     if (laserDrag?.pointerId === event.pointerId) {
@@ -1630,7 +1642,7 @@ export function SceneCanvas({
     if (mapCalibrationDragValue?.pointerId === event.pointerId) {
       mapCalibrationDragRef.current = null;
       setMapCalibrationDrag(null);
-      const box = getCompletedMapCalibrationBox(mapCalibrationDragValue, mapCalibrationDraftBox);
+      const box = getMapCalibrationPointerComplete(mapCalibrationDragValue, event.pointerId, mapCalibrationDraftBox);
       if (box) {
         setMapCalibrationDraftBox(box);
       }
