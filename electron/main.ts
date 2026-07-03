@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } from "electron";
 import type { WebContents } from "electron";
-import { copyFile, mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -63,6 +63,7 @@ import {
   validateAssetImportCandidate,
   type AssetImportKind
 } from "./assetImportValidation.js";
+import { unlinkIfExists } from "./fileOperations.js";
 import {
   backupExistingMetadataFile,
   listMetadataBackupFolder
@@ -784,17 +785,6 @@ async function removeThumbnailIfUnused(campaignPath: string, relativePath: strin
   }
   const thumbnailPath = requireCampaignRelativePath(campaignPath, relativePath);
   await unlinkIfExists(thumbnailPath);
-}
-
-async function unlinkIfExists(filePath: string): Promise<void> {
-  try {
-    await unlink(filePath);
-  } catch (caught) {
-    const error = caught as NodeJS.ErrnoException;
-    if (error.code !== "ENOENT") {
-      throw error;
-    }
-  }
 }
 
 app.whenReady().then(() => {

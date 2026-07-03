@@ -1,8 +1,9 @@
-import { copyFile, mkdir, readdir, stat, unlink } from "node:fs/promises";
+import { copyFile, mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 import type { MetadataBackupEntry } from "../src/shared/localvtt.js";
 import { assertInsidePath } from "./campaignPathSafety.js";
+import { unlinkIfExists } from "./fileOperations.js";
 import { createBackupTimestamp, createMetadataBackupEntry } from "./metadataBackups.js";
 
 export const DEFAULT_MAX_METADATA_BACKUPS = 10;
@@ -70,15 +71,5 @@ async function pruneMetadataBackups(backupFolder: string, maxBackups: number): P
   const backupFiles = entries.filter((entry) => entry.endsWith(".json")).sort().reverse();
   for (const entry of backupFiles.slice(maxBackups)) {
     await unlinkIfExists(path.join(backupFolder, entry));
-  }
-}
-
-async function unlinkIfExists(filePath: string): Promise<void> {
-  try {
-    await unlink(filePath);
-  } catch (caught) {
-    if ((caught as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw caught;
-    }
   }
 }
