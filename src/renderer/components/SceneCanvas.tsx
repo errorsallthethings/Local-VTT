@@ -223,17 +223,11 @@ import {
 import { SceneCanvasContextMenus } from "./scene/SceneCanvasContextMenus";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
 import {
-  DrawingToolStatusStrip,
-  EnvironmentEffectStatusStrip,
-  FogToolStatusStrip,
   MapLoadOverlay,
-  RulerStatusStrip,
-  TableToolStatusStrip,
-  TokenMoveStatusStrip,
-  WeatherMaskStatusStrip
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
+import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
@@ -2260,10 +2254,23 @@ export function SceneCanvas({
         onDragOver={onDragOver}
         onDrop={onDrop}
       />
-      {mode === "gm" && fogTool && (
-        <FogToolStatusStrip fogTool={fogTool} polygonPointCount={polygonDraft?.points.length ?? 0} brushSize={activeFogBrushSize} />
-      )}
-      {mode === "gm" && drawingTool && <DrawingToolStatusStrip drawingTool={drawingTool} drawingTemplateSize={drawingTemplateSize} />}
+      <SceneCanvasToolStatusOverlays
+        activeFogBrushSize={activeFogBrushSize}
+        canvasTool={canvasTool}
+        drawingTemplateSize={drawingTemplateSize}
+        drawingTool={drawingTool}
+        environmentEffectTool={environmentEffectTool}
+        environmentEffectType={environmentEffectType}
+        environmentPolygonPointCount={environmentPolygonDraft?.points.length ?? 0}
+        fogPolygonPointCount={polygonDraft?.points.length ?? 0}
+        fogTool={fogTool}
+        mode={mode}
+        rulerDrag={rulerDrag}
+        scene={scene}
+        tokenDragPreview={tokenDragPreview}
+        weatherMaskTool={weatherMaskTool}
+        weatherPolygonPointCount={weatherPolygonDraft?.points.length ?? 0}
+      />
       {mode === "gm" && onMapCalibrationBox && (
         <MapCalibrationControls
           activeBox={activeCalibrationBox}
@@ -2274,11 +2281,6 @@ export function SceneCanvas({
           onCancel={onMapCalibrationCancel}
         />
       )}
-      {mode === "gm" && canvasTool === "ruler" && <RulerStatusStrip rulerDrag={rulerDrag} scene={scene} />}
-      {mode === "gm" && (canvasTool === "ping" || canvasTool === "laser") && <TableToolStatusStrip canvasTool={canvasTool} />}
-      {mode === "gm" && weatherMaskTool && <WeatherMaskStatusStrip weatherMaskTool={weatherMaskTool} pointCount={weatherPolygonDraft?.points.length ?? 0} />}
-      {mode === "gm" && environmentEffectTool && <EnvironmentEffectStatusStrip environmentEffectTool={environmentEffectTool} effect={environmentEffectType} pointCount={environmentPolygonDraft?.points.length ?? 0} />}
-      {mode === "gm" && tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
       {visibleDiceOverlayEvents.length > 0 && (
         <Suspense fallback={null}>
           <DiceRollOverlay events={visibleDiceOverlayEvents} mode={mode} onDiceRollResolved={onDiceRollResolved} />
