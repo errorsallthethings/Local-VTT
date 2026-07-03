@@ -84,7 +84,7 @@ import {
   createMapReplacementToken,
   type MapReplacementTokenStore
 } from "./mapReplacementTokens.js";
-import { removeMapAssetFromCampaign, removeMapAssetFromScene } from "./mapAssetMutations.js";
+import { removeMapAssetFromCampaign, removeMapAssetFromScene, replaceSceneMapAsset } from "./mapAssetMutations.js";
 import { ensureMapThumbnails, type MapThumbnailResult } from "./mapThumbnailRepair.js";
 import { getMapReplacementPreview } from "./mapReplacementPreview.js";
 import { getMapAssetSceneNames, mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
@@ -1063,18 +1063,11 @@ ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: 
     createdAt: updatedAt
   });
 
-  const updatedScene = normalizeScene({ ...currentScene, mapAssetId: imported.id, updatedAt });
-  await writeScene(campaignPath, updatedScene);
-
   const keepCurrentAsset = await mapAssetUsedByOtherScenes(summary.campaign, currentAsset.id, sceneId, (candidateSceneId) =>
     readSceneMetadata(campaignPath, candidateSceneId)
   );
-  const campaign: Campaign = {
-    ...summary.campaign,
-    assets: keepCurrentAsset ? [...summary.campaign.assets, imported] : [...summary.campaign.assets.filter((asset) => asset.id !== currentAsset.id), imported],
-    scenes: summary.campaign.scenes.map((entry) => (entry.id === sceneId ? { ...entry, mapAssetId: imported.id } : entry)),
-    updatedAt
-  };
+  const { campaign, scene: updatedScene } = replaceSceneMapAsset(summary.campaign, currentScene, currentAsset.id, imported, keepCurrentAsset, updatedAt);
+  await writeScene(campaignPath, updatedScene);
   await writeCampaign(campaignPath, campaign);
   if (!keepCurrentAsset) {
     await deleteMapAssetFiles(campaignPath, currentAsset);
