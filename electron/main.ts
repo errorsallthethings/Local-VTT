@@ -92,7 +92,7 @@ import { createThumbnailImportFailureDiagnostic } from "./thumbnailDiagnostics.j
 import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.js";
 import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
-import { removeAssetFromCampaign, removeTokenAssetFromScene } from "./tokenAssetMutations.js";
+import { removeAssetFromCampaign } from "./tokenAssetMutations.js";
 import { pauseSceneTurnOrder } from "./turnOrderPause.js";
 import { createPlayerOpenPlan, liveTableEventRoute, summarizeDisplay } from "./playerViewIpc.js";
 import { getGmCloseRequestAction, getUnsavedChangesDialogAction } from "./gmWindowClose.js";
@@ -100,6 +100,7 @@ import { getLinuxGraphicsSwitches } from "./linuxGraphicsSwitches.js";
 import { createSmokeTestScript, getSmokeTestTimeoutMs } from "./smokeTestPlan.js";
 import { addImportedAssetToCampaign, createImportedAsset } from "./importedAssets.js";
 import { tokenThumbnailVariant, updateTokenThumbnailInCampaign } from "./tokenThumbnailUpdate.js";
+import { removeTokenAssetFromCampaignScenes } from "./tokenAssetSceneCleanup.js";
 import {
   createSceneForCampaign,
   deleteSceneFromCampaign,
@@ -1181,20 +1182,12 @@ ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId
     throw new Error("Token asset was not found in this campaign.");
   }
 
-  const changedScenes: Scene[] = [];
-  for (const entry of summary.campaign.scenes) {
-    try {
-      const scene = await readSceneMetadata(campaignPath, entry.id);
-      const updatedScene = removeTokenAssetFromScene(scene, assetId);
-      if (!updatedScene) {
-        continue;
-      }
-      await writeScene(campaignPath, updatedScene);
-      changedScenes.push(updatedScene);
-    } catch {
-      // Missing or invalid scenes are reported elsewhere by scene loading.
-    }
-  }
+  const changedScenes = await removeTokenAssetFromCampaignScenes(
+    summary.campaign,
+    assetId,
+    (sceneId) => readSceneMetadata(campaignPath, sceneId),
+    (scene) => writeScene(campaignPath, scene)
+  );
 
   for (const assetPath of getAssetFileRemovalPaths(campaignPath, asset)) {
     assertInsideCampaign(campaignPath, assetPath);
