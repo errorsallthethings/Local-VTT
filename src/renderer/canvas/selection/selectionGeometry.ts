@@ -103,6 +103,10 @@ export function hasSelectedSceneItems(selection: SceneSelectionIds): boolean {
   return selection.tokenIds.length > 0 || selection.drawingIds.length > 0 || selection.fogShapeIds.length > 0 || selection.weatherMaskIds.length > 0;
 }
 
+export function shouldAnimateSceneSelection(mode: "gm" | "player", selection: SceneSelectionIds): boolean {
+  return mode === "gm" && hasSelectedSceneItems(selection);
+}
+
 export function pointsToSelectionRect(start: Point, end: Point): SelectionRect {
   return {
     x: Math.min(start.x, end.x),

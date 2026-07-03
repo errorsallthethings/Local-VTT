@@ -8,6 +8,7 @@ import {
   getRulerLabel,
   getTokenCenterPoint,
   getTokenMoveLabel,
+  getVisibleCanvasLiveTableEvents,
   getVisibleDiceOverlayEvents,
   isDuplicateRulerWaypoint,
   isVisibleDiceOverlayEvent,
@@ -129,6 +130,17 @@ describe("live table state helpers", () => {
     expect(getVisibleDiceOverlayEvents(events, "gm").map((event) => event.id)).toEqual(["gm-panel", "scene"]);
     expect(getVisibleDiceOverlayEvents(events, "player").map((event) => event.id)).toEqual(["gm-hidden", "scene"]);
     expect(getVisibleDiceOverlayEvents([], "gm")).toEqual([]);
+  });
+
+  it("hides active ruler canvas events from the GM canvas because the GM ruler is drawn locally", () => {
+    const events: LiveTableEvent[] = [
+      { id: "ping", type: "ping", point: { x: 0, y: 0 }, createdAt: 1 },
+      { id: "ruler", type: "ruler", points: [{ x: 0, y: 0 }, { x: 10, y: 10 }], primary: "10 ft", visibleInPlayer: true, createdAt: 1 },
+      diceEvent({ id: "dice" })
+    ];
+
+    expect(getVisibleCanvasLiveTableEvents(events, "gm").map((event) => event.id)).toEqual(["ping", "dice"]);
+    expect(getVisibleCanvasLiveTableEvents(events, "player")).toBe(events);
   });
 
   it("uses a forgiving duplicate ruler waypoint distance on gridless scenes", () => {

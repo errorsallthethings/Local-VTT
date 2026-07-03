@@ -53,6 +53,7 @@ import {
   createRulerDrag,
   createRulerLiveTableEvent,
   drawLiveTableEvents,
+  getVisibleCanvasLiveTableEvents,
   getVisibleDiceOverlayEvents,
   getUpdatedLaserDrag,
   hasActiveLiveTableEvents,
@@ -106,7 +107,7 @@ import {
 import {
   getCompletedSceneMarqueeSelection,
   getMarqueeSelectionMode,
-  hasSelectedSceneItems,
+  shouldAnimateSceneSelection,
   getSelectionDragFromPoint,
   getUpdatedSelectionDrag
 } from "../canvas/selection";
@@ -626,11 +627,22 @@ export function SceneCanvas({
   }, [tokenAssets]);
   const { failedTokenImageIds, loadedTokenImages } = useTokenImageLoader(tokenImageSourceKey);
   const { tokenTweenPositions: playerTokenTweenPositions, tokenTweenPositionsRef: playerTokenTweenPositionsRef } = usePlayerTokenTweens(scene, mode);
+  const visibleCanvasLiveTableEvents = useMemo(() => getVisibleCanvasLiveTableEvents(liveTableEvents, mode), [liveTableEvents, mode]);
   const effectiveSelectedTokenIds = useMemo(() => getSelectedItemIdList(selectedTokenId, selectedTokenIds), [selectedTokenId, selectedTokenIds]);
   const turnOrderTokenIndicators = useMemo(() => (scene && mode === "gm" ? getTurnOrderTokenIndicators(scene) : null), [mode, scene]);
   const effectiveSelectedDrawingIds = useMemo(() => getSelectedItemIdList(selectedDrawingId, selectedDrawingIds), [selectedDrawingId, selectedDrawingIds]);
   const effectiveSelectedFogShapeIds = useMemo(() => getSelectedItemIdList(selectedFogShapeId, selectedFogShapeIds), [selectedFogShapeId, selectedFogShapeIds]);
   const effectiveSelectedWeatherMaskIds = useMemo(() => getSelectedItemIdList(selectedWeatherMaskId, selectedWeatherMaskIds), [selectedWeatherMaskId, selectedWeatherMaskIds]);
+  const sceneSelectionAnimating = useMemo(
+    () =>
+      shouldAnimateSceneSelection(mode, {
+        drawingIds: effectiveSelectedDrawingIds,
+        fogShapeIds: effectiveSelectedFogShapeIds,
+        tokenIds: effectiveSelectedTokenIds,
+        weatherMaskIds: effectiveSelectedWeatherMaskIds
+      }),
+    [effectiveSelectedDrawingIds, effectiveSelectedFogShapeIds, effectiveSelectedTokenIds, effectiveSelectedWeatherMaskIds, mode]
+  );
   const authoringToolActive = useMemo(
     () => hasAuthoringToolActive({ canvasTool, drawingTool, fogTool, weatherMaskTool, environmentEffectTool }),
     [canvasTool, drawingTool, environmentEffectTool, fogTool, weatherMaskTool]
@@ -1122,9 +1134,8 @@ export function SceneCanvas({
       if (mode === "gm" && canShowDrawings && !drawingDragPreview && effectiveSelectedDrawingIds.length > 0) {
         drawDrawingResizeHandles(ctx, scene.drawings, effectiveSelectedDrawingIds, renderCamera);
       }
-      const visibleLiveTableEvents = mode === "gm" ? liveTableEvents.filter((event) => event.type !== "ruler") : liveTableEvents;
-      if (visibleLiveTableEvents.length > 0) {
-        drawLiveTableEvents(ctx, visibleLiveTableEvents, renderCamera, scene.grid);
+      if (visibleCanvasLiveTableEvents.length > 0) {
+        drawLiveTableEvents(ctx, visibleCanvasLiveTableEvents, renderCamera, scene.grid);
       }
     };
 
@@ -1137,14 +1148,7 @@ export function SceneCanvas({
       const tableEventsAnimating = hasActiveLiveTableEvents(liveTableEvents);
       const weatherAnimating = shouldAnimateWeather(scene, Boolean(canShowWeather));
       const environmentAnimating = shouldAnimateEnvironmentEffects(scene, mode, Boolean(canShowWeather));
-      const selectionAnimating =
-        mode === "gm" &&
-        hasSelectedSceneItems({
-          drawingIds: effectiveSelectedDrawingIds,
-          fogShapeIds: effectiveSelectedFogShapeIds,
-          tokenIds: effectiveSelectedTokenIds,
-          weatherMaskIds: effectiveSelectedWeatherMaskIds
-        });
+      const selectionAnimating = sceneSelectionAnimating;
       const hasFullRateAnimation = mapAnimating || tokenAnimating || tokenConditionAnimating || tableEventsAnimating || selectionAnimating;
       const effectAnimating = weatherAnimating || environmentAnimating;
       const shouldDrawFrame = !effectAnimating || hasFullRateAnimation || timestamp - lastWeatherOnlyFrameAt >= WEATHER_ONLY_FRAME_INTERVAL_MS;
@@ -1163,14 +1167,7 @@ export function SceneCanvas({
     };
 
     resize();
-    const selectionAnimating =
-      mode === "gm" &&
-      hasSelectedSceneItems({
-        drawingIds: effectiveSelectedDrawingIds,
-        fogShapeIds: effectiveSelectedFogShapeIds,
-        tokenIds: effectiveSelectedTokenIds,
-        weatherMaskIds: effectiveSelectedWeatherMaskIds
-      });
+    const selectionAnimating = sceneSelectionAnimating;
     if (loadedMap?.animate || playerTokenTweenPositionsRef.current || (canShowTokens && hasVisibleTokenConditions(scene, mode)) || hasActiveLiveTableEvents(liveTableEvents) || shouldAnimateWeather(scene, Boolean(canShowWeather)) || shouldAnimateEnvironmentEffects(scene, mode, Boolean(canShowWeather)) || selectionAnimating) {
       animationFrame = window.requestAnimationFrame(drawCurrentFrame);
     }
@@ -1182,7 +1179,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, coldEffectTuning, darknessEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, effectRenderState, effectiveSelectedDrawingIds, effectiveSelectedFogShapeIds, effectiveSelectedTokenIds, effectiveSelectedWeatherMaskIds, environmentEffectFeather, environmentEffectMovePreview, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, playerTokenTweenPositionsRef, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedTokenId, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, turnOrderTokenIndicators, videoRefs, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskMovePreview, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, coldEffectTuning, darknessEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, effectRenderState, effectiveSelectedDrawingIds, effectiveSelectedFogShapeIds, effectiveSelectedTokenIds, effectiveSelectedWeatherMaskIds, environmentEffectFeather, environmentEffectMovePreview, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, playerTokenTweenPositionsRef, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, sceneSelectionAnimating, selectedDrawingId, selectedDrawingIds, selectedTokenId, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, turnOrderTokenIndicators, videoRefs, visibleCanvasLiveTableEvents, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskMovePreview, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     return retainEnvironmentEffectRuntimes();

@@ -12,7 +12,8 @@ import {
   isPointInSelectionRect,
   isTokenInSelectionRect,
   isWeatherMaskInSelectionRect,
-  pointsToSelectionRect
+  pointsToSelectionRect,
+  shouldAnimateSceneSelection
 } from "../../src/renderer/canvas/selection";
 
 describe("selection geometry", () => {
@@ -56,6 +57,15 @@ describe("selection geometry", () => {
     expect(hasSelectedSceneItems({ tokenIds: [], drawingIds: ["drawing-1"], fogShapeIds: [], weatherMaskIds: [] })).toBe(true);
     expect(hasSelectedSceneItems({ tokenIds: [], drawingIds: [], fogShapeIds: ["fog-1"], weatherMaskIds: [] })).toBe(true);
     expect(hasSelectedSceneItems({ tokenIds: [], drawingIds: [], fogShapeIds: [], weatherMaskIds: ["weather-1"] })).toBe(true);
+  });
+
+  it("animates selected scene item outlines only on the GM canvas", () => {
+    const emptySelection = { tokenIds: [], drawingIds: [], fogShapeIds: [], weatherMaskIds: [] };
+    const tokenSelection = { tokenIds: ["token-1"], drawingIds: [], fogShapeIds: [], weatherMaskIds: [] };
+
+    expect(shouldAnimateSceneSelection("gm", emptySelection)).toBe(false);
+    expect(shouldAnimateSceneSelection("gm", tokenSelection)).toBe(true);
+    expect(shouldAnimateSceneSelection("player", tokenSelection)).toBe(false);
   });
 
   it("treats selection rect edges as inclusive", () => {
