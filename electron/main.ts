@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } from "electron";
 import type { WebContents } from "electron";
-import { mkdir, stat } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -13,7 +13,6 @@ import {
   ThumbnailRegenerationProgress,
   ThumbnailRegenerationResult,
   assertValidScene,
-  createDefaultCampaign,
   isLiveTableEvent,
   isPlayerIdleState,
   type PlayerSceneProjection
@@ -62,9 +61,9 @@ import {
   restoreMetadataBackup
 } from "./metadataBackupRestore.js";
 import {
-  metadataBackupsRootFolder,
   sceneBackupFolder
 } from "./metadataBackups.js";
+import { openMetadataBackupsFolder } from "./metadataBackupsFolder.js";
 import { hydrateSceneSummaries } from "./campaignSceneSummaries.js";
 import {
   consumeMapReplacementToken,
@@ -92,6 +91,7 @@ import { assertSceneUsesMapAsset, requireCurrentMapAsset } from "./mapReplacemen
 import { findCampaignAsset, requireCampaignAsset, requireTokenAssetWithAbsolutePath } from "./campaignAssetLookup.js";
 import { createAppWindowOptions, createWindowLoadTarget } from "./windowConfig.js";
 import { prepareLoadedScene } from "./sceneLoadDefaults.js";
+import { createCampaignForFolder, resolveCurrentCampaignPath } from "./campaignOpenState.js";
 import {
   createRendererVideoThumbnailCleanupScript,
   createRendererVideoThumbnailPlan,
@@ -308,7 +308,7 @@ async function pauseActiveTurnOrders(campaignPath: string): Promise<void> {
 
 async function loadCampaignWithPausedTurnOrders(campaignPath: string): Promise<CampaignSummary> {
   registerCampaignPath(campaignPath);
-  currentCampaignPath = path.resolve(campaignPath);
+  currentCampaignPath = resolveCurrentCampaignPath(campaignPath);
   await pauseActiveTurnOrders(campaignPath);
   return loadCampaignFromPath(campaignPath);
 }
@@ -733,9 +733,9 @@ ipcMain.handle("campaign:create", async () => {
     return null;
   }
 
-  const campaign = createDefaultCampaign(path.basename(campaignPath) || "Local VTT Campaign");
+  const campaign = createCampaignForFolder(campaignPath);
   registerCampaignPath(campaignPath);
-  currentCampaignPath = path.resolve(campaignPath);
+  currentCampaignPath = resolveCurrentCampaignPath(campaignPath);
   await writeCampaign(campaignPath, campaign);
   return loadCampaignFromPath(campaignPath);
 });
@@ -762,14 +762,7 @@ ipcMain.handle("campaign:save", async (_event, campaignPath: string, campaign: C
 
 ipcMain.handle("campaign:openBackupsFolder", async (_event, campaignPath: string) => {
   assertKnownCampaignPath(campaignPath);
-  const backupsPath = metadataBackupsRootFolder(campaignPath);
-  assertInsideCampaign(campaignPath, backupsPath);
-  await mkdir(backupsPath, { recursive: true });
-  const errorMessage = await shell.openPath(backupsPath);
-  if (errorMessage) {
-    throw new Error(`Could not open backups folder. ${errorMessage}`);
-  }
-  return true;
+  return openMetadataBackupsFolder(campaignPath, shell.openPath);
 });
 
 ipcMain.handle("campaign:listMetadataBackups", async (_event, campaignPath: string) => {
