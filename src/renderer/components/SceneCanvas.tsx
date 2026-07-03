@@ -156,7 +156,6 @@ import {
   getTokenDragWaypointRemovalUpdate
 } from "../canvas/tokens";
 import { drawTokenDragHighlights, drawTokens, hasVisibleTokenConditions, type TokenDragPreview } from "../canvas/tokens";
-import { getVideoTransform } from "../canvas/map";
 import { clientToWorldPoint, eventToWorldPoint, getCanvasViewportCenter, isSnapModifier } from "../canvas/core";
 import {
   type AcidEffectTuning,
@@ -235,6 +234,7 @@ import {
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
+import { VideoMapElements } from "./scene/VideoMapElements";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
@@ -2189,6 +2189,37 @@ export function SceneCanvas({
     fitGmCameraToReadyMap(rect.width, rect.height);
   };
 
+  const handleVideoMapCanPlay = (video: HTMLVideoElement, index: number) => {
+    setVideoMapLoadStatus("ready");
+    fitGmCameraToVideoMap(video);
+    playActiveWhenReady(index);
+  };
+
+  const handleVideoMapReady = (video: HTMLVideoElement) => {
+    setVideoMapLoadStatus("ready");
+    fitGmCameraToVideoMap(video);
+  };
+
+  const handleVideoMapMetadataReady = (video: HTMLVideoElement) => {
+    fitGmCameraToVideoMap(video);
+  };
+
+  const handleVideoMapError = (video: HTMLVideoElement, index: number) => {
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      setVideoMapLoadStatus("ready");
+      return;
+    }
+    window.setTimeout(() => {
+      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        setVideoMapLoadStatus("ready");
+        return;
+      }
+      if (index === activeVideoIndex) {
+        setVideoMapLoadStatus((status) => (status === "ready" ? status : "error"));
+      }
+    }, 180);
+  };
+
   const showMapOverlay = mapOverlayActive;
   const mapOverlayMessage = getMapOverlayMessage(mapLoadStatus, mapAsset?.mediaType);
   const activeCalibrationBox = onMapCalibrationBox ? mapCalibrationDraftBox : null;
@@ -2196,61 +2227,25 @@ export function SceneCanvas({
 
   return (
     <div ref={frameRef} className={className ?? "scene-canvas-frame"}>
-      {isVideoMap &&
-        videoUrls.map((videoUrl, index) => (
-          (index === activeVideoIndex || index === preparedVideoIndex) && (
-            <video
-              key={videoUrl}
-              ref={(element) => {
-                videoRefs.current[index] = element;
-              }}
-              className="scene-video-map"
-              src={videoUrl}
-              data-map-asset-id={mapAsset?.id ?? ""}
-              muted={videoMuted}
-              autoPlay={index === activeVideoIndex && !videoPaused}
-              playsInline
-              preload="auto"
-              style={{
-                opacity: index === activeVideoIndex ? (mapLayer?.opacity ?? 1) : 0,
-                transform: getVideoTransform(getRenderCamera(camera, playerDisplayScale), scene)
-              }}
-              onCanPlay={(event) => {
-                setVideoMapLoadStatus("ready");
-                fitGmCameraToVideoMap(event.currentTarget);
-                playActiveWhenReady(index);
-              }}
-              onLoadedMetadata={(event) => {
-                fitGmCameraToVideoMap(event.currentTarget);
-              }}
-              onLoadedData={(event) => {
-                setVideoMapLoadStatus("ready");
-                fitGmCameraToVideoMap(event.currentTarget);
-              }}
-              onPlaying={(event) => {
-                setVideoMapLoadStatus("ready");
-                fitGmCameraToVideoMap(event.currentTarget);
-              }}
-              onError={(event) => {
-                const video = event.currentTarget;
-                if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-                  setVideoMapLoadStatus("ready");
-                  return;
-                }
-                window.setTimeout(() => {
-                  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-                    setVideoMapLoadStatus("ready");
-                    return;
-                  }
-                  if (index === activeVideoIndex) {
-                    setVideoMapLoadStatus((status) => (status === "ready" ? status : "error"));
-                  }
-                }, 180);
-              }}
-              onPause={() => recoverUnexpectedPause(index)}
-            />
-          )
-        ))}
+      {isVideoMap && (
+        <VideoMapElements
+          activeVideoIndex={activeVideoIndex}
+          camera={getRenderCamera(camera, playerDisplayScale)}
+          mapAssetId={mapAsset?.id ?? ""}
+          mapLayer={mapLayer ?? null}
+          muted={videoMuted}
+          paused={videoPaused}
+          preparedVideoIndex={preparedVideoIndex}
+          scene={scene}
+          urls={videoUrls}
+          videoRefs={videoRefs}
+          onCanPlay={handleVideoMapCanPlay}
+          onReady={handleVideoMapReady}
+          onMetadataReady={handleVideoMapMetadataReady}
+          onError={handleVideoMapError}
+          onPause={recoverUnexpectedPause}
+        />
+      )}
       <canvas
         ref={canvasRef}
         className={`scene-canvas ${getCanvasInteractionClass({ canvasTool, mouseBehavior, drawingTool, fogTool, weatherMaskTool, environmentEffectTool, isPanning, tokenDragPreview, drawingTransformHover, sceneItemHover })}`}
