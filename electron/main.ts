@@ -41,6 +41,7 @@ import {
   writeScene
 } from "./campaignMetadataFiles.js";
 import { inspectCampaignHealth } from "./campaignHealth.js";
+import { CampaignSessionRegistry } from "./campaignSessionRegistry.js";
 import {
   createImageMapThumbnail,
   createSquareImageThumbnail,
@@ -53,7 +54,6 @@ import {
   buildAssetImportRelativePath,
   buildAssetThumbnailRelativePath,
   getAssetFileRemovalPaths,
-  getKnownAssetPaths,
   hydrateCampaignAssetPaths,
   requireCampaignRelativePath
 } from "./assetFiles.js";
@@ -113,8 +113,7 @@ let lastPlayerProjection: unknown = null;
 let gmHasUnsavedChanges = false;
 let forceCloseGmWindow = false;
 let currentCampaignPath: string | null = null;
-const openedCampaignPaths = new Set<string>();
-const knownAssetPaths = new Set<string>();
+const campaignSessions = new CampaignSessionRegistry();
 const mapReplacementTokens: MapReplacementTokenStore = new Map();
 
 function configureLinuxGraphicsSwitches(): void {
@@ -238,34 +237,23 @@ function assertInsideCampaign(campaignPath: string, candidatePath: string): void
 }
 
 function registerCampaignPath(campaignPath: string): void {
-  openedCampaignPaths.add(path.resolve(campaignPath));
+  campaignSessions.registerCampaignPath(campaignPath);
 }
 
 function registerAssetPaths(campaign: Campaign): void {
-  for (const assetPath of getKnownAssetPaths(campaign)) {
-    knownAssetPaths.add(assetPath);
-  }
+  campaignSessions.registerAssetPaths(campaign);
 }
 
 function assertKnownCampaignPath(campaignPath: string): void {
-  if (!openedCampaignPaths.has(path.resolve(campaignPath))) {
-    throw new Error("Campaign folder is not open.");
-  }
+  campaignSessions.assertKnownCampaignPath(campaignPath);
 }
 
 function isInsideOpenedCampaign(candidatePath: string): boolean {
-  return [...openedCampaignPaths].some((campaignPath) => {
-    try {
-      assertInsideCampaign(campaignPath, candidatePath);
-      return true;
-    } catch {
-      return false;
-    }
-  });
+  return campaignSessions.isInsideOpenedCampaign(candidatePath);
 }
 
 function isKnownAssetPath(candidatePath: string): boolean {
-  return knownAssetPaths.has(path.resolve(candidatePath));
+  return campaignSessions.isKnownAssetPath(candidatePath);
 }
 
 async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSummary> {
@@ -1184,7 +1172,7 @@ ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
   const relativePath = buildAssetImportRelativePath("map", fileName);
   const destination = requireCampaignRelativePath(campaignPath, relativePath);
   await copyFile(sourcePath, destination);
-  knownAssetPaths.add(destination);
+  campaignSessions.registerAssetPath(destination);
 
   const assetId = randomUUID();
   const thumbnailResult = await createMapThumbnail(campaignPath, destination, assetId, event.sender);
@@ -1278,7 +1266,7 @@ ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: 
   const relativePath = buildAssetImportRelativePath("map", fileName);
   const destination = requireCampaignRelativePath(campaignPath, relativePath);
   await copyFile(sourcePath, destination);
-  knownAssetPaths.add(destination);
+  campaignSessions.registerAssetPath(destination);
 
   const assetId = randomUUID();
   const thumbnailResult = await createMapThumbnail(campaignPath, destination, assetId, event.sender);
