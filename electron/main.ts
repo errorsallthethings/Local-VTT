@@ -87,7 +87,7 @@ import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.j
 import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
 import { removeAssetFromCampaign } from "./tokenAssetMutations.js";
-import { pauseSceneTurnOrder } from "./turnOrderPause.js";
+import { pauseCampaignTurnOrders } from "./campaignTurnOrderPause.js";
 import { createPlayerOpenPlan, liveTableEventRoute, summarizeDisplay } from "./playerViewIpc.js";
 import { getGmCloseRequestAction, getUnsavedChangesDialogAction } from "./gmWindowClose.js";
 import { getLinuxGraphicsSwitches } from "./linuxGraphicsSwitches.js";
@@ -310,18 +310,11 @@ function logThumbnailImportFailure(kind: "map" | "token", sourcePath: string, re
 async function pauseActiveTurnOrders(campaignPath: string): Promise<void> {
   assertKnownCampaignPath(campaignPath);
   const summary = await loadCampaignFromPath(campaignPath);
-  for (const entry of summary.campaign.scenes) {
-    try {
-      const normalized = await readSceneMetadata(campaignPath, entry.id);
-      const paused = pauseSceneTurnOrder(normalized);
-      if (!paused) {
-        continue;
-      }
-      await writeScene(campaignPath, paused);
-    } catch {
-      // Missing or invalid scenes are reported by the normal campaign loading flow.
-    }
-  }
+  await pauseCampaignTurnOrders(
+    summary.campaign,
+    (sceneId) => readSceneMetadata(campaignPath, sceneId),
+    (scene) => writeScene(campaignPath, scene)
+  );
 }
 
 async function loadCampaignWithPausedTurnOrders(campaignPath: string): Promise<CampaignSummary> {
