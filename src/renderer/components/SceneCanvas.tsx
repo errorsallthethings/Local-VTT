@@ -34,9 +34,6 @@ import {
   type DrawingTool
 } from "../canvas/drawings";
 import {
-  getMovedPointSnapshotForMove
-} from "../canvas/drawings";
-import {
   drawFog,
   getFogOperationForTool,
   type FogDrag,
@@ -88,7 +85,6 @@ import {
   getFogDragCommit,
   getFogContextMenu,
   getFogPolygonDraftCommit,
-  getSceneItemDragGroup,
   getTokenContextMenu,
   getWeatherMaskDragCommit,
   getWeatherMaskContextMenu,
@@ -125,7 +121,7 @@ import {
 import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/effects";
 import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/scene";
 import { getSceneEffectRenderState, getSceneLayerVisibility } from "../canvas/scene";
-import { getNearestSceneSnapPoint, getSceneSnapMarkerOperations, getSnapAwarePointSnapshotMovePreview, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/scene";
+import { getNearestSceneSnapPoint, getSceneSnapMarkerOperations, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/scene";
 import { getSelectedItemIdList } from "../lib/scene";
 import { getTurnOrderTokenIndicators } from "../lib/turn-order";
 import {
@@ -161,8 +157,6 @@ import {
   retainEnvironmentEffectRuntimes
 } from "../canvas/effects";
 import {
-  getEnvironmentEffectGroupSnapAnchor,
-  getEnvironmentEffectPointSnapshot,
   shouldAnimateEnvironmentEffects,
   type EnvironmentEffectDrag,
   type EnvironmentPolygonDraft
@@ -175,7 +169,6 @@ import {
   drawWeatherPolygonDraft
 } from "../canvas/weather";
 import {
-  getWeatherMaskPointSnapshot,
   type WeatherMaskDrag,
   type WeatherPolygonDraft
 } from "../canvas/weather";
@@ -208,6 +201,13 @@ import { getDrawingPointerMove, getDrawingPointerStart } from "./scene/sceneDraw
 import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerStart } from "./scene/sceneEnvironmentEffectPointer";
 import { getLaserPointerMove, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
 import { getFogPointerMove, getFogPointerStart } from "./scene/sceneFogPointer";
+import {
+  getEnvironmentEffectHitPointerStart,
+  getMaskEffectPointerMove,
+  getMaskPointerStart,
+  type EnvironmentEffectMoveState,
+  type WeatherMaskMoveState
+} from "./scene/sceneMaskEffectPointer";
 import { getMapCalibrationPointerComplete, getMapCalibrationPointerMove, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
 import { getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
 import { getTokenPointerMove, getTokenPointerStart } from "./scene/sceneTokenPointer";
@@ -301,21 +301,6 @@ interface SceneCanvasProps {
 type DrawingPolygonDraft = {
   points: Point[];
   current?: Point;
-};
-
-type WeatherMaskMoveState = {
-  pointerId: number;
-  maskId: string;
-  start: Point;
-  groupStartPoints: Map<string, Point[]>;
-};
-
-type EnvironmentEffectMoveState = {
-  pointerId: number;
-  effectId: string;
-  start: Point;
-  snapAnchor: Point;
-  groupStartPoints: Map<string, Point[]>;
 };
 
 function getCanvasContextMenuPosition(event: React.MouseEvent<HTMLCanvasElement>, kind: CanvasContextMenuKind): { x: number; y: number } {
@@ -1453,47 +1438,43 @@ export function SceneCanvas({
           }
           return;
         }
-        const environmentEffectHit = getEnvironmentEffectAtPoint(scene, point);
-        if (environmentEffectHit) {
-          onSelectEnvironmentEffect?.(environmentEffectHit.id);
+        const environmentEffectStart = getEnvironmentEffectHitPointerStart({
+          mouseBehavior,
+          point,
+          pointerId: event.pointerId,
+          scene
+        });
+        if (environmentEffectStart) {
+          onSelectEnvironmentEffect?.(environmentEffectStart.effectId);
           onSelectFogShape?.(null);
           onSelectWeatherMask?.(null);
           onSelectDrawing?.(null);
-          if (mouseBehavior === "grabber") {
-            const groupEffectIds = [environmentEffectHit.id];
-            const groupStartPoints = getEnvironmentEffectPointSnapshot(scene, groupEffectIds);
-            environmentEffectMoveRef.current = {
-              pointerId: event.pointerId,
-              effectId: environmentEffectHit.id,
-              start: point,
-              snapAnchor: getEnvironmentEffectGroupSnapAnchor(scene, groupEffectIds, point),
-              groupStartPoints
-            };
-            setEnvironmentEffectMovePreview(groupStartPoints);
+          if (environmentEffectStart.moveStart) {
+            environmentEffectMoveRef.current = environmentEffectStart.moveStart;
+            setEnvironmentEffectMovePreview(environmentEffectStart.preview);
           }
           return;
         }
-        const maskHit = getMaskHitAtPoint(scene, point);
-        if (maskHit?.kind === "weather") {
-          const dragGroup = getSceneItemDragGroup(maskHit.mask.id, effectiveSelectedWeatherMaskIds, mouseBehavior);
-          onSelectWeatherMask?.(maskHit.mask.id);
+        const maskStart = getMaskPointerStart({
+          mouseBehavior,
+          point,
+          pointerId: event.pointerId,
+          scene,
+          selectedWeatherMaskIds: effectiveSelectedWeatherMaskIds
+        });
+        if (maskStart?.kind === "weather") {
+          onSelectWeatherMask?.(maskStart.maskId);
           onSelectFogShape?.(null);
           onSelectEnvironmentEffect?.(null);
           onSelectDrawing?.(null);
-          if (mouseBehavior === "grabber") {
-            const groupStartPoints = getWeatherMaskPointSnapshot(scene, dragGroup.itemIds);
-            weatherMaskMoveRef.current = {
-              pointerId: event.pointerId,
-              maskId: maskHit.mask.id,
-              start: point,
-              groupStartPoints
-            };
-            setWeatherMaskMovePreview(groupStartPoints);
+          if (maskStart.moveStart) {
+            weatherMaskMoveRef.current = maskStart.moveStart;
+            setWeatherMaskMovePreview(maskStart.preview);
           }
           return;
         }
-        if (maskHit?.kind === "fog") {
-          onSelectFogShape?.(maskHit.shape.id);
+        if (maskStart?.kind === "fog") {
+          onSelectFogShape?.(maskStart.shapeId);
           onSelectWeatherMask?.(null);
           onSelectEnvironmentEffect?.(null);
           onSelectDrawing?.(null);
@@ -1600,17 +1581,21 @@ export function SceneCanvas({
       return;
     }
 
-    if (weatherMaskMoveValue?.pointerId === event.pointerId) {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      setWeatherMaskMovePreview(getMovedPointSnapshotForMove(weatherMaskMoveValue, point));
-      return;
-    }
-
-    if (environmentEffectMoveValue?.pointerId === event.pointerId) {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const preview = getSnapAwarePointSnapshotMovePreview(scene, environmentEffectMoveValue, point, isSnapModifier(event));
-      setSnapPoint(preview.snapPoint);
-      setEnvironmentEffectMovePreview(preview.points);
+    const maskEffectMove = getMaskEffectPointerMove({
+      environmentEffectMoveState: environmentEffectMoveValue,
+      point: eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)),
+      pointerId: event.pointerId,
+      scene,
+      snapEnabled: isSnapModifier(event),
+      weatherMaskMoveState: weatherMaskMoveValue
+    });
+    if (maskEffectMove) {
+      if (maskEffectMove.kind === "environment-effect") {
+        setSnapPoint(maskEffectMove.snapPoint);
+        setEnvironmentEffectMovePreview(maskEffectMove.preview);
+      } else {
+        setWeatherMaskMovePreview(maskEffectMove.preview);
+      }
       return;
     }
 
