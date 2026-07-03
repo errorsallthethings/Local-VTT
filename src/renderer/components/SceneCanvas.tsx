@@ -67,7 +67,7 @@ import {
   hasActiveLiveTableEvents,
   RULER_RELEASE_LINGER_MS
 } from "../canvas/live-table";
-import { getPlayerDisplayScale, getRulerDragWithAppendedWaypoint, getRulerDragWithRemovedWaypoint, getRulerLabel } from "../canvas/live-table";
+import { getPlayerDisplayScale, getRulerDragWithRemovedWaypoint, getRulerLabel } from "../canvas/live-table";
 import {
   getCompletedMapCalibrationBox,
   getMapCalibrationDragFromPoint,
@@ -153,7 +153,6 @@ import {
   getSceneAfterTokenDrag,
   getTokenDragStart,
   getTokenDragPreviewFromPoint,
-  getTokenDragWaypointAppendUpdate,
   getTokenDragWaypointRemovalUpdate
 } from "../canvas/tokens";
 import { drawTokenDragHighlights, drawTokens, hasVisibleTokenConditions, type TokenDragPreview } from "../canvas/tokens";
@@ -235,6 +234,7 @@ import {
   TokenMoveStatusStrip,
   WeatherMaskStatusStrip
 } from "./scene/SceneCanvasStatusStrips";
+import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
@@ -899,15 +899,10 @@ export function SceneCanvas({
   useWindowKeyDown(mode === "gm" && hasCancelableSceneInteraction, cancelSceneInteractionOnEscape);
 
   const appendTokenWaypointOnShift = useCallback((event: KeyboardEvent) => {
-    if (event.key !== "Shift" || event.repeat || !scene || !tokenDragPreview) {
+    if (!scene) {
       return;
     }
-    const tokenDrag = tokenDragRef.current;
-    if (!tokenDrag) {
-      return;
-    }
-
-    const update = getTokenDragWaypointAppendUpdate(scene, tokenDrag, tokenDragPreview);
+    const update = getTokenWaypointAppendKeyboardUpdate(scene, tokenDragRef.current, tokenDragPreview, event);
     if (!update) {
       return;
     }
@@ -919,20 +914,15 @@ export function SceneCanvas({
   useWindowKeyDown(mode === "gm" && Boolean(scene && tokenDragPreview), appendTokenWaypointOnShift);
 
   const appendRulerWaypointOnShift = useCallback((event: KeyboardEvent) => {
-    if (event.key !== "Shift" || event.repeat || !scene) {
+    if (!scene) {
       return;
     }
-    const activeRulerDrag = rulerDragRef.current;
-    if (!activeRulerDrag) {
+    const nextRulerDrag = getRulerWaypointAppendKeyboardUpdate(scene, rulerDragRef.current, event);
+    if (!nextRulerDrag) {
       return;
     }
 
     event.preventDefault();
-    const nextRulerDrag = getRulerDragWithAppendedWaypoint(scene, activeRulerDrag, event.ctrlKey || event.metaKey);
-    if (nextRulerDrag === activeRulerDrag) {
-      return;
-    }
-
     rulerDragRef.current = nextRulerDrag;
     setRulerDrag(nextRulerDrag);
     emitRulerEvent(nextRulerDrag);
