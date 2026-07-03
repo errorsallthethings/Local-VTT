@@ -176,7 +176,6 @@ import { useSyncedRef } from "../hooks/useSyncedRef";
 import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { useWindowKeyDown } from "../hooks/useWindowKeyDown";
-import { getTokenLibraryAssetDragId, hasTokenLibraryAssetDrag } from "../lib/tokens";
 import { calculateCanvasContextMenuPosition, type CanvasContextMenuKind } from "../lib/ui";
 import {
   addEnvironmentEffect,
@@ -194,6 +193,7 @@ import {
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import { getSceneContextMenuTarget } from "./scene/sceneContextMenuTarget";
+import { canAcceptTokenAssetDrop as canAcceptSceneTokenAssetDrop, getDroppedTokenAsset } from "./scene/sceneTokenAssetDrop";
 import { getDrawingPointerMove, getDrawingPointerStart } from "./scene/sceneDrawingPointer";
 import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerStart } from "./scene/sceneEnvironmentEffectPointer";
 import { getLaserPointerMove, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
@@ -2012,7 +2012,13 @@ export function SceneCanvas({
   };
 
   const canAcceptTokenAssetDrop = (event: React.DragEvent<HTMLCanvasElement>): boolean => {
-    return Boolean(mode === "gm" && scene && campaign && onDropTokenAsset && hasTokenLibraryAssetDrag(event.dataTransfer.types));
+    return canAcceptSceneTokenAssetDrop({
+      dataTransferTypes: event.dataTransfer.types,
+      hasCampaign: Boolean(campaign),
+      hasDropHandler: Boolean(onDropTokenAsset),
+      hasScene: Boolean(scene),
+      mode
+    });
   };
 
   const onDragOver = (event: React.DragEvent<HTMLCanvasElement>) => {
@@ -2028,8 +2034,7 @@ export function SceneCanvas({
       return;
     }
     event.preventDefault();
-    const assetId = getTokenLibraryAssetDragId(event.dataTransfer);
-    const asset = campaign?.assets.find((candidate) => candidate.id === assetId && candidate.kind === "token");
+    const asset = getDroppedTokenAsset(campaign, event.dataTransfer);
     if (!asset) {
       return;
     }
