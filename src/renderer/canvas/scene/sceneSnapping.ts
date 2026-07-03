@@ -1,4 +1,4 @@
-import type { Point, Scene } from "../../../shared/localvtt";
+import type { FogShape, Point, Scene } from "../../../shared/localvtt";
 import type { Camera } from "../core/camera";
 import { getNearestSquareGridSnapPoint } from "../grid/gridMath";
 import { distanceBetween, getNearestGridCellCenter, getNearestHexCenter, getNearestHexVertex } from "../tokens/tokenGeometry";
@@ -84,4 +84,47 @@ export function shouldShowSceneSnapPreview(options: {
       options.snapModifierActive &&
       (options.canSnapDrawing || options.canSnapFog || options.canSnapWeather || options.canSnapEnvironment)
   );
+}
+
+export interface SceneSnapMarkerOptions {
+  mode: "gm" | "player";
+  hasSnapPoint: boolean;
+  fogOperation?: FogShape["operation"] | null;
+  drawingTool?: string | null;
+  drawingDragActive?: boolean;
+  weatherMaskTool?: string | null;
+  weatherMaskMoveActive?: boolean;
+  environmentEffectTool?: string | null;
+  environmentEffectMoveActive?: boolean;
+}
+
+export function getSceneSnapMarkerOperations({
+  mode,
+  hasSnapPoint,
+  fogOperation,
+  drawingTool,
+  drawingDragActive,
+  weatherMaskTool,
+  weatherMaskMoveActive,
+  environmentEffectTool,
+  environmentEffectMoveActive
+}: SceneSnapMarkerOptions): FogShape["operation"][] {
+  if (mode !== "gm" || !hasSnapPoint) {
+    return [];
+  }
+
+  const operations: FogShape["operation"][] = [];
+  if (fogOperation) {
+    operations.push(fogOperation);
+  }
+  if ((drawingTool && drawingTool !== "freehand") || drawingDragActive) {
+    operations.push("reveal");
+  }
+  if (weatherMaskTool || weatherMaskMoveActive) {
+    operations.push("reveal");
+  }
+  if (environmentEffectTool || environmentEffectMoveActive) {
+    operations.push("reveal");
+  }
+  return operations;
 }

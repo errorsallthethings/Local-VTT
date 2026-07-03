@@ -3,6 +3,7 @@ import { createDefaultScene } from "../../src/shared/localvtt";
 import { constrainSquarePoint } from "../../src/renderer/canvas/grid";
 import {
   getNearestSceneSnapPoint,
+  getSceneSnapMarkerOperations,
   getRulerSnapPoint,
   resolveDrawingToolEventPoint,
   resolveDrawingToolPoint,
@@ -115,6 +116,19 @@ describe("scene snapping", () => {
     expect(shouldShowSceneSnapPreview({ scene, snapModifierActive: false, canSnapDrawing: true })).toBe(false);
     expect(shouldShowSceneSnapPreview({ scene, snapModifierActive: true, canSnapDrawing: false })).toBe(false);
     expect(shouldShowSceneSnapPreview({ scene: null, snapModifierActive: true, canSnapDrawing: true })).toBe(false);
+  });
+
+  it("returns no snap marker operations without a GM snap point", () => {
+    expect(getSceneSnapMarkerOperations({ mode: "player", hasSnapPoint: true, drawingTool: "line" })).toEqual([]);
+    expect(getSceneSnapMarkerOperations({ mode: "gm", hasSnapPoint: false, drawingTool: "line" })).toEqual([]);
+  });
+
+  it("returns snap marker operations for active GM snap-capable tools", () => {
+    expect(getSceneSnapMarkerOperations({ mode: "gm", hasSnapPoint: true, fogOperation: "hide" })).toEqual(["hide"]);
+    expect(getSceneSnapMarkerOperations({ mode: "gm", hasSnapPoint: true, drawingTool: "freehand" })).toEqual([]);
+    expect(getSceneSnapMarkerOperations({ mode: "gm", hasSnapPoint: true, drawingTool: "polygon" })).toEqual(["reveal"]);
+    expect(getSceneSnapMarkerOperations({ mode: "gm", hasSnapPoint: true, drawingDragActive: true })).toEqual(["reveal"]);
+    expect(getSceneSnapMarkerOperations({ mode: "gm", hasSnapPoint: true, weatherMaskMoveActive: true, environmentEffectTool: "rectangle" })).toEqual(["reveal", "reveal"]);
   });
 
   it("snaps hex rulers to centers and scene tools to the nearest center or vertex", () => {

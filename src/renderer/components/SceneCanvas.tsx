@@ -144,7 +144,7 @@ import {
 import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/effects";
 import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/scene";
 import { getSceneEffectRenderState, getSceneLayerVisibility } from "../canvas/scene";
-import { getNearestSceneSnapPoint, getSnapAwarePointSnapshotMovePreview, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/scene";
+import { getNearestSceneSnapPoint, getSceneSnapMarkerOperations, getSnapAwarePointSnapshotMovePreview, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/scene";
 import { getSelectedItemIdList } from "../lib/scene";
 import { getTurnOrderTokenIndicators } from "../lib/turn-order";
 import {
@@ -1119,17 +1119,20 @@ export function SceneCanvas({
       if (mode === "gm" && brushHoverPoint && drawingTool === "freehand" && !drawingPreview) {
         drawDrawingBrushHoverPreview(ctx, brushHoverPoint, Math.max(4, drawingStrokeWidth / 2), renderCamera, drawingColor, drawingOpacity);
       }
-      if (mode === "gm" && snapPoint && fogTool && !fogTool.includes("brush")) {
-        drawSnapMarker(ctx, snapPoint, renderCamera, getFogOperationForTool(fogTool));
-      }
-      if (mode === "gm" && snapPoint && ((drawingTool && drawingTool !== "freehand") || (drawingDragPreview && drawingDragRef.current))) {
-        drawSnapMarker(ctx, snapPoint, renderCamera, "reveal");
-      }
-      if (mode === "gm" && snapPoint && (weatherMaskTool || (weatherMaskMovePreview && weatherMaskMoveRef.current))) {
-        drawSnapMarker(ctx, snapPoint, renderCamera, "reveal");
-      }
-      if (mode === "gm" && snapPoint && (environmentEffectTool || (environmentEffectMovePreview && environmentEffectMoveRef.current))) {
-        drawSnapMarker(ctx, snapPoint, renderCamera, "reveal");
+      for (const snapMarkerOperation of getSceneSnapMarkerOperations({
+        mode,
+        hasSnapPoint: Boolean(snapPoint),
+        fogOperation: fogTool && !fogTool.includes("brush") ? getFogOperationForTool(fogTool) : null,
+        drawingTool,
+        drawingDragActive: Boolean(drawingDragPreview && drawingDragRef.current),
+        weatherMaskTool,
+        weatherMaskMoveActive: Boolean(weatherMaskMovePreview && weatherMaskMoveRef.current),
+        environmentEffectTool,
+        environmentEffectMoveActive: Boolean(environmentEffectMovePreview && environmentEffectMoveRef.current)
+      })) {
+        if (snapPoint) {
+          drawSnapMarker(ctx, snapPoint, renderCamera, snapMarkerOperation);
+        }
       }
       if (mode === "gm" && (onMapCalibrationBox || mapCalibrationBox)) {
         drawMapCalibrationBox(ctx, getVisibleMapCalibrationBox(mapCalibrationDrag, mapCalibrationDraftBox ?? mapCalibrationBox), renderCamera);
