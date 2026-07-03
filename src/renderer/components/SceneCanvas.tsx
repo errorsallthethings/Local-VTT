@@ -58,7 +58,6 @@ import {
   createLaserLiveTableEvent,
   createPingLiveTableEvent,
   createRulerClearEvent,
-  createRulerDrag,
   createRulerLiveTableEvent,
   drawLiveTableEvents,
   getVisibleCanvasLiveTableEvents,
@@ -226,6 +225,7 @@ import {
   MapLoadOverlay,
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
+import { getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
@@ -1239,7 +1239,17 @@ export function SceneCanvas({
     }
     if (mode === "gm" && canvasTool === "ruler" && scene && event.button === 0) {
       const point = getRulerPoint(event);
-      const nextRulerDrag = createRulerDrag(event.pointerId, point);
+      const nextRulerDrag = getRulerPointerStart({
+        button: event.button,
+        canvasTool,
+        hasScene: Boolean(scene),
+        mode,
+        point,
+        pointerId: event.pointerId
+      });
+      if (!nextRulerDrag) {
+        return;
+      }
       if (releasedRulerTimeoutRef.current !== null) {
         window.clearTimeout(releasedRulerTimeoutRef.current);
         releasedRulerTimeoutRef.current = null;
@@ -1478,7 +1488,10 @@ export function SceneCanvas({
       return;
     }
     if (rulerDragValue?.pointerId === event.pointerId) {
-      const nextRulerDrag = { ...rulerDragValue, current: getRulerPoint(event) };
+      const nextRulerDrag = getUpdatedRulerPointerDrag(rulerDragValue, event.pointerId, getRulerPoint(event));
+      if (!nextRulerDrag) {
+        return;
+      }
       rulerDragRef.current = nextRulerDrag;
       setRulerDrag(nextRulerDrag);
       emitRulerEvent(nextRulerDrag);
