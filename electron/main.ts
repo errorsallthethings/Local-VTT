@@ -46,8 +46,6 @@ import {
   createImageMapThumbnail,
   createSquareImageThumbnail,
   createVideoMapThumbnail,
-  readMapMediaDimensions,
-  type MediaDimensions,
   type ThumbnailCreationResult
 } from "./assets.js";
 import {
@@ -87,7 +85,7 @@ import {
   createMapReplacementToken,
   type MapReplacementTokenStore
 } from "./mapReplacementTokens.js";
-import { getDimensionDifferenceWarning } from "./mapReplacementWarnings.js";
+import { getMapReplacementPreview } from "./mapReplacementPreview.js";
 import { getMapAssetSceneNames, mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
 import { createThumbnailImportFailureDiagnostic, createThumbnailRegenerationFailure } from "./thumbnailDiagnostics.js";
 import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.js";
@@ -485,18 +483,6 @@ async function chooseTokenFile(): Promise<string | null> {
   const options = tokenFileDialogOptions();
   const result = gmWindow ? await dialog.showOpenDialog(gmWindow, options) : await dialog.showOpenDialog(options);
   return selectedDialogPath(result);
-}
-
-async function getMapReplacementWarning(currentPath: string, currentMediaType: Asset["mediaType"], nextPath: string, nextMediaType: Asset["mediaType"]): Promise<{
-  currentDimensions?: MediaDimensions;
-  nextDimensions?: MediaDimensions;
-  warning?: string;
-}> {
-  const [currentDimensions, nextDimensions] = await Promise.all([
-    readMapMediaDimensions(currentPath, currentMediaType),
-    readMapMediaDimensions(nextPath, nextMediaType)
-  ]);
-  return { currentDimensions, nextDimensions, warning: getDimensionDifferenceWarning(currentDimensions, nextDimensions) ?? undefined };
 }
 
 async function deleteMapAssetFiles(campaignPath: string, asset: Asset): Promise<void> {
@@ -1163,7 +1149,7 @@ ipcMain.handle("asset:previewMapReplacement", async (_event, campaignPath: strin
 
   const currentAssetPath = requireCampaignRelativePath(campaignPath, currentAsset.relativePath);
   const nextMediaType = mapMediaType(sourcePath);
-  const dimensions = await getMapReplacementWarning(currentAssetPath, currentAsset.mediaType, sourcePath, nextMediaType);
+  const dimensions = await getMapReplacementPreview(currentAssetPath, currentAsset.mediaType, sourcePath, nextMediaType);
   const replacementToken = createMapReplacementToken(mapReplacementTokens, {
     campaignPath,
     sceneId,
