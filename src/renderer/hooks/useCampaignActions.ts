@@ -4,12 +4,16 @@ import {
   getDuplicateFolderName,
   getDuplicateSceneName,
   getDirtySceneIdsInFolder,
+  getCampaignMaintenanceInitialBusyState,
+  getThumbnailRegenerationBusyState,
   getSceneDraftToSave,
   insertSceneFolderAfterSource,
   moveSceneEntry,
   removeDirtySceneId,
   removeFolderFromCampaign,
-  removeSceneDraft
+  removeSceneDraft,
+  runSavedCampaignMaintenance,
+  type CampaignBusyState
 } from "../lib/campaign";
 import { updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
 import { stopActiveTurnOrder } from "../lib/turn-order";
@@ -41,13 +45,7 @@ interface UseCampaignActionsOptions {
   playerViewSyncOptions?: PlayerSceneProjectionOptions;
 }
 
-export interface CampaignBusyState {
-  title: string;
-  message: string;
-  current: number;
-  total: number;
-  unitLabel?: string;
-}
+export type { CampaignBusyState };
 
 export interface MapReplacementPreview {
   currentAssetId: string;
@@ -327,102 +325,60 @@ export function useCampaignActions({
 
   const regenerateThumbnails = () =>
     run(async () => {
-      if (!campaignPath || !campaign) {
-        return;
-      }
-      if (hasUnsavedChanges) {
-        const saved = await saveCampaign();
-        if (!saved) {
-          return;
+      await runSavedCampaignMaintenance({
+        campaignPath,
+        campaignAvailable: Boolean(campaign),
+        hasUnsavedChanges,
+        initialBusyState: getCampaignMaintenanceInitialBusyState("thumbnail-regeneration"),
+        onBusyChange,
+        saveCampaign,
+        subscribeProgress: () => window.localVtt.onThumbnailRegenerationProgress((progress) => onBusyChange(getThumbnailRegenerationBusyState(progress))),
+        runOperation: (path) => window.localVtt.regenerateThumbnails(path),
+        onComplete: (result) => {
+          applySummary(result.campaignSummary);
+          setCampaignDirty(false);
+          setError(null);
+          onThumbnailRegenerationComplete(result);
         }
-      }
-
-      const removeProgressListener = window.localVtt.onThumbnailRegenerationProgress((progress) => {
-        onBusyChange({
-          title: "Regenerating Thumbnails",
-          message: progress.message,
-          current: progress.current,
-          total: progress.total,
-          unitLabel: "assets"
-        });
       });
-      onBusyChange({
-        title: "Regenerating Thumbnails",
-        message: "Preparing thumbnail regeneration.",
-        current: 0,
-        total: 0,
-        unitLabel: "assets"
-      });
-      try {
-        const result = await window.localVtt.regenerateThumbnails(campaignPath);
-        applySummary(result.campaignSummary);
-        setCampaignDirty(false);
-        setError(null);
-        onThumbnailRegenerationComplete(result);
-      } finally {
-        removeProgressListener();
-        onBusyChange(null);
-      }
     });
 
   const promoteTokenAssets = () =>
     run(async () => {
-      if (!campaignPath || !campaign) {
-        return;
-      }
-      if (hasUnsavedChanges) {
-        const saved = await saveCampaign();
-        if (!saved) {
-          return;
+      await runSavedCampaignMaintenance({
+        campaignPath,
+        campaignAvailable: Boolean(campaign),
+        hasUnsavedChanges,
+        initialBusyState: getCampaignMaintenanceInitialBusyState("token-asset-promotion"),
+        onBusyChange,
+        saveCampaign,
+        runOperation: (path) => window.localVtt.promoteTokenAssets(path),
+        onComplete: (result) => {
+          applySummary(result.campaignSummary);
+          setCampaignDirty(false);
+          setError(null);
+          onTokenAssetPromotionComplete(result);
         }
-      }
-
-      onBusyChange({
-        title: "Optimizing Tokens",
-        message: "Promoting framed token images.",
-        current: 0,
-        total: 0,
-        unitLabel: "assets"
       });
-      try {
-        const result = await window.localVtt.promoteTokenAssets(campaignPath);
-        applySummary(result.campaignSummary);
-        setCampaignDirty(false);
-        setError(null);
-        onTokenAssetPromotionComplete(result);
-      } finally {
-        onBusyChange(null);
-      }
     });
 
   const pruneUnreferencedAssets = () =>
     run(async () => {
-      if (!campaignPath || !campaign) {
-        return;
-      }
-      if (hasUnsavedChanges) {
-        const saved = await saveCampaign();
-        if (!saved) {
-          return;
+      await runSavedCampaignMaintenance({
+        campaignPath,
+        campaignAvailable: Boolean(campaign),
+        hasUnsavedChanges,
+        initialBusyState: getCampaignMaintenanceInitialBusyState("unreferenced-asset-pruning"),
+        onBusyChange,
+        saveCampaign,
+        runOperation: (path) => window.localVtt.pruneUnreferencedAssets(path),
+        onComplete: (result) => {
+          applySummary(result.campaignSummary);
+          setCampaignDirty(false);
+          setError(null);
+          onAssetPruneComplete(result);
         }
-      }
-
-      onBusyChange({
-        title: "Pruning Assets",
-        message: "Removing unreferenced campaign assets.",
-        current: 0,
-        total: 0,
-        unitLabel: "assets"
       });
-      try {
-        const result = await window.localVtt.pruneUnreferencedAssets(campaignPath);
-        applySummary(result.campaignSummary);
-        setCampaignDirty(false);
-        setError(null);
-        onAssetPruneComplete(result);
-      } finally {
-        onBusyChange(null);
-      }
     });
 
   const confirmDeleteMapAsset = () =>

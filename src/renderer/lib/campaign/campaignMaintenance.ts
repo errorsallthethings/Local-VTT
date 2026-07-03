@@ -1,0 +1,85 @@
+import type { ThumbnailRegenerationProgress } from "../../../shared/localvtt";
+
+export interface CampaignBusyState {
+  title: string;
+  message: string;
+  current: number;
+  total: number;
+  unitLabel?: string;
+}
+
+export type CampaignMaintenanceKind = "thumbnail-regeneration" | "token-asset-promotion" | "unreferenced-asset-pruning";
+
+export function getCampaignMaintenanceInitialBusyState(kind: CampaignMaintenanceKind): CampaignBusyState {
+  if (kind === "thumbnail-regeneration") {
+    return {
+      title: "Regenerating Thumbnails",
+      message: "Preparing thumbnail regeneration.",
+      current: 0,
+      total: 0,
+      unitLabel: "assets"
+    };
+  }
+  if (kind === "token-asset-promotion") {
+    return {
+      title: "Optimizing Tokens",
+      message: "Promoting framed token images.",
+      current: 0,
+      total: 0,
+      unitLabel: "assets"
+    };
+  }
+  return {
+    title: "Pruning Assets",
+    message: "Removing unreferenced campaign assets.",
+    current: 0,
+    total: 0,
+    unitLabel: "assets"
+  };
+}
+
+export function getThumbnailRegenerationBusyState(progress: ThumbnailRegenerationProgress): CampaignBusyState {
+  return {
+    title: "Regenerating Thumbnails",
+    message: progress.message,
+    current: progress.current,
+    total: progress.total,
+    unitLabel: "assets"
+  };
+}
+
+export interface RunSavedCampaignMaintenanceOptions<TResult> {
+  campaignPath: string | null | undefined;
+  campaignAvailable: boolean;
+  hasUnsavedChanges: boolean;
+  initialBusyState: CampaignBusyState;
+  onBusyChange: (busyState: CampaignBusyState | null) => void;
+  onComplete: (result: TResult) => void;
+  runOperation: (campaignPath: string) => Promise<TResult>;
+  saveCampaign: () => Promise<boolean>;
+  subscribeProgress?: () => () => void;
+}
+
+export async function runSavedCampaignMaintenance<TResult>(options: RunSavedCampaignMaintenanceOptions<TResult>): Promise<boolean> {
+  if (!options.campaignPath || !options.campaignAvailable) {
+    return false;
+  }
+
+  if (options.hasUnsavedChanges) {
+    const saved = await options.saveCampaign();
+    if (!saved) {
+      return false;
+    }
+  }
+
+  const removeProgressListener = options.subscribeProgress?.();
+  options.onBusyChange(options.initialBusyState);
+  try {
+    const result = await options.runOperation(options.campaignPath);
+    options.onComplete(result);
+    return true;
+  } finally {
+    removeProgressListener?.();
+    options.onBusyChange(null);
+  }
+}
