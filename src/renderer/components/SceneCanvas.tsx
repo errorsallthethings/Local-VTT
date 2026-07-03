@@ -168,10 +168,8 @@ import {
   retainEnvironmentEffectRuntimes
 } from "../canvas/effects";
 import {
-  getEnvironmentEffectDragFromPoint,
   getEnvironmentEffectGroupSnapAnchor,
   getEnvironmentEffectPointSnapshot,
-  getUpdatedEnvironmentEffectDrag,
   shouldAnimateEnvironmentEffects,
   type EnvironmentEffectDrag,
   type EnvironmentPolygonDraft
@@ -213,6 +211,7 @@ import {
   MapLoadOverlay,
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
+import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerStart } from "./scene/sceneEnvironmentEffectPointer";
 import { getLaserPointerMove, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
 import { getFogPointerMove, getFogPointerStart } from "./scene/sceneFogPointer";
 import { getMapCalibrationPointerComplete, getMapCalibrationPointerMove, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
@@ -1356,15 +1355,29 @@ export function SceneCanvas({
     }
     if (mode === "gm" && environmentEffectTool && scene && onSceneChange && event.button === 0) {
       const point = getToolPoint(event);
-      if (environmentEffectTool === "polygon") {
-        updateEnvironmentPolygonDraft(point);
+      const start = getEnvironmentEffectPointerStart({
+        button: event.button,
+        effect: environmentEffectType,
+        fallbackTuning: currentEnvironmentEffectTuning,
+        feather: environmentEffectFeather,
+        hasScene: Boolean(scene),
+        mode,
+        onSceneChangeAvailable: Boolean(onSceneChange),
+        point,
+        pointerId: event.pointerId,
+        tool: environmentEffectTool
+      });
+      if (!start) {
+        return;
+      }
+      if (start.kind === "polygon") {
+        updateEnvironmentPolygonDraft(start.point);
         return;
       }
       environmentPolygonDraftRef.current = null;
       setEnvironmentPolygonDraft(null);
-      const effectDrag = getEnvironmentEffectDragFromPoint(event.pointerId, environmentEffectTool, point, environmentEffectType, environmentEffectFeather, currentEnvironmentEffectTuning);
-      environmentEffectDragRef.current = effectDrag;
-      setEnvironmentEffectPreview(effectDrag);
+      environmentEffectDragRef.current = start.drag;
+      setEnvironmentEffectPreview(start.drag);
       return;
     }
     if (mode === "gm" && mouseBehavior === "selector" && scene && !authoringToolActive && event.button === 0 && (event.shiftKey || event.ctrlKey || event.metaKey)) {
@@ -1635,7 +1648,10 @@ export function SceneCanvas({
 
     const environmentEffectDrag = environmentEffectDragRef.current;
     if (environmentEffectDrag?.pointerId === event.pointerId) {
-      const nextDrag = getUpdatedEnvironmentEffectDrag(environmentEffectDrag, getToolPoint(event), event.shiftKey);
+      const nextDrag = getEnvironmentEffectPointerMove(environmentEffectDrag, event.pointerId, getToolPoint(event), event.shiftKey);
+      if (!nextDrag) {
+        return;
+      }
       environmentEffectDragRef.current = nextDrag;
       setEnvironmentEffectPreview(nextDrag);
       return;
