@@ -129,7 +129,7 @@ import {
 } from "../canvas/scene";
 import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/effects";
 import { getEnvironmentEffectAtPoint, getMaskHitAtPoint } from "../canvas/scene";
-import { getSceneLayerVisibility } from "../canvas/scene";
+import { getSceneEffectRenderState, getSceneLayerVisibility } from "../canvas/scene";
 import { getNearestSceneSnapPoint, getSnapAwarePointSnapshotMovePreview, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/scene";
 import { getSelectedItemIdList } from "../lib/scene";
 import { getTurnOrderTokenIndicators } from "../lib/turn-order";
@@ -174,7 +174,6 @@ import {
   getEnvironmentEffectDragFromPoint,
   getEnvironmentEffectGroupSnapAnchor,
   getEnvironmentEffectPointSnapshot,
-  getEnvironmentEffectsWithPointOverrides,
   getUpdatedEnvironmentEffectDrag,
   shouldAnimateEnvironmentEffects,
   type EnvironmentEffectDrag,
@@ -190,7 +189,6 @@ import {
 import {
   getWeatherMaskDragFromPoint,
   getWeatherMaskPointSnapshot,
-  getWeatherMasksWithPointOverrides,
   getUpdatedWeatherMaskDrag,
   type WeatherMaskDrag,
   type WeatherPolygonDraft
@@ -691,6 +689,18 @@ export function SceneCanvas({
     canShowWeather,
     canShowTokens
   } = getSceneLayerVisibility(scene?.layers, mode);
+  const effectRenderState = useMemo(
+    () =>
+      getSceneEffectRenderState({
+        scene,
+        mode,
+        environmentEffectPoints: environmentEffectMovePreview,
+        weatherMaskPoints: weatherMaskMovePreview,
+        selectedEnvironmentEffectId,
+        selectedWeatherMaskIds: effectiveSelectedWeatherMaskIds
+      }),
+    [effectiveSelectedWeatherMaskIds, environmentEffectMovePreview, mode, scene, selectedEnvironmentEffectId, weatherMaskMovePreview]
+  );
   const isVideoMap = Boolean(canShowMap && mapAsset?.mediaType === "video" && assetUrl);
   const { loadedMap, mapLoadStatus: imageMapLoadStatus } = useImageMapLoader({
     assetId: mapAsset?.id,
@@ -1057,16 +1067,13 @@ export function SceneCanvas({
         drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, effectiveSelectedFogShapeIds);
       }
       if (canShowWeather && !mapOverlayActive) {
-        const visibleEnvironmentEffects = getEnvironmentEffectsWithPointOverrides(scene, environmentEffectMovePreview);
         if (weatherMapReady) {
           drawWeather(ctx, scene, width, height, renderCamera, now, weatherLayer?.opacity ?? 1, weatherMapSource);
         }
-        drawEnvironmentEffects(ctx, visibleEnvironmentEffects, renderCamera, mode, now, weatherLayer?.opacity ?? 1, acidEffectTuning, coldEffectTuning, darknessEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
+        drawEnvironmentEffects(ctx, effectRenderState.environmentEffects, renderCamera, mode, now, weatherLayer?.opacity ?? 1, acidEffectTuning, coldEffectTuning, darknessEffectTuning, poisonEffectTuning, waterEffectTuning, lavaEffectTuning, fireEffectTuning, lightningEffectTuning, arcaneEffectTuning, chaosEffectTuning, voidEffectTuning, natureEffectTuning, distortionEffectTuning, radiantEffectTuning, forceFieldEffectTuning, shockwaveEffectTuning, smokeEffectTuning, fogEffectTuning);
       }
-      const visibleEnvironmentEffects = getEnvironmentEffectsWithPointOverrides(scene, environmentEffectMovePreview);
-      const visibleWeatherMasks = getWeatherMasksWithPointOverrides(scene, weatherMaskMovePreview);
       if (mode === "gm") {
-        drawWeatherMaskOutlines(ctx, visibleWeatherMasks, renderCamera);
+        drawWeatherMaskOutlines(ctx, effectRenderState.weatherMasks, renderCamera);
       }
       if (mode === "gm" && weatherMaskPreview) {
         drawWeatherMaskPreview(ctx, weatherMaskPreview, renderCamera);
@@ -1081,14 +1088,11 @@ export function SceneCanvas({
         drawWeatherPolygonDraft(ctx, environmentPolygonDraft, renderCamera);
       }
       if (mode === "gm") {
-        for (const selectedWeatherMask of visibleWeatherMasks.filter((mask) => effectiveSelectedWeatherMaskIds.includes(mask.id) && (mask.visible ?? true))) {
+        for (const selectedWeatherMask of effectRenderState.selectedWeatherMasks) {
           drawWeatherMaskSelection(ctx, selectedWeatherMask, renderCamera);
         }
-        if (selectedEnvironmentEffectId) {
-          const selectedEnvironmentEffect = visibleEnvironmentEffects.find((effect) => effect.id === selectedEnvironmentEffectId && effect.visibleInGm !== false);
-          if (selectedEnvironmentEffect) {
-            drawEnvironmentEffectShape(ctx, selectedEnvironmentEffect, renderCamera, { fill: false, selected: true });
-          }
+        if (effectRenderState.selectedEnvironmentEffect) {
+          drawEnvironmentEffectShape(ctx, effectRenderState.selectedEnvironmentEffect, renderCamera, { fill: false, selected: true });
         }
       }
       if (mode === "gm" && brushHoverPoint && fogTool?.includes("brush") && !fogPreview) {
@@ -1178,7 +1182,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, coldEffectTuning, darknessEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, effectiveSelectedDrawingIds, effectiveSelectedFogShapeIds, effectiveSelectedTokenIds, effectiveSelectedWeatherMaskIds, environmentEffectFeather, environmentEffectMovePreview, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, playerTokenTweenPositionsRef, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedEnvironmentEffectId, selectedTokenId, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, turnOrderTokenIndicators, videoRefs, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskMovePreview, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, coldEffectTuning, darknessEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, effectRenderState, effectiveSelectedDrawingIds, effectiveSelectedFogShapeIds, effectiveSelectedTokenIds, effectiveSelectedWeatherMaskIds, environmentEffectFeather, environmentEffectMovePreview, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapLayer?.opacity, mapOverlayActive, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, playerTokenTweenPositionsRef, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, selectedDrawingId, selectedDrawingIds, selectedTokenId, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, turnOrderTokenIndicators, videoRefs, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskMovePreview, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     return retainEnvironmentEffectRuntimes();

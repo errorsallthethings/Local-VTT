@@ -8,6 +8,7 @@ export * from "./sceneInteractionTypes";
 export * from "./sceneLayerVisibility";
 export * from "./sceneMovePreviews";
 export * from "./sceneOverlayRenderer";
+export * from "./sceneRenderState";
 export * from "./sceneDragCommits";
 export * from "./scenePolygonDraftCommits";
 export * from "./sceneSnapping";
