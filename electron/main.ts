@@ -88,8 +88,9 @@ import {
 import { ensureMapThumbnails, type MapThumbnailResult } from "./mapThumbnailRepair.js";
 import { getMapReplacementPreview } from "./mapReplacementPreview.js";
 import { getMapAssetSceneNames, mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
-import { createThumbnailImportFailureDiagnostic, createThumbnailRegenerationFailure } from "./thumbnailDiagnostics.js";
+import { createThumbnailImportFailureDiagnostic } from "./thumbnailDiagnostics.js";
 import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.js";
+import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
 import { createCampaignSceneEntry, insertSceneEntryAfter, updateSceneEntryFromScene } from "./sceneEntries.js";
 
@@ -300,63 +301,28 @@ async function regenerateCampaignThumbnails(
   rendererWebContents?: WebContents
 ): Promise<ThumbnailRegenerationResult> {
   const summary = await loadCampaignFromPath(campaignPath);
-  const failures: ThumbnailRegenerationResult["failed"] = [];
-  const previousThumbnailPaths = new Map(summary.campaign.assets.map((asset) => [asset.id, asset.thumbnailRelativePath]));
-  const normalizedAssets = normalizeCampaign(summary.campaign).assets;
-  const eligibleAssetCount = normalizedAssets.filter((asset) => asset.kind === "map" || asset.kind === "token").length;
-  let regenerated = 0;
-  let skipped = 0;
-  let processed = 0;
-
-  const assets = [];
-  onProgress?.({ current: 0, total: eligibleAssetCount, assetName: null, message: "Preparing thumbnail regeneration." });
-  for (const asset of normalizedAssets) {
-    if (asset.kind !== "map" && asset.kind !== "token") {
-      skipped += 1;
-      assets.push(asset);
-      continue;
-    }
-
-    onProgress?.({ current: processed, total: eligibleAssetCount, assetName: asset.name, message: `Regenerating ${asset.name}.` });
-    const sourcePath = requireCampaignRelativePath(campaignPath, asset.relativePath);
-    try {
-      await stat(sourcePath);
-      const thumbnailResult =
-        asset.kind === "map"
-          ? await createMapThumbnail(campaignPath, sourcePath, asset.id, rendererWebContents)
-          : await createTokenThumbnail(campaignPath, sourcePath, asset.id);
-      if (!thumbnailResult.thumbnailRelativePath) {
-        failures.push(createThumbnailRegenerationFailure(asset, thumbnailResult.failureReason ?? "Thumbnail could not be generated."));
-        assets.push(asset);
-        continue;
-      }
-      regenerated += 1;
-      assets.push({ ...asset, thumbnailRelativePath: thumbnailResult.thumbnailRelativePath });
-    } catch (caught) {
-      failures.push(createThumbnailRegenerationFailure(asset, caught instanceof Error ? caught.message : "Asset could not be read."));
-      assets.push(asset);
-    }
-    processed += 1;
-    onProgress?.({ current: processed, total: eligibleAssetCount, assetName: asset.name, message: `Processed ${asset.name}.` });
-  }
-
-  const campaign: Campaign = {
-    ...summary.campaign,
-    assets,
-    updatedAt: regenerated > 0 ? new Date().toISOString() : summary.campaign.updatedAt
-  };
-  if (regenerated > 0) {
+  const plan = await regenerateThumbnailAssets(
+    campaignPath,
+    summary.campaign,
+    (asset, sourcePath) =>
+      asset.kind === "map"
+        ? createMapThumbnail(campaignPath, sourcePath, asset.id, rendererWebContents)
+        : createTokenThumbnail(campaignPath, sourcePath, asset.id),
+    onProgress
+  );
+  const campaign = plan.campaign;
+  if (plan.regenerated > 0) {
     await writeCampaign(campaignPath, campaign);
-    for (const asset of assets) {
-      await removeThumbnailIfUnused(campaignPath, previousThumbnailPaths.get(asset.id), assets);
+    for (const asset of campaign.assets) {
+      await removeThumbnailIfUnused(campaignPath, plan.previousThumbnailPaths.get(asset.id), campaign.assets);
     }
   }
 
   return {
     campaignSummary: await loadCampaignFromPath(campaignPath),
-    regenerated,
-    skipped,
-    failed: failures
+    regenerated: plan.regenerated,
+    skipped: plan.skipped,
+    failed: plan.failed
   };
 }
 
