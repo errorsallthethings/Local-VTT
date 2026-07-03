@@ -22,11 +22,10 @@ import {
   type PlayerSceneProjection
 } from "../src/shared/localvtt.js";
 import {
-  createAssetProtocolErrorResponse,
   createAssetProtocolFileResponse,
   getAssetProtocolStatFailureResponse,
   getAssetProtocolStatResultFailureResponse,
-  LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE
+  resolveAssetProtocolRequest
 } from "./assetProtocol.js";
 import { campaignFile, sceneFile } from "./campaignPaths.js";
 import { assertInsidePath } from "./campaignPathSafety.js";
@@ -613,15 +612,11 @@ async function createTokenThumbnail(campaignPath: string, sourcePath: string, as
 
 app.whenReady().then(() => {
   protocol.handle("localvtt", async (request) => {
-    const url = new URL(request.url);
-    if (url.hostname !== "asset") {
-      return new Response("Unknown LocalVTT resource.", { status: 404 });
+    const resolvedRequest = resolveAssetProtocolRequest(request.url, isInsideOpenedCampaign, isKnownAssetPath);
+    if (!resolvedRequest.ok) {
+      return resolvedRequest.response;
     }
-
-    const filePath = path.resolve(decodeURIComponent(url.pathname.slice(1)));
-    if (!isInsideOpenedCampaign(filePath) || !isKnownAssetPath(filePath)) {
-      return createAssetProtocolErrorResponse(LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE, 403);
-    }
+    const filePath = resolvedRequest.filePath;
     try {
       const stats = await stat(filePath);
       const failureResponse = getAssetProtocolStatResultFailureResponse(stats);

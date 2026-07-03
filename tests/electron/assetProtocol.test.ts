@@ -5,7 +5,9 @@ import {
   getAssetProtocolStatFailureResponse,
   getAssetProtocolStatResultFailureResponse,
   LOCALVTT_ASSET_MISSING_MESSAGE,
-  LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE
+  LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE,
+  LOCALVTT_UNKNOWN_RESOURCE_MESSAGE,
+  resolveAssetProtocolRequest
 } from "../../electron/assetProtocol";
 
 describe("asset protocol responses", () => {
@@ -62,5 +64,37 @@ describe("asset protocol responses", () => {
     expect(response.headers.get("Access-Control-Allow-Headers")).toBe("Range");
     expect(response.headers.get("Cross-Origin-Resource-Policy")).toBe("cross-origin");
     await expect(response.text()).resolves.toBe("map-bytes");
+  });
+
+  it("rejects unknown localvtt resources", async () => {
+    const resolution = resolveAssetProtocolRequest("localvtt://other/C%3A%2FCampaign%2Fmap.png", () => true, () => true);
+
+    expect(resolution.ok).toBe(false);
+    if (!resolution.ok) {
+      expect(resolution.response.status).toBe(404);
+      await expect(resolution.response.text()).resolves.toBe(LOCALVTT_UNKNOWN_RESOURCE_MESSAGE);
+    }
+  });
+
+  it("rejects asset requests outside opened campaigns or unknown asset paths", async () => {
+    for (const resolution of [
+      resolveAssetProtocolRequest("localvtt://asset/C%3A%2FCampaign%2Fmap.png", () => false, () => true),
+      resolveAssetProtocolRequest("localvtt://asset/C%3A%2FCampaign%2Fmap.png", () => true, () => false)
+    ]) {
+      expect(resolution.ok).toBe(false);
+      if (!resolution.ok) {
+        expect(resolution.response.status).toBe(403);
+        await expect(resolution.response.text()).resolves.toBe(LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE);
+      }
+    }
+  });
+
+  it("resolves registered asset request file paths", () => {
+    const resolution = resolveAssetProtocolRequest("localvtt://asset/C%3A%2FCampaign%2Fassets%2Fmaps%2Fdungeon.png", () => true, () => true);
+
+    expect(resolution).toMatchObject({
+      ok: true,
+      filePath: expect.stringContaining("Campaign")
+    });
   });
 });
