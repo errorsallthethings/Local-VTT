@@ -85,6 +85,7 @@ import {
   createMapReplacementToken,
   type MapReplacementTokenStore
 } from "./mapReplacementTokens.js";
+import { ensureMapThumbnails, type MapThumbnailResult } from "./mapThumbnailRepair.js";
 import { getMapReplacementPreview } from "./mapReplacementPreview.js";
 import { getMapAssetSceneNames, mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
 import { createThumbnailImportFailureDiagnostic, createThumbnailRegenerationFailure } from "./thumbnailDiagnostics.js";
@@ -97,11 +98,6 @@ const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
 const isDev = !app.isPackaged && !isSmokeTest;
 const devServerUrl = "http://127.0.0.1:5173";
 const appWindowIconPath = path.join(app.getAppPath(), "build", "icon.ico");
-
-interface MapThumbnailResult {
-  thumbnailRelativePath?: string;
-  failureReason?: string;
-}
 
 configureLinuxGraphicsSwitches();
 
@@ -263,7 +259,7 @@ async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSumma
   const parsed = await readCampaignMetadata(campaignPath);
   await ensureCampaignFolders(campaignPath);
   const campaignWithSceneSummaries = await hydrateSceneSummaries(campaignPath, parsed);
-  const campaignWithThumbnails = await ensureMapThumbnails(campaignPath, campaignWithSceneSummaries);
+  const campaignWithThumbnails = await ensureMapThumbnails(campaignPath, campaignWithSceneSummaries, createMapThumbnail);
   if (campaignWithThumbnails !== campaignWithSceneSummaries) {
     await writeCampaign(campaignPath, campaignWithThumbnails);
   }
@@ -296,40 +292,6 @@ async function hydrateSceneSummaries(campaignPath: string, campaign: Campaign): 
     })
   );
   return { ...normalizedCampaign, scenes };
-}
-
-async function ensureMapThumbnails(campaignPath: string, campaign: Campaign): Promise<Campaign> {
-  let changed = false;
-  const assets = await Promise.all(
-    normalizeCampaign(campaign).assets.map(async (asset) => {
-      if (asset.kind !== "map") {
-        return asset;
-      }
-      if (asset.thumbnailRelativePath) {
-        const thumbnailPath = requireCampaignRelativePath(campaignPath, asset.thumbnailRelativePath);
-        try {
-          assertInsideCampaign(campaignPath, thumbnailPath);
-          await stat(thumbnailPath);
-          return asset;
-        } catch {
-          // Regenerate missing thumbnails below.
-        }
-      }
-      try {
-        const sourcePath = requireCampaignRelativePath(campaignPath, asset.relativePath);
-        await stat(sourcePath);
-        const thumbnailResult = await createMapThumbnail(campaignPath, sourcePath, asset.id);
-        if (!thumbnailResult.thumbnailRelativePath) {
-          return asset;
-        }
-        changed = true;
-        return { ...asset, thumbnailRelativePath: thumbnailResult.thumbnailRelativePath };
-      } catch {
-        return asset;
-      }
-    })
-  );
-  return changed ? { ...campaign, assets, updatedAt: new Date().toISOString() } : campaign;
 }
 
 async function regenerateCampaignThumbnails(
