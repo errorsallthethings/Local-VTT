@@ -17,8 +17,6 @@ import {
   ThumbnailRegenerationResult,
   assertValidScene,
   createDefaultCampaign,
-  createDefaultScene,
-  duplicateScene,
   isLiveTableEvent,
   isPlayerIdleState,
   normalizeCampaign,
@@ -93,7 +91,13 @@ import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.j
 import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
 import { pauseSceneTurnOrder } from "./turnOrderPause.js";
-import { createCampaignSceneEntry, insertSceneEntryAfter, updateSceneEntryFromScene } from "./sceneEntries.js";
+import {
+  createSceneForCampaign,
+  deleteSceneFromCampaign,
+  duplicateSceneForCampaign,
+  renameSceneInCampaign,
+  saveSceneInCampaign
+} from "./sceneLifecycle.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -908,14 +912,8 @@ ipcMain.handle("campaign:restoreMetadataBackup", async (_event, campaignPath: st
 ipcMain.handle("scene:create", async (_event, campaignPath: string, sceneName: string) => {
   assertKnownCampaignPath(campaignPath);
   const summary = await loadCampaignFromPath(campaignPath);
-  const scene = createDefaultScene(sceneName || "Untitled Scene");
+  const { campaign, scene } = createSceneForCampaign(summary.campaign, sceneName);
   await writeScene(campaignPath, scene);
-
-  const campaign: Campaign = {
-    ...summary.campaign,
-    scenes: [...summary.campaign.scenes, createCampaignSceneEntry(scene)],
-    updatedAt: new Date().toISOString()
-  };
   await writeCampaign(campaignPath, campaign);
   return { campaignSummary: await loadCampaignFromPath(campaignPath), scene };
 });
@@ -924,14 +922,8 @@ ipcMain.handle("scene:duplicate", async (_event, campaignPath: string, sourceSce
   assertKnownCampaignPath(campaignPath);
   assertValidScene(sourceScene);
   const summary = await loadCampaignFromPath(campaignPath);
-  const scene = duplicateScene(sourceScene, sceneName || `${sourceScene.name} Copy`);
+  const { campaign, scene } = duplicateSceneForCampaign(summary.campaign, sourceScene, sceneName, afterSceneId, folderId);
   await writeScene(campaignPath, scene);
-
-  const campaign: Campaign = {
-    ...summary.campaign,
-    scenes: insertSceneEntryAfter(summary.campaign.scenes, createCampaignSceneEntry(scene, folderId), afterSceneId),
-    updatedAt: new Date().toISOString()
-  };
   await writeCampaign(campaignPath, campaign);
   return { campaignSummary: await loadCampaignFromPath(campaignPath), scene };
 });
@@ -948,42 +940,23 @@ ipcMain.handle("scene:load", async (_event, campaignPath: string, sceneId: strin
 ipcMain.handle("scene:save", async (_event, campaignPath: string, scene: Scene) => {
   assertKnownCampaignPath(campaignPath);
   assertInsideCampaign(campaignPath, sceneFile(campaignPath, scene.id));
-  const updated = normalizeScene({ ...scene, updatedAt: new Date().toISOString() });
+  const summary = await loadCampaignFromPath(campaignPath);
+  const { campaign, scene: updated } = saveSceneInCampaign(summary.campaign, scene);
   await writeScene(campaignPath, updated);
 
-  const summary = await loadCampaignFromPath(campaignPath);
-  const campaign: Campaign = {
-    ...summary.campaign,
-    scenes: summary.campaign.scenes.map((entry) => (entry.id === scene.id ? updateSceneEntryFromScene(entry, updated) : entry)),
-    updatedAt: new Date().toISOString()
-  };
   await writeCampaign(campaignPath, campaign);
   return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: updated };
 });
 
 ipcMain.handle("scene:rename", async (_event, campaignPath: string, sceneId: string, sceneName: string) => {
   assertKnownCampaignPath(campaignPath);
-  const name = sceneName.trim();
-  if (!name) {
-    throw new Error("Scene name cannot be empty.");
-  }
-
   const filePath = sceneFile(campaignPath, sceneId);
   assertInsideCampaign(campaignPath, filePath);
   const scene = await readSceneMetadata(campaignPath, sceneId);
-  if (scene.id !== sceneId) {
-    throw new Error("Invalid scene file.");
-  }
-
-  const updatedScene = normalizeScene({ ...scene, name, updatedAt: new Date().toISOString() });
+  const summary = await loadCampaignFromPath(campaignPath);
+  const { campaign, scene: updatedScene } = renameSceneInCampaign(summary.campaign, scene, sceneId, sceneName);
   await writeScene(campaignPath, updatedScene);
 
-  const summary = await loadCampaignFromPath(campaignPath);
-  const campaign: Campaign = {
-    ...summary.campaign,
-    scenes: summary.campaign.scenes.map((entry) => (entry.id === sceneId ? { ...entry, name } : entry)),
-    updatedAt: new Date().toISOString()
-  };
   await writeCampaign(campaignPath, campaign);
   return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: updatedScene };
 });
@@ -996,11 +969,7 @@ ipcMain.handle("scene:delete", async (_event, campaignPath: string, sceneId: str
   await unlinkIfExists(filePath);
 
   const summary = await loadCampaignFromPath(campaignPath);
-  const campaign: Campaign = {
-    ...summary.campaign,
-    scenes: summary.campaign.scenes.filter((entry) => entry.id !== sceneId),
-    updatedAt: new Date().toISOString()
-  };
+  const campaign = deleteSceneFromCampaign(summary.campaign, sceneId);
   await writeCampaign(campaignPath, campaign);
   return loadCampaignFromPath(campaignPath);
 });
