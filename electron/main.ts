@@ -94,6 +94,7 @@ import { getTokenAssetUsage } from "./tokenAssetUsage.js";
 import { removeAssetFromCampaign, removeTokenAssetFromScene } from "./tokenAssetMutations.js";
 import { pauseSceneTurnOrder } from "./turnOrderPause.js";
 import { createPlayerOpenPlan, liveTableEventRoute, summarizeDisplay } from "./playerViewIpc.js";
+import { getGmCloseRequestAction, getUnsavedChangesDialogAction } from "./gmWindowClose.js";
 import {
   createSceneForCampaign,
   deleteSceneFromCampaign,
@@ -725,12 +726,13 @@ function closePlayerWindow(): void {
 function createGmWindow(): BrowserWindow {
   const win = createWindow("gm");
   win.on("close", (event) => {
-    if (forceCloseGmWindow) {
+    const closeAction = getGmCloseRequestAction(forceCloseGmWindow, gmHasUnsavedChanges);
+    if (closeAction === "allow-close") {
       return;
     }
 
     event.preventDefault();
-    if (!gmHasUnsavedChanges) {
+    if (closeAction === "close-after-pausing") {
       void closeGmWindowAfterPausing(win);
       return;
     }
@@ -746,9 +748,10 @@ function createGmWindow(): BrowserWindow {
       noLink: true
     });
 
-    if (choice === 1) {
+    const dialogAction = getUnsavedChangesDialogAction(choice);
+    if (dialogAction === "save-before-close") {
       win.webContents.send("app:saveBeforeClose");
-    } else if (choice === 2) {
+    } else if (dialogAction === "close-after-pausing") {
       void closeGmWindowAfterPausing(win);
     }
   });
