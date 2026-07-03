@@ -98,6 +98,7 @@ import { createPlayerOpenPlan, liveTableEventRoute, summarizeDisplay } from "./p
 import { getGmCloseRequestAction, getUnsavedChangesDialogAction } from "./gmWindowClose.js";
 import { getLinuxGraphicsSwitches } from "./linuxGraphicsSwitches.js";
 import { createSmokeTestScript, getSmokeTestTimeoutMs } from "./smokeTestPlan.js";
+import { addImportedAssetToCampaign, createImportedAsset } from "./importedAssets.js";
 import {
   createSceneForCampaign,
   deleteSceneFromCampaign,
@@ -960,24 +961,20 @@ ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
   if (!thumbnailRelativePath) {
     logThumbnailImportFailure("map", sourcePath, thumbnailResult.failureReason);
   }
-  const imported: Asset = {
-    id: assetId,
-    name: path.basename(sourcePath),
+  const updatedAt = new Date().toISOString();
+  const imported = createImportedAsset({
+    assetId,
     kind: "map",
     mediaType: mapMediaType(sourcePath),
+    sourcePath,
     relativePath,
+    destination,
+    campaignPath,
     thumbnailRelativePath,
-    originalFileName: path.basename(sourcePath),
-    createdAt: new Date().toISOString(),
-    absolutePath: destination,
-    thumbnailAbsolutePath: thumbnailRelativePath ? requireCampaignRelativePath(campaignPath, thumbnailRelativePath) : undefined
-  };
+    createdAt: updatedAt
+  });
 
-  const campaign: Campaign = {
-    ...summary.campaign,
-    assets: [...summary.campaign.assets, imported],
-    updatedAt: new Date().toISOString()
-  };
+  const campaign = addImportedAssetToCampaign(summary.campaign, imported, updatedAt);
   await writeCampaign(campaignPath, campaign);
   return { campaignSummary: await loadCampaignFromPath(campaignPath), asset: imported };
 });
@@ -1051,20 +1048,20 @@ ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: 
   if (!thumbnailRelativePath) {
     logThumbnailImportFailure("map", sourcePath, thumbnailResult.failureReason);
   }
-  const imported: Asset = {
-    id: assetId,
-    name: path.basename(sourcePath),
+  const updatedAt = new Date().toISOString();
+  const imported = createImportedAsset({
+    assetId,
     kind: "map",
     mediaType: mapMediaType(sourcePath),
+    sourcePath,
     relativePath,
+    destination,
+    campaignPath,
     thumbnailRelativePath,
-    originalFileName: path.basename(sourcePath),
-    createdAt: new Date().toISOString(),
-    absolutePath: destination,
-    thumbnailAbsolutePath: thumbnailRelativePath ? requireCampaignRelativePath(campaignPath, thumbnailRelativePath) : undefined
-  };
+    createdAt: updatedAt
+  });
 
-  const updatedScene = normalizeScene({ ...currentScene, mapAssetId: imported.id, updatedAt: new Date().toISOString() });
+  const updatedScene = normalizeScene({ ...currentScene, mapAssetId: imported.id, updatedAt });
   await writeScene(campaignPath, updatedScene);
 
   const keepCurrentAsset = await mapAssetUsedByOtherScenes(summary.campaign, currentAsset.id, sceneId, (candidateSceneId) =>
@@ -1074,7 +1071,7 @@ ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: 
     ...summary.campaign,
     assets: keepCurrentAsset ? [...summary.campaign.assets, imported] : [...summary.campaign.assets.filter((asset) => asset.id !== currentAsset.id), imported],
     scenes: summary.campaign.scenes.map((entry) => (entry.id === sceneId ? { ...entry, mapAssetId: imported.id } : entry)),
-    updatedAt: new Date().toISOString()
+    updatedAt
   };
   await writeCampaign(campaignPath, campaign);
   if (!keepCurrentAsset) {
@@ -1101,24 +1098,20 @@ ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
   if (!thumbnailRelativePath) {
     logThumbnailImportFailure("token", sourcePath, thumbnailResult.failureReason);
   }
-  const imported: Asset = {
-    id: assetId,
-    name: path.basename(sourcePath),
+  const updatedAt = new Date().toISOString();
+  const imported = createImportedAsset({
+    assetId,
     kind: "token",
     mediaType: "image",
+    sourcePath,
     relativePath,
+    destination,
+    campaignPath,
     thumbnailRelativePath,
-    originalFileName: path.basename(sourcePath),
-    createdAt: new Date().toISOString(),
-    absolutePath: destination,
-    thumbnailAbsolutePath: thumbnailRelativePath ? requireCampaignRelativePath(campaignPath, thumbnailRelativePath) : undefined
-  };
+    createdAt: updatedAt
+  });
 
-  const campaign: Campaign = {
-    ...summary.campaign,
-    assets: [...summary.campaign.assets, imported],
-    updatedAt: new Date().toISOString()
-  };
+  const campaign = addImportedAssetToCampaign(summary.campaign, imported, updatedAt);
   await writeCampaign(campaignPath, campaign);
   return { campaignSummary: await loadCampaignFromPath(campaignPath), asset: imported };
 });
