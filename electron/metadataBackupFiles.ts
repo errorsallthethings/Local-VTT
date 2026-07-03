@@ -1,5 +1,6 @@
-import { copyFile, mkdir, readdir, stat } from "node:fs/promises";
+import { copyFile, mkdir, readdir, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 
 import type { MetadataBackupEntry } from "../src/shared/localvtt.js";
 import { assertInsidePath } from "./campaignPathSafety.js";
@@ -36,7 +37,7 @@ export async function backupExistingMetadataFile(
   const timestamp = options.createTimestamp?.() ?? createBackupTimestamp();
   const backupPath = path.join(backupFolder, `${timestamp}.${backupName}`);
   assertInsidePath(campaignPath, backupPath);
-  await copyFile(sourcePath, backupPath);
+  await copyMetadataBackupFile(sourcePath, backupPath);
   await pruneMetadataBackups(backupFolder, options.maxBackups ?? DEFAULT_MAX_METADATA_BACKUPS);
 }
 
@@ -71,5 +72,16 @@ async function pruneMetadataBackups(backupFolder: string, maxBackups: number): P
   const backupFiles = entries.filter((entry) => entry.endsWith(".json")).sort().reverse();
   for (const entry of backupFiles.slice(maxBackups)) {
     await unlinkIfExists(path.join(backupFolder, entry));
+  }
+}
+
+async function copyMetadataBackupFile(sourcePath: string, backupPath: string): Promise<void> {
+  const temporaryPath = path.join(path.dirname(backupPath), `.${path.basename(backupPath)}.${randomUUID()}.tmp`);
+  try {
+    await copyFile(sourcePath, temporaryPath);
+    await rename(temporaryPath, backupPath);
+  } catch (caught) {
+    await rm(temporaryPath, { force: true }).catch(() => undefined);
+    throw caught;
   }
 }

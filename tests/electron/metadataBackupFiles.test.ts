@@ -24,7 +24,9 @@ describe("metadata backup file helpers", () => {
       createTimestamp: () => "2026-07-02T12-34-56-789Z"
     });
 
-    expect(await readdir(backupFolder)).toEqual(["2026-07-02T12-34-56-789Z.campaign.json"]);
+    const entries = await readdir(backupFolder);
+    expect(entries).toEqual(["2026-07-02T12-34-56-789Z.campaign.json"]);
+    expect(entries.filter((entry) => entry.endsWith(".tmp"))).toEqual([]);
   });
 
   it("does not create backups for missing metadata files", async () => {
