@@ -54,7 +54,6 @@ import {
 } from "../canvas/fog";
 import { drawHexGrid, drawSquareGrid } from "../canvas/grid";
 import {
-  createLaserDragStart,
   createLaserLiveTableEvent,
   createPingLiveTableEvent,
   createRulerClearEvent,
@@ -62,7 +61,6 @@ import {
   drawLiveTableEvents,
   getVisibleCanvasLiveTableEvents,
   getVisibleDiceOverlayEvents,
-  getUpdatedLaserDrag,
   hasActiveLiveTableEvents,
   RULER_RELEASE_LINGER_MS
 } from "../canvas/live-table";
@@ -222,6 +220,7 @@ import {
   MapLoadOverlay,
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
+import { getLaserPointerMove, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
 import { getMapCalibrationPointerComplete, getMapCalibrationPointerMove, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
 import { getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
@@ -1272,7 +1271,21 @@ export function SceneCanvas({
     }
     if (mode === "gm" && canvasTool === "laser" && scene && event.button === 0) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const { drag, event: laserEvent } = createLaserDragStart(event.pointerId, crypto.randomUUID(), point, activeTableTools, tableToolsVisibleInPlayer);
+      const start = getLaserPointerStart({
+        button: event.button,
+        canvasTool,
+        eventId: crypto.randomUUID(),
+        hasScene: Boolean(scene),
+        mode,
+        point,
+        pointerId: event.pointerId,
+        settings: activeTableTools,
+        visibleInPlayer: tableToolsVisibleInPlayer
+      });
+      if (!start) {
+        return;
+      }
+      const { drag, event: laserEvent } = start;
       laserDragRef.current = drag;
       onLiveTableEvent?.(laserEvent);
       return;
@@ -1492,7 +1505,7 @@ export function SceneCanvas({
     }
     if (laserDrag?.pointerId === event.pointerId) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const nextLaserDrag = getUpdatedLaserDrag(laserDrag, point, Date.now());
+      const nextLaserDrag = getLaserPointerMove(laserDrag, event.pointerId, point, Date.now());
       if (nextLaserDrag) {
         laserDragRef.current = nextLaserDrag;
         onLiveTableEvent?.(createLaserLiveTableEvent(laserDrag.eventId, nextLaserDrag.points, activeTableTools, tableToolsVisibleInPlayer));
@@ -1761,7 +1774,7 @@ export function SceneCanvas({
       return;
     }
 
-    if (laserDragRef.current?.pointerId === event.pointerId) {
+    if (shouldEndLaserPointer(laserDragRef.current, event.pointerId)) {
       laserDragRef.current = null;
       return;
     }
