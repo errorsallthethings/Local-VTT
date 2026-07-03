@@ -114,7 +114,16 @@ import {
 import { sendSceneToPlayer, updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
 import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/scene";
 import { patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
-import { renameEnvironmentEffect, renameFogShape, renameSceneToken, setSceneTokenColor } from "../lib/scene";
+import {
+  applySceneColorDialog,
+  getSceneColorDialogState,
+  getSceneItemRenameName,
+  getTokenColorDialogState,
+  renameEnvironmentEffect,
+  renameFogShape,
+  renameSceneToken,
+  setSceneTokenColor
+} from "../lib/scene";
 import {
   addRecentCampaign,
   loadRecentCampaigns,
@@ -1236,20 +1245,17 @@ export function GmApp() {
   };
 
   const openRenameFogShapeDialog = (shapeId: string, fallbackName: string) => {
-    const shapeName = activeScene?.fog.shapes.find((shape) => shape.id === shapeId)?.name?.trim();
-    setNewFogShapeName(shapeName || fallbackName);
+    setNewFogShapeName(getSceneItemRenameName(activeScene, "fog-shape", shapeId, fallbackName));
     setFogShapeDialog({ shapeId });
   };
 
   const openRenameEnvironmentEffectDialog = (effectId: string, fallbackName: string) => {
-    const effectName = activeScene?.environment.effects.find((effect) => effect.id === effectId)?.name?.trim();
-    setNewEnvironmentEffectName(effectName || fallbackName);
+    setNewEnvironmentEffectName(getSceneItemRenameName(activeScene, "environment-effect", effectId, fallbackName));
     setEnvironmentEffectDialog({ effectId });
   };
 
   const openRenameTokenDialog = (tokenId: string, fallbackName: string) => {
-    const tokenName = activeScene?.tokens.find((token) => token.id === tokenId)?.name?.trim();
-    setNewTokenName(tokenName || fallbackName);
+    setNewTokenName(getSceneItemRenameName(activeScene, "token", tokenId, fallbackName));
     setTokenDialog({ tokenId });
   };
 
@@ -1381,17 +1387,12 @@ export function GmApp() {
     if (!activeScene) {
       return;
     }
-    setSceneColorDialog({
-      kind,
-      title: kind === "fog" ? "Fog Color" : "Grid Color",
-      value: kind === "fog" ? activeScene.fog.color : activeScene.grid.color
-    });
+    setSceneColorDialog(getSceneColorDialogState(activeScene, kind));
   };
 
   const openTokenColorDialog = (tokenId: string, value: string, kind: "border" | "glow") => {
-    const tokenName = activeScene?.tokens.find((token) => token.id === tokenId)?.name?.trim() || "Token";
     setNewTokenBorderColor(value);
-    setTokenColorDialog({ tokenId, tokenName, value, kind });
+    setTokenColorDialog(getTokenColorDialogState(activeScene, tokenId, value, kind));
   };
 
   const updateSceneColorDraft = (value: string) => {
@@ -1402,10 +1403,12 @@ export function GmApp() {
     if (!sceneColorDialog) {
       return;
     }
-    if (sceneColorDialog.kind === "fog") {
-      updateFog({ color: sceneColorDialog.value });
-    } else {
-      updateGrid({ color: sceneColorDialog.value });
+    const colorPatch = applySceneColorDialog(sceneColorDialog);
+    if (colorPatch.fogPatch) {
+      updateFog(colorPatch.fogPatch);
+    }
+    if (colorPatch.gridPatch) {
+      updateGrid(colorPatch.gridPatch);
     }
     setSceneColorDialog(null);
   };
