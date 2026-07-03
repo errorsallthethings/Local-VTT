@@ -9,7 +9,6 @@ import {
 } from "react";
 import {
   DEFAULT_DICE_SETTINGS,
-  PLAYER_INDICATOR_THEMES,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
@@ -86,7 +85,7 @@ import { shouldShowPlayerHoldAfterSceneDelete, usePlayerViewState } from "../hoo
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { useSceneSelection } from "../hooks/useSceneSelection";
 import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assets";
-import { moveSceneFolder } from "../lib/campaign";
+import { addCampaignPlayerToCampaign, deleteCampaignPlayerFromCampaign, moveSceneFolder, updateCampaignPlayerInCampaign } from "../lib/campaign";
 import { getEffectiveDiceDisplayModes, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/dice";
 import { formatUserFacingError } from "../lib/errors";
@@ -112,7 +111,7 @@ import {
 } from "../lib/campaign";
 import { createImportedToken } from "../lib/tokens";
 import { getSelectedTokenAssetIds, mergeTokenAssetUsage, removeSceneTokensByAsset } from "../lib/tokens";
-import { addTurnOrderEntry, createTurnOrderEntryFromToken, removeTurnOrderEntriesForPlayer, stopTurnOrder, updateTurnOrderEntriesForPlayer } from "../lib/turn-order";
+import { addTurnOrderEntry, createTurnOrderEntryFromToken, stopTurnOrder } from "../lib/turn-order";
 import {
   COLLAPSED_RAIL_WIDTH,
   COMPACT_RIGHT_PANEL_WIDTH,
@@ -870,25 +869,13 @@ export function GmApp() {
   };
 
   const addCampaignPlayer = () => {
-    if (!campaign || campaign.players.length >= 7) {
+    if (!campaign) {
       return;
     }
-    updateCampaignDraft({
-      ...campaign,
-      players: [
-        ...campaign.players,
-        {
-          id: crypto.randomUUID(),
-          name: `Player ${campaign.players.length + 1}`,
-          color: DEFAULT_TOKEN_BORDER_COLOR,
-          indicatorTheme: PLAYER_INDICATOR_THEMES[0],
-          defaultSeatEdge: "bottom",
-          defaultSeatPosition: 0.5,
-          visibleInPlayer: true
-        }
-      ],
-      updatedAt: new Date().toISOString()
-    });
+    const nextCampaign = addCampaignPlayerToCampaign(campaign, crypto.randomUUID(), new Date().toISOString());
+    if (nextCampaign) {
+      updateCampaignDraft(nextCampaign);
+    }
   };
 
   const updateCampaignPlayer = (playerId: string, patch: Partial<Campaign["players"][number]>) => {
@@ -896,12 +883,10 @@ export function GmApp() {
       return;
     }
     const updatedAt = new Date().toISOString();
-    const players = campaign.players.map((player) => (player.id === playerId ? { ...player, ...patch } : player));
-    const updatedPlayer = players.find((player) => player.id === playerId);
-    const nextCampaign = { ...campaign, players, updatedAt };
-    updateCampaignDraft(nextCampaign);
-    if (activeScene && updatedPlayer && activeScene.turnOrder.entries.some((entry) => entry.playerId === playerId)) {
-      updateScene(updateTurnOrderEntriesForPlayer(activeScene, updatedPlayer, updatedAt), nextCampaign);
+    const result = updateCampaignPlayerInCampaign(campaign, activeScene, playerId, patch, updatedAt);
+    updateCampaignDraft(result.campaign);
+    if (result.scene) {
+      updateScene(result.scene, result.campaign);
     }
   };
 
@@ -910,14 +895,10 @@ export function GmApp() {
       return;
     }
     const updatedAt = new Date().toISOString();
-    const nextCampaign = {
-      ...campaign,
-      players: campaign.players.filter((player) => player.id !== playerId),
-      updatedAt
-    };
-    updateCampaignDraft(nextCampaign);
-    if (activeScene?.turnOrder.entries.some((entry) => entry.playerId === playerId)) {
-      updateScene(removeTurnOrderEntriesForPlayer(activeScene, playerId, updatedAt), nextCampaign);
+    const result = deleteCampaignPlayerFromCampaign(campaign, activeScene, playerId, updatedAt);
+    updateCampaignDraft(result.campaign);
+    if (result.scene) {
+      updateScene(result.scene, result.campaign);
     }
   };
 
