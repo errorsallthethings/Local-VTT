@@ -227,13 +227,13 @@ import {
   DrawingToolStatusStrip,
   EnvironmentEffectStatusStrip,
   FogToolStatusStrip,
-  MapCalibrationStatusStrip,
   MapLoadOverlay,
   RulerStatusStrip,
   TableToolStatusStrip,
   TokenMoveStatusStrip,
   WeatherMaskStatusStrip
 } from "./scene/SceneCanvasStatusStrips";
+import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
@@ -2193,13 +2193,6 @@ export function SceneCanvas({
   const mapOverlayMessage = getMapOverlayMessage(mapLoadStatus, mapAsset?.mediaType);
   const activeCalibrationBox = onMapCalibrationBox ? mapCalibrationDraftBox : null;
   const activeCalibrationBoxCamera = getRenderCamera(camera, playerDisplayScale);
-  const calibrationSizeControlStyle =
-    activeCalibrationBox && onMapCalibrationBox
-      ? {
-          left: activeCalibrationBox.x * activeCalibrationBoxCamera.zoom + activeCalibrationBoxCamera.x + activeCalibrationBox.width * activeCalibrationBoxCamera.zoom + 12,
-          top: activeCalibrationBox.y * activeCalibrationBoxCamera.zoom + activeCalibrationBoxCamera.y
-        }
-      : undefined;
 
   return (
     <div ref={frameRef} className={className ?? "scene-canvas-frame"}>
@@ -2276,37 +2269,15 @@ export function SceneCanvas({
         <FogToolStatusStrip fogTool={fogTool} polygonPointCount={polygonDraft?.points.length ?? 0} brushSize={activeFogBrushSize} />
       )}
       {mode === "gm" && drawingTool && <DrawingToolStatusStrip drawingTool={drawingTool} drawingTemplateSize={drawingTemplateSize} />}
-      {mode === "gm" && onMapCalibrationBox && <MapCalibrationStatusStrip />}
-      {mode === "gm" && onMapCalibrationBox && activeCalibrationBox && calibrationSizeControlStyle && (
-        <label className="map-calibration-size-control" style={calibrationSizeControlStyle} onPointerDown={(event) => event.stopPropagation()}>
-          Size
-          <input
-            type="number"
-            min={4}
-            step={1}
-            value={Math.round(activeCalibrationBox.width)}
-            onChange={(event) => {
-              const size = Math.max(4, Number(event.target.value));
-              setMapCalibrationDraftBox({ ...activeCalibrationBox, width: size, height: size });
-            }}
-          />
-        </label>
-      )}
-      {mode === "gm" && onMapCalibrationBox && mapCalibrationDraftBox && (
-        <div className="map-calibration-actions" onPointerDown={(event) => event.stopPropagation()}>
-          <button type="button" onClick={() => onMapCalibrationBox(mapCalibrationDraftBox)}>
-            Confirm
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMapCalibrationDraftBox(null);
-              onMapCalibrationCancel?.();
-            }}
-          >
-            Cancel
-          </button>
-        </div>
+      {mode === "gm" && onMapCalibrationBox && (
+        <MapCalibrationControls
+          activeBox={activeCalibrationBox}
+          draftBox={mapCalibrationDraftBox}
+          camera={activeCalibrationBoxCamera}
+          onDraftBoxChange={setMapCalibrationDraftBox}
+          onConfirm={onMapCalibrationBox}
+          onCancel={onMapCalibrationCancel}
+        />
       )}
       {mode === "gm" && canvasTool === "ruler" && <RulerStatusStrip rulerDrag={rulerDrag} scene={scene} />}
       {mode === "gm" && (canvasTool === "ping" || canvasTool === "laser") && <TableToolStatusStrip canvasTool={canvasTool} />}
