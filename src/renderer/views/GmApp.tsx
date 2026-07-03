@@ -13,7 +13,6 @@ import {
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
-  createPlayerDisplayProfile
 } from "../../shared/localvtt";
 import type {
   Asset,
@@ -28,7 +27,6 @@ import type {
   GridType,
   LiveTableEvent,
   MetadataBackupRestoreResult,
-  PlayerDisplayProfile,
   PlayerViewTestPattern,
   Point,
   Scene,
@@ -95,6 +93,13 @@ import { formatUserFacingError } from "../lib/errors";
 import { logRendererError } from "../lib/rendererDiagnostics";
 import { loadImageDimensions } from "../lib/assets";
 import { getPlayerTestPatternCellSize, getPlayerTestPatternMessage, showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/player-view";
+import {
+  addCampaignPlayerDisplayProfile,
+  deleteCampaignPlayerDisplayProfile,
+  renameCampaignPlayerDisplayProfile,
+  selectCampaignPlayerDisplayProfile,
+  updateCampaignPlayerDisplay
+} from "../lib/player-display/playerDisplayProfiles";
 import { sendSceneToPlayer, updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
 import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/scene";
 import { patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
@@ -144,23 +149,6 @@ const DEFAULT_SELECTOR_SELECTION_FILTERS: SelectorSelectionFilters = {
   weatherMasks: false,
   drawings: true
 };
-
-function getCalibrationFromProfile(profile: PlayerDisplayProfile): DisplayCalibration {
-  return {
-    physicalScaleEnabled: profile.physicalScaleEnabled,
-    mode: profile.mode,
-    selectedDisplayId: profile.selectedDisplayId,
-    selectedDisplayLabel: profile.selectedDisplayLabel,
-    openPlayerViewFullscreen: profile.openPlayerViewFullscreen,
-    pixelsPerInch: profile.pixelsPerInch,
-    inchesPerGridCell: profile.inchesPerGridCell,
-    screenDiagonalInches: profile.screenDiagonalInches,
-    screenAspectRatio: profile.screenAspectRatio,
-    screenResolutionWidth: profile.screenResolutionWidth,
-    screenResolutionHeight: profile.screenResolutionHeight,
-    defaultScaleLabel: profile.defaultScaleLabel
-  };
-}
 
 export function GmApp() {
   const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
@@ -999,41 +987,17 @@ export function GmApp() {
     if (!campaign) {
       return;
     }
-    const now = new Date().toISOString();
-    const nextProfiles = campaign.playerDisplayProfiles.map((profile) =>
-      profile.id === campaign.activePlayerDisplayProfileId
-        ? {
-            ...profile,
-            ...nextDisplay,
-            updatedAt: now
-          }
-        : profile
-    );
-    const nextCampaign = {
-      ...campaign,
-      playerDisplay: nextDisplay,
-      playerDisplayProfiles: nextProfiles,
-      updatedAt: now
-    };
-    updateCampaignDraft(nextCampaign);
+    updateCampaignDraft(updateCampaignPlayerDisplay(campaign, nextDisplay, new Date().toISOString()));
   };
 
   const selectPlayerDisplayProfile = (profileId: string) => {
     if (!campaign) {
       return;
     }
-    const selectedProfile = campaign.playerDisplayProfiles.find((profile) => profile.id === profileId);
-    if (!selectedProfile) {
-      return;
+    const nextCampaign = selectCampaignPlayerDisplayProfile(campaign, profileId, new Date().toISOString());
+    if (nextCampaign) {
+      updateCampaignDraft(nextCampaign);
     }
-    const nextDisplay = getCalibrationFromProfile(selectedProfile);
-    const nextCampaign = {
-      ...campaign,
-      activePlayerDisplayProfileId: selectedProfile.id,
-      playerDisplay: nextDisplay,
-      updatedAt: new Date().toISOString()
-    };
-    updateCampaignDraft(nextCampaign);
   };
 
   const createPlayerDisplayProfileFromDraft = (name: string, calibration: DisplayCalibration) => {
@@ -1041,49 +1005,27 @@ export function GmApp() {
       return;
     }
     const now = new Date().toISOString();
-    const profile = createPlayerDisplayProfile(crypto.randomUUID(), name, calibration, now);
-    const nextDisplay = getCalibrationFromProfile(profile);
-    const nextCampaign = {
-      ...campaign,
-      activePlayerDisplayProfileId: profile.id,
-      playerDisplay: nextDisplay,
-      playerDisplayProfiles: [...campaign.playerDisplayProfiles, profile],
-      updatedAt: now
-    };
-    updateCampaignDraft(nextCampaign);
+    updateCampaignDraft(addCampaignPlayerDisplayProfile(campaign, crypto.randomUUID(), name, calibration, now));
   };
 
   const renamePlayerDisplayProfile = (profileId: string, name: string) => {
     if (!campaign) {
       return;
     }
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      return;
+    const nextCampaign = renameCampaignPlayerDisplayProfile(campaign, profileId, name, new Date().toISOString());
+    if (nextCampaign) {
+      updateCampaignDraft(nextCampaign);
     }
-    const now = new Date().toISOString();
-    updateCampaignDraft({
-      ...campaign,
-      playerDisplayProfiles: campaign.playerDisplayProfiles.map((profile) => (profile.id === profileId ? { ...profile, name: trimmedName, updatedAt: now } : profile)),
-      updatedAt: now
-    });
   };
 
   const deletePlayerDisplayProfile = (profileId: string) => {
-    if (!campaign || campaign.playerDisplayProfiles.length <= 1) {
+    if (!campaign) {
       return;
     }
-    const remainingProfiles = campaign.playerDisplayProfiles.filter((profile) => profile.id !== profileId);
-    const fallbackProfile = remainingProfiles.find((profile) => profile.id === campaign.activePlayerDisplayProfileId) ?? remainingProfiles[0];
-    const nextDisplay = getCalibrationFromProfile(fallbackProfile);
-    const nextCampaign = {
-      ...campaign,
-      activePlayerDisplayProfileId: fallbackProfile.id,
-      playerDisplay: nextDisplay,
-      playerDisplayProfiles: remainingProfiles,
-      updatedAt: new Date().toISOString()
-    };
-    updateCampaignDraft(nextCampaign);
+    const nextCampaign = deleteCampaignPlayerDisplayProfile(campaign, profileId, new Date().toISOString());
+    if (nextCampaign) {
+      updateCampaignDraft(nextCampaign);
+    }
   };
 
   const buildMapCalibratedScene = async (draft: MapCalibrationDraft) => {
