@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } from "electron";
 import type { WebContents } from "electron";
-import { mkdir, readdir, readFile, stat } from "node:fs/promises";
+import { mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -18,7 +18,6 @@ import {
   createDefaultCampaign,
   isLiveTableEvent,
   isPlayerIdleState,
-  normalizeCampaign,
   normalizeScene,
   type PlayerSceneProjection
 } from "../src/shared/localvtt.js";
@@ -74,7 +73,7 @@ import {
   sceneBackupsRootFolder,
   sceneBackupFolder
 } from "./metadataBackups.js";
-import { hydrateCampaignSceneEntry } from "./persistenceCodecs.js";
+import { hydrateSceneSummaries } from "./campaignSceneSummaries.js";
 import {
   consumeMapReplacementToken,
   createMapReplacementToken,
@@ -271,28 +270,6 @@ async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSumma
     missingAssets: health.missingAssetFiles.map((asset) => asset.relativePath),
     health
   };
-}
-
-async function hydrateSceneSummaries(campaignPath: string, campaign: Campaign): Promise<Campaign> {
-  const normalizedCampaign = normalizeCampaign(campaign);
-  const scenes = await Promise.all(
-    normalizedCampaign.scenes.map(async (entry) => {
-      if (entry.mapAssetId && entry.weather) {
-        return entry;
-      }
-      try {
-        const filePath = path.resolve(campaignPath, entry.file);
-        assertInsideCampaign(campaignPath, filePath);
-        const raw = await readFile(filePath, "utf8");
-        const scene = JSON.parse(raw) as unknown;
-        assertValidScene(scene);
-        return hydrateCampaignSceneEntry(entry, scene);
-      } catch {
-        return entry;
-      }
-    })
-  );
-  return { ...normalizedCampaign, scenes };
 }
 
 async function regenerateCampaignThumbnails(
