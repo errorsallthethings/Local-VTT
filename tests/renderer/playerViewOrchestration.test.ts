@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CALIBRATION, type DisplayCalibration } from "../../src/shared/localvtt";
+import { createDefaultScene, DEFAULT_CALIBRATION, type DisplayCalibration } from "../../src/shared/localvtt";
 import {
   getMissingPlayerDisplayWarning,
+  getPreviousPlayerScenePauseUpdate,
   getPlayerTestPatternState,
   getPlayerViewModeState
 } from "../../src/renderer/lib/player-view";
@@ -45,6 +46,65 @@ describe("player view orchestration helpers", () => {
     expect(getPlayerViewModeState("hold", "scene-1")).toEqual({ playerSceneId: null, playerDisplayMode: "hold" });
     expect(getPlayerViewModeState("blackout")).toEqual({ playerSceneId: null, playerDisplayMode: "blackout" });
     expect(getPlayerViewModeState("test-pattern")).toEqual({ playerSceneId: null, playerDisplayMode: "test-pattern" });
+  });
+
+  it("pauses the previously displayed scene when switching Player View scenes", () => {
+    const previousScene = {
+      ...createDefaultScene("Previous"),
+      id: "scene-1",
+      turnOrder: {
+        ...createDefaultScene("Previous").turnOrder,
+        active: true,
+        playerViewVisible: true
+      }
+    };
+
+    const paused = getPreviousPlayerScenePauseUpdate({
+      previousPlayerScene: previousScene,
+      previousPlayerSceneId: "scene-1",
+      nextPlayerSceneId: "scene-2",
+      updatedAt: "now"
+    });
+
+    expect(paused?.turnOrder.active).toBe(false);
+    expect(paused?.turnOrder.playerViewVisible).toBe(false);
+    expect(paused?.updatedAt).toBe("now");
+  });
+
+  it("does not pause Player View scenes when there is no scene switch or no active turn order", () => {
+    const inactiveScene = { ...createDefaultScene("Previous"), id: "scene-1" };
+    const activeScene = {
+      ...inactiveScene,
+      turnOrder: {
+        ...inactiveScene.turnOrder,
+        active: true
+      }
+    };
+
+    expect(
+      getPreviousPlayerScenePauseUpdate({
+        previousPlayerScene: null,
+        previousPlayerSceneId: "scene-1",
+        nextPlayerSceneId: "scene-2",
+        updatedAt: "now"
+      })
+    ).toBeNull();
+    expect(
+      getPreviousPlayerScenePauseUpdate({
+        previousPlayerScene: activeScene,
+        previousPlayerSceneId: "scene-1",
+        nextPlayerSceneId: "scene-1",
+        updatedAt: "now"
+      })
+    ).toBeNull();
+    expect(
+      getPreviousPlayerScenePauseUpdate({
+        previousPlayerScene: inactiveScene,
+        previousPlayerSceneId: "scene-1",
+        nextPlayerSceneId: "scene-2",
+        updatedAt: "now"
+      })
+    ).toBeNull();
   });
 
   it("builds test pattern idle state with connected display metadata", () => {

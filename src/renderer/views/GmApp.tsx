@@ -102,6 +102,7 @@ import { logRendererError } from "../lib/rendererDiagnostics";
 import { loadImageDimensions } from "../lib/assets";
 import {
   getMissingPlayerDisplayWarning,
+  getPreviousPlayerScenePauseUpdate,
   getPlayerTestPatternState,
   getPlayerViewModeState,
   showDefaultPlayerHold,
@@ -132,7 +133,7 @@ import {
 } from "../lib/campaign";
 import { createImportedToken } from "../lib/tokens";
 import { getSelectedTokenAssetIds, getTokenAssetDeleteDialogState, getTokenAssetRenameDialogState } from "../lib/tokens";
-import { addTurnOrderEntry, createTurnOrderEntryFromToken, stopTurnOrder } from "../lib/turn-order";
+import { addTurnOrderEntry, createTurnOrderEntryFromToken } from "../lib/turn-order";
 import {
   COLLAPSED_RAIL_WIDTH,
   COMPACT_RIGHT_PANEL_WIDTH,
@@ -452,6 +453,20 @@ export function GmApp() {
     playerTemplatePreviewDrawing,
     onDiceRollHistoryChange: setDiceRollHistory
   });
+
+  const applyPlayerViewModeState = (
+    playerDisplayMode: Parameters<typeof getPlayerViewModeState>[0],
+    playerSceneId: string | null = null,
+    closeMenu = true
+  ) => {
+    const playerViewState = getPlayerViewModeState(playerDisplayMode, playerSceneId);
+    setPlayerSceneId(playerViewState.playerSceneId);
+    setPlayerDisplayMode(playerViewState.playerDisplayMode);
+    if (closeMenu) {
+      setPlayerMenuOpen(false);
+    }
+  };
+
   useEffect(() => {
     diceSettingsDraftRef.current = diceSettings;
   }, [diceSettings]);
@@ -1059,10 +1074,7 @@ export function GmApp() {
         fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
       });
       await sendSceneToPlayer(window.localVtt, campaign, nextScene, playerViewSyncOptions);
-      const playerViewState = getPlayerViewModeState("scene", nextScene.id);
-      setPlayerSceneId(playerViewState.playerSceneId);
-      setPlayerDisplayMode(playerViewState.playerDisplayMode);
-      setPlayerMenuOpen(false);
+      applyPlayerViewModeState("scene", nextScene.id);
       const warning = getMissingPlayerDisplayWarning(openResult.displayFound, campaign.playerDisplay.selectedDisplayLabel);
       if (warning) {
         setError(warning);
@@ -1427,8 +1439,13 @@ export function GmApp() {
       }
       if (campaignPath && playerSceneId && playerSceneId !== activeScene.id) {
         const previousPlayerScene = sceneDrafts[playerSceneId] ?? (await window.localVtt.loadScene(campaignPath, playerSceneId));
-        if (previousPlayerScene.turnOrder.active) {
-          const pausedPreviousScene = stopTurnOrder(previousPlayerScene);
+        const pausedPreviousScene = getPreviousPlayerScenePauseUpdate({
+          previousPlayerScene,
+          previousPlayerSceneId: playerSceneId,
+          nextPlayerSceneId: activeScene.id,
+          updatedAt: new Date().toISOString()
+        });
+        if (pausedPreviousScene) {
           setSceneDrafts((drafts) => ({ ...drafts, [pausedPreviousScene.id]: pausedPreviousScene }));
           setDirtySceneIds((ids) => new Set(ids).add(pausedPreviousScene.id));
         }
@@ -1438,9 +1455,7 @@ export function GmApp() {
         fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
       });
       await sendSceneToPlayer(window.localVtt, campaign, activeScene, playerViewSyncOptions);
-      const playerViewState = getPlayerViewModeState("scene", activeScene.id);
-      setPlayerSceneId(playerViewState.playerSceneId);
-      setPlayerDisplayMode(playerViewState.playerDisplayMode);
+      applyPlayerViewModeState("scene", activeScene.id, false);
       const warning = getMissingPlayerDisplayWarning(openResult.displayFound, campaign.playerDisplay.selectedDisplayLabel);
       if (warning) {
         setError(warning);
@@ -1456,28 +1471,19 @@ export function GmApp() {
   const closePlayerView = () =>
     run(async () => {
       await window.localVtt.closePlayerView();
-      const playerViewState = getPlayerViewModeState("scene");
-      setPlayerSceneId(playerViewState.playerSceneId);
-      setPlayerDisplayMode(playerViewState.playerDisplayMode);
-      setPlayerMenuOpen(false);
+      applyPlayerViewModeState("scene");
     });
 
   const showPlayerHold = () =>
     run(async () => {
       await showDefaultPlayerHold();
-      const playerViewState = getPlayerViewModeState("hold");
-      setPlayerSceneId(playerViewState.playerSceneId);
-      setPlayerDisplayMode(playerViewState.playerDisplayMode);
-      setPlayerMenuOpen(false);
+      applyPlayerViewModeState("hold");
     });
 
   const showPlayerBlackout = () =>
     run(async () => {
       await sendPlayerBlackout();
-      const playerViewState = getPlayerViewModeState("blackout");
-      setPlayerSceneId(playerViewState.playerSceneId);
-      setPlayerDisplayMode(playerViewState.playerDisplayMode);
-      setPlayerMenuOpen(false);
+      applyPlayerViewModeState("blackout");
     });
 
   const showPlayerTestPattern = async (gridMode: PlayerViewTestPattern["gridMode"], display: DisplayCalibration, cellSizePx: number) =>
@@ -1487,10 +1493,7 @@ export function GmApp() {
         fullscreen: display.openPlayerViewFullscreen
       });
       await window.localVtt.showPlayerTestPattern(getPlayerTestPatternState(gridMode, display, cellSizePx, displays));
-      const playerViewState = getPlayerViewModeState("test-pattern");
-      setPlayerSceneId(playerViewState.playerSceneId);
-      setPlayerDisplayMode(playerViewState.playerDisplayMode);
-      setPlayerMenuOpen(false);
+      applyPlayerViewModeState("test-pattern");
       const warning = getMissingPlayerDisplayWarning(openResult.displayFound, display.selectedDisplayLabel);
       if (warning) {
         setError(warning);
@@ -1499,10 +1502,7 @@ export function GmApp() {
 
   const showPlayerIdle = async () => {
     await showDefaultPlayerHold();
-    const playerViewState = getPlayerViewModeState("hold");
-    setPlayerSceneId(playerViewState.playerSceneId);
-    setPlayerDisplayMode(playerViewState.playerDisplayMode);
-    setPlayerMenuOpen(false);
+    applyPlayerViewModeState("hold");
   };
 
   const confirmDeleteScene = (scene: CampaignSceneEntry) =>

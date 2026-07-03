@@ -1,5 +1,6 @@
-import type { DisplayCalibration, PlayerIdleState } from "../../../shared/localvtt";
+import type { DisplayCalibration, PlayerIdleState, Scene } from "../../../shared/localvtt";
 import type { DisplayInfo } from "../../components/settings/PlayerDisplayScalePanel";
+import { stopTurnOrder } from "../turn-order";
 import {
   getPlayerTestPatternCellSize,
   getPlayerTestPatternMessage,
@@ -18,6 +19,23 @@ export function getPlayerViewModeState(playerDisplayMode: PlayerDisplayMode, pla
     playerDisplayMode,
     playerSceneId: playerDisplayMode === "scene" ? playerSceneId : null
   };
+}
+
+export function getPreviousPlayerScenePauseUpdate({
+  previousPlayerScene,
+  previousPlayerSceneId,
+  nextPlayerSceneId,
+  updatedAt
+}: {
+  previousPlayerScene: Scene | null;
+  previousPlayerSceneId: string | null;
+  nextPlayerSceneId: string;
+  updatedAt: string;
+}): Scene | null {
+  if (!previousPlayerScene || !previousPlayerSceneId || previousPlayerSceneId === nextPlayerSceneId || !previousPlayerScene.turnOrder.active) {
+    return null;
+  }
+  return stopTurnOrder(previousPlayerScene, updatedAt);
 }
 
 export function getPlayerTestPatternState(
