@@ -1,4 +1,4 @@
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
 import type {
@@ -11,6 +11,7 @@ import { normalizeScene } from "../src/shared/localvtt.js";
 import { assertInsidePath } from "./campaignPathSafety.js";
 import { campaignFile, sceneFile } from "./campaignPaths.js";
 import { backupExistingMetadataFile } from "./metadataBackupFiles.js";
+import { writeMetadataFileAtomically } from "./metadataAtomicWrite.js";
 import {
   campaignBackupFolder,
   createMetadataBackupEntry,
@@ -62,7 +63,7 @@ export async function restoreMetadataBackup(
   if (ref.kind === "campaign") {
     const campaign = toPortableCampaignMetadata(parseCampaignMetadata(raw));
     await backupExistingMetadataFile(campaignPath, campaignFile(campaignPath), campaignBackupFolder(campaignPath), "campaign.json");
-    await writeFile(campaignFile(campaignPath), `${JSON.stringify(campaign, null, 2)}\n`, "utf8");
+    await writeMetadataFileAtomically(campaignFile(campaignPath), `${JSON.stringify(campaign, null, 2)}\n`);
     return { campaignSummary: await loadCampaignSummary(campaignPath), restored: preview };
   }
 
@@ -72,7 +73,7 @@ export async function restoreMetadataBackup(
     throw new Error("Scene backup does not match the selected scene.");
   }
   await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, sceneId), sceneBackupFolder(campaignPath, sceneId), `${sceneId}.scene.json`);
-  await writeFile(sceneFile(campaignPath, sceneId), `${JSON.stringify(scene, null, 2)}\n`, "utf8");
+  await writeMetadataFileAtomically(sceneFile(campaignPath, sceneId), `${JSON.stringify(scene, null, 2)}\n`);
   return { campaignSummary: await loadCampaignSummary(campaignPath), scene: normalizeScene(scene), restored: preview };
 }
 

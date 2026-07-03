@@ -1,9 +1,10 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 
 import type { Campaign, Scene } from "../src/shared/localvtt.js";
 import { assertInsidePath } from "./campaignPathSafety.js";
 import { campaignFile, requiredCampaignFolders, sceneFile } from "./campaignPaths.js";
 import { backupExistingMetadataFile } from "./metadataBackupFiles.js";
+import { writeMetadataFileAtomically } from "./metadataAtomicWrite.js";
 import { campaignBackupFolder, sceneBackupFolder } from "./metadataBackups.js";
 import { formatMetadataReadError, formatMetadataWriteError } from "./metadataErrors.js";
 import {
@@ -42,7 +43,7 @@ export async function writeCampaign(campaignPath: string, campaign: Campaign): P
     await ensureCampaignFolders(campaignPath);
     await backupExistingMetadataFile(campaignPath, campaignFile(campaignPath), campaignBackupFolder(campaignPath), "campaign.json");
     const portable = toPortableCampaignMetadata(campaign);
-    await writeFile(campaignFile(campaignPath), `${JSON.stringify(portable, null, 2)}\n`, "utf8");
+    await writeMetadataFileAtomically(campaignFile(campaignPath), `${JSON.stringify(portable, null, 2)}\n`);
   } catch (caught) {
     throw formatMetadataWriteError("campaign", caught);
   }
@@ -53,7 +54,7 @@ export async function writeScene(campaignPath: string, scene: Scene): Promise<vo
     await ensureCampaignFolders(campaignPath);
     await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, scene.id), sceneBackupFolder(campaignPath, scene.id), `${scene.id}.scene.json`);
     const normalizedScene = toPortableSceneMetadata(scene);
-    await writeFile(sceneFile(campaignPath, normalizedScene.id), `${JSON.stringify(normalizedScene, null, 2)}\n`, "utf8");
+    await writeMetadataFileAtomically(sceneFile(campaignPath, normalizedScene.id), `${JSON.stringify(normalizedScene, null, 2)}\n`);
   } catch (caught) {
     throw formatMetadataWriteError("scene", caught);
   }

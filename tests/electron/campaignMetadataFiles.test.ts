@@ -41,6 +41,7 @@ describe("campaign metadata file helpers", () => {
       id: campaign.id,
       name: "Test Campaign"
     });
+    expect((await readdir(tempRoot)).filter((entry) => entry.endsWith(".tmp"))).toEqual([]);
   });
 
   it("writes and reads scene metadata", async () => {
