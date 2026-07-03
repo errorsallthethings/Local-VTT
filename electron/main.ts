@@ -5,7 +5,6 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
 import {
-  Asset,
   Campaign,
   CampaignSummary,
   DEFAULT_LAYERS,
@@ -47,15 +46,12 @@ import {
   createVideoMapThumbnail,
   type ThumbnailCreationResult
 } from "./assets.js";
-import {
-  getAssetFileRemovalPaths,
-  hydrateCampaignAssetPaths,
-  requireCampaignRelativePath
-} from "./assetFiles.js";
+import { hydrateCampaignAssetPaths, requireCampaignRelativePath } from "./assetFiles.js";
 import {
   assertAssetImportCandidate,
   copyAssetImportToCampaign
 } from "./assetImportFiles.js";
+import { removeCampaignAssetFiles } from "./assetFileRemoval.js";
 import { mapMediaType } from "./assetImportValidation.js";
 import {
   directoryDialogOptions,
@@ -405,13 +401,6 @@ async function chooseTokenFile(): Promise<string | null> {
   const options = tokenFileDialogOptions();
   const result = gmWindow ? await dialog.showOpenDialog(gmWindow, options) : await dialog.showOpenDialog(options);
   return selectedDialogPath(result);
-}
-
-async function deleteMapAssetFiles(campaignPath: string, asset: Asset): Promise<void> {
-  for (const assetPath of getAssetFileRemovalPaths(campaignPath, asset)) {
-    assertInsideCampaign(campaignPath, assetPath);
-    await unlinkIfExists(assetPath);
-  }
 }
 
 async function createMapThumbnail(campaignPath: string, sourcePath: string, assetId: string, rendererWebContents?: WebContents): Promise<MapThumbnailResult> {
@@ -1060,7 +1049,7 @@ ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: 
   await writeScene(campaignPath, updatedScene);
   await writeCampaign(campaignPath, campaign);
   if (!keepCurrentAsset) {
-    await deleteMapAssetFiles(campaignPath, currentAsset);
+    await removeCampaignAssetFiles(campaignPath, currentAsset);
   }
   return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: updatedScene, asset: imported };
 });
@@ -1138,10 +1127,7 @@ ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, 
     return summary;
   }
 
-  for (const assetPath of getAssetFileRemovalPaths(campaignPath, asset)) {
-    assertInsideCampaign(campaignPath, assetPath);
-    await unlinkIfExists(assetPath);
-  }
+  await removeCampaignAssetFiles(campaignPath, asset);
 
   const campaign = removeAssetFromCampaign(summary.campaign, assetId);
   await writeCampaign(campaignPath, campaign);
@@ -1166,10 +1152,7 @@ ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId
     (scene) => writeScene(campaignPath, scene)
   );
 
-  for (const assetPath of getAssetFileRemovalPaths(campaignPath, asset)) {
-    assertInsideCampaign(campaignPath, assetPath);
-    await unlinkIfExists(assetPath);
-  }
+  await removeCampaignAssetFiles(campaignPath, asset);
 
   const campaign = removeAssetFromCampaign(summary.campaign, assetId);
   await writeCampaign(campaignPath, campaign);
@@ -1189,10 +1172,7 @@ ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: 
     throw new Error(`This map asset is still used by: ${otherSceneNames.join(", ")}.`);
   }
 
-  for (const assetPath of getAssetFileRemovalPaths(campaignPath, asset)) {
-    assertInsideCampaign(campaignPath, assetPath);
-    await unlinkIfExists(assetPath);
-  }
+  await removeCampaignAssetFiles(campaignPath, asset);
 
   const currentScene = await readSceneMetadata(campaignPath, sceneId);
   const updatedScene = removeMapAssetFromScene(currentScene, assetId);
