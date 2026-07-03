@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } from "electron";
 import type { WebContents } from "electron";
-import { mkdir, readdir, stat } from "node:fs/promises";
+import { mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -8,7 +8,6 @@ import {
   Campaign,
   CampaignSummary,
   DEFAULT_LAYERS,
-  MetadataBackupEntry,
   MetadataBackupRef,
   Scene,
   SquareCropRect,
@@ -58,18 +57,14 @@ import {
   tokenFileDialogOptions
 } from "./fileDialogOptions.js";
 import { unlinkIfExists } from "./fileOperations.js";
-import {
-  backupExistingMetadataFile,
-  listMetadataBackupFolder
-} from "./metadataBackupFiles.js";
+import { backupExistingMetadataFile } from "./metadataBackupFiles.js";
+import { listCampaignMetadataBackups } from "./metadataBackupListing.js";
 import {
   previewMetadataBackup,
   restoreMetadataBackup
 } from "./metadataBackupRestore.js";
 import {
-  campaignBackupFolder,
   metadataBackupsRootFolder,
-  sceneBackupsRootFolder,
   sceneBackupFolder
 } from "./metadataBackups.js";
 import { hydrateSceneSummaries } from "./campaignSceneSummaries.js";
@@ -328,30 +323,8 @@ async function backupSceneBeforeDelete(campaignPath: string, sceneId: string): P
   await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, sceneId), sceneBackupFolder(campaignPath, sceneId), `${sceneId}.scene.json`);
 }
 
-async function listMetadataBackups(campaignPath: string): Promise<MetadataBackupEntry[]> {
-  const summary = await loadCampaignFromPath(campaignPath);
-  const sceneNames = new Map(summary.campaign.scenes.map((scene) => [scene.id, scene.name]));
-  const entries: MetadataBackupEntry[] = [];
-  entries.push(...(await listMetadataBackupFolder(campaignPath, campaignBackupFolder(campaignPath), "campaign")));
-
-  const scenesRoot = sceneBackupsRootFolder(campaignPath);
-  assertInsideCampaign(campaignPath, scenesRoot);
-  try {
-    const sceneFolders = await readdir(scenesRoot, { withFileTypes: true });
-    for (const folder of sceneFolders) {
-      if (!folder.isDirectory()) {
-        continue;
-      }
-      const sceneId = folder.name;
-      entries.push(...(await listMetadataBackupFolder(campaignPath, sceneBackupFolder(campaignPath, sceneId), "scene", sceneId, sceneNames.get(sceneId))));
-    }
-  } catch (caught) {
-    if ((caught as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw caught;
-    }
-  }
-
-  return entries.sort((left, right) => right.fileName.localeCompare(left.fileName));
+async function listMetadataBackups(campaignPath: string) {
+  return listCampaignMetadataBackups(campaignPath, loadCampaignFromPath);
 }
 
 async function chooseDirectory(title: string, createDirectory = false): Promise<string | null> {
