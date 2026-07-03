@@ -47,7 +47,9 @@ import {
   createFogTool,
   getActiveFogShape,
   getActiveToolCategory,
-  isTemplateDrawingTool,
+  getCategoryOpenPlan,
+  getDrawingToolSelectionPlan,
+  getTableToolSelectionPlan,
   isToolCategoryActive,
   type CanvasTool,
   type EnvironmentEffectTool,
@@ -61,9 +63,6 @@ export type { DrawingTemplateSize, DrawingTemplateWidth } from "../settings/Draw
 export type { SelectorSelectionCounts, SelectorSelectionFilters } from "../settings/SelectorToolControls";
 export type { CanvasTool, EnvironmentEffectTool, FogOperation, MouseBehavior, WeatherMaskTool } from "./toolMenuState";
 
-const DEFAULT_DRAWING_COLOR = "#ff0000";
-const DEFAULT_TEMPLATE_COLOR = "#7dd3fc";
-const DEFAULT_SONAR_COLOR = "#ffd84d";
 const DEFAULT_ENVIRONMENT_EFFECT_TYPE = ENVIRONMENT_EFFECT_OPTIONS[0]?.value ?? "arcane";
 
 interface ToolsMenuProps {
@@ -454,53 +453,44 @@ export function ToolsMenu({
   };
 
   const openCategory = (category: ToolCategory) => {
-    if (activeCategory === category) {
-      setActiveCategory(null);
-      clearActiveTools();
-      return;
+    const plan = getCategoryOpenPlan(category, activeCategory, drawingStrokeWidth);
+    setActiveCategory(plan.activeCategory);
+    if (plan.clearHelp) {
+      setHelpTopic(null);
     }
-
-    setActiveCategory(category);
-    setHelpTopic(null);
-    if (category === "dice") {
-      clearActiveTools();
-      setActiveCategory(null);
+    if (plan.clearCanvasTool) {
+      onCanvasToolChange(null);
+    }
+    if (plan.clearFogTool) {
+      onFogToolChange(null);
+    }
+    if (plan.clearWeatherMaskTool) {
+      onWeatherMaskToolChange(null);
+    }
+    if (plan.clearEnvironmentEffectTool) {
+      onEnvironmentEffectToolChange(null);
+    }
+    if (plan.clearDrawingTool) {
+      onDrawingToolChange(null);
+    }
+    if (plan.drawingColor) {
+      onDrawingColorChange(plan.drawingColor);
+    }
+    if (plan.resetTemplateStrokeWidth) {
+      onDrawingStrokeWidthChange(8);
+    }
+    if (category === "effects") {
+      onEnvironmentEffectTypeChange(DEFAULT_ENVIRONMENT_EFFECT_TYPE);
+    }
+    if (plan.environmentPresetValue) {
+      setEnvironmentEffectPresetValue(plan.environmentPresetValue);
+    }
+    if (plan.toggleDicePanel) {
       onToggleDicePanel();
       return;
     }
-    if (category === "turn-order") {
-      clearActiveTools();
-      setActiveCategory(null);
+    if (plan.toggleTurnOrder) {
       onToggleTurnOrder();
-      return;
-    }
-    if (category === "drawing" || category === "templates") {
-      onCanvasToolChange(null);
-      onFogToolChange(null);
-      onWeatherMaskToolChange(null);
-      onEnvironmentEffectToolChange(null);
-      onDrawingColorChange(category === "templates" ? DEFAULT_TEMPLATE_COLOR : DEFAULT_DRAWING_COLOR);
-      if (category === "templates" && drawingStrokeWidth === 40) {
-        onDrawingStrokeWidthChange(8);
-      }
-    } else if (category === "table") {
-      onFogToolChange(null);
-      onWeatherMaskToolChange(null);
-      onEnvironmentEffectToolChange(null);
-      onDrawingToolChange(null);
-    } else if (category === "fog") {
-      onCanvasToolChange(null);
-      onDrawingToolChange(null);
-      onWeatherMaskToolChange(null);
-      onEnvironmentEffectToolChange(null);
-    } else if (category === "effects") {
-      onCanvasToolChange(null);
-      onFogToolChange(null);
-      onDrawingToolChange(null);
-      onEnvironmentEffectTypeChange(DEFAULT_ENVIRONMENT_EFFECT_TYPE);
-      setEnvironmentEffectPresetValue("custom");
-    } else {
-      clearActiveTools();
     }
   };
 
@@ -514,17 +504,16 @@ export function ToolsMenu({
   };
 
   const setDrawingTool = (tool: DrawingTool) => {
-    const activatingTemplateTool = isTemplateDrawingTool(tool) && activeDrawingTool !== tool;
-    const enteringTemplateTools = activatingTemplateTool && !isTemplateDrawingTool(activeDrawingTool);
+    const plan = getDrawingToolSelectionPlan(tool, activeDrawingTool, drawingStrokeWidth);
     onCanvasToolChange(null);
     onFogToolChange(null);
     onWeatherMaskToolChange(null);
     onEnvironmentEffectToolChange(null);
-    onDrawingColorChange(isTemplateDrawingTool(tool) ? DEFAULT_TEMPLATE_COLOR : DEFAULT_DRAWING_COLOR);
-    if (enteringTemplateTools && drawingStrokeWidth === 40) {
+    onDrawingColorChange(plan.drawingColor);
+    if (plan.resetTemplateStrokeWidth) {
       onDrawingStrokeWidthChange(8);
     }
-    onDrawingToolChange(activeDrawingTool === tool ? null : tool);
+    onDrawingToolChange(plan.nextDrawingTool);
   };
 
   const setWeatherMaskTool = (tool: WeatherMaskTool) => {
@@ -544,15 +533,18 @@ export function ToolsMenu({
   };
 
   const setTableTool = (tool: CanvasTool) => {
+    const plan = getTableToolSelectionPlan(tool, activeCanvasTool);
     onFogToolChange(null);
     onDrawingToolChange(null);
     onWeatherMaskToolChange(null);
     onEnvironmentEffectToolChange(null);
-    setHelpTopic(null);
-    if (tool === "ping") {
-      onPingColorChange(DEFAULT_SONAR_COLOR);
+    if (plan.clearHelp) {
+      setHelpTopic(null);
     }
-    onCanvasToolChange(activeCanvasTool === tool ? null : tool);
+    if (plan.pingColor) {
+      onPingColorChange(plan.pingColor);
+    }
+    onCanvasToolChange(plan.nextCanvasTool);
   };
 
   const setFogToolOperation = (operation: FogOperation) => {

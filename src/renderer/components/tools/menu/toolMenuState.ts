@@ -9,6 +9,10 @@ export type EnvironmentEffectTool = "rectangle" | "circle" | "polygon";
 export type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";
 export type MouseBehavior = "selector" | "grabber";
 
+export const DEFAULT_DRAWING_COLOR = "#ff0000";
+export const DEFAULT_TEMPLATE_COLOR = "#7dd3fc";
+export const DEFAULT_SONAR_COLOR = "#ffd84d";
+
 export interface ActiveToolCategoryState {
   activeCanvasTool: CanvasTool | null;
   activeFogTool: FogTool | null;
@@ -21,6 +25,35 @@ export interface ToolCategoryActiveState extends ActiveToolCategoryState {
   activeCategory: ToolCategory | null;
   dicePanelOpen: boolean;
   turnOrderModalOpen: boolean;
+}
+
+export interface CategoryOpenPlan {
+  activeCategory: ToolCategory | null;
+  clearCanvasTool: boolean;
+  clearFogTool: boolean;
+  clearWeatherMaskTool: boolean;
+  clearEnvironmentEffectTool: boolean;
+  clearDrawingTool: boolean;
+  clearHelp: boolean;
+  drawingColor: string | null;
+  environmentPresetValue: string | null;
+  resetTemplateStrokeWidth: boolean;
+  toggleDicePanel: boolean;
+  toggleTurnOrder: boolean;
+}
+
+export interface DrawingToolSelectionPlan {
+  clearTools: boolean;
+  drawingColor: string;
+  resetTemplateStrokeWidth: boolean;
+  nextDrawingTool: DrawingTool | null;
+}
+
+export interface TableToolSelectionPlan {
+  clearTools: boolean;
+  clearHelp: boolean;
+  pingColor: string | null;
+  nextCanvasTool: CanvasTool | null;
 }
 
 export function createFogTool(operation: FogOperation, shape: FogToolShape): FogTool {
@@ -90,3 +123,104 @@ export function isToolCategoryActive(category: ToolCategory, state: ToolCategory
   }
   return false;
 }
+
+export function getCategoryOpenPlan(category: ToolCategory, activeCategory: ToolCategory | null, drawingStrokeWidth: number): CategoryOpenPlan {
+  if (activeCategory === category) {
+    return createCategoryOpenPlan({ activeCategory: null, ...CLEAR_ALL_TOOLS });
+  }
+  if (category === "dice") {
+    return createCategoryOpenPlan({ activeCategory: null, ...CLEAR_ALL_TOOLS, toggleDicePanel: true });
+  }
+  if (category === "turn-order") {
+    return createCategoryOpenPlan({ activeCategory: null, ...CLEAR_ALL_TOOLS, toggleTurnOrder: true });
+  }
+  if (category === "drawing" || category === "templates") {
+    return createCategoryOpenPlan({
+      activeCategory: category,
+      clearCanvasTool: true,
+      clearFogTool: true,
+      clearWeatherMaskTool: true,
+      clearEnvironmentEffectTool: true,
+      drawingColor: category === "templates" ? DEFAULT_TEMPLATE_COLOR : DEFAULT_DRAWING_COLOR,
+      resetTemplateStrokeWidth: category === "templates" && drawingStrokeWidth === 40
+    });
+  }
+  if (category === "table") {
+    return createCategoryOpenPlan({
+      activeCategory: category,
+      clearFogTool: true,
+      clearWeatherMaskTool: true,
+      clearEnvironmentEffectTool: true,
+      clearDrawingTool: true
+    });
+  }
+  if (category === "fog") {
+    return createCategoryOpenPlan({
+      activeCategory: category,
+      clearCanvasTool: true,
+      clearWeatherMaskTool: true,
+      clearEnvironmentEffectTool: true,
+      clearDrawingTool: true
+    });
+  }
+  if (category === "effects") {
+    return createCategoryOpenPlan({
+      activeCategory: category,
+      clearCanvasTool: true,
+      clearFogTool: true,
+      clearDrawingTool: true,
+      environmentPresetValue: "custom"
+    });
+  }
+  return createCategoryOpenPlan({ activeCategory: category, ...CLEAR_ALL_TOOLS });
+}
+
+export function getDrawingToolSelectionPlan(
+  tool: DrawingTool,
+  activeDrawingTool: DrawingTool | null,
+  drawingStrokeWidth: number
+): DrawingToolSelectionPlan {
+  const selectingTemplateTool = isTemplateDrawingTool(tool);
+  const enteringTemplateTools = selectingTemplateTool && activeDrawingTool !== tool && !isTemplateDrawingTool(activeDrawingTool);
+  return {
+    clearTools: true,
+    drawingColor: selectingTemplateTool ? DEFAULT_TEMPLATE_COLOR : DEFAULT_DRAWING_COLOR,
+    resetTemplateStrokeWidth: enteringTemplateTools && drawingStrokeWidth === 40,
+    nextDrawingTool: activeDrawingTool === tool ? null : tool
+  };
+}
+
+export function getTableToolSelectionPlan(tool: CanvasTool, activeCanvasTool: CanvasTool | null): TableToolSelectionPlan {
+  return {
+    clearTools: true,
+    clearHelp: true,
+    pingColor: tool === "ping" ? DEFAULT_SONAR_COLOR : null,
+    nextCanvasTool: activeCanvasTool === tool ? null : tool
+  };
+}
+
+function createCategoryOpenPlan(overrides: Partial<CategoryOpenPlan> = {}): CategoryOpenPlan {
+  return {
+    activeCategory: null,
+    clearCanvasTool: false,
+    clearFogTool: false,
+    clearWeatherMaskTool: false,
+    clearEnvironmentEffectTool: false,
+    clearDrawingTool: false,
+    clearHelp: true,
+    drawingColor: null,
+    environmentPresetValue: null,
+    resetTemplateStrokeWidth: false,
+    toggleDicePanel: false,
+    toggleTurnOrder: false,
+    ...overrides
+  };
+}
+
+const CLEAR_ALL_TOOLS = {
+  clearCanvasTool: true,
+  clearFogTool: true,
+  clearWeatherMaskTool: true,
+  clearEnvironmentEffectTool: true,
+  clearDrawingTool: true
+} satisfies Partial<CategoryOpenPlan>;
