@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } from "electron";
 import type { WebContents } from "electron";
-import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -52,7 +52,6 @@ import {
 } from "./assets.js";
 import {
   buildAssetImportRelativePath,
-  buildAssetThumbnailRelativePath,
   getAssetFileRemovalPaths,
   hydrateCampaignAssetPaths,
   requireCampaignRelativePath
@@ -93,6 +92,7 @@ import {
 import { getDimensionDifferenceWarning } from "./mapReplacementWarnings.js";
 import { getMapAssetSceneNames, mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
 import { createThumbnailImportFailureDiagnostic, createThumbnailRegenerationFailure } from "./thumbnailDiagnostics.js";
+import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
 import { createCampaignSceneEntry, insertSceneEntryAfter, updateSceneEntryFromScene } from "./sceneEntries.js";
 
@@ -532,10 +532,7 @@ async function createMapThumbnail(campaignPath: string, sourcePath: string, asse
     return { failureReason: thumbnailResult.failureReason ?? "Image file could not be decoded by Electron." };
   }
 
-  const relativePath = buildAssetThumbnailRelativePath(assetId);
-  const destination = requireCampaignRelativePath(campaignPath, relativePath);
-  await writeFile(destination, thumbnail);
-  return { thumbnailRelativePath: relativePath };
+  return { thumbnailRelativePath: await writeAssetThumbnail(campaignPath, assetId, thumbnail) };
 }
 
 async function createVideoMapThumbnailWithFallback(sourcePath: string, assetId: string, rendererWebContents?: WebContents): Promise<ThumbnailCreationResult> {
@@ -757,22 +754,7 @@ async function createTokenThumbnail(campaignPath: string, sourcePath: string, as
   if (!thumbnail) {
     return { failureReason: "Image file could not be decoded by Electron." };
   }
-  return { thumbnailRelativePath: await writeTokenThumbnail(campaignPath, assetId, thumbnail) };
-}
-
-async function writeTokenThumbnail(campaignPath: string, assetId: string, thumbnail: Buffer, variant = ""): Promise<string> {
-  const relativePath = buildAssetThumbnailRelativePath(assetId, variant);
-  const destination = requireCampaignRelativePath(campaignPath, relativePath);
-  await writeFile(destination, thumbnail);
-  return relativePath;
-}
-
-async function removeThumbnailIfUnused(campaignPath: string, relativePath: string | undefined, assets: readonly Asset[]): Promise<void> {
-  if (!relativePath || assets.some((asset) => asset.thumbnailRelativePath === relativePath)) {
-    return;
-  }
-  const thumbnailPath = requireCampaignRelativePath(campaignPath, relativePath);
-  await unlinkIfExists(thumbnailPath);
+  return { thumbnailRelativePath: await writeAssetThumbnail(campaignPath, assetId, thumbnail) };
 }
 
 app.whenReady().then(() => {
@@ -1340,7 +1322,7 @@ ipcMain.handle("asset:updateTokenThumbnail", async (_event, campaignPath: string
   if (!thumbnail) {
     throw new Error("Unable to generate token thumbnail.");
   }
-  const thumbnailRelativePath = await writeTokenThumbnail(campaignPath, assetId, thumbnail, `crop-${Date.now()}`);
+  const thumbnailRelativePath = await writeAssetThumbnail(campaignPath, assetId, thumbnail, `crop-${Date.now()}`);
   const nextAssets = summary.campaign.assets.map((candidate) => (candidate.id === assetId ? { ...candidate, thumbnailRelativePath } : candidate));
   const campaign: Campaign = {
     ...summary.campaign,
