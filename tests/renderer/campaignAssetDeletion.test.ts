@@ -4,7 +4,8 @@ import {
   getActiveSceneAfterTokenAssetDelete,
   getMapAssetDeleteSceneUpdate,
   getSceneDraftsAfterTokenAssetDelete,
-  getSelectedTokenIdsAfterTokenAssetDelete
+  getSelectedTokenIdsAfterTokenAssetDelete,
+  getTokenAssetDeleteSceneUpdate
 } from "../../src/renderer/lib/campaign";
 
 const now = "2026-07-03T12:00:00.000Z";
@@ -80,5 +81,23 @@ describe("campaign asset deletion helpers", () => {
 
     expect(getSelectedTokenIdsAfterTokenAssetDelete(["token-1", "token-2"], activeScene)).toEqual(["token-2"]);
     expect(getSelectedTokenIdsAfterTokenAssetDelete(["token-1"], null)).toEqual([]);
+  });
+
+  it("builds a complete scene update after token asset deletes", () => {
+    const draft = scene("scene-1", [token("token-1", "asset-1"), token("token-2", "asset-2")]);
+    const activeScene = scene("scene-2", [token("token-3", "asset-1"), token("token-4", "asset-2")]);
+    const savedActiveScene = scene("scene-2", [token("token-4", "asset-2")]);
+
+    const update = getTokenAssetDeleteSceneUpdate(
+      { "scene-1": draft },
+      activeScene,
+      [savedActiveScene],
+      "asset-1",
+      ["token-2", "token-3", "token-4"]
+    );
+
+    expect(update.sceneDrafts["scene-1"].tokens.map((candidate) => candidate.id)).toEqual(["token-2"]);
+    expect(update.activeScene).toBe(savedActiveScene);
+    expect(update.selectedTokenIds).toEqual(["token-4"]);
   });
 });

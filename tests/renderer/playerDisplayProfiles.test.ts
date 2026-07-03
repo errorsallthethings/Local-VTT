@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createDefaultCampaign, createPlayerDisplayProfile, type Campaign, type DisplayCalibration } from "../../src/shared/localvtt";
 import {
   addCampaignPlayerDisplayProfile,
+  applyPlayerDisplayProfileAction,
   deleteCampaignPlayerDisplayProfile,
   getCalibrationFromProfile,
   renameCampaignPlayerDisplayProfile,
@@ -107,5 +108,28 @@ describe("player display profile helpers", () => {
     expect(next?.playerDisplayProfiles.map((profile) => profile.id)).toEqual([campaign.playerDisplayProfiles[0].id]);
     expect(next?.updatedAt).toBe(later);
     expect(deleteCampaignPlayerDisplayProfile(next!, next!.activePlayerDisplayProfileId, later)).toBeNull();
+  });
+
+  it("applies player display profile actions through a single command helper", () => {
+    const campaign = campaignWithProfiles();
+    const created = applyPlayerDisplayProfileAction(
+      campaign,
+      { type: "create-profile", profileId: "profile-3", name: "Third", calibration: calibration({ selectedDisplayLabel: "Third Display" }) },
+      later
+    );
+    const renamed = applyPlayerDisplayProfileAction(created!, { type: "rename-profile", profileId: "profile-3", name: "  Table  " }, later);
+    const selected = applyPlayerDisplayProfileAction(renamed!, { type: "select-profile", profileId: "profile-3" }, later);
+    const updated = applyPlayerDisplayProfileAction(
+      selected!,
+      { type: "update-display", display: calibration({ selectedDisplayLabel: "Updated Table" }) },
+      later
+    );
+    const deleted = applyPlayerDisplayProfileAction(updated!, { type: "delete-profile", profileId: "profile-3" }, later);
+
+    expect(created?.activePlayerDisplayProfileId).toBe("profile-3");
+    expect(renamed?.playerDisplayProfiles.find((profile) => profile.id === "profile-3")?.name).toBe("Table");
+    expect(selected?.playerDisplay.selectedDisplayLabel).toBe("Third Display");
+    expect(updated?.playerDisplay.selectedDisplayLabel).toBe("Updated Table");
+    expect(deleted?.playerDisplayProfiles.map((profile) => profile.id)).toEqual([campaign.playerDisplayProfiles[0].id, "profile-2"]);
   });
 });

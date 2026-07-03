@@ -9,6 +9,8 @@ import {
   getSelectedTokenAssetIds,
   getSelectedTokenLibraryAsset,
   getSelectedTokenLibraryAssetIds,
+  getTokenAssetDeleteDialogState,
+  getTokenAssetRenameDialogState,
   mergeTokenAssetUsage,
   removeSceneTokensByAsset
 } from "../../src/renderer/lib/tokens";
@@ -73,6 +75,14 @@ describe("token library helpers", () => {
     expect(getSelectedTokenLibraryAsset(assets, "zombie")?.name).toBe("zombie");
     expect(getSelectedTokenLibraryAsset(assets, "missing")).toBeNull();
     expect(getSelectedTokenLibraryAsset(assets, undefined)).toBeNull();
+  });
+
+  it("builds token asset rename dialog state with label fallback", () => {
+    expect(getTokenAssetRenameDialogState(tokenAsset("asset-1", "Hero", "hero.png", "2026-01-01T00:00:00.000Z"))).toEqual({
+      assetId: "asset-1",
+      name: "Hero"
+    });
+    expect(getTokenAssetRenameDialogState(tokenAsset("asset-2", "", "source.png", "2026-01-01T00:00:00.000Z")).name).toBe("source.png");
   });
 
   it("builds token layer row labels and visibility from tokens and assets", () => {
@@ -157,5 +167,33 @@ describe("token library helpers", () => {
       { sceneId: "scene-1", sceneName: "Saved One", count: 1 },
       { sceneId: "scene-2", sceneName: "Two", count: 2 }
     ]);
+  });
+
+  it("builds token asset delete dialog state from saved and local usage", () => {
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.scenes = [
+      { id: "scene-1", name: "One", mapAssetId: null, folderId: null, color: "#ffffff", weather: createDefaultScene("One").weather },
+      { id: "scene-2", name: "Two", mapAssetId: null, folderId: null, color: "#ffffff", weather: createDefaultScene("Two").weather }
+    ];
+    const draft = createDefaultScene("Draft Two");
+    draft.id = "scene-2";
+    draft.tokens = [sceneToken("two-a", "asset-1")];
+    const asset = tokenAsset("asset-1", "Hero", "hero.png", "2026-01-01T00:00:00.000Z");
+
+    expect(
+      getTokenAssetDeleteDialogState(
+        asset,
+        [{ sceneId: "scene-1", sceneName: "Saved One", count: 2 }],
+        campaign,
+        { "scene-2": draft },
+        null
+      )
+    ).toEqual({
+      asset,
+      usage: [
+        { sceneId: "scene-1", sceneName: "Saved One", count: 2 },
+        { sceneId: "scene-2", sceneName: "Two", count: 1 }
+      ]
+    });
   });
 });

@@ -5,6 +5,13 @@ import {
   type PlayerDisplayProfile
 } from "../../../shared/localvtt";
 
+export type PlayerDisplayProfileAction =
+  | { type: "update-display"; display: DisplayCalibration }
+  | { type: "select-profile"; profileId: string }
+  | { type: "create-profile"; profileId: string; name: string; calibration: DisplayCalibration }
+  | { type: "rename-profile"; profileId: string; name: string }
+  | { type: "delete-profile"; profileId: string };
+
 export function getCalibrationFromProfile(profile: PlayerDisplayProfile): DisplayCalibration {
   return {
     physicalScaleEnabled: profile.physicalScaleEnabled,
@@ -99,4 +106,23 @@ export function deleteCampaignPlayerDisplayProfile(campaign: Campaign, profileId
     playerDisplayProfiles: remainingProfiles,
     updatedAt
   };
+}
+
+export function applyPlayerDisplayProfileAction(
+  campaign: Campaign,
+  action: PlayerDisplayProfileAction,
+  updatedAt: string
+): Campaign | null {
+  switch (action.type) {
+    case "update-display":
+      return updateCampaignPlayerDisplay(campaign, action.display, updatedAt);
+    case "select-profile":
+      return selectCampaignPlayerDisplayProfile(campaign, action.profileId, updatedAt);
+    case "create-profile":
+      return addCampaignPlayerDisplayProfile(campaign, action.profileId, action.name, action.calibration, updatedAt);
+    case "rename-profile":
+      return renameCampaignPlayerDisplayProfile(campaign, action.profileId, action.name, updatedAt);
+    case "delete-profile":
+      return deleteCampaignPlayerDisplayProfile(campaign, action.profileId, updatedAt);
+  }
 }

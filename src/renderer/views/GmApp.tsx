@@ -88,9 +88,7 @@ import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from ".
 import {
   addCampaignPlayerToCampaign,
   deleteCampaignPlayerFromCampaign,
-  getActiveSceneAfterTokenAssetDelete,
-  getSceneDraftsAfterTokenAssetDelete,
-  getSelectedTokenIdsAfterTokenAssetDelete,
+  getTokenAssetDeleteSceneUpdate,
   moveSceneFolder,
   renameCampaignTokenAsset,
   setCampaignTokenAssetDefaults,
@@ -111,11 +109,7 @@ import {
   showPlayerBlackout as sendPlayerBlackout
 } from "../lib/player-view";
 import {
-  addCampaignPlayerDisplayProfile,
-  deleteCampaignPlayerDisplayProfile,
-  renameCampaignPlayerDisplayProfile,
-  selectCampaignPlayerDisplayProfile,
-  updateCampaignPlayerDisplay
+  applyPlayerDisplayProfileAction,
 } from "../lib/player-display/playerDisplayProfiles";
 import { sendSceneToPlayer, updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
 import { removeLastDrawing, removeLastEnvironmentEffect, removeLastWeatherMask } from "../lib/scene";
@@ -129,7 +123,7 @@ import {
   type RecentCampaign
 } from "../lib/campaign";
 import { createImportedToken } from "../lib/tokens";
-import { getSelectedTokenAssetIds, mergeTokenAssetUsage } from "../lib/tokens";
+import { getSelectedTokenAssetIds, getTokenAssetDeleteDialogState, getTokenAssetRenameDialogState } from "../lib/tokens";
 import { addTurnOrderEntry, createTurnOrderEntryFromToken, stopTurnOrder } from "../lib/turn-order";
 import {
   COLLAPSED_RAIL_WIDTH,
@@ -976,14 +970,25 @@ export function GmApp() {
     if (!campaign) {
       return;
     }
-    updateCampaignDraft(updateCampaignPlayerDisplay(campaign, nextDisplay, new Date().toISOString()));
+    const nextCampaign = applyPlayerDisplayProfileAction(
+      campaign,
+      { type: "update-display", display: nextDisplay },
+      new Date().toISOString()
+    );
+    if (nextCampaign) {
+      updateCampaignDraft(nextCampaign);
+    }
   };
 
   const selectPlayerDisplayProfile = (profileId: string) => {
     if (!campaign) {
       return;
     }
-    const nextCampaign = selectCampaignPlayerDisplayProfile(campaign, profileId, new Date().toISOString());
+    const nextCampaign = applyPlayerDisplayProfileAction(
+      campaign,
+      { type: "select-profile", profileId },
+      new Date().toISOString()
+    );
     if (nextCampaign) {
       updateCampaignDraft(nextCampaign);
     }
@@ -994,14 +999,25 @@ export function GmApp() {
       return;
     }
     const now = new Date().toISOString();
-    updateCampaignDraft(addCampaignPlayerDisplayProfile(campaign, crypto.randomUUID(), name, calibration, now));
+    const nextCampaign = applyPlayerDisplayProfileAction(
+      campaign,
+      { type: "create-profile", profileId: crypto.randomUUID(), name, calibration },
+      now
+    );
+    if (nextCampaign) {
+      updateCampaignDraft(nextCampaign);
+    }
   };
 
   const renamePlayerDisplayProfile = (profileId: string, name: string) => {
     if (!campaign) {
       return;
     }
-    const nextCampaign = renameCampaignPlayerDisplayProfile(campaign, profileId, name, new Date().toISOString());
+    const nextCampaign = applyPlayerDisplayProfileAction(
+      campaign,
+      { type: "rename-profile", profileId, name },
+      new Date().toISOString()
+    );
     if (nextCampaign) {
       updateCampaignDraft(nextCampaign);
     }
@@ -1011,7 +1027,11 @@ export function GmApp() {
     if (!campaign) {
       return;
     }
-    const nextCampaign = deleteCampaignPlayerDisplayProfile(campaign, profileId, new Date().toISOString());
+    const nextCampaign = applyPlayerDisplayProfileAction(
+      campaign,
+      { type: "delete-profile", profileId },
+      new Date().toISOString()
+    );
     if (nextCampaign) {
       updateCampaignDraft(nextCampaign);
     }
@@ -1234,8 +1254,9 @@ export function GmApp() {
   };
 
   const openRenameTokenAssetDialog = (asset: Asset) => {
-    setNewTokenName(asset.name || asset.originalFileName || "Token");
-    setTokenAssetDialog({ assetId: asset.id });
+    const dialog = getTokenAssetRenameDialogState(asset);
+    setNewTokenName(dialog.name);
+    setTokenAssetDialog({ assetId: dialog.assetId });
   };
 
   const openDeleteTokenAssetDialog = (asset: Asset) =>
@@ -1244,8 +1265,7 @@ export function GmApp() {
         return;
       }
       const savedUsage = await window.localVtt.getTokenAssetUsage(campaignPath, asset.id);
-      const usage = mergeTokenAssetUsage(savedUsage, campaign, sceneDrafts, activeScene, asset.id);
-      setTokenAssetToDelete({ asset, usage });
+      setTokenAssetToDelete(getTokenAssetDeleteDialogState(asset, savedUsage, campaign, sceneDrafts, activeScene));
     });
 
   const openFolderColorDialog = (folder: CampaignSceneFolder) => {
@@ -1329,16 +1349,15 @@ export function GmApp() {
       const deletedAssetId = tokenAssetToDelete.asset.id;
       const result = await window.localVtt.deleteTokenAsset(campaignPath, deletedAssetId);
       applySummary(result.campaignSummary, campaignDirty);
-      const changedScenesById = new Map(result.scenes.map((scene) => [scene.id, scene]));
-      setSceneDrafts((drafts) => getSceneDraftsAfterTokenAssetDelete(drafts, deletedAssetId));
-      const nextActiveScene = getActiveSceneAfterTokenAssetDelete(activeScene, changedScenesById, deletedAssetId);
-      if (nextActiveScene) {
-        setActiveScene(nextActiveScene);
-        if (nextActiveScene.id === playerSceneId) {
-          updatePlayerSceneIfOpenInBackground(window.localVtt, result.campaignSummary.campaign, nextActiveScene, playerViewSyncOptions);
+      const sceneUpdate = getTokenAssetDeleteSceneUpdate(sceneDrafts, activeScene, result.scenes, deletedAssetId, selectedTokenIds);
+      setSceneDrafts((drafts) => getTokenAssetDeleteSceneUpdate(drafts, activeScene, result.scenes, deletedAssetId, selectedTokenIds).sceneDrafts);
+      if (sceneUpdate.activeScene) {
+        setActiveScene(sceneUpdate.activeScene);
+        if (sceneUpdate.activeScene.id === playerSceneId) {
+          updatePlayerSceneIfOpenInBackground(window.localVtt, result.campaignSummary.campaign, sceneUpdate.activeScene, playerViewSyncOptions);
         }
       }
-      selectTokens(getSelectedTokenIdsAfterTokenAssetDelete(selectedTokenIds, nextActiveScene));
+      selectTokens(sceneUpdate.selectedTokenIds);
       setTokenAssetToDelete(null);
     });
 

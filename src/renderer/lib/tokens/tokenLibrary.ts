@@ -18,6 +18,16 @@ export interface TokenLayerRow {
   token: Token;
 }
 
+export interface TokenAssetRenameDialogState {
+  assetId: string;
+  name: string;
+}
+
+export interface TokenAssetDeleteDialogState {
+  asset: Asset;
+  usage: TokenAssetUsage[];
+}
+
 const TOKEN_LABEL_COLLATOR = new Intl.Collator(undefined, { sensitivity: "base" });
 
 export function buildTokenLibraryAssetIndex(assets: Asset[]): TokenLibraryAssetIndexEntry[] {
@@ -50,6 +60,26 @@ export function getSelectedTokenLibraryAssetIds(selectedTokenAssetId: string | u
 
 export function getSelectedTokenLibraryAsset(assets: Asset[], selectedTokenAssetId: string | undefined): Asset | null {
   return selectedTokenAssetId ? (assets.find((asset) => asset.id === selectedTokenAssetId) ?? null) : null;
+}
+
+export function getTokenAssetRenameDialogState(asset: Asset): TokenAssetRenameDialogState {
+  return {
+    assetId: asset.id,
+    name: getAssetLabel(asset)
+  };
+}
+
+export function getTokenAssetDeleteDialogState(
+  asset: Asset,
+  savedUsage: TokenAssetUsage[],
+  campaign: Campaign,
+  sceneDrafts: Record<string, Scene>,
+  activeScene: Scene | null
+): TokenAssetDeleteDialogState {
+  return {
+    asset,
+    usage: mergeTokenAssetUsage(savedUsage, campaign, sceneDrafts, activeScene, asset.id)
+  };
 }
 
 export function buildTokenLayerRows(tokens: Token[], tokenAssets: Map<string, Asset>): TokenLayerRow[] {

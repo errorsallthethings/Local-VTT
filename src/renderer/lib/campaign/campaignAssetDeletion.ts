@@ -1,6 +1,12 @@
 import type { Scene } from "../../../shared/localvtt";
 import { removeSceneTokensByAsset } from "../tokens";
 
+export interface TokenAssetDeleteSceneUpdate {
+  activeScene: Scene | null;
+  sceneDrafts: Record<string, Scene>;
+  selectedTokenIds: string[];
+}
+
 export function getMapAssetDeleteSceneUpdate(
   activeScene: Scene,
   savedScene: Scene,
@@ -54,4 +60,20 @@ export function getSelectedTokenIdsAfterTokenAssetDelete(selectedTokenIds: reado
   }
   const remainingTokenIds = new Set(activeScene.tokens.map((token) => token.id));
   return selectedTokenIds.filter((tokenId) => remainingTokenIds.has(tokenId));
+}
+
+export function getTokenAssetDeleteSceneUpdate(
+  sceneDrafts: Record<string, Scene>,
+  activeScene: Scene | null,
+  changedScenes: readonly Scene[],
+  deletedAssetId: string,
+  selectedTokenIds: readonly string[]
+): TokenAssetDeleteSceneUpdate {
+  const changedScenesById = new Map(changedScenes.map((scene) => [scene.id, scene]));
+  const nextActiveScene = getActiveSceneAfterTokenAssetDelete(activeScene, changedScenesById, deletedAssetId);
+  return {
+    activeScene: nextActiveScene,
+    sceneDrafts: getSceneDraftsAfterTokenAssetDelete(sceneDrafts, deletedAssetId),
+    selectedTokenIds: getSelectedTokenIdsAfterTokenAssetDelete(selectedTokenIds, nextActiveScene)
+  };
 }
