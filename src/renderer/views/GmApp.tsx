@@ -8,7 +8,6 @@ import {
   useState
 } from "react";
 import {
-  DEFAULT_DICE_SETTINGS,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
@@ -97,7 +96,7 @@ import {
   updateCampaignPlayerInCampaign
 } from "../lib/campaign";
 import { buildLiveTableDiceClearEvent, buildLiveTableDiceRollEvent, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
-import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/dice";
+import { applyDiceSettingsPatch, getEffectiveDiceSettings, loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/dice";
 import { formatUserFacingError } from "../lib/errors";
 import { logRendererError } from "../lib/rendererDiagnostics";
 import { loadImageDimensions } from "../lib/assets";
@@ -426,7 +425,7 @@ export function GmApp() {
   );
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const [diceSettingsPreference, setDiceSettingsPreference] = useState<DiceSettings>(() => loadDiceSettingsPreference());
-  const diceSettings = useMemo<DiceSettings>(() => ({ ...DEFAULT_DICE_SETTINGS, ...(campaign?.diceSettings ?? diceSettingsPreference) }), [campaign?.diceSettings, diceSettingsPreference]);
+  const diceSettings = useMemo<DiceSettings>(() => getEffectiveDiceSettings(campaign, diceSettingsPreference), [campaign, diceSettingsPreference]);
   const diceSettingsDraftRef = useRef<DiceSettings>(diceSettings);
   const collapsedFolderIds = useMemo(
     () => new Set((campaign?.sceneFolders ?? []).filter((folder) => !expandedFolderIds.has(folder.id)).map((folder) => folder.id)),
@@ -543,21 +542,14 @@ export function GmApp() {
   };
 
   const updateDiceSettings = (patch: Partial<DiceSettings>) => {
-    const nextDiceSettings = {
-      ...diceSettingsDraftRef.current,
-      ...patch
-    };
-    diceSettingsDraftRef.current = nextDiceSettings;
-    if (!campaign) {
-      setDiceSettingsPreference(nextDiceSettings);
-      saveDiceSettingsPreference(nextDiceSettings);
+    const result = applyDiceSettingsPatch(diceSettingsDraftRef.current, patch, campaign, new Date().toISOString());
+    diceSettingsDraftRef.current = result.settings;
+    if (result.kind === "preference") {
+      setDiceSettingsPreference(result.settings);
+      saveDiceSettingsPreference(result.settings);
       return;
     }
-    updateCampaignDraft({
-      ...campaign,
-      diceSettings: nextDiceSettings,
-      updatedAt: new Date().toISOString()
-    });
+    updateCampaignDraft(result.campaign);
   };
 
   const rollTableDie = (die: DiceType) => {
