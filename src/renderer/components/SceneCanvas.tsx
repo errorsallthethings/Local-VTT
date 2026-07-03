@@ -145,8 +145,6 @@ import { getTokenAtPoint } from "../canvas/tokens";
 import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey } from "../canvas/tokens";
 import {
   getSceneAfterTokenDrag,
-  getTokenDragStart,
-  getTokenDragPreviewFromPoint,
   getTokenDragWaypointRemovalUpdate
 } from "../canvas/tokens";
 import { drawTokenDragHighlights, drawTokens, hasVisibleTokenConditions, type TokenDragPreview } from "../canvas/tokens";
@@ -223,6 +221,7 @@ import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import { getLaserPointerMove, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
 import { getMapCalibrationPointerComplete, getMapCalibrationPointerMove, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
 import { getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
+import { getTokenPointerMove, getTokenPointerStart } from "./scene/sceneTokenPointer";
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
@@ -1358,20 +1357,25 @@ export function SceneCanvas({
     }
     if (mode === "gm" && scene && onSceneChange && event.button === 0) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const token = canShowTokens ? getTokenAtPoint(scene.tokens, point) : null;
-      if (token) {
-        const dragGroup = getSceneItemDragGroup(token.id, effectiveSelectedTokenIds, mouseBehavior);
-        if (dragGroup.shouldSelectHitItem) {
-          onSelectToken?.(token.id);
+      const tokenPointerStart = getTokenPointerStart({
+        canShowTokens: Boolean(canShowTokens),
+        mouseBehavior,
+        point,
+        pointerId: event.pointerId,
+        scene,
+        selectedTokenIds: effectiveSelectedTokenIds
+      });
+      if (tokenPointerStart) {
+        if (tokenPointerStart.dragGroup.shouldSelectHitItem) {
+          onSelectToken?.(tokenPointerStart.token.id);
         }
         onSelectFogShape?.(null);
         onSelectWeatherMask?.(null);
         onSelectEnvironmentEffect?.(null);
         onSelectDrawing?.(null);
-        if (mouseBehavior === "grabber") {
-          const tokenDragStart = getTokenDragStart(scene, token, point, event.pointerId, dragGroup.itemIds);
-          tokenDragRef.current = tokenDragStart.drag;
-          setTokenDragPreview(tokenDragStart.preview);
+        if (tokenPointerStart.dragStart) {
+          tokenDragRef.current = tokenPointerStart.dragStart.drag;
+          setTokenDragPreview(tokenPointerStart.dragStart.preview);
         }
         return;
       }
@@ -1576,12 +1580,14 @@ export function SceneCanvas({
 
     if (tokenDrag?.pointerId === event.pointerId && scene) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const token = scene.tokens.find((candidate) => candidate.id === tokenDrag.tokenId);
-      if (!token) {
+      const update = getTokenPointerMove(scene, tokenDrag, event.pointerId, point);
+      if (update?.kind === "missing-token") {
         cancelTokenDrag();
         return;
       }
-      setTokenDragPreview(getTokenDragPreviewFromPoint(scene, tokenDrag, token, point));
+      if (update?.kind === "preview") {
+        setTokenDragPreview(update.preview);
+      }
       return;
     }
 
