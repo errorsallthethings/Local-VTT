@@ -33,8 +33,15 @@ import {
   getAssetProtocolStatResultFailureResponse,
   LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE
 } from "./assetProtocol.js";
-import { campaignFile, requiredCampaignFolders, sceneFile } from "./campaignPaths.js";
+import { campaignFile, sceneFile } from "./campaignPaths.js";
 import { assertInsidePath } from "./campaignPathSafety.js";
+import {
+  ensureCampaignFolders,
+  readCampaignMetadata,
+  readSceneMetadata,
+  writeCampaign,
+  writeScene
+} from "./campaignMetadataFiles.js";
 import { inspectCampaignHealth } from "./campaignHealth.js";
 import {
   createImageMapThumbnail,
@@ -58,7 +65,6 @@ import {
   validateAssetImportCandidate,
   type AssetImportKind
 } from "./assetImportValidation.js";
-import { formatMetadataReadError, formatMetadataWriteError } from "./metadataErrors.js";
 import {
   backupExistingMetadataFile,
   listMetadataBackupFolder
@@ -227,10 +233,6 @@ function sendToPlayerWhenReady(payload: unknown): void {
   playerWindow.webContents.send("player:state", payload);
 }
 
-async function ensureCampaignFolders(campaignPath: string): Promise<void> {
-  await Promise.all(requiredCampaignFolders(campaignPath).map((folder) => mkdir(folder, { recursive: true })));
-}
-
 function resolveAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
   // Saved JSON stays portable with relative paths; absolute paths are runtime-only conveniences for renderers.
   const resolvedCampaign = hydrateCampaignAssetPaths(campaignPath, campaign);
@@ -288,26 +290,6 @@ async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSumma
     missingAssets: health.missingAssetFiles.map((asset) => asset.relativePath),
     health
   };
-}
-
-async function readCampaignMetadata(campaignPath: string): Promise<Campaign> {
-  try {
-    const raw = await readFile(campaignFile(campaignPath), "utf8");
-    return parseCampaignMetadata(raw);
-  } catch (caught) {
-    throw formatMetadataReadError("campaign", campaignBackupFolder(campaignPath), caught);
-  }
-}
-
-async function readSceneMetadata(campaignPath: string, sceneId: string): Promise<Scene> {
-  const filePath = sceneFile(campaignPath, sceneId);
-  assertInsideCampaign(campaignPath, filePath);
-  try {
-    const raw = await readFile(filePath, "utf8");
-    return parseSceneMetadata(raw);
-  } catch (caught) {
-    throw formatMetadataReadError("scene", sceneBackupFolder(campaignPath, sceneId), caught);
-  }
 }
 
 async function hydrateSceneSummaries(campaignPath: string, campaign: Campaign): Promise<Campaign> {
@@ -435,28 +417,6 @@ async function regenerateCampaignThumbnails(
 function logThumbnailImportFailure(kind: "map" | "token", sourcePath: string, reason: string | undefined): void {
   const diagnostic = createThumbnailImportFailureDiagnostic(kind, sourcePath, reason);
   console.warn(diagnostic.label, diagnostic.kind, diagnostic.fileName, diagnostic.reason);
-}
-
-async function writeCampaign(campaignPath: string, campaign: Campaign): Promise<void> {
-  try {
-    await ensureCampaignFolders(campaignPath);
-    await backupExistingMetadataFile(campaignPath, campaignFile(campaignPath), campaignBackupFolder(campaignPath), "campaign.json");
-    const portable = toPortableCampaignMetadata(campaign);
-    await writeFile(campaignFile(campaignPath), `${JSON.stringify(portable, null, 2)}\n`, "utf8");
-  } catch (caught) {
-    throw formatMetadataWriteError("campaign", caught);
-  }
-}
-
-async function writeScene(campaignPath: string, scene: Scene): Promise<void> {
-  try {
-    await ensureCampaignFolders(campaignPath);
-    await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, scene.id), sceneBackupFolder(campaignPath, scene.id), `${scene.id}.scene.json`);
-    const normalizedScene = toPortableSceneMetadata(scene);
-    await writeFile(sceneFile(campaignPath, normalizedScene.id), `${JSON.stringify(normalizedScene, null, 2)}\n`, "utf8");
-  } catch (caught) {
-    throw formatMetadataWriteError("scene", caught);
-  }
 }
 
 async function pauseActiveTurnOrders(campaignPath: string): Promise<void> {
