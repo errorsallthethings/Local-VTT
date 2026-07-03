@@ -1,4 +1,4 @@
-import type { Asset, Campaign, CampaignSummary, PlayerSceneProjectionOptions, Scene, ThumbnailRegenerationResult, TokenAssetPromotionResult } from "../../shared/localvtt";
+import type { Asset, AssetPruneResult, Campaign, CampaignSummary, PlayerSceneProjectionOptions, Scene, ThumbnailRegenerationResult, TokenAssetPromotionResult } from "../../shared/localvtt";
 import {
   applyMapAssetToCampaign,
   getDuplicateFolderName,
@@ -36,6 +36,7 @@ interface UseCampaignActionsOptions {
   onFolderDeleteHandled: () => void;
   onThumbnailRegenerationComplete: (result: ThumbnailRegenerationResult) => void;
   onTokenAssetPromotionComplete: (result: TokenAssetPromotionResult) => void;
+  onAssetPruneComplete: (result: AssetPruneResult) => void;
   shouldSyncSceneToPlayer: (sceneId: string) => boolean;
   playerViewSyncOptions?: PlayerSceneProjectionOptions;
 }
@@ -73,6 +74,7 @@ export function useCampaignActions({
   onFolderDeleteHandled,
   onThumbnailRegenerationComplete,
   onTokenAssetPromotionComplete,
+  onAssetPruneComplete,
   shouldSyncSceneToPlayer,
   playerViewSyncOptions = {}
 }: UseCampaignActionsOptions) {
@@ -393,6 +395,36 @@ export function useCampaignActions({
       }
     });
 
+  const pruneUnreferencedAssets = () =>
+    run(async () => {
+      if (!campaignPath || !campaign) {
+        return;
+      }
+      if (hasUnsavedChanges) {
+        const saved = await saveCampaign();
+        if (!saved) {
+          return;
+        }
+      }
+
+      onBusyChange({
+        title: "Pruning Assets",
+        message: "Removing unreferenced campaign assets.",
+        current: 0,
+        total: 0,
+        unitLabel: "assets"
+      });
+      try {
+        const result = await window.localVtt.pruneUnreferencedAssets(campaignPath);
+        applySummary(result.campaignSummary);
+        setCampaignDirty(false);
+        setError(null);
+        onAssetPruneComplete(result);
+      } finally {
+        onBusyChange(null);
+      }
+    });
+
   const confirmDeleteMapAsset = () =>
     run(async () => {
       if (!campaignPath || !activeScene || !mapAssetToDelete) {
@@ -553,6 +585,7 @@ export function useCampaignActions({
     commitMapReplacement,
     regenerateThumbnails,
     promoteTokenAssets,
+    pruneUnreferencedAssets,
     confirmDeleteMapAsset,
     saveFolderScenes,
     duplicateScene,

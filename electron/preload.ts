@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type {
   Asset,
+  AssetPruneResult,
   Campaign,
   CampaignSummary,
   LiveTableEvent,
@@ -63,6 +64,8 @@ const api = {
     ipcRenderer.invoke("asset:regenerateThumbnails", campaignPath) as Promise<ThumbnailRegenerationResult>,
   promoteTokenAssets: (campaignPath: string) =>
     ipcRenderer.invoke("asset:promoteTokenAssets", campaignPath) as Promise<TokenAssetPromotionResult>,
+  pruneUnreferencedAssets: (campaignPath: string) =>
+    ipcRenderer.invoke("asset:pruneUnreferencedAssets", campaignPath) as Promise<AssetPruneResult>,
   onThumbnailRegenerationProgress: (callback: (progress: ThumbnailRegenerationProgress) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, progress: ThumbnailRegenerationProgress) => callback(progress);
     ipcRenderer.on("asset:thumbnailRegenerationProgress", listener);

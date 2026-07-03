@@ -17,6 +17,7 @@ import {
 } from "../../shared/localvtt";
 import type {
   Asset,
+  AssetPruneResult,
   Campaign,
   CampaignSummary,
   CampaignSceneEntry,
@@ -37,8 +38,10 @@ import type {
   TokenPresentationDefaults
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
+import { AssetPruneResultDialog } from "../components/modals/AssetPruneResultDialog";
 import { CampaignBusyOverlay } from "../components/modals/CampaignBusyOverlay";
 import { CampaignHealthDialog } from "../components/modals/CampaignHealthDialog";
+import { ConfirmDialog } from "../components/modals/ConfirmDialog";
 import { MetadataBackupRestoreDialog } from "../components/modals/MetadataBackupRestoreDialog";
 import { ThumbnailRegenerationResultDialog } from "../components/modals/ThumbnailRegenerationResultDialog";
 import { TokenAssetPromotionResultDialog } from "../components/modals/TokenAssetPromotionResultDialog";
@@ -239,6 +242,8 @@ export function GmApp() {
   const [campaignHealthOpen, setCampaignHealthOpen] = useState(false);
   const [thumbnailRegenerationResult, setThumbnailRegenerationResult] = useState<ThumbnailRegenerationResult | null>(null);
   const [tokenAssetPromotionResult, setTokenAssetPromotionResult] = useState<TokenAssetPromotionResult | null>(null);
+  const [assetPruneConfirmOpen, setAssetPruneConfirmOpen] = useState(false);
+  const [assetPruneResult, setAssetPruneResult] = useState<AssetPruneResult | null>(null);
   const [mapReplacementPreview, setMapReplacementPreview] = useState<MapReplacementPreview | null>(null);
   const {
     activeCanvasTool,
@@ -716,6 +721,7 @@ export function GmApp() {
     commitMapReplacement,
     regenerateThumbnails,
     promoteTokenAssets,
+    pruneUnreferencedAssets,
     confirmDeleteMapAsset,
     saveFolderScenes,
     duplicateFolder,
@@ -737,6 +743,7 @@ export function GmApp() {
     onFolderDeleteHandled: () => setFolderToDelete(null),
     onThumbnailRegenerationComplete: setThumbnailRegenerationResult,
     onTokenAssetPromotionComplete: setTokenAssetPromotionResult,
+    onAssetPruneComplete: setAssetPruneResult,
     shouldSyncSceneToPlayer: (sceneId) => sceneId === playerSceneId,
     playerViewSyncOptions
   });
@@ -1784,6 +1791,7 @@ export function GmApp() {
         onOpenBackupRestore={openMetadataRestoreDialog}
         onRegenerateThumbnails={() => void regenerateThumbnails()}
         onPromoteTokenAssets={() => void promoteTokenAssets()}
+        onPruneUnreferencedAssets={() => setAssetPruneConfirmOpen(true)}
         onAddPlayer={addCampaignPlayer}
         onUpdatePlayer={updateCampaignPlayer}
         onDeletePlayer={deleteCampaignPlayer}
@@ -2368,6 +2376,23 @@ export function GmApp() {
         />
       )}
       {campaignHealthOpen && <CampaignHealthDialog health={campaignHealth} onClose={() => setCampaignHealthOpen(false)} />}
+      {assetPruneConfirmOpen && (
+        <ConfirmDialog
+          title="Prune Unreferenced Assets?"
+          confirmLabel="Prune Assets"
+          onCancel={() => setAssetPruneConfirmOpen(false)}
+          onConfirm={() => {
+            setAssetPruneConfirmOpen(false);
+            void pruneUnreferencedAssets();
+          }}
+        >
+          <p>
+            This will remove {campaignHealth.unreferencedAssets.length} unreferenced asset
+            {campaignHealth.unreferencedAssets.length === 1 ? "" : "s"} from the campaign and delete their unused files from the campaign folder.
+          </p>
+          <p>Referenced maps, tokens, player portraits, scene overlays, and turn-order assets will be kept.</p>
+        </ConfirmDialog>
+      )}
       {busyState && <CampaignBusyOverlay busyState={busyState} />}
       {thumbnailRegenerationResult && (
         <ThumbnailRegenerationResultDialog result={thumbnailRegenerationResult} onClose={() => setThumbnailRegenerationResult(null)} />
@@ -2375,6 +2400,7 @@ export function GmApp() {
       {tokenAssetPromotionResult && (
         <TokenAssetPromotionResultDialog result={tokenAssetPromotionResult} onClose={() => setTokenAssetPromotionResult(null)} />
       )}
+      {assetPruneResult && <AssetPruneResultDialog result={assetPruneResult} onClose={() => setAssetPruneResult(null)} />}
     </div>
   );
 }

@@ -31,6 +31,7 @@ interface CampaignPanelProps {
   onOpenBackupRestore: () => void;
   onRegenerateThumbnails: () => void;
   onPromoteTokenAssets: () => void;
+  onPruneUnreferencedAssets: () => void;
   onAddPlayer: () => void;
   onUpdatePlayer: (playerId: string, patch: Partial<CampaignPlayer>) => void;
   onDeletePlayer: (playerId: string) => void;
@@ -54,6 +55,7 @@ export function CampaignPanel({
   onOpenBackupRestore,
   onRegenerateThumbnails,
   onPromoteTokenAssets,
+  onPruneUnreferencedAssets,
   onAddPlayer,
   onUpdatePlayer,
   onDeletePlayer,
@@ -157,6 +159,16 @@ export function CampaignPanel({
                   >
                     <Settings2 size={16} aria-hidden="true" />
                     <span>Optimize Token Assets</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaintenanceMenuOpen(false);
+                      onPruneUnreferencedAssets();
+                    }}
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
+                    <span>Prune Unreferenced Assets</span>
                   </button>
                 </FloatingCampaignMaintenanceMenu>,
                 document.body

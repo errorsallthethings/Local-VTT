@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import {
   Campaign,
   CampaignSummary,
+  AssetPruneResult,
   MetadataBackupRef,
   Scene,
   SquareCropRect,
@@ -87,6 +88,7 @@ import { addImportedAssetToCampaign, createImportedAsset, createStagedTokenImpor
 import { tokenThumbnailVariant, updateTokenThumbnailInCampaign } from "./tokenThumbnailUpdate.js";
 import { removeTokenAssetFromCampaignScenes } from "./tokenAssetSceneCleanup.js";
 import { promoteTokenAssetThumbnails } from "./tokenAssetPromotion.js";
+import { pruneUnreferencedAssets } from "./unreferencedAssetPruning.js";
 import { assertSceneUsesMapAsset, requireCurrentMapAsset } from "./mapReplacementValidation.js";
 import { findCampaignAsset, requireCampaignAsset, requireTokenAssetWithAbsolutePath } from "./campaignAssetLookup.js";
 import { createAppWindowOptions, createWindowLoadTarget } from "./windowConfig.js";
@@ -324,6 +326,24 @@ async function promoteCampaignTokenAssets(campaignPath: string): Promise<TokenAs
     campaignSummary: await loadCampaignFromPath(campaignPath),
     promoted: plan.promoted,
     skipped: plan.skipped,
+    failed: plan.failed
+  };
+}
+
+async function pruneCampaignUnreferencedAssets(campaignPath: string): Promise<AssetPruneResult> {
+  const summary = await loadCampaignFromPath(campaignPath);
+  const health = await inspectCampaignHealth(campaignPath, summary.campaign);
+  const unreferencedAssetIds = new Set(health.unreferencedAssets.map((asset) => asset.assetId));
+  const plan = await pruneUnreferencedAssets(campaignPath, summary.campaign, unreferencedAssetIds);
+  if (plan.pruned > 0) {
+    await writeCampaign(campaignPath, plan.campaign);
+  }
+
+  return {
+    campaignSummary: await loadCampaignFromPath(campaignPath),
+    pruned: plan.pruned,
+    skipped: plan.skipped,
+    removedFiles: plan.removedFiles,
     failed: plan.failed
   };
 }
@@ -901,6 +921,11 @@ ipcMain.handle("asset:regenerateThumbnails", async (event, campaignPath: string)
 ipcMain.handle("asset:promoteTokenAssets", async (_event, campaignPath: string) => {
   assertKnownCampaignPath(campaignPath);
   return promoteCampaignTokenAssets(campaignPath);
+});
+
+ipcMain.handle("asset:pruneUnreferencedAssets", async (_event, campaignPath: string) => {
+  assertKnownCampaignPath(campaignPath);
+  return pruneCampaignUnreferencedAssets(campaignPath);
 });
 
 ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, assetId: string) => {

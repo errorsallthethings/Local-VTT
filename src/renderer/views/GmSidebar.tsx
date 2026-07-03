@@ -36,6 +36,7 @@ export function GmSidebar({
   onOpenBackupRestore,
   onRegenerateThumbnails,
   onPromoteTokenAssets,
+  onPruneUnreferencedAssets,
   onAddPlayer,
   onUpdatePlayer,
   onDeletePlayer,
@@ -86,6 +87,7 @@ export function GmSidebar({
   onOpenBackupRestore: () => void;
   onRegenerateThumbnails: () => void;
   onPromoteTokenAssets: () => void;
+  onPruneUnreferencedAssets: () => void;
   onAddPlayer: () => void;
   onUpdatePlayer: (playerId: string, patch: Partial<Campaign["players"][number]>) => void;
   onDeletePlayer: (playerId: string) => void;
@@ -166,6 +168,7 @@ export function GmSidebar({
             onOpenBackupRestore={onOpenBackupRestore}
             onRegenerateThumbnails={onRegenerateThumbnails}
             onPromoteTokenAssets={onPromoteTokenAssets}
+            onPruneUnreferencedAssets={onPruneUnreferencedAssets}
             onAddPlayer={onAddPlayer}
             onUpdatePlayer={onUpdatePlayer}
             onDeletePlayer={onDeletePlayer}
