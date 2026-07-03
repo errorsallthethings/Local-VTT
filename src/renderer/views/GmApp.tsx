@@ -100,7 +100,13 @@ import { loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/d
 import { formatUserFacingError } from "../lib/errors";
 import { logRendererError } from "../lib/rendererDiagnostics";
 import { loadImageDimensions } from "../lib/assets";
-import { getPlayerTestPatternCellSize, getPlayerTestPatternMessage, showDefaultPlayerHold, showPlayerBlackout as sendPlayerBlackout } from "../lib/player-view";
+import {
+  getMissingPlayerDisplayWarning,
+  getPlayerTestPatternState,
+  getPlayerViewModeState,
+  showDefaultPlayerHold,
+  showPlayerBlackout as sendPlayerBlackout
+} from "../lib/player-view";
 import {
   addCampaignPlayerDisplayProfile,
   deleteCampaignPlayerDisplayProfile,
@@ -1071,11 +1077,13 @@ export function GmApp() {
         fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
       });
       await sendSceneToPlayer(window.localVtt, campaign, nextScene, playerViewSyncOptions);
-      setPlayerSceneId(nextScene.id);
-      setPlayerDisplayMode("scene");
+      const playerViewState = getPlayerViewModeState("scene", nextScene.id);
+      setPlayerSceneId(playerViewState.playerSceneId);
+      setPlayerDisplayMode(playerViewState.playerDisplayMode);
       setPlayerMenuOpen(false);
-      if (!openResult.displayFound && campaign.playerDisplay.selectedDisplayLabel) {
-        setError(`The saved Player View display (${campaign.playerDisplay.selectedDisplayLabel}) is not connected. Player View opened normally so you can move it manually.`);
+      const warning = getMissingPlayerDisplayWarning(openResult.displayFound, campaign.playerDisplay.selectedDisplayLabel);
+      if (warning) {
+        setError(warning);
       }
     });
 
@@ -1464,10 +1472,12 @@ export function GmApp() {
         fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
       });
       await sendSceneToPlayer(window.localVtt, campaign, activeScene, playerViewSyncOptions);
-      setPlayerSceneId(activeScene.id);
-      setPlayerDisplayMode("scene");
-      if (!openResult.displayFound && campaign.playerDisplay.selectedDisplayLabel) {
-        setError(`The saved Player View display (${campaign.playerDisplay.selectedDisplayLabel}) is not connected. Player View opened normally so you can move it manually.`);
+      const playerViewState = getPlayerViewModeState("scene", activeScene.id);
+      setPlayerSceneId(playerViewState.playerSceneId);
+      setPlayerDisplayMode(playerViewState.playerDisplayMode);
+      const warning = getMissingPlayerDisplayWarning(openResult.displayFound, campaign.playerDisplay.selectedDisplayLabel);
+      if (warning) {
+        setError(warning);
       }
     });
 
@@ -1480,24 +1490,27 @@ export function GmApp() {
   const closePlayerView = () =>
     run(async () => {
       await window.localVtt.closePlayerView();
-      setPlayerSceneId(null);
-      setPlayerDisplayMode("scene");
+      const playerViewState = getPlayerViewModeState("scene");
+      setPlayerSceneId(playerViewState.playerSceneId);
+      setPlayerDisplayMode(playerViewState.playerDisplayMode);
       setPlayerMenuOpen(false);
     });
 
   const showPlayerHold = () =>
     run(async () => {
       await showDefaultPlayerHold();
-      setPlayerSceneId(null);
-      setPlayerDisplayMode("hold");
+      const playerViewState = getPlayerViewModeState("hold");
+      setPlayerSceneId(playerViewState.playerSceneId);
+      setPlayerDisplayMode(playerViewState.playerDisplayMode);
       setPlayerMenuOpen(false);
     });
 
   const showPlayerBlackout = () =>
     run(async () => {
       await sendPlayerBlackout();
-      setPlayerSceneId(null);
-      setPlayerDisplayMode("blackout");
+      const playerViewState = getPlayerViewModeState("blackout");
+      setPlayerSceneId(playerViewState.playerSceneId);
+      setPlayerDisplayMode(playerViewState.playerDisplayMode);
       setPlayerMenuOpen(false);
     });
 
@@ -1507,31 +1520,22 @@ export function GmApp() {
         displayId: display.selectedDisplayId,
         fullscreen: display.openPlayerViewFullscreen
       });
-      const selectedDisplay = displays.find((candidate) => candidate.id === display.selectedDisplayId);
-      await window.localVtt.showPlayerTestPattern({
-        type: "idle",
-        variant: "test-pattern",
-        title: "Local VTT Test Pattern",
-        message: getPlayerTestPatternMessage(gridMode, display),
-        testPattern: {
-          gridMode,
-          cellSizePx: getPlayerTestPatternCellSize(gridMode, display, cellSizePx),
-          displayLabel: selectedDisplay?.label ?? display.selectedDisplayLabel,
-          nativeResolution: selectedDisplay?.nativeResolution
-        }
-      });
-      setPlayerSceneId(null);
-      setPlayerDisplayMode("test-pattern");
+      await window.localVtt.showPlayerTestPattern(getPlayerTestPatternState(gridMode, display, cellSizePx, displays));
+      const playerViewState = getPlayerViewModeState("test-pattern");
+      setPlayerSceneId(playerViewState.playerSceneId);
+      setPlayerDisplayMode(playerViewState.playerDisplayMode);
       setPlayerMenuOpen(false);
-      if (!openResult.displayFound && display.selectedDisplayLabel) {
-        setError(`The saved Player View display (${display.selectedDisplayLabel}) is not connected. Player View opened normally so you can move it manually.`);
+      const warning = getMissingPlayerDisplayWarning(openResult.displayFound, display.selectedDisplayLabel);
+      if (warning) {
+        setError(warning);
       }
     });
 
   const showPlayerIdle = async () => {
     await showDefaultPlayerHold();
-    setPlayerSceneId(null);
-    setPlayerDisplayMode("hold");
+    const playerViewState = getPlayerViewModeState("hold");
+    setPlayerSceneId(playerViewState.playerSceneId);
+    setPlayerDisplayMode(playerViewState.playerDisplayMode);
     setPlayerMenuOpen(false);
   };
 
