@@ -88,6 +88,9 @@ import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from ".
 import {
   addCampaignPlayerToCampaign,
   deleteCampaignPlayerFromCampaign,
+  getActiveSceneAfterTokenAssetDelete,
+  getSceneDraftsAfterTokenAssetDelete,
+  getSelectedTokenIdsAfterTokenAssetDelete,
   moveSceneFolder,
   renameCampaignTokenAsset,
   setCampaignTokenAssetDefaults,
@@ -126,7 +129,7 @@ import {
   type RecentCampaign
 } from "../lib/campaign";
 import { createImportedToken } from "../lib/tokens";
-import { getSelectedTokenAssetIds, mergeTokenAssetUsage, removeSceneTokensByAsset } from "../lib/tokens";
+import { getSelectedTokenAssetIds, mergeTokenAssetUsage } from "../lib/tokens";
 import { addTurnOrderEntry, createTurnOrderEntryFromToken, stopTurnOrder } from "../lib/turn-order";
 import {
   COLLAPSED_RAIL_WIDTH,
@@ -1327,24 +1330,15 @@ export function GmApp() {
       const result = await window.localVtt.deleteTokenAsset(campaignPath, deletedAssetId);
       applySummary(result.campaignSummary, campaignDirty);
       const changedScenesById = new Map(result.scenes.map((scene) => [scene.id, scene]));
-      setSceneDrafts((drafts) => {
-        const nextDrafts = { ...drafts };
-        for (const [sceneId, draft] of Object.entries(nextDrafts)) {
-          nextDrafts[sceneId] = removeSceneTokensByAsset(draft, deletedAssetId);
-        }
-        return nextDrafts;
-      });
-      const nextActiveScene =
-        activeScene && (changedScenesById.has(activeScene.id) || activeScene.tokens.some((token) => token.assetId === deletedAssetId))
-          ? removeSceneTokensByAsset(changedScenesById.get(activeScene.id) ?? activeScene, deletedAssetId)
-          : activeScene;
+      setSceneDrafts((drafts) => getSceneDraftsAfterTokenAssetDelete(drafts, deletedAssetId));
+      const nextActiveScene = getActiveSceneAfterTokenAssetDelete(activeScene, changedScenesById, deletedAssetId);
       if (nextActiveScene) {
         setActiveScene(nextActiveScene);
         if (nextActiveScene.id === playerSceneId) {
           updatePlayerSceneIfOpenInBackground(window.localVtt, result.campaignSummary.campaign, nextActiveScene, playerViewSyncOptions);
         }
       }
-      selectTokens(nextActiveScene ? selectedTokenIds.filter((tokenId) => nextActiveScene.tokens.some((token) => token.id === tokenId)) : []);
+      selectTokens(getSelectedTokenIdsAfterTokenAssetDelete(selectedTokenIds, nextActiveScene));
       setTokenAssetToDelete(null);
     });
 
