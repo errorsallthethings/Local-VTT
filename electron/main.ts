@@ -102,6 +102,7 @@ import { addImportedAssetToCampaign, createImportedAsset } from "./importedAsset
 import { tokenThumbnailVariant, updateTokenThumbnailInCampaign } from "./tokenThumbnailUpdate.js";
 import { removeTokenAssetFromCampaignScenes } from "./tokenAssetSceneCleanup.js";
 import { assertSceneUsesMapAsset, requireCurrentMapAsset } from "./mapReplacementValidation.js";
+import { findCampaignAsset, requireCampaignAsset, requireTokenAssetWithAbsolutePath } from "./campaignAssetLookup.js";
 import {
   createSceneForCampaign,
   deleteSceneFromCampaign,
@@ -1103,10 +1104,7 @@ ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
 ipcMain.handle("asset:updateTokenThumbnail", async (_event, campaignPath: string, assetId: string, crop: SquareCropRect) => {
   assertKnownCampaignPath(campaignPath);
   const summary = await loadCampaignFromPath(campaignPath);
-  const asset = summary.campaign.assets.find((candidate) => candidate.id === assetId && candidate.kind === "token");
-  if (!asset?.absolutePath) {
-    throw new Error("Token asset was not found in this campaign.");
-  }
+  const asset = requireTokenAssetWithAbsolutePath(summary.campaign, assetId);
 
   assertInsideCampaign(campaignPath, asset.absolutePath);
   const thumbnail = await createSquareImageThumbnail(asset.absolutePath, crop);
@@ -1135,7 +1133,7 @@ ipcMain.handle("asset:regenerateThumbnails", async (event, campaignPath: string)
 ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, assetId: string) => {
   assertKnownCampaignPath(campaignPath);
   const summary = await loadCampaignFromPath(campaignPath);
-  const asset = summary.campaign.assets.find((candidate) => candidate.id === assetId && candidate.kind === "token");
+  const asset = findCampaignAsset(summary.campaign, assetId, "token");
   if (!asset) {
     return summary;
   }
@@ -1159,10 +1157,7 @@ ipcMain.handle("asset:getTokenUsage", async (_event, campaignPath: string, asset
 ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId: string) => {
   assertKnownCampaignPath(campaignPath);
   const summary = await loadCampaignFromPath(campaignPath);
-  const asset = summary.campaign.assets.find((candidate) => candidate.id === assetId && candidate.kind === "token");
-  if (!asset) {
-    throw new Error("Token asset was not found in this campaign.");
-  }
+  const asset = requireCampaignAsset(summary.campaign, assetId, "token", "Token asset was not found in this campaign.");
 
   const changedScenes = await removeTokenAssetFromCampaignScenes(
     summary.campaign,
@@ -1184,10 +1179,7 @@ ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId
 ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: string, assetId: string) => {
   assertKnownCampaignPath(campaignPath);
   const summary = await loadCampaignFromPath(campaignPath);
-  const asset = summary.campaign.assets.find((candidate) => candidate.id === assetId && candidate.kind === "map");
-  if (!asset) {
-    throw new Error("Map asset was not found in this campaign.");
-  }
+  const asset = requireCampaignAsset(summary.campaign, assetId, "map", "Map asset was not found in this campaign.");
 
   const otherSceneNames = await getMapAssetSceneNames(summary.campaign, assetId, sceneId, (candidateSceneId) =>
     readSceneMetadata(campaignPath, candidateSceneId)
