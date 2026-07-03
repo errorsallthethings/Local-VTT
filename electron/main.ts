@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } from "electron";
 import type { WebContents } from "electron";
-import { copyFile, mkdir, readdir, readFile, stat } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -51,17 +51,15 @@ import {
   type ThumbnailCreationResult
 } from "./assets.js";
 import {
-  buildAssetImportRelativePath,
   getAssetFileRemovalPaths,
   hydrateCampaignAssetPaths,
   requireCampaignRelativePath
 } from "./assetFiles.js";
 import {
-  mapMediaType,
-  safeAssetName,
-  validateAssetImportCandidate,
-  type AssetImportKind
-} from "./assetImportValidation.js";
+  assertAssetImportCandidate,
+  copyAssetImportToCampaign
+} from "./assetImportFiles.js";
+import { mapMediaType } from "./assetImportValidation.js";
 import {
   directoryDialogOptions,
   mapFileDialogOptions,
@@ -487,22 +485,6 @@ async function chooseTokenFile(): Promise<string | null> {
   const options = tokenFileDialogOptions();
   const result = gmWindow ? await dialog.showOpenDialog(gmWindow, options) : await dialog.showOpenDialog(options);
   return selectedDialogPath(result);
-}
-
-async function assertAssetImportCandidate(sourcePath: string, kind: AssetImportKind): Promise<void> {
-  let sourceStats;
-  try {
-    sourceStats = await stat(sourcePath);
-  } catch {
-    throw new Error("Selected asset file could not be read. It may have been moved or deleted.");
-  }
-
-  validateAssetImportCandidate({
-    sourcePath,
-    kind,
-    sizeBytes: sourceStats.size,
-    isFile: sourceStats.isFile()
-  });
 }
 
 async function getMapReplacementWarning(currentPath: string, currentMediaType: Asset["mediaType"], nextPath: string, nextMediaType: Asset["mediaType"]): Promise<{
@@ -1128,10 +1110,7 @@ ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
   await assertAssetImportCandidate(sourcePath, "map");
 
   const summary = await loadCampaignFromPath(campaignPath);
-  const fileName = safeAssetName(sourcePath);
-  const relativePath = buildAssetImportRelativePath("map", fileName);
-  const destination = requireCampaignRelativePath(campaignPath, relativePath);
-  await copyFile(sourcePath, destination);
+  const { relativePath, destination } = await copyAssetImportToCampaign(campaignPath, sourcePath, "map");
   campaignSessions.registerAssetPath(destination);
 
   const assetId = randomUUID();
@@ -1222,10 +1201,7 @@ ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: 
     throw new Error("The selected scene no longer uses this map asset.");
   }
 
-  const fileName = safeAssetName(sourcePath);
-  const relativePath = buildAssetImportRelativePath("map", fileName);
-  const destination = requireCampaignRelativePath(campaignPath, relativePath);
-  await copyFile(sourcePath, destination);
+  const { relativePath, destination } = await copyAssetImportToCampaign(campaignPath, sourcePath, "map");
   campaignSessions.registerAssetPath(destination);
 
   const assetId = randomUUID();
@@ -1276,10 +1252,7 @@ ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
   await assertAssetImportCandidate(sourcePath, "token");
 
   const summary = await loadCampaignFromPath(campaignPath);
-  const fileName = safeAssetName(sourcePath);
-  const relativePath = buildAssetImportRelativePath("token", fileName);
-  const destination = requireCampaignRelativePath(campaignPath, relativePath);
-  await copyFile(sourcePath, destination);
+  const { relativePath, destination } = await copyAssetImportToCampaign(campaignPath, sourcePath, "token");
 
   const assetId = randomUUID();
   const thumbnailResult = await createTokenThumbnail(campaignPath, sourcePath, assetId);
