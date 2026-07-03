@@ -92,6 +92,7 @@ import { createThumbnailImportFailureDiagnostic } from "./thumbnailDiagnostics.j
 import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.js";
 import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
+import { pauseSceneTurnOrder } from "./turnOrderPause.js";
 import { createCampaignSceneEntry, insertSceneEntryAfter, updateSceneEntryFromScene } from "./sceneEntries.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
@@ -337,21 +338,11 @@ async function pauseActiveTurnOrders(campaignPath: string): Promise<void> {
   for (const entry of summary.campaign.scenes) {
     try {
       const normalized = await readSceneMetadata(campaignPath, entry.id);
-      if (!normalized.turnOrder.active && !normalized.turnOrder.playerViewVisible) {
+      const paused = pauseSceneTurnOrder(normalized);
+      if (!paused) {
         continue;
       }
-      await writeScene(
-        campaignPath,
-        normalizeScene({
-          ...normalized,
-          turnOrder: {
-            ...normalized.turnOrder,
-            active: false,
-            playerViewVisible: false
-          },
-          updatedAt: new Date().toISOString()
-        })
-      );
+      await writeScene(campaignPath, paused);
     } catch {
       // Missing or invalid scenes are reported by the normal campaign loading flow.
     }
