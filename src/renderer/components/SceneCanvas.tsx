@@ -184,9 +184,7 @@ import {
   drawWeatherPolygonDraft
 } from "../canvas/weather";
 import {
-  getWeatherMaskDragFromPoint,
   getWeatherMaskPointSnapshot,
-  getUpdatedWeatherMaskDrag,
   type WeatherMaskDrag,
   type WeatherPolygonDraft
 } from "../canvas/weather";
@@ -223,6 +221,7 @@ import { getTokenPointerMove, getTokenPointerStart } from "./scene/sceneTokenPoi
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
+import { getWeatherMaskPointerMove, getWeatherMaskPointerStart } from "./scene/sceneWeatherMaskPointer";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
@@ -1333,15 +1332,26 @@ export function SceneCanvas({
     }
     if (mode === "gm" && weatherMaskTool && scene && onSceneChange && event.button === 0) {
       const point = getToolPoint(event);
-      if (weatherMaskTool === "polygon") {
-        updateWeatherPolygonDraft(point);
+      const start = getWeatherMaskPointerStart({
+        button: event.button,
+        hasScene: Boolean(scene),
+        mode,
+        onSceneChangeAvailable: Boolean(onSceneChange),
+        point,
+        pointerId: event.pointerId,
+        tool: weatherMaskTool
+      });
+      if (!start) {
+        return;
+      }
+      if (start.kind === "polygon") {
+        updateWeatherPolygonDraft(start.point);
         return;
       }
       weatherPolygonDraftRef.current = null;
       setWeatherPolygonDraft(null);
-      const maskDrag = getWeatherMaskDragFromPoint(event.pointerId, weatherMaskTool, point);
-      weatherMaskDragRef.current = maskDrag;
-      setWeatherMaskPreview(maskDrag);
+      weatherMaskDragRef.current = start.drag;
+      setWeatherMaskPreview(start.drag);
       return;
     }
     if (mode === "gm" && environmentEffectTool && scene && onSceneChange && event.button === 0) {
@@ -1614,7 +1624,10 @@ export function SceneCanvas({
 
     const weatherMaskDrag = weatherMaskDragRef.current;
     if (weatherMaskDrag?.pointerId === event.pointerId) {
-      const nextDrag = getUpdatedWeatherMaskDrag(weatherMaskDrag, getToolPoint(event), event.shiftKey);
+      const nextDrag = getWeatherMaskPointerMove(weatherMaskDrag, event.pointerId, getToolPoint(event), event.shiftKey);
+      if (!nextDrag) {
+        return;
+      }
       weatherMaskDragRef.current = nextDrag;
       setWeatherMaskPreview(nextDrag);
       return;
