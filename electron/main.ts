@@ -99,6 +99,7 @@ import { getGmCloseRequestAction, getUnsavedChangesDialogAction } from "./gmWind
 import { getLinuxGraphicsSwitches } from "./linuxGraphicsSwitches.js";
 import { createSmokeTestScript, getSmokeTestTimeoutMs } from "./smokeTestPlan.js";
 import { addImportedAssetToCampaign, createImportedAsset } from "./importedAssets.js";
+import { tokenThumbnailVariant, updateTokenThumbnailInCampaign } from "./tokenThumbnailUpdate.js";
 import {
   createSceneForCampaign,
   deleteSceneFromCampaign,
@@ -1129,15 +1130,10 @@ ipcMain.handle("asset:updateTokenThumbnail", async (_event, campaignPath: string
   if (!thumbnail) {
     throw new Error("Unable to generate token thumbnail.");
   }
-  const thumbnailRelativePath = await writeAssetThumbnail(campaignPath, assetId, thumbnail, `crop-${Date.now()}`);
-  const nextAssets = summary.campaign.assets.map((candidate) => (candidate.id === assetId ? { ...candidate, thumbnailRelativePath } : candidate));
-  const campaign: Campaign = {
-    ...summary.campaign,
-    assets: nextAssets,
-    updatedAt: new Date().toISOString()
-  };
+  const thumbnailRelativePath = await writeAssetThumbnail(campaignPath, assetId, thumbnail, tokenThumbnailVariant(Date.now()));
+  const campaign = updateTokenThumbnailInCampaign(summary.campaign, assetId, thumbnailRelativePath, new Date().toISOString());
   await writeCampaign(campaignPath, campaign);
-  await removeThumbnailIfUnused(campaignPath, asset.thumbnailRelativePath, nextAssets);
+  await removeThumbnailIfUnused(campaignPath, asset.thumbnailRelativePath, campaign.assets);
   const campaignSummary = await loadCampaignFromPath(campaignPath);
   const updatedAsset = campaignSummary.campaign.assets.find((candidate) => candidate.id === assetId);
   if (!updatedAsset) {
