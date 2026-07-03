@@ -7,7 +7,6 @@ import { randomUUID } from "node:crypto";
 import {
   Campaign,
   CampaignSummary,
-  DEFAULT_LAYERS,
   MetadataBackupRef,
   Scene,
   SquareCropRect,
@@ -17,7 +16,6 @@ import {
   createDefaultCampaign,
   isLiveTableEvent,
   isPlayerIdleState,
-  normalizeScene,
   type PlayerSceneProjection
 } from "../src/shared/localvtt.js";
 import {
@@ -92,6 +90,8 @@ import { tokenThumbnailVariant, updateTokenThumbnailInCampaign } from "./tokenTh
 import { removeTokenAssetFromCampaignScenes } from "./tokenAssetSceneCleanup.js";
 import { assertSceneUsesMapAsset, requireCurrentMapAsset } from "./mapReplacementValidation.js";
 import { findCampaignAsset, requireCampaignAsset, requireTokenAssetWithAbsolutePath } from "./campaignAssetLookup.js";
+import { createAppWindowOptions, createWindowLoadTarget } from "./windowConfig.js";
+import { prepareLoadedScene } from "./sceneLoadDefaults.js";
 import {
   createSceneForCampaign,
   deleteSceneFromCampaign,
@@ -143,28 +143,16 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 function createWindow(hash: "gm" | "player"): BrowserWindow {
-  const win = new BrowserWindow({
-    width: hash === "gm" ? 1440 : 1280,
-    height: hash === "gm" ? 960 : 720,
-    title: hash === "gm" ? "Local VTT - GM View" : "Local VTT - Player View",
-    icon: appWindowIconPath,
-    backgroundColor: hash === "gm" ? "#101318" : "#000000",
-    webPreferences: {
-      preload: path.join(app.getAppPath(), "dist-electron", "electron", "preload.js"),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false
-    }
-  });
+  const appPath = app.getAppPath();
+  const win = new BrowserWindow(createAppWindowOptions(hash, appPath, appWindowIconPath));
 
   installWindowDiagnostics(win, hash);
 
-  if (isDev) {
-    void win.loadURL(`${devServerUrl}/#/${hash}`);
+  const loadTarget = createWindowLoadTarget(hash, isDev, devServerUrl, appPath);
+  if (loadTarget.kind === "url") {
+    void win.loadURL(loadTarget.value);
   } else {
-    void win.loadFile(path.join(app.getAppPath(), "dist", "index.html"), {
-      hash: `/${hash}`
-    });
+    void win.loadFile(loadTarget.value, { hash: loadTarget.hash });
   }
 
   return win;
@@ -828,10 +816,7 @@ ipcMain.handle("scene:duplicate", async (_event, campaignPath: string, sourceSce
 ipcMain.handle("scene:load", async (_event, campaignPath: string, sceneId: string) => {
   assertKnownCampaignPath(campaignPath);
   const scene = await readSceneMetadata(campaignPath, sceneId);
-  if (scene.layers.length === 0) {
-    scene.layers = DEFAULT_LAYERS.map((layer) => ({ ...layer }));
-  }
-  return normalizeScene(scene);
+  return prepareLoadedScene(scene);
 });
 
 ipcMain.handle("scene:save", async (_event, campaignPath: string, scene: Scene) => {
