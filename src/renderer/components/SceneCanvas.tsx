@@ -9,7 +9,18 @@ import {
   TOKEN_CONDITION_LABELS
 } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings } from "../../shared/localvtt";
-import { areCamerasEqual, getCameraForPanDrag, getCameraForWheelZoom, getRenderCamera, type Camera, type CameraPanDrag } from "../canvas/core";
+import {
+  WEATHER_ONLY_FRAME_INTERVAL_MS,
+  areCamerasEqual,
+  getCameraForPanDrag,
+  getCameraForWheelZoom,
+  getCanvasAnimationFramePlan,
+  getRenderCamera,
+  hasCanvasAnimationSources,
+  type Camera,
+  type CameraPanDrag,
+  type CanvasAnimationSources
+} from "../canvas/core";
 import {
   getCanvasInteractionClass,
   getDrawingTransformHoverAtPoint,
@@ -250,7 +261,6 @@ import {
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
-const WEATHER_ONLY_FRAME_INTERVAL_MS = 50;
 const EMPTY_SELECTED_IDS: string[] = [];
 
 interface SceneCanvasProps {
@@ -1137,34 +1147,33 @@ export function SceneCanvas({
 
     let animationFrame = 0;
     let lastWeatherOnlyFrameAt = 0;
+    const getAnimationSources = (): CanvasAnimationSources => ({
+      mapAnimating: Boolean(loadedMap?.animate),
+      tokenAnimating: Boolean(playerTokenTweenPositionsRef.current),
+      tokenConditionAnimating: Boolean(canShowTokens && hasVisibleTokenConditions(scene, mode)),
+      tableEventsAnimating: hasActiveLiveTableEvents(liveTableEvents),
+      weatherAnimating: shouldAnimateWeather(scene, Boolean(canShowWeather)),
+      environmentAnimating: shouldAnimateEnvironmentEffects(scene, mode, Boolean(canShowWeather)),
+      selectionAnimating: sceneSelectionAnimating
+    });
     const drawCurrentFrame = (timestamp: number) => {
-      const mapAnimating = Boolean(loadedMap?.animate);
-      const tokenAnimating = Boolean(playerTokenTweenPositionsRef.current);
-      const tokenConditionAnimating = canShowTokens && hasVisibleTokenConditions(scene, mode);
-      const tableEventsAnimating = hasActiveLiveTableEvents(liveTableEvents);
-      const weatherAnimating = shouldAnimateWeather(scene, Boolean(canShowWeather));
-      const environmentAnimating = shouldAnimateEnvironmentEffects(scene, mode, Boolean(canShowWeather));
-      const selectionAnimating = sceneSelectionAnimating;
-      const hasFullRateAnimation = mapAnimating || tokenAnimating || tokenConditionAnimating || tableEventsAnimating || selectionAnimating;
-      const effectAnimating = weatherAnimating || environmentAnimating;
-      const shouldDrawFrame = !effectAnimating || hasFullRateAnimation || timestamp - lastWeatherOnlyFrameAt >= WEATHER_ONLY_FRAME_INTERVAL_MS;
+      const animationPlan = getCanvasAnimationFramePlan(getAnimationSources(), timestamp, lastWeatherOnlyFrameAt, WEATHER_ONLY_FRAME_INTERVAL_MS);
 
-      if (shouldDrawFrame) {
+      if (animationPlan.shouldDrawFrame) {
         const rect = canvas.getBoundingClientRect();
         drawScene(context, rect.width, rect.height);
-        if (effectAnimating && !hasFullRateAnimation) {
+        if (animationPlan.shouldUpdateEffectOnlyFrameAt) {
           lastWeatherOnlyFrameAt = timestamp;
         }
       }
 
-      if (mapAnimating || tokenAnimating || tokenConditionAnimating || tableEventsAnimating || weatherAnimating || environmentAnimating || selectionAnimating) {
+      if (animationPlan.shouldRequestNextFrame) {
         animationFrame = window.requestAnimationFrame(drawCurrentFrame);
       }
     };
 
     resize();
-    const selectionAnimating = sceneSelectionAnimating;
-    if (loadedMap?.animate || playerTokenTweenPositionsRef.current || (canShowTokens && hasVisibleTokenConditions(scene, mode)) || hasActiveLiveTableEvents(liveTableEvents) || shouldAnimateWeather(scene, Boolean(canShowWeather)) || shouldAnimateEnvironmentEffects(scene, mode, Boolean(canShowWeather)) || selectionAnimating) {
+    if (hasCanvasAnimationSources(getAnimationSources())) {
       animationFrame = window.requestAnimationFrame(drawCurrentFrame);
     }
     const observer = new ResizeObserver(resize);
