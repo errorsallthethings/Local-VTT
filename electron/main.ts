@@ -93,6 +93,7 @@ import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
 import { removeAssetFromCampaign, removeTokenAssetFromScene } from "./tokenAssetMutations.js";
 import { pauseSceneTurnOrder } from "./turnOrderPause.js";
+import { liveTableEventRoute, summarizeDisplay } from "./playerViewIpc.js";
 import {
   createSceneForCampaign,
   deleteSceneFromCampaign,
@@ -1344,20 +1345,28 @@ ipcMain.handle("player:liveTableEvent", async (ipcEvent, event: unknown) => {
   if (!isLiveTableEvent(event)) {
     throw new Error("Invalid live table event.");
   }
-  const sentFromPlayer = Boolean(playerWindow && !playerWindow.isDestroyed() && ipcEvent.sender.id === playerWindow.webContents.id);
-  let delivered = false;
-  if (sentFromPlayer) {
-    if (gmWindow && !gmWindow.isDestroyed()) {
-      gmWindow.webContents.send("player:liveTableEvent", event);
-      delivered = true;
-    }
-    return delivered;
+
+  const route = liveTableEventRoute(
+    ipcEvent.sender.id,
+    {
+      exists: Boolean(playerWindow),
+      destroyed: playerWindow?.isDestroyed() ?? true,
+      webContentsId: playerWindow?.webContents.id
+    },
+    Boolean(gmWindow && !gmWindow.isDestroyed())
+  );
+
+  if (route === "gm") {
+    gmWindow?.webContents.send("player:liveTableEvent", event);
+    return true;
   }
-  if (playerWindow && !playerWindow.isDestroyed()) {
-    playerWindow.webContents.send("player:liveTableEvent", event);
-    delivered = true;
+
+  if (route === "player") {
+    playerWindow?.webContents.send("player:liveTableEvent", event);
+    return true;
   }
-  return delivered;
+
+  return false;
 });
 
 ipcMain.handle("player:setFullscreen", async (_event, fullscreen: boolean) => {
@@ -1382,20 +1391,7 @@ ipcMain.handle("player:close", async () => {
 
 ipcMain.handle("player:getLastState", async () => lastPlayerProjection);
 
-ipcMain.handle("app:getDisplays", async () => {
-  return screen.getAllDisplays().map((display) => ({
-    id: display.id,
-    label: display.label,
-    bounds: display.bounds,
-    workArea: display.workArea,
-    nativeResolution: {
-      width: Math.round(display.bounds.width * display.scaleFactor),
-      height: Math.round(display.bounds.height * display.scaleFactor)
-    },
-    scaleFactor: display.scaleFactor,
-    rotation: display.rotation
-  }));
-});
+ipcMain.handle("app:getDisplays", async () => screen.getAllDisplays().map(summarizeDisplay));
 
 ipcMain.on("app:setUnsavedChanges", (_event, hasUnsavedChanges: boolean) => {
   gmHasUnsavedChanges = hasUnsavedChanges;
