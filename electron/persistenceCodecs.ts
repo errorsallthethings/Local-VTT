@@ -11,15 +11,23 @@ import {
 const WINDOWS_DRIVE_PATH_PATTERN = /^[a-zA-Z]:/;
 
 export function parseCampaignMetadata(raw: string): Campaign {
-  const parsed = JSON.parse(raw) as unknown;
-  assertValidCampaign(parsed);
-  return parsed;
+  const parsed = parseMetadataJson(raw, "Campaign");
+  try {
+    assertValidCampaign(parsed);
+    return parsed;
+  } catch (caught) {
+    throw formatMetadataValidationError("Campaign", caught);
+  }
 }
 
 export function parseSceneMetadata(raw: string): Scene {
-  const parsed = JSON.parse(raw) as unknown;
-  assertValidScene(parsed);
-  return parsed;
+  const parsed = parseMetadataJson(raw, "Scene");
+  try {
+    assertValidScene(parsed);
+    return parsed;
+  } catch (caught) {
+    throw formatMetadataValidationError("Scene", caught);
+  }
 }
 
 export function toPortableCampaignMetadata(campaign: Campaign): Campaign {
@@ -75,4 +83,21 @@ export function normalizePortableCampaignPath(candidatePath: string, label = "Ca
   }
 
   return portablePath;
+}
+
+function parseMetadataJson(raw: string, label: "Campaign" | "Scene"): unknown {
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch (caught) {
+    const message = caught instanceof Error ? caught.message : "Invalid JSON.";
+    throw new Error(`${label} metadata file is not valid JSON. ${message}`, { cause: caught });
+  }
+}
+
+function formatMetadataValidationError(label: "Campaign" | "Scene", caught: unknown): Error {
+  const message = caught instanceof Error ? caught.message : "Unknown metadata validation error.";
+  if (message.includes("Unsupported campaign schema version") || message.includes("Unsupported scene schema version")) {
+    return new Error(`${label} metadata was created by a newer version of Local VTT. ${message}`, { cause: caught });
+  }
+  return new Error(`${label} metadata structure is invalid. ${message}`, { cause: caught });
 }

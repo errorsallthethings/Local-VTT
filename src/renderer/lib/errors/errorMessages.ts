@@ -3,7 +3,7 @@ export function formatUserFacingError(caught: unknown): string {
   const message = stripElectronIpcPrefix(rawMessage);
 
   if (message.includes("Campaign metadata could not be read") || message.includes("Scene metadata could not be read")) {
-    return message;
+    return formatMetadataReadError(message);
   }
   if (message.includes("Campaign metadata could not be saved") || message.includes("Scene metadata could not be saved")) {
     return formatMetadataSaveError(message);
@@ -77,6 +77,25 @@ function formatMetadataSaveError(message: string): string {
   const detail = message.slice(prefix.length).trim();
   const action = formatKnownFilesystemError(detail);
   return action ? `${prefix} ${action}` : message;
+}
+
+function formatMetadataReadError(message: string): string {
+  if (message.includes("metadata file is not valid JSON")) {
+    return `${metadataReadPrefix(message)} The metadata file is not valid JSON. Restore a metadata backup or repair the JSON file.`;
+  }
+  if (message.includes("metadata was created by a newer version of Local VTT")) {
+    return `${metadataReadPrefix(message)} This campaign or scene was saved by a newer version of Local VTT. Update Local VTT, then try again.`;
+  }
+  if (message.includes("metadata structure is invalid")) {
+    return `${metadataReadPrefix(message)} The metadata structure is invalid. Restore a metadata backup or repair the campaign file.`;
+  }
+  return message;
+}
+
+function metadataReadPrefix(message: string): string {
+  return message.includes("Scene metadata could not be read")
+    ? "Scene metadata could not be read."
+    : "Campaign metadata could not be read.";
 }
 
 function formatKnownFilesystemError(message: string): string | null {

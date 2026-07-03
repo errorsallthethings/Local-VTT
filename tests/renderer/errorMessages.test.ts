@@ -15,15 +15,28 @@ describe("formatUserFacingError", () => {
   });
 
   it("keeps backup guidance for corrupt campaign metadata", () => {
-    const message = "Campaign metadata could not be read. Metadata backups may exist in C:\\Campaign\\backups. Invalid campaign.json file.";
+    const message = "Campaign metadata could not be read. Metadata backups may exist in C:\\Campaign\\backups. Campaign metadata file is not valid JSON. Unexpected end of JSON input";
 
-    expect(formatUserFacingError(new Error(message))).toBe(message);
+    expect(formatUserFacingError(new Error(message))).toBe(
+      "Campaign metadata could not be read. The metadata file is not valid JSON. Restore a metadata backup or repair the JSON file."
+    );
   });
 
   it("keeps backup guidance for corrupt scene metadata", () => {
-    const message = "Scene metadata could not be read. Metadata backups may exist in C:\\Campaign\\backups\\scenes\\scene-1. Invalid scene file.";
+    const message = "Scene metadata could not be read. Metadata backups may exist in C:\\Campaign\\backups\\scenes\\scene-1. Scene metadata structure is invalid. Invalid scene file.";
 
-    expect(formatUserFacingError(new Error(message))).toBe(message);
+    expect(formatUserFacingError(new Error(message))).toBe(
+      "Scene metadata could not be read. The metadata structure is invalid. Restore a metadata backup or repair the campaign file."
+    );
+  });
+
+  it("explains metadata from newer app versions", () => {
+    const message =
+      "Campaign metadata could not be read. Metadata backups may exist in C:\\Campaign\\backups. Campaign metadata was created by a newer version of Local VTT.";
+
+    expect(formatUserFacingError(new Error(message))).toBe(
+      "Campaign metadata could not be read. This campaign or scene was saved by a newer version of Local VTT. Update Local VTT, then try again."
+    );
   });
 
   it("keeps metadata save context before matching generic filesystem errors", () => {

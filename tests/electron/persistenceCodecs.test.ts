@@ -134,8 +134,18 @@ describe("persistence codecs", () => {
   });
 
   it("rejects invalid campaign and scene metadata", () => {
-    expect(() => parseCampaignMetadata(JSON.stringify({ id: "", name: "Broken", scenes: [] }))).toThrow(/Invalid campaign/);
-    expect(() => parseSceneMetadata(JSON.stringify({ id: "scene", name: "Broken", layers: "nope" }))).toThrow(/Invalid scene/);
+    expect(() => parseCampaignMetadata("{")).toThrow("Campaign metadata file is not valid JSON.");
+    expect(() => parseSceneMetadata("{")).toThrow("Scene metadata file is not valid JSON.");
+    expect(() => parseCampaignMetadata(JSON.stringify({ id: "", name: "Broken", scenes: [] }))).toThrow("Campaign metadata structure is invalid.");
+    expect(() => parseSceneMetadata(JSON.stringify({ id: "scene", name: "Broken", layers: "nope" }))).toThrow("Scene metadata structure is invalid.");
+  });
+
+  it("identifies metadata from newer app versions", () => {
+    const futureCampaign = { ...createDefaultCampaign("Future Campaign"), schemaVersion: 999 };
+    const futureScene = { ...createDefaultScene("Future Scene"), schemaVersion: 999 };
+
+    expect(() => parseCampaignMetadata(JSON.stringify(futureCampaign))).toThrow("Campaign metadata was created by a newer version of Local VTT.");
+    expect(() => parseSceneMetadata(JSON.stringify(futureScene))).toThrow("Scene metadata was created by a newer version of Local VTT.");
   });
 
   it("round trips portable campaign metadata with folders, scenes, players, and assets", () => {
