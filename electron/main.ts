@@ -90,6 +90,7 @@ import { createThumbnailImportFailureDiagnostic } from "./thumbnailDiagnostics.j
 import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.js";
 import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
+import { removeAssetFromCampaign, removeTokenAssetFromScene } from "./tokenAssetMutations.js";
 import { pauseSceneTurnOrder } from "./turnOrderPause.js";
 import {
   createSceneForCampaign,
@@ -1206,11 +1207,7 @@ ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, 
     await unlinkIfExists(assetPath);
   }
 
-  const campaign: Campaign = {
-    ...summary.campaign,
-    assets: summary.campaign.assets.filter((candidate) => candidate.id !== assetId),
-    updatedAt: new Date().toISOString()
-  };
+  const campaign = removeAssetFromCampaign(summary.campaign, assetId);
   await writeCampaign(campaignPath, campaign);
   return loadCampaignFromPath(campaignPath);
 });
@@ -1233,14 +1230,10 @@ ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId
   for (const entry of summary.campaign.scenes) {
     try {
       const scene = await readSceneMetadata(campaignPath, entry.id);
-      if (!scene.tokens.some((token) => token.assetId === assetId)) {
+      const updatedScene = removeTokenAssetFromScene(scene, assetId);
+      if (!updatedScene) {
         continue;
       }
-      const updatedScene = normalizeScene({
-        ...scene,
-        tokens: scene.tokens.filter((token) => token.assetId !== assetId),
-        updatedAt: new Date().toISOString()
-      });
       await writeScene(campaignPath, updatedScene);
       changedScenes.push(updatedScene);
     } catch {
@@ -1253,11 +1246,7 @@ ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId
     await unlinkIfExists(assetPath);
   }
 
-  const campaign: Campaign = {
-    ...summary.campaign,
-    assets: summary.campaign.assets.filter((candidate) => candidate.id !== assetId),
-    updatedAt: new Date().toISOString()
-  };
+  const campaign = removeAssetFromCampaign(summary.campaign, assetId);
   await writeCampaign(campaignPath, campaign);
   return { campaignSummary: await loadCampaignFromPath(campaignPath), scenes: changedScenes };
 });
