@@ -101,6 +101,7 @@ import { createSmokeTestScript, getSmokeTestTimeoutMs } from "./smokeTestPlan.js
 import { addImportedAssetToCampaign, createImportedAsset } from "./importedAssets.js";
 import { tokenThumbnailVariant, updateTokenThumbnailInCampaign } from "./tokenThumbnailUpdate.js";
 import { removeTokenAssetFromCampaignScenes } from "./tokenAssetSceneCleanup.js";
+import { assertSceneUsesMapAsset, requireCurrentMapAsset } from "./mapReplacementValidation.js";
 import {
   createSceneForCampaign,
   deleteSceneFromCampaign,
@@ -991,15 +992,9 @@ ipcMain.handle("asset:previewMapReplacement", async (_event, campaignPath: strin
   await assertAssetImportCandidate(sourcePath, "map");
 
   const summary = await loadCampaignFromPath(campaignPath);
-  const currentAsset = summary.campaign.assets.find((candidate) => candidate.id === currentAssetId && candidate.kind === "map");
-  if (!currentAsset) {
-    throw new Error("Current map asset was not found in this campaign.");
-  }
-
+  const currentAsset = requireCurrentMapAsset(summary.campaign, currentAssetId);
   const currentScene = await readSceneMetadata(campaignPath, sceneId);
-  if (currentScene.mapAssetId !== currentAssetId) {
-    throw new Error("The selected scene no longer uses this map asset.");
-  }
+  assertSceneUsesMapAsset(currentScene, currentAssetId);
 
   const currentAssetPath = requireCampaignRelativePath(campaignPath, currentAsset.relativePath);
   const nextMediaType = mapMediaType(sourcePath);
@@ -1031,15 +1026,9 @@ ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: 
   await assertAssetImportCandidate(sourcePath, "map");
 
   const summary = await loadCampaignFromPath(campaignPath);
-  const currentAsset = summary.campaign.assets.find((candidate) => candidate.id === currentAssetId && candidate.kind === "map");
-  if (!currentAsset) {
-    throw new Error("Current map asset was not found in this campaign.");
-  }
-
+  const currentAsset = requireCurrentMapAsset(summary.campaign, currentAssetId);
   const currentScene = await readSceneMetadata(campaignPath, sceneId);
-  if (currentScene.mapAssetId !== currentAssetId) {
-    throw new Error("The selected scene no longer uses this map asset.");
-  }
+  assertSceneUsesMapAsset(currentScene, currentAssetId);
 
   const { relativePath, destination } = await copyAssetImportToCampaign(campaignPath, sourcePath, "map");
   campaignSessions.registerAssetPath(destination);
