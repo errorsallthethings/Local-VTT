@@ -86,11 +86,46 @@ export function resizePanelWidth(layout: WorkspaceLayout, side: WorkspacePanelSi
   return side === "left" ? { ...layout, leftWidth: width } : { ...layout, rightWidth: width };
 }
 
+export function getWorkspacePanelResizeDelta(side: WorkspacePanelSide, startClientX: number, currentClientX: number): number {
+  return side === "left" ? currentClientX - startClientX : startClientX - currentClientX;
+}
+
 export function getWorkspacePanelWidth(layout: WorkspaceLayout, side: WorkspacePanelSide): number {
   if (side === "left") {
     return layout.leftWidth;
   }
   return layout.rightWidth;
+}
+
+export function getTokenLibraryResizeHeight(startHeight: number, startClientY: number, currentClientY: number): number {
+  return normalizeTokenLibraryHeight(startHeight + startClientY - currentClientY);
+}
+
+export interface WorkspaceShellPresentation {
+  className: string;
+  style: {
+    "--left-sidebar-width": string;
+    "--right-inspector-width": string;
+    "--token-library-expanded-height": string;
+  };
+}
+
+export function getWorkspaceShellPresentation(layout: WorkspaceLayout, tokenLibraryHeight: number): WorkspaceShellPresentation {
+  return {
+    className: [
+      "app-shell",
+      layout.leftCollapsed ? "sidebar-collapsed" : "",
+      layout.rightCollapsed ? "inspector-collapsed" : "",
+      !layout.rightCollapsed && layout.rightWidth <= COMPACT_RIGHT_PANEL_WIDTH ? "inspector-compact" : ""
+    ]
+      .filter(Boolean)
+      .join(" "),
+    style: {
+      "--left-sidebar-width": `${layout.leftCollapsed ? COLLAPSED_RAIL_WIDTH : layout.leftWidth}px`,
+      "--right-inspector-width": `${layout.rightCollapsed ? COLLAPSED_RAIL_WIDTH : layout.rightWidth}px`,
+      "--token-library-expanded-height": `${tokenLibraryHeight}px`
+    }
+  };
 }
 
 export function clamp(value: number, min: number, max: number): number {

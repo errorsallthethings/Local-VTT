@@ -135,13 +135,13 @@ import { createImportedToken } from "../lib/tokens";
 import { getSelectedTokenAssetIds, getTokenAssetDeleteDialogState, getTokenAssetRenameDialogState } from "../lib/tokens";
 import { addTurnOrderEntry, createTurnOrderEntryFromToken } from "../lib/turn-order";
 import {
-  COLLAPSED_RAIL_WIDTH,
-  COMPACT_RIGHT_PANEL_WIDTH,
   DEFAULT_TOKEN_LIBRARY_HEIGHT,
+  getTokenLibraryResizeHeight,
+  getWorkspacePanelResizeDelta,
   getWorkspacePanelWidth,
+  getWorkspaceShellPresentation,
   loadTokenLibraryHeight,
   loadWorkspaceLayout,
-  normalizeTokenLibraryHeight,
   resetPanelWidth as resetWorkspacePanelWidth,
   resizePanelWidth,
   saveTokenLibraryHeight,
@@ -1546,7 +1546,7 @@ export function GmApp() {
     const startWidth = getWorkspacePanelWidth(workspaceLayout, side);
 
     const resizePanel = (moveEvent: PointerEvent) => {
-      const delta = side === "left" ? moveEvent.clientX - startX : startX - moveEvent.clientX;
+      const delta = getWorkspacePanelResizeDelta(side, startX, moveEvent.clientX);
       setWorkspaceLayout((layout) => resizePanelWidth(layout, side, startWidth, delta));
     };
     const stopResize = () => {
@@ -1570,7 +1570,7 @@ export function GmApp() {
     const startHeight = tokenLibraryHeight;
 
     const resizeDrawer = (moveEvent: PointerEvent) => {
-      setTokenLibraryHeight(normalizeTokenLibraryHeight(startHeight + startY - moveEvent.clientY));
+      setTokenLibraryHeight(getTokenLibraryResizeHeight(startHeight, startY, moveEvent.clientY));
     };
     const stopResize = () => {
       document.body.classList.remove("resizing-token-library");
@@ -1587,19 +1587,9 @@ export function GmApp() {
     setTokenLibraryHeight(DEFAULT_TOKEN_LIBRARY_HEIGHT);
   };
 
-  const appShellStyle = {
-    "--left-sidebar-width": `${workspaceLayout.leftCollapsed ? COLLAPSED_RAIL_WIDTH : workspaceLayout.leftWidth}px`,
-    "--right-inspector-width": `${workspaceLayout.rightCollapsed ? COLLAPSED_RAIL_WIDTH : workspaceLayout.rightWidth}px`,
-    "--token-library-expanded-height": `${tokenLibraryHeight}px`
-  } as CSSProperties;
-  const appShellClassName = [
-    "app-shell",
-    workspaceLayout.leftCollapsed ? "sidebar-collapsed" : "",
-    workspaceLayout.rightCollapsed ? "inspector-collapsed" : "",
-    !workspaceLayout.rightCollapsed && workspaceLayout.rightWidth <= COMPACT_RIGHT_PANEL_WIDTH ? "inspector-compact" : ""
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const appShellPresentation = getWorkspaceShellPresentation(workspaceLayout, tokenLibraryHeight);
+  const appShellStyle = appShellPresentation.style as CSSProperties;
+  const appShellClassName = appShellPresentation.className;
 
   useEffect(() => {
     const removeListener = window.localVtt.onSaveBeforeClose(() => {

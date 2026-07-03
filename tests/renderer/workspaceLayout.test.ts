@@ -4,6 +4,9 @@ import {
   DEFAULT_TOKEN_LIBRARY_HEIGHT,
   loadWorkspaceLayout,
   loadTokenLibraryHeight,
+  getTokenLibraryResizeHeight,
+  getWorkspacePanelResizeDelta,
+  getWorkspaceShellPresentation,
   normalizeTokenLibraryHeight,
   normalizeWorkspaceLayout,
   MAX_TOKEN_LIBRARY_HEIGHT,
@@ -72,9 +75,52 @@ describe("workspace layout helpers", () => {
     expect(resetPanelWidth(layout, "right").rightWidth).toBe(DEFAULT_WORKSPACE_LAYOUT.rightWidth);
   });
 
+  it("derives panel resize deltas from pointer movement per side", () => {
+    expect(getWorkspacePanelResizeDelta("left", 100, 140)).toBe(40);
+    expect(getWorkspacePanelResizeDelta("left", 100, 80)).toBe(-20);
+    expect(getWorkspacePanelResizeDelta("right", 100, 140)).toBe(-40);
+    expect(getWorkspacePanelResizeDelta("right", 100, 80)).toBe(20);
+  });
+
   it("normalizes token library drawer height into supported bounds", () => {
     expect(normalizeTokenLibraryHeight(100)).toBe(170);
     expect(normalizeTokenLibraryHeight(320)).toBe(320);
     expect(normalizeTokenLibraryHeight(900)).toBe(MAX_TOKEN_LIBRARY_HEIGHT);
+  });
+
+  it("derives token library resize height from vertical pointer movement", () => {
+    expect(getTokenLibraryResizeHeight(300, 200, 150)).toBe(350);
+    expect(getTokenLibraryResizeHeight(300, 200, 500)).toBe(170);
+    expect(getTokenLibraryResizeHeight(700, 200, 0)).toBe(MAX_TOKEN_LIBRARY_HEIGHT);
+  });
+
+  it("builds app shell presentation from workspace layout", () => {
+    expect(getWorkspaceShellPresentation(layout, 320)).toEqual({
+      className: "app-shell",
+      style: {
+        "--left-sidebar-width": "300px",
+        "--right-inspector-width": "360px",
+        "--token-library-expanded-height": "320px"
+      }
+    });
+    expect(
+      getWorkspaceShellPresentation(
+        {
+          ...layout,
+          leftCollapsed: true,
+          rightCollapsed: false,
+          rightWidth: 270
+        },
+        240
+      )
+    ).toEqual({
+      className: "app-shell sidebar-collapsed inspector-compact",
+      style: {
+        "--left-sidebar-width": "44px",
+        "--right-inspector-width": "270px",
+        "--token-library-expanded-height": "240px"
+      }
+    });
+    expect(getWorkspaceShellPresentation({ ...layout, rightCollapsed: true }, 240).className).toBe("app-shell inspector-collapsed");
   });
 });
