@@ -29,7 +29,6 @@ import {
   getDrawingHitRadius,
   getDrawingAtPoint,
   getDrawingPolygonDraftPreview,
-  getDrawingPreviewFromPoint,
   type DrawingPointOverrides,
   type DrawingPreview,
   type DrawingTool
@@ -137,7 +136,6 @@ import { getTurnOrderTokenIndicators } from "../lib/turn-order";
 import {
   getTemplatePreviewDrawing
 } from "../canvas/drawings";
-import { getUpdatedDrawingPreview } from "../canvas/drawings";
 import { getTokenAtPoint } from "../canvas/tokens";
 import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey } from "../canvas/tokens";
 import {
@@ -211,6 +209,7 @@ import {
   MapLoadOverlay,
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
+import { getDrawingPointerMove, getDrawingPointerStart } from "./scene/sceneDrawingPointer";
 import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerStart } from "./scene/sceneEnvironmentEffectPointer";
 import { getLaserPointerMove, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
 import { getFogPointerMove, getFogPointerStart } from "./scene/sceneFogPointer";
@@ -1291,16 +1290,28 @@ export function SceneCanvas({
     }
     if (mode === "gm" && drawingTool && scene && onSceneChange && event.button === 0) {
       const point = getDrawingToolPoint(event, drawingTool);
-      const preview = getDrawingPreviewFromPoint(event.pointerId, drawingTool, point, {
-        color: drawingColor,
-        opacity: drawingOpacity,
-        fillColor: drawingFillColor,
-        fillOpacity: drawingFillOpacity,
-        strokeStyle: drawingStrokeStyle,
-        strokeWidth: drawingStrokeWidth,
-        templateEffect: drawingTemplateEffect,
-        templateWidth: drawingTemplateWidth
+      const preview = getDrawingPointerStart({
+        button: event.button,
+        hasScene: Boolean(scene),
+        mode,
+        onSceneChangeAvailable: Boolean(onSceneChange),
+        point,
+        pointerId: event.pointerId,
+        style: {
+          color: drawingColor,
+          opacity: drawingOpacity,
+          fillColor: drawingFillColor,
+          fillOpacity: drawingFillOpacity,
+          strokeStyle: drawingStrokeStyle,
+          strokeWidth: drawingStrokeWidth,
+          templateEffect: drawingTemplateEffect,
+          templateWidth: drawingTemplateWidth
+        },
+        tool: drawingTool
       });
+      if (!preview) {
+        return;
+      }
       drawingPreviewRef.current = preview;
       setDrawingPreview(preview);
       onTemplatePreviewChange?.(getTemplatePreviewDrawing(preview));
@@ -1570,7 +1581,10 @@ export function SceneCanvas({
 
     if (drawingDrag?.pointerId === event.pointerId) {
       const point = getDrawingToolPoint(event, drawingDrag.kind);
-      const nextDrawingDrag = getUpdatedDrawingPreview(drawingDrag, point, scene, drawingTemplateSize, event.shiftKey);
+      const nextDrawingDrag = getDrawingPointerMove(drawingDrag, event.pointerId, point, scene, drawingTemplateSize, event.shiftKey);
+      if (!nextDrawingDrag) {
+        return;
+      }
       drawingPreviewRef.current = nextDrawingDrag;
       setDrawingPreview(nextDrawingDrag);
       onTemplatePreviewChange?.(getTemplatePreviewDrawing(nextDrawingDrag));
