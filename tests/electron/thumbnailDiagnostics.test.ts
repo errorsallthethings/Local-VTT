@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createThumbnailImportFailureDiagnostic, createThumbnailRegenerationFailure } from "../../electron/thumbnailDiagnostics";
+import { createThumbnailImportFailureDiagnostic, createThumbnailRegenerationFailure, createVideoThumbnailFallbackFailure } from "../../electron/thumbnailDiagnostics";
 import type { Asset } from "../../src/shared/localvtt";
 
 describe("thumbnail diagnostics", () => {
@@ -39,5 +39,17 @@ describe("thumbnail diagnostics", () => {
       relativePath: "assets/maps/ancient-cave.mp4",
       reason: "Video metadata timed out."
     });
+  });
+
+  it("combines primary and renderer fallback video thumbnail failures", () => {
+    expect(createVideoThumbnailFallbackFailure("Electron metadata timed out.", "Renderer frame was blank.")).toBe(
+      "Electron metadata timed out. Renderer fallback also failed: Renderer frame was blank."
+    );
+  });
+
+  it("uses default reasons for incomplete video thumbnail fallback failures", () => {
+    expect(createVideoThumbnailFallbackFailure(undefined, undefined)).toBe(
+      "Electron could not generate a video thumbnail. Renderer fallback also failed: Renderer fallback did not return a thumbnail."
+    );
   });
 });

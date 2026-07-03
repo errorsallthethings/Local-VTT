@@ -26,3 +26,9 @@ export function createThumbnailRegenerationFailure(asset: Asset, reason: string)
     reason
   };
 }
+
+export function createVideoThumbnailFallbackFailure(primaryReason: string | undefined, fallbackReason: string | undefined): string {
+  const normalizedPrimaryReason = primaryReason ?? "Electron could not generate a video thumbnail.";
+  const normalizedFallbackReason = fallbackReason ?? "Renderer fallback did not return a thumbnail.";
+  return `${normalizedPrimaryReason} Renderer fallback also failed: ${normalizedFallbackReason}`;
+}

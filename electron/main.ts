@@ -83,7 +83,7 @@ import { removeMapAssetFromCampaign, removeMapAssetFromScene, replaceSceneMapAss
 import { ensureMapThumbnails, type MapThumbnailResult } from "./mapThumbnailRepair.js";
 import { getMapReplacementPreview } from "./mapReplacementPreview.js";
 import { getMapAssetSceneNames, mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
-import { createThumbnailImportFailureDiagnostic } from "./thumbnailDiagnostics.js";
+import { createThumbnailImportFailureDiagnostic, createVideoThumbnailFallbackFailure } from "./thumbnailDiagnostics.js";
 import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.js";
 import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
@@ -402,9 +402,7 @@ async function createVideoMapThumbnailWithFallback(sourcePath: string, assetId: 
     return fallbackResult;
   }
 
-  const primaryReason = primaryResult.failureReason ?? "Electron could not generate a video thumbnail.";
-  const fallbackReason = fallbackResult.failureReason ?? "Renderer capture did not return a thumbnail.";
-  return { failureReason: `${primaryReason} Renderer fallback also failed: ${fallbackReason}` };
+  return { failureReason: createVideoThumbnailFallbackFailure(primaryResult.failureReason, fallbackResult.failureReason) };
 }
 
 async function createRendererVideoMapThumbnail(sourcePath: string, assetId: string, rendererWebContents: WebContents): Promise<ThumbnailCreationResult> {
