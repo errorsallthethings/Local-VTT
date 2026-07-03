@@ -44,10 +44,7 @@ import {
 } from "../canvas/drawings";
 import {
   drawFog,
-  getFogDragFromPoint,
   getFogOperationForTool,
-  getUpdatedFogDrag,
-  isPolygonTool,
   type FogDrag,
   type FogPolygonDraft,
   type FogTool
@@ -219,6 +216,7 @@ import {
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import { getLaserPointerMove, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
+import { getFogPointerMove, getFogPointerStart } from "./scene/sceneFogPointer";
 import { getMapCalibrationPointerComplete, getMapCalibrationPointerMove, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
 import { getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
 import { getTokenPointerMove, getTokenPointerStart } from "./scene/sceneTokenPointer";
@@ -1312,13 +1310,25 @@ export function SceneCanvas({
     }
     if (mode === "gm" && fogTool && scene && onSceneChange && event.button === 0) {
       const point = getToolPoint(event, !fogTool.includes("brush"));
-      if (isPolygonTool(fogTool)) {
-        updatePolygonDraft(fogTool, point);
+      const start = getFogPointerStart({
+        brushSize: activeFogBrushSize,
+        button: event.button,
+        hasScene: Boolean(scene),
+        mode,
+        onSceneChangeAvailable: Boolean(onSceneChange),
+        point,
+        pointerId: event.pointerId,
+        tool: fogTool
+      });
+      if (!start) {
         return;
       }
-      const fogDrag = getFogDragFromPoint(event.pointerId, fogTool, point, activeFogBrushSize);
-      fogDragRef.current = fogDrag;
-      setFogPreview(fogDrag);
+      if (start.kind === "polygon") {
+        updatePolygonDraft(start.tool, start.point);
+        return;
+      }
+      fogDragRef.current = start.drag;
+      setFogPreview(start.drag);
       return;
     }
     if (mode === "gm" && weatherMaskTool && scene && onSceneChange && event.button === 0) {
@@ -1593,7 +1603,10 @@ export function SceneCanvas({
 
     const fogDrag = fogDragRef.current;
     if (fogDrag?.pointerId === event.pointerId) {
-      const nextDrag = getUpdatedFogDrag(fogDrag, getToolPoint(event, fogDrag.kind !== "brush"), event.shiftKey);
+      const nextDrag = getFogPointerMove(fogDrag, event.pointerId, getToolPoint(event, fogDrag.kind !== "brush"), event.shiftKey);
+      if (!nextDrag) {
+        return;
+      }
       fogDragRef.current = nextDrag;
       setFogPreview(nextDrag);
       return;
