@@ -1,6 +1,7 @@
 import path from "node:path";
 import { normalizeCampaign, type Asset, type Campaign } from "../src/shared/localvtt.js";
 import { isInsidePath } from "./campaignPathSafety.js";
+import { normalizePortableCampaignPath } from "./persistenceCodecs.js";
 import { assertSafePathSegment } from "./safePathSegments.js";
 
 export function hydrateCampaignAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
@@ -32,8 +33,8 @@ export function getKnownAssetPaths(campaign: Campaign): string[] {
 
 export function getAssetFileRemovalPaths(campaignPath: string, asset: Pick<Asset, "relativePath" | "thumbnailRelativePath" | "absolutePath" | "thumbnailAbsolutePath">): string[] {
   return dedupePaths([
-    asset.absolutePath ?? path.resolve(campaignPath, asset.relativePath),
-    asset.thumbnailAbsolutePath ?? (asset.thumbnailRelativePath ? path.resolve(campaignPath, asset.thumbnailRelativePath) : undefined)
+    asset.absolutePath ?? resolveCampaignRelativePath(campaignPath, asset.relativePath),
+    asset.thumbnailAbsolutePath ?? (asset.thumbnailRelativePath ? resolveCampaignRelativePath(campaignPath, asset.thumbnailRelativePath) : undefined)
   ]);
 }
 
@@ -64,7 +65,13 @@ export function buildAssetImportRelativePath(kind: Asset["kind"], fileName: stri
 }
 
 export function resolveCampaignRelativePath(campaignPath: string, relativePath: string): string | undefined {
-  const resolvedPath = path.resolve(campaignPath, relativePath);
+  let portablePath: string;
+  try {
+    portablePath = normalizePortableCampaignPath(relativePath);
+  } catch {
+    return undefined;
+  }
+  const resolvedPath = path.resolve(campaignPath, portablePath);
   return isInsidePath(campaignPath, resolvedPath) ? resolvedPath : undefined;
 }
 

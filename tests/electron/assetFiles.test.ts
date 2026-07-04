@@ -55,9 +55,21 @@ describe("asset file helpers", () => {
 
   it("resolves campaign-relative paths only when they stay inside the campaign", () => {
     expect(resolveCampaignRelativePath("campaign-root", "assets/maps/map.png")).toBe(path.resolve("campaign-root", "assets/maps/map.png"));
+    expect(resolveCampaignRelativePath("campaign-root", "assets\\maps\\.\\map.png")).toBe(path.resolve("campaign-root", "assets/maps/map.png"));
     expect(resolveCampaignRelativePath("campaign-root", "../outside/map.png")).toBeUndefined();
+    expect(resolveCampaignRelativePath("campaign-root", path.resolve("campaign-root", "assets/maps/map.png"))).toBeUndefined();
     expect(requireCampaignRelativePath("campaign-root", "assets/tokens/hero.png")).toBe(path.resolve("campaign-root", "assets/tokens/hero.png"));
     expect(() => requireCampaignRelativePath("campaign-root", "../outside/map.png", "Outside campaign.")).toThrow("Outside campaign.");
+    expect(() => requireCampaignRelativePath("campaign-root", path.resolve("campaign-root", "assets/tokens/hero.png"), "Relative only.")).toThrow("Relative only.");
+  });
+
+  it("omits unsafe fallback removal paths from saved relative paths", () => {
+    expect(
+      getAssetFileRemovalPaths("campaign-root", {
+        relativePath: path.resolve("campaign-root", "assets/maps/map.png"),
+        thumbnailRelativePath: "../outside/thumb.jpg"
+      })
+    ).toEqual([]);
   });
 
   it("builds portable thumbnail paths", () => {
