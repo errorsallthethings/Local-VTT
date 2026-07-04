@@ -1,4 +1,4 @@
-import type { EnvironmentEffectMask } from "../../../../shared/localvtt";
+import type { EnvironmentEffectMask, EnvironmentEffectType } from "../../../../shared/localvtt";
 import {
   cloneAcidEffectTuning,
   cloneArcaneEffectTuning,
@@ -37,7 +37,7 @@ import {
   type VoidEffectTuning,
   type WaterEffectTuning
 } from "../../../canvas/effects";
-import { formatEnvironmentEffectOptionLabel, getEnvironmentEffectPresetSelectValue } from "../../../lib/effects";
+import { applyEnvironmentEffectPreset, formatEnvironmentEffectOptionLabel, getEnvironmentEffectPresetSelectValue } from "../../../lib/effects";
 
 export interface EnvironmentEffectEditorActiveTunings {
   acid: AcidEffectTuning;
@@ -74,6 +74,48 @@ export interface EnvironmentEffectEditorDragState {
 export interface EnvironmentEffectEditorPresetSelection {
   effectId: string;
   value: string;
+}
+
+export interface EnvironmentEffectEditorTuningChangeHandlers {
+  onAcidTuningChange: (tuning: AcidEffectTuning) => void;
+  onColdTuningChange: (tuning: ColdEffectTuning) => void;
+  onDarknessTuningChange: (tuning: DarknessEffectTuning) => void;
+  onPoisonTuningChange: (tuning: PoisonEffectTuning) => void;
+  onWaterTuningChange: (tuning: WaterEffectTuning) => void;
+  onLavaTuningChange: (tuning: LavaEffectTuning) => void;
+  onFireTuningChange: (tuning: FireEffectTuning) => void;
+  onLightningTuningChange: (tuning: LightningEffectTuning) => void;
+  onArcaneTuningChange: (tuning: ArcaneEffectTuning) => void;
+  onChaosTuningChange: (tuning: ChaosEffectTuning) => void;
+  onVoidTuningChange: (tuning: VoidEffectTuning) => void;
+  onNatureTuningChange: (tuning: NatureEffectTuning) => void;
+  onDistortionTuningChange: (tuning: DistortionEffectTuning) => void;
+  onRadiantTuningChange: (tuning: RadiantEffectTuning) => void;
+  onForceFieldTuningChange: (tuning: ForceFieldEffectTuning) => void;
+  onShockwaveTuningChange: (tuning: ShockwaveEffectTuning) => void;
+  onSmokeTuningChange: (tuning: SmokeEffectTuning) => void;
+  onFogTuningChange: (tuning: FogEffectTuning) => void;
+}
+
+export interface EnvironmentEffectEditorTuningResetHandlers {
+  onAcidTuningReset: () => void;
+  onColdTuningReset: () => void;
+  onDarknessTuningReset: () => void;
+  onPoisonTuningReset: () => void;
+  onWaterTuningReset: () => void;
+  onLavaTuningReset: () => void;
+  onFireTuningReset: () => void;
+  onLightningTuningReset: () => void;
+  onArcaneTuningReset: () => void;
+  onChaosTuningReset: () => void;
+  onVoidTuningReset: () => void;
+  onNatureTuningReset: () => void;
+  onDistortionTuningReset: () => void;
+  onRadiantTuningReset: () => void;
+  onForceFieldTuningReset: () => void;
+  onShockwaveTuningReset: () => void;
+  onSmokeTuningReset: () => void;
+  onFogTuningReset: () => void;
 }
 
 export function getEnvironmentEffectEditorLabel(effect: Pick<EnvironmentEffectMask, "effect" | "name">): string {
@@ -146,6 +188,61 @@ export function getEnvironmentEffectEditorPresetValue(
   defaultPresetValue: string
 ): string {
   return selection.effectId === effectId ? selection.value : defaultPresetValue;
+}
+
+export function applyEnvironmentEffectEditorPreset(
+  effect: EnvironmentEffectType,
+  value: string,
+  handlers: EnvironmentEffectEditorTuningChangeHandlers
+) {
+  applyEnvironmentEffectPreset(effect, value, {
+    onAcidEffectTuningChange: handlers.onAcidTuningChange,
+    onColdEffectTuningChange: handlers.onColdTuningChange,
+    onDarknessEffectTuningChange: handlers.onDarknessTuningChange,
+    onPoisonEffectTuningChange: handlers.onPoisonTuningChange,
+    onWaterEffectTuningChange: handlers.onWaterTuningChange,
+    onLavaEffectTuningChange: handlers.onLavaTuningChange,
+    onFireEffectTuningChange: handlers.onFireTuningChange,
+    onLightningEffectTuningChange: handlers.onLightningTuningChange,
+    onArcaneEffectTuningChange: handlers.onArcaneTuningChange,
+    onChaosEffectTuningChange: handlers.onChaosTuningChange,
+    onVoidEffectTuningChange: handlers.onVoidTuningChange,
+    onNatureEffectTuningChange: handlers.onNatureTuningChange,
+    onDistortionEffectTuningChange: handlers.onDistortionTuningChange,
+    onRadiantEffectTuningChange: handlers.onRadiantTuningChange,
+    onForceFieldEffectTuningChange: handlers.onForceFieldTuningChange,
+    onShockwaveEffectTuningChange: handlers.onShockwaveTuningChange,
+    onSmokeEffectTuningChange: handlers.onSmokeTuningChange,
+    onFogEffectTuningChange: handlers.onFogTuningChange
+  });
+}
+
+export function resetEnvironmentEffectEditorTuning(
+  effect: EnvironmentEffectType,
+  handlers: EnvironmentEffectEditorTuningResetHandlers
+) {
+  const resetHandlers: Record<EnvironmentEffectType, () => void> = {
+    acid: handlers.onAcidTuningReset,
+    cold: handlers.onColdTuningReset,
+    darkness: handlers.onDarknessTuningReset,
+    poison: handlers.onPoisonTuningReset,
+    water: handlers.onWaterTuningReset,
+    lava: handlers.onLavaTuningReset,
+    fire: handlers.onFireTuningReset,
+    electric: handlers.onLightningTuningReset,
+    arcane: handlers.onArcaneTuningReset,
+    chaos: handlers.onChaosTuningReset,
+    void: handlers.onVoidTuningReset,
+    nature: handlers.onNatureTuningReset,
+    distortion: handlers.onDistortionTuningReset,
+    radiant: handlers.onRadiantTuningReset,
+    field: handlers.onForceFieldTuningReset,
+    shockwave: handlers.onShockwaveTuningReset,
+    smoke: handlers.onSmokeTuningReset,
+    fog: handlers.onFogTuningReset
+  };
+
+  resetHandlers[effect]();
 }
 
 export function getEnvironmentEffectEditorDragStart(

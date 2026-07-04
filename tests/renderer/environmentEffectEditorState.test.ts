@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { EnvironmentEffectMask } from "../../src/shared/localvtt";
 import {
   DEFAULT_ACID_EFFECT_TUNING,
@@ -6,6 +6,7 @@ import {
   WATER_EFFECT_PRESETS
 } from "../../src/renderer/canvas/effects";
 import {
+  applyEnvironmentEffectEditorPreset,
   getEnvironmentEffectEditorActiveTunings,
   getEnvironmentEffectEditorDefaultPresetValue,
   getEnvironmentEffectEditorDragPosition,
@@ -13,7 +14,10 @@ import {
   getEnvironmentEffectEditorEmptyTuningMessage,
   getEnvironmentEffectEditorLabel,
   getEnvironmentEffectEditorModalClassName,
-  getEnvironmentEffectEditorPresetValue
+  getEnvironmentEffectEditorPresetValue,
+  resetEnvironmentEffectEditorTuning,
+  type EnvironmentEffectEditorTuningChangeHandlers,
+  type EnvironmentEffectEditorTuningResetHandlers
 } from "../../src/renderer/components/layers/modals/environmentEffectEditorState";
 
 function environmentEffect(overrides: Partial<EnvironmentEffectMask> = {}): EnvironmentEffectMask {
@@ -24,6 +28,52 @@ function environmentEffect(overrides: Partial<EnvironmentEffectMask> = {}): Envi
     points: [{ x: 10, y: 20 }],
     radius: 5,
     ...overrides
+  };
+}
+
+function tuningChangeHandlers(): EnvironmentEffectEditorTuningChangeHandlers {
+  return {
+    onAcidTuningChange: vi.fn(),
+    onColdTuningChange: vi.fn(),
+    onDarknessTuningChange: vi.fn(),
+    onPoisonTuningChange: vi.fn(),
+    onWaterTuningChange: vi.fn(),
+    onLavaTuningChange: vi.fn(),
+    onFireTuningChange: vi.fn(),
+    onLightningTuningChange: vi.fn(),
+    onArcaneTuningChange: vi.fn(),
+    onChaosTuningChange: vi.fn(),
+    onVoidTuningChange: vi.fn(),
+    onNatureTuningChange: vi.fn(),
+    onDistortionTuningChange: vi.fn(),
+    onRadiantTuningChange: vi.fn(),
+    onForceFieldTuningChange: vi.fn(),
+    onShockwaveTuningChange: vi.fn(),
+    onSmokeTuningChange: vi.fn(),
+    onFogTuningChange: vi.fn()
+  };
+}
+
+function tuningResetHandlers(): EnvironmentEffectEditorTuningResetHandlers {
+  return {
+    onAcidTuningReset: vi.fn(),
+    onColdTuningReset: vi.fn(),
+    onDarknessTuningReset: vi.fn(),
+    onPoisonTuningReset: vi.fn(),
+    onWaterTuningReset: vi.fn(),
+    onLavaTuningReset: vi.fn(),
+    onFireTuningReset: vi.fn(),
+    onLightningTuningReset: vi.fn(),
+    onArcaneTuningReset: vi.fn(),
+    onChaosTuningReset: vi.fn(),
+    onVoidTuningReset: vi.fn(),
+    onNatureTuningReset: vi.fn(),
+    onDistortionTuningReset: vi.fn(),
+    onRadiantTuningReset: vi.fn(),
+    onForceFieldTuningReset: vi.fn(),
+    onShockwaveTuningReset: vi.fn(),
+    onSmokeTuningReset: vi.fn(),
+    onFogTuningReset: vi.fn()
   };
 }
 
@@ -57,6 +107,28 @@ describe("environment effect editor state", () => {
   it("keeps manual preset selection scoped to the edited effect", () => {
     expect(getEnvironmentEffectEditorPresetValue({ effectId: "effect-1", value: "river" }, "effect-1", "custom")).toBe("river");
     expect(getEnvironmentEffectEditorPresetValue({ effectId: "effect-1", value: "river" }, "effect-2", "custom")).toBe("custom");
+  });
+
+  it("dispatches preset changes to the matching tuning handler", () => {
+    const handlers = tuningChangeHandlers();
+
+    applyEnvironmentEffectEditorPreset("water", "stream", handlers);
+
+    expect(handlers.onWaterTuningChange).toHaveBeenCalledWith(WATER_EFFECT_PRESETS.stream);
+    expect(handlers.onFireTuningChange).not.toHaveBeenCalled();
+  });
+
+  it("dispatches reset requests through legacy effect field names", () => {
+    const electricHandlers = tuningResetHandlers();
+    const fieldHandlers = tuningResetHandlers();
+
+    resetEnvironmentEffectEditorTuning("electric", electricHandlers);
+    resetEnvironmentEffectEditorTuning("field", fieldHandlers);
+
+    expect(electricHandlers.onLightningTuningReset).toHaveBeenCalledTimes(1);
+    expect(electricHandlers.onWaterTuningReset).not.toHaveBeenCalled();
+    expect(fieldHandlers.onForceFieldTuningReset).toHaveBeenCalledTimes(1);
+    expect(fieldHandlers.onFireTuningReset).not.toHaveBeenCalled();
   });
 
   it("builds modal classes and empty tuning copy", () => {
