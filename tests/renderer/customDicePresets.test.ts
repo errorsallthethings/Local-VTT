@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addCustomDicePreset,
   CUSTOM_DICE_PRESETS_STORAGE_KEY,
+  getCustomDicePresetSaveResult,
   loadCustomDicePresets,
   MAX_CUSTOM_DICE_PRESETS,
   normalizeCustomDicePresets,
@@ -67,5 +68,23 @@ describe("custom dice presets", () => {
     const existing = Array.from({ length: MAX_CUSTOM_DICE_PRESETS }, (_value, index) => preset(index + 1));
 
     expect(addCustomDicePreset(existing, preset(99))).toEqual([preset(99), ...existing.slice(0, MAX_CUSTOM_DICE_PRESETS - 1)]);
+  });
+
+  it("builds save results from trimmed preset form values", () => {
+    expect(getCustomDicePresetSaveResult("  Sneak Attack  ", "  2d6+3  ", "preset-new", () => null)).toEqual({
+      ok: true,
+      preset: { id: "preset-new", label: "Sneak Attack", formula: "2d6+3" }
+    });
+  });
+
+  it("rejects incomplete or invalid preset form values", () => {
+    expect(getCustomDicePresetSaveResult("  ", "d20", "preset-new", () => null)).toEqual({
+      ok: false,
+      error: "Label and formula are required."
+    });
+    expect(getCustomDicePresetSaveResult("Bad", "not dice", "preset-new", () => "Use dice.")).toEqual({
+      ok: false,
+      error: "Use dice."
+    });
   });
 });

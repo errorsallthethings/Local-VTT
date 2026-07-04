@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { clampDicePanelPosition } from "../../src/renderer/lib/dice";
+import {
+  clampDicePanelPosition,
+  getDicePanelDragPosition,
+  getDicePanelDragStart,
+  getDicePanelPositionInViewport
+} from "../../src/renderer/lib/dice";
 
 describe("dice panel position helpers", () => {
   it("keeps panel positions inside viewport margins", () => {
@@ -21,5 +26,33 @@ describe("dice panel position helpers", () => {
 
   it("honors a custom margin", () => {
     expect(clampDicePanelPosition(0, 0, { width: 800, height: 600 }, { width: 300, height: 200 }, 16)).toEqual({ x: 16, y: 16 });
+  });
+
+  it("builds drag state from the grabbed offset", () => {
+    expect(getDicePanelDragStart(7, 150, 180, { left: 100, top: 120, width: 300, height: 200 })).toEqual({
+      pointerId: 7,
+      offsetX: 50,
+      offsetY: 60
+    });
+  });
+
+  it("derives dragged panel position from pointer movement", () => {
+    const drag = getDicePanelDragStart(7, 150, 180, { left: 100, top: 120, width: 300, height: 200 });
+
+    expect(getDicePanelDragPosition(drag, 250, 300, { width: 800, height: 600 }, { left: 100, top: 120, width: 300, height: 200 })).toEqual({
+      x: 200,
+      y: 240
+    });
+    expect(getDicePanelDragPosition(drag, 900, 900, { width: 800, height: 600 }, { left: 100, top: 120, width: 300, height: 200 })).toEqual({
+      x: 492,
+      y: 392
+    });
+  });
+
+  it("wraps viewport-aware panel clamping for DOM rect callers", () => {
+    expect(getDicePanelPositionInViewport(700, 500, { width: 800, height: 600 }, { left: 0, top: 0, width: 300, height: 200 })).toEqual({
+      x: 492,
+      y: 392
+    });
   });
 });

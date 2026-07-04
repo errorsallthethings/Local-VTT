@@ -9,6 +9,10 @@ export interface CustomDicePresetStorage {
   setItem(key: string, value: string): void;
 }
 
+export type CustomDicePresetSaveResult =
+  | { ok: true; preset: CustomDicePreset }
+  | { ok: false; error: string };
+
 export const CUSTOM_DICE_PRESETS_STORAGE_KEY = "localvtt.customDicePresets";
 export const MAX_CUSTOM_DICE_PRESETS = 12;
 
@@ -26,6 +30,31 @@ export function saveCustomDicePresets(storage: CustomDicePresetStorage, presets:
 
 export function addCustomDicePreset(presets: readonly CustomDicePreset[], preset: CustomDicePreset): CustomDicePreset[] {
   return [preset, ...normalizeCustomDicePresets(presets)].slice(0, MAX_CUSTOM_DICE_PRESETS);
+}
+
+export function getCustomDicePresetSaveResult(
+  label: string,
+  formula: string,
+  id: string,
+  validateFormula: (formula: string) => string | null
+): CustomDicePresetSaveResult {
+  const trimmedLabel = label.trim();
+  const trimmedFormula = formula.trim();
+  if (!trimmedLabel || !trimmedFormula) {
+    return { ok: false, error: "Label and formula are required." };
+  }
+  const formulaError = validateFormula(trimmedFormula);
+  if (formulaError) {
+    return { ok: false, error: formulaError };
+  }
+  return {
+    ok: true,
+    preset: {
+      id,
+      label: trimmedLabel,
+      formula: trimmedFormula
+    }
+  };
 }
 
 export function normalizeCustomDicePresets(value: unknown): CustomDicePreset[] {

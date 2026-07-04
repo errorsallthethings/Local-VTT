@@ -14,6 +14,10 @@ import {
   formatDiceFeedBreakdownTooltip,
   formatDiceFeedLabel,
   formatDiceRollSummary,
+  getCustomDicePresetSaveResult,
+  getDicePanelDragPosition,
+  getDicePanelDragStart,
+  getDicePanelPositionInViewport,
   getDiceFeedTone,
   getDicePlacementAvailable,
   getDicePlacementFacingAvailable,
@@ -23,8 +27,8 @@ import {
   loadCustomDicePresets,
   rollDiceExpression,
   saveCustomDicePresets,
-  clampDicePanelPosition as clampDicePanelPositionToViewport,
   type CustomDicePreset,
+  type DicePanelDragState,
   type DicePanelPosition,
   type DiceType
 } from "../../lib/dice";
@@ -32,11 +36,6 @@ import { getActiveWeatherEffects } from "../../lib/effects";
 import { type ModalSize, useResizableModal } from "../../hooks/useResizableModal";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
-type DicePanelDrag = {
-  pointerId: number;
-  offsetX: number;
-  offsetY: number;
-};
 
 interface WorkspaceTopbarProps {
   campaign: Campaign | null;
@@ -155,7 +154,7 @@ export function WorkspaceTopbar({
   const [dicePanelSize, setDicePanelSize] = useState<ModalSize | null>(null);
   const [dicePanelDragging, setDicePanelDragging] = useState(false);
   const dicePopoverRef = useRef<HTMLDivElement | null>(null);
-  const dicePanelDragRef = useRef<DicePanelDrag | null>(null);
+  const dicePanelDragRef = useRef<DicePanelDragState | null>(null);
   const previousDicePanelOpenRef = useRef(dicePanelOpen);
   const { resize: resizeDicePanel, startResize: startDicePanelResize, stopResize: stopDicePanelResize } = useResizableModal({
     elementRef: dicePopoverRef,
@@ -225,7 +224,7 @@ export function WorkspaceTopbar({
         if (!position) {
           return position;
         }
-        const nextPosition = clampDicePanelPosition(position.x, position.y, dicePopoverRef.current?.getBoundingClientRect());
+        const nextPosition = getDicePanelPositionInViewport(position.x, position.y, getCurrentViewport(), dicePopoverRef.current?.getBoundingClientRect());
         return nextPosition.x === position.x && nextPosition.y === position.y ? position : nextPosition;
       });
     };
@@ -245,12 +244,8 @@ export function WorkspaceTopbar({
       return;
     }
     const rect = popover.getBoundingClientRect();
-    dicePanelDragRef.current = {
-      pointerId: event.pointerId,
-      offsetX: event.clientX - rect.left,
-      offsetY: event.clientY - rect.top
-    };
-    setDicePanelPosition(clampDicePanelPosition(rect.left, rect.top, rect));
+    dicePanelDragRef.current = getDicePanelDragStart(event.pointerId, event.clientX, event.clientY, rect);
+    setDicePanelPosition(getDicePanelPositionInViewport(rect.left, rect.top, getCurrentViewport(), rect));
     setDicePanelDragging(true);
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
@@ -261,7 +256,7 @@ export function WorkspaceTopbar({
     if (!drag || drag.pointerId !== event.pointerId) {
       return;
     }
-    setDicePanelPosition(clampDicePanelPosition(event.clientX - drag.offsetX, event.clientY - drag.offsetY, dicePopoverRef.current?.getBoundingClientRect()));
+    setDicePanelPosition(getDicePanelDragPosition(drag, event.clientX, event.clientY, getCurrentViewport(), dicePopoverRef.current?.getBoundingClientRect()));
   };
 
   const endDicePanelDrag = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -346,20 +341,19 @@ export function WorkspaceTopbar({
   };
 
   const saveCustomPreset = () => {
-    const label = presetLabel.trim();
-    const formula = presetFormula.trim();
-    if (!label || !formula) {
-      setPresetFormError("Label and formula are required.");
+    const result = getCustomDicePresetSaveResult(presetLabel, presetFormula, crypto.randomUUID(), (formula) => {
+      try {
+        rollDiceExpression(formula, () => 0.5);
+        return null;
+      } catch (caught) {
+        return caught instanceof Error ? caught.message : "Could not save that dice expression.";
+      }
+    });
+    if (!result.ok) {
+      setPresetFormError(result.error);
       return;
     }
-    try {
-      rollDiceExpression(formula, () => 0.5);
-    } catch (caught) {
-      setPresetFormError(caught instanceof Error ? caught.message : "Could not save that dice expression.");
-      return;
-    }
-    const preset = { id: crypto.randomUUID(), label, formula };
-    setCustomDicePresets((presets) => addCustomDicePreset(presets, preset));
+    setCustomDicePresets((presets) => addCustomDicePreset(presets, result.preset));
     setPresetFormOpen(false);
     setPresetLabel("");
     setPresetFormula("");
@@ -842,8 +836,8 @@ export function WorkspaceTopbar({
   );
 }
 
-function clampDicePanelPosition(x: number, y: number, rect?: DOMRect | null): DicePanelPosition {
-  return clampDicePanelPositionToViewport(x, y, { width: window.innerWidth, height: window.innerHeight }, rect);
+function getCurrentViewport(): { width: number; height: number } {
+  return { width: window.innerWidth, height: window.innerHeight };
 }
 
 function ActiveWeatherIcons({ scene }: { scene: Scene }) {
