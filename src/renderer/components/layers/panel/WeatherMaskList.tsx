@@ -2,6 +2,16 @@ import { useMemo } from "react";
 import { Circle, Eye, EyeOff, Pentagon, Square, SquareDashed, Trash2 } from "lucide-react";
 import type { Scene, WeatherSettings } from "../../../../shared/localvtt";
 import { getSelectedItemIds } from "../../../lib/scene";
+import {
+  getLayerItemActionButtonClassName,
+  getLayerItemHighlightLabel,
+  getLayerItemHighlightTitle,
+  getLayerItemRowClassName,
+  getLayerItemToggleLabel,
+  getLayerItemToggleTitle,
+  patchLayerItemById,
+  removeLayerItemById
+} from "./layerItemRows";
 import { formatEnvironmentShapeLabel } from "./layerPanelFormat";
 import { hasEnabledWeatherEffect } from "./layerPanelWeather";
 
@@ -35,9 +45,7 @@ export function WeatherMaskList({
           const isSelected = selectedIds.has(mask.id);
           return (
             <div
-              className={["fog-shape-row", "weather-mask-row", isVisible ? "" : "fog-shape-row-muted", isSelected ? "fog-shape-row-selected" : ""]
-                .filter(Boolean)
-                .join(" ")}
+              className={getLayerItemRowClassName({ visible: isVisible, selected: isSelected, variant: "weather-mask" })}
               key={mask.id}
             >
               <span className="fog-shape-kind-icon" title={`${mask.kind} mask`} aria-hidden="true">
@@ -48,23 +56,23 @@ export function WeatherMaskList({
                 <small>Weather exclusion - {shapeLabel}</small>
               </span>
               <button
-                className={isVisible ? "icon-button fog-shape-action-button fog-shape-action-active" : "icon-button fog-shape-action-button"}
-                aria-label={isVisible ? `Disable ${label}` : `Enable ${label}`}
-                title={isVisible ? "Disable mask" : "Enable mask"}
+                className={getLayerItemActionButtonClassName(isVisible)}
+                aria-label={getLayerItemToggleLabel(label, isVisible)}
+                title={getLayerItemToggleTitle("mask", isVisible)}
                 onClick={(event) => {
                   event.stopPropagation();
                   onSelectWeatherMask(mask.id);
                   onUpdateWeather({
-                    masks: scene.weather.masks.map((candidate) => (candidate.id === mask.id ? { ...candidate, visible: !isVisible } : candidate))
+                    masks: patchLayerItemById(scene.weather.masks, mask.id, { visible: !isVisible })
                   });
                 }}
               >
                 {isVisible ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
               </button>
               <button
-                className={isSelected ? "icon-button fog-shape-action-button fog-shape-action-active" : "icon-button fog-shape-action-button"}
-                aria-label={isSelected ? `Hide ${label} highlight` : `Highlight ${label}`}
-                title={isSelected ? "Hide mask highlight" : "Highlight mask"}
+                className={getLayerItemActionButtonClassName(isSelected)}
+                aria-label={getLayerItemHighlightLabel(label, isSelected)}
+                title={getLayerItemHighlightTitle("mask", isSelected)}
                 onClick={(event) => {
                   event.stopPropagation();
                   onSelectWeatherMask(isSelected ? null : mask.id);
@@ -73,12 +81,12 @@ export function WeatherMaskList({
                 <SquareDashed size={14} aria-hidden="true" />
               </button>
               <button
-                className="icon-button fog-shape-action-button danger"
+                className={getLayerItemActionButtonClassName(false, true)}
                 aria-label={`Delete ${label}`}
                 title="Delete weather mask"
                 onClick={(event) => {
                   event.stopPropagation();
-                  onUpdateWeather({ masks: scene.weather.masks.filter((candidate) => candidate.id !== mask.id) });
+                  onUpdateWeather({ masks: removeLayerItemById(scene.weather.masks, mask.id) });
                   if (selectedWeatherMaskId === mask.id) {
                     onSelectWeatherMask(null);
                   }

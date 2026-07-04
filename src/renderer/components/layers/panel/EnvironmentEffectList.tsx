@@ -6,6 +6,14 @@ import { useDismissableMenu } from "../../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../../hooks/useFloatingMenuPosition";
 import { formatEnvironmentEffectOptionLabel as formatEnvironmentEffectLabel } from "../../../lib/effects";
 import { duplicateEnvironmentEffect } from "../../../lib/scene";
+import {
+  getLayerItemActionButtonClassName,
+  getLayerItemRowClassName,
+  getLayerItemVisibilityLabel,
+  getLayerItemVisibilityTitle,
+  patchLayerItemById,
+  removeLayerItemById
+} from "./layerItemRows";
 import { formatEnvironmentShapeLabel } from "./layerPanelFormat";
 
 export function EnvironmentEffectList({
@@ -48,9 +56,11 @@ export function EnvironmentEffectList({
           return (
             <div key={effect.id}>
               <div
-                className={["fog-shape-row", "weather-mask-row", isVisibleInGm || isVisibleInPlayer ? "" : "fog-shape-row-muted", isSelected ? "fog-shape-row-selected" : ""]
-                  .filter(Boolean)
-                  .join(" ")}
+                className={getLayerItemRowClassName({
+                  visible: isVisibleInGm || isVisibleInPlayer,
+                  selected: isSelected,
+                  variant: "weather-mask"
+                })}
                 role="button"
                 tabIndex={0}
                 onClick={() => onSelectEnvironmentEffect(isSelected ? null : effect.id)}
@@ -69,26 +79,26 @@ export function EnvironmentEffectList({
                   <small>{effectLabel} - {shapeLabel}</small>
                 </span>
                 <button
-                  className={isVisibleInGm ? "icon-button fog-shape-action-button fog-shape-action-active" : "icon-button fog-shape-action-button"}
-                  aria-label={isVisibleInGm ? `Hide ${label} in GM View` : `Show ${label} in GM View`}
-                  title={isVisibleInGm ? "Hide in GM View" : "Show in GM View"}
+                  className={getLayerItemActionButtonClassName(isVisibleInGm)}
+                  aria-label={getLayerItemVisibilityLabel(label, "GM", isVisibleInGm)}
+                  title={getLayerItemVisibilityTitle("GM", isVisibleInGm)}
                   onClick={(event) => {
                     event.stopPropagation();
                     onUpdateEnvironment({
-                      effects: scene.environment.effects.map((candidate) => (candidate.id === effect.id ? { ...candidate, visibleInGm: !isVisibleInGm } : candidate))
+                      effects: patchLayerItemById(scene.environment.effects, effect.id, { visibleInGm: !isVisibleInGm })
                     });
                   }}
                 >
                   {isVisibleInGm ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
                 </button>
                 <button
-                  className={isVisibleInPlayer ? "icon-button fog-shape-action-button fog-shape-action-active" : "icon-button fog-shape-action-button"}
-                  aria-label={isVisibleInPlayer ? `Hide ${label} in Player View` : `Show ${label} in Player View`}
-                  title={isVisibleInPlayer ? "Hide in Player View" : "Show in Player View"}
+                  className={getLayerItemActionButtonClassName(isVisibleInPlayer)}
+                  aria-label={getLayerItemVisibilityLabel(label, "Player", isVisibleInPlayer)}
+                  title={getLayerItemVisibilityTitle("Player", isVisibleInPlayer)}
                   onClick={(event) => {
                     event.stopPropagation();
                     onUpdateEnvironment({
-                      effects: scene.environment.effects.map((candidate) => (candidate.id === effect.id ? { ...candidate, visibleInPlayer: !isVisibleInPlayer } : candidate))
+                      effects: patchLayerItemById(scene.environment.effects, effect.id, { visibleInPlayer: !isVisibleInPlayer })
                     });
                   }}
                 >
@@ -109,7 +119,7 @@ export function EnvironmentEffectList({
                     onSelectEnvironmentEffect(result.duplicatedEnvironmentEffectId ?? null);
                   }}
                   onDelete={() => {
-                    onUpdateEnvironment({ effects: scene.environment.effects.filter((candidate) => candidate.id !== effect.id) });
+                    onUpdateEnvironment({ effects: removeLayerItemById(scene.environment.effects, effect.id) });
                     if (selectedEnvironmentEffectId === effect.id) {
                       onSelectEnvironmentEffect(null);
                     }

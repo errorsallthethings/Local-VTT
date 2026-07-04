@@ -4,6 +4,14 @@ import type { DrawingElement, DrawingKind } from "../../../../shared/localvtt";
 import { formatDefaultDrawingName } from "../../../../shared/localvtt";
 import { getSelectedItemIds } from "../../../lib/scene";
 import type { DropPlacement } from "../../../lib/ui";
+import {
+  getLayerItemActionButtonClassName,
+  getLayerItemRowClassName,
+  getLayerItemVisibilityLabel,
+  getLayerItemVisibilityTitle,
+  patchLayerItemById,
+  removeLayerItemById
+} from "./layerItemRows";
 
 export type DrawingDropTarget = { drawingId: string; placement: DropPlacement } | null;
 
@@ -60,15 +68,12 @@ export function DrawingList({
             const dropPlacement = drawingDropTarget?.drawingId === drawing.id && draggedDrawingId !== drawing.id ? drawingDropTarget.placement : null;
             return (
               <div
-                className={[
-                  "fog-shape-row",
-                  isVisibleInGm || isVisibleInPlayer ? "" : "fog-shape-row-muted",
-                  isSelected ? "fog-shape-row-selected" : "",
-                  draggedDrawingId === drawing.id ? "fog-shape-row-dragging" : "",
-                  dropPlacement ? `fog-shape-row-drop-${dropPlacement}` : ""
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                className={getLayerItemRowClassName({
+                  visible: isVisibleInGm || isVisibleInPlayer,
+                  selected: isSelected,
+                  dragging: draggedDrawingId === drawing.id,
+                  dropPlacement
+                })}
                 key={drawing.id}
                 draggable
                 onClick={() => onSelectDrawing(drawing.id)}
@@ -118,34 +123,34 @@ export function DrawingList({
                   {label}
                 </span>
                 <button
-                  className={isVisibleInGm ? "icon-button fog-shape-action-button fog-shape-action-active" : "icon-button fog-shape-action-button"}
-                  aria-label={isVisibleInGm ? `Hide ${label} in GM View` : `Show ${label} in GM View`}
-                  title={isVisibleInGm ? "Hide in GM View" : "Show in GM View"}
+                  className={getLayerItemActionButtonClassName(isVisibleInGm)}
+                  aria-label={getLayerItemVisibilityLabel(label, "GM", isVisibleInGm)}
+                  title={getLayerItemVisibilityTitle("GM", isVisibleInGm)}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onUpdateDrawings(drawings.map((candidate) => (candidate.id === drawing.id ? { ...candidate, visibleInGm: !isVisibleInGm } : candidate)));
+                    onUpdateDrawings(patchLayerItemById(drawings, drawing.id, { visibleInGm: !isVisibleInGm }));
                   }}
                 >
                   {isVisibleInGm ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
                 </button>
                 <button
-                  className={isVisibleInPlayer ? "icon-button fog-shape-action-button fog-shape-action-active" : "icon-button fog-shape-action-button"}
-                  aria-label={isVisibleInPlayer ? `Hide ${label} in Player View` : `Show ${label} in Player View`}
-                  title={isVisibleInPlayer ? "Hide in Player View" : "Show in Player View"}
+                  className={getLayerItemActionButtonClassName(isVisibleInPlayer)}
+                  aria-label={getLayerItemVisibilityLabel(label, "Player", isVisibleInPlayer)}
+                  title={getLayerItemVisibilityTitle("Player", isVisibleInPlayer)}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onUpdateDrawings(drawings.map((candidate) => (candidate.id === drawing.id ? { ...candidate, visibleInPlayer: !isVisibleInPlayer } : candidate)));
+                    onUpdateDrawings(patchLayerItemById(drawings, drawing.id, { visibleInPlayer: !isVisibleInPlayer }));
                   }}
                 >
                   {isVisibleInPlayer ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
                 </button>
                 <button
-                  className="icon-button fog-shape-action-button danger"
+                  className={getLayerItemActionButtonClassName(false, true)}
                   aria-label={`Delete ${label}`}
                   title="Delete drawing"
                   onClick={(event) => {
                     event.stopPropagation();
-                    onUpdateDrawings(drawings.filter((candidate) => candidate.id !== drawing.id));
+                    onUpdateDrawings(removeLayerItemById(drawings, drawing.id));
                   }}
                 >
                   <Trash2 size={14} aria-hidden="true" />

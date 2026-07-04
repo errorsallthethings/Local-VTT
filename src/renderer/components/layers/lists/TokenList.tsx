@@ -8,8 +8,17 @@ import { getAssetThumbnailPreviewMessage, getAssetThumbnailPreviewPath } from ".
 import { getSelectedItemIds } from "../../../lib/scene";
 import { buildTokenLayerRows } from "../../../lib/tokens";
 import { duplicateToken } from "../../../lib/tokens";
-import { reorderByDropTarget, type DropPlacement } from "../../../lib/ui";
+import { type DropPlacement } from "../../../lib/ui";
 import { CompactAssetThumbnail } from "../../assets/CompactAssetThumbnail";
+import {
+  getLayerItemActionButtonClassName,
+  getLayerItemRowClassName,
+  getLayerItemVisibilityLabel,
+  getLayerItemVisibilityTitle,
+  getReorderedTokenLayerItems,
+  patchLayerItemById,
+  removeLayerItemById
+} from "../panel/layerItemRows";
 import { TokenSettings } from "../settings/TokenSettings";
 
 type TokenDropTarget = { tokenId: string; placement: DropPlacement } | null;
@@ -52,8 +61,7 @@ export function TokenList({
     if (sourceTokenId === targetTokenId) {
       return;
     }
-    const tokens = reorderByDropTarget(scene.tokens, (token) => token.id, sourceTokenId, targetTokenId, placement);
-    onUpdateTokens(tokens.map((token, index) => ({ ...token, order: index })));
+    onUpdateTokens(getReorderedTokenLayerItems(scene.tokens, sourceTokenId, targetTokenId, placement));
   };
 
   return (
@@ -78,33 +86,16 @@ export function TokenList({
           {tokenRows.map(({ token, asset, label, isVisibleInGm, isVisibleInPlayer }) => {
             const isSelected = selectedIds.has(token.id);
             const dropPlacement = tokenDropTarget?.tokenId === token.id && draggedTokenId !== token.id ? tokenDropTarget.placement : null;
-            const gmVisibilityButtonClass = [
-              "icon-button",
-              "fog-shape-action-button",
-              isVisibleInGm ? "fog-shape-action-active" : ""
-            ]
-              .filter(Boolean)
-              .join(" ");
-            const playerVisibilityButtonClass = [
-              "icon-button",
-              "fog-shape-action-button",
-              isVisibleInPlayer ? "fog-shape-action-active" : ""
-            ]
-              .filter(Boolean)
-              .join(" ");
             return (
               <div
-                className={[
-                  "fog-shape-row",
-                  isVisibleInGm || isVisibleInPlayer ? "" : "fog-shape-row-muted",
-                  isSelected ? "fog-shape-row-selected" : "",
-                  "token-shape-row",
-                  openTokenMenuId === token.id ? "token-shape-row-menu-open" : "",
-                  draggedTokenId === token.id ? "fog-shape-row-dragging" : "",
-                  dropPlacement ? `fog-shape-row-drop-${dropPlacement}` : ""
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                className={getLayerItemRowClassName({
+                  visible: isVisibleInGm || isVisibleInPlayer,
+                  selected: isSelected,
+                  dragging: draggedTokenId === token.id,
+                  dropPlacement,
+                  variant: "token",
+                  menuOpen: openTokenMenuId === token.id
+                })}
                 key={token.id}
                 draggable
                 onClick={() => onSelectToken(token.id)}
@@ -152,23 +143,23 @@ export function TokenList({
                   {label}
                 </span>
                 <button
-                  className={gmVisibilityButtonClass}
-                  aria-label={isVisibleInGm ? `Hide ${label} in GM View` : `Show ${label} in GM View`}
-                  title={isVisibleInGm ? "Hide in GM View" : "Show in GM View"}
+                  className={getLayerItemActionButtonClassName(isVisibleInGm)}
+                  aria-label={getLayerItemVisibilityLabel(label, "GM", isVisibleInGm)}
+                  title={getLayerItemVisibilityTitle("GM", isVisibleInGm)}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onUpdateTokens(scene.tokens.map((candidate) => (candidate.id === token.id ? { ...candidate, visibleInGm: !isVisibleInGm } : candidate)));
+                    onUpdateTokens(patchLayerItemById(scene.tokens, token.id, { visibleInGm: !isVisibleInGm }));
                   }}
                 >
                   {isVisibleInGm ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
                 </button>
                 <button
-                  className={playerVisibilityButtonClass}
-                  aria-label={isVisibleInPlayer ? `Hide ${label} in Player View` : `Show ${label} in Player View`}
-                  title={isVisibleInPlayer ? "Hide in Player View" : "Show in Player View"}
+                  className={getLayerItemActionButtonClassName(isVisibleInPlayer)}
+                  aria-label={getLayerItemVisibilityLabel(label, "Player", isVisibleInPlayer)}
+                  title={getLayerItemVisibilityTitle("Player", isVisibleInPlayer)}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onUpdateTokens(scene.tokens.map((candidate) => (candidate.id === token.id ? { ...candidate, visibleInPlayer: !isVisibleInPlayer } : candidate)));
+                    onUpdateTokens(patchLayerItemById(scene.tokens, token.id, { visibleInPlayer: !isVisibleInPlayer }));
                   }}
                 >
                   {isVisibleInPlayer ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
@@ -314,7 +305,7 @@ function FloatingTokenSettingsMenu({
       <button
         className="token-menu-action token-menu-delete"
         onClick={() => {
-          onUpdateTokens(scene.tokens.filter((candidate) => candidate.id !== token.id));
+          onUpdateTokens(removeLayerItemById(scene.tokens, token.id));
           if (selectedTokenId === token.id) {
             onSelectToken(null);
           }

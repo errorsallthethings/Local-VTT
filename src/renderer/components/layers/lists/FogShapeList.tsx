@@ -3,6 +3,14 @@ import { Circle, Crown, Eye, EyeOff, GripVertical, Paintbrush, Pentagon, Square,
 import { formatDefaultFogShapeName, type FogSettings, type Scene } from "../../../../shared/localvtt";
 import type { DropPlacement } from "../../../lib/ui";
 import { getSelectedItemIds } from "../../../lib/scene";
+import {
+  getLayerItemActionButtonClassName,
+  getLayerItemRowClassName,
+  getLayerItemVisibilityLabel,
+  getLayerItemVisibilityTitle,
+  patchLayerItemById,
+  removeLayerItemById
+} from "../panel/layerItemRows";
 
 export type FogShapeDropTarget = { shapeId: string; placement: DropPlacement } | null;
 const EMPTY_SELECTED_IDS: string[] = [];
@@ -59,32 +67,14 @@ export function FogShapeList({
             const label = shape.name?.trim() || fallbackName;
             const isSelected = selectedIds.has(shape.id);
             const dropPlacement = fogShapeDropTarget?.shapeId === shape.id && draggedFogShapeId !== shape.id ? fogShapeDropTarget.placement : null;
-            const gmVisibilityButtonClass = [
-              "icon-button",
-              "fog-shape-action-button",
-              isVisibleInGm ? "fog-shape-action-active" : ""
-            ]
-              .filter(Boolean)
-              .join(" ");
-            const playerVisibilityButtonClass = [
-              "icon-button",
-              "fog-shape-action-button",
-              isVisibleInPlayer ? "fog-shape-action-active" : ""
-            ]
-              .filter(Boolean)
-              .join(" ");
             return (
               <div
-                className={[
-                  "fog-shape-row",
-                  "fog-layer-shape-row",
-                  isVisibleInGm || isVisibleInPlayer ? "" : "fog-shape-row-muted",
-                  isSelected ? "fog-shape-row-selected" : "",
-                  draggedFogShapeId === shape.id ? "fog-shape-row-dragging" : "",
-                  dropPlacement ? `fog-shape-row-drop-${dropPlacement}` : ""
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                className={`${getLayerItemRowClassName({
+                  visible: isVisibleInGm || isVisibleInPlayer,
+                  selected: isSelected,
+                  dragging: draggedFogShapeId === shape.id,
+                  dropPlacement
+                })} fog-layer-shape-row`}
                 key={shape.id}
                 draggable
                 onClick={() => onSelectFogShape(shape.id)}
@@ -134,46 +124,44 @@ export function FogShapeList({
                   {label}
                 </span>
                 <button
-                  className={gmVisibilityButtonClass}
-                  aria-label={isVisibleInGm ? `Hide ${label} in GM View` : `Show ${label} in GM View`}
-                  title={isVisibleInGm ? "Hide in GM View" : "Show in GM View"}
+                  className={getLayerItemActionButtonClassName(isVisibleInGm)}
+                  aria-label={getLayerItemVisibilityLabel(label, "GM", isVisibleInGm)}
+                  title={getLayerItemVisibilityTitle("GM", isVisibleInGm)}
                   onClick={(event) => {
                     event.stopPropagation();
                     onUpdateFog({
-                      shapes: scene.fog.shapes.map((candidate) =>
-                        candidate.id === shape.id
-                          ? { ...candidate, visibleInGm: !isVisibleInGm, visible: (!isVisibleInGm || isVisibleInPlayer) }
-                          : candidate
-                      )
+                      shapes: patchLayerItemById(scene.fog.shapes, shape.id, {
+                        visibleInGm: !isVisibleInGm,
+                        visible: !isVisibleInGm || isVisibleInPlayer
+                      })
                     });
                   }}
                 >
                   {isVisibleInGm ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
                 </button>
                 <button
-                  className={playerVisibilityButtonClass}
-                  aria-label={isVisibleInPlayer ? `Hide ${label} in Player View` : `Show ${label} in Player View`}
-                  title={isVisibleInPlayer ? "Hide in Player View" : "Show in Player View"}
+                  className={getLayerItemActionButtonClassName(isVisibleInPlayer)}
+                  aria-label={getLayerItemVisibilityLabel(label, "Player", isVisibleInPlayer)}
+                  title={getLayerItemVisibilityTitle("Player", isVisibleInPlayer)}
                   onClick={(event) => {
                     event.stopPropagation();
                     onUpdateFog({
-                      shapes: scene.fog.shapes.map((candidate) =>
-                        candidate.id === shape.id
-                          ? { ...candidate, visibleInPlayer: !isVisibleInPlayer, visible: (isVisibleInGm || !isVisibleInPlayer) }
-                          : candidate
-                      )
+                      shapes: patchLayerItemById(scene.fog.shapes, shape.id, {
+                        visibleInPlayer: !isVisibleInPlayer,
+                        visible: isVisibleInGm || !isVisibleInPlayer
+                      })
                     });
                   }}
                 >
                   {isVisibleInPlayer ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
                 </button>
                 <button
-                  className="icon-button fog-shape-action-button danger"
+                  className={getLayerItemActionButtonClassName(false, true)}
                   aria-label={`Delete ${label}`}
                   title="Delete fog shape"
                   onClick={(event) => {
                     event.stopPropagation();
-                    onUpdateFog({ shapes: scene.fog.shapes.filter((candidate) => candidate.id !== shape.id) });
+                    onUpdateFog({ shapes: removeLayerItemById(scene.fog.shapes, shape.id) });
                     if (selectedFogShapeId === shape.id) {
                       onSelectFogShape(null);
                     }
