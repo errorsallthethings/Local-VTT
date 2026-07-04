@@ -1,6 +1,51 @@
 import { describe, expect, it, vi } from "vitest";
-import { createDefaultCampaign, createDefaultScene, type Asset } from "../../src/shared/localvtt";
+import { createDefaultCampaign, createDefaultScene, type Asset, type Campaign, type Scene } from "../../src/shared/localvtt";
 import { sendSceneToPlayer, updatePlayerSceneIfOpen, updatePlayerSceneIfOpenInBackground, type PlayerViewSceneSyncApi } from "../../src/renderer/lib/player-view";
+
+function createPlayerViewSyncFixture(): { campaign: Campaign; scene: Scene } {
+  const campaign = createDefaultCampaign("One-Way Sync Campaign");
+  campaign.assets = [
+    {
+      id: "visible-map",
+      name: "Visible Map",
+      kind: "map",
+      mediaType: "image",
+      relativePath: "assets/maps/visible.png",
+      originalFileName: "visible.png",
+      createdAt: "2026-06-01T00:00:00.000Z"
+    },
+    {
+      id: "hidden-token",
+      name: "Hidden Token",
+      kind: "token",
+      mediaType: "image",
+      relativePath: "assets/tokens/hidden.png",
+      originalFileName: "hidden.png",
+      createdAt: "2026-06-01T00:00:00.000Z"
+    }
+  ];
+
+  const scene = createDefaultScene("One-Way Sync Scene");
+  scene.mapAssetId = "visible-map";
+  scene.notes = "Private GM notes";
+  scene.tokens = [
+    {
+      id: "hidden-token-instance",
+      name: "Hidden Token",
+      assetId: "hidden-token",
+      position: { x: 10, y: 10 },
+      size: { width: 1, height: 1 },
+      hidden: true,
+      visibleInPlayer: false
+    }
+  ];
+  scene.walls = [{ id: "wall", type: "wall", points: [{ x: 1, y: 2 }], color: "#fff", thickness: 2 }];
+  scene.lights = [
+    { id: "light", position: { x: 5, y: 5 }, color: "#ffffff", intensity: 1, brightRadius: 20, dimRadius: 40, opacity: 1, enabled: true, flicker: false }
+  ];
+
+  return { campaign, scene };
+}
 
 describe("player view sync", () => {
   it("sends a projected scene through the Player View IPC API", async () => {
@@ -129,6 +174,27 @@ describe("player view sync", () => {
     expect(projection.showPlayerSeatIndicators).toBe(true);
   });
 
+  it("does not mutate GM campaign or scene data while sending a projected scene", async () => {
+    const { campaign, scene } = createPlayerViewSyncFixture();
+    const originalCampaign = structuredClone(campaign);
+    const originalScene = structuredClone(scene);
+    const api: PlayerViewSceneSyncApi = {
+      sendSceneToPlayer: vi.fn().mockResolvedValue(true),
+      updatePlayerSceneIfOpen: vi.fn().mockResolvedValue(false)
+    };
+
+    await expect(sendSceneToPlayer(api, campaign, scene)).resolves.toBe(true);
+
+    const projection = vi.mocked(api.sendSceneToPlayer).mock.calls[0][0];
+    expect(projection.scene.notes).toBe("");
+    expect(projection.scene.tokens).toEqual([]);
+    expect(projection.scene.walls).toEqual([]);
+    expect(projection.scene.lights).toEqual([]);
+    expect(projection.assets.map((asset) => asset.id)).toEqual(["visible-map"]);
+    expect(campaign).toEqual(originalCampaign);
+    expect(scene).toEqual(originalScene);
+  });
+
   it("logs background Player View sync failures without throwing", async () => {
     const campaign = createDefaultCampaign("Background Sync Campaign");
     const scene = createDefaultScene("Background Sync Scene");
@@ -150,5 +216,27 @@ describe("player view sync", () => {
     } finally {
       warningSpy.mockRestore();
     }
+  });
+
+  it("keeps background sync projection-only when Player View is already open", async () => {
+    const { campaign, scene } = createPlayerViewSyncFixture();
+    const originalCampaign = structuredClone(campaign);
+    const originalScene = structuredClone(scene);
+    const api: PlayerViewSceneSyncApi = {
+      sendSceneToPlayer: vi.fn().mockResolvedValue(true),
+      updatePlayerSceneIfOpen: vi.fn().mockResolvedValue(true)
+    };
+
+    updatePlayerSceneIfOpenInBackground(api, campaign, scene);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(api.updatePlayerSceneIfOpen).toHaveBeenCalledOnce();
+    const projection = vi.mocked(api.updatePlayerSceneIfOpen).mock.calls[0][0];
+    expect(projection.scene.notes).toBe("");
+    expect(projection.scene.tokens).toEqual([]);
+    expect(projection.scene.walls).toEqual([]);
+    expect(projection.scene.lights).toEqual([]);
+    expect(campaign).toEqual(originalCampaign);
+    expect(scene).toEqual(originalScene);
   });
 });

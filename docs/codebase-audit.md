@@ -43,6 +43,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Converted environment-effect tuning field resolution to a tested registry, including the legacy `electric` to `lightningTuning` mapping.
 - Extracted and tested environment-effect layer tuning override construction so the long draw API's positional parameters are guarded against drift.
 - Extracted drawing preview-to-render-element conversion from the large drawing renderer, keeping preview rendering semantics covered separately from committed drawing creation.
+- Expanded Player View sync tests so explicit sends and background updates are covered as projection-only operations that strip GM-only payload data without mutating the GM campaign or scene state.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
@@ -59,10 +60,9 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 1. Split `SceneCanvas` interaction modes into hooks or controllers: selection, token drag, drawing, templates, fog, effects, ruler, and calibration.
 2. Convert animated environmental effects into a formal registry with one module per effect family.
 3. Split `LayerPanel` by layer type after the scene canvas interaction split stabilizes.
-4. Add more tests around Player View projection, especially GM-only data filtering and one-way sync behavior.
-5. Expand campaign recovery tests around restore flows, missing scene files, and malformed metadata fixtures as future schema changes land.
-6. Keep Electron file operations guarded by campaign-boundary checks and covered with focused helper tests.
-7. Keep large renderer changes incremental and screenshot/smoke tested where visual behavior matters.
+4. Expand campaign recovery tests around restore flows, missing scene files, and malformed metadata fixtures as future schema changes land.
+5. Keep Electron file operations guarded by campaign-boundary checks and covered with focused helper tests.
+6. Keep large renderer changes incremental and screenshot/smoke tested where visual behavior matters.
 
 ## Audit Guardrails
 
