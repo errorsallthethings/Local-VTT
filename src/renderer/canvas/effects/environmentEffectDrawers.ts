@@ -40,9 +40,6 @@ import {
   type VoidEffectTuning,
   type WaterEffectTuning
 } from "./environmentEffectTuningDefaults";
-import {
-  drawEnvironmentWaterEffect
-} from "./environmentEffectsRenderer";
 import { drawEnvironmentFireEffect, drawEnvironmentLavaEffect, drawEnvironmentLightningEffect } from "./environmentElementalEffects";
 import { drawEnvironmentAcidEffect, drawEnvironmentColdEffect, drawEnvironmentDarknessEffect, drawEnvironmentPoisonEffect } from "./environmentHazardEffects";
 import {
@@ -56,6 +53,7 @@ import {
   drawEnvironmentVoidEffect
 } from "./environmentMagicEffects";
 import { drawEnvironmentFogEffect, drawEnvironmentSmokeEffect } from "./environmentSmokeFogEffects";
+import { drawEnvironmentWaterEffect } from "./environmentWaterEffect";
 import type { ScreenBounds } from "./environmentEffectRendererMath";
 
 export interface EnvironmentEffectTuningOverrides {
