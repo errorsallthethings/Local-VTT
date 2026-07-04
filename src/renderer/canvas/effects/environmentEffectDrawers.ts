@@ -41,6 +41,11 @@ import {
   type WaterEffectTuning
 } from "./environmentEffectTuningDefaults";
 import {
+  drawEnvironmentWaterEffect
+} from "./environmentEffectsRenderer";
+import { drawEnvironmentFireEffect, drawEnvironmentLavaEffect, drawEnvironmentLightningEffect } from "./environmentElementalEffects";
+import { drawEnvironmentAcidEffect, drawEnvironmentColdEffect, drawEnvironmentDarknessEffect, drawEnvironmentPoisonEffect } from "./environmentHazardEffects";
+import {
   drawEnvironmentArcaneEffect,
   drawEnvironmentChaosEffect,
   drawEnvironmentDistortionEffect,
@@ -48,11 +53,8 @@ import {
   drawEnvironmentNatureEffect,
   drawEnvironmentRadiantEffect,
   drawEnvironmentShockwaveEffect,
-  drawEnvironmentVoidEffect,
-  drawEnvironmentWaterEffect
-} from "./environmentEffectsRenderer";
-import { drawEnvironmentFireEffect, drawEnvironmentLavaEffect, drawEnvironmentLightningEffect } from "./environmentElementalEffects";
-import { drawEnvironmentAcidEffect, drawEnvironmentColdEffect, drawEnvironmentDarknessEffect, drawEnvironmentPoisonEffect } from "./environmentHazardEffects";
+  drawEnvironmentVoidEffect
+} from "./environmentMagicEffects";
 import { drawEnvironmentFogEffect, drawEnvironmentSmokeEffect } from "./environmentSmokeFogEffects";
 import type { ScreenBounds } from "./environmentEffectRendererMath";
 

@@ -53,11 +53,12 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted shared WebGL environment-effect runtime helpers and moved the smoke/fog effect family into its own renderer module while preserving the existing public effect exports.
 - Moved the lava/fire/lightning elemental effect family into its own renderer module and pointed the drawer registry at that module directly.
 - Moved the acid/poison/cold/darkness hazard effect family into its own renderer module and pointed the drawer registry at that module directly.
+- Moved the arcane/chaos/void/nature/radiant/force-field/shockwave/distortion magic effect family into its own renderer module and pointed the drawer registry at that module directly.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
 
-- `src/renderer/canvas/effects/environmentEffectsRenderer.ts`: still a large effect-rendering module, but shared runtime code plus smoke/fog, lava/fire/lightning, and acid/poison/cold/darkness are now split out. Future work should move the remaining effect families behind the same registry-backed renderer pattern.
+- `src/renderer/canvas/effects/environmentEffectsRenderer.ts`: now mostly the water effect plus compatibility exports and shared runtime disposal orchestration. Consider renaming or splitting the final water implementation once import paths are ready to move.
 - `src/renderer/components/SceneCanvas.tsx`: high-responsibility canvas interaction component. Split by interaction mode before adding more tools.
 - `src/renderer/canvas/drawingRenderer.ts`: large mixed renderer for drawings, templates, labels, and effect fills. Separate template rendering from freehand/shape rendering.
 - `src/renderer/components/layers/LayerPanel.tsx`: layer UI is feature rich but broad. Extract per-layer panels when touching those areas.
