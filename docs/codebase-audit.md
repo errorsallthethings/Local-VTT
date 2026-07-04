@@ -37,6 +37,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Split the shared layer row chrome out of `LayerPanel`, leaving the parent component focused on per-layer content and state coordination.
 - Centralized SceneCanvas selection-clearing policy into a tested helper so token, drawing, fog, weather, and environment selections do not drift independently.
 - Extracted SceneCanvas render-plan calculations for render camera, map sources, weather source readiness, and grid visibility into a tested canvas helper.
+- Made SceneCanvas pointer-down route selection explicit and tested, preserving the existing branch order while reducing long repeated boolean guards in the handler.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots

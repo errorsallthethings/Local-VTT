@@ -195,6 +195,7 @@ import {
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import { getSceneContextMenuTarget } from "./scene/sceneContextMenuTarget";
+import { getScenePointerDownRoute } from "./scene/scenePointerDownRouting";
 import { getSceneSelectionKindsToClear, type SceneSelectionTargetKind } from "./scene/sceneSelectionRouting";
 import { canAcceptTokenAssetDrop as canAcceptSceneTokenAssetDrop, getDroppedTokenAsset } from "./scene/sceneTokenAssetDrop";
 import { getDrawingPointerMove, getDrawingPointerStart } from "./scene/sceneDrawingPointer";
@@ -1215,18 +1216,35 @@ export function SceneCanvas({
     if (!interactive) {
       return;
     }
-    if (event.button !== 0) {
+    const pointerDownRoute = getScenePointerDownRoute({
+      authoringToolActive,
+      button: event.button,
+      canvasTool,
+      drawingTool,
+      environmentEffectTool,
+      fogTool,
+      hasMapCalibrationTool: Boolean(onMapCalibrationBox),
+      hasScene: Boolean(scene),
+      mode,
+      mouseBehavior,
+      onSceneChangeAvailable: Boolean(onSceneChange),
+      shiftKey: event.shiftKey,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      weatherMaskTool
+    });
+    if (pointerDownRoute === "pan") {
       event.preventDefault();
       event.currentTarget.setPointerCapture(event.pointerId);
       dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, camera };
       setIsPanning(true);
       return;
     }
-    if (mode === "gm" && canvasTool === "ping" && scene && event.button === 0) {
+    if (pointerDownRoute === "ignore-ping") {
       return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);
-    if (mode === "gm" && scene && onMapCalibrationBox && event.button === 0) {
+    if (pointerDownRoute === "map-calibration") {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const drag = getMapCalibrationPointerStart({
         button: event.button,
@@ -1246,7 +1264,7 @@ export function SceneCanvas({
       setMapCalibrationDrag(drag);
       return;
     }
-    if (mode === "gm" && canvasTool === "ruler" && scene && event.button === 0) {
+    if (pointerDownRoute === "ruler") {
       const point = getRulerPoint(event);
       const nextRulerDrag = getRulerPointerStart({
         button: event.button,
@@ -1269,7 +1287,7 @@ export function SceneCanvas({
       emitRulerEvent(nextRulerDrag);
       return;
     }
-    if (mode === "gm" && canvasTool === "laser" && scene && event.button === 0) {
+    if (pointerDownRoute === "laser") {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const start = getLaserPointerStart({
         button: event.button,
@@ -1290,12 +1308,14 @@ export function SceneCanvas({
       onLiveTableEvent?.(laserEvent);
       return;
     }
-    if (mode === "gm" && drawingTool === "polygon" && scene && onSceneChange && event.button === 0) {
-      updateDrawingPolygonDraft(getDrawingToolPoint(event, drawingTool));
+    if (pointerDownRoute === "drawing-polygon") {
+      const activeDrawingTool = drawingTool!;
+      updateDrawingPolygonDraft(getDrawingToolPoint(event, activeDrawingTool));
       return;
     }
-    if (mode === "gm" && drawingTool && scene && onSceneChange && event.button === 0) {
-      const point = getDrawingToolPoint(event, drawingTool);
+    if (pointerDownRoute === "drawing") {
+      const activeDrawingTool = drawingTool!;
+      const point = getDrawingToolPoint(event, activeDrawingTool);
       const preview = getDrawingPointerStart({
         button: event.button,
         hasScene: Boolean(scene),
@@ -1313,7 +1333,7 @@ export function SceneCanvas({
           templateEffect: drawingTemplateEffect,
           templateWidth: drawingTemplateWidth
         },
-        tool: drawingTool
+        tool: activeDrawingTool
       });
       if (!preview) {
         return;
@@ -1323,8 +1343,9 @@ export function SceneCanvas({
       onTemplatePreviewChange?.(getTemplatePreviewDrawing(preview));
       return;
     }
-    if (mode === "gm" && fogTool && scene && onSceneChange && event.button === 0) {
-      const point = getToolPoint(event, !fogTool.includes("brush"));
+    if (pointerDownRoute === "fog") {
+      const activeFogTool = fogTool!;
+      const point = getToolPoint(event, !activeFogTool.includes("brush"));
       const start = getFogPointerStart({
         brushSize: activeFogBrushSize,
         button: event.button,
@@ -1333,7 +1354,7 @@ export function SceneCanvas({
         onSceneChangeAvailable: Boolean(onSceneChange),
         point,
         pointerId: event.pointerId,
-        tool: fogTool
+        tool: activeFogTool
       });
       if (!start) {
         return;
@@ -1346,7 +1367,8 @@ export function SceneCanvas({
       setFogPreview(start.drag);
       return;
     }
-    if (mode === "gm" && weatherMaskTool && scene && onSceneChange && event.button === 0) {
+    if (pointerDownRoute === "weather-mask") {
+      const activeWeatherMaskTool = weatherMaskTool!;
       const point = getToolPoint(event);
       const start = getWeatherMaskPointerStart({
         button: event.button,
@@ -1355,7 +1377,7 @@ export function SceneCanvas({
         onSceneChangeAvailable: Boolean(onSceneChange),
         point,
         pointerId: event.pointerId,
-        tool: weatherMaskTool
+        tool: activeWeatherMaskTool
       });
       if (!start) {
         return;
@@ -1369,7 +1391,8 @@ export function SceneCanvas({
       setWeatherMaskPreview(start.drag);
       return;
     }
-    if (mode === "gm" && environmentEffectTool && scene && onSceneChange && event.button === 0) {
+    if (pointerDownRoute === "environment-effect") {
+      const activeEnvironmentEffectTool = environmentEffectTool!;
       const point = getToolPoint(event);
       const start = getEnvironmentEffectPointerStart({
         button: event.button,
@@ -1381,7 +1404,7 @@ export function SceneCanvas({
         onSceneChangeAvailable: Boolean(onSceneChange),
         point,
         pointerId: event.pointerId,
-        tool: environmentEffectTool
+        tool: activeEnvironmentEffectTool
       });
       if (!start) {
         return;
@@ -1395,7 +1418,7 @@ export function SceneCanvas({
       setEnvironmentEffectPreview(start.drag);
       return;
     }
-    if (mode === "gm" && mouseBehavior === "selector" && scene && !authoringToolActive && event.button === 0 && (event.shiftKey || event.ctrlKey || event.metaKey)) {
+    if (pointerDownRoute === "marquee-additive") {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const selectionMode: SelectionMode = getMarqueeSelectionMode(event);
       const nextSelectionDrag = getSelectionDragFromPoint(event.pointerId, point, selectionMode);
@@ -1403,14 +1426,15 @@ export function SceneCanvas({
       setSelectionDrag(nextSelectionDrag);
       return;
     }
-    if (mode === "gm" && scene && onSceneChange && event.button === 0) {
+    if (pointerDownRoute === "selector") {
+      const activeScene = scene!;
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const tokenPointerStart = getTokenPointerStart({
         canShowTokens: Boolean(canShowTokens),
         mouseBehavior,
         point,
         pointerId: event.pointerId,
-        scene,
+        scene: activeScene,
         selectedTokenIds: effectiveSelectedTokenIds
       });
       if (tokenPointerStart) {
@@ -1433,7 +1457,7 @@ export function SceneCanvas({
           mouseBehavior,
           point,
           pointerId: event.pointerId,
-          scene,
+          scene: activeScene,
           selectedDrawingIds: effectiveSelectedDrawingIds
         });
         if (drawingTransformStart?.kind === "transform") {
@@ -1460,7 +1484,7 @@ export function SceneCanvas({
           mouseBehavior,
           point,
           pointerId: event.pointerId,
-          scene
+          scene: activeScene
         });
         if (environmentEffectStart) {
           onSelectEnvironmentEffect?.(environmentEffectStart.effectId);
@@ -1475,7 +1499,7 @@ export function SceneCanvas({
           mouseBehavior,
           point,
           pointerId: event.pointerId,
-          scene,
+          scene: activeScene,
           selectedWeatherMaskIds: effectiveSelectedWeatherMaskIds
         });
         if (maskStart?.kind === "weather") {
@@ -1495,7 +1519,7 @@ export function SceneCanvas({
         clearSceneSelectionsExcept("empty");
       }
     }
-    if (mode === "gm" && mouseBehavior === "selector" && scene && !authoringToolActive && event.button === 0) {
+    if (pointerDownRoute === "marquee") {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const selectionMode: SelectionMode = getMarqueeSelectionMode(event);
       const nextSelectionDrag = getSelectionDragFromPoint(event.pointerId, point, selectionMode);
@@ -1503,11 +1527,9 @@ export function SceneCanvas({
       setSelectionDrag(nextSelectionDrag);
       return;
     }
-    if (mode === "gm" && mouseBehavior !== "grabber" && event.button === 0) {
+    if (pointerDownRoute === "none") {
       return;
     }
-    dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, camera };
-    setIsPanning(true);
   };
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
