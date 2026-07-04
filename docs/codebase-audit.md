@@ -36,6 +36,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Moved LayerPanel weather update transitions into tested helpers, reducing inline UI orchestration for weather categories, effect selection, and tuning resets.
 - Split the shared layer row chrome out of `LayerPanel`, leaving the parent component focused on per-layer content and state coordination.
 - Centralized SceneCanvas selection-clearing policy into a tested helper so token, drawing, fog, weather, and environment selections do not drift independently.
+- Extracted SceneCanvas render-plan calculations for render camera, map sources, weather source readiness, and grid visibility into a tested canvas helper.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots

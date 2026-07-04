@@ -60,7 +60,6 @@ import { drawMapSource, getCameraForMapFit } from "../canvas/map";
 import {
   getInitialMapLoadStatus,
   getMapCanvasBackgroundPlan,
-  getMapDrawSource,
   getMapOverlayMessage,
   getReadyMapSourceForFit,
   isMapOverlayActive,
@@ -74,6 +73,7 @@ import {
 } from "../canvas/measurement";
 import { updatePolygonDraftCurrent } from "../canvas/scene";
 import {
+  getSceneCanvasRenderPlan,
   getDrawingDragCommit,
   getDrawingPolygonDraftCommit,
   getEnvironmentEffectDragCommit,
@@ -924,11 +924,27 @@ export function SceneCanvas({
         ctx.fillRect(0, 0, width, height);
       }
 
-      const renderCamera = getRenderCamera(camera, playerDisplayScale);
       const activeVideo = isVideoMap ? (videoRefs.current[activeVideoIndex] ?? null) : null;
-      const mapDrawSource = loadedMap?.ready ? getMapDrawSource(loadedMap, scene, width, height, renderCamera.zoom, mode, window.devicePixelRatio || 1) : null;
-      const weatherMapSource = loadedMap?.ready ? loadedMap.originalSource : (activeVideo && activeVideo.readyState >= HTMLMediaElement.HAVE_METADATA ? activeVideo : null);
-      const weatherMapReady = !canShowMap || !mapAsset || Boolean(weatherMapSource);
+      const {
+        mapDrawSource,
+        renderCamera,
+        showGrid,
+        weatherMapReady,
+        weatherMapSource
+      } = getSceneCanvasRenderPlan({
+        activeVideo,
+        camera,
+        canShowGrid,
+        canShowMap,
+        height,
+        loadedMap,
+        mapAsset,
+        mode,
+        outputPixelRatio: window.devicePixelRatio || 1,
+        playerDisplayScale,
+        scene,
+        width
+      });
 
       ctx.save();
       // Player Display Scale modifies Player View zoom only; GM camera controls stay scene-local.
@@ -962,7 +978,6 @@ export function SceneCanvas({
         ctx.fillRect(0, 0, 1600, 1000);
       }
 
-      const showGrid = Boolean(canShowGrid) && (mode === "gm" ? scene.grid.showOnGm : scene.grid.showOnPlayer);
       if (showGrid && scene.grid.type === "square") {
         drawSquareGrid(ctx, scene, width, height, renderCamera, mode);
       } else if (showGrid && scene.grid.type === "hex") {
