@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultCampaign, createPlayerDisplayProfile, type Campaign, type DisplayCalibration } from "../../src/shared/localvtt";
 import {
+  estimateDisplayPixelsPerInch,
+  formatDisplayAspect,
+  formatDisplayPixels,
+  getDisplayAspect,
+  getDisplayCalibrationForTestGridMode,
+  getDisplayCalibrationMetrics,
+  getDisplayDetails,
+  getDisplayLabel,
+  getNextDisplayProfileName,
+  getTestPatternCellSize,
+  normalizeDisplayCalibrationDraft,
+  type PlayerDisplayInfo
+} from "../../src/renderer/lib/player-view";
+import {
   addCampaignPlayerDisplayProfile,
   applyPlayerDisplayProfileAction,
   deleteCampaignPlayerDisplayProfile,
@@ -38,6 +52,17 @@ function campaignWithProfiles(): Campaign {
     ...campaign,
     updatedAt: now,
     playerDisplayProfiles: [...campaign.playerDisplayProfiles, secondProfile]
+  };
+}
+
+function displayInfo(patch: Partial<PlayerDisplayInfo> = {}): PlayerDisplayInfo {
+  return {
+    id: 2,
+    label: " Table Display ",
+    bounds: { x: 1920, y: 0, width: 3840, height: 2160 },
+    nativeResolution: { width: 3840, height: 2160 },
+    scaleFactor: 1.25,
+    ...patch
   };
 }
 
@@ -131,5 +156,90 @@ describe("player display profile helpers", () => {
     expect(selected?.playerDisplay.selectedDisplayLabel).toBe("Third Display");
     expect(updated?.playerDisplay.selectedDisplayLabel).toBe("Updated Table");
     expect(deleted?.playerDisplayProfiles.map((profile) => profile.id)).toEqual([campaign.playerDisplayProfiles[0].id, "profile-2"]);
+  });
+});
+
+describe("display calibration helpers", () => {
+  it("estimates and normalizes screen-size pixel density", () => {
+    expect(estimateDisplayPixelsPerInch(3840, 2160, 55)).toBeCloseTo(80.1, 1);
+    expect(estimateDisplayPixelsPerInch(3840, 2160, 0, 96)).toBe(96);
+
+    const normalized = normalizeDisplayCalibrationDraft(
+      calibration({
+        mode: "screen-size",
+        pixelsPerInch: 42,
+        screenResolutionWidth: 3840,
+        screenResolutionHeight: 2160,
+        screenDiagonalInches: 55
+      })
+    );
+
+    expect(normalized.pixelsPerInch).toBe(80);
+  });
+
+  it("calculates player grid sizing from calibration and scene grid size", () => {
+    const manual = getDisplayCalibrationMetrics(calibration({ pixelsPerInch: 120, inchesPerGridCell: 1.5 }), 60);
+
+    expect(manual.targetPlayerCellSize).toBe(180);
+    expect(manual.effectiveTargetCellSize).toBe(180);
+    expect(manual.playerScale).toBe(3);
+
+    const screenSize = getDisplayCalibrationMetrics(
+      calibration({
+        mode: "screen-size",
+        pixelsPerInch: 120,
+        inchesPerGridCell: 1,
+        screenResolutionWidth: 1920,
+        screenResolutionHeight: 1080,
+        screenDiagonalInches: 55
+      }),
+      0
+    );
+
+    expect(screenSize.effectiveTargetCellSize).toBe(40);
+    expect(screenSize.playerScale).toBe(1);
+  });
+
+  it("formats display labels, details, aspect ratios, and pixel values consistently", () => {
+    const display = displayInfo();
+
+    expect(getDisplayLabel(display)).toBe("Table Display - 3840x2160");
+    expect(getDisplayDetails(display)).toBe("Table Display - 3840x2160, bounds 1920,0 3840x2160, scale 1.25");
+    expect(getDisplayAspect(display, calibration())).toBeCloseTo(16 / 9);
+    expect(getDisplayAspect(null, calibration({ screenResolutionWidth: 2560, screenResolutionHeight: 1600 }))).toBeCloseTo(1.6);
+    expect(formatDisplayAspect(16 / 9)).toBe("1.78:1");
+    expect(formatDisplayPixels(120)).toBe("120");
+    expect(formatDisplayPixels(120.25)).toBe("120.3");
+    expect(getDisplayLabel(displayInfo({ id: 5, label: "   " }))).toBe("Display 5 - 3840x2160");
+  });
+
+  it("generates non-conflicting display profile names", () => {
+    const profiles = [
+      createPlayerDisplayProfile("profile-1", "Table", calibration(), now),
+      createPlayerDisplayProfile("profile-2", "Table Copy", calibration(), now),
+      createPlayerDisplayProfile("profile-3", "Table Copy 2", calibration(), now)
+    ];
+
+    expect(getNextDisplayProfileName(" Table ", profiles)).toBe("Table Copy 3");
+    expect(getNextDisplayProfileName("Side TV", profiles)).toBe("Side TV");
+    expect(getNextDisplayProfileName("   ", profiles)).toBe("Display Profile");
+  });
+
+  it("converts test pattern grid modes into display calibration updates", () => {
+    const base = calibration({ physicalScaleEnabled: true, mode: "manual", pixelsPerInch: 100, inchesPerGridCell: 1.5 });
+
+    expect(getTestPatternCellSize("square", 72, base)).toBe(72);
+    expect(getTestPatternCellSize("physical-square", 72, base)).toBe(150);
+
+    const physical = getDisplayCalibrationForTestGridMode("physical-square", base, 72);
+    expect(physical).toMatchObject({
+      physicalScaleEnabled: true,
+      mode: "grid-cell",
+      pixelsPerInch: 150,
+      inchesPerGridCell: 1
+    });
+
+    expect(getDisplayCalibrationForTestGridMode("hex", base, 72).physicalScaleEnabled).toBe(false);
+    expect(getDisplayCalibrationForTestGridMode("none", base, 72).physicalScaleEnabled).toBe(false);
   });
 });

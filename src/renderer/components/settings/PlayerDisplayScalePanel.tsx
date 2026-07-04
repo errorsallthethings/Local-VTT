@@ -1,6 +1,7 @@
 import { CopyPlus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { DisplayCalibration, PlayerDisplayProfile, Scene } from "../../../shared/localvtt";
+import { getDisplayCalibrationMetrics, getDisplayDetails, getDisplayLabel, getNextDisplayProfileName, normalizeDisplayCalibrationDraft } from "../../lib/player-view";
 import { CollapsibleSettingsSection, SettingsField, SettingsReadout } from "./SettingsSection";
 
 export interface DisplayInfo {
@@ -56,36 +57,18 @@ export function PlayerDisplayScalePanel({
     setProfileNameDraft(activeProfile?.name ?? "Default");
   }, [activeProfile?.id, activeProfile?.name]);
 
-  const estimatedPpi = estimatePixelsPerInch(
-    draft.screenResolutionWidth,
-    draft.screenResolutionHeight,
-    draft.screenDiagonalInches
-  );
-  const targetPlayerCellSize = Math.max(1, Math.round(draft.pixelsPerInch * draft.inchesPerGridCell));
-  const effectiveTargetCellSize = draft.mode === "screen-size" ? Math.max(1, Math.round(estimatedPpi * draft.inchesPerGridCell)) : targetPlayerCellSize;
-  const playerScale = scene.grid.sizePx > 0 ? effectiveTargetCellSize / scene.grid.sizePx : 1;
+  const { estimatedPixelsPerInch, effectiveTargetCellSize, playerScale } = getDisplayCalibrationMetrics(draft, scene.grid.sizePx);
   const selectedDisplay = displays.find((display) => display.id === draft.selectedDisplayId) ?? null;
   const hasDraftChanges = JSON.stringify(draft) !== JSON.stringify(calibration);
   const trimmedProfileName = profileNameDraft.trim();
   const hasProfileNameChanges = Boolean(activeProfile && trimmedProfileName && trimmedProfileName !== activeProfile.name);
   const applyDraft = useCallback(() => {
-    onApply({
-      ...(draft.mode === "screen-size" ? { ...draft, pixelsPerInch: Math.round(estimatedPpi) } : draft),
-      physicalScaleEnabled: draft.physicalScaleEnabled
-    });
-  }, [draft, estimatedPpi, onApply]);
+    onApply(normalizeDisplayCalibrationDraft(draft));
+  }, [draft, onApply]);
 
   const resetDraft = useCallback(() => setDraft(calibration), [calibration]);
   const createProfileFromDraft = useCallback(() => {
-    const baseName = trimmedProfileName || "Display Profile";
-    const existingNames = new Set(profiles.map((profile) => profile.name));
-    let nextName = existingNames.has(baseName) ? `${baseName} Copy` : baseName;
-    let suffix = 2;
-    while (existingNames.has(nextName)) {
-      nextName = `${baseName} Copy ${suffix}`;
-      suffix += 1;
-    }
-    onCreateProfile(nextName, draft);
+    onCreateProfile(getNextDisplayProfileName(trimmedProfileName, profiles), draft);
   }, [draft, onCreateProfile, profiles, trimmedProfileName]);
 
   const footerActions = useMemo(
@@ -402,7 +385,7 @@ export function PlayerDisplayScalePanel({
                   </div>
                 </SettingsField>
                 <SettingsReadout label="Estimated PPI">
-                  <div className="calibration-readout">{estimatedPpi.toFixed(1)} pixels per inch</div>
+                  <div className="calibration-readout">{estimatedPixelsPerInch.toFixed(1)} pixels per inch</div>
                 </SettingsReadout>
               </>
             )}
@@ -460,20 +443,4 @@ export function PlayerDisplayScalePanel({
       </CollapsibleSettingsSection>
     </section>
   );
-}
-
-function estimatePixelsPerInch(width: number, height: number, diagonalInches: number): number {
-  if (width <= 0 || height <= 0 || diagonalInches <= 0) {
-    return 0;
-  }
-  return Math.sqrt(width ** 2 + height ** 2) / diagonalInches;
-}
-
-function getDisplayLabel(display: DisplayInfo): string {
-  const name = display.label?.trim() ? display.label.trim() : `Display ${display.id}`;
-  return `${name} - ${display.nativeResolution.width}x${display.nativeResolution.height}`;
-}
-
-function getDisplayDetails(display: DisplayInfo): string {
-  return `${getDisplayLabel(display)}, bounds ${display.bounds.x},${display.bounds.y} ${display.bounds.width}x${display.bounds.height}, scale ${display.scaleFactor}`;
 }
