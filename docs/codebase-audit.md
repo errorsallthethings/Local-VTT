@@ -42,6 +42,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Tightened Windows package artifact validation so release checks require the installer blockmap alongside the installer, update metadata, and unpacked executable.
 - Converted environment-effect tuning field resolution to a tested registry, including the legacy `electric` to `lightningTuning` mapping.
 - Extracted and tested environment-effect layer tuning override construction so the long draw API's positional parameters are guarded against drift.
+- Extracted drawing preview-to-render-element conversion from the large drawing renderer, keeping preview rendering semantics covered separately from committed drawing creation.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots

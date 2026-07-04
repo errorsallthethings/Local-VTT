@@ -4,8 +4,8 @@ import { drawSelectionBox } from "../selection/selectionRenderer";
 import { getDrawingBounds } from "./drawingBounds";
 import { distanceBetweenPoints, getConeTriangle, getTriangle } from "./drawingGeometry";
 import { isDrawingVisible } from "./drawingHitTesting";
-import { getDrawingPreviewPoints, type DrawingPreview } from "./drawingPreview";
-import { getDrawingKindForTool } from "./templateDrawing";
+import { type DrawingPreview } from "./drawingPreview";
+import { getRenderableDrawingElementFromPreview } from "./drawingRenderPreview";
 import { createSeededRandom, getLineTemplateCorridorPoints, getRectanglePathPoints, scalePointsToCenter } from "./templateEffectGeometry";
 import {
   createTemplateAssetPlacements,
@@ -97,32 +97,7 @@ export function drawDrawings(
     }
   }
   if (preview) {
-    drawDrawingElement(
-      ctx,
-      {
-        id: "preview",
-        name: "Preview",
-        kind: preview.kind === "circle" && !preview.ellipse ? "circle" : getDrawingKindForTool(preview.kind),
-        points: getDrawingPreviewPoints(preview),
-        color: preview.color,
-        opacity: preview.opacity,
-        strokeColor: preview.strokeColor ?? preview.color,
-        strokeOpacity: preview.strokeOpacity ?? preview.opacity,
-        strokeWidth: preview.strokeWidth,
-        fillColor: preview.fillColor ?? preview.color,
-        fillOpacity: preview.fillOpacity ?? 0,
-        strokeStyle: preview.strokeStyle ?? "solid",
-        templateEffect: preview.templateEffect,
-        templateWidth: preview.templateWidth,
-        templateFootprintVisible: preview.measurementLabelVisible === true,
-        measurementLabelVisible: preview.measurementLabelVisible,
-        visibleInGm: true,
-        visibleInPlayer: true
-      },
-      scene,
-      layerOpacity,
-      true
-    );
+    drawDrawingElement(ctx, getRenderableDrawingElementFromPreview(preview), scene, layerOpacity, true);
   }
   ctx.restore();
 }

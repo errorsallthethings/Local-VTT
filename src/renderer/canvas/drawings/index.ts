@@ -2,6 +2,7 @@ export * from "./drawingBounds";
 export * from "./drawingGeometry";
 export * from "./drawingHitTesting";
 export * from "./drawingPreview";
+export * from "./drawingRenderPreview";
 export * from "./drawingRenderer";
 export * from "./drawingTransform";
 export * from "./templateEffectGeometry";

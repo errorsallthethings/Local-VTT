@@ -7,6 +7,7 @@ import {
   getDrawingPreviewFromPoint,
   getDrawingAtPoint,
   getDrawingHitRadius,
+  getRenderableDrawingElementFromPreview,
   isMeaningfulDrawingPreview,
   shouldAddDrawingPoint,
   type DrawingPreview
@@ -176,6 +177,62 @@ describe("drawing renderer helpers", () => {
       { x: 10, y: 20 },
       { x: 50, y: 60 }
     ]);
+  });
+
+  it("converts drawing previews into render-only drawing elements", () => {
+    const preview: DrawingPreview = {
+      pointerId: 1,
+      kind: "circle",
+      points: [{ x: 10, y: 20 }],
+      current: { x: 50, y: 60 },
+      color: "#f97316",
+      opacity: 0.7,
+      strokeWidth: 12,
+      fillColor: "#fb923c",
+      fillOpacity: 0.2,
+      templateEffect: "fire",
+      templateWidth: 10,
+      measurementLabelVisible: true
+    };
+
+    expect(getRenderableDrawingElementFromPreview(preview)).toMatchObject({
+      id: "preview",
+      name: "Preview",
+      kind: "circle",
+      points: [{ x: 10, y: 20 }, { x: 50, y: 60 }],
+      color: "#f97316",
+      strokeColor: "#f97316",
+      strokeOpacity: 0.7,
+      fillColor: "#fb923c",
+      fillOpacity: 0.2,
+      templateEffect: "fire",
+      templateWidth: 10,
+      templateFootprintVisible: true,
+      measurementLabelVisible: true,
+      visibleInGm: true,
+      visibleInPlayer: true
+    });
+  });
+
+  it("keeps unconstrained circle previews renderable as ellipses", () => {
+    const preview: DrawingPreview = {
+      pointerId: 1,
+      kind: "circle",
+      points: [{ x: 10, y: 20 }],
+      current: { x: 50, y: 60 },
+      color: "#7dd3fc",
+      opacity: 1,
+      strokeWidth: 12,
+      ellipse: true
+    };
+
+    expect(getRenderableDrawingElementFromPreview(preview)).toMatchObject({
+      kind: "ellipse",
+      points: [{ x: 10, y: 20 }, { x: 50, y: 20 }, { x: 10, y: 60 }],
+      fillColor: "#7dd3fc",
+      fillOpacity: 0,
+      strokeStyle: "solid"
+    });
   });
 
   it("filters tiny freehand movements", () => {
