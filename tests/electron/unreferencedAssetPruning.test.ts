@@ -74,6 +74,39 @@ describe("unreferenced asset pruning", () => {
     expect(result.campaign.assets.map((candidate) => candidate.id)).toEqual(["map-1"]);
   });
 
+  it("keeps unsafe unreferenced assets in metadata and does not remove files outside the campaign", async () => {
+    const campaignRoot = path.join(tempRoot, "campaign");
+    const outsidePath = path.join(tempRoot, "outside", "do-not-delete.jpg");
+    await mkdir(path.dirname(outsidePath), { recursive: true });
+    await writeFile(outsidePath, "outside", "utf8");
+    const campaign = createDefaultCampaign("Unsafe Prune");
+    campaign.assets = [
+      asset({
+        id: "unsafe-map",
+        kind: "map",
+        relativePath: "assets/maps/unsafe.jpg",
+        absolutePath: outsidePath
+      })
+    ];
+
+    const result = await pruneUnreferencedAssets(campaignRoot, campaign, new Set(["unsafe-map"]));
+
+    expect(result.pruned).toBe(0);
+    expect(result.skipped).toBe(1);
+    expect(result.removedFiles).toBe(0);
+    expect(result.failed).toEqual([
+      {
+        assetId: "unsafe-map",
+        assetName: "unsafe-map",
+        kind: "map",
+        relativePath: "assets/maps/unsafe.jpg",
+        reason: "Path is outside the selected campaign folder."
+      }
+    ]);
+    expect(result.campaign.assets.map((candidate) => candidate.id)).toEqual(["unsafe-map"]);
+    await expect(readFile(outsidePath, "utf8")).resolves.toBe("outside");
+  });
+
   async function writeAssetFile(relativePath: string, content: string): Promise<string> {
     const filePath = path.join(tempRoot, relativePath);
     await mkdir(path.dirname(filePath), { recursive: true });
@@ -91,6 +124,7 @@ function asset(patch: Partial<Asset> & Pick<Asset, "id" | "kind" | "relativePath
     relativePath: patch.relativePath,
     thumbnailRelativePath: patch.thumbnailRelativePath,
     originalFileName: patch.originalFileName ?? path.basename(patch.relativePath),
-    createdAt: "2026-07-03T00:00:00.000Z"
+    createdAt: "2026-07-03T00:00:00.000Z",
+    ...patch
   };
 }

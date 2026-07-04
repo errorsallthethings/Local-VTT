@@ -15,6 +15,13 @@ describe("campaign path safety", () => {
     );
   });
 
+  it("rejects sibling paths that only share the campaign folder prefix", () => {
+    const rootPath = path.resolve("campaign-root");
+
+    expect(isInsidePath(rootPath, `${rootPath}-backup`)).toBe(false);
+    expect(isInsidePath(rootPath, path.join(path.dirname(rootPath), `${path.basename(rootPath)}-backup`, "map.png"))).toBe(false);
+  });
+
   it("supports caller-provided error messages", () => {
     expect(() => assertInsidePath("campaign-root", path.join("campaign-root", "..", "outside"), "Outside campaign.")).toThrow(
       "Outside campaign."
