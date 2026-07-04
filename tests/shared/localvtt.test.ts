@@ -1009,7 +1009,19 @@ it("normalizeCampaign preserves valid collapsed scene folders only", () => {
 
 it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   const campaign = createDefaultCampaign("Player Safe Campaign");
-  campaign.assets = [asset("map"), asset("visible-token"), asset("hidden-token"), asset("overlay"), asset("visible-player"), asset("hidden-player"), asset("unused")];
+  campaign.assets = [
+    asset("map"),
+    asset("visible-token"),
+    asset("hidden-token"),
+    asset("overlay"),
+    asset("visible-player"),
+    asset("hidden-player"),
+    asset("visible-entry"),
+    asset("hidden-entry"),
+    asset("visible-seat"),
+    asset("hidden-seat"),
+    asset("unused")
+  ];
   campaign.players = [
     {
       id: "visible-player",
@@ -1082,6 +1094,19 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
     { id: "player-fog", operation: "reveal", kind: "rectangle", points: [], visibleInGm: true, visibleInPlayer: true },
     { id: "gm-fog", operation: "hide", kind: "rectangle", points: [], visibleInGm: true, visibleInPlayer: false }
   ];
+  scene.turnOrder = {
+    ...scene.turnOrder,
+    active: true,
+    currentEntryId: "hidden-entry",
+    entries: [
+      { id: "visible-entry", name: "Visible Initiative", initiative: 18, assetId: "visible-entry", visibleInPlayer: true },
+      { id: "hidden-entry", name: "Hidden Initiative", initiative: 17, assetId: "hidden-entry", visibleInPlayer: false }
+    ],
+    seats: [
+      { id: "visible-seat", name: "Visible Seat", edge: "bottom", position: 0.5, color: "#7aa2f7", assetId: "visible-seat", visibleInPlayer: true },
+      { id: "hidden-seat", name: "Hidden Seat", edge: "top", position: 0.5, color: "#f7768e", assetId: "hidden-seat", visibleInPlayer: false }
+    ]
+  };
 
   const projection = projectSceneForPlayer(campaign, scene);
 
@@ -1106,9 +1131,32 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   ).toEqual(["overlay-visible"]);
   expect(projection.scene.notes).toBe("");
   expect(projection.scene.fog.shapes.map((shape) => shape.id)).toEqual(["player-fog"]);
+  expect(projection.scene.turnOrder.currentEntryId).toBeUndefined();
+  expect(projection.scene.turnOrder.entries.map((entry) => entry.id)).toEqual(["visible-entry"]);
+  expect(projection.scene.turnOrder.seats.map((seat) => seat.id)).toEqual(["visible-seat"]);
   expect(
     projection.assets.map((projectionAsset) => projectionAsset.id).sort(),
-  ).toEqual(["map", "overlay", "visible-player", "visible-token"]);
+  ).toEqual(["map", "overlay", "visible-entry", "visible-player", "visible-seat", "visible-token"]);
+});
+
+it("projectSceneForPlayer preserves visible current turn order entries", () => {
+  const campaign = createDefaultCampaign("Visible Initiative Campaign");
+  const scene = createDefaultScene("Visible Initiative Scene");
+  scene.turnOrder = {
+    ...scene.turnOrder,
+    active: true,
+    currentEntryId: "entry-2",
+    entries: [
+      { id: "entry-1", name: "First", initiative: 18, visibleInPlayer: true },
+      { id: "entry-2", name: "Current", initiative: 17, visibleInPlayer: true }
+    ],
+    seats: []
+  };
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.scene.turnOrder.currentEntryId).toBe("entry-2");
+  expect(projection.scene.turnOrder.entries.map((entry) => entry.id)).toEqual(["entry-1", "entry-2"]);
 });
 
 it("projectSceneForPlayer strips content owned by hidden Player View layers", () => {

@@ -2478,6 +2478,11 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
   const normalizedScene = normalizeScene(scene);
   const projectedPlayers = normalizedCampaign.players.filter((player) => player.visibleInPlayer);
   const playerLayerIds = new Set(normalizedScene.layers.filter((layer) => layer.visibleInPlayer).map((layer) => layer.id));
+  const projectedTurnOrderEntries = normalizedScene.turnOrder.entries.filter((entry) => entry.visibleInPlayer);
+  const projectedTurnOrderSeats = normalizedScene.turnOrder.seats.filter((seat) => seat.visibleInPlayer);
+  const projectedTurnOrderEntryIds = new Set(projectedTurnOrderEntries.map((entry) => entry.id));
+  const projectedCurrentEntryId =
+    normalizedScene.turnOrder.currentEntryId && projectedTurnOrderEntryIds.has(normalizedScene.turnOrder.currentEntryId) ? normalizedScene.turnOrder.currentEntryId : undefined;
   const usedAssetIds = new Set<string>();
   if (normalizedScene.mapAssetId && playerLayerIds.has("map")) {
     usedAssetIds.add(normalizedScene.mapAssetId);
@@ -2492,9 +2497,14 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
       usedAssetIds.add(overlay.assetId);
     }
   }
-  for (const entry of normalizedScene.turnOrder.entries) {
-    if (entry.visibleInPlayer && entry.assetId) {
+  for (const entry of projectedTurnOrderEntries) {
+    if (entry.assetId) {
       usedAssetIds.add(entry.assetId);
+    }
+  }
+  for (const seat of projectedTurnOrderSeats) {
+    if (seat.assetId) {
+      usedAssetIds.add(seat.assetId);
     }
   }
   for (const player of projectedPlayers) {
@@ -2533,6 +2543,12 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
       lights: [],
       drawings: normalizedScene.drawings.filter((drawing) => drawing.visibleInPlayer && playerLayerIds.has("drawing")),
       overlays: normalizedScene.overlays.filter((overlay) => overlay.visibleInPlayer && playerLayerIds.has(overlay.layerId)),
+      turnOrder: {
+        ...normalizedScene.turnOrder,
+        currentEntryId: projectedCurrentEntryId,
+        entries: projectedTurnOrderEntries,
+        seats: projectedTurnOrderSeats
+      },
       notes: ""
     },
     assets: normalizedCampaign.assets.filter((asset) => usedAssetIds.has(asset.id))
