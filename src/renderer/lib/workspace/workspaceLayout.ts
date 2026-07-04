@@ -1,3 +1,5 @@
+import { loadLocalStorageJson, readLocalStorageItem, writeLocalStorageItem, saveLocalStorageJson } from "../storage/localStorageJson";
+
 export type WorkspacePanelSide = "left" | "right";
 
 export type WorkspaceLayout = {
@@ -25,24 +27,19 @@ export const MIN_TOKEN_LIBRARY_HEIGHT = 170;
 export const MAX_TOKEN_LIBRARY_HEIGHT = 760;
 
 export function loadWorkspaceLayout(storage: Pick<Storage, "getItem"> = window.localStorage): WorkspaceLayout {
-  try {
-    const value = storage.getItem(WORKSPACE_LAYOUT_STORAGE_KEY);
-    if (!value) {
-      return DEFAULT_WORKSPACE_LAYOUT;
-    }
-    const parsed = JSON.parse(value) as Partial<WorkspaceLayout>;
-    return normalizeWorkspaceLayout(parsed);
-  } catch {
+  const parsed = loadLocalStorageJson(storage, WORKSPACE_LAYOUT_STORAGE_KEY, DEFAULT_WORKSPACE_LAYOUT);
+  if (!isRecord(parsed)) {
     return DEFAULT_WORKSPACE_LAYOUT;
   }
+  return normalizeWorkspaceLayout(parsed);
 }
 
 export function saveWorkspaceLayout(layout: WorkspaceLayout, storage: Pick<Storage, "setItem"> = window.localStorage): void {
-  storage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(layout));
+  saveLocalStorageJson(storage, WORKSPACE_LAYOUT_STORAGE_KEY, layout);
 }
 
 export function loadTokenLibraryHeight(storage: Pick<Storage, "getItem"> = window.localStorage): number {
-  const storedValue = storage.getItem(TOKEN_LIBRARY_HEIGHT_STORAGE_KEY);
+  const storedValue = readLocalStorageItem(storage, TOKEN_LIBRARY_HEIGHT_STORAGE_KEY);
   if (!storedValue) {
     return DEFAULT_TOKEN_LIBRARY_HEIGHT;
   }
@@ -54,7 +51,7 @@ export function loadTokenLibraryHeight(storage: Pick<Storage, "getItem"> = windo
 }
 
 export function saveTokenLibraryHeight(height: number, storage: Pick<Storage, "setItem"> = window.localStorage): void {
-  storage.setItem(TOKEN_LIBRARY_HEIGHT_STORAGE_KEY, String(height));
+  writeLocalStorageItem(storage, TOKEN_LIBRARY_HEIGHT_STORAGE_KEY, String(height));
 }
 
 export function normalizeWorkspaceLayout(layout: Partial<WorkspaceLayout>): WorkspaceLayout {
@@ -130,4 +127,8 @@ export function getWorkspaceShellPresentation(layout: WorkspaceLayout, tokenLibr
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function isRecord(value: unknown): value is Partial<WorkspaceLayout> {
+  return typeof value === "object" && value !== null;
 }

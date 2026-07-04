@@ -1,8 +1,42 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultCampaign, DEFAULT_DICE_SETTINGS, type DiceSettings } from "../../src/shared/localvtt";
-import { applyDiceSettingsPatch, getEffectiveDiceSettings, normalizeDiceSettingsPreference } from "../../src/renderer/lib/dice";
+import {
+  DICE_SETTINGS_PREFERENCES_STORAGE_KEY,
+  applyDiceSettingsPatch,
+  getEffectiveDiceSettings,
+  loadDiceSettingsPreference,
+  normalizeDiceSettingsPreference,
+  saveDiceSettingsPreference
+} from "../../src/renderer/lib/dice";
 
 describe("dice settings preferences", () => {
+  it("loads stored dice settings through injected storage", () => {
+    const stored = JSON.stringify({ gmDisplayMode: "hidden", gmPanelPosition: 0.2 });
+
+    expect(loadDiceSettingsPreference({ getItem: () => stored })).toMatchObject({
+      gmDisplayMode: "hidden",
+      gmPanelPosition: 0.2
+    });
+  });
+
+  it("loads default dice settings when storage is malformed or unavailable", () => {
+    expect(loadDiceSettingsPreference({ getItem: () => "{bad json" })).toEqual(DEFAULT_DICE_SETTINGS);
+    expect(loadDiceSettingsPreference({ getItem: () => { throw new Error("blocked"); } })).toEqual(DEFAULT_DICE_SETTINGS);
+  });
+
+  it("saves dice settings through injected storage and ignores save failures", () => {
+    const values = new Map<string, string>();
+
+    saveDiceSettingsPreference(DEFAULT_DICE_SETTINGS, {
+      setItem: (key, value) => {
+        values.set(key, value);
+      }
+    });
+
+    expect(JSON.parse(values.get(DICE_SETTINGS_PREFERENCES_STORAGE_KEY) ?? "null")).toEqual(DEFAULT_DICE_SETTINGS);
+    expect(() => saveDiceSettingsPreference(DEFAULT_DICE_SETTINGS, { setItem: () => { throw new Error("quota"); } })).not.toThrow();
+  });
+
   it("normalizes valid stored dice display preferences", () => {
     const settings = normalizeDiceSettingsPreference({
       gmDisplayMode: "panel",

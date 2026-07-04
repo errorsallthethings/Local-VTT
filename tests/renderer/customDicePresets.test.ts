@@ -44,6 +44,15 @@ describe("custom dice presets", () => {
     expect(loadCustomDicePresets(storage(JSON.stringify({ id: "preset" })))).toEqual([]);
   });
 
+  it("returns an empty list when preset storage cannot be read", () => {
+    expect(loadCustomDicePresets({
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => undefined
+    })).toEqual([]);
+  });
+
   it("filters invalid preset entries and caps the result", () => {
     const values = [
       preset(1),
@@ -65,6 +74,15 @@ describe("custom dice presets", () => {
     saveCustomDicePresets(stored, [preset(1), { id: "bad", label: "", formula: "d20" } as CustomDicePreset]);
 
     expect(JSON.parse(stored.values.get(CUSTOM_DICE_PRESETS_STORAGE_KEY) ?? "null")).toEqual([preset(1)]);
+  });
+
+  it("ignores preset save failures", () => {
+    expect(() => saveCustomDicePresets({
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("quota");
+      }
+    }, [preset(1)])).not.toThrow();
   });
 
   it("adds new presets first while keeping the maximum count", () => {

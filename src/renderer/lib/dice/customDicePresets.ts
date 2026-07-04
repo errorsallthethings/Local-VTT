@@ -1,3 +1,5 @@
+import { loadLocalStorageJson, saveLocalStorageJson } from "../storage/localStorageJson";
+
 export interface CustomDicePreset {
   id: string;
   label: string;
@@ -24,15 +26,11 @@ export const CUSTOM_DICE_PRESETS_STORAGE_KEY = "localvtt.customDicePresets";
 export const MAX_CUSTOM_DICE_PRESETS = 12;
 
 export function loadCustomDicePresets(storage: CustomDicePresetStorage): CustomDicePreset[] {
-  try {
-    return normalizeCustomDicePresets(JSON.parse(storage.getItem(CUSTOM_DICE_PRESETS_STORAGE_KEY) ?? "[]"));
-  } catch {
-    return [];
-  }
+  return normalizeCustomDicePresets(loadLocalStorageJson(storage, CUSTOM_DICE_PRESETS_STORAGE_KEY, []));
 }
 
 export function saveCustomDicePresets(storage: CustomDicePresetStorage, presets: readonly CustomDicePreset[]): void {
-  storage.setItem(CUSTOM_DICE_PRESETS_STORAGE_KEY, JSON.stringify(normalizeCustomDicePresets(presets)));
+  saveLocalStorageJson(storage, CUSTOM_DICE_PRESETS_STORAGE_KEY, normalizeCustomDicePresets(presets));
 }
 
 export function addCustomDicePreset(presets: readonly CustomDicePreset[], preset: CustomDicePreset): CustomDicePreset[] {
