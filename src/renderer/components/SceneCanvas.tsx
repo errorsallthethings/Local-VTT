@@ -184,6 +184,11 @@ import {
 import { SceneCanvasContextMenus } from "./scene/SceneCanvasContextMenus";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
 import { getSceneContextMenuOpening, type SceneContextMenuOpening } from "./scene/sceneContextMenuOpening";
+import {
+  getCanvasContextMenuKindForSceneTarget,
+  getSceneContextMenuRoute,
+  shouldPreventSceneContextMenuDefault
+} from "./scene/sceneContextMenuRouting";
 import { resetSceneHoverState } from "./scene/sceneHoverReset";
 import {
   cancelSceneInteractionsForKeyboardEvent,
@@ -1972,11 +1977,23 @@ export function SceneCanvas({
   const onContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const activeRulerDrag = rulerDragRef.current;
     const tokenDrag = tokenDragRef.current;
-    if (authoringToolActive) {
+    const draft = polygonDraftRef.current;
+    const drawingDraft = drawingPolygonDraftRef.current;
+    const weatherDraft = weatherPolygonDraftRef.current;
+    const environmentDraft = environmentPolygonDraftRef.current;
+    const route = getSceneContextMenuRoute({
+      hasTokenDrag: Boolean(tokenDrag),
+      hasRulerDrag: Boolean(activeRulerDrag),
+      hasFogPolygonDraft: Boolean(draft),
+      hasDrawingPolygonDraft: Boolean(drawingDraft),
+      hasWeatherPolygonDraft: Boolean(weatherDraft),
+      hasEnvironmentPolygonDraft: Boolean(environmentDraft),
+      canOpenMenu: mode === "gm" && Boolean(scene)
+    });
+    if (shouldPreventSceneContextMenuDefault(route, authoringToolActive)) {
       event.preventDefault();
     }
-    if (tokenDrag) {
-      event.preventDefault();
+    if (route === "token-waypoint" && tokenDrag) {
       const update = getTokenDragWaypointRemovalUpdate(tokenDrag, tokenDragPreview);
       if (!update) {
         return;
@@ -1986,8 +2003,7 @@ export function SceneCanvas({
       return;
     }
 
-    if (activeRulerDrag) {
-      event.preventDefault();
+    if (route === "ruler-waypoint" && activeRulerDrag) {
       const nextRulerDrag = getRulerDragWithRemovedWaypoint(activeRulerDrag);
       if (!nextRulerDrag) {
         return;
@@ -1998,11 +2014,7 @@ export function SceneCanvas({
       return;
     }
 
-    const draft = polygonDraftRef.current;
-    const drawingDraft = drawingPolygonDraftRef.current;
-    const weatherDraft = weatherPolygonDraftRef.current;
-    const environmentDraft = environmentPolygonDraftRef.current;
-    if (!draft && !drawingDraft && !weatherDraft && !environmentDraft) {
+    if (route === "open-menu") {
       if (mode === "gm" && scene) {
         const point = clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale));
         const contextTarget = getSceneContextMenuTarget({
@@ -2015,35 +2027,26 @@ export function SceneCanvas({
           scene
         });
         if (contextTarget) {
-          event.preventDefault();
-          const menuKind: CanvasContextMenuKind =
-            contextTarget.kind === "token"
-              ? "token"
-              : contextTarget.kind === "drawing"
-                ? "drawing"
-                : contextTarget.kind === "environment-effect"
-                  ? "environment"
-                  : "mask";
+          const menuKind: CanvasContextMenuKind = getCanvasContextMenuKindForSceneTarget(contextTarget);
           applySceneContextMenuOpening(getSceneContextMenuOpening(contextTarget, getCanvasContextMenuPosition(event, menuKind)));
           return;
         }
       }
       return;
     }
-    event.preventDefault();
-    if (draft) {
+    if (route === "fog-polygon-backtrack") {
       removeLastScenePolygonDraftPoint({ ref: polygonDraftRef, setDraft: setPolygonDraft });
       return;
     }
-    if (drawingDraft) {
+    if (route === "drawing-polygon-backtrack") {
       removeLastScenePolygonDraftPoint({ ref: drawingPolygonDraftRef, setDraft: setDrawingPolygonDraft });
       return;
     }
-    if (weatherDraft) {
+    if (route === "weather-polygon-backtrack") {
       removeLastScenePolygonDraftPoint({ ref: weatherPolygonDraftRef, setDraft: setWeatherPolygonDraft });
       return;
     }
-    if (environmentDraft) {
+    if (route === "environment-polygon-backtrack") {
       removeLastScenePolygonDraftPoint({ ref: environmentPolygonDraftRef, setDraft: setEnvironmentPolygonDraft });
     }
   };
