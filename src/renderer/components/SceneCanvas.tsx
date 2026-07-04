@@ -74,18 +74,13 @@ import {
 } from "../canvas/measurement";
 import { updatePolygonDraftCurrent } from "../canvas/scene";
 import {
-  getDrawingContextMenu,
   getDrawingDragCommit,
   getDrawingPolygonDraftCommit,
-  getEnvironmentEffectContextMenu,
   getEnvironmentEffectDragCommit,
   getEnvironmentPolygonDraftCommit,
   getFogDragCommit,
-  getFogContextMenu,
   getFogPolygonDraftCommit,
-  getTokenContextMenu,
   getWeatherMaskDragCommit,
-  getWeatherMaskContextMenu,
   getWeatherPolygonDraftCommit,
   type DrawingContextMenu,
   type EnvironmentEffectContextMenu,
@@ -188,6 +183,7 @@ import {
 } from "../lib/scene";
 import { SceneCanvasContextMenus } from "./scene/SceneCanvasContextMenus";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
+import { getSceneContextMenuOpening, type SceneContextMenuOpening } from "./scene/sceneContextMenuOpening";
 import {
   appendScenePolygonDraftPoint,
   appendScopedScenePolygonDraftPoint,
@@ -1872,6 +1868,29 @@ export function SceneCanvas({
     }
   };
 
+  const applySceneContextMenuOpening = (opening: SceneContextMenuOpening) => {
+    const { selection } = opening;
+    if ("tokenId" in selection) {
+      onSelectToken?.(selection.tokenId ?? null);
+    }
+    if ("drawingId" in selection) {
+      onSelectDrawing?.(selection.drawingId ?? null);
+    }
+    if ("fogShapeId" in selection) {
+      onSelectFogShape?.(selection.fogShapeId ?? null);
+    }
+    if ("weatherMaskId" in selection) {
+      onSelectWeatherMask?.(selection.weatherMaskId ?? null);
+    }
+    if ("environmentEffectId" in selection) {
+      onSelectEnvironmentEffect?.(selection.environmentEffectId ?? null);
+    }
+    setTokenContextMenu(opening.tokenContextMenu);
+    setMaskContextMenu(opening.maskContextMenu);
+    setDrawingContextMenu(opening.drawingContextMenu);
+    setEnvironmentEffectContextMenu(opening.environmentEffectContextMenu);
+  };
+
   const onContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const activeRulerDrag = rulerDragRef.current;
     const tokenDrag = tokenDragRef.current;
@@ -1917,66 +1936,17 @@ export function SceneCanvas({
           point,
           scene
         });
-        if (contextTarget?.kind === "token") {
-          const menuPosition = getCanvasContextMenuPosition(event, "token");
+        if (contextTarget) {
           event.preventDefault();
-          onSelectToken?.(contextTarget.token.id);
-          onSelectFogShape?.(null);
-          onSelectWeatherMask?.(null);
-          onSelectDrawing?.(null);
-          setMaskContextMenu(null);
-          setDrawingContextMenu(null);
-          setEnvironmentEffectContextMenu(null);
-          setTokenContextMenu(getTokenContextMenu(contextTarget.token, menuPosition));
-          return;
-        }
-        if (contextTarget?.kind === "drawing") {
-          const menuPosition = getCanvasContextMenuPosition(event, "drawing");
-          event.preventDefault();
-          onSelectToken?.(null);
-          onSelectFogShape?.(null);
-          onSelectWeatherMask?.(null);
-          onSelectDrawing?.(contextTarget.drawing.id);
-          setTokenContextMenu(null);
-          setMaskContextMenu(null);
-          setEnvironmentEffectContextMenu(null);
-          setDrawingContextMenu(getDrawingContextMenu(contextTarget.drawing, contextTarget.drawingIndex, menuPosition));
-          return;
-        }
-        if (contextTarget?.kind === "weather-mask" || contextTarget?.kind === "fog") {
-          const menuPosition = getCanvasContextMenuPosition(event, "mask");
-          event.preventDefault();
-          onSelectToken?.(null);
-          onSelectDrawing?.(null);
-          if (contextTarget.kind === "weather-mask") {
-            onSelectWeatherMask?.(contextTarget.mask.id);
-            onSelectFogShape?.(null);
-            setTokenContextMenu(null);
-            setDrawingContextMenu(null);
-            setEnvironmentEffectContextMenu(null);
-            setMaskContextMenu(getWeatherMaskContextMenu(contextTarget.mask, menuPosition));
-          } else {
-            onSelectFogShape?.(contextTarget.shape.id);
-            onSelectWeatherMask?.(null);
-            setTokenContextMenu(null);
-            setDrawingContextMenu(null);
-            setEnvironmentEffectContextMenu(null);
-            setMaskContextMenu(getFogContextMenu(contextTarget.shape, contextTarget.shapeIndex, menuPosition));
-          }
-          return;
-        }
-        if (contextTarget?.kind === "environment-effect") {
-          const menuPosition = getCanvasContextMenuPosition(event, "environment");
-          event.preventDefault();
-          onSelectToken?.(null);
-          onSelectDrawing?.(null);
-          onSelectFogShape?.(null);
-          onSelectWeatherMask?.(null);
-          onSelectEnvironmentEffect?.(contextTarget.effect.id);
-          setTokenContextMenu(null);
-          setMaskContextMenu(null);
-          setDrawingContextMenu(null);
-          setEnvironmentEffectContextMenu(getEnvironmentEffectContextMenu(contextTarget.effect, contextTarget.effectIndex, menuPosition));
+          const menuKind: CanvasContextMenuKind =
+            contextTarget.kind === "token"
+              ? "token"
+              : contextTarget.kind === "drawing"
+                ? "drawing"
+                : contextTarget.kind === "environment-effect"
+                  ? "environment"
+                  : "mask";
+          applySceneContextMenuOpening(getSceneContextMenuOpening(contextTarget, getCanvasContextMenuPosition(event, menuKind)));
           return;
         }
       }
