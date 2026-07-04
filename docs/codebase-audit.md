@@ -49,6 +49,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted and tested SceneCanvas interaction cancellation policy so Escape handling and cancelable interaction detection are no longer inline component logic.
 - Extracted and tested SceneCanvas pointer-up routing and hover reset policy, reducing inline interaction branch ordering in the canvas component.
 - Extracted and tested SceneCanvas context-menu routing for waypoint removal, polygon backtracking, and target menu kind selection.
+- Split the environment effect drawer registry out of the layer renderer so future effect-family modules can move behind a stable registry seam.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots

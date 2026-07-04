@@ -1,5 +1,6 @@
 export * from "./environmentEffectGeometry";
 export * from "./environmentEffectFallbacks";
+export * from "./environmentEffectDrawers";
 export * from "./environmentEffectLayerRenderer";
 export * from "./environmentEffectRendererMath";
 export * from "./environmentEffectsRenderer";
