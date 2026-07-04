@@ -5,14 +5,20 @@ import { PLAYER_INDICATOR_THEME_LABELS, PLAYER_INDICATOR_THEMES } from "../../..
 import type { Asset, Campaign, CampaignPlayer, PlayerIndicatorTheme } from "../../../shared/localvtt";
 import { ColorInput } from "../controls/ColorPickerField";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
-import type { RecentCampaign } from "../../lib/campaign";
+import {
+  getCampaignPlayerAddTitle,
+  getCampaignPlayerAvatarPresentation,
+  getCampaignPlayerCountLabel,
+  getCampaignPlayerSeatPositionFromPercent,
+  getCampaignPlayerSeatPositionPercent,
+  getCanAddCampaignPlayer,
+  type RecentCampaign
+} from "../../lib/campaign";
 import { getAssetThumbnailPreviewMessage, getAssetThumbnailPreviewPath } from "../../lib/assets";
 import { getMissingAssetsWarningItems, MISSING_ASSETS_WARNING_MESSAGE } from "../../lib/assets/assetRecovery";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
 import { CompactAssetThumbnail } from "../assets/CompactAssetThumbnail";
-
-const MAX_CAMPAIGN_PLAYERS = 7;
 
 interface CampaignPanelProps {
   campaign: Campaign | null;
@@ -64,6 +70,8 @@ export function CampaignPanel({
   const [playersCollapsed, setPlayersCollapsed] = useState(true);
   const [maintenanceMenuOpen, setMaintenanceMenuOpen] = useState(false);
   const maintenanceButtonRef = useRef<HTMLButtonElement | null>(null);
+  const playerCount = campaign?.players.length ?? 0;
+  const canAddPlayer = getCanAddCampaignPlayer(playerCount);
   useEffect(() => {
     setPlayersCollapsed(true);
     setMaintenanceMenuOpen(false);
@@ -197,13 +205,13 @@ export function CampaignPanel({
             >
               {playersCollapsed ? <ChevronRight size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
               <strong>Players</strong>
-              <span>{campaign.players.length === 1 ? "1 player" : `${campaign.players.length} players`}</span>
+              <span>{getCampaignPlayerCountLabel(campaign.players.length)}</span>
             </button>
             <button
               className="icon-button"
               aria-label="Add Player"
-              title={campaign.players.length >= MAX_CAMPAIGN_PLAYERS ? "Maximum players reached" : "Add Player"}
-              disabled={campaign.players.length >= MAX_CAMPAIGN_PLAYERS}
+              title={getCampaignPlayerAddTitle(campaign.players.length)}
+              disabled={!canAddPlayer}
               onClick={onAddPlayer}
             >
               <UserRoundPlus size={15} aria-hidden="true" />
@@ -300,12 +308,13 @@ function CampaignPlayerRow({
   const hasSelectedAsset = Boolean(selectedAsset);
   const previewPath = getAssetThumbnailPreviewPath(selectedAsset);
   const previewMessage = getAssetThumbnailPreviewMessage(selectedAsset);
+  const avatarPresentation = getCampaignPlayerAvatarPresentation(player, hasSelectedAsset, previewMessage);
   return (
     <article className="campaign-player-row">
       <button
         type="button"
-        className={hasSelectedAsset ? "campaign-player-avatar" : "campaign-player-avatar campaign-player-avatar-drop"}
-        title={hasSelectedAsset ? (previewMessage ? `${previewMessage} Click to remove this player thumbnail.` : "Remove thumbnail") : "Drag a token here to use its thumbnail"}
+        className={avatarPresentation.className}
+        title={avatarPresentation.title}
         onClick={() => {
           if (hasSelectedAsset) {
             onUpdate({ assetId: undefined });
@@ -327,8 +336,8 @@ function CampaignPlayerRow({
           onUpdate({ assetId });
         }}
       >
-        <CompactAssetThumbnail previewPath={previewPath} fallback={player.name.slice(0, 1).toUpperCase()} />
-        {hasSelectedAsset && <span className="campaign-player-avatar-reset">Reset</span>}
+        <CompactAssetThumbnail previewPath={previewPath} fallback={avatarPresentation.fallback} />
+        {avatarPresentation.resetVisible && <span className="campaign-player-avatar-reset">Reset</span>}
       </button>
       <input className="campaign-player-name" value={player.name} aria-label="Player name" onChange={(event) => onUpdate({ name: event.target.value })} />
       <ColorInput className="campaign-player-color" value={player.color} aria-label="Player color" onChange={(color) => onUpdate({ color })} />
@@ -354,9 +363,9 @@ function CampaignPlayerRow({
               type="range"
               min="0"
               max="100"
-              value={Math.round(player.defaultSeatPosition * 100)}
+              value={getCampaignPlayerSeatPositionPercent(player.defaultSeatPosition)}
               aria-label="Default seat position"
-              onChange={(event) => onUpdate({ defaultSeatPosition: Number(event.target.value) / 100 })}
+              onChange={(event) => onUpdate({ defaultSeatPosition: getCampaignPlayerSeatPositionFromPercent(event.target.value) })}
             />
           </label>
           <div className="campaign-player-settings-label">Turn Indicator</div>

@@ -3,6 +3,13 @@ import { removeTurnOrderEntriesForPlayer, updateTurnOrderEntriesForPlayer } from
 
 export const MAX_CAMPAIGN_PLAYERS = 7;
 
+export interface CampaignPlayerAvatarPresentation {
+  className: string;
+  title: string;
+  fallback: string;
+  resetVisible: boolean;
+}
+
 export type CampaignPlayerMutation = {
   campaign: Campaign;
   scene: Scene | null;
@@ -62,5 +69,35 @@ export function deleteCampaignPlayerFromCampaign(campaign: Campaign, activeScene
       activeScene && activeScene.turnOrder.entries.some((entry) => entry.playerId === playerId)
         ? removeTurnOrderEntriesForPlayer(activeScene, playerId, updatedAt)
         : null
+  };
+}
+
+export function getCampaignPlayerCountLabel(playerCount: number): string {
+  return playerCount === 1 ? "1 player" : `${playerCount} players`;
+}
+
+export function getCanAddCampaignPlayer(playerCount: number): boolean {
+  return playerCount < MAX_CAMPAIGN_PLAYERS;
+}
+
+export function getCampaignPlayerAddTitle(playerCount: number): string {
+  return getCanAddCampaignPlayer(playerCount) ? "Add Player" : "Maximum players reached";
+}
+
+export function getCampaignPlayerSeatPositionPercent(position: number): number {
+  return Math.round(Math.max(0, Math.min(1, Number.isFinite(position) ? position : 0.5)) * 100);
+}
+
+export function getCampaignPlayerSeatPositionFromPercent(value: string): number {
+  const parsedValue = Number(value);
+  return Math.max(0, Math.min(1, Number.isFinite(parsedValue) ? parsedValue / 100 : 0.5));
+}
+
+export function getCampaignPlayerAvatarPresentation(player: CampaignPlayer, hasSelectedAsset: boolean, previewMessage: string | null | undefined): CampaignPlayerAvatarPresentation {
+  return {
+    className: hasSelectedAsset ? "campaign-player-avatar" : "campaign-player-avatar campaign-player-avatar-drop",
+    title: hasSelectedAsset ? (previewMessage ? `${previewMessage} Click to remove this player thumbnail.` : "Remove thumbnail") : "Drag a token here to use its thumbnail",
+    fallback: (player.name.trim() || "P").slice(0, 1).toUpperCase(),
+    resetVisible: hasSelectedAsset
   };
 }

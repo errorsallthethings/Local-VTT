@@ -3,6 +3,12 @@ import { createDefaultCampaign, createDefaultScene, DEFAULT_TOKEN_BORDER_COLOR, 
 import {
   addCampaignPlayerToCampaign,
   deleteCampaignPlayerFromCampaign,
+  getCampaignPlayerAddTitle,
+  getCampaignPlayerAvatarPresentation,
+  getCampaignPlayerCountLabel,
+  getCampaignPlayerSeatPositionFromPercent,
+  getCampaignPlayerSeatPositionPercent,
+  getCanAddCampaignPlayer,
   MAX_CAMPAIGN_PLAYERS,
   updateCampaignPlayerInCampaign
 } from "../../src/renderer/lib/campaign";
@@ -109,5 +115,41 @@ describe("campaign player helpers", () => {
     expect(result.scene?.turnOrder.entries.map((entry) => entry.id)).toEqual(["entry-2"]);
     expect(result.scene?.turnOrder.currentEntryId).toBe("entry-2");
     expect(result.scene?.updatedAt).toBe(now);
+  });
+
+  it("formats campaign player count and add-player state", () => {
+    expect(getCampaignPlayerCountLabel(0)).toBe("0 players");
+    expect(getCampaignPlayerCountLabel(1)).toBe("1 player");
+    expect(getCampaignPlayerCountLabel(2)).toBe("2 players");
+    expect(getCanAddCampaignPlayer(MAX_CAMPAIGN_PLAYERS - 1)).toBe(true);
+    expect(getCanAddCampaignPlayer(MAX_CAMPAIGN_PLAYERS)).toBe(false);
+    expect(getCampaignPlayerAddTitle(MAX_CAMPAIGN_PLAYERS - 1)).toBe("Add Player");
+    expect(getCampaignPlayerAddTitle(MAX_CAMPAIGN_PLAYERS)).toBe("Maximum players reached");
+  });
+
+  it("converts campaign player seat position slider values", () => {
+    expect(getCampaignPlayerSeatPositionPercent(0.255)).toBe(26);
+    expect(getCampaignPlayerSeatPositionPercent(-1)).toBe(0);
+    expect(getCampaignPlayerSeatPositionPercent(2)).toBe(100);
+    expect(getCampaignPlayerSeatPositionPercent(Number.NaN)).toBe(50);
+    expect(getCampaignPlayerSeatPositionFromPercent("25")).toBe(0.25);
+    expect(getCampaignPlayerSeatPositionFromPercent("-10")).toBe(0);
+    expect(getCampaignPlayerSeatPositionFromPercent("125")).toBe(1);
+    expect(getCampaignPlayerSeatPositionFromPercent("bad")).toBe(0.5);
+  });
+
+  it("builds campaign player avatar presentation state", () => {
+    expect(getCampaignPlayerAvatarPresentation(player("player-1", { name: "Alice" }), false, null)).toEqual({
+      className: "campaign-player-avatar campaign-player-avatar-drop",
+      title: "Drag a token here to use its thumbnail",
+      fallback: "A",
+      resetVisible: false
+    });
+    expect(getCampaignPlayerAvatarPresentation(player("player-2", { name: "" }), true, "Thumbnail missing.")).toEqual({
+      className: "campaign-player-avatar",
+      title: "Thumbnail missing. Click to remove this player thumbnail.",
+      fallback: "P",
+      resetVisible: true
+    });
   });
 });
