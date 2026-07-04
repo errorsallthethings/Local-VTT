@@ -8,8 +8,19 @@ import { GripVertical, X } from "lucide-react";
 import type { EnvironmentEffectType, Scene } from "../../../../shared/localvtt";
 import { clampModalPosition, type ModalSize, useResizableModal } from "../../../hooks/useResizableModal";
 import { AcidEffectTuningPanel, ArcaneEffectTuningPanel, ChaosEffectTuningPanel, ColdEffectTuningPanel, DarknessEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, NatureEffectTuningPanel, PoisonEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, VoidEffectTuningPanel, WaterEffectTuningPanel } from "../../tools";
-import { DEFAULT_ACID_EFFECT_TUNING, DEFAULT_ARCANE_EFFECT_TUNING, DEFAULT_CHAOS_EFFECT_TUNING, DEFAULT_COLD_EFFECT_TUNING, DEFAULT_DARKNESS_EFFECT_TUNING, DEFAULT_DISTORTION_EFFECT_TUNING, DEFAULT_FIRE_EFFECT_TUNING, DEFAULT_FOG_EFFECT_TUNING, DEFAULT_FORCE_FIELD_EFFECT_TUNING, DEFAULT_LAVA_EFFECT_TUNING, DEFAULT_LIGHTNING_EFFECT_TUNING, DEFAULT_NATURE_EFFECT_TUNING, DEFAULT_POISON_EFFECT_TUNING, DEFAULT_RADIANT_EFFECT_TUNING, DEFAULT_SHOCKWAVE_EFFECT_TUNING, DEFAULT_SMOKE_EFFECT_TUNING, DEFAULT_VOID_EFFECT_TUNING, DEFAULT_WATER_EFFECT_TUNING, type AcidEffectTuning, type ArcaneEffectTuning, type ChaosEffectTuning, type ColdEffectTuning, type DarknessEffectTuning, type DistortionEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type NatureEffectTuning, type PoisonEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type VoidEffectTuning, type WaterEffectTuning } from "../../../canvas/effects";
-import { ENVIRONMENT_EFFECT_FEATHER_OPTIONS, ENVIRONMENT_EFFECT_OPTIONS, applyEnvironmentEffectPreset, formatEnvironmentEffectOptionLabel, getEnvironmentEffectFeatherSelectValue, getEnvironmentEffectPresetOptions, getEnvironmentEffectPresetSelectValue } from "../../../lib/effects";
+import { type AcidEffectTuning, type ArcaneEffectTuning, type ChaosEffectTuning, type ColdEffectTuning, type DarknessEffectTuning, type DistortionEffectTuning, type FireEffectTuning, type FogEffectTuning, type ForceFieldEffectTuning, type LavaEffectTuning, type LightningEffectTuning, type NatureEffectTuning, type PoisonEffectTuning, type RadiantEffectTuning, type ShockwaveEffectTuning, type SmokeEffectTuning, type VoidEffectTuning, type WaterEffectTuning } from "../../../canvas/effects";
+import { ENVIRONMENT_EFFECT_FEATHER_OPTIONS, ENVIRONMENT_EFFECT_OPTIONS, applyEnvironmentEffectPreset, formatEnvironmentEffectOptionLabel, getEnvironmentEffectFeatherSelectValue, getEnvironmentEffectPresetOptions } from "../../../lib/effects";
+import {
+  getEnvironmentEffectEditorActiveTunings,
+  getEnvironmentEffectEditorDefaultPresetValue,
+  getEnvironmentEffectEditorDragPosition,
+  getEnvironmentEffectEditorDragStart,
+  getEnvironmentEffectEditorEmptyTuningMessage,
+  getEnvironmentEffectEditorLabel,
+  getEnvironmentEffectEditorModalClassName,
+  getEnvironmentEffectEditorPresetValue,
+  type EnvironmentEffectEditorDragState
+} from "./environmentEffectEditorState";
 
 export function EnvironmentEffectEditorModal({
   effect,
@@ -103,8 +114,8 @@ export function EnvironmentEffectEditorModal({
   onEffectTypeChange: (effectType: EnvironmentEffectType) => void;
 }) {
   const modalRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
-  const label = effect.name?.trim() || `${formatEnvironmentEffectOptionLabel(effect.effect)} Effect`;
+  const dragRef = useRef<EnvironmentEffectEditorDragState | null>(null);
+  const label = getEnvironmentEffectEditorLabel(effect);
   const { resize, startResize, stopResize } = useResizableModal({
     elementRef: modalRef,
     position,
@@ -117,27 +128,30 @@ export function EnvironmentEffectEditorModal({
     ...(position ? { left: position.x, top: position.y } : {}),
     ...(size ? { width: size.width, height: size.height } : {})
   } as CSSProperties;
-  const activeAcidTuning = { ...DEFAULT_ACID_EFFECT_TUNING, ...(effect.acidTuning ?? {}) };
-  const activeColdTuning = { ...DEFAULT_COLD_EFFECT_TUNING, ...(effect.coldTuning ?? {}) };
-  const activeDarknessTuning = { ...DEFAULT_DARKNESS_EFFECT_TUNING, ...(effect.darknessTuning ?? {}) };
-  const activePoisonTuning = { ...DEFAULT_POISON_EFFECT_TUNING, ...(effect.poisonTuning ?? {}) };
-  const activeWaterTuning = { ...DEFAULT_WATER_EFFECT_TUNING, ...(effect.waterTuning ?? {}) };
-  const activeLavaTuning = { ...DEFAULT_LAVA_EFFECT_TUNING, ...(effect.lavaTuning ?? {}) };
-  const activeFireTuning = { ...DEFAULT_FIRE_EFFECT_TUNING, ...(effect.fireTuning ?? {}) };
-  const activeLightningTuning = { ...DEFAULT_LIGHTNING_EFFECT_TUNING, ...(effect.lightningTuning ?? {}) };
-  const activeArcaneTuning = { ...DEFAULT_ARCANE_EFFECT_TUNING, ...(effect.arcaneTuning ?? {}) };
-  const activeChaosTuning = { ...DEFAULT_CHAOS_EFFECT_TUNING, ...(effect.chaosTuning ?? {}) };
-  const activeVoidTuning = { ...DEFAULT_VOID_EFFECT_TUNING, ...(effect.voidTuning ?? {}) };
-  const activeNatureTuning = { ...DEFAULT_NATURE_EFFECT_TUNING, ...(effect.natureTuning ?? {}) };
-  const activeDistortionTuning = { ...DEFAULT_DISTORTION_EFFECT_TUNING, ...(effect.distortionTuning ?? {}) };
-  const activeRadiantTuning = { ...DEFAULT_RADIANT_EFFECT_TUNING, ...(effect.radiantTuning ?? {}) };
-  const activeForceFieldTuning = { ...DEFAULT_FORCE_FIELD_EFFECT_TUNING, ...(effect.fieldTuning ?? {}) };
-  const activeShockwaveTuning = { ...DEFAULT_SHOCKWAVE_EFFECT_TUNING, ...(effect.shockwaveTuning ?? {}) };
-  const activeSmokeTuning = { ...DEFAULT_SMOKE_EFFECT_TUNING, ...(effect.smokeTuning ?? {}) };
-  const activeFogTuning = { ...DEFAULT_FOG_EFFECT_TUNING, ...(effect.fogTuning ?? {}) };
-  const defaultPresetValue = getEnvironmentEffectPresetSelectValue(effect.effect, activeAcidTuning, activeColdTuning, activeDarknessTuning, activePoisonTuning, activeWaterTuning, activeLavaTuning, activeFireTuning, activeLightningTuning, activeArcaneTuning, activeChaosTuning, activeVoidTuning, activeNatureTuning, activeDistortionTuning, activeRadiantTuning, activeForceFieldTuning, activeShockwaveTuning, activeSmokeTuning, activeFogTuning);
+  const activeTunings = getEnvironmentEffectEditorActiveTunings(effect);
+  const {
+    acid: activeAcidTuning,
+    cold: activeColdTuning,
+    darkness: activeDarknessTuning,
+    poison: activePoisonTuning,
+    water: activeWaterTuning,
+    lava: activeLavaTuning,
+    fire: activeFireTuning,
+    lightning: activeLightningTuning,
+    arcane: activeArcaneTuning,
+    chaos: activeChaosTuning,
+    void: activeVoidTuning,
+    nature: activeNatureTuning,
+    distortion: activeDistortionTuning,
+    radiant: activeRadiantTuning,
+    forceField: activeForceFieldTuning,
+    shockwave: activeShockwaveTuning,
+    smoke: activeSmokeTuning,
+    fog: activeFogTuning
+  } = activeTunings;
+  const defaultPresetValue = getEnvironmentEffectEditorDefaultPresetValue(effect, activeTunings);
   const [presetSelection, setPresetSelection] = useState(() => ({ effectId: effect.id, value: defaultPresetValue }));
-  const presetValue = presetSelection.effectId === effect.id ? presetSelection.value : defaultPresetValue;
+  const presetValue = getEnvironmentEffectEditorPresetValue(presetSelection, effect.id, defaultPresetValue);
   const resetActiveTuning = () => {
     if (presetValue !== "custom") {
       applyEnvironmentEffectPreset(effect.effect, presetValue, {
@@ -209,11 +223,7 @@ export function EnvironmentEffectEditorModal({
     }
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = {
-      pointerId: event.pointerId,
-      offsetX: event.clientX - bounds.left,
-      offsetY: event.clientY - bounds.top
-    };
+    dragRef.current = getEnvironmentEffectEditorDragStart(event.pointerId, event.clientX, event.clientY, bounds);
     onPositionChange(clampModalPosition(bounds.left, bounds.top, bounds.width, bounds.height));
   };
 
@@ -223,7 +233,8 @@ export function EnvironmentEffectEditorModal({
     if (!dragState || dragState.pointerId !== event.pointerId || !bounds) {
       return;
     }
-    onPositionChange(clampModalPosition(event.clientX - dragState.offsetX, event.clientY - dragState.offsetY, bounds.width, bounds.height));
+    const nextPosition = getEnvironmentEffectEditorDragPosition(dragState, event.clientX, event.clientY);
+    onPositionChange(clampModalPosition(nextPosition.x, nextPosition.y, bounds.width, bounds.height));
   };
 
   const stopDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -235,7 +246,7 @@ export function EnvironmentEffectEditorModal({
   return (
     <section
       ref={modalRef}
-      className={position ? "environment-effect-editor-modal environment-effect-editor-modal-positioned" : "environment-effect-editor-modal"}
+      className={getEnvironmentEffectEditorModalClassName(position)}
       style={style}
       role="dialog"
       aria-labelledby="environment-effect-editor-title"
@@ -488,7 +499,7 @@ export function EnvironmentEffectEditorModal({
         ) : (
           <div className="layer-empty-state">
             <strong>No Editable Settings</strong>
-            <span>{formatEnvironmentEffectOptionLabel(effect.effect)} effects do not have advanced controls yet.</span>
+            <span>{getEnvironmentEffectEditorEmptyTuningMessage(effect.effect)}</span>
           </div>
         )}
         <div className="button-row modal-actions">
