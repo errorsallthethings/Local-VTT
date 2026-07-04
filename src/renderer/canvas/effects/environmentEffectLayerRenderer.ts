@@ -108,6 +108,48 @@ export type EnvironmentEffectDrawFn = (
   tuningOverrides: EnvironmentEffectTuningOverrides
 ) => void;
 
+export function buildEnvironmentEffectTuningOverrides(
+  acidEffectTuning?: AcidEffectTuning,
+  coldEffectTuning?: ColdEffectTuning,
+  darknessEffectTuning?: DarknessEffectTuning,
+  poisonEffectTuning?: PoisonEffectTuning,
+  waterEffectTuning?: WaterEffectTuning,
+  lavaEffectTuning?: LavaEffectTuning,
+  fireEffectTuning?: FireEffectTuning,
+  lightningEffectTuning?: LightningEffectTuning,
+  arcaneEffectTuning?: ArcaneEffectTuning,
+  chaosEffectTuning?: ChaosEffectTuning,
+  voidEffectTuning?: VoidEffectTuning,
+  natureEffectTuning?: NatureEffectTuning,
+  distortionEffectTuning?: DistortionEffectTuning,
+  radiantEffectTuning?: RadiantEffectTuning,
+  forceFieldEffectTuning?: ForceFieldEffectTuning,
+  shockwaveEffectTuning?: ShockwaveEffectTuning,
+  smokeEffectTuning?: SmokeEffectTuning,
+  fogEffectTuning?: FogEffectTuning
+): EnvironmentEffectTuningOverrides {
+  return {
+    acidEffectTuning,
+    coldEffectTuning,
+    darknessEffectTuning,
+    poisonEffectTuning,
+    waterEffectTuning,
+    lavaEffectTuning,
+    fireEffectTuning,
+    lightningEffectTuning,
+    arcaneEffectTuning,
+    chaosEffectTuning,
+    voidEffectTuning,
+    natureEffectTuning,
+    distortionEffectTuning,
+    radiantEffectTuning,
+    forceFieldEffectTuning,
+    shockwaveEffectTuning,
+    smokeEffectTuning,
+    fogEffectTuning
+  };
+}
+
 let featherCompositeCanvas: HTMLCanvasElement | null = null;
 
 interface ViewportBounds {
@@ -146,7 +188,7 @@ export function drawEnvironmentEffects(
   smokeEffectTuning?: SmokeEffectTuning,
   fogEffectTuning?: FogEffectTuning
 ) {
-  const tuningOverrides: EnvironmentEffectTuningOverrides = {
+  const tuningOverrides = buildEnvironmentEffectTuningOverrides(
     acidEffectTuning,
     coldEffectTuning,
     darknessEffectTuning,
@@ -165,7 +207,7 @@ export function drawEnvironmentEffects(
     shockwaveEffectTuning,
     smokeEffectTuning,
     fogEffectTuning
-  };
+  );
   const viewportBounds = getCanvasViewportBounds(ctx);
   for (const effect of effects) {
     if (!isEnvironmentEffectVisibleForMode(effect, mode)) {
