@@ -1,19 +1,19 @@
 import type { GridType } from "../../../../shared/localvtt";
 import {
-  DEFAULT_TOKEN_BORDER_COLOR,
-  DEFAULT_TOKEN_BORDER_STYLE,
-  DEFAULT_TOKEN_BORDER_WIDTH,
-  DEFAULT_TOKEN_FOOTPRINT_VISIBLE,
-  DEFAULT_TOKEN_GLOW_COLOR,
-  DEFAULT_TOKEN_MASK,
-  DEFAULT_TOKEN_SIZE_PRESET,
   type Token,
   type TokenBorderStyle,
   type TokenBorderWidthPreset,
   type TokenMask,
   type TokenSizePreset
 } from "../../../../shared/localvtt";
-import { getBorderWidthForPreset, getBorderWidthPreset, getTokenSizeForPreset } from "../../../lib/tokens";
+import {
+  getTokenBorderWidthPresetPatch,
+  getTokenCustomBorderWidthPatch,
+  getTokenCustomSizePatch,
+  getTokenFootprintVisibilityPatch,
+  getTokenSettingsPresentation,
+  getTokenSizePresetPatch
+} from "../../../lib/tokens";
 import { ColorSettingRow } from "../../controls/ColorPickerField";
 
 export function TokenSettings({
@@ -31,69 +31,47 @@ export function TokenSettings({
   onOpenTokenColor: (tokenId: string, value: string, kind: "border" | "glow") => void;
   showFootprint?: boolean;
 }) {
-  const sizePreset = token.sizePreset ?? DEFAULT_TOKEN_SIZE_PRESET;
-  const borderColor = token.borderColor ?? DEFAULT_TOKEN_BORDER_COLOR;
-  const borderWidth = token.borderWidth ?? DEFAULT_TOKEN_BORDER_WIDTH;
-  const borderWidthPreset = token.borderWidthPreset ?? getBorderWidthPreset(borderWidth);
-  const borderStyle = token.borderStyle ?? DEFAULT_TOKEN_BORDER_STYLE;
-  const glowColor = token.glowColor ?? DEFAULT_TOKEN_GLOW_COLOR;
-  const customWidthCells = Math.round((token.size.width / Math.max(1, gridSize)) * 100) / 100;
-  const customHeightCells = Math.round((token.size.height / Math.max(1, gridSize)) * 100) / 100;
-  const customSizeDisabled = gridType === "hex";
+  const presentation = getTokenSettingsPresentation(token, gridSize, gridType);
 
   const updateSizePreset = (preset: TokenSizePreset) => {
-    if (preset === "custom") {
-      onUpdateToken({ sizePreset: "custom" });
-      return;
-    }
-    onUpdateToken({
-      sizePreset: preset,
-      size: getTokenSizeForPreset(preset, gridSize, gridType)
-    });
+    onUpdateToken(getTokenSizePresetPatch(preset, gridSize, gridType));
   };
 
   const updateCustomSize = (axis: "width" | "height", cells: number) => {
-    const clampedCells = Math.min(10, Math.max(0.25, cells));
-    onUpdateToken({
-      sizePreset: "custom",
-      size: {
-        width: axis === "width" ? Math.max(1, gridSize) * clampedCells : token.size.width,
-        height: axis === "height" ? Math.max(1, gridSize) * clampedCells : token.size.height
-      }
-    });
+    onUpdateToken(getTokenCustomSizePatch(token, gridSize, axis, cells));
   };
 
   return (
     <div className="settings-grid">
       <label className="setting-row">
         <span>Size</span>
-        <select value={sizePreset} onChange={(event) => updateSizePreset(event.target.value as TokenSizePreset)}>
+        <select value={presentation.sizePreset} onChange={(event) => updateSizePreset(event.target.value as TokenSizePreset)}>
           <option value="tiny">Tiny/Small</option>
           <option value="medium">Medium</option>
           <option value="large">Large</option>
           <option value="huge">Huge</option>
           <option value="gargantuan">Gargantuan</option>
-          <option value="custom" disabled={customSizeDisabled}>Custom</option>
+          <option value="custom" disabled={presentation.customSizeDisabled}>Custom</option>
         </select>
       </label>
-      {sizePreset === "custom" && !customSizeDisabled && (
+      {presentation.sizePreset === "custom" && !presentation.customSizeDisabled && (
         <div className="setting-row">
           <span>Cells</span>
           <div className="xy-inputs">
             <label>
               W
-              <input type="number" min={0.25} max={10} step={0.25} value={customWidthCells} onChange={(event) => updateCustomSize("width", Number(event.target.value))} />
+              <input type="number" min={0.25} max={10} step={0.25} value={presentation.customWidthCells} onChange={(event) => updateCustomSize("width", Number(event.target.value))} />
             </label>
             <label>
               H
-              <input type="number" min={0.25} max={10} step={0.25} value={customHeightCells} onChange={(event) => updateCustomSize("height", Number(event.target.value))} />
+              <input type="number" min={0.25} max={10} step={0.25} value={presentation.customHeightCells} onChange={(event) => updateCustomSize("height", Number(event.target.value))} />
             </label>
           </div>
         </div>
       )}
       <label className="setting-row">
         <span>Mask</span>
-        <select value={token.mask ?? DEFAULT_TOKEN_MASK} onChange={(event) => onUpdateToken({ mask: event.target.value as TokenMask })}>
+        <select value={presentation.mask} onChange={(event) => onUpdateToken({ mask: event.target.value as TokenMask })}>
           <option value="circle">Circle</option>
           <option value="square">Square</option>
           <option value="none">None</option>
@@ -101,7 +79,7 @@ export function TokenSettings({
       </label>
       <label className="setting-row">
         <span>Border</span>
-        <select value={borderStyle} onChange={(event) => onUpdateToken({ borderStyle: event.target.value as TokenBorderStyle })}>
+        <select value={presentation.borderStyle} onChange={(event) => onUpdateToken({ borderStyle: event.target.value as TokenBorderStyle })}>
           <option value="none">None</option>
           <option value="solid">Solid</option>
           <option value="dashed">Dashed</option>
@@ -112,18 +90,15 @@ export function TokenSettings({
           <option value="glow">Glow</option>
         </select>
       </label>
-      <ColorSettingRow label="Border Color" value={borderColor} onOpen={() => onOpenTokenColor(token.id, borderColor, "border")} />
-      {borderStyle === "glow" && <ColorSettingRow label="Glow Color" value={glowColor} onOpen={() => onOpenTokenColor(token.id, glowColor, "glow")} />}
+      <ColorSettingRow label="Border Color" value={presentation.borderColor} onOpen={() => onOpenTokenColor(token.id, presentation.borderColor, "border")} />
+      {presentation.borderStyle === "glow" && <ColorSettingRow label="Glow Color" value={presentation.glowColor} onOpen={() => onOpenTokenColor(token.id, presentation.glowColor, "glow")} />}
       <label className="setting-row">
         <span>Border Width</span>
         <select
-          value={borderWidthPreset}
+          value={presentation.borderWidthPreset}
           onChange={(event) => {
             const preset = event.target.value as TokenBorderWidthPreset;
-            onUpdateToken({
-              borderWidthPreset: preset,
-              borderWidth: getBorderWidthForPreset(preset, borderWidth)
-            });
+            onUpdateToken(getTokenBorderWidthPresetPatch(preset, presentation.borderWidth));
           }}
         >
           <option value="thin">Thin</option>
@@ -132,7 +107,7 @@ export function TokenSettings({
           <option value="custom">Custom</option>
         </select>
       </label>
-      {borderWidthPreset === "custom" && (
+      {presentation.borderWidthPreset === "custom" && (
         <label className="setting-row">
           <span>Pixels</span>
           <input
@@ -140,8 +115,8 @@ export function TokenSettings({
             min={1}
             max={64}
             step={1}
-            value={borderWidth}
-            onChange={(event) => onUpdateToken({ borderWidth: Math.min(64, Math.max(1, Number(event.target.value))) })}
+            value={presentation.borderWidth}
+            onChange={(event) => onUpdateToken(getTokenCustomBorderWidthPatch(Number(event.target.value)))}
           />
         </label>
       )}
@@ -153,8 +128,8 @@ export function TokenSettings({
             <input
               aria-label="Show token footprint highlight"
               type="checkbox"
-              checked={!(token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE)}
-              onChange={(event) => onUpdateToken({ footprintVisible: !event.target.checked })}
+              checked={presentation.footprintHidden}
+              onChange={(event) => onUpdateToken(getTokenFootprintVisibilityPatch(event.target.checked))}
             />
             <span>Hide</span>
           </label>
