@@ -47,7 +47,6 @@ import {
   drawEnvironmentColdEffect,
   drawEnvironmentDarknessEffect,
   drawEnvironmentDistortionEffect,
-  drawEnvironmentFogEffect,
   drawEnvironmentForceFieldEffect,
   drawEnvironmentFireEffect,
   drawEnvironmentLavaEffect,
@@ -56,10 +55,10 @@ import {
   drawEnvironmentPoisonEffect,
   drawEnvironmentRadiantEffect,
   drawEnvironmentShockwaveEffect,
-  drawEnvironmentSmokeEffect,
   drawEnvironmentVoidEffect,
   drawEnvironmentWaterEffect
 } from "./environmentEffectsRenderer";
+import { drawEnvironmentFogEffect, drawEnvironmentSmokeEffect } from "./environmentSmokeFogEffects";
 import type { ScreenBounds } from "./environmentEffectRendererMath";
 
 export interface EnvironmentEffectTuningOverrides {

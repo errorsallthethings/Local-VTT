@@ -6,7 +6,6 @@ import {
   DEFAULT_COLD_EFFECT_TUNING,
   DEFAULT_DARKNESS_EFFECT_TUNING,
   DEFAULT_DISTORTION_EFFECT_TUNING,
-  DEFAULT_FOG_EFFECT_TUNING,
   DEFAULT_FORCE_FIELD_EFFECT_TUNING,
   DEFAULT_FIRE_EFFECT_TUNING,
   DEFAULT_LAVA_EFFECT_TUNING,
@@ -15,7 +14,6 @@ import {
   DEFAULT_POISON_EFFECT_TUNING,
   DEFAULT_RADIANT_EFFECT_TUNING,
   DEFAULT_SHOCKWAVE_EFFECT_TUNING,
-  DEFAULT_SMOKE_EFFECT_TUNING,
   DEFAULT_VOID_EFFECT_TUNING,
   DEFAULT_WATER_EFFECT_TUNING,
   type AcidEffectTuning,
@@ -25,7 +23,6 @@ import {
   type DarknessEffectTuning,
   type DistortionEffectTuning,
   type FireEffectTuning,
-  type FogEffectTuning,
   type ForceFieldEffectTuning,
   type LavaEffectTuning,
   type LightningEffectTuning,
@@ -33,7 +30,6 @@ import {
   type PoisonEffectTuning,
   type RadiantEffectTuning,
   type ShockwaveEffectTuning,
-  type SmokeEffectTuning,
   type VoidEffectTuning,
   type WaterEffectTuning
 } from "./environmentEffectTuningDefaults";
@@ -45,7 +41,6 @@ import {
   drawDarknessFallback,
   drawDistortionFallback,
   drawFireFallback,
-  drawFogFallback,
   drawForceFieldFallback,
   drawLavaFallback,
   drawLightningFallback,
@@ -53,11 +48,27 @@ import {
   drawPoisonFallback,
   drawRadiantFallback,
   drawShockwaveFallback,
-  drawSmokeFallback,
   drawVoidFallback,
   drawWaterFallback
 } from "./environmentEffectFallbacks";
-import { degreesToRadians, getEffectWorldOrigin, getEffectWorldSize, type ScreenBounds } from "./environmentEffectRendererMath";
+import { degreesToRadians, type ScreenBounds } from "./environmentEffectRendererMath";
+import { disposeSmokeFogEffectRuntimes } from "./environmentSmokeFogEffects";
+import {
+  disposeEnvironmentEffectRuntime,
+  disposeSharedEnvironmentEffectRuntimeResources,
+  getSharedEffectPlaneGeometry,
+  getSharedEnvironmentEffectRenderer,
+  positionEnvironmentEffectMesh,
+  updateEnvironmentEffectCameraUniforms,
+  type EnvironmentEffectRuntime
+} from "./environmentEffectRuntime";
+
+export {
+  FOG_EFFECT_PRESETS,
+  SMOKE_EFFECT_PRESETS,
+  drawEnvironmentFogEffect,
+  drawEnvironmentSmokeEffect
+} from "./environmentSmokeFogEffects";
 
 export const WATER_EFFECT_PRESETS = {
   stream: {
@@ -820,93 +831,22 @@ export const DISTORTION_EFFECT_PRESETS = {
   }
 } as const satisfies Record<string, DistortionEffectTuning>;
 
-export const SMOKE_EFFECT_PRESETS = {
-  driftingSmoke: { ...DEFAULT_SMOKE_EFFECT_TUNING },
-  heavySmoke: {
-    opacity: 0.72,
-    cloudScale: 7.2,
-    speed: 0.08,
-    directionDegrees: 282,
-    turbulence: 0.48,
-    softness: 0.84,
-    density: 0.74,
-    lift: 0.12,
-    panFollow: 1,
-    zoomScale: 0,
-    baseAlpha: 0.32,
-    shadowColor: "#2d3742",
-    smokeColor: "#a6b0bb",
-    highlightColor: "#eef2f7"
-  }
-} as const satisfies Record<string, SmokeEffectTuning>;
-
-export const FOG_EFFECT_PRESETS = {
-  lightMist: { ...DEFAULT_FOG_EFFECT_TUNING },
-  lowFog: {
-    opacity: 0.7,
-    cloudScale: 4.2,
-    speed: 0.06,
-    directionDegrees: 276,
-    turbulence: 0.34,
-    softness: 0.94,
-    density: 0.58,
-    lift: 0.03,
-    panFollow: 1,
-    zoomScale: 0,
-    baseAlpha: 0.24,
-    shadowColor: "#687482",
-    smokeColor: "#c8d2dc",
-    highlightColor: "#f8fbff"
-  },
-  thickMist: {
-    opacity: 0.78,
-    cloudScale: 3.2,
-    speed: 0.04,
-    directionDegrees: 288,
-    turbulence: 0.5,
-    softness: 0.98,
-    density: 0.72,
-    lift: 0.05,
-    panFollow: 1,
-    zoomScale: 0,
-    baseAlpha: 0.28,
-    shadowColor: "#5f6c78",
-    smokeColor: "#b8c4cf",
-    highlightColor: "#eef5fb"
-  }
-} as const satisfies Record<string, FogEffectTuning>;
-
-type WaterRuntime = {
-  renderer: THREE.WebGLRenderer;
-  scene: THREE.Scene;
-  camera: THREE.OrthographicCamera;
-  meshA: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
-  meshB: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
-  startedAt: number;
-  width: number;
-  height: number;
-};
-
-let waterRuntime: WaterRuntime | null = null;
-let acidRuntime: WaterRuntime | null = null;
-let coldRuntime: WaterRuntime | null = null;
-let darknessRuntime: WaterRuntime | null = null;
-let poisonRuntime: WaterRuntime | null = null;
-let lavaRuntime: WaterRuntime | null = null;
-let fireRuntime: WaterRuntime | null = null;
-let lightningRuntime: WaterRuntime | null = null;
-let arcaneRuntime: WaterRuntime | null = null;
-let chaosRuntime: WaterRuntime | null = null;
-let voidRuntime: WaterRuntime | null = null;
-let natureRuntime: WaterRuntime | null = null;
-let radiantRuntime: WaterRuntime | null = null;
-let forceFieldRuntime: WaterRuntime | null = null;
-let shockwaveRuntime: WaterRuntime | null = null;
-let distortionRuntime: WaterRuntime | null = null;
-let smokeRuntime: WaterRuntime | null = null;
-let fogRuntime: WaterRuntime | null = null;
-let sharedEnvironmentEffectRenderer: THREE.WebGLRenderer | null = null;
-let sharedEffectPlaneGeometry: THREE.PlaneGeometry | null = null;
+let waterRuntime: EnvironmentEffectRuntime | null = null;
+let acidRuntime: EnvironmentEffectRuntime | null = null;
+let coldRuntime: EnvironmentEffectRuntime | null = null;
+let darknessRuntime: EnvironmentEffectRuntime | null = null;
+let poisonRuntime: EnvironmentEffectRuntime | null = null;
+let lavaRuntime: EnvironmentEffectRuntime | null = null;
+let fireRuntime: EnvironmentEffectRuntime | null = null;
+let lightningRuntime: EnvironmentEffectRuntime | null = null;
+let arcaneRuntime: EnvironmentEffectRuntime | null = null;
+let chaosRuntime: EnvironmentEffectRuntime | null = null;
+let voidRuntime: EnvironmentEffectRuntime | null = null;
+let natureRuntime: EnvironmentEffectRuntime | null = null;
+let radiantRuntime: EnvironmentEffectRuntime | null = null;
+let forceFieldRuntime: EnvironmentEffectRuntime | null = null;
+let shockwaveRuntime: EnvironmentEffectRuntime | null = null;
+let distortionRuntime: EnvironmentEffectRuntime | null = null;
 let environmentEffectRendererUsers = 0;
 
 export function retainEnvironmentEffectRuntimes(): () => void {
@@ -922,26 +862,6 @@ export function retainEnvironmentEffectRuntimes(): () => void {
       disposeEnvironmentEffectRuntimes();
     }
   };
-}
-
-function getSharedEnvironmentEffectRenderer(): THREE.WebGLRenderer | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  if (!sharedEnvironmentEffectRenderer) {
-    sharedEnvironmentEffectRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    sharedEnvironmentEffectRenderer.setPixelRatio(1);
-  }
-
-  return sharedEnvironmentEffectRenderer;
-}
-
-function getSharedEffectPlaneGeometry(): THREE.PlaneGeometry {
-  if (!sharedEffectPlaneGeometry) {
-    sharedEffectPlaneGeometry = new THREE.PlaneGeometry(1, 1);
-  }
-  return sharedEffectPlaneGeometry;
 }
 
 export function disposeEnvironmentEffectRuntimes() {
@@ -964,8 +884,6 @@ export function disposeEnvironmentEffectRuntimes() {
     forceFieldRuntime,
     shockwaveRuntime,
     distortionRuntime,
-    smokeRuntime,
-    fogRuntime
   ]) {
     disposeEnvironmentEffectRuntime(runtime);
   }
@@ -986,32 +904,9 @@ export function disposeEnvironmentEffectRuntimes() {
   forceFieldRuntime = null;
   shockwaveRuntime = null;
   distortionRuntime = null;
-  smokeRuntime = null;
-  fogRuntime = null;
 
-  sharedEffectPlaneGeometry?.dispose();
-  sharedEffectPlaneGeometry = null;
-  sharedEnvironmentEffectRenderer?.dispose();
-  sharedEnvironmentEffectRenderer = null;
-}
-
-function disposeEnvironmentEffectRuntime(runtime: WaterRuntime | null) {
-  if (!runtime) {
-    return;
-  }
-  runtime.meshA.material.dispose();
-  runtime.meshB.material.dispose();
-}
-
-function updateCameraUniforms(material: THREE.ShaderMaterial, bounds: ScreenBounds, cameraState: { x: number; y: number; zoom: number }) {
-  const origin = getEffectWorldOrigin(bounds, cameraState);
-  material.uniforms.cameraOffset.value.set(cameraState.x, cameraState.y);
-  material.uniforms.cameraZoom.value = cameraState.zoom;
-  material.uniforms.effectOrigin.value.set(origin.x, origin.y);
-  if (material.uniforms.effectSize) {
-    const size = getEffectWorldSize(bounds, cameraState);
-    material.uniforms.effectSize.value.set(size.width, size.height);
-  }
+  disposeSmokeFogEffectRuntimes();
+  disposeSharedEnvironmentEffectRuntimeResources();
 }
 
 export function drawEnvironmentWaterEffect(
@@ -1028,23 +923,23 @@ export function drawEnvironmentWaterEffect(
 
   const width = ctx.canvas.clientWidth || ctx.canvas.width;
   const height = ctx.canvas.clientHeight || ctx.canvas.height;
-  const runtime = getWaterRuntime(width, height);
+  const runtime = getEnvironmentEffectRuntime(width, height);
   if (!runtime) {
     drawWaterFallback(ctx, bounds, layerOpacity);
     return;
   }
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = 0;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.82 + 19.7;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateWaterMaterialTuning(runtime.meshA.material, tuning);
   updateWaterMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1081,16 +976,16 @@ export function drawEnvironmentAcidEffect(
   drawAcidFallback(ctx, bounds, layerOpacity * 0.45);
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.28;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.71 + 13.6;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateAcidMaterialTuning(runtime.meshA.material, tuning);
   updateAcidMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1125,16 +1020,16 @@ export function drawEnvironmentPoisonEffect(
   }
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.34;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.63 + 18.1;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updatePoisonMaterialTuning(runtime.meshA.material, tuning);
   updatePoisonMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1169,16 +1064,16 @@ export function drawEnvironmentColdEffect(
   }
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.3;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.58 + 22.4;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateColdMaterialTuning(runtime.meshA.material, tuning);
   updateColdMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1213,16 +1108,16 @@ export function drawEnvironmentDarknessEffect(
   }
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.42;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.55 + 14.7;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateDarknessMaterialTuning(runtime.meshA.material, tuning);
   updateDarknessMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1257,16 +1152,16 @@ export function drawEnvironmentLavaEffect(
   }
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = 0;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.74 + 9.3;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateLavaMaterialTuning(runtime.meshA.material, tuning);
   updateLavaMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1303,16 +1198,16 @@ export function drawEnvironmentFireEffect(
   drawFireFallback(ctx, bounds, layerOpacity * 0.36);
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.36;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 1.31 + 11.4;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateFireMaterialTuning(runtime.meshA.material, tuning);
   updateFireMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1349,16 +1244,16 @@ export function drawEnvironmentLightningEffect(
   drawLightningFallback(ctx, bounds, layerOpacity * 0.32);
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = 0;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.77 + 17.2;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   _updateLightningMaterialTuning(runtime.meshA.material, tuning);
   _updateLightningMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1395,16 +1290,16 @@ export function drawEnvironmentArcaneEffect(
   drawArcaneFallback(ctx, bounds, layerOpacity * 0.45);
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.42;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.73 + 21.5;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateArcaneMaterialTuning(runtime.meshA.material, tuning);
   updateArcaneMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1439,16 +1334,16 @@ export function drawEnvironmentChaosEffect(
   }
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.34;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.59 + 29.4;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateChaosMaterialTuning(runtime.meshA.material, tuning);
   updateChaosMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1483,16 +1378,16 @@ export function drawEnvironmentVoidEffect(
   }
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.42;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.67 + 31.2;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateVoidMaterialTuning(runtime.meshA.material, tuning);
   updateVoidMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1527,16 +1422,16 @@ export function drawEnvironmentNatureEffect(
   }
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.38;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.64 + 15.7;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateNatureMaterialTuning(runtime.meshA.material, tuning);
   updateNatureMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1573,16 +1468,16 @@ export function drawEnvironmentRadiantEffect(
   drawRadiantFallback(ctx, bounds, layerOpacity * 0.26);
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.36;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.57 + 19.3;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateRadiantMaterialTuning(runtime.meshA.material, tuning);
   updateRadiantMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1617,16 +1512,16 @@ export function drawEnvironmentForceFieldEffect(
   }
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.42;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.67 + 13.7;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateForceFieldMaterialTuning(runtime.meshA.material, tuning);
   updateForceFieldMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1663,16 +1558,16 @@ export function drawEnvironmentShockwaveEffect(
   drawShockwaveFallback(ctx, bounds, layerOpacity * 0.28);
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.36;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.53 + 11.2;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateShockwaveMaterialTuning(runtime.meshA.material, tuning);
   updateShockwaveMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1707,16 +1602,16 @@ export function drawEnvironmentDistortionEffect(
   }
 
   const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshA, width, height, 1);
+  positionEnvironmentEffectMesh(runtime.meshB, width, height, 1);
   runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
   runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.34;
   runtime.meshA.material.uniforms.time.value = time;
   runtime.meshB.material.uniforms.time.value = time * 0.61 + 23.4;
   runtime.meshA.material.uniforms.resolution.value.set(width, height);
   runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshA.material, bounds, cameraState);
+  updateEnvironmentEffectCameraUniforms(runtime.meshB.material, bounds, cameraState);
   updateDistortionMaterialTuning(runtime.meshA.material, tuning);
   updateDistortionMaterialTuning(runtime.meshB.material, tuning);
 
@@ -1730,97 +1625,7 @@ export function drawEnvironmentDistortionEffect(
   ctx.restore();
 }
 
-export function drawEnvironmentSmokeEffect(
-  ctx: CanvasRenderingContext2D,
-  bounds: ScreenBounds,
-  timestamp: number,
-  layerOpacity: number,
-  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
-  tuning: SmokeEffectTuning = DEFAULT_SMOKE_EFFECT_TUNING
-) {
-  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
-    return;
-  }
-
-  const width = ctx.canvas.clientWidth || ctx.canvas.width;
-  const height = ctx.canvas.clientHeight || ctx.canvas.height;
-  const runtime = getSmokeRuntime(width, height);
-  if (!runtime) {
-    drawSmokeFallback(ctx, bounds, layerOpacity);
-    return;
-  }
-
-  drawSmokeFallback(ctx, bounds, layerOpacity * 0.28);
-
-  const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
-  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
-  runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.42;
-  runtime.meshA.material.uniforms.time.value = time;
-  runtime.meshB.material.uniforms.time.value = time * 0.61 + 14.7;
-  runtime.meshA.material.uniforms.resolution.value.set(width, height);
-  runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
-  updateSmokeMaterialTuning(runtime.meshA.material, tuning);
-  updateSmokeMaterialTuning(runtime.meshB.material, tuning);
-
-  runtime.renderer.setSize(width, height, false);
-  runtime.renderer.setClearColor(0x000000, 0);
-  runtime.renderer.clear();
-  runtime.renderer.render(runtime.scene, runtime.camera);
-
-  ctx.save();
-  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
-  ctx.restore();
-}
-
-export function drawEnvironmentFogEffect(
-  ctx: CanvasRenderingContext2D,
-  bounds: ScreenBounds,
-  timestamp: number,
-  layerOpacity: number,
-  cameraState: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 },
-  tuning: FogEffectTuning = DEFAULT_FOG_EFFECT_TUNING
-) {
-  if (bounds.width <= 1 || bounds.height <= 1 || layerOpacity <= 0) {
-    return;
-  }
-
-  const width = ctx.canvas.clientWidth || ctx.canvas.width;
-  const height = ctx.canvas.clientHeight || ctx.canvas.height;
-  const runtime = getFogRuntime(width, height);
-  if (!runtime) {
-    drawFogFallback(ctx, bounds, layerOpacity);
-    return;
-  }
-
-  const time = (timestamp - runtime.startedAt) / 1000;
-  positionWaterMesh(runtime.meshA, width, height, 1);
-  positionWaterMesh(runtime.meshB, width, height, 1);
-  runtime.meshA.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity;
-  runtime.meshB.material.uniforms.opacity.value = Math.max(0, Math.min(1, layerOpacity)) * tuning.opacity * 0.32;
-  runtime.meshA.material.uniforms.time.value = time;
-  runtime.meshB.material.uniforms.time.value = time * 0.47 + 31.1;
-  runtime.meshA.material.uniforms.resolution.value.set(width, height);
-  runtime.meshB.material.uniforms.resolution.value.set(width, height);
-  updateCameraUniforms(runtime.meshA.material, bounds, cameraState);
-  updateCameraUniforms(runtime.meshB.material, bounds, cameraState);
-  updateFogMaterialTuning(runtime.meshA.material, tuning);
-  updateFogMaterialTuning(runtime.meshB.material, tuning);
-
-  runtime.renderer.setSize(width, height, false);
-  runtime.renderer.setClearColor(0x000000, 0);
-  runtime.renderer.clear();
-  runtime.renderer.render(runtime.scene, runtime.camera);
-
-  ctx.save();
-  ctx.drawImage(runtime.renderer.domElement, 0, 0, width, height);
-  ctx.restore();
-}
-
-function getWaterRuntime(width: number, height: number): WaterRuntime | null {
+function getEnvironmentEffectRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -1871,7 +1676,7 @@ function getWaterRuntime(width: number, height: number): WaterRuntime | null {
   return waterRuntime;
 }
 
-function getAcidRuntime(width: number, height: number): WaterRuntime | null {
+function getAcidRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -1922,7 +1727,7 @@ function getAcidRuntime(width: number, height: number): WaterRuntime | null {
   return acidRuntime;
 }
 
-function getPoisonRuntime(width: number, height: number): WaterRuntime | null {
+function getPoisonRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -1973,7 +1778,7 @@ function getPoisonRuntime(width: number, height: number): WaterRuntime | null {
   return poisonRuntime;
 }
 
-function getColdRuntime(width: number, height: number): WaterRuntime | null {
+function getColdRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -2024,7 +1829,7 @@ function getColdRuntime(width: number, height: number): WaterRuntime | null {
   return coldRuntime;
 }
 
-function getDarknessRuntime(width: number, height: number): WaterRuntime | null {
+function getDarknessRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -2075,7 +1880,7 @@ function getDarknessRuntime(width: number, height: number): WaterRuntime | null 
   return darknessRuntime;
 }
 
-function getLavaRuntime(width: number, height: number): WaterRuntime | null {
+function getLavaRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -2126,7 +1931,7 @@ function getLavaRuntime(width: number, height: number): WaterRuntime | null {
   return lavaRuntime;
 }
 
-function getFireRuntime(width: number, height: number): WaterRuntime | null {
+function getFireRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -2177,7 +1982,7 @@ function getFireRuntime(width: number, height: number): WaterRuntime | null {
   return fireRuntime;
 }
 
-function getLightningRuntime(width: number, height: number): WaterRuntime | null {
+function getLightningRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -2228,7 +2033,7 @@ function getLightningRuntime(width: number, height: number): WaterRuntime | null
   return lightningRuntime;
 }
 
-function getArcaneRuntime(width: number, height: number): WaterRuntime | null {
+function getArcaneRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -2279,7 +2084,7 @@ function getArcaneRuntime(width: number, height: number): WaterRuntime | null {
   return arcaneRuntime;
 }
 
-function getChaosRuntime(width: number, height: number): WaterRuntime | null {
+function getChaosRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -2330,7 +2135,7 @@ function getChaosRuntime(width: number, height: number): WaterRuntime | null {
   return chaosRuntime;
 }
 
-function getVoidRuntime(width: number, height: number): WaterRuntime | null {
+function getVoidRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -2381,7 +2186,7 @@ function getVoidRuntime(width: number, height: number): WaterRuntime | null {
   return voidRuntime;
 }
 
-function getNatureRuntime(width: number, height: number): WaterRuntime | null {
+function getNatureRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -2432,7 +2237,7 @@ function getNatureRuntime(width: number, height: number): WaterRuntime | null {
   return natureRuntime;
 }
 
-function getRadiantRuntime(width: number, height: number): WaterRuntime | null {
+function getRadiantRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -2483,7 +2288,7 @@ function getRadiantRuntime(width: number, height: number): WaterRuntime | null {
   return radiantRuntime;
 }
 
-function getForceFieldRuntime(width: number, height: number): WaterRuntime | null {
+function getForceFieldRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -2534,7 +2339,7 @@ function getForceFieldRuntime(width: number, height: number): WaterRuntime | nul
   return forceFieldRuntime;
 }
 
-function getShockwaveRuntime(width: number, height: number): WaterRuntime | null {
+function getShockwaveRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -2585,7 +2390,7 @@ function getShockwaveRuntime(width: number, height: number): WaterRuntime | null
   return shockwaveRuntime;
 }
 
-function getDistortionRuntime(width: number, height: number): WaterRuntime | null {
+function getDistortionRuntime(width: number, height: number): EnvironmentEffectRuntime | null {
   if (typeof document === "undefined") {
     return null;
   }
@@ -2634,108 +2439,6 @@ function getDistortionRuntime(width: number, height: number): WaterRuntime | nul
   }
 
   return distortionRuntime;
-}
-
-function getSmokeRuntime(width: number, height: number): WaterRuntime | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  if (!smokeRuntime) {
-    const renderer = getSharedEnvironmentEffectRenderer();
-    if (!renderer) {
-      return null;
-    }
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
-    camera.position.set(0, 0, 2400);
-    camera.lookAt(0, 0, 0);
-
-    const material = createSmokeMaterial(0.82);
-    const materialB = createSmokeMaterial(0.36);
-    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
-    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
-    meshA.position.z = 1280;
-    meshB.position.z = 1281;
-    scene.add(meshA, meshB);
-
-    smokeRuntime = {
-      renderer,
-      scene,
-      camera,
-      meshA,
-      meshB,
-      startedAt: Date.now(),
-      width: 0,
-      height: 0
-    };
-  }
-
-  if (smokeRuntime.width !== width || smokeRuntime.height !== height) {
-    smokeRuntime.width = width;
-    smokeRuntime.height = height;
-    smokeRuntime.camera.left = 0;
-    smokeRuntime.camera.right = width;
-    smokeRuntime.camera.top = 0;
-    smokeRuntime.camera.bottom = height;
-    smokeRuntime.camera.near = 0.1;
-    smokeRuntime.camera.far = 5000;
-    smokeRuntime.camera.updateProjectionMatrix();
-  }
-
-  return smokeRuntime;
-}
-
-function getFogRuntime(width: number, height: number): WaterRuntime | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  if (!fogRuntime) {
-    const renderer = getSharedEnvironmentEffectRenderer();
-    if (!renderer) {
-      return null;
-    }
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(0, 1, 1, 0, -1000, 1000);
-    camera.position.set(0, 0, 2400);
-    camera.lookAt(0, 0, 0);
-
-    const material = createFogMaterial(0.68);
-    const materialB = createFogMaterial(0.28);
-    const meshA = new THREE.Mesh(getSharedEffectPlaneGeometry(), material);
-    const meshB = new THREE.Mesh(getSharedEffectPlaneGeometry(), materialB);
-    meshA.position.z = 1280;
-    meshB.position.z = 1281;
-    scene.add(meshA, meshB);
-
-    fogRuntime = {
-      renderer,
-      scene,
-      camera,
-      meshA,
-      meshB,
-      startedAt: Date.now(),
-      width: 0,
-      height: 0
-    };
-  }
-
-  if (fogRuntime.width !== width || fogRuntime.height !== height) {
-    fogRuntime.width = width;
-    fogRuntime.height = height;
-    fogRuntime.camera.left = 0;
-    fogRuntime.camera.right = width;
-    fogRuntime.camera.top = 0;
-    fogRuntime.camera.bottom = height;
-    fogRuntime.camera.near = 0.1;
-    fogRuntime.camera.far = 5000;
-    fogRuntime.camera.updateProjectionMatrix();
-  }
-
-  return fogRuntime;
 }
 
 function createWaterMaterial(opacity: number): THREE.ShaderMaterial {
@@ -5560,298 +5263,4 @@ function updateDistortionMaterialTuning(material: THREE.ShaderMaterial, tuning: 
   material.uniforms.backgroundColor.value.set(tuning.backgroundColor);
   material.uniforms.distortionColor.value.set(tuning.distortionColor);
   material.uniforms.highlightColor.value.set(tuning.highlightColor);
-}
-
-function createSmokeMaterial(opacity: number): THREE.ShaderMaterial {
-  return new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    depthTest: false,
-    side: THREE.DoubleSide,
-    blending: THREE.NormalBlending,
-    uniforms: {
-      cloudScale: { value: DEFAULT_SMOKE_EFFECT_TUNING.cloudScale },
-      speed: { value: DEFAULT_SMOKE_EFFECT_TUNING.speed },
-      directionRadians: { value: degreesToRadians(DEFAULT_SMOKE_EFFECT_TUNING.directionDegrees) },
-      turbulence: { value: DEFAULT_SMOKE_EFFECT_TUNING.turbulence },
-      softness: { value: DEFAULT_SMOKE_EFFECT_TUNING.softness },
-      density: { value: DEFAULT_SMOKE_EFFECT_TUNING.density },
-      lift: { value: DEFAULT_SMOKE_EFFECT_TUNING.lift },
-      panFollow: { value: DEFAULT_SMOKE_EFFECT_TUNING.panFollow },
-      zoomScale: { value: DEFAULT_SMOKE_EFFECT_TUNING.zoomScale },
-      baseAlpha: { value: DEFAULT_SMOKE_EFFECT_TUNING.baseAlpha },
-      shadowColor: { value: new THREE.Color(DEFAULT_SMOKE_EFFECT_TUNING.shadowColor) },
-      smokeColor: { value: new THREE.Color(DEFAULT_SMOKE_EFFECT_TUNING.smokeColor) },
-      highlightColor: { value: new THREE.Color(DEFAULT_SMOKE_EFFECT_TUNING.highlightColor) },
-      time: { value: 0 },
-      resolution: { value: new THREE.Vector2(1, 1) },
-      cameraOffset: { value: new THREE.Vector2(0, 0) },
-      effectOrigin: { value: new THREE.Vector2(0, 0) },
-      cameraZoom: { value: 1 },
-      opacity: { value: opacity }
-    },
-    vertexShader: `
-      varying vec2 vUv;
-
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform float cloudScale;
-      uniform float speed;
-      uniform float directionRadians;
-      uniform float turbulence;
-      uniform float softness;
-      uniform float density;
-      uniform float lift;
-      uniform float panFollow;
-      uniform float zoomScale;
-      uniform float baseAlpha;
-      uniform vec3 shadowColor;
-      uniform vec3 smokeColor;
-      uniform vec3 highlightColor;
-      uniform float time;
-      uniform vec2 resolution;
-      uniform vec2 cameraOffset;
-      uniform vec2 effectOrigin;
-      uniform float cameraZoom;
-      uniform float opacity;
-      varying vec2 vUv;
-
-      float randomValue(vec2 value) {
-        return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
-      }
-
-      float valueNoise(vec2 value) {
-        vec2 base = floor(value);
-        vec2 fraction = fract(value);
-        vec2 blend = fraction * fraction * (3.0 - 2.0 * fraction);
-        float a = randomValue(base);
-        float b = randomValue(base + vec2(1.0, 0.0));
-        float c = randomValue(base + vec2(0.0, 1.0));
-        float d = randomValue(base + vec2(1.0, 1.0));
-        return mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y);
-      }
-
-      float fbm(vec2 value) {
-        float total = 0.0;
-        float amplitude = 0.5;
-        for (int i = 0; i < 5; i++) {
-          total += valueNoise(value) * amplitude;
-          value *= 2.03;
-          amplitude *= 0.52;
-        }
-        return total;
-      }
-
-      void main() {
-        float zoomBase = max(cameraZoom, 0.01);
-        float zoomFactor = pow(zoomBase, zoomScale);
-        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
-        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
-        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
-        vec2 pixelUv = anchoredCoord / 210.0 * zoomFactor;
-        vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
-        vec2 perpendicular = vec2(-direction.y, direction.x);
-        vec2 uv = vec2(dot(pixelUv, direction), dot(pixelUv, perpendicular));
-        float motion = time * speed;
-        uv.x -= motion * 0.64;
-        uv.y -= motion * lift;
-
-        float swirlA = fbm(uv * cloudScale * 0.46 + vec2(motion * 0.11, -motion * 0.08));
-        float swirlB = fbm(uv * cloudScale * 0.92 - vec2(motion * 0.08, motion * 0.16));
-        vec2 turbulentUv = uv;
-        turbulentUv.x += (swirlA - 0.5) * turbulence * 0.44;
-        turbulentUv.y += (swirlB - 0.5) * turbulence * 0.36;
-
-        float cloudLarge = fbm(turbulentUv * cloudScale * 0.58 + vec2(motion * 0.18, -motion * 0.05));
-        float cloudMedium = fbm(turbulentUv * cloudScale * 1.18 - vec2(motion * 0.11, motion * 0.07));
-        float cloudFine = fbm(turbulentUv * cloudScale * 2.25 + vec2(-motion * 0.04, motion * 0.09));
-        float cloud = cloudLarge * 0.58 + cloudMedium * 0.3 + cloudFine * 0.12;
-        float threshold = mix(0.68, 0.28, density);
-        float feather = mix(0.08, 0.34, softness);
-        float body = smoothstep(threshold - feather, threshold + feather, cloud);
-        float highlight = smoothstep(0.58, 0.92, cloudLarge * 0.75 + cloudFine * 0.25);
-        float shadow = smoothstep(0.16, 0.62, 1.0 - cloudMedium);
-        vec3 color = mix(shadowColor, smokeColor, body);
-        color = mix(color, highlightColor, highlight * softness * 0.55);
-        float alpha = (max(baseAlpha * 0.68, 0.08) + body * density * 0.5 + highlight * 0.1) * opacity;
-        alpha *= mix(0.48, 1.0, smoothstep(0.01, 0.12, body + density * 0.24 + baseAlpha * 0.32));
-        gl_FragColor = vec4(color, alpha);
-      }
-    `
-  });
-}
-
-function updateSmokeMaterialTuning(material: THREE.ShaderMaterial, tuning: SmokeEffectTuning) {
-  material.uniforms.cloudScale.value = tuning.cloudScale;
-  material.uniforms.speed.value = tuning.speed;
-  material.uniforms.directionRadians.value = degreesToRadians(tuning.directionDegrees);
-  material.uniforms.turbulence.value = tuning.turbulence;
-  material.uniforms.softness.value = tuning.softness;
-  material.uniforms.density.value = tuning.density;
-  material.uniforms.lift.value = tuning.lift;
-  material.uniforms.panFollow.value = 1;
-  material.uniforms.zoomScale.value = tuning.zoomScale;
-  material.uniforms.baseAlpha.value = tuning.baseAlpha;
-  material.uniforms.shadowColor.value.set(tuning.shadowColor);
-  material.uniforms.smokeColor.value.set(tuning.smokeColor);
-  material.uniforms.highlightColor.value.set(tuning.highlightColor);
-}
-
-function createFogMaterial(opacity: number): THREE.ShaderMaterial {
-  return new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    depthTest: false,
-    side: THREE.DoubleSide,
-    blending: THREE.NormalBlending,
-    uniforms: {
-      cloudScale: { value: DEFAULT_FOG_EFFECT_TUNING.cloudScale },
-      speed: { value: DEFAULT_FOG_EFFECT_TUNING.speed },
-      directionRadians: { value: degreesToRadians(DEFAULT_FOG_EFFECT_TUNING.directionDegrees) },
-      turbulence: { value: DEFAULT_FOG_EFFECT_TUNING.turbulence },
-      softness: { value: DEFAULT_FOG_EFFECT_TUNING.softness },
-      density: { value: DEFAULT_FOG_EFFECT_TUNING.density },
-      lift: { value: DEFAULT_FOG_EFFECT_TUNING.lift },
-      panFollow: { value: DEFAULT_FOG_EFFECT_TUNING.panFollow },
-      zoomScale: { value: DEFAULT_FOG_EFFECT_TUNING.zoomScale },
-      baseAlpha: { value: DEFAULT_FOG_EFFECT_TUNING.baseAlpha },
-      shadowColor: { value: new THREE.Color(DEFAULT_FOG_EFFECT_TUNING.shadowColor) },
-      smokeColor: { value: new THREE.Color(DEFAULT_FOG_EFFECT_TUNING.smokeColor) },
-      highlightColor: { value: new THREE.Color(DEFAULT_FOG_EFFECT_TUNING.highlightColor) },
-      time: { value: 0 },
-      resolution: { value: new THREE.Vector2(1, 1) },
-      cameraOffset: { value: new THREE.Vector2(0, 0) },
-      effectOrigin: { value: new THREE.Vector2(0, 0) },
-      cameraZoom: { value: 1 },
-      opacity: { value: opacity }
-    },
-    vertexShader: `
-      varying vec2 vUv;
-
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform float cloudScale;
-      uniform float speed;
-      uniform float directionRadians;
-      uniform float turbulence;
-      uniform float softness;
-      uniform float density;
-      uniform float lift;
-      uniform float panFollow;
-      uniform float zoomScale;
-      uniform float baseAlpha;
-      uniform vec3 shadowColor;
-      uniform vec3 smokeColor;
-      uniform vec3 highlightColor;
-      uniform float time;
-      uniform vec2 resolution;
-      uniform vec2 cameraOffset;
-      uniform vec2 effectOrigin;
-      uniform float cameraZoom;
-      uniform float opacity;
-      varying vec2 vUv;
-
-      float randomValue(vec2 value) {
-        return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453123);
-      }
-
-      float valueNoise(vec2 value) {
-        vec2 base = floor(value);
-        vec2 fraction = fract(value);
-        vec2 blend = fraction * fraction * (3.0 - 2.0 * fraction);
-        float a = randomValue(base);
-        float b = randomValue(base + vec2(1.0, 0.0));
-        float c = randomValue(base + vec2(0.0, 1.0));
-        float d = randomValue(base + vec2(1.0, 1.0));
-        return mix(mix(a, b, blend.x), mix(c, d, blend.x), blend.y);
-      }
-
-      float fbm(vec2 value) {
-        float total = 0.0;
-        float amplitude = 0.5;
-        for (int i = 0; i < 5; i++) {
-          total += valueNoise(value) * amplitude;
-          value *= 2.02;
-          amplitude *= 0.54;
-        }
-        return total;
-      }
-
-      void main() {
-        float zoomBase = max(cameraZoom, 0.01);
-        float zoomFactor = pow(zoomBase, zoomScale);
-        vec2 screenCoord = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
-        vec2 worldCoord = (screenCoord - cameraOffset) / zoomBase;
-        vec2 anchoredCoord = mix(screenCoord, worldCoord - effectOrigin, panFollow);
-        vec2 pixelUv = anchoredCoord / 260.0 * zoomFactor;
-        vec2 direction = vec2(cos(directionRadians), sin(directionRadians));
-        vec2 perpendicular = vec2(-direction.y, direction.x);
-        vec2 uv = vec2(dot(pixelUv, direction), dot(pixelUv, perpendicular));
-        float motion = time * speed;
-
-        vec2 driftUv = uv;
-        driftUv.x -= motion * 0.34;
-        driftUv.y -= motion * lift * 0.26;
-
-        float sheetA = fbm(driftUv * vec2(cloudScale * 0.24, cloudScale * 0.1) + vec2(motion * 0.05, -motion * 0.015));
-        float sheetB = fbm(driftUv * vec2(cloudScale * 0.16, cloudScale * 0.16) - vec2(motion * 0.035, motion * 0.025));
-        float sheetC = fbm(driftUv * vec2(cloudScale * 0.34, cloudScale * 0.22) + vec2(-motion * 0.025, motion * 0.018));
-        float veil = smoothstep(0.22, 0.88, sheetA * 0.48 + sheetB * 0.34 + sheetC * 0.18);
-
-        float driftPatchA = fbm(driftUv * vec2(cloudScale * 0.42, cloudScale * 0.2) + vec2(motion * 0.08, motion * 0.02));
-        float driftPatchB = fbm(driftUv * vec2(cloudScale * 0.22, cloudScale * 0.44) - vec2(motion * 0.03, motion * 0.055));
-        float broadPatch = smoothstep(0.34, 0.88, driftPatchA * 0.62 + driftPatchB * 0.38 + veil * 0.16);
-
-        vec2 wispUv = driftUv;
-        wispUv.x += (sheetB - 0.5) * turbulence * 0.32;
-        wispUv.y += (sheetA - 0.5) * turbulence * 0.18;
-        float eddyA = fbm(wispUv * cloudScale * 0.72 + vec2(motion * 0.08, motion * 0.03));
-        float eddyB = fbm(wispUv * cloudScale * 1.2 - vec2(motion * 0.045, motion * 0.055));
-        float wisps = smoothstep(0.42, 0.92, eddyA * 0.5 + eddyB * 0.36 + broadPatch * 0.24);
-        wisps *= mix(0.58, 1.0, turbulence);
-
-        float thinBreaks = fbm(driftUv * vec2(cloudScale * 1.65, cloudScale * 0.32) + vec2(-motion * 0.12, motion * 0.02));
-        float body = clamp(veil * 0.5 + broadPatch * 0.22 + wisps * 0.36 - thinBreaks * (0.2 + softness * 0.16), 0.0, 1.0);
-        body = smoothstep(0.12, mix(0.9, 0.42, density), body);
-
-        float highlight = smoothstep(0.54, 0.96, sheetA * 0.62 + thinBreaks * 0.38) * softness;
-        vec3 color = mix(shadowColor, smokeColor, body);
-        color = mix(color, highlightColor, highlight * 0.34);
-        float alpha = (baseAlpha + body * density * 0.34 + broadPatch * 0.06 + highlight * 0.05) * opacity;
-        alpha *= smoothstep(0.02, 0.2, body + density * 0.16);
-        gl_FragColor = vec4(color, alpha);
-      }
-    `
-  });
-}
-
-function updateFogMaterialTuning(material: THREE.ShaderMaterial, tuning: FogEffectTuning) {
-  material.uniforms.cloudScale.value = tuning.cloudScale;
-  material.uniforms.speed.value = tuning.speed;
-  material.uniforms.directionRadians.value = degreesToRadians(tuning.directionDegrees);
-  material.uniforms.turbulence.value = tuning.turbulence;
-  material.uniforms.softness.value = tuning.softness;
-  material.uniforms.density.value = tuning.density;
-  material.uniforms.lift.value = tuning.lift;
-  material.uniforms.panFollow.value = 1;
-  material.uniforms.zoomScale.value = tuning.zoomScale;
-  material.uniforms.baseAlpha.value = tuning.baseAlpha;
-  material.uniforms.shadowColor.value.set(tuning.shadowColor);
-  material.uniforms.smokeColor.value.set(tuning.smokeColor);
-  material.uniforms.highlightColor.value.set(tuning.highlightColor);
-}
-
-function positionWaterMesh(mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>, width: number, height: number, scale: number) {
-  mesh.position.x = width / 2;
-  mesh.position.y = height / 2;
-  mesh.scale.x = width * scale;
-  mesh.scale.y = height * scale;
 }
