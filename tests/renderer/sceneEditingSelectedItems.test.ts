@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_FIRE_EFFECT_TUNING_SETTINGS, DEFAULT_WATER_EFFECT_TUNING_SETTINGS, createDefaultScene, type Scene } from "../../src/shared/localvtt";
-import { removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../../src/renderer/lib/scene";
+import { buildSceneSelectionIds, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../../src/renderer/lib/scene";
 
 function createSceneWithSelectableItems(): Scene {
   return {
@@ -85,6 +85,16 @@ function createSceneWithSelectableItems(): Scene {
 }
 
 describe("scene editing selected item actions", () => {
+  it("normalizes selected scene item ids for GM view actions", () => {
+    expect(buildSceneSelectionIds({ tokenIds: ["token-1"], environmentEffectId: undefined })).toEqual({
+      tokenIds: ["token-1"],
+      drawingIds: [],
+      fogShapeIds: [],
+      weatherMaskIds: [],
+      environmentEffectId: null
+    });
+  });
+
   it("sets selected scene items visible in player view", () => {
     const scene = setSelectedSceneItemsPlayerVisibility(
       createSceneWithSelectableItems(),

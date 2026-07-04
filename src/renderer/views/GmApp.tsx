@@ -120,7 +120,7 @@ import {
   removeLastWeatherMask,
   toggleExpandedFolderId
 } from "../lib/scene";
-import { patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
+import { buildSceneSelectionIds, patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
 import {
   applySceneColorDialog,
   getSceneColorDialogState,
@@ -431,6 +431,17 @@ export function GmApp() {
     () => getSelectedTokenAssetIds(activeScene?.tokens, selectedTokenId, selectedTokenIds),
     [activeScene?.tokens, selectedTokenId, selectedTokenIds]
   );
+  const selectedSceneItemIds = useMemo(
+    () =>
+      buildSceneSelectionIds({
+        tokenIds: selectedTokenIds,
+        drawingIds: selectedDrawingIds,
+        fogShapeIds: selectedFogShapeIds,
+        weatherMaskIds: selectedWeatherMaskIds,
+        environmentEffectId: selectedEnvironmentEffectId
+      }),
+    [selectedDrawingIds, selectedEnvironmentEffectId, selectedFogShapeIds, selectedTokenIds, selectedWeatherMaskIds]
+  );
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const [diceSettingsPreference, setDiceSettingsPreference] = useState<DiceSettings>(() => loadDiceSettingsPreference());
   const diceSettings = useMemo<DiceSettings>(() => getEffectiveDiceSettings(campaign, diceSettingsPreference), [campaign, diceSettingsPreference]);
@@ -536,26 +547,14 @@ export function GmApp() {
     if (!activeScene) {
       return;
     }
-    updateScene(setSelectedSceneItemsPlayerVisibility(activeScene, {
-      tokenIds: selectedTokenIds,
-      drawingIds: selectedDrawingIds,
-      fogShapeIds: selectedFogShapeIds,
-      weatherMaskIds: selectedWeatherMaskIds,
-      environmentEffectId: selectedEnvironmentEffectId
-    }, visibleInPlayer));
+    updateScene(setSelectedSceneItemsPlayerVisibility(activeScene, selectedSceneItemIds, visibleInPlayer));
   };
 
   const deleteSelectedSceneItems = () => {
     if (!activeScene) {
       return;
     }
-    updateScene(removeSelectedSceneItems(activeScene, {
-      tokenIds: selectedTokenIds,
-      drawingIds: selectedDrawingIds,
-      fogShapeIds: selectedFogShapeIds,
-      weatherMaskIds: selectedWeatherMaskIds,
-      environmentEffectId: selectedEnvironmentEffectId
-    }));
+    updateScene(removeSelectedSceneItems(activeScene, selectedSceneItemIds));
     clearSceneSelection();
   };
 

@@ -70,6 +70,16 @@ export type SceneSelectionIds = {
   environmentEffectId?: string | null;
 };
 
+export function buildSceneSelectionIds(selection: SceneSelectionIds): SceneSelectionIds {
+  return {
+    tokenIds: selection.tokenIds ?? [],
+    drawingIds: selection.drawingIds ?? [],
+    fogShapeIds: selection.fogShapeIds ?? [],
+    weatherMaskIds: selection.weatherMaskIds ?? [],
+    environmentEffectId: selection.environmentEffectId ?? null
+  };
+}
+
 export function patchSceneVideoPlayback(scene: Scene, patch: Partial<Scene["videoPlayback"]>): Scene {
   return {
     ...scene,
