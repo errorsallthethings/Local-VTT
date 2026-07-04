@@ -1,11 +1,20 @@
 import { ChevronDown, ChevronRight, CircleHelp, Import, RotateCcw } from "lucide-react";
 import type { Asset, GridSettings, GridType, MapTransform, Scene } from "../../../../shared/localvtt";
-import { DEFAULT_GRID, DEFAULT_MAP_TRANSFORM } from "../../../../shared/localvtt";
+import { DEFAULT_GRID } from "../../../../shared/localvtt";
 import { ColorInput, ColorSettingRow } from "../../controls/ColorPickerField";
 import { DebouncedNumberInput } from "../../controls/DebouncedNumberInput";
 import { MeasurementPanel } from "../../settings/MeasurementPanel";
 import { getGridFootprint } from "./layerPanelFormat";
-import { getManualMapScalePatch } from "./layerPanelMap";
+import {
+  getManualMapRotationPatch,
+  getManualMapScalePatch,
+  getMapCellSizeAction,
+  getMapFitHelpText,
+  getMapFitModeAction,
+  getMapGridDimensionAction,
+  getResetMapTransformPatch,
+  type MapFitAction
+} from "./layerPanelMap";
 
 export function MapLayerSettingsPanel({
   scene,
@@ -34,6 +43,15 @@ export function MapLayerSettingsPanel({
 }) {
   const visualGridEnabled = scene.grid.type !== "gridless";
   const gridFootprint = getGridFootprint(scene.grid);
+  const applyMapFitAction = (action: MapFitAction) => {
+    if (action.type === "apply-fit-preset") {
+      onApplyMapFitPreset(action.fitMode, action.gridPatch);
+    } else if (action.type === "update-map-transform") {
+      onUpdateMapTransform(action.mapTransformPatch);
+    } else {
+      onUpdateGrid(action.gridPatch);
+    }
+  };
 
   const renderGridSettings = () => (
     <>
@@ -60,11 +78,7 @@ export function MapLayerSettingsPanel({
                 max={1000}
                 delayMs={450}
                 onCommit={(value) => {
-                  if (scene.mapTransform.fitMode === "actual-size" && mapAsset?.mediaType === "image") {
-                    onApplyMapFitPreset("actual-size", { sizePx: value });
-                  } else {
-                    onUpdateGrid({ sizePx: value });
-                  }
+                  applyMapFitAction(getMapCellSizeAction(value, scene.mapTransform.fitMode, mapAsset));
                 }}
               />
             </label>
@@ -78,12 +92,7 @@ export function MapLayerSettingsPanel({
                     min={1}
                     value={scene.grid.mapGridColumns}
                     onChange={(event) => {
-                      const mapGridColumns = Math.max(1, Number(event.target.value));
-                      if (scene.mapTransform.fitMode === "cover") {
-                        onApplyMapFitPreset("cover", { mapGridColumns });
-                      } else {
-                        onUpdateGrid({ mapGridColumns });
-                      }
+                      applyMapFitAction(getMapGridDimensionAction("mapGridColumns", Number(event.target.value), scene.mapTransform.fitMode));
                     }}
                   />
                 </label>
@@ -94,12 +103,7 @@ export function MapLayerSettingsPanel({
                     min={1}
                     value={scene.grid.mapGridRows}
                     onChange={(event) => {
-                      const mapGridRows = Math.max(1, Number(event.target.value));
-                      if (scene.mapTransform.fitMode === "cover") {
-                        onApplyMapFitPreset("cover", { mapGridRows });
-                      } else {
-                        onUpdateGrid({ mapGridRows });
-                      }
+                      applyMapFitAction(getMapGridDimensionAction("mapGridRows", Number(event.target.value), scene.mapTransform.fitMode));
                     }}
                   />
                 </label>
@@ -288,13 +292,13 @@ export function MapLayerSettingsPanel({
                 type="number"
                 step={1}
                 value={scene.mapTransform.rotation}
-                onChange={(event) => onUpdateMapTransform({ rotation: Number(event.target.value), fitMode: "manual" })}
+                onChange={(event) => onUpdateMapTransform(getManualMapRotationPatch(Number(event.target.value)))}
               />
             </label>
           </div>
           <div className="map-transform-note">Reset Transform restores the map to Manual, origin position, original scale, and no rotation.</div>
           <div className="map-advanced-actions">
-            <button type="button" className="compact-button" onClick={() => onUpdateMapTransform({ ...DEFAULT_MAP_TRANSFORM })}>
+            <button type="button" className="compact-button" onClick={() => onUpdateMapTransform(getResetMapTransformPatch())}>
               Reset Transform
             </button>
           </div>
@@ -320,12 +324,7 @@ export function MapLayerSettingsPanel({
       <select
         value={scene.mapTransform.fitMode}
         onChange={(event) => {
-          const fitMode = event.target.value as MapTransform["fitMode"];
-          if (fitMode === "manual") {
-            onUpdateMapTransform({ fitMode: "manual" });
-          } else {
-            onApplyMapFitPreset(fitMode);
-          }
+          applyMapFitAction(getMapFitModeAction(event.target.value as MapTransform["fitMode"]));
         }}
       >
         <option value="manual">Manual</option>
@@ -349,9 +348,9 @@ export function MapLayerSettingsPanel({
           {renderMapFitControl()}
           {mapFitHelpOpen && (
             <div className="settings-help-panel layer-settings-help-panel" role="note">
-              <p>Fit Whole Map keeps the image aspect ratio, centers it in Player View, and starts the grid at the map's top-left.</p>
-              <p>Stretch to Grid stretches the image to the configured grid columns and rows, which can reveal incorrect map dimensions.</p>
-              <p>Image Size places the image at its original pixel size from the scene origin.</p>
+              {getMapFitHelpText().map((text) => (
+                <p key={text}>{text}</p>
+              ))}
             </div>
           )}
         </>
