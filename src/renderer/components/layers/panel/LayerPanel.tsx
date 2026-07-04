@@ -1,21 +1,4 @@
-import { useMemo, useState, type ComponentProps, type MouseEvent } from "react";
-import {
-  ArrowDown,
-  ArrowUp,
-  Box,
-  CloudFog,
-  Crown,
-  Grid3X3,
-  Image,
-  Layers,
-  Lightbulb,
-  Paintbrush,
-  Shield,
-  Settings2,
-  Sparkles,
-  User,
-  UsersRound
-} from "lucide-react";
+import { useMemo, useState, type ComponentProps } from "react";
 import type {
   Asset,
   DrawingElement,
@@ -35,6 +18,7 @@ import { FogShapeList, type FogShapeDropTarget } from "../lists/FogShapeList";
 import { DrawingList, type DrawingDropTarget } from "./DrawingList";
 import { EnvironmentEffectList } from "./EnvironmentEffectList";
 import { FogSettingsPanel } from "./FogSettingsPanel";
+import { LayerPanelRow } from "./LayerPanelRow";
 import { MapLayerContent } from "./MapLayerContent";
 import { MapLayerSettingsPanel } from "./MapLayerSettingsPanel";
 import { TokenLayerContent } from "./TokenLayerContent";
@@ -45,23 +29,7 @@ import {
   getReservedLayerGuidance,
   isEffectsLayerId
 } from "./layerPanelFormat";
-import {
-  applyLayerPatch,
-  getLayerDisplayName,
-  getLayerExpandedToggleState,
-  getLayerPanelVisibleLayers,
-  getLayerRowClassName,
-  getLayerSettingsButtonClassName,
-  getLayerSettingsLabel,
-  getLayerSettingsTitle,
-  getLayerSettingsToggleIds,
-  getLayerVisibilityButtonClassName,
-  getLayerVisibilityLabel,
-  getLayerVisibilityTitle,
-  getReorderedDrawings,
-  getReorderedFogShapes,
-  hasLayerSettings
-} from "./layerPanelState";
+import { applyLayerPatch, getLayerExpandedToggleState, getLayerPanelVisibleLayers, getLayerSettingsToggleIds, getReorderedDrawings, getReorderedFogShapes, hasLayerSettings } from "./layerPanelState";
 import {
   getWeatherWithCategoryToggled,
   getWeatherWithDriftReset,
@@ -205,13 +173,6 @@ export function LayerPanel({
     );
   };
 
-  const onLayerRowClick = (event: MouseEvent<HTMLDivElement>, layerId: string, isExpandable: boolean) => {
-    if (!isExpandable || (event.target as HTMLElement).closest("button,input,select,label,a")) {
-      return;
-    }
-    toggleLayerExpanded(layerId);
-  };
-
   const updateWeather = (patch: Partial<WeatherSettings>) => {
     onChange({
       ...scene,
@@ -264,69 +225,23 @@ export function LayerPanel({
           const areSettingsExpanded = settingsLayerIds.has(layer.id);
           const reservedLayerGuidance = getReservedLayerGuidance(layer);
           const layerCount = getLayerItemCount(layer.id, scene);
-          const layerName = getLayerDisplayName(layer);
           return (
-            <div
-              className={getLayerRowClassName(hasLayerContents)}
+            <LayerPanelRow
               key={layer.id}
-              onClick={(event) => onLayerRowClick(event, layer.id, hasLayerContents)}
+              layer={layer}
+              index={index}
+              layerCount={layerCount}
+              layerOrderLocked={scene.layerOrderLocked}
+              totalLayers={visibleLayers.length}
+              hasContents={hasLayerContents}
+              hasSettings={hasLayerSettingsAvailable}
+              settingsExpanded={areSettingsExpanded}
+              onMoveLayer={onMoveLayer}
+              onToggleExpanded={toggleLayerExpanded}
+              onToggleGmVisibility={(layerId, visibleInGm) => updateLayer(layerId, { visibleInGm })}
+              onTogglePlayerVisibility={(layerId, visibleInPlayer) => updateLayer(layerId, { visibleInPlayer })}
+              onToggleSettings={toggleLayerSettings}
             >
-              <span className="layer-kind-icon" title={layerName} aria-hidden="true">
-                {getLayerIcon(layer)}
-              </span>
-              <span className="layer-name" title={layerName}>
-                {layerName}
-                {layerCount !== null && <span className="layer-count-badge" aria-label={`${layerCount} ${layerCount === 1 ? "item" : "items"}`}>{layerCount}</span>}
-              </span>
-              <button
-                className={getLayerVisibilityButtonClassName(layer.visibleInGm)}
-                aria-label={getLayerVisibilityLabel(layerName, "GM", layer.visibleInGm)}
-                aria-pressed={layer.visibleInGm}
-                title={getLayerVisibilityTitle(layer.visibleInGm, "GM")}
-                onClick={() => updateLayer(layer.id, { visibleInGm: !layer.visibleInGm })}
-              >
-                <Crown size={14} aria-hidden="true" />
-              </button>
-              <button
-                className={getLayerVisibilityButtonClassName(layer.visibleInPlayer)}
-                aria-label={getLayerVisibilityLabel(layerName, "Player", layer.visibleInPlayer)}
-                aria-pressed={layer.visibleInPlayer}
-                title={getLayerVisibilityTitle(layer.visibleInPlayer, "Player")}
-                onClick={() => updateLayer(layer.id, { visibleInPlayer: !layer.visibleInPlayer })}
-              >
-                <User size={14} aria-hidden="true" />
-              </button>
-              <button
-                className={getLayerSettingsButtonClassName(areSettingsExpanded)}
-                aria-label={getLayerSettingsLabel(layerName, hasLayerSettingsAvailable, areSettingsExpanded)}
-                title={getLayerSettingsTitle(hasLayerSettingsAvailable, areSettingsExpanded)}
-                disabled={!hasLayerSettingsAvailable}
-                onClick={() => toggleLayerSettings(layer.id)}
-              >
-                <Settings2 size={15} aria-hidden="true" />
-              </button>
-              {!scene.layerOrderLocked && (
-                <div className="layer-order-controls">
-                  <button
-                    className="icon-button"
-                    aria-label={`Move ${layerName} up`}
-                    title="Move up"
-                    disabled={index === 0}
-                    onClick={() => onMoveLayer(layer.id, "up")}
-                  >
-                    <ArrowUp size={14} aria-hidden="true" />
-                  </button>
-                  <button
-                    className="icon-button"
-                    aria-label={`Move ${layerName} down`}
-                    title="Move down"
-                    disabled={index === visibleLayers.length - 1}
-                    onClick={() => onMoveLayer(layer.id, "down")}
-                  >
-                    <ArrowDown size={14} aria-hidden="true" />
-                  </button>
-                </div>
-              )}
               {reservedLayerGuidance && isExpanded && (
                 <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
                   <div className="layer-empty-state">
@@ -443,43 +358,12 @@ export function LayerPanel({
                   onImportMap={onImportMap}
                 />
               )}
-            </div>
+            </LayerPanelRow>
           );
         })}
       </div>
     </section>
   );
-}
-
-function getLayerIcon(layer: Layer) {
-  if ((layer.kind as string) === "weather") {
-    return <Sparkles size={16} aria-hidden="true" />;
-  }
-
-  switch (layer.kind) {
-    case "map":
-      return <Image size={16} />;
-    case "grid":
-      return <Grid3X3 size={16} />;
-    case "fog":
-      return <CloudFog size={16} />;
-    case "effects":
-      return <Sparkles size={16} />;
-    case "drawing":
-      return <Paintbrush size={16} />;
-    case "token":
-      return <UsersRound size={16} />;
-    case "foreground":
-      return <Layers size={16} />;
-    case "object":
-      return <Box size={16} />;
-    case "lighting":
-      return <Lightbulb size={16} />;
-    case "gm":
-      return <Shield size={16} />;
-    default:
-      return <Sparkles size={16} />;
-  }
 }
 
 
