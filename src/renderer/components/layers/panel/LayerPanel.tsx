@@ -28,9 +28,9 @@ import type {
   WeatherSettings,
   WeatherTuningSettings
 } from "../../../../shared/localvtt";
-import { DEFAULT_WEATHER_EFFECT_SETTINGS, formatDefaultFogShapeName, type Token } from "../../../../shared/localvtt";
+import { DEFAULT_WEATHER_EFFECT_SETTINGS, type Token } from "../../../../shared/localvtt";
 import { getSnappedTokenPosition } from "../../../canvas/tokens";
-import { reorderByDropTarget, type DropPlacement } from "../../../lib/ui";
+import { type DropPlacement } from "../../../lib/ui";
 import { type ActiveWeatherCategory } from "../../../lib/effects";
 import { FogShapeList, type FogShapeDropTarget } from "../lists/FogShapeList";
 import { DrawingList, type DrawingDropTarget } from "./DrawingList";
@@ -46,6 +46,23 @@ import {
   getReservedLayerGuidance,
   isEffectsLayerId
 } from "./layerPanelFormat";
+import {
+  applyLayerPatch,
+  getLayerDisplayName,
+  getLayerExpandedToggleState,
+  getLayerPanelVisibleLayers,
+  getLayerRowClassName,
+  getLayerSettingsButtonClassName,
+  getLayerSettingsLabel,
+  getLayerSettingsTitle,
+  getLayerSettingsToggleIds,
+  getLayerVisibilityButtonClassName,
+  getLayerVisibilityLabel,
+  getLayerVisibilityTitle,
+  getReorderedDrawings,
+  getReorderedFogShapes,
+  hasLayerSettings
+} from "./layerPanelState";
 import {
   getDefaultWeatherSlot,
   getLegacyWeatherEffect,
@@ -128,8 +145,7 @@ export function LayerPanel({
   onOpenGridColor: () => void;
   onOpenTokenColor: (tokenId: string, value: string, kind: "border" | "glow") => void;
 }) {
-  const sortedLayers = useMemo(() => [...scene.layers].sort((a, b) => b.order - a.order), [scene.layers]);
-  const visibleLayers = useMemo(() => sortedLayers.filter((layer) => layer.id !== "grid"), [sortedLayers]);
+  const visibleLayers = useMemo(() => getLayerPanelVisibleLayers(scene.layers), [scene.layers]);
   const [expandedLayerIds, setExpandedLayerIds] = useState<Set<string>>(() => new Set());
   const [settingsLayerIds, setSettingsLayerIds] = useState<Set<string>>(() => new Set());
   const [draggedFogShapeId, setDraggedFogShapeId] = useState<string | null>(null);
@@ -142,75 +158,24 @@ export function LayerPanel({
   const [mapAdvancedOpen, setMapAdvancedOpen] = useState(false);
 
   const updateLayer = (layerId: string, patch: Partial<Layer>) => {
-    const nextGrid =
-      layerId === "grid"
-        ? {
-            ...scene.grid,
-            showOnGm: patch.visibleInGm ?? scene.grid.showOnGm,
-            showOnPlayer: patch.visibleInPlayer ?? scene.grid.showOnPlayer
-          }
-        : scene.grid;
-    const nextTokens =
-      layerId === "token" && (typeof patch.visibleInGm === "boolean" || typeof patch.visibleInPlayer === "boolean")
-        ? scene.tokens.map((token) => ({
-            ...token,
-            visibleInGm: patch.visibleInGm ?? token.visibleInGm,
-            visibleInPlayer: patch.visibleInPlayer ?? token.visibleInPlayer
-          }))
-        : scene.tokens;
-    onChange({
-      ...scene,
-      grid: nextGrid,
-      layers: scene.layers.map((layer) => (layer.id === layerId ? { ...layer, ...patch } : layer)),
-      tokens: nextTokens,
-      updatedAt: new Date().toISOString()
-    });
+    onChange(applyLayerPatch(scene, layerId, patch));
   };
 
   const toggleLayerExpanded = (layerId: string) => {
-    if (settingsLayerIds.has(layerId)) {
-      setSettingsLayerIds((ids) => {
-        const nextIds = new Set(ids);
-        nextIds.delete(layerId);
-        return nextIds;
-      });
-      setExpandedLayerIds((ids) => new Set([...ids, layerId]));
-      return;
-    }
-    if (expandedLayerIds.has(layerId)) {
-      setExpandedLayerIds((ids) => {
-        const nextIds = new Set(ids);
-        nextIds.delete(layerId);
-        return nextIds;
-      });
-      return;
-    }
-    setExpandedLayerIds((ids) => new Set([...ids, layerId]));
+    const nextState = getLayerExpandedToggleState(layerId, expandedLayerIds, settingsLayerIds);
+    setExpandedLayerIds(nextState.expandedLayerIds);
+    setSettingsLayerIds(nextState.settingsLayerIds);
   };
 
   const toggleLayerSettings = (layerId: string) => {
-    setSettingsLayerIds((ids) => {
-      const nextIds = new Set(ids);
-      if (nextIds.has(layerId)) {
-        nextIds.delete(layerId);
-      } else {
-        nextIds.clear();
-        nextIds.add(layerId);
-      }
-      return nextIds;
-    });
+    setSettingsLayerIds((ids) => getLayerSettingsToggleIds(layerId, ids));
   };
 
   const moveFogShape = (sourceShapeId: string, targetShapeId: string, placement: DropPlacement) => {
     if (sourceShapeId === targetShapeId) {
       return;
     }
-    const namedShapes = scene.fog.shapes.map((shape, index) => ({
-      ...shape,
-      name: shape.name?.trim() || formatDefaultFogShapeName(shape.operation, shape.kind, index)
-    }));
-    const shapes = reorderByDropTarget(namedShapes, (shape) => shape.id, sourceShapeId, targetShapeId, placement);
-    onUpdateFog({ shapes });
+    onUpdateFog({ shapes: getReorderedFogShapes(scene.fog.shapes, sourceShapeId, targetShapeId, placement) });
   };
 
   const updateDrawings = (drawings: DrawingElement[]) => {
@@ -221,8 +186,7 @@ export function LayerPanel({
     if (sourceDrawingId === targetDrawingId) {
       return;
     }
-    const drawings = reorderByDropTarget(scene.drawings, (drawing) => drawing.id, sourceDrawingId, targetDrawingId, placement);
-    updateDrawings(drawings);
+    updateDrawings(getReorderedDrawings(scene.drawings, sourceDrawingId, targetDrawingId, placement));
   };
 
   const updateTokens = (tokens: Token[]) => {
@@ -359,19 +323,16 @@ export function LayerPanel({
     <section className="panel">
       <div className="layer-list">
         {visibleLayers.map((layer, index) => {
-          const hasLayerSettings =
-            layer.id === "map" ||
-            layer.id === "fog" ||
-            isEffectsLayerId(layer.id);
+          const hasLayerSettingsAvailable = hasLayerSettings(layer.id);
           const hasLayerContents = true;
           const isExpanded = hasLayerContents && expandedLayerIds.has(layer.id);
           const areSettingsExpanded = settingsLayerIds.has(layer.id);
           const reservedLayerGuidance = getReservedLayerGuidance(layer);
           const layerCount = getLayerItemCount(layer.id, scene);
-          const layerName = layer.id === "map" ? "Grid & Maps" : layer.name;
+          const layerName = getLayerDisplayName(layer);
           return (
             <div
-              className={["layer-row", hasLayerContents ? "expandable-layer-row" : ""].filter(Boolean).join(" ")}
+              className={getLayerRowClassName(hasLayerContents)}
               key={layer.id}
               onClick={(event) => onLayerRowClick(event, layer.id, hasLayerContents)}
             >
@@ -383,28 +344,28 @@ export function LayerPanel({
                 {layerCount !== null && <span className="layer-count-badge" aria-label={`${layerCount} ${layerCount === 1 ? "item" : "items"}`}>{layerCount}</span>}
               </span>
               <button
-                className={layer.visibleInGm ? "icon-button layer-visibility-button layer-visibility-active" : "icon-button layer-visibility-button"}
-                aria-label={layer.visibleInGm ? `Hide ${layerName} in GM View` : `Show ${layerName} in GM View`}
+                className={getLayerVisibilityButtonClassName(layer.visibleInGm)}
+                aria-label={getLayerVisibilityLabel(layerName, "GM", layer.visibleInGm)}
                 aria-pressed={layer.visibleInGm}
-                title={layer.visibleInGm ? "Hide in GM View" : "Show in GM View"}
+                title={getLayerVisibilityTitle(layer.visibleInGm, "GM")}
                 onClick={() => updateLayer(layer.id, { visibleInGm: !layer.visibleInGm })}
               >
                 <Crown size={14} aria-hidden="true" />
               </button>
               <button
-                className={layer.visibleInPlayer ? "icon-button layer-visibility-button layer-visibility-active" : "icon-button layer-visibility-button"}
-                aria-label={layer.visibleInPlayer ? `Hide ${layerName} in Player View` : `Show ${layerName} in Player View`}
+                className={getLayerVisibilityButtonClassName(layer.visibleInPlayer)}
+                aria-label={getLayerVisibilityLabel(layerName, "Player", layer.visibleInPlayer)}
                 aria-pressed={layer.visibleInPlayer}
-                title={layer.visibleInPlayer ? "Hide in Player View" : "Show in Player View"}
+                title={getLayerVisibilityTitle(layer.visibleInPlayer, "Player")}
                 onClick={() => updateLayer(layer.id, { visibleInPlayer: !layer.visibleInPlayer })}
               >
                 <User size={14} aria-hidden="true" />
               </button>
               <button
-                className={areSettingsExpanded ? "icon-button layer-settings-button layer-settings-active" : "icon-button layer-settings-button"}
-                aria-label={hasLayerSettings ? (areSettingsExpanded ? `Hide ${layerName} settings` : `Show ${layerName} settings`) : `${layerName} settings unavailable`}
-                title={hasLayerSettings ? (areSettingsExpanded ? "Hide layer settings" : "Show layer settings") : "No layer settings yet"}
-                disabled={!hasLayerSettings}
+                className={getLayerSettingsButtonClassName(areSettingsExpanded)}
+                aria-label={getLayerSettingsLabel(layerName, hasLayerSettingsAvailable, areSettingsExpanded)}
+                title={getLayerSettingsTitle(hasLayerSettingsAvailable, areSettingsExpanded)}
+                disabled={!hasLayerSettingsAvailable}
                 onClick={() => toggleLayerSettings(layer.id)}
               >
                 <Settings2 size={15} aria-hidden="true" />
