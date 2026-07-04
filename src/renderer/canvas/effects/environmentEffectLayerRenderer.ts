@@ -78,7 +78,7 @@ import {
 import { worldRectToScreen, worldToScreenPoint } from "../core/viewportGeometry";
 import { getEnvironmentEffectPreviewFill, getEnvironmentEffectStroke } from "../../lib/effects";
 
-interface EnvironmentEffectTuningOverrides {
+export interface EnvironmentEffectTuningOverrides {
   acidEffectTuning?: AcidEffectTuning;
   coldEffectTuning?: ColdEffectTuning;
   darknessEffectTuning?: DarknessEffectTuning;
@@ -99,7 +99,7 @@ interface EnvironmentEffectTuningOverrides {
   fogEffectTuning?: FogEffectTuning;
 }
 
-type EnvironmentEffectDrawFn = (
+export type EnvironmentEffectDrawFn = (
   ctx: CanvasRenderingContext2D,
   effect: EnvironmentEffectMask,
   camera: Camera,
@@ -532,7 +532,7 @@ function getEnvironmentEffectScreenBounds(effect: EnvironmentEffectMask, camera:
   return bounds ? worldRectToScreen(bounds, camera) : null;
 }
 
-const ENVIRONMENT_EFFECT_DRAWERS: Record<EnvironmentEffectType, EnvironmentEffectDrawFn> = {
+export const ENVIRONMENT_EFFECT_DRAWERS: Record<EnvironmentEffectType, EnvironmentEffectDrawFn> = {
   acid: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawAcidEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.acidEffectTuning),
   arcane: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawArcaneEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.arcaneEffectTuning),
   chaos: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawChaosEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.chaosEffectTuning),
@@ -552,6 +552,10 @@ const ENVIRONMENT_EFFECT_DRAWERS: Record<EnvironmentEffectType, EnvironmentEffec
   void: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawVoidEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.voidEffectTuning),
   water: (ctx, effect, camera, timestamp, layerOpacity, tuningOverrides) => drawWaterEffect(ctx, effect, camera, timestamp, layerOpacity, tuningOverrides.waterEffectTuning)
 };
+
+export function getRegisteredEnvironmentEffectDrawers(): EnvironmentEffectType[] {
+  return Object.keys(ENVIRONMENT_EFFECT_DRAWERS).sort() as EnvironmentEffectType[];
+}
 
 export function drawEnvironmentEffectShape(ctx: CanvasRenderingContext2D, effect: EnvironmentEffectMask, camera: Camera, options: { fill: boolean; selected: boolean }) {
   if (options.selected) {

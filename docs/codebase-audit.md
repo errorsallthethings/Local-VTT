@@ -31,6 +31,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Hardened metadata read diagnostics so invalid JSON, invalid structure, and newer-schema files produce clearer recovery guidance.
 - Added Campaign Health refresh-on-open and a maintenance action for pruning unreferenced assets.
 - Changed new token imports to persist the cropped/token-ready image as the canonical token asset instead of retaining oversized source art in the campaign folder.
+- Added an explicit, tested 2D environment effect draw registry guard so future effect-family renderer splits stay aligned with the public effect catalog.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
