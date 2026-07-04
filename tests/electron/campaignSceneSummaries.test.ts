@@ -58,7 +58,8 @@ describe("campaign scene summaries", () => {
       scenes: [
         { id: "missing", name: "Missing", file: "scenes/missing.scene.json" },
         { id: "invalid", name: "Invalid", file: "scenes/invalid.scene.json" },
-        { id: "outside", name: "Outside", file: "../outside.scene.json" }
+        { id: "outside", name: "Outside", file: "../outside.scene.json" },
+        { id: "absolute", name: "Absolute", file: path.resolve(tempRoot, "scenes", "scene-1.scene.json") }
       ]
     };
 

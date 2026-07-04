@@ -50,6 +50,37 @@ describe("imported assets", () => {
     expect(asset.thumbnailAbsolutePath).toBeUndefined();
   });
 
+  it("derives imported asset absolute paths from validated portable paths", () => {
+    const campaignPath = path.resolve("fixtures", "campaign");
+    const asset = createImportedAsset({
+      assetId: "asset-safe",
+      kind: "map",
+      mediaType: "image",
+      sourcePath: path.join("source", "Map.png"),
+      relativePath: "assets/maps/Map.png",
+      destination: path.resolve("outside", "Map.png"),
+      campaignPath,
+      createdAt: "2026-07-02T12:00:00.000Z"
+    });
+
+    expect(asset.absolutePath).toBe(path.join(campaignPath, "assets", "maps", "Map.png"));
+  });
+
+  it("rejects imported asset metadata with unsafe portable paths", () => {
+    expect(() =>
+      createImportedAsset({
+        assetId: "asset-unsafe",
+        kind: "map",
+        mediaType: "image",
+        sourcePath: path.join("source", "Map.png"),
+        relativePath: path.resolve("fixtures", "campaign", "assets", "maps", "Map.png"),
+        destination: path.resolve("fixtures", "campaign", "assets", "maps", "Map.png"),
+        campaignPath: path.resolve("fixtures", "campaign"),
+        createdAt: "2026-07-02T12:00:00.000Z"
+      })
+    ).toThrow("Path is outside the selected campaign folder.");
+  });
+
   it("creates staged token import metadata without adding a campaign thumbnail or copied source", () => {
     const sourcePath = path.resolve("source", "Large Hero Portrait.PNG");
 

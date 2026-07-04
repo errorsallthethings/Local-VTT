@@ -24,6 +24,7 @@ export interface StagedTokenImportInput {
 
 export function createImportedAsset(input: ImportedAssetInput): Asset {
   const sourceName = path.basename(input.sourcePath);
+  const absolutePath = requireCampaignRelativePath(input.campaignPath, input.relativePath);
 
   return {
     id: input.assetId,
@@ -34,7 +35,7 @@ export function createImportedAsset(input: ImportedAssetInput): Asset {
     thumbnailRelativePath: input.thumbnailRelativePath,
     originalFileName: sourceName,
     createdAt: input.createdAt,
-    absolutePath: input.destination,
+    absolutePath,
     thumbnailAbsolutePath: input.thumbnailRelativePath ? requireCampaignRelativePath(input.campaignPath, input.thumbnailRelativePath) : undefined
   };
 }

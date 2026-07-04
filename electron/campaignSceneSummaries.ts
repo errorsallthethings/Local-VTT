@@ -1,7 +1,6 @@
 import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { assertValidScene, normalizeCampaign, type Campaign } from "../src/shared/localvtt.js";
-import { assertInsidePath } from "./campaignPathSafety.js";
+import { requireCampaignRelativePath } from "./assetFiles.js";
 import { hydrateCampaignSceneEntry } from "./persistenceCodecs.js";
 
 export async function hydrateSceneSummaries(campaignPath: string, campaign: Campaign): Promise<Campaign> {
@@ -13,8 +12,7 @@ export async function hydrateSceneSummaries(campaignPath: string, campaign: Camp
       }
 
       try {
-        const filePath = path.resolve(campaignPath, entry.file);
-        assertInsidePath(campaignPath, filePath);
+        const filePath = requireCampaignRelativePath(campaignPath, entry.file, "Scene file is outside the selected campaign folder.");
         const raw = await readFile(filePath, "utf8");
         const scene = JSON.parse(raw) as unknown;
         assertValidScene(scene);
