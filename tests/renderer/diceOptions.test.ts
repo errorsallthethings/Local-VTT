@@ -4,7 +4,13 @@ import {
   DICE_PANEL_EDGE_OPTIONS,
   DICE_PANEL_FACING_OPTIONS,
   DICE_SCENE_SIZE_OPTIONS,
-  getDiceDisplaySelectValue
+  DEFAULT_DICE_PANEL_EDGE,
+  DEFAULT_DICE_PANEL_FACING,
+  DEFAULT_DICE_PANEL_POSITION,
+  getDiceDisplayModeChangePlan,
+  getDiceDisplaySelectValue,
+  getDiceDisplaySelectValueForView,
+  getDicePanelAdvancedChangePlan
 } from "../../src/renderer/lib/dice";
 
 describe("dice option helpers", () => {
@@ -29,5 +35,45 @@ describe("dice option helpers", () => {
     expect(getDiceDisplaySelectValue("scene")).toBe("scene");
     expect(getDiceDisplaySelectValue("results")).toBe("results");
     expect(getDiceDisplaySelectValue("scene-result")).toBe("results");
+  });
+
+  it("derives display select values while scene rolls are enabled", () => {
+    expect(getDiceDisplaySelectValueForView("panel", "gm", "gm", true)).toBe("scene");
+    expect(getDiceDisplaySelectValueForView("panel", "player", "gm", true)).toBe("results");
+    expect(getDiceDisplaySelectValueForView("hidden", "player", "player", true)).toBe("scene");
+    expect(getDiceDisplaySelectValueForView("panel", "gm", "player", true)).toBe("hidden");
+    expect(getDiceDisplaySelectValueForView("panel", "gm", "gm", false)).toBe("panel");
+  });
+
+  it("plans display mode changes for scene roll and normal display modes", () => {
+    expect(getDiceDisplayModeChangePlan("scene", "gm", false)).toEqual({
+      sceneRollTarget: "gm",
+      sceneRollEnabled: true,
+      displayMode: null
+    });
+    expect(getDiceDisplayModeChangePlan("panel", "player", true)).toEqual({
+      sceneRollTarget: null,
+      sceneRollEnabled: false,
+      displayMode: "panel"
+    });
+    expect(getDiceDisplayModeChangePlan("hidden", "player", false)).toEqual({
+      sceneRollTarget: null,
+      sceneRollEnabled: null,
+      displayMode: "hidden"
+    });
+  });
+
+  it("exposes and applies default dice panel placement settings", () => {
+    expect(DEFAULT_DICE_PANEL_EDGE).toBe("top");
+    expect(DEFAULT_DICE_PANEL_FACING).toBe("inward");
+    expect(DEFAULT_DICE_PANEL_POSITION).toBe(0.5);
+    expect(getDicePanelAdvancedChangePlan(false)).toEqual({
+      advanced: false,
+      resetPlacement: true
+    });
+    expect(getDicePanelAdvancedChangePlan(true)).toEqual({
+      advanced: true,
+      resetPlacement: false
+    });
   });
 });

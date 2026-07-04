@@ -9,6 +9,9 @@ import {
   DICE_PANEL_FACING_OPTIONS,
   DICE_SCENE_SIZE_OPTIONS,
   DICE_TYPES,
+  DEFAULT_DICE_PANEL_EDGE,
+  DEFAULT_DICE_PANEL_FACING,
+  DEFAULT_DICE_PANEL_POSITION,
   formatDieLabel,
   formatDiceFeedBreakdown,
   formatDiceFeedBreakdownTooltip,
@@ -22,7 +25,9 @@ import {
   getDicePlacementAvailable,
   getDicePlacementFacingAvailable,
   getDicePlacementHelp,
-  getDiceDisplaySelectValue,
+  getDiceDisplayModeChangePlan,
+  getDiceDisplaySelectValueForView,
+  getDicePanelAdvancedChangePlan,
   isPendingRecentDiceRoll,
   loadCustomDicePresets,
   rollDiceExpression,
@@ -270,27 +275,29 @@ export function WorkspaceTopbar({
   };
 
   const resetGmDicePanelPlacement = () => {
-    onGmDicePanelEdgeChange("top");
-    onGmDicePanelFacingChange("inward");
-    onGmDicePanelPositionChange(0.5);
+    onGmDicePanelEdgeChange(DEFAULT_DICE_PANEL_EDGE);
+    onGmDicePanelFacingChange(DEFAULT_DICE_PANEL_FACING);
+    onGmDicePanelPositionChange(DEFAULT_DICE_PANEL_POSITION);
   };
 
   const resetPlayerDicePanelPlacement = () => {
-    onPlayerDicePanelEdgeChange("top");
-    onPlayerDicePanelFacingChange("inward");
-    onPlayerDicePanelPositionChange(0.5);
+    onPlayerDicePanelEdgeChange(DEFAULT_DICE_PANEL_EDGE);
+    onPlayerDicePanelFacingChange(DEFAULT_DICE_PANEL_FACING);
+    onPlayerDicePanelPositionChange(DEFAULT_DICE_PANEL_POSITION);
   };
 
   const updateGmDicePanelAdvanced = (advanced: boolean) => {
-    onGmDicePanelAdvancedChange(advanced);
-    if (!advanced) {
+    const plan = getDicePanelAdvancedChangePlan(advanced);
+    onGmDicePanelAdvancedChange(plan.advanced);
+    if (plan.resetPlacement) {
       resetGmDicePanelPlacement();
     }
   };
 
   const updatePlayerDicePanelAdvanced = (advanced: boolean) => {
-    onPlayerDicePanelAdvancedChange(advanced);
-    if (!advanced) {
+    const plan = getDicePanelAdvancedChangePlan(advanced);
+    onPlayerDicePanelAdvancedChange(plan.advanced);
+    if (plan.resetPlacement) {
       resetPlayerDicePanelPlacement();
     }
   };
@@ -301,31 +308,33 @@ export function WorkspaceTopbar({
   const playerPlacementFacingAvailable = getDicePlacementFacingAvailable(playerDiceDisplayMode, diceSceneRollEnabled);
   const gmPlacementHelp = getDicePlacementHelp("GM", gmDiceDisplayMode, diceSceneRollEnabled);
   const playerPlacementHelp = getDicePlacementHelp("Player", playerDiceDisplayMode, diceSceneRollEnabled);
-  const gmDisplaySelectValue = diceSceneRollEnabled ? (diceSceneRollTarget === "gm" ? "scene" : "results") : getDiceDisplaySelectValue(gmDiceDisplayMode);
-  const playerDisplaySelectValue = diceSceneRollEnabled ? (diceSceneRollTarget === "player" ? "scene" : "hidden") : getDiceDisplaySelectValue(playerDiceDisplayMode);
+  const gmDisplaySelectValue = getDiceDisplaySelectValueForView(gmDiceDisplayMode, diceSceneRollTarget, "gm", diceSceneRollEnabled);
+  const playerDisplaySelectValue = getDiceDisplaySelectValueForView(playerDiceDisplayMode, diceSceneRollTarget, "player", diceSceneRollEnabled);
 
   const changeGmDiceDisplayMode = (mode: DiceDisplayMode) => {
-    if (mode === "scene") {
-      onDiceSceneRollTargetChange("gm");
-      onDiceSceneRollEnabledChange(true);
-      return;
+    const plan = getDiceDisplayModeChangePlan(mode, "gm", diceSceneRollEnabled);
+    if (plan.sceneRollTarget) {
+      onDiceSceneRollTargetChange(plan.sceneRollTarget);
     }
-    if (diceSceneRollEnabled) {
-      onDiceSceneRollEnabledChange(false);
+    if (plan.sceneRollEnabled !== null) {
+      onDiceSceneRollEnabledChange(plan.sceneRollEnabled);
     }
-    onGmDiceDisplayModeChange(mode);
+    if (plan.displayMode) {
+      onGmDiceDisplayModeChange(plan.displayMode);
+    }
   };
 
   const changePlayerDiceDisplayMode = (mode: DiceDisplayMode) => {
-    if (mode === "scene") {
-      onDiceSceneRollTargetChange("player");
-      onDiceSceneRollEnabledChange(true);
-      return;
+    const plan = getDiceDisplayModeChangePlan(mode, "player", diceSceneRollEnabled);
+    if (plan.sceneRollTarget) {
+      onDiceSceneRollTargetChange(plan.sceneRollTarget);
     }
-    if (diceSceneRollEnabled) {
-      onDiceSceneRollEnabledChange(false);
+    if (plan.sceneRollEnabled !== null) {
+      onDiceSceneRollEnabledChange(plan.sceneRollEnabled);
     }
-    onPlayerDiceDisplayModeChange(mode);
+    if (plan.displayMode) {
+      onPlayerDiceDisplayModeChange(plan.displayMode);
+    }
   };
 
   const rollPreset = (label: string, formula: string) => {
