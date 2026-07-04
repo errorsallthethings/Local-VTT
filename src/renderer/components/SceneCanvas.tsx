@@ -185,6 +185,10 @@ import { SceneCanvasContextMenus } from "./scene/SceneCanvasContextMenus";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
 import { getSceneContextMenuOpening, type SceneContextMenuOpening } from "./scene/sceneContextMenuOpening";
 import {
+  cancelSceneInteractionsForKeyboardEvent,
+  hasCancelableSceneInteraction
+} from "./scene/sceneInteractionCancellation";
+import {
   appendScenePolygonDraftPoint,
   appendScopedScenePolygonDraftPoint,
   clearScenePolygonDraft,
@@ -842,22 +846,29 @@ export function SceneCanvas({
     clearScenePolygonDraft({ ref: environmentPolygonDraftRef, setDraft: setEnvironmentPolygonDraft });
   }, [clearEnvironmentEffectPreview, environmentEffectTool, environmentPolygonDraftRef, scene?.id]);
 
-  const hasCancelableSceneInteraction = Boolean(tokenDragPreview || drawingDragPreview || weatherMaskMovePreview || environmentEffectMovePreview || rulerDrag || fogPreview || drawingPreview || environmentEffectPreview);
+  const sceneInteractionCancelable = hasCancelableSceneInteraction({
+    tokenDragPreview,
+    drawingDragPreview,
+    weatherMaskMovePreview,
+    environmentEffectMovePreview,
+    rulerDrag,
+    fogPreview,
+    drawingPreview,
+    environmentEffectPreview
+  });
   const cancelSceneInteractionOnEscape = useCallback((event: KeyboardEvent) => {
-    if (event.key !== "Escape") {
-      return;
-    }
-    event.preventDefault();
-    cancelTokenDrag();
-    cancelDrawingDrag();
-    cancelWeatherMaskMove();
-    cancelEnvironmentEffectMove();
-    cancelRulerDrag();
-    clearFogPreview();
-    clearEnvironmentEffectPreview();
-    clearDrawingPreview();
+    cancelSceneInteractionsForKeyboardEvent(event, {
+      cancelTokenDrag,
+      cancelDrawingDrag,
+      cancelWeatherMaskMove,
+      cancelEnvironmentEffectMove,
+      cancelRulerDrag,
+      clearFogPreview,
+      clearEnvironmentEffectPreview,
+      clearDrawingPreview
+    });
   }, [cancelDrawingDrag, cancelEnvironmentEffectMove, cancelRulerDrag, cancelTokenDrag, cancelWeatherMaskMove, clearDrawingPreview, clearEnvironmentEffectPreview, clearFogPreview]);
-  useWindowKeyDown(mode === "gm" && hasCancelableSceneInteraction, cancelSceneInteractionOnEscape);
+  useWindowKeyDown(mode === "gm" && sceneInteractionCancelable, cancelSceneInteractionOnEscape);
 
   const appendTokenWaypointOnShift = useCallback((event: KeyboardEvent) => {
     if (!scene) {
