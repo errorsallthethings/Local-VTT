@@ -16,7 +16,8 @@ import {
   type PlacedTemplateAsset,
   type TemplateEffectRenderable
 } from "./templateEffectPlacement";
-import { getTemplateEffectStyle } from "./templateEffectStyles";
+import { getTemplateEffectStyle, getTemplateInnerGlowStyle } from "./templateEffectStyles";
+import { supportsTemplateEffectAssets, supportsTemplateEffectInnerGlow } from "./templateEffectAssets";
 import { getTemplateEffectTuning } from "./templateEffectTuning";
 import { getTemplateGridHighlightCells } from "./templateGridHighlights";
 import { getTemplateLabel, getTemplateLabelPosition } from "./templateLabels";
@@ -456,7 +457,7 @@ function drawTemplateLabel(ctx: CanvasRenderingContext2D, drawing: DrawingElemen
 
 function fillTemplateEffectPath(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
   const effect = getTemplateEffectStyle(drawing.templateEffect ?? "plain");
-  if ((drawing.templateEffect === "lightning" || drawing.templateEffect === "cold" || drawing.templateEffect === "poison" || drawing.templateEffect === "acid" || drawing.templateEffect === "arcane" || drawing.templateEffect === "fire" || drawing.templateEffect === "fog" || drawing.templateEffect === "darkness" || drawing.templateEffect === "nature" || drawing.templateEffect === "psychic" || drawing.templateEffect === "radiant" || drawing.templateEffect === "storm" || drawing.templateEffect === "thunder" || drawing.templateEffect === "water" || drawing.templateEffect === "web") && (drawing.kind === "circle" || drawing.kind === "rectangle" || drawing.kind === "cone")) {
+  if (supportsTemplateEffectInnerGlow(drawing)) {
     drawTemplateInnerGlow(ctx, drawing, layerOpacity);
   }
   if (effect.fillOpacity <= 0) {
@@ -471,36 +472,22 @@ function fillTemplateEffectPath(ctx: CanvasRenderingContext2D, drawing: DrawingE
 }
 
 function drawTemplateInnerGlow(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
-  const alpha = Math.max(0, Math.min(0.7, layerOpacity * 0.55));
-  if (alpha <= 0) {
+  const glow = getTemplateInnerGlowStyle(drawing.templateEffect ?? "plain", drawing.strokeWidth, layerOpacity);
+  if (!glow) {
     return;
   }
-  const cold = drawing.templateEffect === "cold";
-  const acid = drawing.templateEffect === "acid";
-  const arcane = drawing.templateEffect === "arcane";
-  const darkness = drawing.templateEffect === "darkness";
-  const fire = drawing.templateEffect === "fire";
-  const fog = drawing.templateEffect === "fog";
-  const nature = drawing.templateEffect === "nature";
-  const poison = drawing.templateEffect === "poison";
-  const psychic = drawing.templateEffect === "psychic";
-  const radiant = drawing.templateEffect === "radiant";
-  const storm = drawing.templateEffect === "storm";
-  const thunder = drawing.templateEffect === "thunder";
-  const water = drawing.templateEffect === "water";
-  const web = drawing.templateEffect === "web";
   ctx.save();
   ctx.clip();
-  ctx.globalAlpha = alpha;
-  ctx.strokeStyle = acid ? "#bef264" : poison ? "#a3e635" : cold ? "#f8fafc" : arcane ? "#c4b5fd" : fire ? "#fb923c" : fog ? "#e2e8f0" : darkness ? "#020617" : nature ? "#86efac" : psychic ? "#f0abfc" : radiant ? "#fef3c7" : storm ? "#93c5fd" : thunder ? "#d8b4fe" : water ? "#5eead4" : web ? "#f8fafc" : "#facc15";
-  ctx.shadowColor = acid ? "#d9f99d" : poison ? "#84cc16" : cold ? "#e0f2fe" : arcane ? "#8b5cf6" : fire ? "#f97316" : fog ? "#f8fafc" : darkness ? "#020617" : nature ? "#22c55e" : psychic ? "#db2777" : radiant ? "#facc15" : storm ? "#60a5fa" : thunder ? "#9333ea" : water ? "#14b8a6" : web ? "#e2e8f0" : "#fde047";
-  ctx.shadowBlur = acid ? Math.max(26, drawing.strokeWidth * 1.55) : Math.max(18, drawing.strokeWidth * 1.15);
-  ctx.lineWidth = acid ? Math.max(34, drawing.strokeWidth * 3.25) : Math.max(26, drawing.strokeWidth * 2.6);
+  ctx.globalAlpha = glow.alpha;
+  ctx.strokeStyle = glow.strokeStyle;
+  ctx.shadowColor = glow.shadowColor;
+  ctx.shadowBlur = glow.shadowBlur;
+  ctx.lineWidth = glow.lineWidth;
   ctx.stroke();
-  ctx.globalAlpha = acid ? Math.min(0.56, alpha * 0.96) : Math.min(0.42, alpha * 0.78);
+  ctx.globalAlpha = glow.highlightAlpha;
   ctx.shadowBlur = 0;
-  ctx.lineWidth = acid ? Math.max(14, drawing.strokeWidth * 1.45) : Math.max(10, drawing.strokeWidth * 1.1);
-  ctx.strokeStyle = acid ? "#f7fee7" : poison ? "#d9f99d" : cold ? "#ffffff" : arcane ? "#ede9fe" : fire ? "#fed7aa" : fog ? "#f8fafc" : darkness ? "#1e293b" : nature ? "#dcfce7" : psychic ? "#fdf4ff" : radiant ? "#fff7ed" : storm ? "#dbeafe" : thunder ? "#f3e8ff" : water ? "#ccfbf1" : web ? "#ffffff" : "#fef08a";
+  ctx.lineWidth = glow.highlightLineWidth;
+  ctx.strokeStyle = glow.highlightStrokeStyle;
   ctx.stroke();
   ctx.restore();
 }
@@ -516,7 +503,7 @@ function applyTemplateEffectStroke(ctx: CanvasRenderingContext2D, drawing: Drawi
 
 function drawTemplateAssetOverlay(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number, grid?: GridSettings) {
   const effect = drawing.templateEffect ?? "plain";
-  if (drawing.id === "preview" || (effect !== "web" && effect !== "poison" && effect !== "acid" && effect !== "arcane" && effect !== "cold" && effect !== "lightning" && effect !== "fire" && effect !== "fog" && effect !== "darkness" && effect !== "nature" && effect !== "psychic" && effect !== "radiant" && effect !== "storm" && effect !== "thunder" && effect !== "water") || (drawing.kind !== "line" && drawing.kind !== "circle" && drawing.kind !== "rectangle" && drawing.kind !== "cone")) {
+  if (!supportsTemplateEffectAssets(drawing)) {
     return;
   }
   const renderables = getTemplateEffectRenderables(effect);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getTemplateEffectStyle } from "../../src/renderer/canvas/drawings";
+import { getTemplateEffectStyle, getTemplateInnerGlowStyle } from "../../src/renderer/canvas/drawings";
 
 describe("template effect styles", () => {
   it("returns the default plain template style", () => {
@@ -24,5 +24,30 @@ describe("template effect styles", () => {
       fill: "#cbd5e1",
       dash: [4, 6, 14, 6]
     });
+  });
+
+  it("returns template inner glow style from effect colors and stroke width", () => {
+    expect(getTemplateInnerGlowStyle("fire", 12, 0.5)).toMatchObject({
+      alpha: 0.275,
+      strokeStyle: "#fb923c",
+      shadowColor: "#f97316",
+      shadowBlur: 18,
+      lineWidth: 31.200000000000003,
+      highlightAlpha: 0.21450000000000002,
+      highlightLineWidth: 13.200000000000001,
+      highlightStrokeStyle: "#fed7aa"
+    });
+    expect(getTemplateInnerGlowStyle("acid", 12, 0.5)).toMatchObject({
+      strokeStyle: "#bef264",
+      shadowBlur: 26,
+      lineWidth: 39,
+      highlightAlpha: 0.264,
+      highlightLineWidth: 17.4,
+      highlightStrokeStyle: "#f7fee7"
+    });
+  });
+
+  it("omits template inner glow when layer opacity is zero", () => {
+    expect(getTemplateInnerGlowStyle("fire", 12, 0)).toBeNull();
   });
 });
