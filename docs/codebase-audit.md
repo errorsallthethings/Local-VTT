@@ -39,6 +39,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted SceneCanvas render-plan calculations for render camera, map sources, weather source readiness, and grid visibility into a tested canvas helper.
 - Made SceneCanvas pointer-down route selection explicit and tested, preserving the existing branch order while reducing long repeated boolean guards in the handler.
 - Consolidated GmApp selected-scene-item payload construction into a tested scene helper and reused it for visibility/delete actions.
+- Tightened Windows package artifact validation so release checks require the installer blockmap alongside the installer, update metadata, and unpacked executable.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots

@@ -12,6 +12,7 @@ describe("validatePackageArtifacts", () => {
     expect(
       validateWindowsPackageArtifacts([
         "release/Local VTT Setup 0.1.15.exe",
+        "release/Local VTT Setup 0.1.15.exe.blockmap",
         "release/latest.yml",
         "release/win-unpacked/Local VTT.exe"
       ])
@@ -24,6 +25,7 @@ describe("validatePackageArtifacts", () => {
         platform: "win",
         files: [
           "release\\Local VTT Setup 0.1.15.exe",
+          "release\\Local VTT Setup 0.1.15.exe.blockmap",
           "release\\latest.yml",
           "release\\win-unpacked\\Local VTT.exe"
         ]
@@ -34,6 +36,7 @@ describe("validatePackageArtifacts", () => {
   it("reports missing Windows installer metadata and unpacked executable", () => {
     expect(validateWindowsPackageArtifacts(["release/win-unpacked/resources/app.asar"])).toEqual([
       "Windows packaging must produce a release/*.exe installer.",
+      "Windows packaging must produce a release/*.exe.blockmap update blockmap.",
       "Windows packaging must produce release/latest.yml.",
       "Windows packaging must produce release/win-unpacked/Local VTT.exe for local smoke testing."
     ]);

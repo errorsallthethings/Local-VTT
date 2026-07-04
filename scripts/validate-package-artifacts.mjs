@@ -28,6 +28,9 @@ export function validateWindowsPackageArtifacts(files) {
   if (!normalizedFiles.some((file) => file.startsWith("release/") && !file.slice("release/".length).includes("/") && file.endsWith(".exe"))) {
     errors.push("Windows packaging must produce a release/*.exe installer.");
   }
+  if (!normalizedFiles.some((file) => file.startsWith("release/") && !file.slice("release/".length).includes("/") && file.endsWith(".exe.blockmap"))) {
+    errors.push("Windows packaging must produce a release/*.exe.blockmap update blockmap.");
+  }
   if (!normalizedFiles.includes("release/latest.yml")) {
     errors.push("Windows packaging must produce release/latest.yml.");
   }
