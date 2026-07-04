@@ -33,6 +33,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Changed new token imports to persist the cropped/token-ready image as the canonical token asset instead of retaining oversized source art in the campaign folder.
 - Added an explicit, tested 2D environment effect draw registry guard so future effect-family renderer splits stay aligned with the public effect catalog.
 - Extracted tested template-effect asset/glow support helpers, overlay cache helpers, and renderable registry guards from the drawing renderer as the first step toward separating template rendering from base drawing rendering.
+- Moved LayerPanel weather update transitions into tested helpers, reducing inline UI orchestration for weather categories, effect selection, and tuning resets.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots

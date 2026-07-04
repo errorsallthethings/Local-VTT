@@ -1,4 +1,4 @@
-import { useMemo, useState, type MouseEvent } from "react";
+import { useMemo, useState, type ComponentProps, type MouseEvent } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -24,11 +24,10 @@ import type {
   Layer,
   MapTransform,
   Scene,
-  WeatherPatternEffectType,
   WeatherSettings,
   WeatherTuningSettings
 } from "../../../../shared/localvtt";
-import { DEFAULT_WEATHER_EFFECT_SETTINGS, type Token } from "../../../../shared/localvtt";
+import { type Token } from "../../../../shared/localvtt";
 import { getSnappedTokenPosition } from "../../../canvas/tokens";
 import { type DropPlacement } from "../../../lib/ui";
 import { type ActiveWeatherCategory } from "../../../lib/effects";
@@ -64,11 +63,12 @@ import {
   hasLayerSettings
 } from "./layerPanelState";
 import {
-  getDefaultWeatherSlot,
-  getLegacyWeatherEffect,
-  getWeatherEffectSettingsWithCategoryReset,
-  getWeatherEffectSettingsWithCurrent,
-  hasEnabledWeatherEffect,
+  getWeatherWithCategoryToggled,
+  getWeatherWithDriftReset,
+  getWeatherWithPatch,
+  getWeatherWithSelectedEffect,
+  getWeatherWithTuningPatch,
+  getWeatherWithTuningReset,
   type WeatherTuningKey
 } from "./layerPanelWeather";
 
@@ -213,18 +213,9 @@ export function LayerPanel({
   };
 
   const updateWeather = (patch: Partial<WeatherSettings>) => {
-    const nextWeather = {
-      ...scene.weather,
-      ...patch
-    };
-    const hasEnabledEffect = hasEnabledWeatherEffect(nextWeather.effects);
     onChange({
       ...scene,
-      weather: {
-        ...nextWeather,
-        enabled: hasEnabledEffect,
-        effect: getLegacyWeatherEffect(nextWeather)
-      },
+      weather: getWeatherWithPatch(scene.weather, patch),
       updatedAt: new Date().toISOString()
     });
   };
@@ -241,82 +232,26 @@ export function LayerPanel({
   };
 
   const toggleWeatherCategory = (category: ActiveWeatherCategory, enabled: boolean) => {
-    const slot = enabled ? scene.weather.effects[category] : getDefaultWeatherSlot(category);
-    const effects = {
-      ...scene.weather.effects,
-      [category]: {
-        ...slot,
-        enabled
-      }
-    };
-    updateWeather({
-      effects,
-      enabled: hasEnabledWeatherEffect(effects),
-      effectSettings: enabled
-        ? getWeatherEffectSettingsWithCurrent({ ...scene.weather, effects })
-        : getWeatherEffectSettingsWithCategoryReset(scene.weather, effects, category)
-    });
+    updateWeather(getWeatherWithCategoryToggled(scene.weather, category, enabled));
     if (!enabled && expandedWeatherCategory === category) {
       setExpandedWeatherCategory(null);
     }
   };
 
-  const selectWeatherEffect = (category: ActiveWeatherCategory, effect: WeatherPatternEffectType) => {
-    const currentSlot = scene.weather.effects[category];
-    if (currentSlot.enabled && currentSlot.pattern === effect) {
-      toggleWeatherCategory(category, false);
-      return;
-    }
-    const effectSettings = getWeatherEffectSettingsWithCurrent(scene.weather);
-    const nextTuning = effectSettings[effect] ?? DEFAULT_WEATHER_EFFECT_SETTINGS[effect];
-    effectSettings[effect] = nextTuning;
-    updateWeather({
-      enabled: true,
-      effects: {
-        ...scene.weather.effects,
-        [category]: {
-          enabled: true,
-          pattern: effect,
-          settings: nextTuning
-        }
-      },
-      effectSettings
-    });
+  const selectWeatherEffect: ComponentProps<typeof WeatherSettingsPanel>["onSelectWeatherEffect"] = (category, effect) => {
+    updateWeather(getWeatherWithSelectedEffect(scene.weather, category, effect));
   };
 
   const updateWeatherTuning = (category: ActiveWeatherCategory, patch: Partial<WeatherTuningSettings>) => {
-    const slot = scene.weather.effects[category];
-    const nextTuning = {
-      ...slot.settings,
-      ...patch
-    };
-    updateWeather({
-      effects: {
-        ...scene.weather.effects,
-        [category]: {
-          ...slot,
-          settings: nextTuning
-        }
-      },
-      effectSettings: {
-        ...scene.weather.effectSettings,
-        [slot.pattern]: nextTuning
-      }
-    });
+    updateWeather(getWeatherWithTuningPatch(scene.weather, category, patch));
   };
 
   const resetWeatherTuning = (category: ActiveWeatherCategory, key: WeatherTuningKey) => {
-    const pattern = scene.weather.effects[category].pattern;
-    updateWeatherTuning(category, { [key]: DEFAULT_WEATHER_EFFECT_SETTINGS[pattern][key] });
+    updateWeather(getWeatherWithTuningReset(scene.weather, category, key));
   };
 
   const resetWeatherDrift = (category: ActiveWeatherCategory) => {
-    const pattern = scene.weather.effects[category].pattern;
-    const defaults = DEFAULT_WEATHER_EFFECT_SETTINGS[pattern];
-    updateWeatherTuning(category, {
-      directionDegrees: defaults.directionDegrees,
-      driftStrength: defaults.driftStrength
-    });
+    updateWeather(getWeatherWithDriftReset(scene.weather, category));
   };
 
   return (

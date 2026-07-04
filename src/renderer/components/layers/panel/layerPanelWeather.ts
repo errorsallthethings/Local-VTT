@@ -1,5 +1,6 @@
 import {
   DEFAULT_WEATHER_EFFECT_SETTINGS,
+  type WeatherPatternEffectType,
   type WeatherSettings,
   type WeatherTuningSettings
 } from "../../../../shared/localvtt";
@@ -82,6 +83,106 @@ export function getWeatherEffectSettingsWithCategoryReset(
 
 export function hasEnabledWeatherEffect(effects: WeatherSettings["effects"]): boolean {
   return effects.rain.enabled || effects.fog.enabled || effects.snow.enabled || effects.sand.enabled;
+}
+
+export function getWeatherWithPatch(weather: WeatherSettings, patch: Partial<WeatherSettings>): WeatherSettings {
+  const nextWeather = {
+    ...weather,
+    ...patch
+  };
+  const hasEnabledEffect = hasEnabledWeatherEffect(nextWeather.effects);
+  return {
+    ...nextWeather,
+    enabled: hasEnabledEffect,
+    effect: getLegacyWeatherEffect(nextWeather)
+  };
+}
+
+export function getWeatherWithCategoryToggled(weather: WeatherSettings, category: ActiveWeatherCategory, enabled: boolean): WeatherSettings {
+  const slot = enabled ? weather.effects[category] : getDefaultWeatherSlot(category);
+  const effects = {
+    ...weather.effects,
+    [category]: {
+      ...slot,
+      enabled
+    }
+  };
+  return getWeatherWithPatch(weather, {
+    effects,
+    enabled: hasEnabledWeatherEffect(effects),
+    effectSettings: enabled
+      ? getWeatherEffectSettingsWithCurrent({ ...weather, effects })
+      : getWeatherEffectSettingsWithCategoryReset(weather, effects, category)
+  });
+}
+
+export function getWeatherWithSelectedEffect(
+  weather: WeatherSettings,
+  category: ActiveWeatherCategory,
+  effect: WeatherPatternEffectType
+): WeatherSettings {
+  const currentSlot = weather.effects[category];
+  if (currentSlot.enabled && currentSlot.pattern === effect) {
+    return getWeatherWithCategoryToggled(weather, category, false);
+  }
+  const effectSettings = getWeatherEffectSettingsWithCurrent(weather);
+  const nextTuning = effectSettings[effect] ?? DEFAULT_WEATHER_EFFECT_SETTINGS[effect];
+  effectSettings[effect] = nextTuning;
+  return getWeatherWithPatch(weather, {
+    enabled: true,
+    effects: {
+      ...weather.effects,
+      [category]: {
+        enabled: true,
+        pattern: effect,
+        settings: nextTuning
+      }
+    },
+    effectSettings
+  });
+}
+
+export function getWeatherWithTuningPatch(
+  weather: WeatherSettings,
+  category: ActiveWeatherCategory,
+  patch: Partial<WeatherTuningSettings>
+): WeatherSettings {
+  const slot = weather.effects[category];
+  const nextTuning = {
+    ...slot.settings,
+    ...patch
+  };
+  return getWeatherWithPatch(weather, {
+    effects: {
+      ...weather.effects,
+      [category]: {
+        ...slot,
+        settings: nextTuning
+      }
+    },
+    effectSettings: {
+      ...weather.effectSettings,
+      [slot.pattern]: nextTuning
+    }
+  });
+}
+
+export function getWeatherWithTuningReset(
+  weather: WeatherSettings,
+  category: ActiveWeatherCategory,
+  key: WeatherTuningKey
+): WeatherSettings {
+  const pattern = weather.effects[category].pattern;
+  return getWeatherWithTuningPatch(weather, category, { [key]: DEFAULT_WEATHER_EFFECT_SETTINGS[pattern][key] });
+}
+
+export function getWeatherWithDriftReset(weather: WeatherSettings, category: ActiveWeatherCategory): WeatherSettings {
+  const pattern = weather.effects[category].pattern;
+  const defaults = DEFAULT_WEATHER_EFFECT_SETTINGS[pattern];
+  return getWeatherWithTuningPatch(weather, category, {
+    directionDegrees: defaults.directionDegrees,
+    driftStrength: defaults.driftStrength
+  });
 }
 
 const WEATHER_ADVANCED_LABELS: Record<
