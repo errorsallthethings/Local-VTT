@@ -40,11 +40,12 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Made SceneCanvas pointer-down route selection explicit and tested, preserving the existing branch order while reducing long repeated boolean guards in the handler.
 - Consolidated GmApp selected-scene-item payload construction into a tested scene helper and reused it for visibility/delete actions.
 - Tightened Windows package artifact validation so release checks require the installer blockmap alongside the installer, update metadata, and unpacked executable.
+- Converted environment-effect tuning field resolution to a tested registry, including the legacy `electric` to `lightningTuning` mapping.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
 
-- `src/renderer/canvas/environmentEffectsRenderer.ts`: very large effect-rendering module. Future work should move each effect family into a registry-backed renderer module.
+- `src/renderer/canvas/effects/environmentEffectsRenderer.ts`: very large effect-rendering module. Future work should move each effect family into a registry-backed renderer module.
 - `src/renderer/components/SceneCanvas.tsx`: high-responsibility canvas interaction component. Split by interaction mode before adding more tools.
 - `src/renderer/canvas/drawingRenderer.ts`: large mixed renderer for drawings, templates, labels, and effect fills. Separate template rendering from freehand/shape rendering.
 - `src/renderer/components/layers/LayerPanel.tsx`: layer UI is feature rich but broad. Extract per-layer panels when touching those areas.
