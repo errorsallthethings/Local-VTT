@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getEffectTuningColorAriaLabel,
+  getEffectTuningCopyLabel,
   getEffectTuningSliderReadout,
   parseEffectTuningSliderInput
 } from "../../src/renderer/components/tools/effects/environmentEffectTuningControlState";
@@ -19,5 +20,9 @@ describe("environment effect tuning control state", () => {
 
   it("uses effect-generic color accessibility labels", () => {
     expect(getEffectTuningColorAriaLabel("Flame")).toBe("Flame effect color");
+  });
+
+  it("builds copy labels for tuning readouts", () => {
+    expect(getEffectTuningCopyLabel("force field")).toBe("Copy force field tuning JSON");
   });
 });

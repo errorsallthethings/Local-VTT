@@ -14,3 +14,7 @@ export function parseEffectTuningSliderInput(value: string, fallback: number): n
 export function getEffectTuningColorAriaLabel(label: string): string {
   return `${label} effect color`;
 }
+
+export function getEffectTuningCopyLabel(effectLabel: string): string {
+  return `Copy ${effectLabel} tuning JSON`;
+}

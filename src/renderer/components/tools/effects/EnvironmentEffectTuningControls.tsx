@@ -1,7 +1,8 @@
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy } from "lucide-react";
 import { ColorInput } from "../../controls/ColorPickerField";
 import {
   getEffectTuningColorAriaLabel,
+  getEffectTuningCopyLabel,
   getEffectTuningSliderReadout,
   parseEffectTuningSliderInput
 } from "./environmentEffectTuningControlState";
@@ -38,6 +39,19 @@ export function EffectTuningColor({ label, value, onChange }: { label: string; v
       <span>{label}</span>
       <ColorInput value={value} onChange={onChange} aria-label={getEffectTuningColorAriaLabel(label)} />
     </label>
+  );
+}
+
+export function EffectTuningReadout({ copyLabel, readout }: { copyLabel: string; readout: string }) {
+  const label = getEffectTuningCopyLabel(copyLabel);
+
+  return (
+    <div className="water-tuning-readout-row">
+      <div className="water-tuning-readout" title={readout}>{readout}</div>
+      <button className="icon-button no-chrome" type="button" title={label} aria-label={label} onClick={() => void navigator.clipboard?.writeText(readout)}>
+        <Copy size={15} aria-hidden="true" />
+      </button>
+    </div>
   );
 }
 

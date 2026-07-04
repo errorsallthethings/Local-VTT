@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Copy, Undo2 } from "lucide-react";
+import { Undo2 } from "lucide-react";
 import type {
   AcidEffectTuning,
   ArcaneEffectTuning,
@@ -24,6 +24,7 @@ import { getEnvironmentEffectTuningReadout } from "../../../lib/effects";
 import {
   EffectTuningColor as WaterTuningColor,
   EffectTuningSlider as WaterTuningSlider,
+  EffectTuningReadout,
   SettingsToggle
 } from "./EnvironmentEffectTuningControls";
 
@@ -77,12 +78,7 @@ export function WaterEffectTuningPanel({
             <WaterTuningColor label="Water" value={tuning.waterColor} onChange={(waterColor) => update({ waterColor })} />
             <WaterTuningColor label="Highlight" value={tuning.highlightColor} onChange={(highlightColor) => update({ highlightColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy water tuning JSON" aria-label="Copy water tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="water" readout={readout} />
         </>
       )}
     </div>
@@ -138,12 +134,7 @@ export function AcidEffectTuningPanel({
             <WaterTuningColor label="Acid" value={tuning.acidColor} onChange={(acidColor) => update({ acidColor })} />
             <WaterTuningColor label="Foam" value={tuning.foamColor} onChange={(foamColor) => update({ foamColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy acid tuning JSON" aria-label="Copy acid tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="acid" readout={readout} />
         </>
       )}
     </div>
@@ -199,12 +190,7 @@ export function PoisonEffectTuningPanel({
             <WaterTuningColor label="Poison" value={tuning.poisonColor} onChange={(poisonColor) => update({ poisonColor })} />
             <WaterTuningColor label="Highlight" value={tuning.highlightColor} onChange={(highlightColor) => update({ highlightColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy poison cloud tuning JSON" aria-label="Copy poison cloud tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="poison cloud" readout={readout} />
         </>
       )}
     </div>
@@ -260,12 +246,7 @@ export function ColdEffectTuningPanel({
             <WaterTuningColor label="Frost" value={tuning.frostColor} onChange={(frostColor) => update({ frostColor })} />
             <WaterTuningColor label="Highlight" value={tuning.highlightColor} onChange={(highlightColor) => update({ highlightColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy cold tuning JSON" aria-label="Copy cold tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="cold" readout={readout} />
         </>
       )}
     </div>
@@ -321,12 +302,7 @@ export function DarknessEffectTuningPanel({
             <WaterTuningColor label="Void" value={tuning.voidColor} onChange={(voidColor) => update({ voidColor })} />
             <WaterTuningColor label="Highlight" value={tuning.highlightColor} onChange={(highlightColor) => update({ highlightColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy darkness tuning JSON" aria-label="Copy darkness tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="darkness" readout={readout} />
         </>
       )}
     </div>
@@ -379,12 +355,7 @@ export function LavaEffectTuningPanel({
             <WaterTuningColor label="Lava" value={tuning.lavaColor} onChange={(lavaColor) => update({ lavaColor })} />
             <WaterTuningColor label="Hot" value={tuning.hotColor} onChange={(hotColor) => update({ hotColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy lava tuning JSON" aria-label="Copy lava tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="lava" readout={readout} />
         </>
       )}
     </div>
@@ -441,12 +412,7 @@ export function FireEffectTuningPanel({
             <WaterTuningColor label="Flame" value={tuning.flameColor} onChange={(flameColor) => update({ flameColor })} />
             <WaterTuningColor label="Hot" value={tuning.hotColor} onChange={(hotColor) => update({ hotColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy fire tuning JSON" aria-label="Copy fire tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="fire" readout={readout} />
         </>
       )}
     </div>
@@ -501,12 +467,7 @@ export function LightningEffectTuningPanel({
             <WaterTuningColor label="Arc" value={tuning.arcColor} onChange={(arcColor) => update({ arcColor })} />
             <WaterTuningColor label="Core" value={tuning.coreColor} onChange={(coreColor) => update({ coreColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy electric tuning JSON" aria-label="Copy electric tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="electric" readout={readout} />
         </>
       )}
     </div>
@@ -563,12 +524,7 @@ export function ArcaneEffectTuningPanel({
             <WaterTuningColor label="Runes" value={tuning.glyphColor} onChange={(glyphColor) => update({ glyphColor })} />
             <WaterTuningColor label="Glow" value={tuning.glowColor} onChange={(glowColor) => update({ glowColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy arcane tuning JSON" aria-label="Copy arcane tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="arcane" readout={readout} />
         </>
       )}
     </div>
@@ -626,12 +582,7 @@ export function ChaosEffectTuningPanel({
             <WaterTuningColor label="Motes" value={tuning.moteColor} onChange={(moteColor) => update({ moteColor })} />
             <WaterTuningColor label="Accent" value={tuning.accentColor} onChange={(accentColor) => update({ accentColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy chaos field tuning JSON" aria-label="Copy chaos field tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="chaos field" readout={readout} />
         </>
       )}
     </div>
@@ -691,12 +642,7 @@ export function VoidEffectTuningPanel({
             <WaterTuningColor label="Void" value={tuning.voidColor} onChange={(voidColor) => update({ voidColor })} />
             <WaterTuningColor label="Accent" value={tuning.accentColor} onChange={(accentColor) => update({ accentColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy void tendrils tuning JSON" aria-label="Copy void tendrils tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="void tendrils" readout={readout} />
         </>
       )}
     </div>
@@ -760,12 +706,7 @@ export function NatureEffectTuningPanel({
             <WaterTuningColor label="Leaves" value={tuning.leafColor} onChange={(leafColor) => update({ leafColor })} />
             <WaterTuningColor label="Thorns" value={tuning.thornColor} onChange={(thornColor) => update({ thornColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy nature growth tuning JSON" aria-label="Copy nature growth tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="nature growth" readout={readout} />
         </>
       )}
     </div>
@@ -824,12 +765,7 @@ export function RadiantEffectTuningPanel({
             <WaterTuningColor label="Rays" value={tuning.rayColor} onChange={(rayColor) => update({ rayColor })} />
             <WaterTuningColor label="Core" value={tuning.coreColor} onChange={(coreColor) => update({ coreColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy radiant tuning JSON" aria-label="Copy radiant tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="radiant" readout={readout} />
         </>
       )}
     </div>
@@ -886,12 +822,7 @@ export function ForceFieldEffectTuningPanel({
             <WaterTuningColor label="Grid" value={tuning.gridColor} onChange={(gridColor) => update({ gridColor })} />
             <WaterTuningColor label="Edge" value={tuning.edgeColor} onChange={(edgeColor) => update({ edgeColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy force field tuning JSON" aria-label="Copy force field tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="force field" readout={readout} />
         </>
       )}
     </div>
@@ -949,12 +880,7 @@ export function ShockwaveEffectTuningPanel({
             <WaterTuningColor label="Rings" value={tuning.ringColor} onChange={(ringColor) => update({ ringColor })} />
             <WaterTuningColor label="Core" value={tuning.coreColor} onChange={(coreColor) => update({ coreColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy shockwave tuning JSON" aria-label="Copy shockwave tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="shockwave" readout={readout} />
         </>
       )}
     </div>
@@ -1011,12 +937,7 @@ export function DistortionEffectTuningPanel({
             <WaterTuningColor label="Warp" value={tuning.distortionColor} onChange={(distortionColor) => update({ distortionColor })} />
             <WaterTuningColor label="Highlight" value={tuning.highlightColor} onChange={(highlightColor) => update({ highlightColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy distortion tuning JSON" aria-label="Copy distortion tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="distortion" readout={readout} />
         </>
       )}
     </div>
@@ -1069,12 +990,7 @@ export function SmokeEffectTuningPanel({
             <WaterTuningColor label="Smoke" value={tuning.smokeColor} onChange={(smokeColor) => update({ smokeColor })} />
             <WaterTuningColor label="Highlight" value={tuning.highlightColor} onChange={(highlightColor) => update({ highlightColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy smoke tuning JSON" aria-label="Copy smoke tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="smoke" readout={readout} />
         </>
       )}
     </div>
@@ -1127,15 +1043,11 @@ export function FogEffectTuningPanel({
             <WaterTuningColor label="Mist" value={tuning.smokeColor} onChange={(smokeColor) => update({ smokeColor })} />
             <WaterTuningColor label="Highlight" value={tuning.highlightColor} onChange={(highlightColor) => update({ highlightColor })} />
           </div>
-          <div className="water-tuning-readout-row">
-            <div className="water-tuning-readout" title={readout}>{readout}</div>
-            <button className="icon-button no-chrome" type="button" title="Copy mist tuning JSON" aria-label="Copy mist tuning JSON" onClick={() => void navigator.clipboard?.writeText(readout)}>
-              <Copy size={15} aria-hidden="true" />
-            </button>
-          </div>
+          <EffectTuningReadout copyLabel="mist" readout={readout} />
         </>
       )}
     </div>
   );
 }
+
 
