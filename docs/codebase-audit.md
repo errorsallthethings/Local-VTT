@@ -51,11 +51,12 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted and tested SceneCanvas context-menu routing for waypoint removal, polygon backtracking, and target menu kind selection.
 - Split the environment effect drawer registry out of the layer renderer so future effect-family modules can move behind a stable registry seam.
 - Extracted shared WebGL environment-effect runtime helpers and moved the smoke/fog effect family into its own renderer module while preserving the existing public effect exports.
+- Moved the lava/fire/lightning elemental effect family into its own renderer module and pointed the drawer registry at that module directly.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
 
-- `src/renderer/canvas/effects/environmentEffectsRenderer.ts`: still a large effect-rendering module, but shared runtime code and smoke/fog are now split out. Future work should move the remaining effect families behind the same registry-backed renderer pattern.
+- `src/renderer/canvas/effects/environmentEffectsRenderer.ts`: still a large effect-rendering module, but shared runtime code plus smoke/fog and lava/fire/lightning are now split out. Future work should move the remaining effect families behind the same registry-backed renderer pattern.
 - `src/renderer/components/SceneCanvas.tsx`: high-responsibility canvas interaction component. Split by interaction mode before adding more tools.
 - `src/renderer/canvas/drawingRenderer.ts`: large mixed renderer for drawings, templates, labels, and effect fills. Separate template rendering from freehand/shape rendering.
 - `src/renderer/components/layers/LayerPanel.tsx`: layer UI is feature rich but broad. Extract per-layer panels when touching those areas.
