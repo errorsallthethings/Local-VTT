@@ -195,6 +195,7 @@ import {
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import { getSceneContextMenuTarget } from "./scene/sceneContextMenuTarget";
+import { getSceneSelectionKindsToClear, type SceneSelectionTargetKind } from "./scene/sceneSelectionRouting";
 import { canAcceptTokenAssetDrop as canAcceptSceneTokenAssetDrop, getDroppedTokenAsset } from "./scene/sceneTokenAssetDrop";
 import { getDrawingPointerMove, getDrawingPointerStart } from "./scene/sceneDrawingPointer";
 import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerStart } from "./scene/sceneEnvironmentEffectPointer";
@@ -1149,6 +1150,22 @@ export function SceneCanvas({
     onSelectSceneItems?.({ ...selection, mode: drag.mode });
   };
 
+  const clearSceneSelectionsExcept = (activeKind: SceneSelectionTargetKind) => {
+    for (const kind of getSceneSelectionKindsToClear(activeKind)) {
+      if (kind === "token") {
+        onSelectToken?.(null);
+      } else if (kind === "drawing") {
+        onSelectDrawing?.(null);
+      } else if (kind === "fogShape") {
+        onSelectFogShape?.(null);
+      } else if (kind === "weatherMask") {
+        onSelectWeatherMask?.(null);
+      } else if (kind === "environmentEffect") {
+        onSelectEnvironmentEffect?.(null);
+      }
+    }
+  };
+
   const onWheel = useCallback((event: WheelEvent) => {
     if (!interactive) {
       return;
@@ -1385,10 +1402,7 @@ export function SceneCanvas({
         if (tokenPointerStart.dragGroup.shouldSelectHitItem) {
           onSelectToken?.(tokenPointerStart.token.id);
         }
-        onSelectFogShape?.(null);
-        onSelectWeatherMask?.(null);
-        onSelectEnvironmentEffect?.(null);
-        onSelectDrawing?.(null);
+        clearSceneSelectionsExcept("token");
         if (tokenPointerStart.dragStart) {
           tokenDragRef.current = tokenPointerStart.dragStart.drag;
           setTokenDragPreview(tokenPointerStart.dragStart.preview);
@@ -1420,9 +1434,7 @@ export function SceneCanvas({
           if (drawingTransformStart.dragGroup.shouldSelectHitItem) {
             onSelectDrawing?.(drawingTransformStart.drawingId);
           }
-          onSelectFogShape?.(null);
-          onSelectWeatherMask?.(null);
-          onSelectEnvironmentEffect?.(null);
+          clearSceneSelectionsExcept("drawing");
           if (drawingTransformStart.dragStart) {
             drawingDragRef.current = drawingTransformStart.dragStart;
             setDrawingDragPreview(drawingTransformStart.preview);
@@ -1437,9 +1449,7 @@ export function SceneCanvas({
         });
         if (environmentEffectStart) {
           onSelectEnvironmentEffect?.(environmentEffectStart.effectId);
-          onSelectFogShape?.(null);
-          onSelectWeatherMask?.(null);
-          onSelectDrawing?.(null);
+          clearSceneSelectionsExcept("environmentEffect");
           if (environmentEffectStart.moveStart) {
             environmentEffectMoveRef.current = environmentEffectStart.moveStart;
             setEnvironmentEffectMovePreview(environmentEffectStart.preview);
@@ -1455,9 +1465,7 @@ export function SceneCanvas({
         });
         if (maskStart?.kind === "weather") {
           onSelectWeatherMask?.(maskStart.maskId);
-          onSelectFogShape?.(null);
-          onSelectEnvironmentEffect?.(null);
-          onSelectDrawing?.(null);
+          clearSceneSelectionsExcept("weatherMask");
           if (maskStart.moveStart) {
             weatherMaskMoveRef.current = maskStart.moveStart;
             setWeatherMaskMovePreview(maskStart.preview);
@@ -1466,15 +1474,10 @@ export function SceneCanvas({
         }
         if (maskStart?.kind === "fog") {
           onSelectFogShape?.(maskStart.shapeId);
-          onSelectWeatherMask?.(null);
-          onSelectEnvironmentEffect?.(null);
-          onSelectDrawing?.(null);
+          clearSceneSelectionsExcept("fogShape");
           return;
         }
-        onSelectFogShape?.(null);
-        onSelectWeatherMask?.(null);
-        onSelectEnvironmentEffect?.(null);
-        onSelectDrawing?.(null);
+        clearSceneSelectionsExcept("empty");
       }
     }
     if (mode === "gm" && mouseBehavior === "selector" && scene && !authoringToolActive && event.button === 0) {

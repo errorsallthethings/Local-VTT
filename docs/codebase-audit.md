@@ -35,6 +35,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted tested template-effect asset/glow support helpers, overlay cache helpers, and renderable registry guards from the drawing renderer as the first step toward separating template rendering from base drawing rendering.
 - Moved LayerPanel weather update transitions into tested helpers, reducing inline UI orchestration for weather categories, effect selection, and tuning resets.
 - Split the shared layer row chrome out of `LayerPanel`, leaving the parent component focused on per-layer content and state coordination.
+- Centralized SceneCanvas selection-clearing policy into a tested helper so token, drawing, fog, weather, and environment selections do not drift independently.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
