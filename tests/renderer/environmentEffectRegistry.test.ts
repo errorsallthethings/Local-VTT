@@ -3,11 +3,14 @@ import type { EnvironmentEffectType } from "../../src/shared/localvtt";
 import {
   ENVIRONMENT_EFFECT_OPTIONS,
   ENVIRONMENT_EFFECT_REGISTRY,
+  formatEnvironmentEffectTuningNumber,
   formatEnvironmentEffectOptionLabel,
   getEnvironmentEffectPresetOptions,
   getEnvironmentEffectPreviewFill,
   getEnvironmentEffectRegistryEntry,
-  getEnvironmentEffectStroke
+  getEnvironmentEffectStroke,
+  getEnvironmentEffectTuningReadout,
+  parseEnvironmentEffectTuningSliderValue
 } from "../../src/renderer/lib/effects";
 
 const EXPECTED_ENVIRONMENT_EFFECTS: EnvironmentEffectType[] = [
@@ -58,5 +61,21 @@ describe("environment effect registry", () => {
       expect(getEnvironmentEffectPreviewFill(effect)).toBe(entry.canvasStyle.previewFill);
       expect(getEnvironmentEffectStroke(effect)).toBe(entry.canvasStyle.stroke);
     }
+  });
+
+  it("formats tuning numbers for compact slider readouts", () => {
+    expect(formatEnvironmentEffectTuningNumber(2)).toBe("2");
+    expect(formatEnvironmentEffectTuningNumber(0.5)).toBe("0.5");
+    expect(formatEnvironmentEffectTuningNumber(0.125)).toBe("0.125");
+    expect(formatEnvironmentEffectTuningNumber(0.333333)).toBe("0.333");
+  });
+
+  it("parses slider values with a stable fallback", () => {
+    expect(parseEnvironmentEffectTuningSliderValue("1.25", 0.5)).toBe(1.25);
+    expect(parseEnvironmentEffectTuningSliderValue("bad", 0.5)).toBe(0.5);
+  });
+
+  it("serializes effect tuning readouts consistently", () => {
+    expect(getEnvironmentEffectTuningReadout({ opacity: 0.5, color: "#ffffff" })).toBe("{\"opacity\":0.5,\"color\":\"#ffffff\"}");
   });
 });

@@ -321,6 +321,19 @@ export function getEnvironmentEffectPresetOptions(effect: EnvironmentEffectType)
   return getEnvironmentEffectRegistryEntry(effect).presetOptions;
 }
 
+export function getEnvironmentEffectTuningReadout(tuning: unknown): string {
+  return JSON.stringify(tuning);
+}
+
+export function parseEnvironmentEffectTuningSliderValue(value: string, fallback: number): number {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : fallback;
+}
+
+export function formatEnvironmentEffectTuningNumber(value: number): string {
+  return Number.isInteger(value) ? value.toString() : value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+}
+
 export function applyEnvironmentEffectPreset(
   effect: EnvironmentEffectType,
   value: string,

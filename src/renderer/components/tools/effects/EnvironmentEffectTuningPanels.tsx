@@ -21,6 +21,11 @@ import type {
   WaterEffectTuning
 } from "../../../canvas/effects";
 import { ColorInput } from "../../controls/ColorPickerField";
+import {
+  formatEnvironmentEffectTuningNumber,
+  getEnvironmentEffectTuningReadout,
+  parseEnvironmentEffectTuningSliderValue
+} from "../../../lib/effects";
 
 export function WaterEffectTuningPanel({
   tuning,
@@ -37,7 +42,7 @@ export function WaterEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<WaterEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Water effect tuning">
@@ -99,7 +104,7 @@ export function AcidEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<AcidEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Acid effect tuning">
@@ -160,7 +165,7 @@ export function PoisonEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<PoisonEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Poison Cloud effect tuning">
@@ -221,7 +226,7 @@ export function ColdEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<ColdEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Cold effect tuning">
@@ -282,7 +287,7 @@ export function DarknessEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<DarknessEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Darkness effect tuning">
@@ -343,7 +348,7 @@ export function LavaEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<LavaEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Lava effect tuning">
@@ -401,7 +406,7 @@ export function FireEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<FireEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Fire effect tuning">
@@ -463,7 +468,7 @@ export function LightningEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<LightningEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Electric effect tuning">
@@ -523,7 +528,7 @@ export function ArcaneEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<ArcaneEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Arcane effect tuning">
@@ -585,7 +590,7 @@ export function ChaosEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<ChaosEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Chaos Field effect tuning">
@@ -648,7 +653,7 @@ export function VoidEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<VoidEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Void Tendrils effect tuning">
@@ -713,7 +718,7 @@ export function NatureEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<NatureEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Nature Growth effect tuning">
@@ -782,7 +787,7 @@ export function RadiantEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<RadiantEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Radiant effect tuning">
@@ -846,7 +851,7 @@ export function ForceFieldEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<ForceFieldEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Force Field effect tuning">
@@ -908,7 +913,7 @@ export function ShockwaveEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<ShockwaveEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Shockwave effect tuning">
@@ -971,7 +976,7 @@ export function DistortionEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<DistortionEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Distortion effect tuning">
@@ -1033,7 +1038,7 @@ export function SmokeEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<SmokeEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Smoke effect tuning">
@@ -1091,7 +1096,7 @@ export function FogEffectTuningPanel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const update = (patch: Partial<FogEffectTuning>) => onChange({ ...tuning, ...patch });
-  const readout = JSON.stringify(tuning);
+  const readout = getEnvironmentEffectTuningReadout(tuning);
 
   return (
     <div className="water-tuning-panel" aria-label="Mist effect tuning">
@@ -1138,8 +1143,8 @@ function WaterTuningSlider({ label, value, min, max, step, suffix = "", onChange
   return (
     <label className="water-tuning-slider">
       <span>{label}</span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
-      <strong>{formatTuningNumber(value)}{suffix}</strong>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(parseEnvironmentEffectTuningSliderValue(event.target.value, value))} />
+      <strong>{formatEnvironmentEffectTuningNumber(value)}{suffix}</strong>
     </label>
   );
 }
@@ -1153,9 +1158,6 @@ function WaterTuningColor({ label, value, onChange }: { label: string; value: st
   );
 }
 
-function formatTuningNumber(value: number): string {
-  return Number.isInteger(value) ? value.toString() : value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
-}
 function SettingsToggle({ open, label, onToggle }: { open: boolean; label: string; onToggle: () => void }) {
   return (
     <button className="tools-settings-toggle" type="button" aria-expanded={open} onClick={onToggle}>
