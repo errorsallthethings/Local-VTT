@@ -7,6 +7,7 @@ import {
   metadataBackupsRootFolder,
   metadataBackupPathFromRef,
   parseBackupTimestamp,
+  requireBackupFileName,
   requireSceneBackupId,
   sceneBackupsRootFolder,
   sceneBackupFolder
@@ -69,10 +70,11 @@ describe("metadata backup helpers", () => {
     );
   });
 
-  it("strips directory components from backup file refs", () => {
-    expect(metadataBackupPathFromRef("campaign-root", { kind: "campaign", fileName: "../backup.campaign.json" })).toBe(
-      path.join("campaign-root", "backups", "campaign", "backup.campaign.json")
-    );
+  it("rejects unsafe backup file names", () => {
+    for (const fileName of ["", ".", "..", "../backup.campaign.json", "folder\\backup.campaign.json", path.resolve("backup.campaign.json")]) {
+      expect(() => requireBackupFileName(fileName)).toThrow("Unsafe backup file name.");
+      expect(() => metadataBackupPathFromRef("campaign-root", { kind: "campaign", fileName })).toThrow("Unsafe backup file name.");
+    }
   });
 
   it("requires scene backup refs to include a scene id", () => {

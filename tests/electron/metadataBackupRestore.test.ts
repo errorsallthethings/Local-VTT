@@ -85,7 +85,7 @@ describe("metadata backup preview and restore", () => {
   });
 
   it("rejects backup refs outside the campaign folder", async () => {
-    await expect(previewMetadataBackup(tempRoot, { kind: "campaign", fileName: "..\\outside.json" })).rejects.toThrow();
+    await expect(previewMetadataBackup(tempRoot, { kind: "campaign", fileName: "..\\outside.json" })).rejects.toThrow("Unsafe backup file name.");
     await expect(previewMetadataBackup(tempRoot, { kind: "scene", sceneId: "../campaign", fileName: "backup.scene.json" })).rejects.toThrow(
       "Unsafe backup scene id."
     );

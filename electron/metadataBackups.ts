@@ -26,7 +26,8 @@ export function sceneBackupFolder(campaignPath: string, sceneId: string): string
 
 export function metadataBackupPathFromRef(campaignPath: string, ref: MetadataBackupRef): string {
   const backupFolder = ref.kind === "campaign" ? campaignBackupFolder(campaignPath) : sceneBackupFolder(campaignPath, requireSceneBackupId(ref));
-  return path.join(backupFolder, path.basename(ref.fileName));
+  const fileName = requireBackupFileName(ref.fileName);
+  return path.join(backupFolder, fileName);
 }
 
 export function requireSceneBackupId(ref: MetadataBackupRef): string {
@@ -35,6 +36,11 @@ export function requireSceneBackupId(ref: MetadataBackupRef): string {
   }
   assertSafePathSegment(ref.sceneId, "Unsafe backup scene id.");
   return ref.sceneId;
+}
+
+export function requireBackupFileName(fileName: string): string {
+  assertSafePathSegment(fileName, "Unsafe backup file name.");
+  return fileName;
 }
 
 export function createMetadataBackupEntry(
