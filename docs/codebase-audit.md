@@ -47,6 +47,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Hardened metadata backup restore for missing scene files and expanded recovery regressions for malformed backups and unsafe portable paths so failed restores cannot overwrite current campaign metadata.
 - Expanded Electron file-safety regressions for unreferenced asset pruning and campaign path boundaries so stale hydrated paths outside the campaign are retained for review instead of deleted.
 - Extracted and tested SceneCanvas interaction cancellation policy so Escape handling and cancelable interaction detection are no longer inline component logic.
+- Extracted and tested SceneCanvas pointer-up routing and hover reset policy, reducing inline interaction branch ordering in the canvas component.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots

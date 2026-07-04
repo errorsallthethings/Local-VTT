@@ -184,6 +184,7 @@ import {
 import { SceneCanvasContextMenus } from "./scene/SceneCanvasContextMenus";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
 import { getSceneContextMenuOpening, type SceneContextMenuOpening } from "./scene/sceneContextMenuOpening";
+import { resetSceneHoverState } from "./scene/sceneHoverReset";
 import {
   cancelSceneInteractionsForKeyboardEvent,
   hasCancelableSceneInteraction
@@ -200,6 +201,7 @@ import {
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import { getSceneContextMenuTarget } from "./scene/sceneContextMenuTarget";
 import { getScenePointerDownRoute } from "./scene/scenePointerDownRouting";
+import { getScenePointerUpRoute } from "./scene/scenePointerUpRouting";
 import { getSceneSelectionKindsToClear, type SceneSelectionTargetKind } from "./scene/sceneSelectionRouting";
 import { canAcceptTokenAssetDrop as canAcceptSceneTokenAssetDrop, getDroppedTokenAsset } from "./scene/sceneTokenAssetDrop";
 import { getDrawingPointerMove, getDrawingPointerStart } from "./scene/sceneDrawingPointer";
@@ -1729,8 +1731,25 @@ export function SceneCanvas({
   };
 
   const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const pointerUpRoute = getScenePointerUpRoute({
+      pointerId: event.pointerId,
+      mapCalibrationDrag: mapCalibrationDragRef.current,
+      drawingDrag: drawingPreviewRef.current,
+      weatherMaskDrag: weatherMaskDragRef.current,
+      environmentEffectDrag: environmentEffectDragRef.current,
+      fogDrag: fogDragRef.current,
+      rulerDrag: rulerDragRef.current,
+      selectionDrag: selectionDragRef.current,
+      drawingMoveDrag: drawingDragRef.current,
+      drawingResizeDrag: drawingResizeRef.current,
+      drawingRotateDrag: drawingRotateRef.current,
+      weatherMaskMove: weatherMaskMoveRef.current,
+      environmentEffectMove: environmentEffectMoveRef.current,
+      laserDrag: laserDragRef.current
+    });
+
     const mapCalibrationDragValue = mapCalibrationDragRef.current;
-    if (mapCalibrationDragValue?.pointerId === event.pointerId) {
+    if (pointerUpRoute === "map-calibration" && mapCalibrationDragValue) {
       mapCalibrationDragRef.current = null;
       setMapCalibrationDrag(null);
       const box = getMapCalibrationPointerComplete(mapCalibrationDragValue, event.pointerId, mapCalibrationDraftBox);
@@ -1741,7 +1760,7 @@ export function SceneCanvas({
     }
 
     const drawingDrag = drawingPreviewRef.current;
-    if (drawingDrag?.pointerId === event.pointerId) {
+    if (pointerUpRoute === "drawing" && drawingDrag) {
       clearDrawingPreview();
       if (scene && onSceneChange) {
         const drawing = getDrawingDragCommit(scene, drawingDrag, crypto.randomUUID());
@@ -1753,7 +1772,7 @@ export function SceneCanvas({
     }
 
     const weatherMaskDrag = weatherMaskDragRef.current;
-    if (weatherMaskDrag?.pointerId === event.pointerId) {
+    if (pointerUpRoute === "weather-mask" && weatherMaskDrag) {
       clearWeatherMaskPreview();
       if (scene && onSceneChange) {
         const mask = getWeatherMaskDragCommit(scene, weatherMaskDrag, crypto.randomUUID());
@@ -1765,7 +1784,7 @@ export function SceneCanvas({
     }
 
     const environmentEffectDrag = environmentEffectDragRef.current;
-    if (environmentEffectDrag?.pointerId === event.pointerId) {
+    if (pointerUpRoute === "environment-effect" && environmentEffectDrag) {
       clearEnvironmentEffectPreview();
       if (scene && onSceneChange) {
         const effect = getEnvironmentEffectDragCommit(scene, environmentEffectDrag, crypto.randomUUID(), currentEnvironmentEffectTuning);
@@ -1777,7 +1796,7 @@ export function SceneCanvas({
     }
 
     const fogDrag = fogDragRef.current;
-    if (fogDrag?.pointerId === event.pointerId) {
+    if (pointerUpRoute === "fog" && fogDrag) {
       clearFogPreview();
       if (scene && onSceneChange) {
         const commit = getFogDragCommit(scene, fogDrag, crypto.randomUUID());
@@ -1788,12 +1807,12 @@ export function SceneCanvas({
       return;
     }
 
-    if (rulerDragRef.current?.pointerId === event.pointerId) {
+    if (pointerUpRoute === "ruler") {
       finishRulerDrag();
       return;
     }
 
-    if (selectionDragRef.current?.pointerId === event.pointerId) {
+    if (pointerUpRoute === "selection" && selectionDragRef.current) {
       const completedSelection = selectionDragRef.current;
       selectionDragRef.current = null;
       setSelectionDrag(null);
@@ -1803,14 +1822,17 @@ export function SceneCanvas({
       return;
     }
 
-    const drawingTransformComplete = getDrawingTransformPointerComplete({
-      dragState: drawingDragRef.current,
-      pointerId: event.pointerId,
-      preview: drawingDragPreview,
-      resizeState: drawingResizeRef.current,
-      rotateState: drawingRotateRef.current
-    });
-    if (drawingTransformComplete) {
+    if (pointerUpRoute === "drawing-transform") {
+      const drawingTransformComplete = getDrawingTransformPointerComplete({
+        dragState: drawingDragRef.current,
+        pointerId: event.pointerId,
+        preview: drawingDragPreview,
+        resizeState: drawingResizeRef.current,
+        rotateState: drawingRotateRef.current
+      });
+      if (!drawingTransformComplete) {
+        return;
+      }
       if (scene && onSceneChange && drawingTransformComplete.preview) {
         onSceneChange(updateSceneDrawingPoints(scene, drawingTransformComplete.preview));
       }
@@ -1828,30 +1850,33 @@ export function SceneCanvas({
       return;
     }
 
-    const maskEffectComplete = getMaskEffectPointerComplete({
-      environmentEffectMoveState: environmentEffectMoveRef.current,
-      environmentEffectPreview: environmentEffectMovePreview,
-      pointerId: event.pointerId,
-      weatherMaskMoveState: weatherMaskMoveRef.current,
-      weatherMaskPreview: weatherMaskMovePreview
-    });
-    if (maskEffectComplete?.kind === "weather") {
-      if (scene && onSceneChange && maskEffectComplete.preview) {
-        onSceneChange(updateSceneWeatherMaskPoints(scene, maskEffectComplete.preview));
+    if (pointerUpRoute === "mask-effect") {
+      const maskEffectComplete = getMaskEffectPointerComplete({
+        environmentEffectMoveState: environmentEffectMoveRef.current,
+        environmentEffectPreview: environmentEffectMovePreview,
+        pointerId: event.pointerId,
+        weatherMaskMoveState: weatherMaskMoveRef.current,
+        weatherMaskPreview: weatherMaskMovePreview
+      });
+      if (maskEffectComplete?.kind === "weather") {
+        if (scene && onSceneChange && maskEffectComplete.preview) {
+          onSceneChange(updateSceneWeatherMaskPoints(scene, maskEffectComplete.preview));
+        }
+        cancelWeatherMaskMove();
+        return;
       }
-      cancelWeatherMaskMove();
+
+      if (maskEffectComplete?.kind === "environment-effect") {
+        if (scene && onSceneChange && maskEffectComplete.preview) {
+          onSceneChange(updateSceneEnvironmentEffectPoints(scene, maskEffectComplete.preview));
+        }
+        cancelEnvironmentEffectMove();
+        return;
+      }
       return;
     }
 
-    if (maskEffectComplete?.kind === "environment-effect") {
-      if (scene && onSceneChange && maskEffectComplete.preview) {
-        onSceneChange(updateSceneEnvironmentEffectPoints(scene, maskEffectComplete.preview));
-      }
-      cancelEnvironmentEffectMove();
-      return;
-    }
-
-    if (shouldEndLaserPointer(laserDragRef.current, event.pointerId)) {
+    if (pointerUpRoute === "laser" && shouldEndLaserPointer(laserDragRef.current, event.pointerId)) {
       laserDragRef.current = null;
       return;
     }
@@ -1872,10 +1897,12 @@ export function SceneCanvas({
   };
 
   const onPointerLeave = () => {
-    setSnapPoint(null);
-    setBrushHoverPoint(null);
-    setDrawingTransformHover(null);
-    setSceneItemHover(false);
+    resetSceneHoverState({
+      clearSnapPoint: () => setSnapPoint(null),
+      clearBrushHoverPoint: () => setBrushHoverPoint(null),
+      clearDrawingTransformHover: () => setDrawingTransformHover(null),
+      clearSceneItemHover: () => setSceneItemHover(false)
+    });
   };
 
   const emitPing = (event: React.MouseEvent<HTMLCanvasElement>) => {
