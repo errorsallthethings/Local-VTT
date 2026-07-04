@@ -3,6 +3,7 @@ import {
   clampDicePanelPosition,
   getDicePanelDragPosition,
   getDicePanelDragStart,
+  getDicePanelPresentation,
   getDicePanelPositionInViewport
 } from "../../src/renderer/lib/dice";
 
@@ -53,6 +54,37 @@ describe("dice panel position helpers", () => {
     expect(getDicePanelPositionInViewport(700, 500, { width: 800, height: 600 }, { left: 0, top: 0, width: 300, height: 200 })).toEqual({
       x: 492,
       y: 392
+    });
+  });
+
+  it("builds floating panel presentation without positional styles", () => {
+    expect(getDicePanelPresentation(null, null, false)).toEqual({
+      className: "dice-popover dice-popover-floating",
+      style: {}
+    });
+  });
+
+  it("builds dragged and resized panel presentation", () => {
+    expect(getDicePanelPresentation({ x: 24, y: 36 }, { width: 320, height: 480 }, false)).toEqual({
+      className: "dice-popover dice-popover-dragged",
+      style: {
+        left: 24,
+        top: 36,
+        width: 320,
+        height: 480
+      }
+    });
+  });
+
+  it("omits resized height when the panel is collapsed", () => {
+    expect(getDicePanelPresentation({ x: 24, y: 36 }, { width: 320, height: 480 }, true)).toEqual({
+      className: "dice-popover dice-popover-dragged dice-popover-collapsed",
+      style: {
+        left: 24,
+        top: 36,
+        width: 320,
+        height: undefined
+      }
     });
   });
 });

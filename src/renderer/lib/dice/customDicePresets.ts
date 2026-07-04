@@ -9,6 +9,13 @@ export interface CustomDicePresetStorage {
   setItem(key: string, value: string): void;
 }
 
+export interface CustomDicePresetFormState {
+  open: boolean;
+  label: string;
+  formula: string;
+  error: string | null;
+}
+
 export type CustomDicePresetSaveResult =
   | { ok: true; preset: CustomDicePreset }
   | { ok: false; error: string };
@@ -30,6 +37,28 @@ export function saveCustomDicePresets(storage: CustomDicePresetStorage, presets:
 
 export function addCustomDicePreset(presets: readonly CustomDicePreset[], preset: CustomDicePreset): CustomDicePreset[] {
   return [preset, ...normalizeCustomDicePresets(presets)].slice(0, MAX_CUSTOM_DICE_PRESETS);
+}
+
+export function removeCustomDicePreset(presets: readonly CustomDicePreset[], presetId: string): CustomDicePreset[] {
+  return normalizeCustomDicePresets(presets).filter((preset) => preset.id !== presetId);
+}
+
+export function getCustomDicePresetFormOpenState(currentFormula: string): CustomDicePresetFormState {
+  return {
+    open: true,
+    label: "",
+    formula: currentFormula,
+    error: null
+  };
+}
+
+export function getCustomDicePresetFormClosedState(): CustomDicePresetFormState {
+  return {
+    open: false,
+    label: "",
+    formula: "",
+    error: null
+  };
 }
 
 export function getCustomDicePresetSaveResult(

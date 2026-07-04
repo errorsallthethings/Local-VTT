@@ -17,9 +17,12 @@ import {
   formatDiceFeedBreakdownTooltip,
   formatDiceFeedLabel,
   formatDiceRollSummary,
+  getCustomDicePresetFormClosedState,
+  getCustomDicePresetFormOpenState,
   getCustomDicePresetSaveResult,
   getDicePanelDragPosition,
   getDicePanelDragStart,
+  getDicePanelPresentation,
   getDicePanelPositionInViewport,
   getDiceFeedTone,
   getDicePlacementAvailable,
@@ -30,6 +33,7 @@ import {
   getDicePanelAdvancedChangePlan,
   isPendingRecentDiceRoll,
   loadCustomDicePresets,
+  removeCustomDicePreset,
   rollDiceExpression,
   saveCustomDicePresets,
   type CustomDicePreset,
@@ -310,6 +314,7 @@ export function WorkspaceTopbar({
   const playerPlacementHelp = getDicePlacementHelp("Player", playerDiceDisplayMode, diceSceneRollEnabled);
   const gmDisplaySelectValue = getDiceDisplaySelectValueForView(gmDiceDisplayMode, diceSceneRollTarget, "gm", diceSceneRollEnabled);
   const playerDisplaySelectValue = getDiceDisplaySelectValueForView(playerDiceDisplayMode, diceSceneRollTarget, "player", diceSceneRollEnabled);
+  const dicePanelPresentation = getDicePanelPresentation(dicePanelPosition, dicePanelSize, dicePanelCollapsed);
 
   const changeGmDiceDisplayMode = (mode: DiceDisplayMode) => {
     const plan = getDiceDisplayModeChangePlan(mode, "gm", diceSceneRollEnabled);
@@ -342,11 +347,19 @@ export function WorkspaceTopbar({
     setDiceExpressionError(onRollExpression(formula, label));
   };
 
+  const applyPresetFormState = (state: ReturnType<typeof getCustomDicePresetFormOpenState>) => {
+    setPresetFormOpen(state.open);
+    setPresetLabel(state.label);
+    setPresetFormula(state.formula);
+    setPresetFormError(state.error);
+  };
+
   const openPresetForm = () => {
-    setPresetFormOpen(true);
-    setPresetLabel("");
-    setPresetFormula(diceExpression);
-    setPresetFormError(null);
+    applyPresetFormState(getCustomDicePresetFormOpenState(diceExpression));
+  };
+
+  const closePresetForm = () => {
+    applyPresetFormState(getCustomDicePresetFormClosedState());
   };
 
   const saveCustomPreset = () => {
@@ -363,10 +376,11 @@ export function WorkspaceTopbar({
       return;
     }
     setCustomDicePresets((presets) => addCustomDicePreset(presets, result.preset));
-    setPresetFormOpen(false);
-    setPresetLabel("");
-    setPresetFormula("");
-    setPresetFormError(null);
+    closePresetForm();
+  };
+
+  const deleteCustomPreset = (presetId: string) => {
+    setCustomDicePresets((presets) => removeCustomDicePreset(presets, presetId));
   };
 
   return (
@@ -382,14 +396,8 @@ export function WorkspaceTopbar({
         {dicePanelOpen && (
             <div
               ref={dicePopoverRef}
-              className={[
-                dicePanelPosition ? "dice-popover dice-popover-dragged" : "dice-popover dice-popover-floating",
-                dicePanelCollapsed ? "dice-popover-collapsed" : ""
-              ].filter(Boolean).join(" ")}
-              style={{
-                ...(dicePanelPosition ? { left: dicePanelPosition.x, top: dicePanelPosition.y } : {}),
-                ...(dicePanelSize ? { width: dicePanelSize.width, height: dicePanelCollapsed ? undefined : dicePanelSize.height } : {})
-              }}
+              className={dicePanelPresentation.className}
+              style={dicePanelPresentation.style}
               role="dialog"
               aria-label="Dice roller"
             >
@@ -672,7 +680,7 @@ export function WorkspaceTopbar({
                           className="dice-preset-delete"
                           title={`Delete ${preset.label} preset`}
                           aria-label={`Delete ${preset.label} preset`}
-                          onClick={() => setCustomDicePresets((presets) => presets.filter((candidate) => candidate.id !== preset.id))}
+                          onClick={() => deleteCustomPreset(preset.id)}
                         >
                           <X size={10} aria-hidden="true" />
                         </button>
@@ -712,10 +720,7 @@ export function WorkspaceTopbar({
                         className="dice-preset-cancel"
                         aria-label="Cancel preset"
                         title="Cancel preset"
-                        onClick={() => {
-                          setPresetFormOpen(false);
-                          setPresetFormError(null);
-                        }}
+                        onClick={closePresetForm}
                       >
                         <X size={12} aria-hidden="true" />
                       </button>

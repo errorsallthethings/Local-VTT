@@ -26,6 +26,16 @@ export interface DicePanelRect {
   height: number;
 }
 
+export interface DicePanelPresentation {
+  className: string;
+  style: {
+    left?: number;
+    top?: number;
+    width?: number;
+    height?: number;
+  };
+}
+
 export function clampDicePanelPosition(
   x: number,
   y: number,
@@ -70,4 +80,21 @@ export function getDicePanelDragPosition(
   margin = 8
 ): DicePanelPosition {
   return getDicePanelPositionInViewport(clientX - drag.offsetX, clientY - drag.offsetY, viewport, rect, margin);
+}
+
+export function getDicePanelPresentation(
+  position: DicePanelPosition | null | undefined,
+  size: Partial<DicePanelSize> | null | undefined,
+  collapsed: boolean
+): DicePanelPresentation {
+  return {
+    className: [
+      position ? "dice-popover dice-popover-dragged" : "dice-popover dice-popover-floating",
+      collapsed ? "dice-popover-collapsed" : ""
+    ].filter(Boolean).join(" "),
+    style: {
+      ...(position ? { left: position.x, top: position.y } : {}),
+      ...(size ? { width: size.width, height: collapsed ? undefined : size.height } : {})
+    }
+  };
 }
