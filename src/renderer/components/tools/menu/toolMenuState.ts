@@ -56,6 +56,36 @@ export interface TableToolSelectionPlan {
   nextCanvasTool: CanvasTool | null;
 }
 
+export interface FogToolSelectionPlan {
+  clearCanvasTool: boolean;
+  clearDrawingTool: boolean;
+  clearWeatherMaskTool: boolean;
+  clearEnvironmentEffectTool: boolean;
+  nextFogTool: FogTool | null;
+}
+
+export interface WeatherMaskToolSelectionPlan {
+  clearCanvasTool: boolean;
+  clearFogTool: boolean;
+  clearDrawingTool: boolean;
+  clearEnvironmentEffectTool: boolean;
+  nextWeatherMaskTool: WeatherMaskTool | null;
+}
+
+export interface EnvironmentEffectToolSelectionPlan {
+  clearCanvasTool: boolean;
+  clearFogTool: boolean;
+  clearDrawingTool: boolean;
+  clearWeatherMaskTool: boolean;
+  nextEnvironmentEffectTool: EnvironmentEffectTool | null;
+}
+
+export interface MouseCategoryTogglePlan {
+  activeCategory: ToolCategory | null;
+  clearTools: boolean;
+  clearHelp: boolean;
+}
+
 export function createFogTool(operation: FogOperation, shape: FogToolShape): FogTool {
   return `${operation}-${shape}` as FogTool;
 }
@@ -197,6 +227,73 @@ export function getTableToolSelectionPlan(tool: CanvasTool, activeCanvasTool: Ca
     pingColor: tool === "ping" ? DEFAULT_SONAR_COLOR : null,
     nextCanvasTool: activeCanvasTool === tool ? null : tool
   };
+}
+
+export function getFogToolSelectionPlan(shape: FogToolShape, fogOperation: FogOperation, activeFogTool: FogTool | null): FogToolSelectionPlan {
+  const nextTool = createFogTool(fogOperation, shape);
+  return {
+    clearCanvasTool: true,
+    clearDrawingTool: true,
+    clearWeatherMaskTool: true,
+    clearEnvironmentEffectTool: true,
+    nextFogTool: activeFogTool === nextTool ? null : nextTool
+  };
+}
+
+export function getWeatherMaskToolSelectionPlan(tool: WeatherMaskTool, activeWeatherMaskTool: WeatherMaskTool | null): WeatherMaskToolSelectionPlan {
+  return {
+    clearCanvasTool: true,
+    clearFogTool: true,
+    clearDrawingTool: true,
+    clearEnvironmentEffectTool: true,
+    nextWeatherMaskTool: activeWeatherMaskTool === tool ? null : tool
+  };
+}
+
+export function getEnvironmentEffectToolSelectionPlan(
+  tool: EnvironmentEffectTool,
+  activeEnvironmentEffectTool: EnvironmentEffectTool | null
+): EnvironmentEffectToolSelectionPlan {
+  return {
+    clearCanvasTool: true,
+    clearFogTool: true,
+    clearDrawingTool: true,
+    clearWeatherMaskTool: true,
+    nextEnvironmentEffectTool: activeEnvironmentEffectTool === tool ? null : tool
+  };
+}
+
+export function getFogToolForOperation(operation: FogOperation, activeFogShape: FogToolShape | null): FogTool | null {
+  return activeFogShape ? createFogTool(operation, activeFogShape) : null;
+}
+
+export function getMouseCategoryTogglePlan(activeCategory: ToolCategory | null): MouseCategoryTogglePlan {
+  if (activeCategory === "mouse") {
+    return { activeCategory: null, clearTools: false, clearHelp: true };
+  }
+  return {
+    activeCategory: "mouse",
+    clearTools: Boolean(activeCategory),
+    clearHelp: true
+  };
+}
+
+export function getToolCategoryButtonClassName(active: boolean): string {
+  return active ? "tools-category-button tool-active" : "tools-category-button";
+}
+
+export function getToolButtonClassName(active: boolean, variant?: "help" | "danger"): string {
+  const classNames = ["tool-circle-button"];
+  if (variant === "help") {
+    classNames.push("tool-help-trigger", "tools-panel-help-button");
+  }
+  if (variant === "danger") {
+    classNames.push("danger");
+  }
+  if (active) {
+    classNames.push("tool-active");
+  }
+  return classNames.join(" ");
 }
 
 function createCategoryOpenPlan(overrides: Partial<CategoryOpenPlan> = {}): CategoryOpenPlan {

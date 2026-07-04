@@ -21,6 +21,7 @@ import {
   Table2,
   Target,
   Triangle,
+  Trash2,
   Type,
   Undo2,
 } from "lucide-react";
@@ -44,12 +45,18 @@ import {
 } from "../../../lib/effects";
 import { getToolCategoryLabel, type ToolCategory } from "./toolCategoryLabels";
 import {
-  createFogTool,
   getActiveFogShape,
   getActiveToolCategory,
   getCategoryOpenPlan,
   getDrawingToolSelectionPlan,
+  getEnvironmentEffectToolSelectionPlan,
+  getFogToolForOperation,
+  getFogToolSelectionPlan,
+  getMouseCategoryTogglePlan,
   getTableToolSelectionPlan,
+  getToolButtonClassName,
+  getToolCategoryButtonClassName,
+  getWeatherMaskToolSelectionPlan,
   isToolCategoryActive,
   type CanvasTool,
   type EnvironmentEffectTool,
@@ -332,6 +339,7 @@ export function ToolsMenu({
   onUndoDrawing,
   onUndoWeatherMask,
   onUndoEnvironmentEffect,
+  onRequestClearFog,
   onToggleDicePanel,
   onToggleTurnOrder,
   onSelectorSelectionFiltersChange,
@@ -495,12 +503,20 @@ export function ToolsMenu({
   };
 
   const setFogToolShape = (shape: FogToolShape) => {
-    const nextTool = createFogTool(fogOperation, shape);
-    onCanvasToolChange(null);
-    onDrawingToolChange(null);
-    onWeatherMaskToolChange(null);
-    onEnvironmentEffectToolChange(null);
-    onFogToolChange(activeFogTool === nextTool ? null : nextTool);
+    const plan = getFogToolSelectionPlan(shape, fogOperation, activeFogTool);
+    if (plan.clearCanvasTool) {
+      onCanvasToolChange(null);
+    }
+    if (plan.clearDrawingTool) {
+      onDrawingToolChange(null);
+    }
+    if (plan.clearWeatherMaskTool) {
+      onWeatherMaskToolChange(null);
+    }
+    if (plan.clearEnvironmentEffectTool) {
+      onEnvironmentEffectToolChange(null);
+    }
+    onFogToolChange(plan.nextFogTool);
   };
 
   const setDrawingTool = (tool: DrawingTool) => {
@@ -517,19 +533,37 @@ export function ToolsMenu({
   };
 
   const setWeatherMaskTool = (tool: WeatherMaskTool) => {
-    onCanvasToolChange(null);
-    onFogToolChange(null);
-    onDrawingToolChange(null);
-    onEnvironmentEffectToolChange(null);
-    onWeatherMaskToolChange(activeWeatherMaskTool === tool ? null : tool);
+    const plan = getWeatherMaskToolSelectionPlan(tool, activeWeatherMaskTool);
+    if (plan.clearCanvasTool) {
+      onCanvasToolChange(null);
+    }
+    if (plan.clearFogTool) {
+      onFogToolChange(null);
+    }
+    if (plan.clearDrawingTool) {
+      onDrawingToolChange(null);
+    }
+    if (plan.clearEnvironmentEffectTool) {
+      onEnvironmentEffectToolChange(null);
+    }
+    onWeatherMaskToolChange(plan.nextWeatherMaskTool);
   };
 
   const setEnvironmentEffectTool = (tool: EnvironmentEffectTool) => {
-    onCanvasToolChange(null);
-    onFogToolChange(null);
-    onDrawingToolChange(null);
-    onWeatherMaskToolChange(null);
-    onEnvironmentEffectToolChange(activeEnvironmentEffectTool === tool ? null : tool);
+    const plan = getEnvironmentEffectToolSelectionPlan(tool, activeEnvironmentEffectTool);
+    if (plan.clearCanvasTool) {
+      onCanvasToolChange(null);
+    }
+    if (plan.clearFogTool) {
+      onFogToolChange(null);
+    }
+    if (plan.clearDrawingTool) {
+      onDrawingToolChange(null);
+    }
+    if (plan.clearWeatherMaskTool) {
+      onWeatherMaskToolChange(null);
+    }
+    onEnvironmentEffectToolChange(plan.nextEnvironmentEffectTool);
   };
 
   const setTableTool = (tool: CanvasTool) => {
@@ -549,22 +583,21 @@ export function ToolsMenu({
 
   const setFogToolOperation = (operation: FogOperation) => {
     onFogOperationChange(operation);
-    if (activeFogShape) {
-      onFogToolChange(createFogTool(operation, activeFogShape));
+    const nextFogTool = getFogToolForOperation(operation, activeFogShape);
+    if (nextFogTool) {
+      onFogToolChange(nextFogTool);
     }
   };
 
   const toggleMouseCategory = () => {
-    if (activeCategory === "mouse") {
-      setActiveCategory(null);
-      setHelpTopic(null);
-      return;
-    }
-    if (activeCategory) {
+    const plan = getMouseCategoryTogglePlan(activeCategory);
+    setActiveCategory(plan.activeCategory);
+    if (plan.clearTools) {
       clearActiveTools();
     }
-    setActiveCategory("mouse");
-    setHelpTopic(null);
+    if (plan.clearHelp) {
+      setHelpTopic(null);
+    }
   };
 
   const isCategoryActive = (category: ToolCategory): boolean => {
@@ -584,7 +617,7 @@ export function ToolsMenu({
     <div className="tools-menu" aria-label="Tools menu">
       <div className="tools-menu-stack" aria-label="Tool Categories">
         <button
-          className={activeCategory === "mouse" ? "tools-category-button tool-active" : "tools-category-button"}
+          className={getToolCategoryButtonClassName(activeCategory === "mouse")}
           aria-label="Mouse Behavior"
           title="Mouse Behavior"
           type="button"
@@ -605,7 +638,7 @@ export function ToolsMenu({
             return (
               <button
                 key={category.id}
-                className={isCategoryActive(category.id) ? "tools-category-button tool-active" : "tools-category-button"}
+                className={getToolCategoryButtonClassName(isCategoryActive(category.id))}
                 aria-label={category.label}
                 title={category.label}
                 type="button"
@@ -863,6 +896,9 @@ export function ToolsMenu({
                 <span className="tools-vertical-divider" aria-hidden="true" />
                 <ToolButton label="Undo Last Fog Mask" disabled={fogShapeCount === 0} onClick={onUndoFogShape}>
                   <Undo2 size={17} aria-hidden="true" />
+                </ToolButton>
+                <ToolButton variant="danger" label="Clear Fog Masks" disabled={fogShapeCount === 0} onClick={onRequestClearFog}>
+                  <Trash2 size={17} aria-hidden="true" />
                 </ToolButton>
               </div>
               <div className="tools-operation-stack">
@@ -1197,9 +1233,23 @@ function PanelHeader({ title }: { title: string }) {
   return <div className="tools-subpanel-header">{title}</div>;
 }
 
-function ToolButton({ active = false, disabled = false, label, children, onClick }: { active?: boolean; disabled?: boolean; label: string; children: ReactNode; onClick: () => void }) {
+function ToolButton({
+  active = false,
+  disabled = false,
+  label,
+  variant,
+  children,
+  onClick
+}: {
+  active?: boolean;
+  disabled?: boolean;
+  label: string;
+  variant?: "danger";
+  children: ReactNode;
+  onClick: () => void;
+}) {
   return (
-    <button className={active ? "tool-circle-button tool-active" : "tool-circle-button"} aria-label={label} title={label} type="button" disabled={disabled} onClick={onClick}>
+    <button className={getToolButtonClassName(active, variant)} aria-label={label} title={label} type="button" disabled={disabled} onClick={onClick}>
       {children}
     </button>
   );
@@ -1207,7 +1257,7 @@ function ToolButton({ active = false, disabled = false, label, children, onClick
 
 function HelpButton({ active, disabled = false, label, onClick }: { active: boolean; disabled?: boolean; label: string; onClick: () => void }) {
   return (
-    <button className={active ? "tool-circle-button tool-help-trigger tools-panel-help-button tool-active" : "tool-circle-button tool-help-trigger tools-panel-help-button"} aria-label={label} title={label} type="button" aria-expanded={active} disabled={disabled} onClick={onClick}>
+    <button className={getToolButtonClassName(active, "help")} aria-label={label} title={label} type="button" aria-expanded={active} disabled={disabled} onClick={onClick}>
       <HelpCircle size={14} aria-hidden="true" />
     </button>
   );

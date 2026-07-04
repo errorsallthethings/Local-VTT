@@ -8,7 +8,14 @@ import {
   getActiveToolCategory,
   getCategoryOpenPlan,
   getDrawingToolSelectionPlan,
+  getEnvironmentEffectToolSelectionPlan,
+  getFogToolForOperation,
+  getFogToolSelectionPlan,
+  getMouseCategoryTogglePlan,
   getTableToolSelectionPlan,
+  getToolButtonClassName,
+  getToolCategoryButtonClassName,
+  getWeatherMaskToolSelectionPlan,
   isTemplateDrawingTool,
   isToolCategoryActive
 } from "../../src/renderer/components/tools/menu/toolMenuState";
@@ -178,5 +185,64 @@ describe("tool menu state helpers", () => {
       pingColor: null,
       nextCanvasTool: null
     });
+  });
+
+  it("plans fog, weather mask, and animated effect tool selection side effects", () => {
+    expect(getFogToolSelectionPlan("circle", "hide", "reveal-brush")).toEqual({
+      clearCanvasTool: true,
+      clearDrawingTool: true,
+      clearWeatherMaskTool: true,
+      clearEnvironmentEffectTool: true,
+      nextFogTool: "hide-circle"
+    });
+    expect(getFogToolSelectionPlan("circle", "hide", "hide-circle").nextFogTool).toBeNull();
+
+    expect(getWeatherMaskToolSelectionPlan("polygon", "rectangle")).toEqual({
+      clearCanvasTool: true,
+      clearFogTool: true,
+      clearDrawingTool: true,
+      clearEnvironmentEffectTool: true,
+      nextWeatherMaskTool: "polygon"
+    });
+    expect(getWeatherMaskToolSelectionPlan("polygon", "polygon").nextWeatherMaskTool).toBeNull();
+
+    expect(getEnvironmentEffectToolSelectionPlan("rectangle", "circle")).toEqual({
+      clearCanvasTool: true,
+      clearFogTool: true,
+      clearDrawingTool: true,
+      clearWeatherMaskTool: true,
+      nextEnvironmentEffectTool: "rectangle"
+    });
+    expect(getEnvironmentEffectToolSelectionPlan("rectangle", "rectangle").nextEnvironmentEffectTool).toBeNull();
+  });
+
+  it("plans fog operation and mouse category updates", () => {
+    expect(getFogToolForOperation("hide", "polygon")).toBe("hide-polygon");
+    expect(getFogToolForOperation("reveal", null)).toBeNull();
+
+    expect(getMouseCategoryTogglePlan(null)).toEqual({
+      activeCategory: "mouse",
+      clearTools: false,
+      clearHelp: true
+    });
+    expect(getMouseCategoryTogglePlan("drawing")).toEqual({
+      activeCategory: "mouse",
+      clearTools: true,
+      clearHelp: true
+    });
+    expect(getMouseCategoryTogglePlan("mouse")).toEqual({
+      activeCategory: null,
+      clearTools: false,
+      clearHelp: true
+    });
+  });
+
+  it("builds menu button class names consistently", () => {
+    expect(getToolCategoryButtonClassName(false)).toBe("tools-category-button");
+    expect(getToolCategoryButtonClassName(true)).toBe("tools-category-button tool-active");
+    expect(getToolButtonClassName(false)).toBe("tool-circle-button");
+    expect(getToolButtonClassName(true)).toBe("tool-circle-button tool-active");
+    expect(getToolButtonClassName(false, "danger")).toBe("tool-circle-button danger");
+    expect(getToolButtonClassName(true, "help")).toBe("tool-circle-button tool-help-trigger tools-panel-help-button tool-active");
   });
 });
