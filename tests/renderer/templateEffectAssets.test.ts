@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   TEMPLATE_EFFECT_ASSET_EFFECTS,
+  getRegisteredTemplateEffectRenderableEffects,
   hasTemplateEffectAssets,
   supportsTemplateEffectAssets,
   supportsTemplateEffectInnerGlow
@@ -29,6 +30,7 @@ const ALL_TEMPLATE_EFFECTS: DrawingTemplateEffect[] = [
 describe("template effect asset support", () => {
   it("keeps asset-backed template effects explicit", () => {
     expect(TEMPLATE_EFFECT_ASSET_EFFECTS).toEqual(ALL_TEMPLATE_EFFECTS.filter((effect) => effect !== "plain"));
+    expect(getRegisteredTemplateEffectRenderableEffects()).toEqual([...TEMPLATE_EFFECT_ASSET_EFFECTS].sort());
     expect(hasTemplateEffectAssets("plain")).toBe(false);
     for (const effect of TEMPLATE_EFFECT_ASSET_EFFECTS) {
       expect(hasTemplateEffectAssets(effect)).toBe(true);

@@ -1,6 +1,8 @@
 import type { DrawingElement, DrawingTemplateEffect } from "../../../shared/localvtt";
 
-export const TEMPLATE_EFFECT_ASSET_EFFECTS: DrawingTemplateEffect[] = [
+export type TemplateEffectAssetEffect = Exclude<DrawingTemplateEffect, "plain">;
+
+export const TEMPLATE_EFFECT_ASSET_EFFECTS: TemplateEffectAssetEffect[] = [
   "acid",
   "arcane",
   "cold",

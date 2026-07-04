@@ -17,7 +17,7 @@ import {
   type TemplateEffectRenderable
 } from "./templateEffectPlacement";
 import { getTemplateEffectStyle, getTemplateInnerGlowStyle } from "./templateEffectStyles";
-import { supportsTemplateEffectAssets, supportsTemplateEffectInnerGlow } from "./templateEffectAssets";
+import { supportsTemplateEffectAssets, supportsTemplateEffectInnerGlow, type TemplateEffectAssetEffect } from "./templateEffectAssets";
 import { getTemplateEffectTuning } from "./templateEffectTuning";
 import { getTemplateGridHighlightCells } from "./templateGridHighlights";
 import { getTemplateLabel, getTemplateLabelPosition } from "./templateLabels";
@@ -30,6 +30,8 @@ type TemplateEffectOverlayCacheEntry = {
   left: number;
   top: number;
 };
+
+type TemplateEffectRenderableFactory = () => TemplateEffectRenderable[];
 
 function disposeTransientRenderer(renderer: THREE.WebGLRenderer) {
   renderer.forceContextLoss();
@@ -615,53 +617,30 @@ function trimTemplateEffectOverlayCache() {
   }
 }
 
+const TEMPLATE_EFFECT_RENDERABLE_FACTORIES: Record<TemplateEffectAssetEffect, TemplateEffectRenderableFactory> = {
+  acid: getAcidTemplateRenderables,
+  arcane: getArcaneTemplateRenderables,
+  cold: getColdTemplateRenderables,
+  darkness: getDarknessTemplateRenderables,
+  fire: getFireTemplateRenderables,
+  fog: getFogTemplateRenderables,
+  lightning: getLightningTemplateRenderables,
+  nature: getNatureTemplateRenderables,
+  poison: getPoisonTemplateRenderables,
+  psychic: getPsychicTemplateRenderables,
+  radiant: getRadiantTemplateRenderables,
+  storm: getStormTemplateRenderables,
+  thunder: getThunderTemplateRenderables,
+  water: getWaterTemplateRenderables,
+  web: getWebTemplateRenderables
+};
+
+export function getRegisteredTemplateEffectRenderableEffects(): TemplateEffectAssetEffect[] {
+  return Object.keys(TEMPLATE_EFFECT_RENDERABLE_FACTORIES).sort() as TemplateEffectAssetEffect[];
+}
+
 function getTemplateEffectRenderables(effect: DrawingTemplateEffect): TemplateEffectRenderable[] {
-  if (effect === "web") {
-    return getWebTemplateRenderables();
-  }
-  if (effect === "acid") {
-    return getAcidTemplateRenderables();
-  }
-  if (effect === "arcane") {
-    return getArcaneTemplateRenderables();
-  }
-  if (effect === "cold") {
-    return getColdTemplateRenderables();
-  }
-  if (effect === "darkness") {
-    return getDarknessTemplateRenderables();
-  }
-  if (effect === "fire") {
-    return getFireTemplateRenderables();
-  }
-  if (effect === "fog") {
-    return getFogTemplateRenderables();
-  }
-  if (effect === "lightning") {
-    return getLightningTemplateRenderables();
-  }
-  if (effect === "nature") {
-    return getNatureTemplateRenderables();
-  }
-  if (effect === "poison") {
-    return getPoisonTemplateRenderables();
-  }
-  if (effect === "psychic") {
-    return getPsychicTemplateRenderables();
-  }
-  if (effect === "radiant") {
-    return getRadiantTemplateRenderables();
-  }
-  if (effect === "storm") {
-    return getStormTemplateRenderables();
-  }
-  if (effect === "thunder") {
-    return getThunderTemplateRenderables();
-  }
-  if (effect === "water") {
-    return getWaterTemplateRenderables();
-  }
-  return [];
+  return effect === "plain" ? [] : TEMPLATE_EFFECT_RENDERABLE_FACTORIES[effect]();
 }
 
 function getPoisonTemplateRenderables(): TemplateEffectRenderable[] {
