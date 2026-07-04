@@ -1,5 +1,15 @@
 import type { CampaignSceneEntry, CampaignSceneFolder } from "../../../shared/localvtt";
 
+export type SceneDropTarget =
+  | { kind: "folder"; folderId?: string }
+  | { kind: "scene"; sceneId: string; folderId?: string; position: "before" | "after" };
+
+export interface SceneMoveTarget {
+  folderId?: string;
+  beforeSceneId?: string;
+  afterSceneId?: string;
+}
+
 export interface SceneLibraryFolderGroup {
   folder: CampaignSceneFolder;
   scenes: CampaignSceneEntry[];
@@ -15,6 +25,56 @@ export interface FolderSceneDeleteDetail {
   containsPlayerScene: boolean;
   dirtySceneCount: number;
   sceneCount: number;
+}
+
+export function getSceneDropTargetId(folderId?: string): string {
+  return folderId ?? "root";
+}
+
+export function getSceneDropTargetKey(target: SceneDropTarget | null | undefined): string | null {
+  if (!target) {
+    return null;
+  }
+  return target.kind === "folder"
+    ? `folder:${getSceneDropTargetId(target.folderId)}`
+    : `scene:${target.sceneId}:${target.position}`;
+}
+
+export function getSceneMoveTargetFromDropTarget(target: SceneDropTarget | null | undefined, fallbackFolderId?: string): SceneMoveTarget {
+  if (target?.kind === "scene") {
+    return {
+      folderId: target.folderId,
+      beforeSceneId: target.position === "before" ? target.sceneId : undefined,
+      afterSceneId: target.position === "after" ? target.sceneId : undefined
+    };
+  }
+  return { folderId: target?.kind === "folder" ? target.folderId : fallbackFolderId };
+}
+
+export function getSceneDropPosition(clientY: number, top: number, height: number): "before" | "after" {
+  return clientY < top + height / 2 ? "before" : "after";
+}
+
+export function getSceneRowClassName(active: boolean, dropPosition: "before" | "after" | null | undefined): string {
+  return [
+    active ? "selected" : "",
+    "scene-row",
+    dropPosition === "before" ? "scene-row-drop-before" : "",
+    dropPosition === "after" ? "scene-row-drop-after" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+export function getSceneFolderClassName(collapsed: boolean, dropTarget: boolean, unfiled = false): string {
+  return [
+    "scene-folder",
+    unfiled ? "scene-folder-unfiled" : "",
+    collapsed ? "scene-folder-collapsed" : "",
+    dropTarget ? "scene-folder-drop-target" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 export function buildSceneLibraryGroups(scenes: CampaignSceneEntry[], folders: CampaignSceneFolder[], dirtySceneIds: ReadonlySet<string> = new Set()): SceneLibraryGroups {

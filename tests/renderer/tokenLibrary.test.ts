@@ -4,6 +4,7 @@ import { createDefaultCampaign, createDefaultScene } from "../../src/shared/loca
 import {
   buildTokenLayerRows,
   buildTokenLibraryAssetIndex,
+  clampTokenLibrarySplitPercent,
   filterTokenLibraryAssetIndex,
   filterTokenLibraryAssets,
   getSelectedTokenAssetIds,
@@ -11,6 +12,8 @@ import {
   getSelectedTokenLibraryAssetIds,
   getTokenAssetDeleteDialogState,
   getTokenAssetRenameDialogState,
+  getTokenLibraryDrawerPresentation,
+  getTokenLibrarySplitPercent,
   mergeTokenAssetUsage,
   removeSceneTokensByAsset
 } from "../../src/renderer/lib/tokens";
@@ -75,6 +78,26 @@ describe("token library helpers", () => {
     expect(getSelectedTokenLibraryAsset(assets, "zombie")?.name).toBe("zombie");
     expect(getSelectedTokenLibraryAsset(assets, "missing")).toBeNull();
     expect(getSelectedTokenLibraryAsset(assets, undefined)).toBeNull();
+  });
+
+  it("clamps and derives token library split percentages", () => {
+    expect(clampTokenLibrarySplitPercent(20)).toBe(38);
+    expect(clampTokenLibrarySplitPercent(90)).toBe(76);
+    expect(clampTokenLibrarySplitPercent(Number.NaN)).toBe(62);
+    expect(getTokenLibrarySplitPercent(300, 100, 400)).toBe(50);
+    expect(getTokenLibrarySplitPercent(900, 100, 400)).toBe(76);
+    expect(getTokenLibrarySplitPercent(300, 100, 0)).toBe(62);
+  });
+
+  it("builds token library drawer presentation state", () => {
+    expect(getTokenLibraryDrawerPresentation("medium", true, true, 82)).toEqual({
+      className: "token-library-drawer token-library-view-medium token-library-expanded",
+      contentStyle: { "--scene-tools-token-width": "76%" }
+    });
+    expect(getTokenLibraryDrawerPresentation("list", false, false, 50)).toEqual({
+      className: "token-library-drawer token-library-view-list token-library-collapsed-click-target",
+      contentStyle: undefined
+    });
   });
 
   it("builds token asset rename dialog state with label fallback", () => {
