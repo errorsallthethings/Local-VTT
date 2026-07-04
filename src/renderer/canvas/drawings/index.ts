@@ -6,6 +6,7 @@ export * from "./drawingRenderer";
 export * from "./drawingTransform";
 export * from "./templateEffectGeometry";
 export * from "./templateEffectAssets";
+export * from "./templateEffectOverlayCache";
 export * from "./templateEffectPlacement";
 export * from "./templateEffectStyles";
 export * from "./templateEffectTuning";

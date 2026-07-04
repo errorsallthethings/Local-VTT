@@ -18,18 +18,16 @@ import {
 } from "./templateEffectPlacement";
 import { getTemplateEffectStyle, getTemplateInnerGlowStyle } from "./templateEffectStyles";
 import { supportsTemplateEffectAssets, supportsTemplateEffectInnerGlow, type TemplateEffectAssetEffect } from "./templateEffectAssets";
+import {
+  getTemplateEffectOverlayCacheEntry,
+  setTemplateEffectOverlayCacheEntry,
+  type TemplateEffectOverlayCacheEntry
+} from "./templateEffectOverlayCache";
 import { getTemplateEffectTuning } from "./templateEffectTuning";
 import { getTemplateGridHighlightCells } from "./templateGridHighlights";
 import { getTemplateLabel, getTemplateLabelPosition } from "./templateLabels";
 
 export type DrawingPointOverrides = Map<string, Point[]>;
-
-type TemplateEffectOverlayCacheEntry = {
-  canvas: HTMLCanvasElement;
-  key: string;
-  left: number;
-  top: number;
-};
 
 type TemplateEffectRenderableFactory = () => TemplateEffectRenderable[];
 
@@ -50,7 +48,6 @@ function snapshotRendererCanvas(canvas: HTMLCanvasElement): HTMLCanvasElement {
   return snapshot;
 }
 
-const TEMPLATE_EFFECT_OVERLAY_CACHE_LIMIT = 80;
 const templateEffectOverlayCache = new Map<string, TemplateEffectOverlayCacheEntry>();
 let acidTemplateRenderables: TemplateEffectRenderable[] | null = null;
 let arcaneTemplateRenderables: TemplateEffectRenderable[] | null = null;
@@ -540,10 +537,8 @@ function getTemplateEffectOverlay(
     return null;
   }
   const cacheKey = getTemplateEffectOverlayCacheKey(drawing, bounds, renderables, layerOpacity, grid);
-  const cached = templateEffectOverlayCache.get(cacheKey);
+  const cached = getTemplateEffectOverlayCacheEntry(templateEffectOverlayCache, cacheKey);
   if (cached) {
-    templateEffectOverlayCache.delete(cacheKey);
-    templateEffectOverlayCache.set(cacheKey, cached);
     return cached;
   }
 
@@ -579,10 +574,7 @@ function getTemplateEffectOverlay(
     }
     overlayCtx.restore();
     overlayCtx.restore();
-    const entry = { canvas, key: cacheKey, left: bounds.left, top: bounds.top };
-    templateEffectOverlayCache.set(cacheKey, entry);
-    trimTemplateEffectOverlayCache();
-    return entry;
+    return setTemplateEffectOverlayCacheEntry(templateEffectOverlayCache, { canvas, key: cacheKey, left: bounds.left, top: bounds.top });
   }
   for (let bandIndex = 0; bandIndex < bands; bandIndex += 1) {
     const outerScale = 1 - ((1 - innerScale) * bandIndex) / bands;
@@ -601,20 +593,7 @@ function getTemplateEffectOverlay(
   }
   overlayCtx.restore();
 
-  const entry = { canvas, key: cacheKey, left: bounds.left, top: bounds.top };
-  templateEffectOverlayCache.set(cacheKey, entry);
-  trimTemplateEffectOverlayCache();
-  return entry;
-}
-
-function trimTemplateEffectOverlayCache() {
-  while (templateEffectOverlayCache.size > TEMPLATE_EFFECT_OVERLAY_CACHE_LIMIT) {
-    const oldestKey = templateEffectOverlayCache.keys().next().value;
-    if (!oldestKey) {
-      return;
-    }
-    templateEffectOverlayCache.delete(oldestKey);
-  }
+  return setTemplateEffectOverlayCacheEntry(templateEffectOverlayCache, { canvas, key: cacheKey, left: bounds.left, top: bounds.top });
 }
 
 const TEMPLATE_EFFECT_RENDERABLE_FACTORIES: Record<TemplateEffectAssetEffect, TemplateEffectRenderableFactory> = {
