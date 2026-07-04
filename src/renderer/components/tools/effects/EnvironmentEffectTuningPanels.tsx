@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Copy, Undo2 } from "lucide-react";
+import { Copy, Undo2 } from "lucide-react";
 import type {
   AcidEffectTuning,
   ArcaneEffectTuning,
@@ -20,12 +20,12 @@ import type {
   VoidEffectTuning,
   WaterEffectTuning
 } from "../../../canvas/effects";
-import { ColorInput } from "../../controls/ColorPickerField";
+import { getEnvironmentEffectTuningReadout } from "../../../lib/effects";
 import {
-  formatEnvironmentEffectTuningNumber,
-  getEnvironmentEffectTuningReadout,
-  parseEnvironmentEffectTuningSliderValue
-} from "../../../lib/effects";
+  EffectTuningColor as WaterTuningColor,
+  EffectTuningSlider as WaterTuningSlider,
+  SettingsToggle
+} from "./EnvironmentEffectTuningControls";
 
 export function WaterEffectTuningPanel({
   tuning,
@@ -1139,30 +1139,3 @@ export function FogEffectTuningPanel({
   );
 }
 
-function WaterTuningSlider({ label, value, min, max, step, suffix = "", onChange }: { label: string; value: number; min: number; max: number; step: number; suffix?: string; onChange: (value: number) => void }) {
-  return (
-    <label className="water-tuning-slider">
-      <span>{label}</span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(parseEnvironmentEffectTuningSliderValue(event.target.value, value))} />
-      <strong>{formatEnvironmentEffectTuningNumber(value)}{suffix}</strong>
-    </label>
-  );
-}
-
-function WaterTuningColor({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return (
-    <label className="water-tuning-color">
-      <span>{label}</span>
-      <ColorInput value={value} onChange={onChange} aria-label={`${label} water color`} />
-    </label>
-  );
-}
-
-function SettingsToggle({ open, label, onToggle }: { open: boolean; label: string; onToggle: () => void }) {
-  return (
-    <button className="tools-settings-toggle" type="button" aria-expanded={open} onClick={onToggle}>
-      {open ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
-      <strong>{label}</strong>
-    </button>
-  );
-}
