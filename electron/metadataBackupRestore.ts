@@ -1,4 +1,4 @@
-import { readFile, stat } from "node:fs/promises";
+import { mkdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
 import type {
@@ -72,8 +72,10 @@ export async function restoreMetadataBackup(
   if (scene.id !== sceneId) {
     throw new Error("Scene backup does not match the selected scene.");
   }
-  await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, sceneId), sceneBackupFolder(campaignPath, sceneId), `${sceneId}.scene.json`);
-  await writeMetadataFileAtomically(sceneFile(campaignPath, sceneId), `${JSON.stringify(scene, null, 2)}\n`);
+  const targetSceneFile = sceneFile(campaignPath, sceneId);
+  await backupExistingMetadataFile(campaignPath, targetSceneFile, sceneBackupFolder(campaignPath, sceneId), `${sceneId}.scene.json`);
+  await mkdir(path.dirname(targetSceneFile), { recursive: true });
+  await writeMetadataFileAtomically(targetSceneFile, `${JSON.stringify(scene, null, 2)}\n`);
   return { campaignSummary: await loadCampaignSummary(campaignPath), scene: normalizeScene(scene), restored: preview };
 }
 
