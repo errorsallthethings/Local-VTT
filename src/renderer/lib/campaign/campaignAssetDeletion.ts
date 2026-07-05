@@ -7,6 +7,10 @@ export interface TokenAssetDeleteSceneUpdate {
   selectedTokenIds: string[];
 }
 
+export interface TokenAssetDeleteCompletion extends TokenAssetDeleteSceneUpdate {
+  playerSyncScene: Scene | null;
+}
+
 export function getMapAssetDeleteSceneUpdate(
   activeScene: Scene,
   savedScene: Scene,
@@ -75,5 +79,27 @@ export function getTokenAssetDeleteSceneUpdate(
     activeScene: nextActiveScene,
     sceneDrafts: getSceneDraftsAfterTokenAssetDelete(sceneDrafts, deletedAssetId),
     selectedTokenIds: getSelectedTokenIdsAfterTokenAssetDelete(selectedTokenIds, nextActiveScene)
+  };
+}
+
+export function getTokenAssetDeleteCompletion({
+  sceneDrafts,
+  activeScene,
+  changedScenes,
+  deletedAssetId,
+  selectedTokenIds,
+  playerSceneId
+}: {
+  sceneDrafts: Record<string, Scene>;
+  activeScene: Scene | null;
+  changedScenes: readonly Scene[];
+  deletedAssetId: string;
+  selectedTokenIds: readonly string[];
+  playerSceneId: string | null;
+}): TokenAssetDeleteCompletion {
+  const update = getTokenAssetDeleteSceneUpdate(sceneDrafts, activeScene, changedScenes, deletedAssetId, selectedTokenIds);
+  return {
+    ...update,
+    playerSyncScene: update.activeScene && update.activeScene.id === playerSceneId ? update.activeScene : null
   };
 }

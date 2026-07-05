@@ -5,6 +5,7 @@ import {
   getMapAssetDeleteSceneUpdate,
   getSceneDraftsAfterTokenAssetDelete,
   getSelectedTokenIdsAfterTokenAssetDelete,
+  getTokenAssetDeleteCompletion,
   getTokenAssetDeleteSceneUpdate
 } from "../../src/renderer/lib/campaign";
 
@@ -99,5 +100,31 @@ describe("campaign asset deletion helpers", () => {
     expect(update.sceneDrafts["scene-1"].tokens.map((candidate) => candidate.id)).toEqual(["token-2"]);
     expect(update.activeScene).toBe(savedActiveScene);
     expect(update.selectedTokenIds).toEqual(["token-4"]);
+  });
+
+  it("identifies the Player View scene to sync after token asset deletes", () => {
+    const activeScene = scene("scene-2", [token("token-3", "asset-1"), token("token-4", "asset-2")]);
+    const savedActiveScene = scene("scene-2", [token("token-4", "asset-2")]);
+
+    const synced = getTokenAssetDeleteCompletion({
+      sceneDrafts: {},
+      activeScene,
+      changedScenes: [savedActiveScene],
+      deletedAssetId: "asset-1",
+      selectedTokenIds: ["token-3", "token-4"],
+      playerSceneId: "scene-2"
+    });
+    expect(synced.playerSyncScene).toBe(savedActiveScene);
+    expect(synced.selectedTokenIds).toEqual(["token-4"]);
+
+    const notSynced = getTokenAssetDeleteCompletion({
+      sceneDrafts: {},
+      activeScene,
+      changedScenes: [savedActiveScene],
+      deletedAssetId: "asset-1",
+      selectedTokenIds: ["token-3", "token-4"],
+      playerSceneId: "scene-1"
+    });
+    expect(notSynced.playerSyncScene).toBeNull();
   });
 });

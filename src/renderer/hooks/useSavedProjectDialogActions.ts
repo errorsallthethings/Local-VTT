@@ -3,7 +3,7 @@ import type { Asset, Campaign, CampaignSummary, Scene } from "../../shared/local
 import {
   getActiveSceneAfterSceneRename,
   getSceneDraftsAfterSceneRename,
-  getTokenAssetDeleteSceneUpdate
+  getTokenAssetDeleteCompletion
 } from "../lib/campaign";
 import { updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
 import { getTokenAssetDeleteDialogState } from "../lib/tokens";
@@ -69,15 +69,22 @@ export function useSavedProjectDialogActions({
         const deletedAssetId = tokenAssetToDelete.asset.id;
         const result = await window.localVtt.deleteTokenAsset(campaignPath, deletedAssetId);
         applySummary(result.campaignSummary, campaignDirty);
-        const sceneUpdate = getTokenAssetDeleteSceneUpdate(sceneDrafts, activeScene, result.scenes, deletedAssetId, selectedTokenIds);
-        setSceneDrafts((drafts) => getTokenAssetDeleteSceneUpdate(drafts, activeScene, result.scenes, deletedAssetId, selectedTokenIds).sceneDrafts);
-        if (sceneUpdate.activeScene) {
-          setActiveScene(sceneUpdate.activeScene);
-          if (sceneUpdate.activeScene.id === playerSceneId) {
-            updatePlayerSceneIfOpenInBackground(window.localVtt, result.campaignSummary.campaign, sceneUpdate.activeScene, playerViewSyncOptions);
-          }
+        const completion = getTokenAssetDeleteCompletion({
+          sceneDrafts,
+          activeScene,
+          changedScenes: result.scenes,
+          deletedAssetId,
+          selectedTokenIds,
+          playerSceneId
+        });
+        setSceneDrafts(completion.sceneDrafts);
+        if (completion.activeScene) {
+          setActiveScene(completion.activeScene);
         }
-        selectTokens(sceneUpdate.selectedTokenIds);
+        if (completion.playerSyncScene) {
+          updatePlayerSceneIfOpenInBackground(window.localVtt, result.campaignSummary.campaign, completion.playerSyncScene, playerViewSyncOptions);
+        }
+        selectTokens(completion.selectedTokenIds);
         setTokenAssetToDelete(null);
       }),
     submitSceneName: () =>
