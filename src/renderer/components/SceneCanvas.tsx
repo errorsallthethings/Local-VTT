@@ -10,7 +10,6 @@ import {
   areCamerasEqual,
   createCanvasAnimationSources,
   getCameraForPanDrag,
-  getCameraForWheelZoom,
   getCanvasAnimationFramePlan,
   getRenderCamera,
   hasCanvasAnimationSources,
@@ -80,7 +79,6 @@ import {
   type TokenContextMenu
 } from "../canvas/scene";
 import {
-  getCompletedSceneMarqueeSelection,
   getMarqueeSelectionMode,
   shouldAnimateSceneSelection,
   getSelectionDragFromPoint,
@@ -117,7 +115,7 @@ import {
   getTokenDragWaypointRemovalUpdate
 } from "../canvas/tokens";
 import { drawTokenDragHighlights, drawTokens, hasVisibleTokenConditions, type TokenDragPreview } from "../canvas/tokens";
-import { clientToWorldPoint, eventToWorldPoint, getCanvasViewportCenter, isSnapModifier } from "../canvas/core";
+import { clientToWorldPoint, eventToWorldPoint, isSnapModifier } from "../canvas/core";
 import {
   type AcidEffectTuning,
   type ArcaneEffectTuning,
@@ -225,7 +223,8 @@ import { getScenePointerMoveFallbackRoute } from "./scene/scenePointerMoveFallba
 import { getBrushHoverPointForPointerMove, getScenePolygonDraftPointerMoveUpdate } from "./scene/scenePointerMoveFallbackUpdates";
 import { getScenePointerMoveRoute } from "./scene/scenePointerMoveRouting";
 import { getScenePointerUpRoute } from "./scene/scenePointerUpRouting";
-import { getSceneSelectionKindsToClear, type SceneSelectionTargetKind } from "./scene/sceneSelectionRouting";
+import { clearSceneSelectionsExcept as clearSceneSelectionsExceptTarget, getSceneMarqueeSelectionPayload } from "./scene/sceneSelectionRouting";
+import { getSceneViewportCenterReport, getSceneWheelZoomCamera } from "./scene/sceneViewportActions";
 import { canAcceptTokenAssetDrop as canAcceptSceneTokenAssetDrop, getDroppedTokenAsset } from "./scene/sceneTokenAssetDrop";
 import { getDrawingPointerMove, getDrawingPointerMoveAction, getDrawingPointerStart } from "./scene/sceneDrawingPointer";
 import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerMoveAction, getEnvironmentEffectPointerStart } from "./scene/sceneEnvironmentEffectPointer";
@@ -1226,7 +1225,10 @@ export function SceneCanvas({
     }
 
     const reportCenter = () => {
-      onViewportCenterChange(getCanvasViewportCenter(canvas, getRenderCamera(camera, playerDisplayScale)));
+      const center = getSceneViewportCenterReport(canvas, camera, playerDisplayScale);
+      if (center) {
+        onViewportCenterChange(center);
+      }
     };
 
     reportCenter();
@@ -1236,30 +1238,24 @@ export function SceneCanvas({
   }, [camera, mode, onViewportCenterChange, playerDisplayScale, scene]);
 
   const selectFromMarquee = (currentScene: Scene, drag: SelectionDrag) => {
-    const selection = getCompletedSceneMarqueeSelection(currentScene, drag, selectorSelectionFilters, {
+    const selection = getSceneMarqueeSelectionPayload(currentScene, drag, selectorSelectionFilters, {
       tokens: Boolean(canShowTokens),
       drawings: Boolean(canShowDrawings)
     });
     if (!selection) {
       return;
     }
-    onSelectSceneItems?.({ ...selection, mode: drag.mode });
+    onSelectSceneItems?.(selection);
   };
 
-  const clearSceneSelectionsExcept = (activeKind: SceneSelectionTargetKind) => {
-    for (const kind of getSceneSelectionKindsToClear(activeKind)) {
-      if (kind === "token") {
-        onSelectToken?.(null);
-      } else if (kind === "drawing") {
-        onSelectDrawing?.(null);
-      } else if (kind === "fogShape") {
-        onSelectFogShape?.(null);
-      } else if (kind === "weatherMask") {
-        onSelectWeatherMask?.(null);
-      } else if (kind === "environmentEffect") {
-        onSelectEnvironmentEffect?.(null);
-      }
-    }
+  const clearSceneSelectionsExcept = (activeKind: Parameters<typeof clearSceneSelectionsExceptTarget>[0]) => {
+    clearSceneSelectionsExceptTarget(activeKind, {
+      token: onSelectToken,
+      drawing: onSelectDrawing,
+      fogShape: onSelectFogShape,
+      weatherMask: onSelectWeatherMask,
+      environmentEffect: onSelectEnvironmentEffect
+    });
   };
 
   const onWheel = useCallback((event: WheelEvent) => {
@@ -1268,16 +1264,21 @@ export function SceneCanvas({
     }
     event.preventDefault();
     const canvas = canvasRef.current;
-    if (!canvas) {
+    const nextCamera = getSceneWheelZoomCamera({
+      camera,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      deltaY: event.deltaY,
+      element: canvas,
+      interactive
+    });
+    if (!nextCamera) {
       return;
     }
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
 
     autoFitCameraRef.current = false;
-    setCamera((currentCamera) => getCameraForWheelZoom({ camera: currentCamera, mouseX, mouseY, deltaY: event.deltaY }));
-  }, [interactive]);
+    setCamera(nextCamera);
+  }, [camera, interactive]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

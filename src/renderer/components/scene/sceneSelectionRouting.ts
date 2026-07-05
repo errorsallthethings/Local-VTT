@@ -1,3 +1,8 @@
+import type { Scene } from "../../../shared/localvtt";
+import { getCompletedSceneMarqueeSelection } from "../../canvas/selection";
+import type { SelectionMode } from "../../canvas/scene";
+import type { SelectorSelectionFilters } from "../tools";
+
 export type SceneSelectionTargetKind = "token" | "drawing" | "fogShape" | "weatherMask" | "environmentEffect" | "empty";
 
 export interface SceneSelectionClearTargets {
@@ -32,4 +37,36 @@ export function shouldClearSceneSelectionKind(activeKind: SceneSelectionTargetKi
 
 export function getSceneSelectionKindsToClear(activeKind: SceneSelectionTargetKind): Array<keyof SceneSelectionClearTargets> {
   return SCENE_SELECTION_KINDS.filter((kind) => shouldClearSceneSelectionKind(activeKind, kind));
+}
+
+export interface SceneSelectionClearCallbacks {
+  token?: (id: string | null) => void;
+  drawing?: (id: string | null) => void;
+  fogShape?: (id: string | null) => void;
+  weatherMask?: (id: string | null) => void;
+  environmentEffect?: (id: string | null) => void;
+}
+
+export function clearSceneSelectionsExcept(activeKind: SceneSelectionTargetKind, callbacks: SceneSelectionClearCallbacks): void {
+  for (const kind of getSceneSelectionKindsToClear(activeKind)) {
+    callbacks[kind]?.(null);
+  }
+}
+
+export interface SceneMarqueeSelectionPayload {
+  tokenIds?: string[];
+  drawingIds?: string[];
+  fogShapeIds?: string[];
+  weatherMaskIds?: string[];
+  mode?: SelectionMode;
+}
+
+export function getSceneMarqueeSelectionPayload(
+  scene: Scene,
+  drag: { start: { x: number; y: number }; current: { x: number; y: number }; mode: SelectionMode },
+  filters: SelectorSelectionFilters,
+  visibility: { tokens: boolean; drawings: boolean }
+): SceneMarqueeSelectionPayload | null {
+  const selection = getCompletedSceneMarqueeSelection(scene, drag, filters, visibility);
+  return selection ? { ...selection, mode: drag.mode } : null;
 }
