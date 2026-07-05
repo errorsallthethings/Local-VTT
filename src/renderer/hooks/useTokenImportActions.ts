@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import type { Asset, Campaign, CampaignSummary, Point, Scene, SquareCropRect } from "../../shared/localvtt";
 import {
   canStartTokenImport,
-  getImportedTokenSceneUpdate,
+  getTokenScenePlacementCompletion,
   getTokenCropDialogState,
   type TokenCropDialogState,
   type TokenImportMode
@@ -63,13 +63,20 @@ export function useTokenImportActions({
     });
 
   const addImportedTokenToScene = (asset: Asset, syncCampaign: Campaign | null = campaign, placementPoint: Point | null = gmCanvasCenter) => {
-    const update = getImportedTokenSceneUpdate(activeScene, asset, crypto.randomUUID(), new Date().toISOString(), placementPoint ?? undefined);
-    if (!update) {
+    const completion = getTokenScenePlacementCompletion({
+      scene: activeScene,
+      asset,
+      tokenId: crypto.randomUUID(),
+      updatedAt: new Date().toISOString(),
+      placementPoint: placementPoint ?? undefined,
+      syncCampaign
+    });
+    if (!completion) {
       return;
     }
-    updateScene(update.scene, syncCampaign);
-    selectTokens([update.tokenId]);
-    setTokenCropDialog(null);
+    updateScene(completion.scene, completion.syncCampaign);
+    selectTokens(completion.selectedTokenIds);
+    setTokenCropDialog(completion.tokenCropDialog);
   };
 
   const addLibraryTokenToScene = (asset: Asset) => {

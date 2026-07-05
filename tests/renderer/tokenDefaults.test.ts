@@ -6,6 +6,7 @@ import {
   getDefaultTokenPosition,
   getDefaultTokenSize,
   getImportedTokenSceneUpdate,
+  getTokenScenePlacementCompletion,
   getTokenCropDialogState,
   getTokenPresentationDefaults,
   getTokenPositionAtPoint,
@@ -102,6 +103,24 @@ describe("token defaults", () => {
       position: { x: 110, y: 60 }
     });
     expect(getImportedTokenSceneUpdate(null, tokenAsset, "token-3", "now")).toBeNull();
+  });
+
+  it("builds token scene placement completion for imports and library drops", () => {
+    const scene = createDefaultScene("Imported Token Completion");
+    const completion = getTokenScenePlacementCompletion({
+      scene,
+      asset: tokenAsset,
+      tokenId: "token-2",
+      updatedAt: "2026-07-04T12:00:00.000Z",
+      placementPoint: { x: 120, y: 140 },
+      syncCampaign: null
+    });
+
+    expect(completion?.scene.tokens.at(-1)).toMatchObject({ id: "token-2", assetId: tokenAsset.id });
+    expect(completion?.selectedTokenIds).toEqual(["token-2"]);
+    expect(completion?.syncCampaign).toBeNull();
+    expect(completion?.tokenCropDialog).toBeNull();
+    expect(getTokenScenePlacementCompletion({ scene: null, asset: tokenAsset, tokenId: "token-3", updatedAt: "now", syncCampaign: null })).toBeNull();
   });
 
   it("applies saved library token presentation defaults to new scene tokens", () => {
