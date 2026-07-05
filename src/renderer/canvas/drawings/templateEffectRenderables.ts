@@ -5,7 +5,10 @@ import { createSeededRandom } from "./templateEffectGeometry";
 import type { TemplateEffectAssetEffect } from "./templateEffectAssets";
 import type { TemplateEffectRenderable } from "./templateEffectPlacement";
 
-type TemplateEffectRenderableFactory = () => TemplateEffectRenderable[];
+interface TemplateEffectRenderableDefinition {
+  createCanvas: () => HTMLCanvasElement | null;
+  id: string;
+}
 
 function disposeTransientRenderer(renderer: THREE.WebGLRenderer) {
   renderer.forceContextLoss();
@@ -24,316 +27,60 @@ function snapshotRendererCanvas(canvas: HTMLCanvasElement): HTMLCanvasElement {
   return snapshot;
 }
 
-let acidTemplateRenderables: TemplateEffectRenderable[] | null = null;
-let arcaneTemplateRenderables: TemplateEffectRenderable[] | null = null;
-let coldTemplateRenderables: TemplateEffectRenderable[] | null = null;
-let darknessTemplateRenderables: TemplateEffectRenderable[] | null = null;
-let fireTemplateRenderables: TemplateEffectRenderable[] | null = null;
-let fogTemplateRenderables: TemplateEffectRenderable[] | null = null;
-let lightningTemplateRenderables: TemplateEffectRenderable[] | null = null;
-let natureTemplateRenderables: TemplateEffectRenderable[] | null = null;
-let poisonTemplateRenderables: TemplateEffectRenderable[] | null = null;
-let psychicTemplateRenderables: TemplateEffectRenderable[] | null = null;
-let radiantTemplateRenderables: TemplateEffectRenderable[] | null = null;
-let stormTemplateRenderables: TemplateEffectRenderable[] | null = null;
-let thunderTemplateRenderables: TemplateEffectRenderable[] | null = null;
-let waterTemplateRenderables: TemplateEffectRenderable[] | null = null;
-let webTemplateRenderables: TemplateEffectRenderable[] | null = null;
-
-const TEMPLATE_EFFECT_RENDERABLE_FACTORIES: Record<TemplateEffectAssetEffect, TemplateEffectRenderableFactory> = {
-  acid: getAcidTemplateRenderables,
-  arcane: getArcaneTemplateRenderables,
-  cold: getColdTemplateRenderables,
-  darkness: getDarknessTemplateRenderables,
-  fire: getFireTemplateRenderables,
-  fog: getFogTemplateRenderables,
-  lightning: getLightningTemplateRenderables,
-  nature: getNatureTemplateRenderables,
-  poison: getPoisonTemplateRenderables,
-  psychic: getPsychicTemplateRenderables,
-  radiant: getRadiantTemplateRenderables,
-  storm: getStormTemplateRenderables,
-  thunder: getThunderTemplateRenderables,
-  water: getWaterTemplateRenderables,
-  web: getWebTemplateRenderables
+const TEMPLATE_EFFECT_RENDERABLE_DEFINITIONS: Record<TemplateEffectAssetEffect, TemplateEffectRenderableDefinition> = {
+  acid: { id: "three-acid-spatter-v2", createCanvas: createAcidSpatterImage },
+  arcane: { id: "three-arcane-glyphs-v2", createCanvas: createArcaneGlyphImage },
+  cold: { id: "three-cold-shards-v1", createCanvas: createColdShardImage },
+  darkness: { id: "three-darkness-mist-v1", createCanvas: createDarknessMistImage },
+  fire: { id: "three-fire-tongues-v1", createCanvas: createFireTongueImage },
+  fog: { id: "three-fog-clouds-v1", createCanvas: createFogCloudImage },
+  lightning: { id: "three-lightning-forks-v1", createCanvas: createLightningForkImage },
+  nature: { id: "three-nature-thorns-v6", createCanvas: createNatureThornImage },
+  poison: { id: "three-poison-bubbles-v1", createCanvas: createPoisonBubbleImage },
+  psychic: { id: "three-psychic-haze-v1", createCanvas: createPsychicHazeImage },
+  radiant: { id: "three-radiant-light-v1", createCanvas: createRadiantLightImage },
+  storm: { id: "three-storm-clouds-v1", createCanvas: createStormCloudImage },
+  thunder: { id: "three-thunder-waves-v2", createCanvas: createThunderWaveImage },
+  water: { id: "three-water-ripples-currents-droplets-v3", createCanvas: createWaterDropletImage },
+  web: { id: "three-web-strands-v2", createCanvas: createWebStrandImage }
 };
 
+const templateEffectRenderableCache: Partial<Record<TemplateEffectAssetEffect, TemplateEffectRenderable[]>> = {};
+
 export function getRegisteredTemplateEffectRenderableEffects(): TemplateEffectAssetEffect[] {
-  return Object.keys(TEMPLATE_EFFECT_RENDERABLE_FACTORIES).sort() as TemplateEffectAssetEffect[];
+  return Object.keys(TEMPLATE_EFFECT_RENDERABLE_DEFINITIONS).sort() as TemplateEffectAssetEffect[];
 }
 
 export function getTemplateEffectRenderables(effect: DrawingTemplateEffect): TemplateEffectRenderable[] {
-  return effect === "plain" ? [] : TEMPLATE_EFFECT_RENDERABLE_FACTORIES[effect]();
+  return effect === "plain" ? [] : getCachedTemplateEffectRenderables(effect);
 }
 
-function getPoisonTemplateRenderables(): TemplateEffectRenderable[] {
-  if (poisonTemplateRenderables) {
-    return poisonTemplateRenderables;
-  }
-  const canvas = createPoisonBubbleImage();
-  poisonTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-poison-bubbles-v1",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return poisonTemplateRenderables;
+export function getTemplateEffectRenderableAssetIds(): Record<TemplateEffectAssetEffect, string> {
+  return Object.fromEntries(
+    Object.entries(TEMPLATE_EFFECT_RENDERABLE_DEFINITIONS).map(([effect, definition]) => [effect, definition.id])
+  ) as Record<TemplateEffectAssetEffect, string>;
 }
 
-function getPsychicTemplateRenderables(): TemplateEffectRenderable[] {
-  if (psychicTemplateRenderables) {
-    return psychicTemplateRenderables;
+function getCachedTemplateEffectRenderables(effect: TemplateEffectAssetEffect): TemplateEffectRenderable[] {
+  const cachedRenderables = templateEffectRenderableCache[effect];
+  if (cachedRenderables) {
+    return cachedRenderables;
   }
-  const canvas = createPsychicHazeImage();
-  psychicTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-psychic-haze-v1",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return psychicTemplateRenderables;
+
+  const definition = TEMPLATE_EFFECT_RENDERABLE_DEFINITIONS[effect];
+  const canvas = definition.createCanvas();
+  const renderables = canvas ? [createCanvasTemplateRenderable(definition.id, canvas)] : [];
+  templateEffectRenderableCache[effect] = renderables;
+  return renderables;
 }
 
-function getAcidTemplateRenderables(): TemplateEffectRenderable[] {
-  if (acidTemplateRenderables) {
-    return acidTemplateRenderables;
-  }
-  const canvas = createAcidSpatterImage();
-  acidTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-acid-spatter-v2",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return acidTemplateRenderables;
-}
-
-function getArcaneTemplateRenderables(): TemplateEffectRenderable[] {
-  if (arcaneTemplateRenderables) {
-    return arcaneTemplateRenderables;
-  }
-  const canvas = createArcaneGlyphImage();
-  arcaneTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-arcane-glyphs-v2",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return arcaneTemplateRenderables;
-}
-
-function getColdTemplateRenderables(): TemplateEffectRenderable[] {
-  if (coldTemplateRenderables) {
-    return coldTemplateRenderables;
-  }
-  const canvas = createColdShardImage();
-  coldTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-cold-shards-v1",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return coldTemplateRenderables;
-}
-
-function getDarknessTemplateRenderables(): TemplateEffectRenderable[] {
-  if (darknessTemplateRenderables) {
-    return darknessTemplateRenderables;
-  }
-  const canvas = createDarknessMistImage();
-  darknessTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-darkness-mist-v1",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return darknessTemplateRenderables;
-}
-
-function getLightningTemplateRenderables(): TemplateEffectRenderable[] {
-  if (lightningTemplateRenderables) {
-    return lightningTemplateRenderables;
-  }
-  const canvas = createLightningForkImage();
-  lightningTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-lightning-forks-v1",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return lightningTemplateRenderables;
-}
-
-function getNatureTemplateRenderables(): TemplateEffectRenderable[] {
-  if (natureTemplateRenderables) {
-    return natureTemplateRenderables;
-  }
-  const canvas = createNatureThornImage();
-  natureTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-nature-thorns-v6",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return natureTemplateRenderables;
-}
-
-function getFireTemplateRenderables(): TemplateEffectRenderable[] {
-  if (fireTemplateRenderables) {
-    return fireTemplateRenderables;
-  }
-  const canvas = createFireTongueImage();
-  fireTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-fire-tongues-v1",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return fireTemplateRenderables;
-}
-
-function getFogTemplateRenderables(): TemplateEffectRenderable[] {
-  if (fogTemplateRenderables) {
-    return fogTemplateRenderables;
-  }
-  const canvas = createFogCloudImage();
-  fogTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-fog-clouds-v1",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return fogTemplateRenderables;
-}
-
-function getStormTemplateRenderables(): TemplateEffectRenderable[] {
-  if (stormTemplateRenderables) {
-    return stormTemplateRenderables;
-  }
-  const canvas = createStormCloudImage();
-  stormTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-storm-clouds-v1",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return stormTemplateRenderables;
-}
-
-function getThunderTemplateRenderables(): TemplateEffectRenderable[] {
-  if (thunderTemplateRenderables) {
-    return thunderTemplateRenderables;
-  }
-  const canvas = createThunderWaveImage();
-  thunderTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-thunder-waves-v2",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return thunderTemplateRenderables;
-}
-
-function getRadiantTemplateRenderables(): TemplateEffectRenderable[] {
-  if (radiantTemplateRenderables) {
-    return radiantTemplateRenderables;
-  }
-  const canvas = createRadiantLightImage();
-  radiantTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-radiant-light-v1",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return radiantTemplateRenderables;
-}
-
-function getWaterTemplateRenderables(): TemplateEffectRenderable[] {
-  if (waterTemplateRenderables) {
-    return waterTemplateRenderables;
-  }
-  const canvas = createWaterDropletImage();
-  waterTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-water-ripples-currents-droplets-v3",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return waterTemplateRenderables;
-}
-
-function getWebTemplateRenderables(): TemplateEffectRenderable[] {
-  if (webTemplateRenderables) {
-    return webTemplateRenderables;
-  }
-  const canvas = createWebStrandImage();
-  webTemplateRenderables = canvas
-    ? [
-        {
-          id: "three-web-strands-v2",
-          image: canvas,
-          naturalHeight: canvas.height,
-          naturalWidth: canvas.width
-        }
-      ]
-    : [];
-  return webTemplateRenderables;
+function createCanvasTemplateRenderable(id: string, canvas: HTMLCanvasElement): TemplateEffectRenderable {
+  return {
+    id,
+    image: canvas,
+    naturalHeight: canvas.height,
+    naturalWidth: canvas.width
+  };
 }
 
 function createPoisonBubbleImage(): HTMLCanvasElement | null {
