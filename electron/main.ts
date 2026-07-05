@@ -85,6 +85,14 @@ import { createPlayerOpenPlan, liveTableEventRoute, summarizeDisplay } from "./p
 import { getGmCloseRequestAction, getUnsavedChangesDialogAction } from "./gmWindowClose.js";
 import { getLinuxGraphicsSwitches } from "./linuxGraphicsSwitches.js";
 import { createSmokeTestScript, getSmokeTestTimeoutMs } from "./smokeTestPlan.js";
+import {
+  assertIpcBoolean,
+  assertIpcSafeId,
+  assertMetadataBackupRef,
+  assertOptionalIpcSafeId,
+  assertPlayerOpenOptions,
+  assertSquareCropRect
+} from "./ipcPayloadValidation.js";
 import { addImportedAssetToCampaign, createImportedAsset, createStagedTokenImportAsset } from "./importedAssets.js";
 import { tokenThumbnailVariant, updateTokenThumbnailInCampaign } from "./tokenThumbnailUpdate.js";
 import { removeTokenAssetFromCampaignScenes } from "./tokenAssetSceneCleanup.js";
@@ -641,11 +649,13 @@ ipcMain.handle("campaign:listMetadataBackups", async (_event, campaignPath: stri
 
 ipcMain.handle("campaign:previewMetadataBackup", async (_event, campaignPath: string, ref: MetadataBackupRef) => {
   assertKnownCampaignPath(campaignPath);
+  assertMetadataBackupRef(ref);
   return previewMetadataBackup(campaignPath, ref);
 });
 
 ipcMain.handle("campaign:restoreMetadataBackup", async (_event, campaignPath: string, ref: MetadataBackupRef) => {
   assertKnownCampaignPath(campaignPath);
+  assertMetadataBackupRef(ref);
   return restoreMetadataBackup(campaignPath, ref, loadCampaignFromPath);
 });
 
@@ -661,6 +671,8 @@ ipcMain.handle("scene:create", async (_event, campaignPath: string, sceneName: s
 ipcMain.handle("scene:duplicate", async (_event, campaignPath: string, sourceScene: Scene, sceneName: string, afterSceneId: string, folderId?: string) => {
   assertKnownCampaignPath(campaignPath);
   assertValidScene(sourceScene);
+  assertIpcSafeId(afterSceneId, "Scene id");
+  assertOptionalIpcSafeId(folderId, "Scene folder id");
   const summary = await loadCampaignFromPath(campaignPath);
   const { campaign, scene } = duplicateSceneForCampaign(summary.campaign, sourceScene, sceneName, afterSceneId, folderId);
   await writeScene(campaignPath, scene);
@@ -670,6 +682,7 @@ ipcMain.handle("scene:duplicate", async (_event, campaignPath: string, sourceSce
 
 ipcMain.handle("scene:load", async (_event, campaignPath: string, sceneId: string) => {
   assertKnownCampaignPath(campaignPath);
+  assertIpcSafeId(sceneId, "Scene id");
   const scene = await readSceneMetadata(campaignPath, sceneId);
   return prepareLoadedScene(scene);
 });
@@ -688,6 +701,7 @@ ipcMain.handle("scene:save", async (_event, campaignPath: string, scene: Scene) 
 
 ipcMain.handle("scene:rename", async (_event, campaignPath: string, sceneId: string, sceneName: string) => {
   assertKnownCampaignPath(campaignPath);
+  assertIpcSafeId(sceneId, "Scene id");
   const filePath = sceneFile(campaignPath, sceneId);
   assertInsideCampaign(campaignPath, filePath);
   const scene = await readSceneMetadata(campaignPath, sceneId);
@@ -701,6 +715,7 @@ ipcMain.handle("scene:rename", async (_event, campaignPath: string, sceneId: str
 
 ipcMain.handle("scene:delete", async (_event, campaignPath: string, sceneId: string) => {
   assertKnownCampaignPath(campaignPath);
+  assertIpcSafeId(sceneId, "Scene id");
   const filePath = sceneFile(campaignPath, sceneId);
   assertInsideCampaign(campaignPath, filePath);
   await backupSceneBeforeDelete(campaignPath, sceneId);
@@ -751,6 +766,8 @@ ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
 
 ipcMain.handle("asset:previewMapReplacement", async (_event, campaignPath: string, sceneId: string, currentAssetId: string) => {
   assertKnownCampaignPath(campaignPath);
+  assertIpcSafeId(sceneId, "Scene id");
+  assertIpcSafeId(currentAssetId, "Asset id");
   const sourcePath = await chooseMapFile();
   if (!sourcePath) {
     return null;
@@ -785,6 +802,9 @@ ipcMain.handle("asset:previewMapReplacement", async (_event, campaignPath: strin
 
 ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: string, currentAssetId: string, replacementId: string) => {
   assertKnownCampaignPath(campaignPath);
+  assertIpcSafeId(sceneId, "Scene id");
+  assertIpcSafeId(currentAssetId, "Asset id");
+  assertIpcSafeId(replacementId, "Map replacement id");
   const sourcePath = consumeMapReplacementToken(mapReplacementTokens, replacementId, {
     campaignPath,
     sceneId,
@@ -863,6 +883,8 @@ ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
 
 ipcMain.handle("asset:updateTokenThumbnail", async (_event, campaignPath: string, assetId: string, crop: SquareCropRect) => {
   assertKnownCampaignPath(campaignPath);
+  assertIpcSafeId(assetId, "Asset id");
+  assertSquareCropRect(crop);
   const summary = await loadCampaignFromPath(campaignPath);
   const stagedImport = stagedTokenImports.get(assetId);
 
@@ -937,6 +959,7 @@ ipcMain.handle("asset:pruneUnreferencedAssets", async (_event, campaignPath: str
 
 ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, assetId: string) => {
   assertKnownCampaignPath(campaignPath);
+  assertIpcSafeId(assetId, "Asset id");
   if (discardStagedTokenImport(assetId)) {
     return loadCampaignFromPath(campaignPath);
   }
@@ -955,12 +978,14 @@ ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, 
 
 ipcMain.handle("asset:getTokenUsage", async (_event, campaignPath: string, assetId: string) => {
   assertKnownCampaignPath(campaignPath);
+  assertIpcSafeId(assetId, "Asset id");
   const summary = await loadCampaignFromPath(campaignPath);
   return getTokenAssetUsage(summary.campaign, assetId, (sceneId) => readSceneMetadata(campaignPath, sceneId));
 });
 
 ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId: string) => {
   assertKnownCampaignPath(campaignPath);
+  assertIpcSafeId(assetId, "Asset id");
   const summary = await loadCampaignFromPath(campaignPath);
   const asset = requireCampaignAsset(summary.campaign, assetId, "token", "Token asset was not found in this campaign.");
 
@@ -980,6 +1005,8 @@ ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId
 
 ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: string, assetId: string) => {
   assertKnownCampaignPath(campaignPath);
+  assertIpcSafeId(sceneId, "Scene id");
+  assertIpcSafeId(assetId, "Asset id");
   const summary = await loadCampaignFromPath(campaignPath);
   const asset = requireCampaignAsset(summary.campaign, assetId, "map", "Map asset was not found in this campaign.");
 
@@ -1003,6 +1030,7 @@ ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: 
 });
 
 ipcMain.handle("player:open", async (_event, options?: { displayId?: number; fullscreen?: boolean }) => {
+  assertPlayerOpenOptions(options);
   if (playerWindow?.isDestroyed()) {
     playerWindow = null;
   }
@@ -1089,6 +1117,7 @@ ipcMain.handle("player:liveTableEvent", async (ipcEvent, event: unknown) => {
 });
 
 ipcMain.handle("player:setFullscreen", async (_event, fullscreen: boolean) => {
+  assertIpcBoolean(fullscreen, "Player View fullscreen setting");
   if (!playerWindow || playerWindow.isDestroyed()) {
     playerWindow = createWindow("player");
   }
