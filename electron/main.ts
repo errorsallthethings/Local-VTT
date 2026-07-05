@@ -8,12 +8,10 @@ import {
   Campaign,
   CampaignSummary,
   AssetPruneResult,
-  MetadataBackupRef,
   SquareCropRect,
   TokenAssetPromotionResult,
   ThumbnailRegenerationProgress,
-  ThumbnailRegenerationResult,
-  assertValidCampaign
+  ThumbnailRegenerationResult
 } from "../src/shared/localvtt.js";
 import {
   createAssetProtocolFileResponse,
@@ -21,7 +19,7 @@ import {
   getAssetProtocolStatResultFailureResponse,
   resolveAssetProtocolRequest
 } from "./assetProtocol.js";
-import { campaignFile, sceneFile } from "./campaignPaths.js";
+import { sceneFile } from "./campaignPaths.js";
 import { assertInsidePath } from "./campaignPathSafety.js";
 import {
   ensureCampaignFolders,
@@ -82,7 +80,6 @@ import { runSmokeTest } from "./smokeTestRunner.js";
 import {
   assertIpcBoolean,
   assertIpcSafeId,
-  assertMetadataBackupRef,
   assertSquareCropRect
 } from "./ipcPayloadValidation.js";
 import { addImportedAssetToCampaign, createImportedAsset, createStagedTokenImportAsset } from "./importedAssets.js";
@@ -96,6 +93,7 @@ import { createAppWindowOptions, createWindowLoadTarget } from "./windowConfig.j
 import { createCampaignForFolder, resolveCurrentCampaignPath } from "./campaignOpenState.js";
 import { createVideoMapThumbnailWithFallback } from "./videoThumbnailFallback.js";
 import { registerSceneIpc } from "./sceneIpc.js";
+import { registerCampaignIpc } from "./campaignIpc.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -524,65 +522,25 @@ registerSceneIpc(ipcMain, {
   writeScene
 });
 
-ipcMain.handle("campaign:create", async () => {
-  const campaignPath = await chooseDirectory(dialog, gmWindow, "Choose a folder for the new Local VTT campaign", true);
-  if (!campaignPath) {
-    return null;
-  }
-
-  const campaign = createCampaignForFolder(campaignPath);
-  registerCampaignPath(campaignPath);
-  currentCampaignPath = resolveCurrentCampaignPath(campaignPath);
-  await writeCampaign(campaignPath, campaign);
-  return loadCampaignFromPath(campaignPath);
-});
-
-ipcMain.handle("campaign:open", async () => {
-  const campaignPath = await chooseDirectory(dialog, gmWindow, "Open Local VTT campaign folder");
-  if (!campaignPath) {
-    return null;
-  }
-
-  return loadCampaignWithPausedTurnOrders(campaignPath);
-});
-
-ipcMain.handle("campaign:openRecent", async (_event, campaignPath: string) => {
-  await stat(campaignFile(campaignPath));
-  return loadCampaignWithPausedTurnOrders(campaignPath);
-});
-
-ipcMain.handle("campaign:save", async (_event, campaignPath: string, campaign: Campaign) => {
-  assertKnownCampaignPath(campaignPath);
-  assertValidCampaign(campaign);
-  await writeCampaign(campaignPath, campaign);
-  return loadCampaignFromPath(campaignPath);
-});
-
-ipcMain.handle("campaign:refresh", async (_event, campaignPath: string) => {
-  assertKnownCampaignPath(campaignPath);
-  return loadCampaignFromPath(campaignPath);
-});
-
-ipcMain.handle("campaign:openBackupsFolder", async (_event, campaignPath: string) => {
-  assertKnownCampaignPath(campaignPath);
-  return openMetadataBackupsFolder(campaignPath, shell.openPath);
-});
-
-ipcMain.handle("campaign:listMetadataBackups", async (_event, campaignPath: string) => {
-  assertKnownCampaignPath(campaignPath);
-  return listMetadataBackups(campaignPath);
-});
-
-ipcMain.handle("campaign:previewMetadataBackup", async (_event, campaignPath: string, ref: MetadataBackupRef) => {
-  assertKnownCampaignPath(campaignPath);
-  assertMetadataBackupRef(ref);
-  return previewMetadataBackup(campaignPath, ref);
-});
-
-ipcMain.handle("campaign:restoreMetadataBackup", async (_event, campaignPath: string, ref: MetadataBackupRef) => {
-  assertKnownCampaignPath(campaignPath);
-  assertMetadataBackupRef(ref);
-  return restoreMetadataBackup(campaignPath, ref, loadCampaignFromPath);
+registerCampaignIpc(ipcMain, {
+  assertKnownCampaignPath,
+  createCampaignForFolder,
+  dialogs: {
+    chooseDirectory: (owner, title, createDirectory) => chooseDirectory(dialog, owner, title, createDirectory)
+  },
+  getGmWindow: () => gmWindow,
+  listMetadataBackups,
+  loadCampaignFromPath,
+  loadCampaignWithPausedTurnOrders,
+  openMetadataBackupsFolder: (campaignPath) => openMetadataBackupsFolder(campaignPath, shell.openPath),
+  previewMetadataBackup,
+  registerCampaignPath,
+  resolveCurrentCampaignPath,
+  restoreMetadataBackup: (campaignPath, ref) => restoreMetadataBackup(campaignPath, ref, loadCampaignFromPath),
+  setCurrentCampaignPath: (campaignPath) => {
+    currentCampaignPath = campaignPath;
+  },
+  writeCampaign
 });
 
 ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
