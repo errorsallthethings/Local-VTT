@@ -27,8 +27,7 @@ import type {
   Point,
   Scene,
   ThumbnailRegenerationResult,
-  TokenAssetPromotionResult,
-  TokenPresentationDefaults
+  TokenAssetPromotionResult
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { AssetPruneResultDialog } from "../components/modals/AssetPruneResultDialog";
@@ -82,6 +81,8 @@ import { usePlayerDisplayActions } from "../hooks/usePlayerDisplayActions";
 import { shouldShowPlayerHoldAfterSceneDelete, usePlayerViewState } from "../hooks/usePlayerViewState";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { useSceneSelection } from "../hooks/useSceneSelection";
+import { useSceneTokenTurnOrderActions } from "../hooks/useSceneTokenTurnOrderActions";
+import { useTokenDefaultsActions } from "../hooks/useTokenDefaultsActions";
 import { useTokenImportActions } from "../hooks/useTokenImportActions";
 import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assets";
 import {
@@ -95,7 +96,6 @@ import {
   moveSceneFolder,
   renameCampaign,
   renameCampaignTokenAsset,
-  setCampaignTokenAssetDefaults,
   setSceneFolderColor,
   submitSceneFolderName,
 } from "../lib/campaign";
@@ -143,7 +143,6 @@ import {
   type RecentCampaign
 } from "../lib/campaign";
 import { getSelectedTokenAssetIds, getTokenAssetDeleteDialogState, getTokenAssetRenameDialogState } from "../lib/tokens";
-import { addTurnOrderEntry, createTurnOrderEntryFromToken } from "../lib/turn-order";
 import {
   DEFAULT_TOKEN_LIBRARY_HEIGHT,
   getResizedTokenLibraryHeight,
@@ -565,6 +564,23 @@ export function GmApp() {
     deleteCampaignPlayer
   } = useCampaignPlayerActions({ activeScene, campaign, updateCampaignDraft, updateScene });
 
+  const { addSceneTokenToTurnOrder } = useSceneTokenTurnOrderActions({
+    activeScene,
+    updateScene,
+    selectTokens
+  });
+
+  const {
+    openTokenDefaultsDialog,
+    updateTokenDefaultsDraft,
+    submitTokenDefaults
+  } = useTokenDefaultsActions({
+    campaign,
+    tokenDefaultsDialog,
+    setTokenDefaultsDialog,
+    updateCampaignDraft
+  });
+
   const updateDiceSettings = (patch: Partial<DiceSettings>) => {
     const result = applyDiceSettingsPatch(diceSettingsDraftRef.current, patch, campaign, new Date().toISOString());
     diceSettingsDraftRef.current = result.settings;
@@ -797,39 +813,6 @@ export function GmApp() {
     if (!ok) {
       removeRecentCampaignPath(recentCampaignPath);
     }
-  };
-
-  const addSceneTokenToTurnOrder = (tokenId: string) => {
-    if (!activeScene) {
-      return;
-    }
-    const token = activeScene.tokens.find((candidate) => candidate.id === tokenId);
-    if (!token || activeScene.turnOrder.entries.some((entry) => entry.tokenId === token.id)) {
-      selectTokens([tokenId]);
-      return;
-    }
-    updateScene(addTurnOrderEntry(activeScene, createTurnOrderEntryFromToken(crypto.randomUUID(), token)));
-    selectTokens([token.id]);
-  };
-
-  const openTokenDefaultsDialog = (asset: Asset) => {
-    setTokenDefaultsDialog({
-      assetId: asset.id,
-      assetName: asset.name || asset.originalFileName || "Token",
-      draft: { ...(asset.tokenDefaults ?? {}) }
-    });
-  };
-
-  const updateTokenDefaultsDraft = (draft: TokenPresentationDefaults) => {
-    setTokenDefaultsDialog((dialog) => (dialog ? { ...dialog, draft } : dialog));
-  };
-
-  const submitTokenDefaults = () => {
-    if (!campaign || !tokenDefaultsDialog) {
-      return;
-    }
-    updateCampaignDraft(setCampaignTokenAssetDefaults(campaign, tokenDefaultsDialog.assetId, tokenDefaultsDialog.draft, new Date().toISOString()));
-    setTokenDefaultsDialog(null);
   };
 
   const buildMapCalibratedScene = async (draft: MapCalibrationDraft) => {

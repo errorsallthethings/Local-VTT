@@ -3,6 +3,7 @@ import { createDefaultScene, normalizeScene, type Asset, type Scene } from "../.
 import {
   addTurnOrderEntry,
   addPlayersToTurnOrder,
+  addSceneTokenToTurnOrder,
   advanceTurnOrder,
   clampTurnOrderCountdown,
   clampTurnOrderRound,
@@ -214,6 +215,57 @@ describe("turn order helpers", () => {
       tokenId: "token-1",
       assetId: "asset-1",
       visibleInPlayer: false
+    });
+  });
+
+  it("adds scene tokens to turn order and selects the token", () => {
+    const scene = createDefaultScene("Scene Token Turn Order");
+    scene.tokens = [
+      {
+        id: "token-1",
+        assetId: "asset-1",
+        name: "Bandit",
+        position: { x: 0, y: 0 },
+        size: { width: 70, height: 70 },
+        visibleInPlayer: true
+      }
+    ];
+
+    const result = addSceneTokenToTurnOrder(scene, "token-1", "entry-1", "updated");
+
+    expect(result.selectedTokenId).toBe("token-1");
+    expect(result.scene?.turnOrder.entries).toHaveLength(1);
+    expect(result.scene?.turnOrder.entries[0]).toMatchObject({
+      id: "entry-1",
+      name: "Bandit",
+      tokenId: "token-1",
+      assetId: "asset-1",
+      visibleInPlayer: true
+    });
+    expect(result.scene?.updatedAt).toBe("updated");
+  });
+
+  it("does not add duplicate or missing scene tokens to turn order", () => {
+    let scene = createDefaultScene("Scene Token Turn Order");
+    scene.tokens = [
+      {
+        id: "token-1",
+        assetId: "asset-1",
+        name: "Bandit",
+        position: { x: 0, y: 0 },
+        size: { width: 70, height: 70 },
+        visibleInPlayer: true
+      }
+    ];
+    scene = addTurnOrderEntry(scene, createTurnOrderEntryFromToken("entry-1", scene.tokens[0]), "initial");
+
+    expect(addSceneTokenToTurnOrder(scene, "token-1", "entry-2", "updated")).toEqual({
+      scene: null,
+      selectedTokenId: "token-1"
+    });
+    expect(addSceneTokenToTurnOrder(scene, "missing", "entry-2", "updated")).toEqual({
+      scene: null,
+      selectedTokenId: "missing"
     });
   });
 

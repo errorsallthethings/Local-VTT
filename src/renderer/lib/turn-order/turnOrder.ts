@@ -84,6 +84,27 @@ export function createTurnOrderEntryFromToken(id: string, token: Token, initiati
   };
 }
 
+export interface AddSceneTokenToTurnOrderResult {
+  scene: Scene | null;
+  selectedTokenId: string;
+}
+
+export function addSceneTokenToTurnOrder(
+  scene: Scene,
+  tokenId: string,
+  entryId: string,
+  updatedAt = new Date().toISOString()
+): AddSceneTokenToTurnOrderResult {
+  const token = scene.tokens.find((candidate) => candidate.id === tokenId);
+  if (!token || scene.turnOrder.entries.some((entry) => entry.tokenId === token.id)) {
+    return { scene: null, selectedTokenId: tokenId };
+  }
+  return {
+    scene: addTurnOrderEntry(scene, createTurnOrderEntryFromToken(entryId, token), updatedAt),
+    selectedTokenId: token.id
+  };
+}
+
 export function createTurnOrderEntryFromPlayer(id: string, player: CampaignPlayer, initiative = 0): TurnOrderEntry {
   return {
     id,
