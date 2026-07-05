@@ -15,10 +15,7 @@ import {
   ThumbnailRegenerationProgress,
   ThumbnailRegenerationResult,
   assertValidCampaign,
-  assertValidScene,
-  isLiveTableEvent,
-  isPlayerIdleState,
-  type PlayerSceneProjection
+  assertValidScene
 } from "../src/shared/localvtt.js";
 import {
   createAssetProtocolFileResponse,
@@ -80,7 +77,7 @@ import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
 import { removeAssetFromCampaign } from "./tokenAssetMutations.js";
 import { pauseCampaignTurnOrders } from "./campaignTurnOrderPause.js";
-import { createPlayerOpenPlan, liveTableEventRoute, summarizeDisplay } from "./playerViewIpc.js";
+import { registerPlayerViewIpc } from "./playerViewIpc.js";
 import { getGmCloseRequestAction, getUnsavedChangesDialogAction } from "./gmWindowClose.js";
 import { getLinuxGraphicsSwitches } from "./linuxGraphicsSwitches.js";
 import { runSmokeTest } from "./smokeTestRunner.js";
@@ -89,8 +86,6 @@ import {
   assertIpcSafeId,
   assertMetadataBackupRef,
   assertOptionalIpcSafeId,
-  assertPlayerOpenOptions,
-  assertPlayerSceneProjection,
   assertSquareCropRect
 } from "./ipcPayloadValidation.js";
 import { addImportedAssetToCampaign, createImportedAsset, createStagedTokenImportAsset } from "./importedAssets.js";
@@ -201,22 +196,6 @@ function installWindowDiagnostics(win: BrowserWindow, hash: "gm" | "player"): vo
   win.on("responsive", () => {
     console.info(`LOCALVTT_${label}_WINDOW_RESPONSIVE`);
   });
-}
-
-function sendToPlayerWhenReady(payload: unknown): void {
-  if (!playerWindow || playerWindow.isDestroyed()) {
-    return;
-  }
-
-  if (playerWindow.webContents.isLoading()) {
-    // Scene sends can happen immediately after opening Player View; queue once instead of dropping the first scene.
-    playerWindow.webContents.once("did-finish-load", () => {
-      playerWindow?.webContents.send("player:state", payload);
-    });
-    return;
-  }
-
-  playerWindow.webContents.send("player:state", payload);
 }
 
 function resolveAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
@@ -529,6 +508,20 @@ async function closeGmWindowAfterPausing(win: BrowserWindow): Promise<void> {
   gmHasUnsavedChanges = false;
   win.close();
 }
+
+registerPlayerViewIpc(ipcMain, {
+  createPlayerWindow: () => createWindow("player"),
+  getDisplays: () => screen.getAllDisplays(),
+  getGmWindow: () => gmWindow,
+  getLastPlayerProjection: () => lastPlayerProjection,
+  getPlayerWindow: () => playerWindow,
+  setLastPlayerProjection: (projection) => {
+    lastPlayerProjection = projection;
+  },
+  setPlayerWindow: (win) => {
+    playerWindow = win;
+  }
+});
 
 ipcMain.handle("campaign:create", async () => {
   const campaignPath = await chooseDirectory(dialog, gmWindow, "Choose a folder for the new Local VTT campaign", true);
@@ -960,120 +953,6 @@ ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: 
   await writeCampaign(campaignPath, campaign);
   return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: updatedScene };
 });
-
-ipcMain.handle("player:open", async (_event, options?: { displayId?: number; fullscreen?: boolean }) => {
-  assertPlayerOpenOptions(options);
-  if (playerWindow?.isDestroyed()) {
-    playerWindow = null;
-  }
-  const createdPlayerWindow = !playerWindow;
-  if (!playerWindow) {
-    playerWindow = createWindow("player");
-    playerWindow.on("closed", () => {
-      playerWindow = null;
-    });
-  }
-  const openPlan = createPlayerOpenPlan(options, { created: createdPlayerWindow, fullscreen: playerWindow.isFullScreen() }, screen.getAllDisplays());
-  if (openPlan.targetDisplay && openPlan.shouldSetBounds) {
-    playerWindow.setFullScreen(false);
-    playerWindow.setBounds(openPlan.targetDisplay.bounds);
-  }
-  playerWindow.show();
-  playerWindow.focus();
-  if (openPlan.shouldSetFullscreen) {
-    playerWindow.setFullScreen(true);
-  }
-  if (lastPlayerProjection) {
-    sendToPlayerWhenReady(lastPlayerProjection);
-  }
-  return { ok: true, displayFound: openPlan.displayFound };
-});
-
-ipcMain.handle("player:sendScene", async (_event, projection: PlayerSceneProjection) => {
-  assertPlayerSceneProjection(projection);
-  lastPlayerProjection = projection;
-  if (!playerWindow || playerWindow.isDestroyed()) {
-    playerWindow = createWindow("player");
-  }
-  sendToPlayerWhenReady(lastPlayerProjection);
-  return true;
-});
-
-ipcMain.handle("player:updateSceneIfOpen", async (_event, projection: PlayerSceneProjection) => {
-  assertPlayerSceneProjection(projection);
-  if (!playerWindow || playerWindow.isDestroyed()) {
-    return false;
-  }
-  lastPlayerProjection = projection;
-  sendToPlayerWhenReady(lastPlayerProjection);
-  return true;
-});
-
-ipcMain.handle("player:showIdle", async (_event, state: unknown) => {
-  if (!isPlayerIdleState(state)) {
-    throw new Error("Invalid Player View idle state.");
-  }
-  lastPlayerProjection = state;
-  if (!playerWindow || playerWindow.isDestroyed()) {
-    playerWindow = null;
-    return false;
-  }
-  sendToPlayerWhenReady(lastPlayerProjection);
-  return true;
-});
-
-ipcMain.handle("player:liveTableEvent", async (ipcEvent, event: unknown) => {
-  if (!isLiveTableEvent(event)) {
-    throw new Error("Invalid live table event.");
-  }
-
-  const route = liveTableEventRoute(
-    ipcEvent.sender.id,
-    {
-      exists: Boolean(playerWindow),
-      destroyed: playerWindow?.isDestroyed() ?? true,
-      webContentsId: playerWindow?.webContents.id
-    },
-    Boolean(gmWindow && !gmWindow.isDestroyed())
-  );
-
-  if (route === "gm") {
-    gmWindow?.webContents.send("player:liveTableEvent", event);
-    return true;
-  }
-
-  if (route === "player") {
-    playerWindow?.webContents.send("player:liveTableEvent", event);
-    return true;
-  }
-
-  return false;
-});
-
-ipcMain.handle("player:setFullscreen", async (_event, fullscreen: boolean) => {
-  assertIpcBoolean(fullscreen, "Player View fullscreen setting");
-  if (!playerWindow || playerWindow.isDestroyed()) {
-    playerWindow = createWindow("player");
-  }
-  playerWindow.setFullScreen(fullscreen);
-  return playerWindow.isFullScreen();
-});
-
-ipcMain.handle("player:close", async () => {
-  lastPlayerProjection = null;
-  if (!playerWindow || playerWindow.isDestroyed()) {
-    playerWindow = null;
-    return false;
-  }
-
-  playerWindow.close();
-  playerWindow = null;
-  return true;
-});
-
-ipcMain.handle("player:getLastState", async () => lastPlayerProjection);
-
-ipcMain.handle("app:getDisplays", async () => screen.getAllDisplays().map(summarizeDisplay));
 
 ipcMain.on("app:setUnsavedChanges", (_event, hasUnsavedChanges: boolean) => {
   assertIpcBoolean(hasUnsavedChanges, "Unsaved changes state");
