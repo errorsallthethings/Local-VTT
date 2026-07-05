@@ -1,4 +1,4 @@
-import type { ThumbnailRegenerationProgress } from "../../../shared/localvtt";
+import type { CampaignSummary, ThumbnailRegenerationProgress } from "../../../shared/localvtt";
 
 export interface CampaignBusyState {
   title: string;
@@ -82,4 +82,32 @@ export async function runSavedCampaignMaintenance<TResult>(options: RunSavedCamp
     removeProgressListener?.();
     options.onBusyChange(null);
   }
+}
+
+export interface OpenSavedCampaignHealthOptions {
+  campaignPath: string | null | undefined;
+  campaignAvailable: boolean;
+  hasUnsavedChanges: boolean;
+  saveCampaign: () => Promise<boolean>;
+  refreshCampaign: (campaignPath: string) => Promise<CampaignSummary>;
+  applySummary: (summary: CampaignSummary) => void;
+  onOpen: () => void;
+}
+
+export async function openSavedCampaignHealth(options: OpenSavedCampaignHealthOptions): Promise<boolean> {
+  if (!options.campaignPath || !options.campaignAvailable) {
+    return false;
+  }
+
+  if (options.hasUnsavedChanges) {
+    const saved = await options.saveCampaign();
+    if (!saved) {
+      return false;
+    }
+  }
+
+  const summary = await options.refreshCampaign(options.campaignPath);
+  options.applySummary(summary);
+  options.onOpen();
+  return true;
 }

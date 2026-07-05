@@ -24,7 +24,6 @@ import type {
   EnvironmentEffectType,
   GridType,
   LiveTableEvent,
-  MetadataBackupRestoreResult,
   PlayerViewTestPattern,
   Point,
   Scene,
@@ -205,7 +204,6 @@ export function GmApp() {
     dirtySceneIds,
     setDirtySceneIds,
     campaignDirty,
-    setCampaignDirty,
     saveState,
     error,
     setError,
@@ -713,6 +711,10 @@ export function GmApp() {
     regenerateThumbnails,
     promoteTokenAssets,
     pruneUnreferencedAssets,
+    openCampaignHealthDialog,
+    openBackupsFolder,
+    openMetadataRestoreDialog,
+    handleMetadataRestore,
     confirmDeleteMapAsset,
     saveFolderScenes,
     duplicateFolder,
@@ -735,25 +737,12 @@ export function GmApp() {
     onThumbnailRegenerationComplete: setThumbnailRegenerationResult,
     onTokenAssetPromotionComplete: setTokenAssetPromotionResult,
     onAssetPruneComplete: setAssetPruneResult,
+    onCampaignHealthOpen: () => setCampaignHealthOpen(true),
+    onMetadataRestoreOpen: () => setMetadataRestoreOpen(true),
+    onMetadataRestoreClosed: () => setMetadataRestoreOpen(false),
     shouldSyncSceneToPlayer: (sceneId) => sceneId === playerSceneId,
     playerViewSyncOptions
   });
-  const openCampaignHealthDialog = useCallback(() => {
-    void run(async () => {
-      if (!campaignPath || !campaign) {
-        return;
-      }
-      if (hasUnsavedChanges) {
-        const saved = await saveCampaign();
-        if (!saved) {
-          return;
-        }
-      }
-      const summary = await window.localVtt.refreshCampaign(campaignPath);
-      applySummary(summary, false);
-      setCampaignHealthOpen(true);
-    });
-  }, [applySummary, campaign, campaignPath, hasUnsavedChanges, run, saveCampaign]);
   const saveBeforeCloseRef = useRef(saveCampaignBeforeClose);
 
   useEffect(() => {
@@ -805,36 +794,6 @@ export function GmApp() {
     if (!ok) {
       removeRecentCampaignPath(recentCampaignPath);
     }
-  };
-
-  const openBackupsFolder = () =>
-    run(async () => {
-      if (!campaignPath) {
-        return;
-      }
-      await window.localVtt.openBackupsFolder(campaignPath);
-    });
-
-  const openMetadataRestoreDialog = () => {
-    if (!campaignPath) {
-      return;
-    }
-    setMetadataRestoreOpen(true);
-  };
-
-  const handleMetadataRestore = (result: MetadataBackupRestoreResult) => {
-    applySummary(result.campaignSummary, false);
-    setCampaignDirty(false);
-    if (result.scene) {
-      setActiveScene(result.scene);
-      setSceneClean(result.scene);
-    } else {
-      setActiveScene(null);
-      setSceneDrafts({});
-      setDirtySceneIds(new Set());
-    }
-    setMetadataRestoreOpen(false);
-    void sendPlayerBlackout();
   };
 
   const importToken = (mode: TokenCropDialogState["mode"] = "scene") =>
