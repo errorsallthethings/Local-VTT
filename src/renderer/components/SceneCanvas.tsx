@@ -226,19 +226,18 @@ import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerMoveAction,
 import { getLaserPointerMove, getLaserPointerMoveAction, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
 import { getFogPointerMove, getFogPointerMoveAction, getFogPointerStart } from "./scene/sceneFogPointer";
 import {
-  getEnvironmentEffectHitPointerStart,
   getMaskEffectPointerComplete,
   getMaskEffectPointerCompleteAction,
   getMaskEffectPointerMove,
   getMaskEffectPointerMoveAction,
-  getMaskPointerStart,
   type EnvironmentEffectMoveState,
   type WeatherMaskMoveState
 } from "./scene/sceneMaskEffectPointer";
 import { getMapCalibrationPointerCompleteAction, getMapCalibrationPointerMove, getMapCalibrationPointerMoveAction, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
 import { getRulerPointerMoveAction, getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
-import { getTokenPointerMove, getTokenPointerMoveAction, getTokenPointerStart } from "./scene/sceneTokenPointer";
-import { getDrawingTransformPointerComplete, getDrawingTransformPointerCompleteAction, getDrawingTransformPointerMove, getDrawingTransformPointerMoveAction, getDrawingTransformPointerStart } from "./scene/sceneDrawingTransformPointer";
+import { getTokenPointerMove, getTokenPointerMoveAction } from "./scene/sceneTokenPointer";
+import { getDrawingTransformPointerComplete, getDrawingTransformPointerCompleteAction, getDrawingTransformPointerMove, getDrawingTransformPointerMoveAction } from "./scene/sceneDrawingTransformPointer";
+import { getSceneSelectorPointerStart } from "./scene/sceneSelectorPointerStart";
 import { getRulerWaypointAppendKeyboardAction, getTokenWaypointAppendKeyboardAction } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
@@ -1505,93 +1504,81 @@ export function SceneCanvas({
     if (pointerDownRoute === "selector") {
       const activeScene = scene!;
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const tokenPointerStart = getTokenPointerStart({
+      const selectorStart = getSceneSelectorPointerStart({
+        authoringToolActive,
+        camera: getRenderCamera(camera, playerDisplayScale),
+        canShowDrawings: Boolean(canShowDrawings),
         canShowTokens: Boolean(canShowTokens),
         mouseBehavior,
         point,
         pointerId: event.pointerId,
         scene: activeScene,
-        selectedTokenIds: effectiveSelectedTokenIds
+        selectedDrawingIds: effectiveSelectedDrawingIds,
+        selectedTokenIds: effectiveSelectedTokenIds,
+        selectedWeatherMaskIds: effectiveSelectedWeatherMaskIds
       });
-      if (tokenPointerStart) {
-        if (tokenPointerStart.dragGroup.shouldSelectHitItem) {
-          onSelectToken?.(tokenPointerStart.token.id);
+      if (selectorStart.kind === "token") {
+        if (selectorStart.start.dragGroup.shouldSelectHitItem) {
+          onSelectToken?.(selectorStart.start.token.id);
         }
         clearSceneSelectionsExcept("token");
-        if (tokenPointerStart.dragStart) {
-          tokenDragRef.current = tokenPointerStart.dragStart.drag;
-          setTokenDragPreview(tokenPointerStart.dragStart.preview);
+        if (selectorStart.start.dragStart) {
+          tokenDragRef.current = selectorStart.start.dragStart.drag;
+          setTokenDragPreview(selectorStart.start.dragStart.preview);
         }
         return;
       }
       onSelectToken?.(null);
-      if (!authoringToolActive) {
-        const drawingTransformStart = getDrawingTransformPointerStart({
-          authoringToolActive,
-          camera: getRenderCamera(camera, playerDisplayScale),
-          canShowDrawings: Boolean(canShowDrawings),
-          mouseBehavior,
-          point,
-          pointerId: event.pointerId,
-          scene: activeScene,
-          selectedDrawingIds: effectiveSelectedDrawingIds
-        });
-        if (drawingTransformStart?.kind === "transform") {
-          if (drawingTransformStart.transformKind === "rotate") {
-            drawingRotateRef.current = drawingTransformStart.state;
-          } else {
-            drawingResizeRef.current = drawingTransformStart.state;
-          }
-          setDrawingDragPreview(drawingTransformStart.preview);
-          return;
+
+      if (selectorStart.kind === "drawing-transform") {
+        if (selectorStart.start.transformKind === "rotate") {
+          drawingRotateRef.current = selectorStart.start.state;
+        } else {
+          drawingResizeRef.current = selectorStart.start.state;
         }
-        if (drawingTransformStart?.kind === "hit") {
-          if (drawingTransformStart.dragGroup.shouldSelectHitItem) {
-            onSelectDrawing?.(drawingTransformStart.drawingId);
-          }
-          clearSceneSelectionsExcept("drawing");
-          if (drawingTransformStart.dragStart) {
-            drawingDragRef.current = drawingTransformStart.dragStart;
-            setDrawingDragPreview(drawingTransformStart.preview);
-          }
-          return;
+        setDrawingDragPreview(selectorStart.start.preview);
+        return;
+      }
+
+      if (selectorStart.kind === "drawing-hit") {
+        if (selectorStart.start.dragGroup.shouldSelectHitItem) {
+          onSelectDrawing?.(selectorStart.start.drawingId);
         }
-        const environmentEffectStart = getEnvironmentEffectHitPointerStart({
-          mouseBehavior,
-          point,
-          pointerId: event.pointerId,
-          scene: activeScene
-        });
-        if (environmentEffectStart) {
-          onSelectEnvironmentEffect?.(environmentEffectStart.effectId);
-          clearSceneSelectionsExcept("environmentEffect");
-          if (environmentEffectStart.moveStart) {
-            environmentEffectMoveRef.current = environmentEffectStart.moveStart;
-            setEnvironmentEffectMovePreview(environmentEffectStart.preview);
-          }
-          return;
+        clearSceneSelectionsExcept("drawing");
+        if (selectorStart.start.dragStart) {
+          drawingDragRef.current = selectorStart.start.dragStart;
+          setDrawingDragPreview(selectorStart.start.preview);
         }
-        const maskStart = getMaskPointerStart({
-          mouseBehavior,
-          point,
-          pointerId: event.pointerId,
-          scene: activeScene,
-          selectedWeatherMaskIds: effectiveSelectedWeatherMaskIds
-        });
-        if (maskStart?.kind === "weather") {
-          onSelectWeatherMask?.(maskStart.maskId);
-          clearSceneSelectionsExcept("weatherMask");
-          if (maskStart.moveStart) {
-            weatherMaskMoveRef.current = maskStart.moveStart;
-            setWeatherMaskMovePreview(maskStart.preview);
-          }
-          return;
+        return;
+      }
+
+      if (selectorStart.kind === "environment-effect") {
+        onSelectEnvironmentEffect?.(selectorStart.start.effectId);
+        clearSceneSelectionsExcept("environmentEffect");
+        if (selectorStart.start.moveStart) {
+          environmentEffectMoveRef.current = selectorStart.start.moveStart;
+          setEnvironmentEffectMovePreview(selectorStart.start.preview);
         }
-        if (maskStart?.kind === "fog") {
-          onSelectFogShape?.(maskStart.shapeId);
-          clearSceneSelectionsExcept("fogShape");
-          return;
+        return;
+      }
+
+      if (selectorStart.kind === "weather-mask") {
+        onSelectWeatherMask?.(selectorStart.start.maskId);
+        clearSceneSelectionsExcept("weatherMask");
+        if (selectorStart.start.moveStart) {
+          weatherMaskMoveRef.current = selectorStart.start.moveStart;
+          setWeatherMaskMovePreview(selectorStart.start.preview);
         }
+        return;
+      }
+
+      if (selectorStart.kind === "fog-shape") {
+        onSelectFogShape?.(selectorStart.start.shapeId);
+        clearSceneSelectionsExcept("fogShape");
+        return;
+      }
+
+      if (selectorStart.clearSceneSelections) {
         clearSceneSelectionsExcept("empty");
       }
     }
