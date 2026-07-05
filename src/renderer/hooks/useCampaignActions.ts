@@ -14,6 +14,7 @@ import {
   getDuplicateFolderName,
   getDuplicateSceneName,
   getDirtySceneIdsInFolder,
+  getSceneToSaveBeforeClose,
   getCampaignMaintenanceInitialBusyState,
   getMapAssetDeleteCompletion,
   getThumbnailRegenerationBusyState,
@@ -29,7 +30,6 @@ import {
   type CampaignBusyState
 } from "../lib/campaign";
 import { showPlayerBlackout, updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
-import { stopActiveTurnOrder } from "../lib/turn-order";
 import type { useCampaignWorkspace } from "./useCampaignWorkspace";
 
 type CampaignWorkspace = ReturnType<typeof useCampaignWorkspace>;
@@ -241,17 +241,17 @@ export function useCampaignActions({
       for (const sceneEntry of campaign.scenes) {
         const localScene = getSceneDraftToSave(sceneEntry.id, sceneDrafts, activeScene);
         if (localScene) {
-          const stoppedScene = stopActiveTurnOrder(localScene, new Date().toISOString());
-          if (dirtySceneIds.has(sceneEntry.id) || stoppedScene !== localScene) {
-            scenesToSave.set(sceneEntry.id, stoppedScene);
+          const sceneToSave = getSceneToSaveBeforeClose(localScene, dirtySceneIds.has(sceneEntry.id), new Date().toISOString());
+          if (sceneToSave) {
+            scenesToSave.set(sceneEntry.id, sceneToSave);
           }
           continue;
         }
 
         const savedScene = await window.localVtt.loadScene(campaignPath, sceneEntry.id);
-        const stoppedScene = stopActiveTurnOrder(savedScene, new Date().toISOString());
-        if (stoppedScene !== savedScene) {
-          scenesToSave.set(sceneEntry.id, stoppedScene);
+        const sceneToSave = getSceneToSaveBeforeClose(savedScene, false, new Date().toISOString());
+        if (sceneToSave) {
+          scenesToSave.set(sceneEntry.id, sceneToSave);
         }
       }
 
