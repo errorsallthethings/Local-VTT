@@ -69,10 +69,6 @@ import {
 import {
   getSceneCanvasRenderPlan,
   getSceneCanvasReadiness,
-  getDrawingDragCommitAction,
-  getEnvironmentEffectDragCommitAction,
-  getFogDragCommitAction,
-  getWeatherMaskDragCommitAction,
   type DrawingContextMenu,
   type EnvironmentEffectContextMenu,
   type MaskContextMenu,
@@ -163,10 +159,6 @@ import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { useWindowKeyDown } from "../hooks/useWindowKeyDown";
 import { calculateCanvasContextMenuPosition, type CanvasContextMenuKind } from "../lib/ui";
 import {
-  addEnvironmentEffect,
-  addSceneDrawing,
-  addSceneFogShape,
-  addSceneWeatherMask,
   updateSceneDrawingPoints,
   updateSceneEnvironmentEffectPoints,
   updateSceneWeatherMaskPoints,
@@ -205,6 +197,12 @@ import {
   getSceneAfterFogPolygonDraftCommit,
   getSceneAfterWeatherPolygonDraftCommit
 } from "./scene/scenePolygonDraftCommitScenes";
+import {
+  getSceneAfterDrawingDragCommit,
+  getSceneAfterEnvironmentEffectDragCommit,
+  getSceneAfterFogDragCommit,
+  getSceneAfterWeatherMaskDragCommit
+} from "./scene/sceneDragCommitScenes";
 import {
   MapLoadOverlay,
 } from "./scene/SceneCanvasStatusStrips";
@@ -1878,9 +1876,9 @@ export function SceneCanvas({
     if (pointerUpRoute === "drawing" && drawingDrag) {
       clearDrawingPreview();
       if (scene && onSceneChange) {
-        const action = getDrawingDragCommitAction(scene, drawingDrag, crypto.randomUUID());
-        if (action.kind === "commit-drawing") {
-          onSceneChange(addSceneDrawing(scene, action.drawing));
+        const nextScene = getSceneAfterDrawingDragCommit(scene, drawingDrag, crypto.randomUUID());
+        if (nextScene) {
+          onSceneChange(nextScene);
         }
       }
       return;
@@ -1890,9 +1888,9 @@ export function SceneCanvas({
     if (pointerUpRoute === "weather-mask" && weatherMaskDrag) {
       clearWeatherMaskPreview();
       if (scene && onSceneChange) {
-        const action = getWeatherMaskDragCommitAction(scene, weatherMaskDrag, crypto.randomUUID());
-        if (action.kind === "commit-weather-mask") {
-          onSceneChange(addSceneWeatherMask(scene, action.mask));
+        const nextScene = getSceneAfterWeatherMaskDragCommit(scene, weatherMaskDrag, crypto.randomUUID());
+        if (nextScene) {
+          onSceneChange(nextScene);
         }
       }
       return;
@@ -1902,9 +1900,9 @@ export function SceneCanvas({
     if (pointerUpRoute === "environment-effect" && environmentEffectDrag) {
       clearEnvironmentEffectPreview();
       if (scene && onSceneChange) {
-        const action = getEnvironmentEffectDragCommitAction(scene, environmentEffectDrag, crypto.randomUUID(), currentEnvironmentEffectTuning);
-        if (action.kind === "commit-environment-effect") {
-          onSceneChange(addEnvironmentEffect(scene, action.effect));
+        const nextScene = getSceneAfterEnvironmentEffectDragCommit(scene, environmentEffectDrag, crypto.randomUUID(), currentEnvironmentEffectTuning);
+        if (nextScene) {
+          onSceneChange(nextScene);
         }
       }
       return;
@@ -1914,9 +1912,9 @@ export function SceneCanvas({
     if (pointerUpRoute === "fog" && fogDrag) {
       clearFogPreview();
       if (scene && onSceneChange) {
-        const action = getFogDragCommitAction(scene, fogDrag, crypto.randomUUID());
-        if (action.kind === "commit-fog") {
-          onSceneChange(addSceneFogShape(scene, action.shape, action.fogPatch));
+        const nextScene = getSceneAfterFogDragCommit(scene, fogDrag, crypto.randomUUID());
+        if (nextScene) {
+          onSceneChange(nextScene);
         }
       }
       return;
