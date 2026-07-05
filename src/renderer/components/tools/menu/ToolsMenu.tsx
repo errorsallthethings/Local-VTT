@@ -1,17 +1,12 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import {
-  ChevronDown,
-  ChevronRight,
   Circle,
-  Hand,
-  HelpCircle,
   LineSquiggle,
   Minus,
   Paintbrush,
   Pentagon,
   Ruler,
   Square,
-  SquareDashedMousePointer,
   Target,
   Triangle,
   Trash2,
@@ -23,7 +18,7 @@ import type { FogTool } from "../../../canvas/fog";
 import { DrawingSettings, type DrawingTemplateSize, type DrawingTemplateWidth } from "../settings/DrawingToolSettings";
 import { AcidEffectTuningPanel, ArcaneEffectTuningPanel, ChaosEffectTuningPanel, ColdEffectTuningPanel, DarknessEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, NatureEffectTuningPanel, PoisonEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, VoidEffectTuningPanel, WaterEffectTuningPanel } from "../effects/EnvironmentEffectTuningPanels";
 import { FogBrushSettings } from "../settings/FogBrushSettings";
-import { SelectorFilterCheckbox, SelectorSelectionActions, SelectorSelectionSummary, type SelectorSelectionCounts, type SelectorSelectionFilters } from "../settings/SelectorToolControls";
+import type { SelectorSelectionCounts, SelectorSelectionFilters } from "../settings/SelectorToolControls";
 import { TableToolSettings } from "../settings/TableToolSettings";
 import { ToolHelpCard, type ToolHelpTopic } from "../settings/ToolHelpCard";
 import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DarknessEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../../../canvas/effects";
@@ -41,6 +36,8 @@ import {
   type EnvironmentEffectResetHandlers
 } from "./environmentEffectMenuActions";
 import { ToolsMenuCategoryRail } from "./ToolsMenuCategoryRail";
+import { ToolsMenuMousePanel } from "./ToolsMenuMousePanel";
+import { HelpButton, PanelHeader, Placeholder, SettingsToggle, ToolButton } from "./ToolsMenuPrimitives";
 import { getToolCategoryLabel, type ToolCategory } from "./toolCategoryLabels";
 import {
   getActiveFogShape,
@@ -52,7 +49,6 @@ import {
   getFogToolSelectionPlan,
   getMouseCategoryTogglePlan,
   getTableToolSelectionPlan,
-  getToolButtonClassName,
   getWeatherMaskToolSelectionPlan,
   isToolCategoryActive,
   type CanvasTool,
@@ -588,39 +584,20 @@ export function ToolsMenu({
         <div className="tools-subpanel" aria-label={`${getToolCategoryLabel(activeCategory)} panel`}>
           <PanelHeader title={getToolCategoryLabel(activeCategory)} />
           {activeCategory === "mouse" && (
-            <div className="tools-panel-section">
-              <div className="tools-button-row">
-                <ToolButton active={mouseBehavior === "selector"} label="Selector" onClick={() => { clearActiveTools(); onMouseBehaviorChange("selector"); }}>
-                  <SquareDashedMousePointer size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={mouseBehavior === "grabber"} label="Grabber" onClick={() => { clearActiveTools(); onMouseBehaviorChange("grabber"); }}>
-                  <Hand size={17} aria-hidden="true" />
-                </ToolButton>
-              </div>
-              {mouseBehavior === "selector" && (
-                <>
-                  <SelectorSelectionSummary counts={selectorSelectionCounts} />
-                  <SelectorSelectionActions
-                    counts={selectorSelectionCounts}
-                    onShowSelectedOnPlayerView={onShowSelectedOnPlayerView}
-                    onHideSelectedOnPlayerView={onHideSelectedOnPlayerView}
-                    onDeleteSelected={onDeleteSelected}
-                    onClearSelection={onClearSelection}
-                  />
-                  <div className="tools-section-divider" />
-                  <SettingsToggle open={selectorSettingsOpen} label="Selector Settings" onToggle={() => setSelectorSettingsOpen((open) => !open)} />
-                  {selectorSettingsOpen && (
-                    <div className="tools-selector-settings" aria-label="Selector included layers">
-                      <SelectorFilterCheckbox label="Token" checked={selectorSelectionFilters.tokens} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, tokens: checked })} />
-                      <SelectorFilterCheckbox label="Template" checked={selectorSelectionFilters.templates} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, templates: checked })} />
-                      <SelectorFilterCheckbox label="Fog Mask" checked={selectorSelectionFilters.fogMasks} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, fogMasks: checked })} />
-                      <SelectorFilterCheckbox label="Weather Mask" checked={selectorSelectionFilters.weatherMasks} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, weatherMasks: checked })} />
-                      <SelectorFilterCheckbox label="Drawings" checked={selectorSelectionFilters.drawings} onChange={(checked) => onSelectorSelectionFiltersChange({ ...selectorSelectionFilters, drawings: checked })} />
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+            <ToolsMenuMousePanel
+              mouseBehavior={mouseBehavior}
+              selectorSettingsOpen={selectorSettingsOpen}
+              selectorSelectionCounts={selectorSelectionCounts}
+              selectorSelectionFilters={selectorSelectionFilters}
+              onClearActiveTools={clearActiveTools}
+              onMouseBehaviorChange={onMouseBehaviorChange}
+              onSelectorSettingsOpenChange={setSelectorSettingsOpen}
+              onSelectorSelectionFiltersChange={onSelectorSelectionFiltersChange}
+              onShowSelectedOnPlayerView={onShowSelectedOnPlayerView}
+              onHideSelectedOnPlayerView={onHideSelectedOnPlayerView}
+              onDeleteSelected={onDeleteSelected}
+              onClearSelection={onClearSelection}
+            />
           )}
           {activeCategory === "drawing" && (
             <div className="tools-panel-section">
@@ -1139,53 +1116,5 @@ export function ToolsMenu({
       )}
     </div>
   );
-}
-
-function PanelHeader({ title }: { title: string }) {
-  return <div className="tools-subpanel-header">{title}</div>;
-}
-
-function ToolButton({
-  active = false,
-  disabled = false,
-  label,
-  variant,
-  children,
-  onClick
-}: {
-  active?: boolean;
-  disabled?: boolean;
-  label: string;
-  variant?: "danger";
-  children: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button className={getToolButtonClassName(active, variant)} aria-label={label} title={label} type="button" disabled={disabled} onClick={onClick}>
-      {children}
-    </button>
-  );
-}
-
-function HelpButton({ active, disabled = false, label, onClick }: { active: boolean; disabled?: boolean; label: string; onClick: () => void }) {
-  return (
-    <button className={getToolButtonClassName(active, "help")} aria-label={label} title={label} type="button" aria-expanded={active} disabled={disabled} onClick={onClick}>
-      <HelpCircle size={14} aria-hidden="true" />
-    </button>
-  );
-}
-
-
-function SettingsToggle({ open, label, onToggle }: { open: boolean; label: string; onToggle: () => void }) {
-  return (
-    <button className="tools-settings-toggle" type="button" aria-expanded={open} onClick={onToggle}>
-      {open ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
-      <strong>{label}</strong>
-    </button>
-  );
-}
-
-function Placeholder({ message }: { message: string }) {
-  return <div className="tools-placeholder">{message}</div>;
 }
 
