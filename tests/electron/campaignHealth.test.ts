@@ -132,4 +132,23 @@ describe("campaign health", () => {
       }
     ]);
   });
+
+  it("reads legacy scene files through the shared metadata parser", async () => {
+    const campaignPath = await createCampaignFolder();
+    await writeFile(path.join(campaignPath, "assets", "maps", "legacy.png"), "map");
+    const scene = createDefaultScene("Legacy Scene") as ReturnType<typeof createDefaultScene> & { schemaVersion?: number };
+    scene.id = "legacy-scene";
+    scene.mapAssetId = "legacy-map";
+    delete scene.schemaVersion;
+    await writeFile(path.join(campaignPath, "scenes", "legacy-scene.scene.json"), JSON.stringify(scene), "utf8");
+
+    const campaign = createDefaultCampaign("Legacy Health");
+    campaign.assets = [asset({ id: "legacy-map", kind: "map", relativePath: "assets/maps/legacy.png" })];
+    campaign.scenes = [{ id: "legacy-scene", name: "Legacy Scene", file: "scenes/legacy-scene.scene.json" }];
+
+    const health = await inspectCampaignHealth(campaignPath, campaign);
+
+    expect(health.sceneFileIssues).toEqual([]);
+    expect(health.unreferencedAssets).toEqual([]);
+  });
 });

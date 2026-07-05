@@ -34,6 +34,24 @@ describe("campaign scene summaries", () => {
     expect(hydrated.scenes[0].weather).toMatchObject({ type: "rain", intensity: 0.5 });
   });
 
+  it("hydrates summaries from legacy scene files using the shared metadata parser", async () => {
+    const scene = createDefaultScene("Legacy Scene") as ReturnType<typeof createDefaultScene> & { schemaVersion?: number };
+    scene.id = "legacy-scene";
+    scene.mapAssetId = "legacy-map";
+    scene.weather = { type: "snow", intensity: 0.25 };
+    delete scene.schemaVersion;
+    await writeFile(path.join(tempRoot, "scenes", "legacy-scene.scene.json"), JSON.stringify(scene), "utf8");
+    const campaign = {
+      ...createDefaultCampaign("Campaign"),
+      scenes: [{ id: "legacy-scene", name: "Legacy Scene", file: "scenes/legacy-scene.scene.json" }]
+    };
+
+    const hydrated = await hydrateSceneSummaries(tempRoot, campaign);
+
+    expect(hydrated.scenes[0].mapAssetId).toBe("legacy-map");
+    expect(hydrated.scenes[0].weather).toMatchObject({ type: "snow", intensity: 0.25 });
+  });
+
   it("keeps already-hydrated entries without reading scene files", async () => {
     const campaign = {
       ...createDefaultCampaign("Campaign"),

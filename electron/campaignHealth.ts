@@ -7,9 +7,10 @@ import {
   type CampaignHealthReport,
   type CampaignHealthSceneReferenceKind
 } from "../src/shared/campaignHealth.js";
-import { assertValidScene, normalizeCampaign, normalizeScene, type Asset, type Campaign, type Scene } from "../src/shared/localvtt.js";
+import { normalizeCampaign, normalizeScene, type Asset, type Campaign, type Scene } from "../src/shared/localvtt.js";
 import { requireCampaignRelativePath } from "./assetFiles.js";
 import { findMissingCampaignAssetFiles, type MissingCampaignAssetFile } from "./campaignAssetRecovery.js";
+import { parseSceneMetadata } from "./persistenceCodecs.js";
 
 export type ReadSceneMetadata = (campaignPath: string, sceneId: string, sceneFile: string) => Promise<Scene>;
 
@@ -64,9 +65,7 @@ export async function inspectCampaignHealth(
 async function readSceneFromDisk(campaignPath: string, sceneId: string, sceneFile: string): Promise<Scene> {
   const filePath = requireCampaignRelativePath(campaignPath, sceneFile || path.join("scenes", `${sceneId}.scene.json`), "Scene file is outside the selected campaign folder.");
   const raw = await readFile(filePath, "utf8");
-  const parsed = JSON.parse(raw) as unknown;
-  assertValidScene(parsed);
-  return parsed;
+  return parseSceneMetadata(raw);
 }
 
 function addAssetReference(
