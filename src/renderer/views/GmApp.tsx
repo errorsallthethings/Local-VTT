@@ -42,6 +42,7 @@ import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import { useAvailableDisplays } from "../hooks/useAvailableDisplays";
 import { useCampaignActions, type CampaignBusyState, type MapReplacementPreview } from "../hooks/useCampaignActions";
 import { useCampaignPlayerActions } from "../hooks/useCampaignPlayerActions";
+import { createCampaignWorkflowActions } from "../hooks/campaignWorkflowActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDiceActions } from "../hooks/useDiceActions";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
@@ -76,7 +77,7 @@ import { useMapCalibrationActions } from "../hooks/useMapCalibrationActions";
 import { usePlayerDisplayActions } from "../hooks/usePlayerDisplayActions";
 import { usePlayerViewActions } from "../hooks/usePlayerViewActions";
 import { useSavedProjectDialogActions } from "../hooks/useSavedProjectDialogActions";
-import { shouldShowPlayerHoldAfterSceneDelete, usePlayerViewState } from "../hooks/usePlayerViewState";
+import { usePlayerViewState } from "../hooks/usePlayerViewState";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { useSceneSelection } from "../hooks/useSceneSelection";
 import { useSceneTokenTurnOrderActions } from "../hooks/useSceneTokenTurnOrderActions";
@@ -796,20 +797,14 @@ export function GmApp() {
     updateScene
   });
 
-  const reopenRecentCampaign = async (recentCampaignPath: string) => {
-    const ok = await openRecentCampaign(recentCampaignPath);
-    if (!ok) {
-      removeRecentCampaignPath(recentCampaignPath);
-    }
-  };
-
-  const confirmDeleteScene = (scene: CampaignSceneEntry) =>
-    run(async () => {
-      const ok = await deleteScene(scene);
-      if (shouldShowPlayerHoldAfterSceneDelete(scene.id, playerSceneId, ok)) {
-        await showPlayerIdle();
-      }
-    });
+  const { reopenRecentCampaign, confirmDeleteScene } = createCampaignWorkflowActions({
+    playerSceneId,
+    run,
+    deleteScene,
+    openRecentCampaign,
+    removeRecentCampaignPath,
+    showPlayerIdle
+  });
 
   const appShellStyle = appShellPresentation.style as CSSProperties;
   const appShellClassName = appShellPresentation.className;
