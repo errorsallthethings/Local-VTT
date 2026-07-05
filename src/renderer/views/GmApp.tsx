@@ -76,6 +76,7 @@ import { useGmToolSelection } from "../hooks/useGmToolSelection";
 import { useMapCalibrationActions } from "../hooks/useMapCalibrationActions";
 import { usePlayerDisplayActions } from "../hooks/usePlayerDisplayActions";
 import { usePlayerViewActions } from "../hooks/usePlayerViewActions";
+import { useSavedProjectDialogActions } from "../hooks/useSavedProjectDialogActions";
 import { shouldShowPlayerHoldAfterSceneDelete, usePlayerViewState } from "../hooks/usePlayerViewState";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { useSceneSelection } from "../hooks/useSceneSelection";
@@ -83,11 +84,6 @@ import { useSceneTokenTurnOrderActions } from "../hooks/useSceneTokenTurnOrderAc
 import { useTokenDefaultsActions } from "../hooks/useTokenDefaultsActions";
 import { useTokenImportActions } from "../hooks/useTokenImportActions";
 import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assets";
-import {
-  getActiveSceneAfterSceneRename,
-  getSceneDraftsAfterSceneRename,
-  getTokenAssetDeleteSceneUpdate,
-} from "../lib/campaign";
 import { buildLiveTableDiceClearEvent, buildLiveTableDiceRollEvent, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import { applyDiceSettingsPatch, getEffectiveDiceSettings, loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/dice";
 import { formatUserFacingError } from "../lib/errors";
@@ -95,7 +91,6 @@ import { logRendererError } from "../lib/rendererDiagnostics";
 import {
   getPlayerViewModeState,
 } from "../lib/player-view";
-import { updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
 import {
   getCollapsedFolderIds,
   pruneExpandedFolderIds,
@@ -112,7 +107,7 @@ import {
   saveRecentCampaigns,
   type RecentCampaign
 } from "../lib/campaign";
-import { getSelectedTokenAssetIds, getTokenAssetDeleteDialogState } from "../lib/tokens";
+import { getSelectedTokenAssetIds } from "../lib/tokens";
 import {
   DEFAULT_TOKEN_LIBRARY_HEIGHT,
   getResizedTokenLibraryHeight,
@@ -599,6 +594,32 @@ export function GmApp() {
     setSceneDrafts
   });
 
+  const {
+    openDeleteTokenAssetDialog,
+    confirmDeleteTokenAsset,
+    submitSceneName
+  } = useSavedProjectDialogActions({
+    activeScene,
+    campaign,
+    campaignDirty,
+    campaignPath,
+    newSceneName,
+    playerSceneId,
+    playerViewSyncOptions,
+    sceneDialog,
+    sceneDrafts,
+    selectedTokenIds,
+    tokenAssetToDelete,
+    applySummary,
+    run,
+    selectTokens,
+    setActiveScene,
+    setSceneClean,
+    setSceneDialog,
+    setSceneDrafts,
+    setTokenAssetToDelete
+  });
+
   const updateDiceSettings = (patch: Partial<DiceSettings>) => {
     const result = applyDiceSettingsPatch(diceSettingsDraftRef.current, patch, campaign, new Date().toISOString());
     diceSettingsDraftRef.current = result.settings;
@@ -900,59 +921,6 @@ export function GmApp() {
       removeRecentCampaignPath(recentCampaignPath);
     }
   };
-
-  const openDeleteTokenAssetDialog = (asset: Asset) =>
-    run(async () => {
-      if (!campaignPath || !campaign) {
-        return;
-      }
-      const savedUsage = await window.localVtt.getTokenAssetUsage(campaignPath, asset.id);
-      setTokenAssetToDelete(getTokenAssetDeleteDialogState(asset, savedUsage, campaign, sceneDrafts, activeScene));
-    });
-
-  const confirmDeleteTokenAsset = () =>
-    run(async () => {
-      if (!campaignPath || !tokenAssetToDelete) {
-        return;
-      }
-      const deletedAssetId = tokenAssetToDelete.asset.id;
-      const result = await window.localVtt.deleteTokenAsset(campaignPath, deletedAssetId);
-      applySummary(result.campaignSummary, campaignDirty);
-      const sceneUpdate = getTokenAssetDeleteSceneUpdate(sceneDrafts, activeScene, result.scenes, deletedAssetId, selectedTokenIds);
-      setSceneDrafts((drafts) => getTokenAssetDeleteSceneUpdate(drafts, activeScene, result.scenes, deletedAssetId, selectedTokenIds).sceneDrafts);
-      if (sceneUpdate.activeScene) {
-        setActiveScene(sceneUpdate.activeScene);
-        if (sceneUpdate.activeScene.id === playerSceneId) {
-          updatePlayerSceneIfOpenInBackground(window.localVtt, result.campaignSummary.campaign, sceneUpdate.activeScene, playerViewSyncOptions);
-        }
-      }
-      selectTokens(sceneUpdate.selectedTokenIds);
-      setTokenAssetToDelete(null);
-    });
-
-  const submitSceneName = () =>
-    run(async () => {
-      if (!campaignPath || !sceneDialog) {
-        return;
-      }
-      const name = newSceneName.trim();
-      if (!name) {
-        return;
-      }
-
-      if (sceneDialog.mode === "create") {
-        const result = await window.localVtt.createScene(campaignPath, name);
-        applySummary(result.campaignSummary, campaignDirty);
-        setActiveScene(result.scene);
-        setSceneClean(result.scene);
-      } else {
-        const result = await window.localVtt.renameScene(campaignPath, sceneDialog.sceneId, name);
-        applySummary(result.campaignSummary, campaignDirty);
-        setSceneDrafts((drafts) => getSceneDraftsAfterSceneRename(drafts, sceneDialog.sceneId, name));
-        setActiveScene((scene) => getActiveSceneAfterSceneRename(scene, sceneDialog.sceneId, name, result.scene));
-      }
-      setSceneDialog(null);
-    });
 
   const confirmDeleteScene = (scene: CampaignSceneEntry) =>
     run(async () => {
