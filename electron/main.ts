@@ -9,13 +9,11 @@ import {
   CampaignSummary,
   AssetPruneResult,
   MetadataBackupRef,
-  Scene,
   SquareCropRect,
   TokenAssetPromotionResult,
   ThumbnailRegenerationProgress,
   ThumbnailRegenerationResult,
-  assertValidCampaign,
-  assertValidScene
+  assertValidCampaign
 } from "../src/shared/localvtt.js";
 import {
   createAssetProtocolFileResponse,
@@ -85,7 +83,6 @@ import {
   assertIpcBoolean,
   assertIpcSafeId,
   assertMetadataBackupRef,
-  assertOptionalIpcSafeId,
   assertSquareCropRect
 } from "./ipcPayloadValidation.js";
 import { addImportedAssetToCampaign, createImportedAsset, createStagedTokenImportAsset } from "./importedAssets.js";
@@ -96,16 +93,9 @@ import { pruneUnreferencedAssets } from "./unreferencedAssetPruning.js";
 import { assertSceneUsesMapAsset, requireCurrentMapAsset } from "./mapReplacementValidation.js";
 import { findCampaignAsset, requireCampaignAsset, requireTokenAssetWithAbsolutePath } from "./campaignAssetLookup.js";
 import { createAppWindowOptions, createWindowLoadTarget } from "./windowConfig.js";
-import { prepareLoadedScene } from "./sceneLoadDefaults.js";
 import { createCampaignForFolder, resolveCurrentCampaignPath } from "./campaignOpenState.js";
 import { createVideoMapThumbnailWithFallback } from "./videoThumbnailFallback.js";
-import {
-  createSceneForCampaign,
-  deleteSceneFromCampaign,
-  duplicateSceneForCampaign,
-  renameSceneInCampaign,
-  saveSceneInCampaign
-} from "./sceneLifecycle.js";
+import { registerSceneIpc } from "./sceneIpc.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -523,6 +513,17 @@ registerPlayerViewIpc(ipcMain, {
   }
 });
 
+registerSceneIpc(ipcMain, {
+  assertInsideCampaign,
+  assertKnownCampaignPath,
+  backupSceneBeforeDelete,
+  loadCampaignFromPath,
+  readSceneMetadata,
+  unlinkIfExists,
+  writeCampaign,
+  writeScene
+});
+
 ipcMain.handle("campaign:create", async () => {
   const campaignPath = await chooseDirectory(dialog, gmWindow, "Choose a folder for the new Local VTT campaign", true);
   if (!campaignPath) {
@@ -582,74 +583,6 @@ ipcMain.handle("campaign:restoreMetadataBackup", async (_event, campaignPath: st
   assertKnownCampaignPath(campaignPath);
   assertMetadataBackupRef(ref);
   return restoreMetadataBackup(campaignPath, ref, loadCampaignFromPath);
-});
-
-ipcMain.handle("scene:create", async (_event, campaignPath: string, sceneName: string) => {
-  assertKnownCampaignPath(campaignPath);
-  const summary = await loadCampaignFromPath(campaignPath);
-  const { campaign, scene } = createSceneForCampaign(summary.campaign, sceneName);
-  await writeScene(campaignPath, scene);
-  await writeCampaign(campaignPath, campaign);
-  return { campaignSummary: await loadCampaignFromPath(campaignPath), scene };
-});
-
-ipcMain.handle("scene:duplicate", async (_event, campaignPath: string, sourceScene: Scene, sceneName: string, afterSceneId: string, folderId?: string) => {
-  assertKnownCampaignPath(campaignPath);
-  assertValidScene(sourceScene);
-  assertIpcSafeId(afterSceneId, "Scene id");
-  assertOptionalIpcSafeId(folderId, "Scene folder id");
-  const summary = await loadCampaignFromPath(campaignPath);
-  const { campaign, scene } = duplicateSceneForCampaign(summary.campaign, sourceScene, sceneName, afterSceneId, folderId);
-  await writeScene(campaignPath, scene);
-  await writeCampaign(campaignPath, campaign);
-  return { campaignSummary: await loadCampaignFromPath(campaignPath), scene };
-});
-
-ipcMain.handle("scene:load", async (_event, campaignPath: string, sceneId: string) => {
-  assertKnownCampaignPath(campaignPath);
-  assertIpcSafeId(sceneId, "Scene id");
-  const scene = await readSceneMetadata(campaignPath, sceneId);
-  return prepareLoadedScene(scene);
-});
-
-ipcMain.handle("scene:save", async (_event, campaignPath: string, scene: Scene) => {
-  assertKnownCampaignPath(campaignPath);
-  assertValidScene(scene);
-  assertInsideCampaign(campaignPath, sceneFile(campaignPath, scene.id));
-  const summary = await loadCampaignFromPath(campaignPath);
-  const { campaign, scene: updated } = saveSceneInCampaign(summary.campaign, scene);
-  await writeScene(campaignPath, updated);
-
-  await writeCampaign(campaignPath, campaign);
-  return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: updated };
-});
-
-ipcMain.handle("scene:rename", async (_event, campaignPath: string, sceneId: string, sceneName: string) => {
-  assertKnownCampaignPath(campaignPath);
-  assertIpcSafeId(sceneId, "Scene id");
-  const filePath = sceneFile(campaignPath, sceneId);
-  assertInsideCampaign(campaignPath, filePath);
-  const scene = await readSceneMetadata(campaignPath, sceneId);
-  const summary = await loadCampaignFromPath(campaignPath);
-  const { campaign, scene: updatedScene } = renameSceneInCampaign(summary.campaign, scene, sceneId, sceneName);
-  await writeScene(campaignPath, updatedScene);
-
-  await writeCampaign(campaignPath, campaign);
-  return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: updatedScene };
-});
-
-ipcMain.handle("scene:delete", async (_event, campaignPath: string, sceneId: string) => {
-  assertKnownCampaignPath(campaignPath);
-  assertIpcSafeId(sceneId, "Scene id");
-  const filePath = sceneFile(campaignPath, sceneId);
-  assertInsideCampaign(campaignPath, filePath);
-  await backupSceneBeforeDelete(campaignPath, sceneId);
-  await unlinkIfExists(filePath);
-
-  const summary = await loadCampaignFromPath(campaignPath);
-  const campaign = deleteSceneFromCampaign(summary.campaign, sceneId);
-  await writeCampaign(campaignPath, campaign);
-  return loadCampaignFromPath(campaignPath);
 });
 
 ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
