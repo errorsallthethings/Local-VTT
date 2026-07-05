@@ -3,26 +3,18 @@ import {
   ChevronDown,
   ChevronRight,
   Circle,
-  CloudFog,
-  Dices,
   Hand,
   HelpCircle,
-  Lightbulb,
   LineSquiggle,
-  ListOrdered,
   Minus,
-  MousePointer2,
   Paintbrush,
   Pentagon,
   Ruler,
-  Sparkles,
   Square,
   SquareDashedMousePointer,
-  Table2,
   Target,
   Triangle,
   Trash2,
-  Type,
   Undo2,
 } from "lucide-react";
 import type { DrawingTool } from "../../../canvas/drawings";
@@ -48,6 +40,7 @@ import {
   type EnvironmentEffectPresetChangeHandlers,
   type EnvironmentEffectResetHandlers
 } from "./environmentEffectMenuActions";
+import { ToolsMenuCategoryRail } from "./ToolsMenuCategoryRail";
 import { getToolCategoryLabel, type ToolCategory } from "./toolCategoryLabels";
 import {
   getActiveFogShape,
@@ -60,7 +53,6 @@ import {
   getMouseCategoryTogglePlan,
   getTableToolSelectionPlan,
   getToolButtonClassName,
-  getToolCategoryButtonClassName,
   getWeatherMaskToolSelectionPlan,
   isToolCategoryActive,
   type CanvasTool,
@@ -206,23 +198,6 @@ interface ToolsMenuProps {
   onDeleteSelected: () => void;
   onClearSelection: () => void;
 }
-
-type ToolCategoryEntry =
-  | { kind: "category"; id: ToolCategory; label: string; icon: typeof SquareDashedMousePointer; hasPanelTools: boolean }
-  | { kind: "divider"; id: string };
-
-const TOOL_CATEGORIES: ToolCategoryEntry[] = [
-  { kind: "category", id: "fog", label: getToolCategoryLabel("fog"), icon: CloudFog, hasPanelTools: true },
-  { kind: "category", id: "effects", label: getToolCategoryLabel("effects"), icon: Sparkles, hasPanelTools: true },
-  { kind: "category", id: "drawing", label: getToolCategoryLabel("drawing"), icon: LineSquiggle, hasPanelTools: true },
-  { kind: "category", id: "text", label: getToolCategoryLabel("text"), icon: Type, hasPanelTools: false },
-  { kind: "category", id: "templates", label: getToolCategoryLabel("templates"), icon: Triangle, hasPanelTools: true },
-  { kind: "category", id: "lighting", label: getToolCategoryLabel("lighting"), icon: Lightbulb, hasPanelTools: false },
-  { kind: "divider", id: "tools-primary-secondary-divider" },
-  { kind: "category", id: "dice", label: getToolCategoryLabel("dice"), icon: Dices, hasPanelTools: false },
-  { kind: "category", id: "turn-order", label: getToolCategoryLabel("turn-order"), icon: ListOrdered, hasPanelTools: false },
-  { kind: "category", id: "table", label: getToolCategoryLabel("table"), icon: Table2, hasPanelTools: true }
-];
 
 export function ToolsMenu({
   activeCanvasTool,
@@ -601,41 +576,14 @@ export function ToolsMenu({
 
   return (
     <div className="tools-menu" aria-label="Tools menu">
-      <div className="tools-menu-stack" aria-label="Tool Categories">
-        <button
-          className={getToolCategoryButtonClassName(activeCategory === "mouse")}
-          aria-label="Mouse Behavior"
-          title="Mouse Behavior"
-          type="button"
-          onClick={toggleMouseCategory}
-        >
-          <MousePointer2 size={18} aria-hidden="true" />
-          <span className="tools-category-more" aria-hidden="true" />
-        </button>
-        <button className="tools-menu-title-button" type="button" aria-expanded={toolsExpanded} title={toolsExpanded ? "Collapse tools" : "Expand tools"} onClick={() => setToolsExpanded((expanded) => !expanded)}>
-          Tools
-        </button>
-        {toolsExpanded &&
-          TOOL_CATEGORIES.map((category) => {
-            if (category.kind === "divider") {
-              return <span key={category.id} className="tools-menu-divider" aria-hidden="true" />;
-            }
-            const Icon = category.icon;
-            return (
-              <button
-                key={category.id}
-                className={getToolCategoryButtonClassName(isCategoryActive(category.id))}
-                aria-label={category.label}
-                title={category.label}
-                type="button"
-                onClick={() => openCategory(category.id)}
-              >
-                <Icon size={18} aria-hidden="true" />
-                {category.hasPanelTools && <span className="tools-category-more" aria-hidden="true" />}
-              </button>
-            );
-          })}
-      </div>
+      <ToolsMenuCategoryRail
+        activeCategory={activeCategory}
+        toolsExpanded={toolsExpanded}
+        isCategoryActive={isCategoryActive}
+        onCategoryOpen={openCategory}
+        onMouseCategoryToggle={toggleMouseCategory}
+        onToolsExpandedChange={setToolsExpanded}
+      />
       {activeCategory && (
         <div className="tools-subpanel" aria-label={`${getToolCategoryLabel(activeCategory)} panel`}>
           <PanelHeader title={getToolCategoryLabel(activeCategory)} />
