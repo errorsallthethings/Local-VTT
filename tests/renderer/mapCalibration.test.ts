@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene } from "../../src/shared/localvtt";
-import { applyMapCalibrationDraft, applyMapGridFit, buildWholeMapFitScene, getMapCalibrationDraftFromScene, getMapGridFitPreview, type MapCalibrationDraft } from "../../src/renderer/lib/map";
+import {
+  applyMapCalibrationDraft,
+  applyMapGridFit,
+  buildMapFitPresetScene,
+  buildWholeMapFitScene,
+  buildWizardMapFitScene,
+  getImageMapAssetPath,
+  getMapCalibrationDraftFromScene,
+  getMapGridFitPreview,
+  type MapCalibrationDraft
+} from "../../src/renderer/lib/map";
 
 function draft(patch: Partial<MapCalibrationDraft> = {}): MapCalibrationDraft {
   return {
@@ -119,5 +129,43 @@ describe("map calibration helpers", () => {
 
     expect(fitted.grid.mapGridColumns).toBe(44);
     expect(fitted.grid.mapGridRows).toBe(14);
+  });
+
+  it("returns image map asset paths only for usable image assets", () => {
+    expect(getImageMapAssetPath(null)).toBeNull();
+    expect(getImageMapAssetPath({ absolutePath: "", mediaType: "image" })).toBeNull();
+    expect(getImageMapAssetPath({ absolutePath: "C:/maps/map.mp4", mediaType: "video" })).toBeNull();
+    expect(getImageMapAssetPath({ absolutePath: "C:/maps/map.jpg", mediaType: "image" })).toBe("C:/maps/map.jpg");
+  });
+
+  it("builds wizard map fit scenes for whole-map and fill-grid modes", () => {
+    const scene = createDefaultScene("Wizard Fit");
+    scene.grid = { ...scene.grid, sizePx: 100 };
+
+    const wholeMap = buildWizardMapFitScene(scene, 44, 25, "whole-map", { width: 5000, height: 1600 }, { width: 2560, height: 1440 }, "wizard");
+    const fillGrid = buildWizardMapFitScene(scene, 44, 25, "fill-grid", { width: 5000, height: 1600 }, { width: 2560, height: 1440 }, "wizard");
+
+    expect(wholeMap.mapTransform.fitMode).toBe("contain");
+    expect(wholeMap.grid).toMatchObject({ showOnGm: true, showOnPlayer: true, mapGridColumns: 50, mapGridRows: 16 });
+    expect(fillGrid.mapTransform).toMatchObject({ fitMode: "cover", x: 0, y: 0, scale: 1.5625, scaleX: 0.88, scaleY: 1.5625 });
+    expect(fillGrid.grid).toMatchObject({ showOnGm: true, showOnPlayer: true, mapGridColumns: 44, mapGridRows: 25 });
+    expect(fillGrid.updatedAt).toBe("wizard");
+  });
+
+  it("builds map fit preset scenes with grid patches", () => {
+    const scene = createDefaultScene("Preset Fit");
+    scene.grid = { ...scene.grid, sizePx: 100, mapGridColumns: 44, mapGridRows: 25, showOnGm: false, showOnPlayer: false };
+
+    const contain = buildMapFitPresetScene(scene, "contain", { width: 5000, height: 1600 }, { width: 2560, height: 1440 }, { color: "#abcdef" }, "preset");
+    const cover = buildMapFitPresetScene(scene, "cover", { width: 5000, height: 1600 }, { width: 2560, height: 1440 }, {}, "preset");
+    const actualSize = buildMapFitPresetScene(scene, "actual-size", { width: 5000, height: 1600 }, { width: 2560, height: 1440 }, {}, "preset");
+
+    expect(contain.mapTransform.fitMode).toBe("contain");
+    expect(contain.grid.color).toBe("#abcdef");
+    expect(cover.mapTransform.fitMode).toBe("cover");
+    expect(cover.grid).toMatchObject({ showOnGm: true, showOnPlayer: true });
+    expect(actualSize.mapTransform).toMatchObject({ fitMode: "actual-size", x: 0, y: 0, scale: 1, scaleX: 1, scaleY: 1 });
+    expect(actualSize.grid).toMatchObject({ mapGridColumns: 50, mapGridRows: 16, offsetX: 0, offsetY: 0, showOnGm: true, showOnPlayer: true });
+    expect(actualSize.updatedAt).toBe("preset");
   });
 });

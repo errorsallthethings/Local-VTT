@@ -43,6 +43,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Converted environment-effect tuning field resolution to a tested registry, including the legacy `electric` to `lightningTuning` mapping.
 - Extracted and tested environment-effect layer tuning override construction so the long draw API's positional parameters are guarded against drift.
 - Extracted drawing preview-to-render-element conversion from the large drawing renderer, keeping preview rendering semantics covered separately from committed drawing creation.
+- Extracted and tested GmApp map fit scene builders for wizard and preset flows so the view coordinates image loading/player sync instead of duplicating grid/map-transform construction.
 - Expanded Player View sync tests so explicit sends and background updates are covered as projection-only operations that strip GM-only payload data without mutating the GM campaign or scene state.
 - Hardened metadata backup restore for missing scene files and expanded recovery regressions for malformed backups and unsafe portable paths so failed restores cannot overwrite current campaign metadata.
 - Expanded Electron file-safety regressions for unreferenced asset pruning and campaign path boundaries so stale hydrated paths outside the campaign are retained for review instead of deleted.

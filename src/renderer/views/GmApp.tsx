@@ -47,7 +47,7 @@ import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel
 import type { WizardMapFitMode } from "../components/settings/TableDisplaySetupWizard";
 import { ToolsMenu, type SelectorSelectionFilters } from "../components/tools";
 import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DarknessEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../canvas/effects";
-import { applyMapCalibrationDraft, applyMapGridFit, buildWholeMapFitScene, type MapCalibrationDraft } from "../lib/map";
+import { applyMapCalibrationDraft, buildMapFitPresetScene, buildWizardMapFitScene, getImageMapAssetPath, type MapCalibrationDraft } from "../lib/map";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderModal } from "../components/turn-order/TurnOrderModal";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -1024,8 +1024,9 @@ export function GmApp() {
     if (mapCalibrationBox) {
       return applyMapCalibrationDraft(activeScene, draft, { calibrationBox: mapCalibrationBox });
     }
-    if (draft.alignGridToMap && mapAsset?.absolutePath && mapAsset.mediaType === "image") {
-      const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath));
+    const imageMapAssetPath = getImageMapAssetPath(mapAsset);
+    if (draft.alignGridToMap && imageMapAssetPath) {
+      const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(imageMapAssetPath));
       return applyMapCalibrationDraft(activeScene, draft, { imageDimensions: dimensions });
     }
     return applyMapCalibrationDraft(activeScene, draft);
@@ -1044,36 +1045,19 @@ export function GmApp() {
 
   const fitMapToGridFromWizard = (columns: number, rows: number, fitMode: WizardMapFitMode) =>
     run(async () => {
-      if (!campaign || !activeScene || !mapAsset) {
+      const imageMapAssetPath = getImageMapAssetPath(mapAsset);
+      if (!campaign || !activeScene || !imageMapAssetPath) {
         return;
       }
-      const nextScene =
-        fitMode === "whole-map"
-          ? mapAsset.absolutePath && mapAsset.mediaType === "image"
-            ? buildWholeMapFitScene(
-                activeScene,
-                { mapGridColumns: columns, mapGridRows: rows },
-                await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath)),
-                getPlayerViewTargetDimensions(campaign.playerDisplay, displays)
-              )
-            : null
-          : mapAsset.absolutePath && mapAsset.mediaType === "image"
-            ? applyMapGridFit(
-                {
-                  ...activeScene,
-                  grid: {
-                    ...activeScene.grid,
-                    showOnGm: true,
-                    showOnPlayer: true
-                  }
-                },
-                { mapGridColumns: columns, mapGridRows: rows, fitMode: "cover" },
-                await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath))
-              )
-            : null;
-      if (!nextScene) {
-        return;
-      }
+      const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(imageMapAssetPath));
+      const nextScene = buildWizardMapFitScene(
+        activeScene,
+        columns,
+        rows,
+        fitMode,
+        dimensions,
+        getPlayerViewTargetDimensions(campaign.playerDisplay, displays)
+      );
       updateScene(nextScene);
       const openResult = await window.localVtt.openPlayerView({
         displayId: campaign.playerDisplay.selectedDisplayId,
@@ -1089,60 +1073,18 @@ export function GmApp() {
 
   const applyMapFitPreset = (fitMode: Exclude<Scene["mapTransform"]["fitMode"], "manual">, gridPatch: Partial<Scene["grid"]> = {}) =>
     run(async () => {
-      if (!campaign || !activeScene || !mapAsset?.absolutePath || mapAsset.mediaType !== "image") {
+      const imageMapAssetPath = getImageMapAssetPath(mapAsset);
+      if (!campaign || !activeScene || !imageMapAssetPath) {
         return;
       }
-      const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath));
-      const sceneForFit = {
-        ...activeScene,
-        grid: {
-          ...activeScene.grid,
-          ...gridPatch
-        }
-      };
-      const nextScene =
-        fitMode === "contain"
-          ? buildWholeMapFitScene(
-              sceneForFit,
-              { mapGridColumns: sceneForFit.grid.mapGridColumns, mapGridRows: sceneForFit.grid.mapGridRows },
-              dimensions,
-              getPlayerViewTargetDimensions(campaign.playerDisplay, displays)
-            )
-          : fitMode === "cover"
-            ? applyMapGridFit(
-                {
-                  ...sceneForFit,
-                  grid: {
-                    ...sceneForFit.grid,
-                    showOnGm: true,
-                    showOnPlayer: true
-                  }
-                },
-                { mapGridColumns: sceneForFit.grid.mapGridColumns, mapGridRows: sceneForFit.grid.mapGridRows, fitMode: "cover" },
-                dimensions
-              )
-            : {
-                ...sceneForFit,
-                grid: {
-                  ...sceneForFit.grid,
-                  mapGridColumns: Math.max(1, Math.ceil(dimensions.width / Math.max(1, sceneForFit.grid.sizePx))),
-                  mapGridRows: Math.max(1, Math.ceil(dimensions.height / Math.max(1, sceneForFit.grid.sizePx))),
-                  offsetX: 0,
-                  offsetY: 0,
-                  showOnGm: true,
-                  showOnPlayer: true
-                },
-                mapTransform: {
-                  ...activeScene.mapTransform,
-                  fitMode: "actual-size" as const,
-                  x: 0,
-                  y: 0,
-                  scale: 1,
-                  scaleX: 1,
-                  scaleY: 1
-                },
-                updatedAt: new Date().toISOString()
-              };
+      const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(imageMapAssetPath));
+      const nextScene = buildMapFitPresetScene(
+        activeScene,
+        fitMode,
+        dimensions,
+        getPlayerViewTargetDimensions(campaign.playerDisplay, displays),
+        gridPatch
+      );
       updateScene(nextScene);
       if (playerSceneId === activeScene.id) {
         await sendSceneToPlayer(window.localVtt, campaign, nextScene, playerViewSyncOptions);
