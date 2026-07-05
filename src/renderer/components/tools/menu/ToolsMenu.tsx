@@ -2,20 +2,18 @@ import { useEffect, useState } from "react";
 import {
   Circle,
   LineSquiggle,
-  Minus,
   Paintbrush,
   Pentagon,
   Ruler,
   Square,
   Target,
-  Triangle,
   Trash2,
   Undo2,
 } from "lucide-react";
 import type { DrawingTool } from "../../../canvas/drawings";
 import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType } from "../../../../shared/localvtt";
 import type { FogTool } from "../../../canvas/fog";
-import { DrawingSettings, type DrawingTemplateSize, type DrawingTemplateWidth } from "../settings/DrawingToolSettings";
+import type { DrawingTemplateSize, DrawingTemplateWidth } from "../settings/DrawingToolSettings";
 import { AcidEffectTuningPanel, ArcaneEffectTuningPanel, ChaosEffectTuningPanel, ColdEffectTuningPanel, DarknessEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, NatureEffectTuningPanel, PoisonEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, VoidEffectTuningPanel, WaterEffectTuningPanel } from "../effects/EnvironmentEffectTuningPanels";
 import { FogBrushSettings } from "../settings/FogBrushSettings";
 import type { SelectorSelectionCounts, SelectorSelectionFilters } from "../settings/SelectorToolControls";
@@ -36,6 +34,7 @@ import {
   type EnvironmentEffectResetHandlers
 } from "./environmentEffectMenuActions";
 import { ToolsMenuCategoryRail } from "./ToolsMenuCategoryRail";
+import { DrawingToolsPanel, TemplateToolsPanel } from "./ToolsMenuDrawingPanels";
 import { ToolsMenuMousePanel } from "./ToolsMenuMousePanel";
 import { HelpButton, PanelHeader, Placeholder, SettingsToggle, ToolButton } from "./ToolsMenuPrimitives";
 import { getToolCategoryLabel, type ToolCategory } from "./toolCategoryLabels";
@@ -600,122 +599,74 @@ export function ToolsMenu({
             />
           )}
           {activeCategory === "drawing" && (
-            <div className="tools-panel-section">
-              <HelpButton active={helpTopic === "drawing"} label="Drawing tools help" onClick={() => setHelpTopic((topic) => (topic === "drawing" ? null : "drawing"))} />
-              <div className="tools-button-row">
-                <ToolButton active={activeDrawingTool === "freehand"} label="Brush" onClick={() => setDrawingTool("freehand")}>
-                  <Paintbrush size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeDrawingTool === "line"} label="Line" onClick={() => setDrawingTool("line")}>
-                  <Minus size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeDrawingTool === "rectangle"} label="Rectangle" onClick={() => setDrawingTool("rectangle")}>
-                  <Square size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeDrawingTool === "circle"} label="Ellipse" onClick={() => setDrawingTool("circle")}>
-                  <Circle size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeDrawingTool === "triangle"} label="Triangle" onClick={() => setDrawingTool("triangle")}>
-                  <Triangle size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeDrawingTool === "polygon"} label="Polygon" onClick={() => setDrawingTool("polygon")}>
-                  <Pentagon size={17} aria-hidden="true" />
-                </ToolButton>
-                <span className="tools-vertical-divider" aria-hidden="true" />
-                <ToolButton label="Undo Last Drawing" disabled={drawingCount === 0} onClick={onUndoDrawing}>
-                  <Undo2 size={17} aria-hidden="true" />
-                </ToolButton>
-              </div>
-              <div className="tools-section-divider" />
-              <SettingsToggle open={drawingSettingsOpen} label="Settings" onToggle={() => setDrawingSettingsOpen((open) => !open)} />
-              {drawingSettingsOpen && (
-                <DrawingSettings
-                  drawingColor={drawingColor}
-                  drawingOpacity={drawingOpacity}
-                  drawingFillColor={drawingFillColor}
-                  drawingFillOpacity={drawingFillOpacity}
-                  drawingStrokeStyle={drawingStrokeStyle}
-                  drawingStrokeWidth={drawingStrokeWidth}
-                  drawingTemplateSize={drawingTemplateSize}
-                  drawingTemplateEffect={drawingTemplateEffect}
-                  drawingTemplateWidth={drawingTemplateWidth}
-                  activeDrawingTool={activeDrawingTool}
-                  drawingThicknessCustomOpen={drawingThicknessCustomOpen}
-                  drawingOpacityCustomOpen={drawingOpacityCustomOpen}
-                  showFillSettings={activeDrawingTool !== "freehand" && activeDrawingTool !== "line"}
-                  templateToolActive={false}
-                  onDrawingColorChange={onDrawingColorChange}
-                  onDrawingOpacityChange={onDrawingOpacityChange}
-                  onDrawingFillColorChange={onDrawingFillColorChange}
-                  onDrawingFillOpacityChange={onDrawingFillOpacityChange}
-                  onDrawingStrokeStyleChange={onDrawingStrokeStyleChange}
-                  onDrawingStrokeWidthChange={onDrawingStrokeWidthChange}
-                  onDrawingTemplateSizeChange={onDrawingTemplateSizeChange}
-                  onDrawingTemplateEffectChange={onDrawingTemplateEffectChange}
-                  onDrawingTemplateWidthChange={onDrawingTemplateWidthChange}
-                  onDrawingThicknessCustomOpenChange={setDrawingThicknessCustomOpen}
-                  onDrawingOpacityCustomOpenChange={setDrawingOpacityCustomOpen}
-                />
-              )}
-              {helpTopic === "drawing" && <ToolHelpCard topic="drawing" />}
-            </div>
+            <DrawingToolsPanel
+              activeDrawingTool={activeDrawingTool}
+              drawingCount={drawingCount}
+              drawingSettingsOpen={drawingSettingsOpen}
+              helpTopic={helpTopic}
+              drawingColor={drawingColor}
+              drawingOpacity={drawingOpacity}
+              drawingFillColor={drawingFillColor}
+              drawingFillOpacity={drawingFillOpacity}
+              drawingStrokeStyle={drawingStrokeStyle}
+              drawingStrokeWidth={drawingStrokeWidth}
+              drawingTemplateSize={drawingTemplateSize}
+              drawingTemplateEffect={drawingTemplateEffect}
+              drawingTemplateWidth={drawingTemplateWidth}
+              drawingThicknessCustomOpen={drawingThicknessCustomOpen}
+              drawingOpacityCustomOpen={drawingOpacityCustomOpen}
+              onDrawingToolChange={setDrawingTool}
+              onUndoDrawing={onUndoDrawing}
+              onDrawingSettingsOpenChange={setDrawingSettingsOpen}
+              onHelpTopicChange={setHelpTopic}
+              onDrawingColorChange={onDrawingColorChange}
+              onDrawingOpacityChange={onDrawingOpacityChange}
+              onDrawingFillColorChange={onDrawingFillColorChange}
+              onDrawingFillOpacityChange={onDrawingFillOpacityChange}
+              onDrawingStrokeStyleChange={onDrawingStrokeStyleChange}
+              onDrawingStrokeWidthChange={onDrawingStrokeWidthChange}
+              onDrawingTemplateSizeChange={onDrawingTemplateSizeChange}
+              onDrawingTemplateEffectChange={onDrawingTemplateEffectChange}
+              onDrawingTemplateWidthChange={onDrawingTemplateWidthChange}
+              onDrawingThicknessCustomOpenChange={setDrawingThicknessCustomOpen}
+              onDrawingOpacityCustomOpenChange={setDrawingOpacityCustomOpen}
+            />
           )}
           {activeCategory === "templates" && (
-            <div className="tools-panel-section">
-              <HelpButton active={helpTopic === "templates"} label="Template tools help" onClick={() => setHelpTopic((topic) => (topic === "templates" ? null : "templates"))} />
-              <div className="tools-button-row">
-                <ToolButton active={activeDrawingTool === "template-line"} label="Line Template" onClick={() => setDrawingTool("template-line")}>
-                  <Minus size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeDrawingTool === "template-circle"} label="Radius Template" onClick={() => setDrawingTool("template-circle")}>
-                  <Circle size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeDrawingTool === "template-rectangle"} label="Cube Template" onClick={() => setDrawingTool("template-rectangle")}>
-                  <Square size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeDrawingTool === "template-cone"} label="Cone Template" onClick={() => setDrawingTool("template-cone")}>
-                  <Triangle size={17} aria-hidden="true" />
-                </ToolButton>
-                <span className="tools-vertical-divider" aria-hidden="true" />
-                <ToolButton label="Undo Last Drawing" disabled={drawingCount === 0} onClick={onUndoDrawing}>
-                  <Undo2 size={17} aria-hidden="true" />
-                </ToolButton>
-              </div>
-              <div className="tools-section-divider" />
-              <SettingsToggle open={templateSettingsOpen} label="Settings" onToggle={() => setTemplateSettingsOpen((open) => !open)} />
-              {templateSettingsOpen && (
-                <DrawingSettings
-                  drawingColor={drawingColor}
-                  drawingOpacity={drawingOpacity}
-                  drawingFillColor={drawingFillColor}
-                  drawingFillOpacity={drawingFillOpacity}
-                  drawingStrokeStyle={drawingStrokeStyle}
-                  drawingStrokeWidth={drawingStrokeWidth}
-                  drawingTemplateSize={drawingTemplateSize}
-                  drawingTemplateEffect={drawingTemplateEffect}
-                  drawingTemplateWidth={drawingTemplateWidth}
-                  templatePreviewVisibleInPlayer={templatePreviewVisibleInPlayer}
-                  activeDrawingTool={activeDrawingTool}
-                  drawingThicknessCustomOpen={drawingThicknessCustomOpen}
-                  drawingOpacityCustomOpen={drawingOpacityCustomOpen}
-                  showFillSettings={false}
-                  templateToolActive
-                  onDrawingColorChange={onDrawingColorChange}
-                  onDrawingOpacityChange={onDrawingOpacityChange}
-                  onDrawingFillColorChange={onDrawingFillColorChange}
-                  onDrawingFillOpacityChange={onDrawingFillOpacityChange}
-                  onDrawingStrokeStyleChange={onDrawingStrokeStyleChange}
-                  onDrawingStrokeWidthChange={onDrawingStrokeWidthChange}
-                  onDrawingTemplateSizeChange={onDrawingTemplateSizeChange}
-                  onDrawingTemplateEffectChange={onDrawingTemplateEffectChange}
-                  onDrawingTemplateWidthChange={onDrawingTemplateWidthChange}
-                  onTemplatePreviewVisibleInPlayerChange={onTemplatePreviewVisibleInPlayerChange}
-                  onDrawingThicknessCustomOpenChange={setDrawingThicknessCustomOpen}
-                  onDrawingOpacityCustomOpenChange={setDrawingOpacityCustomOpen}
-                />
-              )}
-              {helpTopic === "templates" && <ToolHelpCard topic="templates" />}
-            </div>
+            <TemplateToolsPanel
+              activeDrawingTool={activeDrawingTool}
+              drawingCount={drawingCount}
+              templateSettingsOpen={templateSettingsOpen}
+              templatePreviewVisibleInPlayer={templatePreviewVisibleInPlayer}
+              helpTopic={helpTopic}
+              drawingColor={drawingColor}
+              drawingOpacity={drawingOpacity}
+              drawingFillColor={drawingFillColor}
+              drawingFillOpacity={drawingFillOpacity}
+              drawingStrokeStyle={drawingStrokeStyle}
+              drawingStrokeWidth={drawingStrokeWidth}
+              drawingTemplateSize={drawingTemplateSize}
+              drawingTemplateEffect={drawingTemplateEffect}
+              drawingTemplateWidth={drawingTemplateWidth}
+              drawingThicknessCustomOpen={drawingThicknessCustomOpen}
+              drawingOpacityCustomOpen={drawingOpacityCustomOpen}
+              onDrawingToolChange={setDrawingTool}
+              onUndoDrawing={onUndoDrawing}
+              onTemplateSettingsOpenChange={setTemplateSettingsOpen}
+              onTemplatePreviewVisibleInPlayerChange={onTemplatePreviewVisibleInPlayerChange}
+              onHelpTopicChange={setHelpTopic}
+              onDrawingColorChange={onDrawingColorChange}
+              onDrawingOpacityChange={onDrawingOpacityChange}
+              onDrawingFillColorChange={onDrawingFillColorChange}
+              onDrawingFillOpacityChange={onDrawingFillOpacityChange}
+              onDrawingStrokeStyleChange={onDrawingStrokeStyleChange}
+              onDrawingStrokeWidthChange={onDrawingStrokeWidthChange}
+              onDrawingTemplateSizeChange={onDrawingTemplateSizeChange}
+              onDrawingTemplateEffectChange={onDrawingTemplateEffectChange}
+              onDrawingTemplateWidthChange={onDrawingTemplateWidthChange}
+              onDrawingThicknessCustomOpenChange={setDrawingThicknessCustomOpen}
+              onDrawingOpacityCustomOpenChange={setDrawingOpacityCustomOpen}
+            />
           )}
           {activeCategory === "text" && <Placeholder message="Text tools will be added here." />}
           {activeCategory === "table" && (
