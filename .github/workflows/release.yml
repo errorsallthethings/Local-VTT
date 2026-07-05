@@ -34,15 +34,12 @@ jobs:
         run: npm run package:win -- --publish never
 
       - name: Validate Windows artifacts
+        run: npm run package:win:check
+
+      - name: List Windows artifacts
         shell: pwsh
         run: |
           $installers = @(Get-ChildItem -Path release -Filter "*.exe" -File)
-          if ($installers.Count -eq 0) {
-            throw "Windows packaging did not produce a .exe installer. Check the Build Windows package step logs, then rerun the workflow for the same tag after fixing the build."
-          }
-          if (-not (Test-Path "release/latest.yml")) {
-            throw "Windows packaging did not produce release/latest.yml. The Windows artifact set is incomplete; rerun only after the packaging output is fixed."
-          }
           $installers | ForEach-Object { Write-Host "Windows installer: $($_.Name)" }
 
       - name: Upload Windows artifacts
@@ -79,18 +76,13 @@ jobs:
         run: npm run package:mac -- --publish never
 
       - name: Validate macOS artifacts
+        run: npm run package:mac:check
+
+      - name: List macOS artifacts
         shell: bash
         run: |
           shopt -s nullglob
           packages=(release/*.dmg release/*.zip)
-          if (( ${#packages[@]} == 0 )); then
-            echo "::error::macOS packaging did not produce a .dmg or .zip artifact. Check the Build macOS package step logs, then rerun the workflow for the same tag after fixing the build."
-            exit 1
-          fi
-          if [[ ! -f release/latest-mac.yml ]]; then
-            echo "::error::macOS packaging did not produce release/latest-mac.yml. The macOS artifact set is incomplete; rerun only after the packaging output is fixed."
-            exit 1
-          fi
           printf 'macOS artifact: %s\n' "${packages[@]}"
 
       - name: Upload macOS artifacts
@@ -128,20 +120,15 @@ jobs:
         run: npm run package:linux -- --publish never
 
       - name: Validate Linux artifacts
+        run: npm run package:linux:check
+
+      - name: List Linux artifacts
         shell: bash
         run: |
           shopt -s nullglob
           appimages=(release/*.AppImage)
           debs=(release/*.deb)
           rpms=(release/*.rpm)
-          if (( ${#appimages[@]} == 0 || ${#debs[@]} == 0 || ${#rpms[@]} == 0 )); then
-            echo "::error::Linux packaging must produce AppImage, deb, and rpm artifacts. Check the Build Linux packages step logs, then rerun the workflow for the same tag after fixing the build."
-            exit 1
-          fi
-          if [[ ! -f release/latest-linux.yml ]]; then
-            echo "::error::Linux packaging did not produce release/latest-linux.yml. The Linux artifact set is incomplete; rerun only after the packaging output is fixed."
-            exit 1
-          fi
           printf 'Linux artifact: %s\n' "${appimages[@]}" "${debs[@]}" "${rpms[@]}"
 
       - name: Upload Linux artifacts
