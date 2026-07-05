@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -41,6 +41,7 @@ describe("metadata backup file helpers", () => {
     const sourcePath = path.join(tempRoot, "campaign.json");
     const backupFolder = path.join(tempRoot, "backups", "campaign");
     await writeFile(sourcePath, "{\"name\":\"Campaign\"}\n", "utf8");
+    await mkdir(path.join(backupFolder, "2026-07-02T11-59-00-000Z.folder.json"), { recursive: true });
 
     for (const timestamp of ["2026-07-02T12-00-00-000Z", "2026-07-02T12-01-00-000Z", "2026-07-02T12-02-00-000Z"]) {
       await backupExistingMetadataFile(tempRoot, sourcePath, backupFolder, "campaign.json", {
@@ -50,18 +51,20 @@ describe("metadata backup file helpers", () => {
     }
 
     expect(await readdir(backupFolder)).toEqual([
+      "2026-07-02T11-59-00-000Z.folder.json",
       "2026-07-02T12-01-00-000Z.campaign.json",
       "2026-07-02T12-02-00-000Z.campaign.json"
     ]);
   });
 
-  it("lists JSON backup entries and ignores non-JSON files", async () => {
+  it("lists JSON backup files and ignores non-JSON files and directories", async () => {
     const backupFolder = path.join(tempRoot, "backups", "scenes", "scene-1");
     await writeFile(path.join(tempRoot, "campaign.json"), "{}", "utf8");
     await backupExistingMetadataFile(tempRoot, path.join(tempRoot, "campaign.json"), backupFolder, "scene-1.scene.json", {
       createTimestamp: () => "2026-07-02T12-34-56-789Z"
     });
     await writeFile(path.join(backupFolder, "notes.txt"), "ignore me", "utf8");
+    await mkdir(path.join(backupFolder, "2026-07-02T12-35-56-789Z.scene-1.scene.json"));
 
     expect(await listMetadataBackupFolder(tempRoot, backupFolder, "scene", "scene-1", "Cave")).toMatchObject([
       {

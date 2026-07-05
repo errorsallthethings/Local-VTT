@@ -50,9 +50,9 @@ export async function listMetadataBackupFolder(
 ): Promise<MetadataBackupEntry[]> {
   assertInsidePath(campaignPath, backupFolder);
   try {
-    const entries = await readdir(backupFolder);
+    const entries = await readdir(backupFolder, { withFileTypes: true });
     const backups: MetadataBackupEntry[] = [];
-    for (const fileName of entries.filter((entry) => entry.endsWith(".json"))) {
+    for (const fileName of entries.filter((entry) => entry.isFile() && entry.name.endsWith(".json")).map((entry) => entry.name)) {
       const backupPath = path.join(backupFolder, fileName);
       assertInsidePath(campaignPath, backupPath);
       const stats = await stat(backupPath);
@@ -68,8 +68,12 @@ export async function listMetadataBackupFolder(
 }
 
 async function pruneMetadataBackups(backupFolder: string, maxBackups: number): Promise<void> {
-  const entries = await readdir(backupFolder);
-  const backupFiles = entries.filter((entry) => entry.endsWith(".json")).sort().reverse();
+  const entries = await readdir(backupFolder, { withFileTypes: true });
+  const backupFiles = entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+    .map((entry) => entry.name)
+    .sort()
+    .reverse();
   for (const entry of backupFiles.slice(maxBackups)) {
     await unlinkIfExists(path.join(backupFolder, entry));
   }
