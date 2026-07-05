@@ -1,4 +1,4 @@
-import { DEFAULT_MAP_TRANSFORM, type Asset, type MapTransform, type Scene } from "../../../shared/localvtt";
+import { DEFAULT_MAP_TRANSFORM, type Asset, type Campaign, type DisplayCalibration, type GridType, type MapTransform, type Scene } from "../../../shared/localvtt";
 import type { MapCalibrationBox } from "../../canvas/map";
 import { getBoxCalibrationGridPatch } from "../../canvas/map";
 
@@ -23,6 +23,11 @@ export function getImageMapAssetPath(asset: Pick<Asset, "absolutePath" | "mediaT
 export interface MapFitTargetDimensions {
   width: number;
   height: number;
+}
+
+export interface TableDisplayGridUpdate {
+  campaign: Campaign;
+  scene: Scene;
 }
 
 export type MapGridFitMode = "contain" | "cover";
@@ -258,6 +263,33 @@ export function buildMapFitPresetScene(
       scaleY: 1
     },
     updatedAt
+  };
+}
+
+export function buildTableDisplayGridUpdate(
+  campaign: Campaign,
+  scene: Scene,
+  gridType: GridType,
+  sizePx: number,
+  playerDisplay: DisplayCalibration,
+  updatedAt = new Date().toISOString()
+): TableDisplayGridUpdate {
+  return {
+    campaign: {
+      ...campaign,
+      playerDisplay,
+      updatedAt
+    },
+    scene: {
+      ...scene,
+      grid: {
+        ...scene.grid,
+        type: gridType,
+        sizePx: Math.max(4, Math.round(sizePx)),
+        showOnPlayer: gridType !== "gridless" ? true : scene.grid.showOnPlayer
+      },
+      updatedAt
+    }
   };
 }
 

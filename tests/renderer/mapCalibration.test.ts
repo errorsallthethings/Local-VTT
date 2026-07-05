@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createDefaultScene } from "../../src/shared/localvtt";
+import { createDefaultCampaign, createDefaultScene } from "../../src/shared/localvtt";
 import {
   applyMapCalibrationDraft,
   applyMapGridFit,
   buildMapFitPresetScene,
+  buildTableDisplayGridUpdate,
   buildWholeMapFitScene,
   buildWizardMapFitScene,
   getImageMapAssetPath,
@@ -167,5 +168,29 @@ describe("map calibration helpers", () => {
     expect(actualSize.mapTransform).toMatchObject({ fitMode: "actual-size", x: 0, y: 0, scale: 1, scaleX: 1, scaleY: 1 });
     expect(actualSize.grid).toMatchObject({ mapGridColumns: 50, mapGridRows: 16, offsetX: 0, offsetY: 0, showOnGm: true, showOnPlayer: true });
     expect(actualSize.updatedAt).toBe("preset");
+  });
+
+  it("builds table display grid updates for campaign display and scene grid changes", () => {
+    const campaign = createDefaultCampaign("Table");
+    const scene = createDefaultScene("Scene");
+    scene.grid = { ...scene.grid, type: "gridless", sizePx: 80, showOnPlayer: false };
+    const display = { ...campaign.playerDisplay, pixelsPerInch: 120 };
+
+    const update = buildTableDisplayGridUpdate(campaign, scene, "square", 3.4, display, "updated");
+
+    expect(update.campaign.playerDisplay).toEqual(display);
+    expect(update.campaign.updatedAt).toBe("updated");
+    expect(update.scene.grid).toMatchObject({ type: "square", sizePx: 4, showOnPlayer: true });
+    expect(update.scene.updatedAt).toBe("updated");
+  });
+
+  it("preserves player grid visibility when table display setup chooses gridless", () => {
+    const campaign = createDefaultCampaign("Table");
+    const scene = createDefaultScene("Scene");
+    scene.grid = { ...scene.grid, type: "square", sizePx: 80, showOnPlayer: false };
+
+    const update = buildTableDisplayGridUpdate(campaign, scene, "gridless", 72.6, campaign.playerDisplay, "updated");
+
+    expect(update.scene.grid).toMatchObject({ type: "gridless", sizePx: 73, showOnPlayer: false });
   });
 });

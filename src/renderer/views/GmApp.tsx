@@ -21,7 +21,6 @@ import type {
   CampaignSceneFolder,
   DisplayCalibration,
   DiceSettings,
-  GridType,
   LiveTableEvent,
   PlayerViewTestPattern,
   Point,
@@ -40,9 +39,8 @@ import { TokenAssetPromotionResultDialog } from "../components/modals/TokenAsset
 import { EnvironmentEffectEditorModal } from "../components/layers";
 import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
-import type { WizardMapFitMode } from "../components/settings/TableDisplaySetupWizard";
 import { ToolsMenu, type SelectorSelectionFilters } from "../components/tools";
-import { applyMapCalibrationDraft, buildMapFitPresetScene, buildWizardMapFitScene, getImageMapAssetPath, type MapCalibrationDraft } from "../lib/map";
+import { getImageMapAssetPath } from "../lib/map";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderModal } from "../components/turn-order/TurnOrderModal";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
@@ -77,6 +75,7 @@ import {
 import { useGmDialogEscape, useGmDialogState } from "../hooks/useGmDialogState";
 import { useGmToolOptions } from "../hooks/useGmToolOptions";
 import { useGmToolSelection } from "../hooks/useGmToolSelection";
+import { useMapCalibrationActions } from "../hooks/useMapCalibrationActions";
 import { usePlayerDisplayActions } from "../hooks/usePlayerDisplayActions";
 import { shouldShowPlayerHoldAfterSceneDelete, usePlayerViewState } from "../hooks/usePlayerViewState";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
@@ -103,7 +102,6 @@ import { buildLiveTableDiceClearEvent, buildLiveTableDiceRollEvent, rollDiceEven
 import { applyDiceSettingsPatch, getEffectiveDiceSettings, loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/dice";
 import { formatUserFacingError } from "../lib/errors";
 import { logRendererError } from "../lib/rendererDiagnostics";
-import { loadImageDimensions } from "../lib/assets";
 import {
   getDirtySceneIdsAfterPreviousPlayerScenePause,
   getPlayerViewOpenOptions,
@@ -581,6 +579,33 @@ export function GmApp() {
     updateCampaignDraft
   });
 
+  const {
+    applyMapCalibration,
+    fitMapToGridFromWizard,
+    applyMapFitPreset,
+    updateSceneGridFromWizard,
+    startMapCalibrationBoxCapture,
+    captureMapCalibrationBox,
+    cancelMapCalibrationBoxCapture
+  } = useMapCalibrationActions({
+    activeScene,
+    campaign,
+    displays,
+    mapAssetPath: getImageMapAssetPath(mapAsset),
+    mapCalibrationBox,
+    playerSceneId,
+    playerViewSyncOptions,
+    run,
+    updateScene,
+    updateWorkspaceCampaignDraft,
+    applyPlayerViewModeState,
+    clearActiveCanvasTools,
+    setError,
+    setMapCalibrationAssistantOpen,
+    setMapCalibrationBox,
+    setMapCalibrationBoxPicking
+  });
+
   const updateDiceSettings = (patch: Partial<DiceSettings>) => {
     const result = applyDiceSettingsPatch(diceSettingsDraftRef.current, patch, campaign, new Date().toISOString());
     diceSettingsDraftRef.current = result.settings;
@@ -813,118 +838,6 @@ export function GmApp() {
     if (!ok) {
       removeRecentCampaignPath(recentCampaignPath);
     }
-  };
-
-  const buildMapCalibratedScene = async (draft: MapCalibrationDraft) => {
-    if (!activeScene) {
-      return null;
-    }
-    if (mapCalibrationBox) {
-      return applyMapCalibrationDraft(activeScene, draft, { calibrationBox: mapCalibrationBox });
-    }
-    const imageMapAssetPath = getImageMapAssetPath(mapAsset);
-    if (draft.alignGridToMap && imageMapAssetPath) {
-      const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(imageMapAssetPath));
-      return applyMapCalibrationDraft(activeScene, draft, { imageDimensions: dimensions });
-    }
-    return applyMapCalibrationDraft(activeScene, draft);
-  };
-
-  const applyMapCalibration = (draft: MapCalibrationDraft) =>
-    run(async () => {
-      const nextScene = await buildMapCalibratedScene(draft);
-      if (!nextScene) {
-        return;
-      }
-      updateScene(nextScene);
-      setMapCalibrationBox(null);
-      setMapCalibrationAssistantOpen(false);
-    });
-
-  const fitMapToGridFromWizard = (columns: number, rows: number, fitMode: WizardMapFitMode) =>
-    run(async () => {
-      const imageMapAssetPath = getImageMapAssetPath(mapAsset);
-      if (!campaign || !activeScene || !imageMapAssetPath) {
-        return;
-      }
-      const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(imageMapAssetPath));
-      const nextScene = buildWizardMapFitScene(
-        activeScene,
-        columns,
-        rows,
-        fitMode,
-        dimensions,
-        getPlayerViewTargetDimensions(campaign.playerDisplay, displays)
-      );
-      updateScene(nextScene);
-      const openResult = await window.localVtt.openPlayerView(getPlayerViewOpenOptions(campaign.playerDisplay));
-      await sendSceneToPlayer(window.localVtt, campaign, nextScene, playerViewSyncOptions);
-      applyPlayerViewModeState("scene", nextScene.id);
-      const warning = getPlayerViewOpenWarning(openResult, campaign.playerDisplay);
-      if (warning) {
-        setError(warning);
-      }
-    });
-
-  const applyMapFitPreset = (fitMode: Exclude<Scene["mapTransform"]["fitMode"], "manual">, gridPatch: Partial<Scene["grid"]> = {}) =>
-    run(async () => {
-      const imageMapAssetPath = getImageMapAssetPath(mapAsset);
-      if (!campaign || !activeScene || !imageMapAssetPath) {
-        return;
-      }
-      const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(imageMapAssetPath));
-      const nextScene = buildMapFitPresetScene(
-        activeScene,
-        fitMode,
-        dimensions,
-        getPlayerViewTargetDimensions(campaign.playerDisplay, displays),
-        gridPatch
-      );
-      updateScene(nextScene);
-      if (playerSceneId === activeScene.id) {
-        await sendSceneToPlayer(window.localVtt, campaign, nextScene, playerViewSyncOptions);
-      }
-    });
-
-  const updateSceneGridFromWizard = (gridType: GridType, sizePx: number, nextDisplay: DisplayCalibration) => {
-    if (!campaign || !activeScene) {
-      return;
-    }
-    const nextCampaign = {
-      ...campaign,
-      playerDisplay: nextDisplay,
-      updatedAt: new Date().toISOString()
-    };
-    const nextScene = {
-      ...activeScene,
-      grid: {
-        ...activeScene.grid,
-        type: gridType,
-        sizePx: Math.max(4, Math.round(sizePx)),
-        showOnPlayer: gridType !== "gridless" ? true : activeScene.grid.showOnPlayer
-      },
-      updatedAt: new Date().toISOString()
-    };
-    updateWorkspaceCampaignDraft(nextCampaign, null);
-    updateScene(nextScene, nextCampaign, nextScene);
-  };
-
-  const startMapCalibrationBoxCapture = () => {
-    setMapCalibrationBox(null);
-    setMapCalibrationBoxPicking(true);
-    setMapCalibrationAssistantOpen(false);
-    clearActiveCanvasTools();
-  };
-
-  const captureMapCalibrationBox = (box: MapCalibrationBox) => {
-    setMapCalibrationBox(box);
-    setMapCalibrationBoxPicking(false);
-    setMapCalibrationAssistantOpen(true);
-  };
-
-  const cancelMapCalibrationBoxCapture = () => {
-    setMapCalibrationBoxPicking(false);
-    setMapCalibrationAssistantOpen(true);
   };
 
   const openSceneDialog = () => {
@@ -1951,14 +1864,4 @@ export function GmApp() {
       {assetPruneResult && <AssetPruneResultDialog result={assetPruneResult} onClose={() => setAssetPruneResult(null)} />}
     </div>
   );
-}
-
-function getPlayerViewTargetDimensions(display: DisplayCalibration, displays: DisplayInfo[]): { width: number; height: number } {
-  const selectedDisplay = displays.find((candidate) => candidate.id === display.selectedDisplayId);
-  const width = selectedDisplay?.bounds.width ?? display.screenResolutionWidth;
-  const height = selectedDisplay?.bounds.height ?? display.screenResolutionHeight;
-  return {
-    width: Math.max(1, width || 1920),
-    height: Math.max(1, height || 1080)
-  };
 }
