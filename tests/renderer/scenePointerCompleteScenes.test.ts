@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createDefaultScene } from "../../src/shared/localvtt";
 import {
   getSceneAfterDrawingTransformPointerComplete,
-  getSceneAfterMaskEffectPointerComplete
+  getSceneAfterMaskEffectPointerComplete,
+  getSceneAfterTokenPointerComplete
 } from "../../src/renderer/components/scene/scenePointerCompleteScenes";
 import type { DrawingTransformPointerCompleteAction } from "../../src/renderer/components/scene/sceneDrawingTransformPointer";
 import type { MaskEffectPointerCompleteAction } from "../../src/renderer/components/scene/sceneMaskEffectPointer";
@@ -52,6 +53,59 @@ describe("scene pointer complete scene helpers", () => {
     expect(effectScene?.environment.effects[0].points).toEqual([{ x: 30, y: 40 }, { x: 130, y: 140 }]);
     expect(effectScene?.weather.masks[0].points).toEqual(scene.weather.masks[0].points);
   });
+
+  it("commits token drag completion and returns the Player View sync scene", () => {
+    const scene = createSceneWithPointerTargets();
+
+    const result = getSceneAfterTokenPointerComplete(
+      scene,
+      {
+        pointerId: 1,
+        tokenId: "token-1",
+        offset: { x: 0, y: 0 },
+        startPosition: { x: 0, y: 0 },
+        waypoints: [{ x: 50, y: 0 }],
+        groupStartPositions: new Map([["token-1", { x: 0, y: 0 }]])
+      },
+      {
+        tokenId: "token-1",
+        startPosition: { x: 0, y: 0 },
+        currentPosition: { x: 100, y: 100 },
+        snappedPosition: { x: 100, y: 100 },
+        waypoints: [{ x: 50, y: 0 }],
+        tokenPositions: new Map([["token-1", { x: 100, y: 100 }]])
+      }
+    );
+
+    expect(result?.scene.tokens[0].position).toEqual({ x: 100, y: 100 });
+    expect(result?.syncScene.tokenMovementPath).toEqual({
+      tokenId: "token-1",
+      points: [
+        { x: 0, y: 0 },
+        { x: 50, y: 0 },
+        { x: 100, y: 100 }
+      ]
+    });
+  });
+
+  it("returns null when token drag completion references a missing token", () => {
+    const scene = createSceneWithPointerTargets();
+
+    expect(
+      getSceneAfterTokenPointerComplete(
+        scene,
+        {
+          pointerId: 1,
+          tokenId: "missing-token",
+          offset: { x: 0, y: 0 },
+          startPosition: { x: 0, y: 0 },
+          waypoints: [],
+          groupStartPositions: new Map()
+        },
+        null
+      )
+    ).toBeNull();
+  });
 });
 
 function createSceneWithPointerTargets() {
@@ -80,6 +134,18 @@ function createSceneWithPointerTargets() {
       kind: "rectangle",
       effect: "fire",
       points: [{ x: 0, y: 0 }, { x: 100, y: 100 }]
+    }
+  ];
+  scene.tokens = [
+    {
+      id: "token-1",
+      name: "Token",
+      assetId: "asset-1",
+      position: { x: 0, y: 0 },
+      size: { width: 50, height: 50 },
+      hidden: false,
+      visibleInGm: true,
+      visibleInPlayer: true
     }
   ];
   return scene;

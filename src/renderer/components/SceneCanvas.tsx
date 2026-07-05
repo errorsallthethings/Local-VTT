@@ -106,10 +106,7 @@ import {
   getTemplatePreviewDrawing
 } from "../canvas/drawings";
 import { getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey } from "../canvas/tokens";
-import {
-  getSceneAfterTokenDrag,
-  getTokenDragWaypointRemovalUpdate
-} from "../canvas/tokens";
+import { getTokenDragWaypointRemovalUpdate } from "../canvas/tokens";
 import { drawTokenDragHighlights, drawTokens, hasVisibleTokenConditions, type TokenDragPreview } from "../canvas/tokens";
 import { clientToWorldPoint, eventToWorldPoint, isSnapModifier } from "../canvas/core";
 import {
@@ -200,7 +197,8 @@ import {
 } from "./scene/sceneDragCommitScenes";
 import {
   getSceneAfterDrawingTransformPointerComplete,
-  getSceneAfterMaskEffectPointerComplete
+  getSceneAfterMaskEffectPointerComplete,
+  getSceneAfterTokenPointerComplete
 } from "./scene/scenePointerCompleteScenes";
 import {
   MapLoadOverlay,
@@ -2012,10 +2010,11 @@ export function SceneCanvas({
     }
     if (tokenDragRef.current?.pointerId === event.pointerId) {
       const tokenDrag = tokenDragRef.current;
-      const token = scene?.tokens.find((candidate) => candidate.id === tokenDrag.tokenId);
-      if (scene && token && onSceneChange) {
-        const result = getSceneAfterTokenDrag(scene, tokenDrag, token, tokenDragPreview);
-        onSceneChange(result.scene, result.syncScene ?? result.scene);
+      if (scene && onSceneChange) {
+        const result = getSceneAfterTokenPointerComplete(scene, tokenDrag, tokenDragPreview);
+        if (result) {
+          onSceneChange(result.scene, result.syncScene);
+        }
       }
       cancelTokenDrag();
     }

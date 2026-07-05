@@ -1,4 +1,6 @@
 import type { Scene } from "../../../shared/localvtt";
+import type { TokenDragState } from "../../canvas/scene";
+import { getSceneAfterTokenDrag, type TokenDragPreview } from "../../canvas/tokens";
 import { updateSceneDrawingPoints, updateSceneEnvironmentEffectPoints, updateSceneWeatherMaskPoints } from "../../lib/scene";
 import type { DrawingTransformPointerCompleteAction } from "./sceneDrawingTransformPointer";
 import type { MaskEffectPointerCompleteAction } from "./sceneMaskEffectPointer";
@@ -17,4 +19,21 @@ export function getSceneAfterMaskEffectPointerComplete(scene: Scene, action: Mas
   }
 
   return null;
+}
+
+export function getSceneAfterTokenPointerComplete(
+  scene: Scene,
+  tokenDrag: TokenDragState,
+  tokenDragPreview: TokenDragPreview | null
+): { scene: Scene; syncScene: Scene } | null {
+  const token = scene.tokens.find((candidate) => candidate.id === tokenDrag.tokenId);
+  if (!token) {
+    return null;
+  }
+
+  const result = getSceneAfterTokenDrag(scene, tokenDrag, token, tokenDragPreview);
+  return {
+    scene: result.scene,
+    syncScene: result.syncScene ?? result.scene
+  };
 }
