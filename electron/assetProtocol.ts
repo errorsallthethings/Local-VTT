@@ -39,7 +39,8 @@ export function getAssetProtocolStatResultFailureResponse(stats: AssetProtocolSt
 export function resolveAssetProtocolRequest(
   requestUrl: string,
   isInsideOpenedCampaign: (candidatePath: string) => boolean,
-  isKnownAssetPath: (candidatePath: string) => boolean
+  isKnownAssetPath: (candidatePath: string) => boolean,
+  isTemporaryExternalAssetPath: (candidatePath: string) => boolean = () => false
 ): AssetProtocolRequestResolution {
   const url = new URL(requestUrl);
   if (url.hostname !== "asset") {
@@ -47,8 +48,8 @@ export function resolveAssetProtocolRequest(
   }
 
   const filePath = path.resolve(decodeURIComponent(url.pathname.slice(1)));
-  void isInsideOpenedCampaign;
-  if (!isKnownAssetPath(filePath)) {
+  const knownCampaignAsset = isInsideOpenedCampaign(filePath) && isKnownAssetPath(filePath);
+  if (!knownCampaignAsset && !isTemporaryExternalAssetPath(filePath)) {
     return { ok: false, response: createAssetProtocolErrorResponse(LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE, 403) };
   }
 

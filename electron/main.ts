@@ -231,14 +231,14 @@ function registerAssetPaths(campaign: Campaign): void {
 
 function registerStagedTokenImport(stagedImport: { assetId: string; sourcePath: string; campaignPath: string; finalRelativePath: string; createdAt: string }): void {
   stagedTokenImports.set(stagedImport.assetId, stagedImport);
-  campaignSessions.registerAssetPath(stagedImport.sourcePath);
+  campaignSessions.registerTemporaryExternalAssetPath(stagedImport.sourcePath);
 }
 
 function consumeStagedTokenImport(assetId: string): { campaignPath: string; sourcePath: string; assetId: string; finalRelativePath: string; createdAt: string } | null {
   const stagedImport = stagedTokenImports.get(assetId) ?? null;
   if (stagedImport) {
     stagedTokenImports.delete(assetId);
-    campaignSessions.unregisterAssetPath(stagedImport.sourcePath);
+    campaignSessions.unregisterTemporaryExternalAssetPath(stagedImport.sourcePath);
   }
   return stagedImport;
 }
@@ -257,6 +257,10 @@ function isInsideOpenedCampaign(candidatePath: string): boolean {
 
 function isKnownAssetPath(candidatePath: string): boolean {
   return campaignSessions.isKnownAssetPath(candidatePath);
+}
+
+function isTemporaryExternalAssetPath(candidatePath: string): boolean {
+  return campaignSessions.isTemporaryExternalAssetPath(candidatePath);
 }
 
 async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSummary> {
@@ -417,7 +421,7 @@ async function createTokenThumbnail(campaignPath: string, sourcePath: string, as
 
 app.whenReady().then(() => {
   protocol.handle("localvtt", async (request) => {
-    const resolvedRequest = resolveAssetProtocolRequest(request.url, isInsideOpenedCampaign, isKnownAssetPath);
+    const resolvedRequest = resolveAssetProtocolRequest(request.url, isInsideOpenedCampaign, isKnownAssetPath, isTemporaryExternalAssetPath);
     if (!resolvedRequest.ok) {
       return resolvedRequest.response;
     }

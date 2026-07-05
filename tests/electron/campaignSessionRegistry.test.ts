@@ -56,7 +56,17 @@ describe("CampaignSessionRegistry", () => {
     registry.registerAssetPath(assetPath);
 
     expect(registry.isKnownAssetPath(path.resolve(assetPath))).toBe(true);
-    registry.unregisterAssetPath(assetPath);
+  });
+
+  it("tracks temporary external asset paths separately from campaign asset paths", () => {
+    const registry = new CampaignSessionRegistry();
+    const assetPath = path.join("outside-source", "hero.png");
+
+    registry.registerTemporaryExternalAssetPath(assetPath);
+
     expect(registry.isKnownAssetPath(path.resolve(assetPath))).toBe(false);
+    expect(registry.isTemporaryExternalAssetPath(path.resolve(assetPath))).toBe(true);
+    registry.unregisterTemporaryExternalAssetPath(assetPath);
+    expect(registry.isTemporaryExternalAssetPath(path.resolve(assetPath))).toBe(false);
   });
 });

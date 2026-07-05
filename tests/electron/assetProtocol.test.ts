@@ -76,9 +76,10 @@ describe("asset protocol responses", () => {
     }
   });
 
-  it("rejects unknown asset paths", async () => {
+  it("rejects unknown asset paths and registered paths outside opened campaigns", async () => {
     for (const resolution of [
-      resolveAssetProtocolRequest("localvtt://asset/C%3A%2FCampaign%2Fmap.png", () => true, () => false)
+      resolveAssetProtocolRequest("localvtt://asset/C%3A%2FCampaign%2Fmap.png", () => true, () => false),
+      resolveAssetProtocolRequest("localvtt://asset/C%3A%2FOutside%2Fmap.png", () => false, () => true)
     ]) {
       expect(resolution.ok).toBe(false);
       if (!resolution.ok) {
@@ -89,11 +90,20 @@ describe("asset protocol responses", () => {
   });
 
   it("resolves registered asset request file paths", () => {
-    const resolution = resolveAssetProtocolRequest("localvtt://asset/C%3A%2FCampaign%2Fassets%2Fmaps%2Fdungeon.png", () => false, () => true);
+    const resolution = resolveAssetProtocolRequest("localvtt://asset/C%3A%2FCampaign%2Fassets%2Fmaps%2Fdungeon.png", () => true, () => true);
 
     expect(resolution).toMatchObject({
       ok: true,
       filePath: expect.stringContaining("Campaign")
+    });
+  });
+
+  it("resolves explicitly temporary external asset paths", () => {
+    const resolution = resolveAssetProtocolRequest("localvtt://asset/C%3A%2FImports%2Fhero.png", () => false, () => false, () => true);
+
+    expect(resolution).toMatchObject({
+      ok: true,
+      filePath: expect.stringContaining("Imports")
     });
   });
 });

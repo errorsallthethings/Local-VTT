@@ -7,6 +7,7 @@ import { isInsidePath } from "./campaignPathSafety.js";
 export class CampaignSessionRegistry {
   private readonly openedCampaignPaths = new Set<string>();
   private readonly knownAssetPaths = new Set<string>();
+  private readonly temporaryExternalAssetPaths = new Set<string>();
 
   registerCampaignPath(campaignPath: string): void {
     this.openedCampaignPaths.add(path.resolve(campaignPath));
@@ -22,8 +23,12 @@ export class CampaignSessionRegistry {
     this.knownAssetPaths.add(path.resolve(assetPath));
   }
 
-  unregisterAssetPath(assetPath: string): void {
-    this.knownAssetPaths.delete(path.resolve(assetPath));
+  registerTemporaryExternalAssetPath(assetPath: string): void {
+    this.temporaryExternalAssetPaths.add(path.resolve(assetPath));
+  }
+
+  unregisterTemporaryExternalAssetPath(assetPath: string): void {
+    this.temporaryExternalAssetPaths.delete(path.resolve(assetPath));
   }
 
   assertKnownCampaignPath(campaignPath: string): void {
@@ -38,5 +43,9 @@ export class CampaignSessionRegistry {
 
   isKnownAssetPath(candidatePath: string): boolean {
     return this.knownAssetPaths.has(path.resolve(candidatePath));
+  }
+
+  isTemporaryExternalAssetPath(candidatePath: string): boolean {
+    return this.temporaryExternalAssetPaths.has(path.resolve(candidatePath));
   }
 }
