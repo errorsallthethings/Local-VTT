@@ -33,6 +33,45 @@ export function getMapAssetDeleteSceneUpdate(
   };
 }
 
+export interface MapAssetDeleteCompletion {
+  activeScene: Scene;
+  sceneDrafts: Record<string, Scene>;
+  dirtySceneIds: Set<string>;
+  cleanScene: Scene | null;
+}
+
+export function getMapAssetDeleteCompletion({
+  activeScene,
+  savedScene,
+  wasDirty,
+  updatedAt,
+  sceneDrafts,
+  dirtySceneIds
+}: {
+  activeScene: Scene;
+  savedScene: Scene;
+  wasDirty: boolean;
+  updatedAt: string;
+  sceneDrafts: Record<string, Scene>;
+  dirtySceneIds: ReadonlySet<string>;
+}): MapAssetDeleteCompletion {
+  const update = getMapAssetDeleteSceneUpdate(activeScene, savedScene, wasDirty, updatedAt);
+  const nextSceneDrafts = { ...sceneDrafts };
+  const nextDirtySceneIds = new Set(dirtySceneIds);
+
+  if (update.draftScene) {
+    nextSceneDrafts[update.draftScene.id] = update.draftScene;
+    nextDirtySceneIds.add(update.draftScene.id);
+  }
+
+  return {
+    activeScene: update.activeScene,
+    sceneDrafts: nextSceneDrafts,
+    dirtySceneIds: nextDirtySceneIds,
+    cleanScene: update.cleanScene
+  };
+}
+
 export function getSceneDraftsAfterTokenAssetDelete(
   sceneDrafts: Record<string, Scene>,
   deletedAssetId: string

@@ -15,7 +15,7 @@ import {
   getDuplicateSceneName,
   getDirtySceneIdsInFolder,
   getCampaignMaintenanceInitialBusyState,
-  getMapAssetDeleteSceneUpdate,
+  getMapAssetDeleteCompletion,
   getThumbnailRegenerationBusyState,
   completeCampaignMaintenance,
   openSavedCampaignHealth,
@@ -438,15 +438,19 @@ export function useCampaignActions({
       const wasDirty = dirtySceneIds.has(activeScene.id);
       const result = await window.localVtt.deleteMapAsset(campaignPath, activeScene.id, mapAssetToDelete.id);
       applySummary(result.campaignSummary, campaignDirty);
-      const sceneUpdate = getMapAssetDeleteSceneUpdate(activeScene, result.scene, wasDirty, new Date().toISOString());
-      setActiveScene(sceneUpdate.activeScene);
-      const draftScene = sceneUpdate.draftScene;
-      if (draftScene) {
-        setSceneDrafts((drafts) => ({ ...drafts, [draftScene.id]: draftScene }));
-        setDirtySceneIds((ids) => new Set(ids).add(draftScene.id));
-      }
-      if (sceneUpdate.cleanScene) {
-        setSceneClean(sceneUpdate.cleanScene);
+      const completion = getMapAssetDeleteCompletion({
+        activeScene,
+        savedScene: result.scene,
+        wasDirty,
+        updatedAt: new Date().toISOString(),
+        sceneDrafts,
+        dirtySceneIds
+      });
+      setActiveScene(completion.activeScene);
+      setSceneDrafts(completion.sceneDrafts);
+      setDirtySceneIds(completion.dirtySceneIds);
+      if (completion.cleanScene) {
+        setSceneClean(completion.cleanScene);
       }
       onMapAssetDeleteHandled();
     });

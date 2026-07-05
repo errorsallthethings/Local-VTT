@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene, type Scene, type Token } from "../../src/shared/localvtt";
 import {
+  getMapAssetDeleteCompletion,
   getActiveSceneAfterTokenAssetDelete,
   getMapAssetDeleteSceneUpdate,
   getSceneDraftsAfterTokenAssetDelete,
@@ -51,6 +52,39 @@ describe("campaign asset deletion helpers", () => {
     expect(update.activeScene).toMatchObject({ id: "scene-1", name: "Dirty", mapAssetId: undefined, updatedAt: now });
     expect(update.draftScene).toBe(update.activeScene);
     expect(update.cleanScene).toBeNull();
+  });
+
+  it("builds complete map asset delete state for clean and dirty scenes", () => {
+    const otherDraft = scene("scene-2");
+    const activeScene = { ...scene("scene-1"), mapAssetId: "map-1", name: "Dirty" };
+    const savedScene = { ...scene("scene-1"), mapAssetId: undefined, name: "Saved" };
+    const clean = getMapAssetDeleteCompletion({
+      activeScene,
+      savedScene,
+      wasDirty: false,
+      updatedAt: now,
+      sceneDrafts: { "scene-2": otherDraft },
+      dirtySceneIds: new Set(["scene-2"])
+    });
+
+    expect(clean.activeScene).toBe(savedScene);
+    expect(clean.cleanScene).toBe(savedScene);
+    expect(clean.sceneDrafts).toEqual({ "scene-2": otherDraft });
+    expect([...clean.dirtySceneIds]).toEqual(["scene-2"]);
+
+    const dirty = getMapAssetDeleteCompletion({
+      activeScene,
+      savedScene,
+      wasDirty: true,
+      updatedAt: now,
+      sceneDrafts: { "scene-2": otherDraft },
+      dirtySceneIds: new Set(["scene-2"])
+    });
+
+    expect(dirty.activeScene).toMatchObject({ id: "scene-1", name: "Dirty", mapAssetId: undefined, updatedAt: now });
+    expect(dirty.cleanScene).toBeNull();
+    expect(dirty.sceneDrafts["scene-1"]).toBe(dirty.activeScene);
+    expect([...dirty.dirtySceneIds].sort()).toEqual(["scene-1", "scene-2"]);
   });
 
   it("removes deleted token asset references from scene drafts", () => {
