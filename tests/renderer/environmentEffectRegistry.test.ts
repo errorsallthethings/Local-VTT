@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ENVIRONMENT_EFFECT_TYPES, formatEnvironmentEffectName } from "../../src/shared/environmentEffectCatalog";
 import type { EnvironmentEffectType } from "../../src/shared/localvtt";
 import {
   ENVIRONMENT_EFFECT_OPTIONS,
@@ -38,6 +39,7 @@ describe("environment effect registry", () => {
   it("registers every effect used by the Effects Tools dropdown", () => {
     expect(ENVIRONMENT_EFFECT_OPTIONS.map((option) => option.value)).toEqual(EXPECTED_ENVIRONMENT_EFFECTS);
     expect(Object.keys(ENVIRONMENT_EFFECT_REGISTRY).sort()).toEqual([...EXPECTED_ENVIRONMENT_EFFECTS].sort());
+    expect([...ENVIRONMENT_EFFECT_OPTIONS.map((option) => option.value)].sort()).toEqual([...ENVIRONMENT_EFFECT_TYPES].sort());
   });
 
   it("keeps effect metadata available through one registry entry", () => {
@@ -49,6 +51,13 @@ describe("environment effect registry", () => {
       expect(entry.presetOptions[0]).toEqual({ label: "Custom", value: "custom" });
       expect(entry.canvasStyle.previewFill).toBeTruthy();
       expect(entry.canvasStyle.stroke).toBeTruthy();
+    }
+  });
+
+  it("uses the shared effect names for renderer labels", () => {
+    for (const option of ENVIRONMENT_EFFECT_OPTIONS) {
+      expect(option.label).toBe(formatEnvironmentEffectName(option.value));
+      expect(ENVIRONMENT_EFFECT_REGISTRY[option.value].label).toBe(formatEnvironmentEffectName(option.value));
     }
   });
 
