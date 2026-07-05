@@ -19,10 +19,8 @@ import type {
   CampaignSummary,
   CampaignSceneEntry,
   CampaignSceneFolder,
-  DisplayCalibration,
   DiceSettings,
   LiveTableEvent,
-  PlayerViewTestPattern,
   Point,
   Scene,
   ThumbnailRegenerationResult,
@@ -77,6 +75,7 @@ import { useGmToolOptions } from "../hooks/useGmToolOptions";
 import { useGmToolSelection } from "../hooks/useGmToolSelection";
 import { useMapCalibrationActions } from "../hooks/useMapCalibrationActions";
 import { usePlayerDisplayActions } from "../hooks/usePlayerDisplayActions";
+import { usePlayerViewActions } from "../hooks/usePlayerViewActions";
 import { shouldShowPlayerHoldAfterSceneDelete, usePlayerViewState } from "../hooks/usePlayerViewState";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { useSceneSelection } from "../hooks/useSceneSelection";
@@ -103,17 +102,9 @@ import { applyDiceSettingsPatch, getEffectiveDiceSettings, loadDiceSettingsPrefe
 import { formatUserFacingError } from "../lib/errors";
 import { logRendererError } from "../lib/rendererDiagnostics";
 import {
-  getDirtySceneIdsAfterPreviousPlayerScenePause,
-  getPlayerViewOpenOptions,
-  getPlayerViewOpenWarning,
-  getPreviousPlayerScenePauseUpdate,
-  getPlayerTestPatternState,
   getPlayerViewModeState,
-  getSceneDraftsAfterPreviousPlayerScenePause,
-  showDefaultPlayerHold,
-  showPlayerBlackout as sendPlayerBlackout
 } from "../lib/player-view";
-import { sendSceneToPlayer, updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
+import { updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
 import {
   getCollapsedFolderIds,
   pruneExpandedFolderIds,
@@ -606,6 +597,30 @@ export function GmApp() {
     setMapCalibrationBoxPicking
   });
 
+  const {
+    sendToPlayer,
+    setPlayerFullscreen,
+    closePlayerView,
+    showPlayerHold,
+    showPlayerBlackout,
+    showPlayerTestPattern,
+    showPlayerIdle
+  } = usePlayerViewActions({
+    activeScene,
+    campaign,
+    campaignPath,
+    displays,
+    playerSceneId,
+    playerViewSyncOptions,
+    sceneDrafts,
+    run,
+    applyPlayerViewModeState,
+    setDirtySceneIds,
+    setError,
+    setPlayerMenuOpen,
+    setSceneDrafts
+  });
+
   const updateDiceSettings = (patch: Partial<DiceSettings>) => {
     const result = applyDiceSettingsPatch(diceSettingsDraftRef.current, patch, campaign, new Date().toISOString());
     diceSettingsDraftRef.current = result.settings;
@@ -1085,73 +1100,6 @@ export function GmApp() {
     }
     updateCampaignDraft(nextCampaign);
     setCampaignNameDialogOpen(false);
-  };
-
-  const sendToPlayer = () =>
-    run(async () => {
-      if (!campaign || !activeScene) {
-        return;
-      }
-      if (campaignPath && playerSceneId && playerSceneId !== activeScene.id) {
-        const previousPlayerScene = sceneDrafts[playerSceneId] ?? (await window.localVtt.loadScene(campaignPath, playerSceneId));
-        const pausedPreviousScene = getPreviousPlayerScenePauseUpdate({
-          previousPlayerScene,
-          previousPlayerSceneId: playerSceneId,
-          nextPlayerSceneId: activeScene.id,
-          updatedAt: new Date().toISOString()
-        });
-        if (pausedPreviousScene) {
-          setSceneDrafts((drafts) => getSceneDraftsAfterPreviousPlayerScenePause(drafts, pausedPreviousScene));
-          setDirtySceneIds((ids) => getDirtySceneIdsAfterPreviousPlayerScenePause(ids, pausedPreviousScene));
-        }
-      }
-      const openResult = await window.localVtt.openPlayerView(getPlayerViewOpenOptions(campaign.playerDisplay));
-      await sendSceneToPlayer(window.localVtt, campaign, activeScene, playerViewSyncOptions);
-      applyPlayerViewModeState("scene", activeScene.id, false);
-      const warning = getPlayerViewOpenWarning(openResult, campaign.playerDisplay);
-      if (warning) {
-        setError(warning);
-      }
-    });
-
-  const setPlayerFullscreen = (fullscreen: boolean) =>
-    run(async () => {
-      await window.localVtt.setPlayerFullscreen(fullscreen);
-      setPlayerMenuOpen(false);
-    });
-
-  const closePlayerView = () =>
-    run(async () => {
-      await window.localVtt.closePlayerView();
-      applyPlayerViewModeState("scene");
-    });
-
-  const showPlayerHold = () =>
-    run(async () => {
-      await showDefaultPlayerHold();
-      applyPlayerViewModeState("hold");
-    });
-
-  const showPlayerBlackout = () =>
-    run(async () => {
-      await sendPlayerBlackout();
-      applyPlayerViewModeState("blackout");
-    });
-
-  const showPlayerTestPattern = async (gridMode: PlayerViewTestPattern["gridMode"], display: DisplayCalibration, cellSizePx: number) =>
-    run(async () => {
-      const openResult = await window.localVtt.openPlayerView(getPlayerViewOpenOptions(display));
-      await window.localVtt.showPlayerTestPattern(getPlayerTestPatternState(gridMode, display, cellSizePx, displays));
-      applyPlayerViewModeState("test-pattern");
-      const warning = getPlayerViewOpenWarning(openResult, display);
-      if (warning) {
-        setError(warning);
-      }
-    });
-
-  const showPlayerIdle = async () => {
-    await showDefaultPlayerHold();
-    applyPlayerViewModeState("hold");
   };
 
   const confirmDeleteScene = (scene: CampaignSceneEntry) =>
