@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ENVIRONMENT_EFFECT_TYPES, formatEnvironmentEffectName } from "../../src/shared/environmentEffectCatalog";
 import type { EnvironmentEffectType } from "../../src/shared/localvtt";
 import {
   ENVIRONMENT_EFFECT_OPTIONS,
   ENVIRONMENT_EFFECT_REGISTRY,
+  applyEnvironmentEffectPreset,
   formatEnvironmentEffectTuningNumber,
   formatEnvironmentEffectOptionLabel,
   getEnvironmentEffectPresetOptions,
@@ -72,6 +73,18 @@ describe("environment effect registry", () => {
     }
   });
 
+  it("keeps every visible preset option wired to an effect preset", () => {
+    for (const effect of EXPECTED_ENVIRONMENT_EFFECTS) {
+      for (const option of getEnvironmentEffectPresetOptions(effect).filter((presetOption) => presetOption.value !== "custom")) {
+        const handlers = presetChangeHandlers();
+
+        applyEnvironmentEffectPreset(effect, option.value, handlers);
+
+        expect(getPresetHandlerCallCount(handlers), `${effect}:${option.value}`).toBe(1);
+      }
+    }
+  });
+
   it("formats tuning numbers for compact slider readouts", () => {
     expect(formatEnvironmentEffectTuningNumber(2)).toBe("2");
     expect(formatEnvironmentEffectTuningNumber(0.5)).toBe("0.5");
@@ -88,3 +101,32 @@ describe("environment effect registry", () => {
     expect(getEnvironmentEffectTuningReadout({ opacity: 0.5, color: "#ffffff" })).toBe("{\"opacity\":0.5,\"color\":\"#ffffff\"}");
   });
 });
+
+type EnvironmentEffectPresetHandlers = Parameters<typeof applyEnvironmentEffectPreset>[2];
+
+function presetChangeHandlers(): EnvironmentEffectPresetHandlers {
+  return {
+    onAcidEffectTuningChange: vi.fn(),
+    onColdEffectTuningChange: vi.fn(),
+    onDarknessEffectTuningChange: vi.fn(),
+    onPoisonEffectTuningChange: vi.fn(),
+    onWaterEffectTuningChange: vi.fn(),
+    onLavaEffectTuningChange: vi.fn(),
+    onFireEffectTuningChange: vi.fn(),
+    onLightningEffectTuningChange: vi.fn(),
+    onArcaneEffectTuningChange: vi.fn(),
+    onChaosEffectTuningChange: vi.fn(),
+    onVoidEffectTuningChange: vi.fn(),
+    onNatureEffectTuningChange: vi.fn(),
+    onDistortionEffectTuningChange: vi.fn(),
+    onRadiantEffectTuningChange: vi.fn(),
+    onForceFieldEffectTuningChange: vi.fn(),
+    onShockwaveEffectTuningChange: vi.fn(),
+    onSmokeEffectTuningChange: vi.fn(),
+    onFogEffectTuningChange: vi.fn()
+  };
+}
+
+function getPresetHandlerCallCount(handlers: EnvironmentEffectPresetHandlers): number {
+  return Object.values(handlers).reduce((count, handler) => count + vi.mocked(handler).mock.calls.length, 0);
+}
