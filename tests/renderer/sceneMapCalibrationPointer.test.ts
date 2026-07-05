@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getMapCalibrationPointerComplete,
+  getMapCalibrationPointerCompleteAction,
   getMapCalibrationPointerMove,
   getMapCalibrationPointerMoveAction,
   getMapCalibrationPointerStart
@@ -102,5 +103,26 @@ describe("scene map calibration pointer helpers", () => {
     expect(getMapCalibrationPointerComplete(activeDrag, 99, null)).toBeNull();
     expect(getMapCalibrationPointerComplete(tinyDrag, 4, null)).toBeNull();
     expect(getMapCalibrationPointerComplete(activeDrag, 4, null)).toEqual({ x: 10, y: 20, width: 40, height: 40 });
+  });
+
+  it("maps calibration pointer completion to SceneCanvas actions", () => {
+    const activeDrag = {
+      pointerId: 4,
+      mode: "draw" as const,
+      start: { x: 10, y: 20 },
+      current: { x: 50, y: 55 }
+    };
+    const tinyDrag = {
+      ...activeDrag,
+      current: { x: 11, y: 21 }
+    };
+
+    expect(getMapCalibrationPointerCompleteAction(null, 4, null)).toEqual({ kind: "none" });
+    expect(getMapCalibrationPointerCompleteAction(activeDrag, 99, null)).toEqual({ kind: "none" });
+    expect(getMapCalibrationPointerCompleteAction(tinyDrag, 4, null)).toEqual({ kind: "finish", draftBox: null });
+    expect(getMapCalibrationPointerCompleteAction(activeDrag, 4, null)).toEqual({
+      kind: "finish",
+      draftBox: { x: 10, y: 20, width: 40, height: 40 }
+    });
   });
 });

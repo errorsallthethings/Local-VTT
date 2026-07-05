@@ -73,13 +73,13 @@ import {
 } from "../canvas/measurement";
 import {
   getSceneCanvasRenderPlan,
-  getDrawingDragCommit,
+  getDrawingDragCommitAction,
   getDrawingPolygonDraftCommit,
-  getEnvironmentEffectDragCommit,
+  getEnvironmentEffectDragCommitAction,
   getEnvironmentPolygonDraftCommit,
-  getFogDragCommit,
+  getFogDragCommitAction,
   getFogPolygonDraftCommit,
-  getWeatherMaskDragCommit,
+  getWeatherMaskDragCommitAction,
   getWeatherPolygonDraftCommit,
   type DrawingContextMenu,
   type EnvironmentEffectContextMenu,
@@ -218,16 +218,17 @@ import { getFogPointerMove, getFogPointerMoveAction, getFogPointerStart } from "
 import {
   getEnvironmentEffectHitPointerStart,
   getMaskEffectPointerComplete,
+  getMaskEffectPointerCompleteAction,
   getMaskEffectPointerMove,
   getMaskEffectPointerMoveAction,
   getMaskPointerStart,
   type EnvironmentEffectMoveState,
   type WeatherMaskMoveState
 } from "./scene/sceneMaskEffectPointer";
-import { getMapCalibrationPointerComplete, getMapCalibrationPointerMove, getMapCalibrationPointerMoveAction, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
+import { getMapCalibrationPointerCompleteAction, getMapCalibrationPointerMove, getMapCalibrationPointerMoveAction, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
 import { getRulerPointerMoveAction, getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
 import { getTokenPointerMove, getTokenPointerMoveAction, getTokenPointerStart } from "./scene/sceneTokenPointer";
-import { getDrawingTransformPointerComplete, getDrawingTransformPointerMove, getDrawingTransformPointerMoveAction, getDrawingTransformPointerStart } from "./scene/sceneDrawingTransformPointer";
+import { getDrawingTransformPointerComplete, getDrawingTransformPointerCompleteAction, getDrawingTransformPointerMove, getDrawingTransformPointerMoveAction, getDrawingTransformPointerStart } from "./scene/sceneDrawingTransformPointer";
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
@@ -1803,11 +1804,13 @@ export function SceneCanvas({
 
     const mapCalibrationDragValue = mapCalibrationDragRef.current;
     if (pointerUpRoute === "map-calibration" && mapCalibrationDragValue) {
-      mapCalibrationDragRef.current = null;
-      setMapCalibrationDrag(null);
-      const box = getMapCalibrationPointerComplete(mapCalibrationDragValue, event.pointerId, mapCalibrationDraftBox);
-      if (box) {
-        setMapCalibrationDraftBox(box);
+      const action = getMapCalibrationPointerCompleteAction(mapCalibrationDragValue, event.pointerId, mapCalibrationDraftBox);
+      if (action.kind === "finish") {
+        mapCalibrationDragRef.current = null;
+        setMapCalibrationDrag(null);
+        if (action.draftBox) {
+          setMapCalibrationDraftBox(action.draftBox);
+        }
       }
       return;
     }
@@ -1816,9 +1819,9 @@ export function SceneCanvas({
     if (pointerUpRoute === "drawing" && drawingDrag) {
       clearDrawingPreview();
       if (scene && onSceneChange) {
-        const drawing = getDrawingDragCommit(scene, drawingDrag, crypto.randomUUID());
-        if (drawing) {
-          onSceneChange(addSceneDrawing(scene, drawing));
+        const action = getDrawingDragCommitAction(scene, drawingDrag, crypto.randomUUID());
+        if (action.kind === "commit-drawing") {
+          onSceneChange(addSceneDrawing(scene, action.drawing));
         }
       }
       return;
@@ -1828,9 +1831,9 @@ export function SceneCanvas({
     if (pointerUpRoute === "weather-mask" && weatherMaskDrag) {
       clearWeatherMaskPreview();
       if (scene && onSceneChange) {
-        const mask = getWeatherMaskDragCommit(scene, weatherMaskDrag, crypto.randomUUID());
-        if (mask) {
-          onSceneChange(addSceneWeatherMask(scene, mask));
+        const action = getWeatherMaskDragCommitAction(scene, weatherMaskDrag, crypto.randomUUID());
+        if (action.kind === "commit-weather-mask") {
+          onSceneChange(addSceneWeatherMask(scene, action.mask));
         }
       }
       return;
@@ -1840,9 +1843,9 @@ export function SceneCanvas({
     if (pointerUpRoute === "environment-effect" && environmentEffectDrag) {
       clearEnvironmentEffectPreview();
       if (scene && onSceneChange) {
-        const effect = getEnvironmentEffectDragCommit(scene, environmentEffectDrag, crypto.randomUUID(), currentEnvironmentEffectTuning);
-        if (effect) {
-          onSceneChange(addEnvironmentEffect(scene, effect));
+        const action = getEnvironmentEffectDragCommitAction(scene, environmentEffectDrag, crypto.randomUUID(), currentEnvironmentEffectTuning);
+        if (action.kind === "commit-environment-effect") {
+          onSceneChange(addEnvironmentEffect(scene, action.effect));
         }
       }
       return;
@@ -1852,9 +1855,9 @@ export function SceneCanvas({
     if (pointerUpRoute === "fog" && fogDrag) {
       clearFogPreview();
       if (scene && onSceneChange) {
-        const commit = getFogDragCommit(scene, fogDrag, crypto.randomUUID());
-        if (commit) {
-          onSceneChange(addSceneFogShape(scene, commit.shape, commit.fogPatch));
+        const action = getFogDragCommitAction(scene, fogDrag, crypto.randomUUID());
+        if (action.kind === "commit-fog") {
+          onSceneChange(addSceneFogShape(scene, action.shape, action.fogPatch));
         }
       }
       return;
@@ -1876,52 +1879,56 @@ export function SceneCanvas({
     }
 
     if (pointerUpRoute === "drawing-transform") {
-      const drawingTransformComplete = getDrawingTransformPointerComplete({
-        dragState: drawingDragRef.current,
-        pointerId: event.pointerId,
-        preview: drawingDragPreview,
-        resizeState: drawingResizeRef.current,
-        rotateState: drawingRotateRef.current
-      });
-      if (!drawingTransformComplete) {
+      const action = getDrawingTransformPointerCompleteAction(
+        getDrawingTransformPointerComplete({
+          dragState: drawingDragRef.current,
+          pointerId: event.pointerId,
+          preview: drawingDragPreview,
+          resizeState: drawingResizeRef.current,
+          rotateState: drawingRotateRef.current
+        })
+      );
+      if (action.kind === "none") {
         return;
       }
-      if (scene && onSceneChange && drawingTransformComplete.preview) {
-        onSceneChange(updateSceneDrawingPoints(scene, drawingTransformComplete.preview));
+      if (scene && onSceneChange && action.preview) {
+        onSceneChange(updateSceneDrawingPoints(scene, action.preview));
       }
-      if (drawingTransformComplete.kind === "move") {
+      if (action.kind === "commit-move") {
         drawingDragRef.current = null;
-      } else if (drawingTransformComplete.kind === "resize") {
+      } else if (action.kind === "commit-resize") {
         drawingResizeRef.current = null;
       } else {
         drawingRotateRef.current = null;
       }
       setDrawingDragPreview(null);
-      if (drawingTransformComplete.clearSnapPoint) {
+      if (action.clearSnapPoint) {
         setSnapPoint(null);
       }
       return;
     }
 
     if (pointerUpRoute === "mask-effect") {
-      const maskEffectComplete = getMaskEffectPointerComplete({
-        environmentEffectMoveState: environmentEffectMoveRef.current,
-        environmentEffectPreview: environmentEffectMovePreview,
-        pointerId: event.pointerId,
-        weatherMaskMoveState: weatherMaskMoveRef.current,
-        weatherMaskPreview: weatherMaskMovePreview
-      });
-      if (maskEffectComplete?.kind === "weather") {
-        if (scene && onSceneChange && maskEffectComplete.preview) {
-          onSceneChange(updateSceneWeatherMaskPoints(scene, maskEffectComplete.preview));
+      const action = getMaskEffectPointerCompleteAction(
+        getMaskEffectPointerComplete({
+          environmentEffectMoveState: environmentEffectMoveRef.current,
+          environmentEffectPreview: environmentEffectMovePreview,
+          pointerId: event.pointerId,
+          weatherMaskMoveState: weatherMaskMoveRef.current,
+          weatherMaskPreview: weatherMaskMovePreview
+        })
+      );
+      if (action.kind === "commit-weather") {
+        if (scene && onSceneChange && action.preview) {
+          onSceneChange(updateSceneWeatherMaskPoints(scene, action.preview));
         }
         cancelWeatherMaskMove();
         return;
       }
 
-      if (maskEffectComplete?.kind === "environment-effect") {
-        if (scene && onSceneChange && maskEffectComplete.preview) {
-          onSceneChange(updateSceneEnvironmentEffectPoints(scene, maskEffectComplete.preview));
+      if (action.kind === "commit-environment-effect") {
+        if (scene && onSceneChange && action.preview) {
+          onSceneChange(updateSceneEnvironmentEffectPoints(scene, action.preview));
         }
         cancelEnvironmentEffectMove();
         return;

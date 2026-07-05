@@ -66,3 +66,22 @@ export function getMapCalibrationPointerComplete(
 
   return getCompletedMapCalibrationBox(activeDrag, fallback);
 }
+
+export type MapCalibrationPointerCompleteAction =
+  | { kind: "finish"; draftBox: MapCalibrationBox | null }
+  | { kind: "none" };
+
+export function getMapCalibrationPointerCompleteAction(
+  activeDrag: MapCalibrationDrag | null,
+  pointerId: number,
+  fallback: MapCalibrationBox | null
+): MapCalibrationPointerCompleteAction {
+  if (!activeDrag || activeDrag.pointerId !== pointerId) {
+    return { kind: "none" };
+  }
+
+  return {
+    kind: "finish",
+    draftBox: getCompletedMapCalibrationBox(activeDrag, fallback)
+  };
+}

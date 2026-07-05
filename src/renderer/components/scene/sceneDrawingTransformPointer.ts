@@ -233,3 +233,37 @@ export function getDrawingTransformPointerComplete(options: DrawingTransformPoin
 
   return null;
 }
+
+export type DrawingTransformPointerCompleteAction =
+  | { kind: "commit-move"; preview: DrawingPointOverrides | null; clearSnapPoint: true }
+  | { kind: "commit-resize"; preview: DrawingPointOverrides | null; clearSnapPoint: false }
+  | { kind: "commit-rotate"; preview: DrawingPointOverrides | null; clearSnapPoint: false }
+  | { kind: "none" };
+
+export function getDrawingTransformPointerCompleteAction(complete: DrawingTransformPointerComplete | null): DrawingTransformPointerCompleteAction {
+  if (!complete) {
+    return { kind: "none" };
+  }
+
+  if (complete.kind === "move") {
+    return {
+      kind: "commit-move",
+      preview: complete.preview,
+      clearSnapPoint: complete.clearSnapPoint
+    };
+  }
+
+  if (complete.kind === "resize") {
+    return {
+      kind: "commit-resize",
+      preview: complete.preview,
+      clearSnapPoint: complete.clearSnapPoint
+    };
+  }
+
+  return {
+    kind: "commit-rotate",
+    preview: complete.preview,
+    clearSnapPoint: complete.clearSnapPoint
+  };
+}

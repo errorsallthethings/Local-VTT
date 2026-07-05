@@ -199,3 +199,26 @@ export function getMaskEffectPointerComplete(options: MaskEffectPointerCompleteO
 
   return null;
 }
+
+export type MaskEffectPointerCompleteAction =
+  | { kind: "commit-weather"; preview: Map<string, Point[]> | null }
+  | { kind: "commit-environment-effect"; preview: Map<string, Point[]> | null }
+  | { kind: "none" };
+
+export function getMaskEffectPointerCompleteAction(complete: MaskEffectPointerComplete | null): MaskEffectPointerCompleteAction {
+  if (!complete) {
+    return { kind: "none" };
+  }
+
+  if (complete.kind === "weather") {
+    return {
+      kind: "commit-weather",
+      preview: complete.preview
+    };
+  }
+
+  return {
+    kind: "commit-environment-effect",
+    preview: complete.preview
+  };
+}

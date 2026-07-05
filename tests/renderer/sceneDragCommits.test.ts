@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import { createDefaultScene } from "../../src/shared/localvtt";
 import {
   getDrawingDragCommit,
+  getDrawingDragCommitAction,
   getEnvironmentEffectDragCommit,
+  getEnvironmentEffectDragCommitAction,
   getFogDragCommit,
-  getWeatherMaskDragCommit
+  getFogDragCommitAction,
+  getWeatherMaskDragCommit,
+  getWeatherMaskDragCommitAction
 } from "../../src/renderer/canvas/scene";
 import type { DrawingPreview } from "../../src/renderer/canvas/drawings";
 import type { EnvironmentEffectDrag } from "../../src/renderer/canvas/effects";
@@ -19,6 +23,15 @@ describe("scene drag commits", () => {
     expect(getWeatherMaskDragCommit(scene, weatherMaskDrag({ current: { x: 2, y: 2 } }), "weather-1")).toBeNull();
     expect(getEnvironmentEffectDragCommit(scene, environmentEffectDrag({ current: { x: 2, y: 2 } }), "effect-1")).toBeNull();
     expect(getFogDragCommit(scene, fogDrag({ current: { x: 2, y: 2 } }), "fog-1")).toBeNull();
+  });
+
+  it("maps too-small drags to no-op commit actions", () => {
+    const scene = createDefaultScene("Noop Actions");
+
+    expect(getDrawingDragCommitAction(scene, drawingPreview({ current: { x: 1, y: 1 } }), "drawing-1")).toEqual({ kind: "none" });
+    expect(getWeatherMaskDragCommitAction(scene, weatherMaskDrag({ current: { x: 2, y: 2 } }), "weather-1")).toEqual({ kind: "none" });
+    expect(getEnvironmentEffectDragCommitAction(scene, environmentEffectDrag({ current: { x: 2, y: 2 } }), "effect-1")).toEqual({ kind: "none" });
+    expect(getFogDragCommitAction(scene, fogDrag({ current: { x: 2, y: 2 } }), "fog-1")).toEqual({ kind: "none" });
   });
 
   it("builds drawing commits with scene-based default names", () => {
@@ -79,6 +92,53 @@ describe("scene drag commits", () => {
     scene.fog.playerOpacity = 0;
 
     expect(getFogDragCommit(scene, fogDrag({ operation: "hide" }), "fog-1")).toEqual({
+      shape: {
+        id: "fog-1",
+        name: "Hide Rectangle 1",
+        operation: "hide",
+        kind: "rectangle",
+        points: [{ x: 0, y: 0 }, { x: 20, y: 20 }],
+        radius: undefined,
+        visibleInGm: true,
+        visibleInPlayer: false,
+        visible: true
+      },
+      fogPatch: {
+        gmOpacity: 0.5,
+        playerOpacity: 1,
+        opacity: 1
+      }
+    });
+  });
+
+  it("maps meaningful drags to creation commit actions", () => {
+    const scene = createDefaultScene("Commit Actions");
+    scene.fog.newShapesVisibleInPlayer = false;
+
+    expect(getDrawingDragCommitAction(scene, drawingPreview(), "drawing-1")).toMatchObject({
+      kind: "commit-drawing",
+      drawing: {
+        id: "drawing-1",
+        kind: "line"
+      }
+    });
+    expect(getWeatherMaskDragCommitAction(scene, weatherMaskDrag(), "weather-1")).toMatchObject({
+      kind: "commit-weather-mask",
+      mask: {
+        id: "weather-1",
+        kind: "rectangle"
+      }
+    });
+    expect(getEnvironmentEffectDragCommitAction(scene, environmentEffectDrag({ effect: "smoke" }), "effect-1")).toMatchObject({
+      kind: "commit-environment-effect",
+      effect: {
+        id: "effect-1",
+        effect: "smoke",
+        kind: "rectangle"
+      }
+    });
+    expect(getFogDragCommitAction(scene, fogDrag({ operation: "hide" }), "fog-1")).toEqual({
+      kind: "commit-fog",
       shape: {
         id: "fog-1",
         name: "Hide Rectangle 1",

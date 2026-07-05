@@ -55,6 +55,8 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted and tested fog, weather-mask, and environment-effect pointer-move action policies so preview/ref updates are no longer inline SceneCanvas branching.
 - Extracted and tested drawing, ruler, and laser pointer-move action policies so preview/ref/live-event updates are no longer inline SceneCanvas branching.
 - Extracted and tested map calibration, drawing-transform, and mask/effect pointer-move action policies so draft, preview, and snap updates are no longer inline SceneCanvas branching.
+- Extracted and tested map calibration, drawing-transform, and mask/effect pointer-completion action policies so finish/commit side effects are explicit before SceneCanvas applies them.
+- Extracted and tested drag creation commit actions for drawings, fog, weather masks, and environment effects so SceneCanvas creation branches no longer interpret nullable commit helpers inline.
 - Extracted and tested SceneCanvas context-menu routing for waypoint removal, polygon backtracking, and target menu kind selection.
 - Split the environment effect drawer registry out of the layer renderer so future effect-family modules can move behind a stable registry seam.
 - Extracted shared WebGL environment-effect runtime helpers and moved the smoke/fog effect family into its own renderer module while preserving the existing public effect exports.

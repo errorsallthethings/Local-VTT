@@ -3,6 +3,7 @@ import { createDefaultScene, type DrawingElement } from "../../src/shared/localv
 import type { DrawingDragState, DrawingResizeState, DrawingRotateState } from "../../src/renderer/canvas/scene";
 import {
   getDrawingTransformPointerComplete,
+  getDrawingTransformPointerCompleteAction,
   getDrawingTransformPointerMove,
   getDrawingTransformPointerMoveAction,
   getDrawingTransformPointerStart
@@ -331,5 +332,63 @@ describe("scene drawing transform pointer helpers", () => {
         rotateState
       })
     ).toBeNull();
+  });
+
+  it("maps drawing transform pointer completions to SceneCanvas actions", () => {
+    const preview = new Map([["drawing-1", [{ x: 10, y: 20 }, { x: 30, y: 40 }]]]);
+    const dragState: DrawingDragState = {
+      pointerId: 10,
+      drawingId: "drawing-1",
+      start: { x: 0, y: 0 },
+      snapAnchor: { x: 0, y: 0 },
+      groupStartPoints: new Map()
+    };
+    const resizeState: DrawingResizeState = {
+      pointerId: 11,
+      handle: "se",
+      bounds: { left: 0, top: 0, right: 100, bottom: 100 },
+      groupStartPoints: new Map()
+    };
+    const rotateState: DrawingRotateState = {
+      pointerId: 12,
+      center: { x: 0, y: 0 },
+      startAngle: 0,
+      groupStartPoints: new Map()
+    };
+
+    expect(getDrawingTransformPointerCompleteAction(null)).toEqual({ kind: "none" });
+    expect(
+      getDrawingTransformPointerCompleteAction(
+        getDrawingTransformPointerComplete({
+          dragState,
+          pointerId: 10,
+          preview,
+          resizeState,
+          rotateState
+        })
+      )
+    ).toEqual({ kind: "commit-move", preview, clearSnapPoint: true });
+    expect(
+      getDrawingTransformPointerCompleteAction(
+        getDrawingTransformPointerComplete({
+          dragState,
+          pointerId: 11,
+          preview,
+          resizeState,
+          rotateState
+        })
+      )
+    ).toEqual({ kind: "commit-resize", preview, clearSnapPoint: false });
+    expect(
+      getDrawingTransformPointerCompleteAction(
+        getDrawingTransformPointerComplete({
+          dragState,
+          pointerId: 12,
+          preview,
+          resizeState,
+          rotateState
+        })
+      )
+    ).toEqual({ kind: "commit-rotate", preview, clearSnapPoint: false });
   });
 });

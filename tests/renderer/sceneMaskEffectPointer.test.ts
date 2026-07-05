@@ -3,6 +3,7 @@ import { createDefaultScene, type EnvironmentEffectMask, type FogShape, type Wea
 import {
   getEnvironmentEffectHitPointerStart,
   getMaskEffectPointerComplete,
+  getMaskEffectPointerCompleteAction,
   getMaskEffectPointerMove,
   getMaskEffectPointerMoveAction,
   getMaskPointerStart,
@@ -279,5 +280,47 @@ describe("scene mask and effect pointer helpers", () => {
         weatherMaskPreview: weatherPreview
       })
     ).toBeNull();
+  });
+
+  it("maps mask and effect pointer completions to SceneCanvas actions", () => {
+    const weatherPreview = new Map([["weather-1", [{ x: 10, y: 20 }, { x: 30, y: 40 }]]]);
+    const environmentEffectPreview = new Map([["effect-1", [{ x: 50, y: 60 }, { x: 70, y: 80 }]]]);
+    const weatherMaskMoveState: WeatherMaskMoveState = {
+      pointerId: 8,
+      maskId: "weather-1",
+      start: { x: 0, y: 0 },
+      groupStartPoints: new Map()
+    };
+    const environmentEffectMoveState: EnvironmentEffectMoveState = {
+      pointerId: 9,
+      effectId: "effect-1",
+      start: { x: 0, y: 0 },
+      snapAnchor: { x: 0, y: 0 },
+      groupStartPoints: new Map()
+    };
+
+    expect(getMaskEffectPointerCompleteAction(null)).toEqual({ kind: "none" });
+    expect(
+      getMaskEffectPointerCompleteAction(
+        getMaskEffectPointerComplete({
+          environmentEffectMoveState,
+          environmentEffectPreview,
+          pointerId: 8,
+          weatherMaskMoveState,
+          weatherMaskPreview: weatherPreview
+        })
+      )
+    ).toEqual({ kind: "commit-weather", preview: weatherPreview });
+    expect(
+      getMaskEffectPointerCompleteAction(
+        getMaskEffectPointerComplete({
+          environmentEffectMoveState,
+          environmentEffectPreview,
+          pointerId: 9,
+          weatherMaskMoveState,
+          weatherMaskPreview: weatherPreview
+        })
+      )
+    ).toEqual({ kind: "commit-environment-effect", preview: environmentEffectPreview });
   });
 });
