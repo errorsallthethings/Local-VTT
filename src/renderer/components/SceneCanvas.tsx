@@ -206,6 +206,7 @@ import {
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import { getSceneContextMenuTarget } from "./scene/sceneContextMenuTarget";
 import { getScenePointerDownRoute } from "./scene/scenePointerDownRouting";
+import { getScenePointerMoveRoute } from "./scene/scenePointerMoveRouting";
 import { getScenePointerUpRoute } from "./scene/scenePointerUpRouting";
 import { getSceneSelectionKindsToClear, type SceneSelectionTargetKind } from "./scene/sceneSelectionRouting";
 import { canAcceptTokenAssetDrop as canAcceptSceneTokenAssetDrop, getDroppedTokenAsset } from "./scene/sceneTokenAssetDrop";
@@ -1562,7 +1563,25 @@ export function SceneCanvas({
     const rulerDragValue = rulerDragRef.current;
     const selectionDragValue = selectionDragRef.current;
     const mapCalibrationDragValue = mapCalibrationDragRef.current;
-    if (mapCalibrationDragValue?.pointerId === event.pointerId) {
+    const pointerMoveRoute = getScenePointerMoveRoute({
+      pointerId: event.pointerId,
+      mapCalibrationDrag: mapCalibrationDragValue,
+      laserDrag,
+      rulerDrag: rulerDragValue,
+      selectionDrag: selectionDragValue,
+      drawingDrag,
+      drawingMoveDrag: drawingDragValue,
+      drawingResizeDrag: drawingResizeValue,
+      drawingRotateDrag: drawingRotateValue,
+      weatherMaskMove: weatherMaskMoveValue,
+      environmentEffectMove: environmentEffectMoveValue,
+      tokenDrag,
+      fogDrag: fogDragRef.current,
+      weatherMaskDrag: weatherMaskDragRef.current,
+      environmentEffectDrag: environmentEffectDragRef.current,
+      panDrag: dragRef.current
+    });
+    if (pointerMoveRoute === "map-calibration" && mapCalibrationDragValue) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const update = getMapCalibrationPointerMove(mapCalibrationDragValue, event.pointerId, point);
       if (update) {
@@ -1572,7 +1591,7 @@ export function SceneCanvas({
       }
       return;
     }
-    if (laserDrag?.pointerId === event.pointerId) {
+    if (pointerMoveRoute === "laser" && laserDrag) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const nextLaserDrag = getLaserPointerMove(laserDrag, event.pointerId, point, Date.now());
       if (nextLaserDrag) {
@@ -1581,7 +1600,7 @@ export function SceneCanvas({
       }
       return;
     }
-    if (rulerDragValue?.pointerId === event.pointerId) {
+    if (pointerMoveRoute === "ruler" && rulerDragValue) {
       const nextRulerDrag = getUpdatedRulerPointerDrag(rulerDragValue, event.pointerId, getRulerPoint(event));
       if (!nextRulerDrag) {
         return;
@@ -1592,7 +1611,7 @@ export function SceneCanvas({
       return;
     }
 
-    if (selectionDragValue?.pointerId === event.pointerId) {
+    if (pointerMoveRoute === "selection" && selectionDragValue) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const nextSelectionDrag = getUpdatedSelectionDrag(selectionDragValue, point);
       selectionDragRef.current = nextSelectionDrag;
@@ -1600,7 +1619,7 @@ export function SceneCanvas({
       return;
     }
 
-    if (drawingDrag?.pointerId === event.pointerId) {
+    if (pointerMoveRoute === "drawing" && drawingDrag) {
       const point = getDrawingToolPoint(event, drawingDrag.kind);
       const nextDrawingDrag = getDrawingPointerMove(drawingDrag, event.pointerId, point, scene, drawingTemplateSize, event.shiftKey);
       if (!nextDrawingDrag) {
@@ -1612,43 +1631,47 @@ export function SceneCanvas({
       return;
     }
 
-    const drawingTransformMove = getDrawingTransformPointerMove({
-      dragState: drawingDragValue,
-      point: eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)),
-      pointerId: event.pointerId,
-      resizeState: drawingResizeValue,
-      rotateState: drawingRotateValue,
-      scene,
-      snapEnabled: isSnapModifier(event),
-      squareConstrained: event.shiftKey
-    });
-    if (drawingTransformMove) {
-      if (drawingTransformMove.kind === "move") {
-        setSnapPoint(drawingTransformMove.snapPoint);
-      }
-      setDrawingDragPreview(drawingTransformMove.preview);
-      return;
-    }
-
-    const maskEffectMove = getMaskEffectPointerMove({
-      environmentEffectMoveState: environmentEffectMoveValue,
-      point: eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)),
-      pointerId: event.pointerId,
-      scene,
-      snapEnabled: isSnapModifier(event),
-      weatherMaskMoveState: weatherMaskMoveValue
-    });
-    if (maskEffectMove) {
-      if (maskEffectMove.kind === "environment-effect") {
-        setSnapPoint(maskEffectMove.snapPoint);
-        setEnvironmentEffectMovePreview(maskEffectMove.preview);
-      } else {
-        setWeatherMaskMovePreview(maskEffectMove.preview);
+    if (pointerMoveRoute === "drawing-transform") {
+      const drawingTransformMove = getDrawingTransformPointerMove({
+        dragState: drawingDragValue,
+        point: eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)),
+        pointerId: event.pointerId,
+        resizeState: drawingResizeValue,
+        rotateState: drawingRotateValue,
+        scene,
+        snapEnabled: isSnapModifier(event),
+        squareConstrained: event.shiftKey
+      });
+      if (drawingTransformMove) {
+        if (drawingTransformMove.kind === "move") {
+          setSnapPoint(drawingTransformMove.snapPoint);
+        }
+        setDrawingDragPreview(drawingTransformMove.preview);
       }
       return;
     }
 
-    if (tokenDrag?.pointerId === event.pointerId && scene) {
+    if (pointerMoveRoute === "mask-effect") {
+      const maskEffectMove = getMaskEffectPointerMove({
+        environmentEffectMoveState: environmentEffectMoveValue,
+        point: eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)),
+        pointerId: event.pointerId,
+        scene,
+        snapEnabled: isSnapModifier(event),
+        weatherMaskMoveState: weatherMaskMoveValue
+      });
+      if (maskEffectMove) {
+        if (maskEffectMove.kind === "environment-effect") {
+          setSnapPoint(maskEffectMove.snapPoint);
+          setEnvironmentEffectMovePreview(maskEffectMove.preview);
+        } else {
+          setWeatherMaskMovePreview(maskEffectMove.preview);
+        }
+      }
+      return;
+    }
+
+    if (pointerMoveRoute === "token" && tokenDrag && scene) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
       const update = getTokenPointerMove(scene, tokenDrag, event.pointerId, point);
       if (update?.kind === "missing-token") {
@@ -1662,7 +1685,7 @@ export function SceneCanvas({
     }
 
     const fogDrag = fogDragRef.current;
-    if (fogDrag?.pointerId === event.pointerId) {
+    if (pointerMoveRoute === "fog" && fogDrag) {
       const nextDrag = getFogPointerMove(fogDrag, event.pointerId, getToolPoint(event, fogDrag.kind !== "brush"), event.shiftKey);
       if (!nextDrag) {
         return;
@@ -1673,7 +1696,7 @@ export function SceneCanvas({
     }
 
     const weatherMaskDrag = weatherMaskDragRef.current;
-    if (weatherMaskDrag?.pointerId === event.pointerId) {
+    if (pointerMoveRoute === "weather-mask" && weatherMaskDrag) {
       const nextDrag = getWeatherMaskPointerMove(weatherMaskDrag, event.pointerId, getToolPoint(event), event.shiftKey);
       if (!nextDrag) {
         return;
@@ -1684,7 +1707,7 @@ export function SceneCanvas({
     }
 
     const environmentEffectDrag = environmentEffectDragRef.current;
-    if (environmentEffectDrag?.pointerId === event.pointerId) {
+    if (pointerMoveRoute === "environment-effect" && environmentEffectDrag) {
       const nextDrag = getEnvironmentEffectPointerMove(environmentEffectDrag, event.pointerId, getToolPoint(event), event.shiftKey);
       if (!nextDrag) {
         return;
@@ -1695,7 +1718,7 @@ export function SceneCanvas({
     }
 
     const drag = dragRef.current;
-    if (drag?.pointerId === event.pointerId) {
+    if (pointerMoveRoute === "pan" && drag) {
       autoFitCameraRef.current = false;
       setCamera(getCameraForPanDrag(drag, event.clientX, event.clientY));
       return;
