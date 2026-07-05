@@ -71,13 +71,9 @@ import {
   getSceneCanvasRenderPlan,
   getSceneCanvasReadiness,
   getDrawingDragCommitAction,
-  getDrawingPolygonDraftCommitAction,
   getEnvironmentEffectDragCommitAction,
-  getEnvironmentPolygonDraftCommitAction,
   getFogDragCommitAction,
-  getFogPolygonDraftCommitAction,
   getWeatherMaskDragCommitAction,
-  getWeatherPolygonDraftCommitAction,
   type DrawingContextMenu,
   type EnvironmentEffectContextMenu,
   type MaskContextMenu,
@@ -205,6 +201,12 @@ import {
   clearScenePolygonDraft,
   removeLastScenePolygonDraftPoint
 } from "./scene/scenePolygonDraftState";
+import {
+  getSceneAfterDrawingPolygonDraftCommit,
+  getSceneAfterEnvironmentPolygonDraftCommit,
+  getSceneAfterFogPolygonDraftCommit,
+  getSceneAfterWeatherPolygonDraftCommit
+} from "./scene/scenePolygonDraftCommitScenes";
 import {
   MapLoadOverlay,
 } from "./scene/SceneCanvasStatusStrips";
@@ -2289,12 +2291,12 @@ export function SceneCanvas({
     if (!scene || !onSceneChange || !draft) {
       return;
     }
-    const action = getFogPolygonDraftCommitAction(scene, draft, crypto.randomUUID());
-    if (action.kind !== "commit-fog") {
+    const nextScene = getSceneAfterFogPolygonDraftCommit(scene, draft, crypto.randomUUID());
+    if (!nextScene) {
       return;
     }
     clearScenePolygonDraft({ ref: polygonDraftRef, setDraft: setPolygonDraft });
-    onSceneChange(addSceneFogShape(scene, action.shape, action.fogPatch));
+    onSceneChange(nextScene);
   };
 
   const commitDrawingPolygonDraft = () => {
@@ -2302,7 +2304,7 @@ export function SceneCanvas({
     if (!scene || !onSceneChange || !draft) {
       return;
     }
-    const action = getDrawingPolygonDraftCommitAction(scene, draft, crypto.randomUUID(), {
+    const nextScene = getSceneAfterDrawingPolygonDraftCommit(scene, draft, crypto.randomUUID(), {
       color: drawingColor,
       opacity: drawingOpacity,
       fillColor: drawingFillColor,
@@ -2310,11 +2312,11 @@ export function SceneCanvas({
       strokeStyle: drawingStrokeStyle,
       strokeWidth: drawingStrokeWidth
     });
-    if (action.kind !== "commit-drawing") {
+    if (!nextScene) {
       return;
     }
     clearScenePolygonDraft({ ref: drawingPolygonDraftRef, setDraft: setDrawingPolygonDraft });
-    onSceneChange(addSceneDrawing(scene, action.drawing));
+    onSceneChange(nextScene);
   };
 
   const commitWeatherPolygonDraft = () => {
@@ -2322,12 +2324,12 @@ export function SceneCanvas({
     if (!scene || !onSceneChange || !draft) {
       return;
     }
-    const action = getWeatherPolygonDraftCommitAction(scene, draft, crypto.randomUUID());
-    if (action.kind !== "commit-weather-mask") {
+    const nextScene = getSceneAfterWeatherPolygonDraftCommit(scene, draft, crypto.randomUUID());
+    if (!nextScene) {
       return;
     }
     clearScenePolygonDraft({ ref: weatherPolygonDraftRef, setDraft: setWeatherPolygonDraft });
-    onSceneChange(addSceneWeatherMask(scene, action.mask));
+    onSceneChange(nextScene);
   };
 
   const commitEnvironmentPolygonDraft = () => {
@@ -2335,7 +2337,7 @@ export function SceneCanvas({
     if (!scene || !onSceneChange || !draft) {
       return;
     }
-    const action = getEnvironmentPolygonDraftCommitAction(
+    const nextScene = getSceneAfterEnvironmentPolygonDraftCommit(
       scene,
       draft,
       crypto.randomUUID(),
@@ -2343,11 +2345,11 @@ export function SceneCanvas({
       environmentEffectFeather,
       currentEnvironmentEffectTuning
     );
-    if (action.kind !== "commit-environment-effect") {
+    if (!nextScene) {
       return;
     }
     clearScenePolygonDraft({ ref: environmentPolygonDraftRef, setDraft: setEnvironmentPolygonDraft });
-    onSceneChange(addEnvironmentEffect(scene, action.effect));
+    onSceneChange(nextScene);
   };
 
   usePolygonDraftKeyboard({

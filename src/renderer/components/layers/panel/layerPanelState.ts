@@ -1,6 +1,8 @@
-import { formatDefaultFogShapeName, type DrawingElement, type FogShape, type Layer, type Scene } from "../../../../shared/localvtt";
+import { formatDefaultFogShapeName, type DrawingElement, type FogShape, type Layer, type Scene, type Token, type WeatherSettings } from "../../../../shared/localvtt";
+import { getSnappedTokenPosition } from "../../../canvas/tokens";
 import { reorderByDropTarget, type DropPlacement } from "../../../lib/ui";
 import { isEffectsLayerId } from "./layerPanelFormat";
+import { getWeatherWithPatch } from "./layerPanelWeather";
 
 export interface LayerExpandedToggleState {
   expandedLayerIds: Set<string>;
@@ -142,4 +144,45 @@ export function getReorderedDrawings(
     return [...drawings];
   }
   return reorderByDropTarget(drawings, (drawing) => drawing.id, sourceDrawingId, targetDrawingId, placement);
+}
+
+export function getSceneWithDrawings(scene: Scene, drawings: DrawingElement[], updatedAt = new Date().toISOString()): Scene {
+  return { ...scene, drawings, updatedAt };
+}
+
+export function getSceneWithTokens(scene: Scene, tokens: Token[], updatedAt = new Date().toISOString()): Scene {
+  return { ...scene, tokens, updatedAt };
+}
+
+export function getSceneWithTokenPatch(scene: Scene, tokenId: string, patch: Partial<Token>, updatedAt = new Date().toISOString()): Scene {
+  return getSceneWithTokens(
+    scene,
+    scene.tokens.map((token) => {
+      if (token.id !== tokenId) {
+        return token;
+      }
+      const nextToken = { ...token, ...patch };
+      return patch.size ? { ...nextToken, position: getSnappedTokenPosition(nextToken.position, nextToken, scene) } : nextToken;
+    }),
+    updatedAt
+  );
+}
+
+export function getSceneWithWeatherPatch(scene: Scene, patch: Partial<WeatherSettings>, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    weather: getWeatherWithPatch(scene.weather, patch),
+    updatedAt
+  };
+}
+
+export function getSceneWithEnvironmentPatch(scene: Scene, patch: Partial<Scene["environment"]>, updatedAt = new Date().toISOString()): Scene {
+  return {
+    ...scene,
+    environment: {
+      ...scene.environment,
+      ...patch
+    },
+    updatedAt
+  };
 }

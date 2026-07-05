@@ -11,7 +11,6 @@ import type {
   WeatherTuningSettings
 } from "../../../../shared/localvtt";
 import { type Token } from "../../../../shared/localvtt";
-import { getSnappedTokenPosition } from "../../../canvas/tokens";
 import { type DropPlacement } from "../../../lib/ui";
 import { type ActiveWeatherCategory } from "../../../lib/effects";
 import { FogShapeList, type FogShapeDropTarget } from "../lists/FogShapeList";
@@ -29,11 +28,23 @@ import {
   getReservedLayerGuidance,
   isEffectsLayerId
 } from "./layerPanelFormat";
-import { applyLayerPatch, getLayerExpandedToggleState, getLayerPanelVisibleLayers, getLayerSettingsToggleIds, getReorderedDrawings, getReorderedFogShapes, hasLayerSettings } from "./layerPanelState";
+import {
+  applyLayerPatch,
+  getLayerExpandedToggleState,
+  getLayerPanelVisibleLayers,
+  getLayerSettingsToggleIds,
+  getReorderedDrawings,
+  getReorderedFogShapes,
+  getSceneWithDrawings,
+  getSceneWithEnvironmentPatch,
+  getSceneWithTokenPatch,
+  getSceneWithTokens,
+  getSceneWithWeatherPatch,
+  hasLayerSettings
+} from "./layerPanelState";
 import {
   getWeatherWithCategoryToggled,
   getWeatherWithDriftReset,
-  getWeatherWithPatch,
   getWeatherWithSelectedEffect,
   getWeatherWithTuningPatch,
   getWeatherWithTuningReset,
@@ -146,9 +157,7 @@ export function LayerPanel({
     onUpdateFog({ shapes: getReorderedFogShapes(scene.fog.shapes, sourceShapeId, targetShapeId, placement) });
   };
 
-  const updateDrawings = (drawings: DrawingElement[]) => {
-    onChange({ ...scene, drawings, updatedAt: new Date().toISOString() });
-  };
+  const updateDrawings = (drawings: DrawingElement[]) => onChange(getSceneWithDrawings(scene, drawings));
 
   const moveDrawing = (sourceDrawingId: string, targetDrawingId: string, placement: DropPlacement) => {
     if (sourceDrawingId === targetDrawingId) {
@@ -157,39 +166,18 @@ export function LayerPanel({
     updateDrawings(getReorderedDrawings(scene.drawings, sourceDrawingId, targetDrawingId, placement));
   };
 
-  const updateTokens = (tokens: Token[]) => {
-    onChange({ ...scene, tokens, updatedAt: new Date().toISOString() });
-  };
+  const updateTokens = (tokens: Token[]) => onChange(getSceneWithTokens(scene, tokens));
 
   const updateToken = (tokenId: string, patch: Partial<Token>) => {
-    updateTokens(
-      scene.tokens.map((token) => {
-        if (token.id !== tokenId) {
-          return token;
-        }
-        const nextToken = { ...token, ...patch };
-        return patch.size ? { ...nextToken, position: getSnappedTokenPosition(nextToken.position, nextToken, scene) } : nextToken;
-      })
-    );
+    onChange(getSceneWithTokenPatch(scene, tokenId, patch));
   };
 
   const updateWeather = (patch: Partial<WeatherSettings>) => {
-    onChange({
-      ...scene,
-      weather: getWeatherWithPatch(scene.weather, patch),
-      updatedAt: new Date().toISOString()
-    });
+    onChange(getSceneWithWeatherPatch(scene, patch));
   };
 
   const updateEnvironment = (patch: Partial<Scene["environment"]>) => {
-    onChange({
-      ...scene,
-      environment: {
-        ...scene.environment,
-        ...patch
-      },
-      updatedAt: new Date().toISOString()
-    });
+    onChange(getSceneWithEnvironmentPatch(scene, patch));
   };
 
   const toggleWeatherCategory = (category: ActiveWeatherCategory, enabled: boolean) => {

@@ -13,6 +13,11 @@ import {
   getLayerVisibilityButtonClassName,
   getLayerVisibilityLabel,
   getLayerVisibilityTitle,
+  getSceneWithDrawings,
+  getSceneWithEnvironmentPatch,
+  getSceneWithTokenPatch,
+  getSceneWithTokens,
+  getSceneWithWeatherPatch,
   getReorderedDrawings,
   getReorderedFogShapes,
   hasLayerSettings
@@ -111,6 +116,47 @@ describe("layer panel state helpers", () => {
       "drawing-3"
     ]);
     expect(getReorderedDrawings(drawings, "drawing-2", "drawing-2", "before")).toEqual(drawings);
+  });
+
+  it("builds scene updates for drawings, tokens, weather, and environment patches", () => {
+    const scene = sceneWithLayers();
+    scene.grid = { ...scene.grid, type: "square", sizePx: 50 };
+    const drawingEntry = drawing("drawing-1");
+
+    expect(getSceneWithDrawings(scene, [drawingEntry], "now")).toMatchObject({
+      drawings: [drawingEntry],
+      updatedAt: "now"
+    });
+
+    expect(getSceneWithTokens(scene, [], "now")).toMatchObject({
+      tokens: [],
+      updatedAt: "now"
+    });
+
+    expect(getSceneWithTokenPatch(scene, "token-1", { name: "Updated" }, "now").tokens[0]).toMatchObject({
+      id: "token-1",
+      name: "Updated",
+      position: { x: 0, y: 0 }
+    });
+
+    const resizedScene = getSceneWithTokenPatch(scene, "token-1", { size: { width: 100, height: 100 }, position: { x: 12, y: 18 } }, "now");
+    expect(resizedScene.tokens[0]).toMatchObject({
+      size: { width: 100, height: 100 },
+      position: { x: 0, y: 0 }
+    });
+
+    const weatherScene = getSceneWithWeatherPatch(scene, {
+      effects: {
+        ...scene.weather.effects,
+        rain: { ...scene.weather.effects.rain, enabled: true }
+      }
+    }, "now");
+    expect(weatherScene.weather.enabled).toBe(true);
+    expect(weatherScene.updatedAt).toBe("now");
+
+    const environmentScene = getSceneWithEnvironmentPatch(scene, { opacity: 0.4 }, "now");
+    expect(environmentScene.environment.opacity).toBe(0.4);
+    expect(environmentScene.updatedAt).toBe("now");
   });
 });
 
