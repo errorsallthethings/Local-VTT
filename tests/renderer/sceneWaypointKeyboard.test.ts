@@ -3,7 +3,9 @@ import { createDefaultScene, type Token } from "../../src/shared/localvtt";
 import type { TokenDragPreview } from "../../src/renderer/canvas/tokens";
 import type { TokenDragState } from "../../src/renderer/canvas/scene";
 import {
+  getRulerWaypointAppendKeyboardAction,
   getRulerWaypointAppendKeyboardUpdate,
+  getTokenWaypointAppendKeyboardAction,
   getTokenWaypointAppendKeyboardUpdate
 } from "../../src/renderer/components/scene/sceneWaypointKeyboard";
 
@@ -62,6 +64,41 @@ describe("scene waypoint keyboard helpers", () => {
     expect(getTokenWaypointAppendKeyboardUpdate(scene, null, null, { key: "Shift", repeat: false })).toBeNull();
   });
 
+  it("maps token waypoint keyboard updates to SceneCanvas actions", () => {
+    const scene = createDefaultScene("Token Keyboard Actions");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 100;
+    scene.grid.offsetX = 0;
+    scene.grid.offsetY = 0;
+    const sceneToken = token();
+    scene.tokens = [sceneToken];
+    const drag: TokenDragState = {
+      pointerId: 1,
+      tokenId: sceneToken.id,
+      offset: { x: 0, y: 0 },
+      startPosition: { x: 0, y: 0 },
+      waypoints: [],
+      groupStartPositions: new Map([[sceneToken.id, { x: 0, y: 0 }]])
+    };
+    const preview: TokenDragPreview = {
+      tokenId: sceneToken.id,
+      startPosition: { x: 0, y: 0 },
+      currentPosition: { x: 130, y: 135 },
+      snappedPosition: { x: 125, y: 125 },
+      waypoints: [],
+      tokenPositions: new Map([[sceneToken.id, { x: 125, y: 125 }]])
+    };
+
+    expect(getTokenWaypointAppendKeyboardAction(scene, drag, preview, { key: "Alt", repeat: false })).toEqual({ kind: "none" });
+    expect(getTokenWaypointAppendKeyboardAction(scene, drag, preview, { key: "Shift", repeat: false })).toMatchObject({
+      kind: "set-token-waypoint",
+      update: {
+        drag: { waypoints: [{ x: 125, y: 125 }] },
+        preview: { waypoints: [{ x: 125, y: 125 }] }
+      }
+    });
+  });
+
   it("appends ruler waypoints only for fresh Shift key presses", () => {
     const scene = createDefaultScene("Ruler Keyboard Waypoints");
     scene.grid.type = "gridless";
@@ -94,5 +131,25 @@ describe("scene waypoint keyboard helpers", () => {
 
     expect(getRulerWaypointAppendKeyboardUpdate(scene, rulerDrag, { key: "Shift", repeat: false, ctrlKey: true })?.waypoints).toEqual([{ x: 150, y: 150 }]);
     expect(getRulerWaypointAppendKeyboardUpdate(scene, rulerDrag, { key: "Shift", repeat: false, metaKey: true })?.waypoints).toEqual([{ x: 150, y: 150 }]);
+  });
+
+  it("maps ruler waypoint keyboard updates to SceneCanvas actions", () => {
+    const scene = createDefaultScene("Ruler Keyboard Actions");
+    scene.grid.type = "gridless";
+    const rulerDrag = {
+      start: { x: 0, y: 0 },
+      current: { x: 30, y: 40 },
+      waypoints: []
+    };
+
+    expect(getRulerWaypointAppendKeyboardAction(scene, rulerDrag, { key: "Alt", repeat: false })).toEqual({ kind: "none" });
+    expect(getRulerWaypointAppendKeyboardAction(scene, rulerDrag, { key: "Shift", repeat: false })).toEqual({
+      kind: "set-ruler-waypoint",
+      drag: {
+        start: { x: 0, y: 0 },
+        current: { x: 30, y: 40 },
+        waypoints: [{ x: 30, y: 40 }]
+      }
+    });
   });
 });

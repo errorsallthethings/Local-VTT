@@ -25,6 +25,20 @@ export function getTokenWaypointAppendKeyboardUpdate(
   return getTokenDragWaypointAppendUpdate(scene, tokenDrag, preview);
 }
 
+export type TokenWaypointAppendKeyboardAction =
+  | { kind: "set-token-waypoint"; update: TokenDragWaypointUpdate }
+  | { kind: "none" };
+
+export function getTokenWaypointAppendKeyboardAction(
+  scene: Scene,
+  tokenDrag: TokenDragState | null,
+  preview: TokenDragPreview | null,
+  event: WaypointKeyboardEventState
+): TokenWaypointAppendKeyboardAction {
+  const update = getTokenWaypointAppendKeyboardUpdate(scene, tokenDrag, preview, event);
+  return update ? { kind: "set-token-waypoint", update } : { kind: "none" };
+}
+
 export function getRulerWaypointAppendKeyboardUpdate<TRulerDrag extends RulerDrag>(
   scene: Scene,
   rulerDrag: TRulerDrag | null,
@@ -36,6 +50,19 @@ export function getRulerWaypointAppendKeyboardUpdate<TRulerDrag extends RulerDra
 
   const nextRulerDrag = getRulerDragWithAppendedWaypoint(scene, rulerDrag, Boolean(event.ctrlKey || event.metaKey));
   return nextRulerDrag === rulerDrag ? null : nextRulerDrag;
+}
+
+export type RulerWaypointAppendKeyboardAction<TRulerDrag extends RulerDrag> =
+  | { kind: "set-ruler-waypoint"; drag: TRulerDrag }
+  | { kind: "none" };
+
+export function getRulerWaypointAppendKeyboardAction<TRulerDrag extends RulerDrag>(
+  scene: Scene,
+  rulerDrag: TRulerDrag | null,
+  event: WaypointKeyboardEventState
+): RulerWaypointAppendKeyboardAction<TRulerDrag> {
+  const drag = getRulerWaypointAppendKeyboardUpdate(scene, rulerDrag, event);
+  return drag ? { kind: "set-ruler-waypoint", drag } : { kind: "none" };
 }
 
 function isWaypointAppendKey(event: WaypointKeyboardEventState): boolean {

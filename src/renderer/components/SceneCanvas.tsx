@@ -19,9 +19,7 @@ import {
 } from "../canvas/core";
 import {
   getCanvasInteractionClass,
-  getDrawingTransformHoverAtPoint,
   hasAuthoringToolActive,
-  hasSceneItemHoverAtPoint,
   type DrawingTransformHover
 } from "../canvas/core";
 import {
@@ -112,7 +110,7 @@ import {
 } from "../canvas/scene";
 import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/effects";
 import { getSceneEffectRenderState, getSceneLayerVisibility } from "../canvas/scene";
-import { getNearestSceneSnapPoint, getSceneSnapMarkerOperations, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint, shouldShowSceneSnapPreview } from "../canvas/scene";
+import { getSceneSnapMarkerOperations, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint } from "../canvas/scene";
 import { getSelectedItemIdList } from "../lib/scene";
 import { getTurnOrderTokenIndicators } from "../lib/turn-order";
 import {
@@ -204,6 +202,8 @@ import {
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import { getSceneContextMenuTarget } from "./scene/sceneContextMenuTarget";
+import { getSceneDoubleClickActions } from "./scene/sceneDoubleClickRouting";
+import { getDrawingTransformHoverUpdate, getSceneItemHoverUpdate, getSceneSnapPointUpdate } from "./scene/sceneHoverUpdates";
 import { getScenePointerDownRoute } from "./scene/scenePointerDownRouting";
 import { getScenePointerMoveFallbackRoute } from "./scene/scenePointerMoveFallbackRouting";
 import { getBrushHoverPointForPointerMove, getScenePolygonDraftPointerMoveUpdate } from "./scene/scenePointerMoveFallbackUpdates";
@@ -229,7 +229,7 @@ import { getMapCalibrationPointerCompleteAction, getMapCalibrationPointerMove, g
 import { getRulerPointerMoveAction, getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
 import { getTokenPointerMove, getTokenPointerMoveAction, getTokenPointerStart } from "./scene/sceneTokenPointer";
 import { getDrawingTransformPointerComplete, getDrawingTransformPointerCompleteAction, getDrawingTransformPointerMove, getDrawingTransformPointerMoveAction, getDrawingTransformPointerStart } from "./scene/sceneDrawingTransformPointer";
-import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
+import { getRulerWaypointAppendKeyboardAction, getTokenWaypointAppendKeyboardAction } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
 import { getWeatherMaskPointerMove, getWeatherMaskPointerMoveAction, getWeatherMaskPointerStart } from "./scene/sceneWeatherMaskPointer";
@@ -885,14 +885,14 @@ export function SceneCanvas({
     if (!scene) {
       return;
     }
-    const update = getTokenWaypointAppendKeyboardUpdate(scene, tokenDragRef.current, tokenDragPreview, event);
-    if (!update) {
+    const action = getTokenWaypointAppendKeyboardAction(scene, tokenDragRef.current, tokenDragPreview, event);
+    if (action.kind !== "set-token-waypoint") {
       return;
     }
 
     event.preventDefault();
-    tokenDragRef.current = update.drag;
-    setTokenDragPreview(update.preview);
+    tokenDragRef.current = action.update.drag;
+    setTokenDragPreview(action.update.preview);
   }, [scene, tokenDragPreview]);
   useWindowKeyDown(mode === "gm" && Boolean(scene && tokenDragPreview), appendTokenWaypointOnShift);
 
@@ -900,15 +900,15 @@ export function SceneCanvas({
     if (!scene) {
       return;
     }
-    const nextRulerDrag = getRulerWaypointAppendKeyboardUpdate(scene, rulerDragRef.current, event);
-    if (!nextRulerDrag) {
+    const action = getRulerWaypointAppendKeyboardAction(scene, rulerDragRef.current, event);
+    if (action.kind !== "set-ruler-waypoint") {
       return;
     }
 
     event.preventDefault();
-    rulerDragRef.current = nextRulerDrag;
-    setRulerDrag(nextRulerDrag);
-    emitRulerEvent(nextRulerDrag);
+    rulerDragRef.current = action.drag;
+    setRulerDrag(action.drag);
+    emitRulerEvent(action.drag);
   }, [emitRulerEvent, scene]);
   useWindowKeyDown(mode === "gm" && Boolean(scene && rulerDrag), appendRulerWaypointOnShift);
 
@@ -1984,25 +1984,34 @@ export function SceneCanvas({
   };
 
   const onDoubleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (mode === "gm" && canvasTool === "ping" && scene) {
+    const actions = getSceneDoubleClickActions({
+      canvasTool,
+      drawingTool,
+      environmentEffectTool,
+      hasDrawingPolygonDraft: Boolean(drawingPolygonDraftRef.current),
+      hasEnvironmentPolygonDraft: Boolean(environmentPolygonDraftRef.current),
+      hasFogPolygonDraft: Boolean(polygonDraftRef.current),
+      hasScene: Boolean(scene),
+      hasWeatherPolygonDraft: Boolean(weatherPolygonDraftRef.current),
+      mode,
+      weatherMaskTool
+    });
+    if (actions.length > 0) {
       event.preventDefault();
-      return;
     }
-    if (polygonDraftRef.current) {
-      event.preventDefault();
-      commitPolygonDraft();
-    }
-    if (drawingTool === "polygon" && drawingPolygonDraftRef.current) {
-      event.preventDefault();
-      commitDrawingPolygonDraft();
-    }
-    if (weatherMaskTool === "polygon" && weatherPolygonDraftRef.current) {
-      event.preventDefault();
-      commitWeatherPolygonDraft();
-    }
-    if (environmentEffectTool === "polygon" && environmentPolygonDraftRef.current) {
-      event.preventDefault();
-      commitEnvironmentPolygonDraft();
+    for (const action of actions) {
+      if (action === "suppress-ping") {
+        return;
+      }
+      if (action === "commit-fog-polygon") {
+        commitPolygonDraft();
+      } else if (action === "commit-drawing-polygon") {
+        commitDrawingPolygonDraft();
+      } else if (action === "commit-weather-polygon") {
+        commitWeatherPolygonDraft();
+      } else {
+        commitEnvironmentPolygonDraft();
+      }
     }
   };
 
@@ -2139,13 +2148,13 @@ export function SceneCanvas({
   const updateDrawingTransformHover = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const cameraState = getRenderCamera(camera, playerDisplayScale);
     setDrawingTransformHover(
-      getDrawingTransformHoverAtPoint({
+      getDrawingTransformHoverUpdate({
         mode,
         scene,
         point: eventToWorldPoint(event, cameraState),
         camera: cameraState,
         selectedDrawingIds,
-        canShowDrawings,
+        canShowDrawings: Boolean(canShowDrawings),
         hasActiveInteraction: Boolean(drawingDragPreview || authoringToolActive)
       })
     );
@@ -2154,15 +2163,15 @@ export function SceneCanvas({
   const updateSceneItemHover = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const cameraState = getRenderCamera(camera, playerDisplayScale);
     setSceneItemHover(
-      hasSceneItemHoverAtPoint({
+      getSceneItemHoverUpdate({
         mode,
         scene,
         point: eventToWorldPoint(event, cameraState),
         camera: cameraState,
-        canShowTokens,
-        canShowDrawings,
-        canShowWeather,
-        canShowFog,
+        canShowTokens: Boolean(canShowTokens),
+        canShowDrawings: Boolean(canShowDrawings),
+        canShowWeather: Boolean(canShowWeather),
+        canShowFog: Boolean(canShowFog),
         hasActiveInteraction: Boolean(drawingDragPreview || authoringToolActive || selectionDragRef.current)
       })
     );
@@ -2206,12 +2215,17 @@ export function SceneCanvas({
     const canSnapFog = fogTool && !fogTool.includes("brush");
     const canSnapWeather = Boolean(weatherMaskTool);
     const canSnapEnvironment = Boolean(environmentEffectTool);
-    if (!scene || !shouldShowSceneSnapPreview({ scene, snapModifierActive: isSnapModifier(event), canSnapDrawing, canSnapFog, canSnapWeather, canSnapEnvironment })) {
-      setSnapPoint(null);
-      return;
-    }
-    const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-    setSnapPoint(getNearestSceneSnapPoint(point, scene));
+    setSnapPoint(
+      getSceneSnapPointUpdate({
+        scene,
+        snapModifierActive: isSnapModifier(event),
+        canSnapDrawing: Boolean(canSnapDrawing),
+        canSnapFog: Boolean(canSnapFog),
+        canSnapWeather,
+        canSnapEnvironment,
+        point: eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale))
+      })
+    );
   };
 
   const commitPolygonDraft = () => {
