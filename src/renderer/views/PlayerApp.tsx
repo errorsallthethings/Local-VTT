@@ -100,13 +100,13 @@ export function PlayerApp() {
     setProjection((currentProjection) => {
       if (!currentProjection || currentProjection.scene.id === nextProjection.scene.id) {
         if (!currentProjection) {
-          setPendingProjection(nextProjection);
+          setPendingProjection(null);
           setTransitioning(true);
           setSplashCovered(false);
           setSplashMinimumMet(false);
           setRevealScene(false);
           setCurrentSceneReady(false);
-          return currentProjection;
+          return nextProjection;
         }
         setCurrentSceneReady(true);
         return nextProjection;
