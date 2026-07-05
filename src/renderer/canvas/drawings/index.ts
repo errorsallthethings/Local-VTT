@@ -14,3 +14,4 @@ export * from "./templateEffectTuning";
 export * from "./templateGridHighlights";
 export * from "./templateLabels";
 export * from "./templateDrawing";
+export * from "./templateDrawingPresentation";

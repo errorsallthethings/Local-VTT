@@ -6,7 +6,7 @@ import { distanceBetweenPoints, getConeTriangle, getTriangle } from "./drawingGe
 import { isDrawingVisible } from "./drawingHitTesting";
 import { type DrawingPreview } from "./drawingPreview";
 import { getRenderableDrawingElementFromPreview } from "./drawingRenderPreview";
-import { createSeededRandom, getLineTemplateCorridorPoints, getRectanglePathPoints, scalePointsToCenter } from "./templateEffectGeometry";
+import { createSeededRandom, getLineTemplateCorridorPoints } from "./templateEffectGeometry";
 import {
   createTemplateAssetPlacements,
   createTemplatePlacementRandom,
@@ -16,16 +16,22 @@ import {
   type PlacedTemplateAsset,
   type TemplateEffectRenderable
 } from "./templateEffectPlacement";
-import { getTemplateEffectStyle, getTemplateInnerGlowStyle } from "./templateEffectStyles";
-import { supportsTemplateEffectAssets, supportsTemplateEffectInnerGlow, type TemplateEffectAssetEffect } from "./templateEffectAssets";
+import { supportsTemplateEffectAssets, type TemplateEffectAssetEffect } from "./templateEffectAssets";
 import {
   getTemplateEffectOverlayCacheEntry,
   setTemplateEffectOverlayCacheEntry,
   type TemplateEffectOverlayCacheEntry
 } from "./templateEffectOverlayCache";
 import { getTemplateEffectTuning } from "./templateEffectTuning";
-import { getTemplateGridHighlightCells } from "./templateGridHighlights";
-import { getTemplateLabel, getTemplateLabelPosition } from "./templateLabels";
+import {
+  applyTemplateEffectStroke,
+  drawTemplateGridHighlights,
+  drawTemplateLabel,
+  fillCurrentTemplatePath,
+  fillTemplateShape,
+  traceClosedPath,
+  traceTemplateEffectPath
+} from "./templateDrawingPresentation";
 
 export type DrawingPointOverrides = Map<string, Point[]>;
 
@@ -336,27 +342,6 @@ function drawPolygonShape(ctx: CanvasRenderingContext2D, points: Point[], drawin
   ctx.stroke();
 }
 
-function fillTemplateShape(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number, tracePath: () => void) {
-  ctx.beginPath();
-  tracePath();
-  fillCurrentTemplatePath(ctx, drawing, layerOpacity);
-}
-
-function fillCurrentTemplatePath(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
-  if (drawing.measurementLabelVisible) {
-    fillTemplateEffectPath(ctx, drawing, layerOpacity);
-    return;
-  }
-  const fillOpacity = drawing.fillOpacity ?? (drawing.fill ? drawing.opacity : 0);
-  if (fillOpacity <= 0) {
-    return;
-  }
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, fillOpacity * layerOpacity));
-  ctx.fill();
-  ctx.restore();
-}
-
 function drawCenterPoint(ctx: CanvasRenderingContext2D, point: Point, drawing: DrawingElement) {
   ctx.save();
   ctx.globalAlpha = Math.max(0.65, Math.min(1, drawing.opacity));
@@ -398,81 +383,6 @@ function applyDrawingStrokeStyle(ctx: CanvasRenderingContext2D, style: DrawingSt
     return;
   }
   ctx.setLineDash([]);
-}
-
-function drawTemplateLabel(ctx: CanvasRenderingContext2D, drawing: DrawingElement, scene: Scene) {
-  if (drawing.measurementLabelVisible === false) {
-    return;
-  }
-  if (drawing.kind !== "line" && drawing.kind !== "rectangle" && drawing.kind !== "circle" && drawing.kind !== "cone") {
-    return;
-  }
-  if (drawing.points.length < 2) {
-    return;
-  }
-  const label = getTemplateLabel(drawing, scene);
-  if (!label) {
-    return;
-  }
-  const { position, angle } = getTemplateLabelPosition(drawing);
-  const scale = 1;
-  ctx.save();
-  ctx.globalAlpha = 1;
-  ctx.font = `800 ${Math.round(48 * scale)}px Inter, system-ui, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.translate(position.x, position.y);
-  ctx.rotate(angle);
-  drawTemplateLabelHalo(ctx, label, scale);
-  ctx.fillStyle = "#f8fafc";
-  ctx.fillText(label, 0, scale);
-  ctx.restore();
-}
-
-function fillTemplateEffectPath(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
-  const effect = getTemplateEffectStyle(drawing.templateEffect ?? "plain");
-  if (supportsTemplateEffectInnerGlow(drawing)) {
-    drawTemplateInnerGlow(ctx, drawing, layerOpacity);
-  }
-  if (effect.fillOpacity <= 0) {
-    return;
-  }
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, effect.fillOpacity * layerOpacity));
-  ctx.fillStyle = effect.fill;
-  ctx.shadowBlur = 0;
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawTemplateInnerGlow(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
-  const glow = getTemplateInnerGlowStyle(drawing.templateEffect ?? "plain", drawing.strokeWidth, layerOpacity);
-  if (!glow) {
-    return;
-  }
-  ctx.save();
-  ctx.clip();
-  ctx.globalAlpha = glow.alpha;
-  ctx.strokeStyle = glow.strokeStyle;
-  ctx.shadowColor = glow.shadowColor;
-  ctx.shadowBlur = glow.shadowBlur;
-  ctx.lineWidth = glow.lineWidth;
-  ctx.stroke();
-  ctx.globalAlpha = glow.highlightAlpha;
-  ctx.shadowBlur = 0;
-  ctx.lineWidth = glow.highlightLineWidth;
-  ctx.strokeStyle = glow.highlightStrokeStyle;
-  ctx.stroke();
-  ctx.restore();
-}
-
-function applyTemplateEffectStroke(ctx: CanvasRenderingContext2D, drawing: DrawingElement) {
-  const effect = getTemplateEffectStyle(drawing.templateEffect ?? "plain");
-  ctx.strokeStyle = effect.stroke;
-  ctx.shadowBlur = 0;
-  if (effect.dash) {
-    ctx.setLineDash(effect.dash.map((value) => Math.max(2, value * Math.max(1, drawing.strokeWidth / 40))));
-  }
 }
 
 function drawTemplateAssetOverlay(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number, grid?: GridSettings) {
@@ -2024,115 +1934,5 @@ function drawPlacedTemplateAsset(ctx: CanvasRenderingContext2D, placement: Place
   ctx.globalAlpha *= placement.alpha;
   ctx.drawImage(placement.image, -placement.width / 2, -placement.height / 2, placement.width, placement.height);
   ctx.restore();
-}
-
-function traceTemplateEffectPath(ctx: CanvasRenderingContext2D, drawing: DrawingElement, scale: number, grid?: GridSettings) {
-  if (drawing.kind === "line") {
-    traceLineTemplateCorridor(ctx, drawing, scale, grid);
-    return;
-  }
-  if (drawing.kind === "circle") {
-    const [center, edge] = drawing.points;
-    if (!center || !edge) {
-      return;
-    }
-    ctx.arc(center.x, center.y, distanceBetweenPoints(center, edge) * scale, 0, Math.PI * 2);
-    return;
-  }
-  if (drawing.kind === "rectangle") {
-    const points = drawing.points.length >= 4 ? drawing.points.slice(0, 4) : getRectanglePathPoints(drawing.points);
-    traceClosedPath(ctx, scalePointsToCenter(points, scale));
-    return;
-  }
-  if (drawing.kind === "cone") {
-    const triangle = getConeTriangle(drawing.points);
-    if (triangle) {
-      traceClosedPath(ctx, scalePointsToCenter(triangle, scale));
-    }
-  }
-}
-
-function traceLineTemplateCorridor(ctx: CanvasRenderingContext2D, drawing: DrawingElement, scale: number, grid?: GridSettings) {
-  const points = getLineTemplateCorridorPoints(drawing, scale, grid);
-  if (!points) {
-    return;
-  }
-  traceClosedPath(ctx, points);
-}
-
-function traceClosedPath(ctx: CanvasRenderingContext2D, points: Point[]) {
-  if (points.length === 0) {
-    return;
-  }
-  ctx.moveTo(points[0].x, points[0].y);
-  for (const point of points.slice(1)) {
-    ctx.lineTo(point.x, point.y);
-  }
-  ctx.closePath();
-}
-
-function drawTemplateLabelHalo(ctx: CanvasRenderingContext2D, label: string, scale: number) {
-  const offset = Math.max(1.5, 2.5 * scale);
-  ctx.fillStyle = "rgba(11, 17, 24, 0.86)";
-  for (const point of [
-    { x: -offset, y: -offset },
-    { x: 0, y: -offset },
-    { x: offset, y: -offset },
-    { x: offset, y: 0 },
-    { x: offset, y: offset },
-    { x: 0, y: offset },
-    { x: -offset, y: offset },
-    { x: -offset, y: 0 }
-  ]) {
-    ctx.fillText(label, point.x, scale + point.y);
-  }
-  ctx.lineWidth = Math.max(2, 3 * scale);
-  ctx.strokeStyle = "rgba(11, 17, 24, 0.9)";
-  ctx.strokeText(label, 0, scale);
-}
-
-function drawTemplateGridHighlights(ctx: CanvasRenderingContext2D, drawing: DrawingElement, grid: GridSettings) {
-  if (grid.type === "gridless" || grid.sizePx <= 0 || drawing.points.length < 2) {
-    return;
-  }
-  const cells = getTemplateGridHighlightCells(drawing, grid);
-  if (cells.length === 0) {
-    return;
-  }
-  ctx.save();
-  ctx.setLineDash([5, 4]);
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "rgba(239, 68, 68, 0)";
-  ctx.strokeStyle = "#ff0000";
-  ctx.lineWidth = Math.max(5, Math.min(8, grid.lineThickness * 4));
-  for (const center of cells) {
-    if (grid.type === "hex") {
-      tracePointyHex(ctx, center.x, center.y, Math.max(8, grid.sizePx / 2));
-      ctx.fill();
-      ctx.stroke();
-    } else {
-      const size = grid.sizePx;
-      ctx.fillRect(center.x - size / 2, center.y - size / 2, size, size);
-      ctx.strokeRect(center.x - size / 2, center.y - size / 2, size, size);
-    }
-  }
-  ctx.restore();
-}
-
-function tracePointyHex(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
-  ctx.beginPath();
-  for (let index = 0; index < 6; index += 1) {
-    const angle = (Math.PI / 180) * (60 * index - 30);
-    const point = {
-      x: x + Math.cos(angle) * radius,
-      y: y + Math.sin(angle) * radius
-    };
-    if (index === 0) {
-      ctx.moveTo(point.x, point.y);
-    } else {
-      ctx.lineTo(point.x, point.y);
-    }
-  }
-  ctx.closePath();
 }
 
