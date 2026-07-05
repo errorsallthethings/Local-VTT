@@ -1,13 +1,8 @@
 import { useEffect, useState } from "react";
 import {
   Circle,
-  LineSquiggle,
-  Paintbrush,
   Pentagon,
-  Ruler,
   Square,
-  Target,
-  Trash2,
   Undo2,
 } from "lucide-react";
 import type { DrawingTool } from "../../../canvas/drawings";
@@ -15,9 +10,7 @@ import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType }
 import type { FogTool } from "../../../canvas/fog";
 import type { DrawingTemplateSize, DrawingTemplateWidth } from "../settings/DrawingToolSettings";
 import { AcidEffectTuningPanel, ArcaneEffectTuningPanel, ChaosEffectTuningPanel, ColdEffectTuningPanel, DarknessEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, NatureEffectTuningPanel, PoisonEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, VoidEffectTuningPanel, WaterEffectTuningPanel } from "../effects/EnvironmentEffectTuningPanels";
-import { FogBrushSettings } from "../settings/FogBrushSettings";
 import type { SelectorSelectionCounts, SelectorSelectionFilters } from "../settings/SelectorToolControls";
-import { TableToolSettings } from "../settings/TableToolSettings";
 import { ToolHelpCard, type ToolHelpTopic } from "../settings/ToolHelpCard";
 import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DarknessEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../../../canvas/effects";
 import {
@@ -36,7 +29,8 @@ import {
 import { ToolsMenuCategoryRail } from "./ToolsMenuCategoryRail";
 import { DrawingToolsPanel, TemplateToolsPanel } from "./ToolsMenuDrawingPanels";
 import { ToolsMenuMousePanel } from "./ToolsMenuMousePanel";
-import { HelpButton, PanelHeader, Placeholder, SettingsToggle, ToolButton } from "./ToolsMenuPrimitives";
+import { HelpButton, PanelHeader, Placeholder, ToolButton } from "./ToolsMenuPrimitives";
+import { FogToolsPanel, TableToolsPanel } from "./ToolsMenuUtilityPanels";
 import { getToolCategoryLabel, type ToolCategory } from "./toolCategoryLabels";
 import {
   getActiveFogShape,
@@ -670,122 +664,50 @@ export function ToolsMenu({
           )}
           {activeCategory === "text" && <Placeholder message="Text tools will be added here." />}
           {activeCategory === "table" && (
-            <div className="tools-panel-section">
-              <HelpButton active={helpTopic === "table"} label="Table tools help" onClick={() => setHelpTopic((topic) => (topic === "table" ? null : "table"))} />
-              <div className="tools-button-row">
-                <ToolButton active={activeCanvasTool === "ruler"} label="Ruler" onClick={() => setTableTool("ruler")}>
-                  <Ruler size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeCanvasTool === "ping"} label="Sonar" onClick={() => setTableTool("ping")}>
-                  <Target size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeCanvasTool === "laser"} label="Laser Pointer" onClick={() => setTableTool("laser")}>
-                  <LineSquiggle size={17} aria-hidden="true" />
-                </ToolButton>
-              </div>
-              <div className="tools-section-divider" />
-              <SettingsToggle open={tableSettingsOpen} label="Settings" onToggle={() => setTableSettingsOpen((open) => !open)} />
-              {tableSettingsOpen && (
-                <>
-                  <div className="tools-section-label">Visibility</div>
-                  <div className="tools-operation-stack">
-                    <label className="fog-operation-switch tools-operation-switch" title="Show or hide table tool output">
-                      <span>Show</span>
-                      <input
-                        type="checkbox"
-                        checked={!tableToolsVisibleInPlayer}
-                        onChange={(event) => onTableToolsVisibleInPlayerChange(!event.target.checked)}
-                      />
-                      <span>Hide</span>
-                    </label>
-                  </div>
-                  {activeCanvasTool === "ruler" && (
-                    <>
-                      <div className="tools-section-label">Ruler Release</div>
-                      <div className="tools-operation-stack">
-                        <label className="fog-operation-switch tools-operation-switch" title="Keep or clear the ruler after releasing the mouse">
-                          <span>Linger</span>
-                          <input
-                            type="checkbox"
-                            checked={!rulerLinger}
-                            onChange={(event) => onRulerLingerChange(!event.target.checked)}
-                          />
-                          <span>No Linger</span>
-                        </label>
-                      </div>
-                    </>
-                  )}
-                </>
-              )}
-              {tableSettingsOpen && (
-                <TableToolSettings
-                  activeCanvasTool={activeCanvasTool}
-                  pingSize={pingSize}
-                  pingColor={pingColor}
-                  laserThickness={laserThickness}
-                  laserColor={laserColor}
-                  pingSizeCustomOpen={pingSizeCustomOpen}
-                  laserThicknessCustomOpen={laserThicknessCustomOpen}
-                  onPingSizeChange={onPingSizeChange}
-                  onPingColorChange={onPingColorChange}
-                  onLaserThicknessChange={onLaserThicknessChange}
-                  onLaserColorChange={onLaserColorChange}
-                  onPingSizeCustomOpenChange={setPingSizeCustomOpen}
-                  onLaserThicknessCustomOpenChange={setLaserThicknessCustomOpen}
-                />
-              )}
-              {helpTopic === "table" && <ToolHelpCard topic="table" />}
-            </div>
+            <TableToolsPanel
+              activeCanvasTool={activeCanvasTool}
+              tableSettingsOpen={tableSettingsOpen}
+              tableToolsVisibleInPlayer={tableToolsVisibleInPlayer}
+              rulerLinger={rulerLinger}
+              pingSize={pingSize}
+              pingColor={pingColor}
+              laserThickness={laserThickness}
+              laserColor={laserColor}
+              pingSizeCustomOpen={pingSizeCustomOpen}
+              laserThicknessCustomOpen={laserThicknessCustomOpen}
+              helpTopic={helpTopic}
+              onTableToolChange={setTableTool}
+              onTableSettingsOpenChange={setTableSettingsOpen}
+              onTableToolsVisibleInPlayerChange={onTableToolsVisibleInPlayerChange}
+              onRulerLingerChange={onRulerLingerChange}
+              onPingSizeChange={onPingSizeChange}
+              onPingColorChange={onPingColorChange}
+              onLaserThicknessChange={onLaserThicknessChange}
+              onLaserColorChange={onLaserColorChange}
+              onPingSizeCustomOpenChange={setPingSizeCustomOpen}
+              onLaserThicknessCustomOpenChange={setLaserThicknessCustomOpen}
+              onHelpTopicChange={setHelpTopic}
+            />
           )}
           {activeCategory === "pin" && <Placeholder message="Pin tools will be added here." />}
           {activeCategory === "fog" && (
-            <div className="tools-panel-section">
-              <HelpButton active={helpTopic === "fog"} label="Fog Of War Tools Help" onClick={() => setHelpTopic((topic) => (topic === "fog" ? null : "fog"))} />
-              <div className="tools-section-label">Fog Of War Masks</div>
-              <div className="tools-button-row">
-                <ToolButton active={activeFogShape === "brush"} label="Brush Mask" onClick={() => setFogToolShape("brush")}>
-                  <Paintbrush size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeFogShape === "rectangle"} label="Rectangle Mask" onClick={() => setFogToolShape("rectangle")}>
-                  <Square size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeFogShape === "circle"} label="Circle Mask" onClick={() => setFogToolShape("circle")}>
-                  <Circle size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeFogShape === "polygon"} label="Polygon Mask" onClick={() => setFogToolShape("polygon")}>
-                  <Pentagon size={17} aria-hidden="true" />
-                </ToolButton>
-                <span className="tools-vertical-divider" aria-hidden="true" />
-                <ToolButton label="Undo Last Fog Mask" disabled={fogShapeCount === 0} onClick={onUndoFogShape}>
-                  <Undo2 size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton variant="danger" label="Clear Fog Masks" disabled={fogShapeCount === 0} onClick={onRequestClearFog}>
-                  <Trash2 size={17} aria-hidden="true" />
-                </ToolButton>
-              </div>
-              <div className="tools-operation-stack">
-                <SettingsToggle open={maskSettingsOpen} label="Settings" onToggle={() => setMaskSettingsOpen((open) => !open)} />
-                {maskSettingsOpen && (
-                  <>
-                    <div className="tools-section-label">Visibility</div>
-                    <label className="fog-operation-switch tools-operation-switch" title="Reveal or hide fog">
-                      <span>Reveal</span>
-                      <input type="checkbox" checked={fogOperation === "hide"} onChange={(event) => setFogToolOperation(event.target.checked ? "hide" : "reveal")} />
-                      <span>Hide</span>
-                    </label>
-                  </>
-                )}
-              </div>
-              {maskSettingsOpen && activeFogShape === "brush" && (
-                <FogBrushSettings
-                  brushSize={brushSize}
-                  customOpen={fogBrushCustomOpen}
-                  onBrushSizeChange={onBrushSizeChange}
-                  onCustomOpenChange={setFogBrushCustomOpen}
-                />
-              )}
-              {helpTopic === "fog" && <ToolHelpCard topic="fog" />}
-            </div>
+            <FogToolsPanel
+              activeFogShape={activeFogShape}
+              fogOperation={fogOperation}
+              fogShapeCount={fogShapeCount}
+              maskSettingsOpen={maskSettingsOpen}
+              brushSize={brushSize}
+              fogBrushCustomOpen={fogBrushCustomOpen}
+              helpTopic={helpTopic}
+              onFogToolShapeChange={setFogToolShape}
+              onFogToolOperationChange={setFogToolOperation}
+              onUndoFogShape={onUndoFogShape}
+              onRequestClearFog={onRequestClearFog}
+              onMaskSettingsOpenChange={setMaskSettingsOpen}
+              onBrushSizeChange={onBrushSizeChange}
+              onFogBrushCustomOpenChange={setFogBrushCustomOpen}
+              onHelpTopicChange={setHelpTopic}
+            />
           )}
           {activeCategory === "effects" && (
             <div className="tools-panel-section">
