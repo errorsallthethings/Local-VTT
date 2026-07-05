@@ -21,7 +21,6 @@ import type {
   CampaignSceneFolder,
   DisplayCalibration,
   DiceSettings,
-  EnvironmentEffectType,
   GridType,
   LiveTableEvent,
   PlayerViewTestPattern,
@@ -44,7 +43,6 @@ import type { MapCalibrationBox } from "../components/settings/MapCalibrationAss
 import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import type { WizardMapFitMode } from "../components/settings/TableDisplaySetupWizard";
 import { ToolsMenu, type SelectorSelectionFilters } from "../components/tools";
-import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DarknessEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../canvas/effects";
 import { applyMapCalibrationDraft, buildMapFitPresetScene, buildWizardMapFitScene, getImageMapAssetPath, type MapCalibrationDraft } from "../lib/map";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { TurnOrderModal } from "../components/turn-order/TurnOrderModal";
@@ -54,6 +52,7 @@ import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import { useCampaignActions, type CampaignBusyState, type MapReplacementPreview } from "../hooks/useCampaignActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
+import { useEnvironmentEffectActions } from "../hooks/useEnvironmentEffectActions";
 import {
   getDefaultAcidEffectTuning,
   getDefaultArcaneEffectTuning,
@@ -129,7 +128,7 @@ import {
   removeLastWeatherMask,
   toggleExpandedFolderId
 } from "../lib/scene";
-import { buildSceneSelectionIds, patchSceneEnvironmentEffect, removeSelectedSceneItems, setSceneEnvironmentEffectType, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
+import { buildSceneSelectionIds, removeSelectedSceneItems, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
 import {
   applySceneColorDialog,
   getSceneColorDialogState,
@@ -514,41 +513,28 @@ export function GmApp() {
     updateScene(nextScene, campaign, syncScene);
   };
 
-  type SceneEnvironmentEffect = Scene["environment"]["effects"][number];
-
-  const updateEnvironmentEffect = (effectId: string, updateEffect: (effect: SceneEnvironmentEffect) => SceneEnvironmentEffect) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene(patchSceneEnvironmentEffect(activeScene, effectId, updateEffect));
-  };
-
-  const updateEnvironmentEffectAcidTuning = (effectId: string, acidTuning: AcidEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, acidTuning }));
-  const updateEnvironmentEffectPoisonTuning = (effectId: string, poisonTuning: PoisonEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, poisonTuning }));
-  const updateEnvironmentEffectColdTuning = (effectId: string, coldTuning: ColdEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, coldTuning }));
-  const updateEnvironmentEffectDarknessTuning = (effectId: string, darknessTuning: DarknessEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, darknessTuning }));
-  const updateEnvironmentEffectWaterTuning = (effectId: string, waterTuning: WaterEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, waterTuning }));
-  const updateEnvironmentEffectLavaTuning = (effectId: string, lavaTuning: LavaEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, lavaTuning }));
-  const updateEnvironmentEffectFireTuning = (effectId: string, fireTuning: FireEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, fireTuning }));
-  const updateEnvironmentEffectLightningTuning = (effectId: string, lightningTuning: LightningEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, lightningTuning }));
-  const updateEnvironmentEffectArcaneTuning = (effectId: string, arcaneTuning: ArcaneEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, arcaneTuning }));
-  const updateEnvironmentEffectChaosTuning = (effectId: string, chaosTuning: ChaosEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, chaosTuning }));
-  const updateEnvironmentEffectVoidTuning = (effectId: string, voidTuning: VoidEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, voidTuning }));
-  const updateEnvironmentEffectNatureTuning = (effectId: string, natureTuning: NatureEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, natureTuning }));
-  const updateEnvironmentEffectDistortionTuning = (effectId: string, distortionTuning: DistortionEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, distortionTuning }));
-  const updateEnvironmentEffectRadiantTuning = (effectId: string, radiantTuning: RadiantEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, radiantTuning }));
-  const updateEnvironmentEffectForceFieldTuning = (effectId: string, fieldTuning: ForceFieldEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, fieldTuning }));
-  const updateEnvironmentEffectShockwaveTuning = (effectId: string, shockwaveTuning: ShockwaveEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, shockwaveTuning }));
-  const updateEnvironmentEffectSmokeTuning = (effectId: string, smokeTuning: SmokeEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, smokeTuning }));
-  const updateEnvironmentEffectFogTuning = (effectId: string, fogTuning: FogEffectTuning) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, fogTuning }));
-  const updateEnvironmentEffectFeather = (effectId: string, feather: number) => updateEnvironmentEffect(effectId, (effect) => ({ ...effect, feather }));
-
-  const updateEnvironmentEffectType = (effectId: string, effectType: EnvironmentEffectType) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene(setSceneEnvironmentEffectType(activeScene, effectId, effectType));
-  };
+  const {
+    updateEnvironmentEffectAcidTuning,
+    updateEnvironmentEffectPoisonTuning,
+    updateEnvironmentEffectColdTuning,
+    updateEnvironmentEffectDarknessTuning,
+    updateEnvironmentEffectWaterTuning,
+    updateEnvironmentEffectLavaTuning,
+    updateEnvironmentEffectFireTuning,
+    updateEnvironmentEffectLightningTuning,
+    updateEnvironmentEffectArcaneTuning,
+    updateEnvironmentEffectChaosTuning,
+    updateEnvironmentEffectVoidTuning,
+    updateEnvironmentEffectNatureTuning,
+    updateEnvironmentEffectDistortionTuning,
+    updateEnvironmentEffectRadiantTuning,
+    updateEnvironmentEffectForceFieldTuning,
+    updateEnvironmentEffectShockwaveTuning,
+    updateEnvironmentEffectSmokeTuning,
+    updateEnvironmentEffectFogTuning,
+    updateEnvironmentEffectFeather,
+    updateEnvironmentEffectType
+  } = useEnvironmentEffectActions({ activeScene, updateScene });
 
   const updateSelectedPlayerVisibility = (visibleInPlayer: boolean) => {
     if (!activeScene) {

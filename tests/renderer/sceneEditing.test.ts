@@ -18,6 +18,8 @@ import {
   removeEnvironmentEffect,
   removeSceneDrawing,
   removeSceneToken,
+  setSceneEnvironmentEffectFeather,
+  setSceneEnvironmentEffectPatch,
   setDrawingPlayerVisibility,
   setDrawingTemplateFootprintVisibility,
   setFogShapePlayerVisibility,
@@ -356,6 +358,32 @@ describe("scene editing helpers", () => {
     const next = addEnvironmentEffect(scene, { id: "effect-1", kind: "rectangle", effect: "water", points: [{ x: 0, y: 0 }, { x: 100, y: 100 }] }, "updated");
 
     expect(next.environment.effects.map((effect) => effect.id)).toEqual(["effect-1"]);
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("patches one environment effect without changing other effects", () => {
+    const scene = createDefaultScene("Effects");
+    scene.environment.effects = [
+      { id: "effect-1", kind: "rectangle", effect: "water", points: [{ x: 0, y: 0 }, { x: 100, y: 100 }], feather: 0.1 },
+      { id: "effect-2", kind: "circle", effect: "fire", points: [{ x: 20, y: 20 }], radius: 10, feather: 0.2 }
+    ];
+
+    const next = setSceneEnvironmentEffectPatch(scene, "effect-1", { feather: 0.75, visibleInPlayer: true }, "updated");
+
+    expect(next.environment.effects[0]).toMatchObject({ id: "effect-1", feather: 0.75, visibleInPlayer: true });
+    expect(next.environment.effects[1]).toBe(scene.environment.effects[1]);
+    expect(next.updatedAt).toBe("updated");
+  });
+
+  it("sets environment effect feather through the dedicated helper", () => {
+    const scene = createDefaultScene("Effects");
+    scene.environment.effects = [
+      { id: "effect-1", kind: "rectangle", effect: "water", points: [{ x: 0, y: 0 }, { x: 100, y: 100 }], feather: 0.1 }
+    ];
+
+    const next = setSceneEnvironmentEffectFeather(scene, "effect-1", 0.5, "updated");
+
+    expect(next.environment.effects[0].feather).toBe(0.5);
     expect(next.updatedAt).toBe("updated");
   });
 });

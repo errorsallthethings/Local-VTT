@@ -167,6 +167,19 @@ export function patchSceneEnvironmentEffect(
   };
 }
 
+export function setSceneEnvironmentEffectPatch(
+  scene: Scene,
+  effectId: string,
+  patch: Partial<EnvironmentEffectMask>,
+  updatedAt = new Date().toISOString()
+): Scene {
+  return patchSceneEnvironmentEffect(scene, effectId, (effect) => ({ ...effect, ...patch }), updatedAt);
+}
+
+export function setSceneEnvironmentEffectFeather(scene: Scene, effectId: string, feather: number, updatedAt = new Date().toISOString()): Scene {
+  return setSceneEnvironmentEffectPatch(scene, effectId, { feather }, updatedAt);
+}
+
 export function setSceneEnvironmentEffectType(
   scene: Scene,
   effectId: string,
