@@ -221,10 +221,10 @@ import { getScenePointerUpRoute } from "./scene/scenePointerUpRouting";
 import { clearSceneSelectionsExcept as clearSceneSelectionsExceptTarget, getSceneMarqueeSelectionPayload } from "./scene/sceneSelectionRouting";
 import { getSceneViewportCenterReport, getSceneWheelZoomCamera } from "./scene/sceneViewportActions";
 import { canAcceptTokenAssetDrop as canAcceptSceneTokenAssetDrop, getDroppedTokenAsset } from "./scene/sceneTokenAssetDrop";
-import { getDrawingPointerMove, getDrawingPointerMoveAction, getDrawingPointerStart } from "./scene/sceneDrawingPointer";
-import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerMoveAction, getEnvironmentEffectPointerStart } from "./scene/sceneEnvironmentEffectPointer";
+import { getDrawingPointerMove, getDrawingPointerMoveAction } from "./scene/sceneDrawingPointer";
+import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerMoveAction } from "./scene/sceneEnvironmentEffectPointer";
 import { getLaserPointerMove, getLaserPointerMoveAction, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
-import { getFogPointerMove, getFogPointerMoveAction, getFogPointerStart } from "./scene/sceneFogPointer";
+import { getFogPointerMove, getFogPointerMoveAction } from "./scene/sceneFogPointer";
 import {
   getMaskEffectPointerComplete,
   getMaskEffectPointerCompleteAction,
@@ -238,10 +238,11 @@ import { getRulerPointerMoveAction, getRulerPointerStart, getUpdatedRulerPointer
 import { getTokenPointerMove, getTokenPointerMoveAction } from "./scene/sceneTokenPointer";
 import { getDrawingTransformPointerComplete, getDrawingTransformPointerCompleteAction, getDrawingTransformPointerMove, getDrawingTransformPointerMoveAction } from "./scene/sceneDrawingTransformPointer";
 import { getSceneSelectorPointerStart } from "./scene/sceneSelectorPointerStart";
+import { getSceneAuthoringPointerStart } from "./scene/sceneAuthoringPointerStart";
 import { getRulerWaypointAppendKeyboardAction, getTokenWaypointAppendKeyboardAction } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
-import { getWeatherMaskPointerMove, getWeatherMaskPointerMoveAction, getWeatherMaskPointerStart } from "./scene/sceneWeatherMaskPointer";
+import { getWeatherMaskPointerMove, getWeatherMaskPointerMoveAction } from "./scene/sceneWeatherMaskPointer";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
@@ -1383,114 +1384,95 @@ export function SceneCanvas({
       onLiveTableEvent?.(laserEvent);
       return;
     }
+    const drawingPointerStyle = {
+      color: drawingColor,
+      opacity: drawingOpacity,
+      fillColor: drawingFillColor,
+      fillOpacity: drawingFillOpacity,
+      strokeStyle: drawingStrokeStyle,
+      strokeWidth: drawingStrokeWidth,
+      templateEffect: drawingTemplateEffect,
+      templateWidth: drawingTemplateWidth
+    };
+    const getAuthoringStart = (route: typeof pointerDownRoute, toolPoint: Point) =>
+      getSceneAuthoringPointerStart({
+        activeFogBrushSize,
+        button: event.button,
+        drawingStyle: drawingPointerStyle,
+        drawingTool,
+        environmentEffectFeather,
+        environmentEffectTool,
+        environmentEffectTuning: currentEnvironmentEffectTuning,
+        environmentEffectType,
+        fogTool,
+        hasScene: Boolean(scene),
+        mode,
+        onSceneChangeAvailable: Boolean(onSceneChange),
+        pointerId: event.pointerId,
+        route,
+        toolPoint,
+        weatherMaskTool
+      });
+
     if (pointerDownRoute === "drawing-polygon") {
       const activeDrawingTool = drawingTool!;
-      updateDrawingPolygonDraft(getDrawingToolPoint(event, activeDrawingTool));
+      const start = getAuthoringStart(pointerDownRoute, getDrawingToolPoint(event, activeDrawingTool));
+      if (start?.kind === "drawing-polygon") {
+        updateDrawingPolygonDraft(start.point);
+      }
       return;
     }
     if (pointerDownRoute === "drawing") {
       const activeDrawingTool = drawingTool!;
-      const point = getDrawingToolPoint(event, activeDrawingTool);
-      const preview = getDrawingPointerStart({
-        button: event.button,
-        hasScene: Boolean(scene),
-        mode,
-        onSceneChangeAvailable: Boolean(onSceneChange),
-        point,
-        pointerId: event.pointerId,
-        style: {
-          color: drawingColor,
-          opacity: drawingOpacity,
-          fillColor: drawingFillColor,
-          fillOpacity: drawingFillOpacity,
-          strokeStyle: drawingStrokeStyle,
-          strokeWidth: drawingStrokeWidth,
-          templateEffect: drawingTemplateEffect,
-          templateWidth: drawingTemplateWidth
-        },
-        tool: activeDrawingTool
-      });
-      if (!preview) {
+      const start = getAuthoringStart(pointerDownRoute, getDrawingToolPoint(event, activeDrawingTool));
+      if (start?.kind !== "drawing") {
         return;
       }
-      drawingPreviewRef.current = preview;
-      setDrawingPreview(preview);
-      onTemplatePreviewChange?.(getTemplatePreviewDrawing(preview));
+      drawingPreviewRef.current = start.preview;
+      setDrawingPreview(start.preview);
+      onTemplatePreviewChange?.(getTemplatePreviewDrawing(start.preview));
       return;
     }
     if (pointerDownRoute === "fog") {
       const activeFogTool = fogTool!;
-      const point = getToolPoint(event, !activeFogTool.includes("brush"));
-      const start = getFogPointerStart({
-        brushSize: activeFogBrushSize,
-        button: event.button,
-        hasScene: Boolean(scene),
-        mode,
-        onSceneChangeAvailable: Boolean(onSceneChange),
-        point,
-        pointerId: event.pointerId,
-        tool: activeFogTool
-      });
-      if (!start) {
+      const start = getAuthoringStart(pointerDownRoute, getToolPoint(event, !activeFogTool.includes("brush")));
+      if (start?.kind !== "fog") {
         return;
       }
-      if (start.kind === "polygon") {
-        updatePolygonDraft(start.tool, start.point);
+      if (start.start.kind === "polygon") {
+        updatePolygonDraft(start.start.tool, start.start.point);
         return;
       }
-      fogDragRef.current = start.drag;
-      setFogPreview(start.drag);
+      fogDragRef.current = start.start.drag;
+      setFogPreview(start.start.drag);
       return;
     }
     if (pointerDownRoute === "weather-mask") {
-      const activeWeatherMaskTool = weatherMaskTool!;
-      const point = getToolPoint(event);
-      const start = getWeatherMaskPointerStart({
-        button: event.button,
-        hasScene: Boolean(scene),
-        mode,
-        onSceneChangeAvailable: Boolean(onSceneChange),
-        point,
-        pointerId: event.pointerId,
-        tool: activeWeatherMaskTool
-      });
-      if (!start) {
+      const start = getAuthoringStart(pointerDownRoute, getToolPoint(event));
+      if (start?.kind !== "weather-mask") {
         return;
       }
-      if (start.kind === "polygon") {
-        updateWeatherPolygonDraft(start.point);
+      if (start.start.kind === "polygon") {
+        updateWeatherPolygonDraft(start.start.point);
         return;
       }
       clearScenePolygonDraft({ ref: weatherPolygonDraftRef, setDraft: setWeatherPolygonDraft });
-      weatherMaskDragRef.current = start.drag;
-      setWeatherMaskPreview(start.drag);
+      weatherMaskDragRef.current = start.start.drag;
+      setWeatherMaskPreview(start.start.drag);
       return;
     }
     if (pointerDownRoute === "environment-effect") {
-      const activeEnvironmentEffectTool = environmentEffectTool!;
-      const point = getToolPoint(event);
-      const start = getEnvironmentEffectPointerStart({
-        button: event.button,
-        effect: environmentEffectType,
-        fallbackTuning: currentEnvironmentEffectTuning,
-        feather: environmentEffectFeather,
-        hasScene: Boolean(scene),
-        mode,
-        onSceneChangeAvailable: Boolean(onSceneChange),
-        point,
-        pointerId: event.pointerId,
-        tool: activeEnvironmentEffectTool
-      });
-      if (!start) {
+      const start = getAuthoringStart(pointerDownRoute, getToolPoint(event));
+      if (start?.kind !== "environment-effect") {
         return;
       }
-      if (start.kind === "polygon") {
-        updateEnvironmentPolygonDraft(start.point);
+      if (start.start.kind === "polygon") {
+        updateEnvironmentPolygonDraft(start.start.point);
         return;
       }
       clearScenePolygonDraft({ ref: environmentPolygonDraftRef, setDraft: setEnvironmentPolygonDraft });
-      environmentEffectDragRef.current = start.drag;
-      setEnvironmentEffectPreview(start.drag);
+      environmentEffectDragRef.current = start.start.drag;
+      setEnvironmentEffectPreview(start.start.drag);
       return;
     }
     if (pointerDownRoute === "marquee-additive") {
