@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_TABLE_TOOLS } from "../../src/shared/localvtt";
-import { getLaserPointerMove, getLaserPointerStart, shouldEndLaserPointer } from "../../src/renderer/components/scene/sceneLaserPointer";
+import { getLaserPointerMove, getLaserPointerMoveAction, getLaserPointerStart, shouldEndLaserPointer } from "../../src/renderer/components/scene/sceneLaserPointer";
 
 describe("scene laser pointer helpers", () => {
   it("starts laser drags only for active GM left-clicks with the laser tool", () => {
@@ -51,6 +51,28 @@ describe("scene laser pointer helpers", () => {
       { point: { x: 0, y: 0 }, createdAt: 100 },
       { point: { x: 20, y: 0 }, createdAt: 200 }
     ]);
+  });
+
+  it("maps laser pointer move results to SceneCanvas actions", () => {
+    const activeDrag = {
+      pointerId: 4,
+      eventId: "laser-1",
+      points: [{ point: { x: 0, y: 0 }, createdAt: 100 }]
+    };
+    const nextDrag = getLaserPointerMove(activeDrag, 4, { x: 20, y: 0 }, 200);
+
+    expect(getLaserPointerMoveAction(null)).toEqual({ kind: "none" });
+    expect(getLaserPointerMoveAction(nextDrag)).toEqual({
+      kind: "emit",
+      drag: {
+        pointerId: 4,
+        eventId: "laser-1",
+        points: [
+          { point: { x: 0, y: 0 }, createdAt: 100 },
+          { point: { x: 20, y: 0 }, createdAt: 200 }
+        ]
+      }
+    });
   });
 
   it("ends only the matching active laser drag", () => {

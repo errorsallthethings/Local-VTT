@@ -211,9 +211,9 @@ import { getScenePointerMoveRoute } from "./scene/scenePointerMoveRouting";
 import { getScenePointerUpRoute } from "./scene/scenePointerUpRouting";
 import { getSceneSelectionKindsToClear, type SceneSelectionTargetKind } from "./scene/sceneSelectionRouting";
 import { canAcceptTokenAssetDrop as canAcceptSceneTokenAssetDrop, getDroppedTokenAsset } from "./scene/sceneTokenAssetDrop";
-import { getDrawingPointerMove, getDrawingPointerStart } from "./scene/sceneDrawingPointer";
+import { getDrawingPointerMove, getDrawingPointerMoveAction, getDrawingPointerStart } from "./scene/sceneDrawingPointer";
 import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerMoveAction, getEnvironmentEffectPointerStart } from "./scene/sceneEnvironmentEffectPointer";
-import { getLaserPointerMove, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
+import { getLaserPointerMove, getLaserPointerMoveAction, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
 import { getFogPointerMove, getFogPointerMoveAction, getFogPointerStart } from "./scene/sceneFogPointer";
 import {
   getEnvironmentEffectHitPointerStart,
@@ -224,7 +224,7 @@ import {
   type WeatherMaskMoveState
 } from "./scene/sceneMaskEffectPointer";
 import { getMapCalibrationPointerComplete, getMapCalibrationPointerMove, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
-import { getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
+import { getRulerPointerMoveAction, getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
 import { getTokenPointerMove, getTokenPointerMoveAction, getTokenPointerStart } from "./scene/sceneTokenPointer";
 import { getDrawingTransformPointerComplete, getDrawingTransformPointerMove, getDrawingTransformPointerStart } from "./scene/sceneDrawingTransformPointer";
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
@@ -1594,21 +1594,20 @@ export function SceneCanvas({
     }
     if (pointerMoveRoute === "laser" && laserDrag) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const nextLaserDrag = getLaserPointerMove(laserDrag, event.pointerId, point, Date.now());
-      if (nextLaserDrag) {
-        laserDragRef.current = nextLaserDrag;
-        onLiveTableEvent?.(createLaserLiveTableEvent(laserDrag.eventId, nextLaserDrag.points, activeTableTools, tableToolsVisibleInPlayer));
+      const action = getLaserPointerMoveAction(getLaserPointerMove(laserDrag, event.pointerId, point, Date.now()));
+      if (action.kind === "emit") {
+        laserDragRef.current = action.drag;
+        onLiveTableEvent?.(createLaserLiveTableEvent(laserDrag.eventId, action.drag.points, activeTableTools, tableToolsVisibleInPlayer));
       }
       return;
     }
     if (pointerMoveRoute === "ruler" && rulerDragValue) {
-      const nextRulerDrag = getUpdatedRulerPointerDrag(rulerDragValue, event.pointerId, getRulerPoint(event));
-      if (!nextRulerDrag) {
-        return;
+      const action = getRulerPointerMoveAction(getUpdatedRulerPointerDrag(rulerDragValue, event.pointerId, getRulerPoint(event)));
+      if (action.kind === "set-drag") {
+        rulerDragRef.current = action.drag;
+        setRulerDrag(action.drag);
+        emitRulerEvent(action.drag);
       }
-      rulerDragRef.current = nextRulerDrag;
-      setRulerDrag(nextRulerDrag);
-      emitRulerEvent(nextRulerDrag);
       return;
     }
 
@@ -1622,13 +1621,12 @@ export function SceneCanvas({
 
     if (pointerMoveRoute === "drawing" && drawingDrag) {
       const point = getDrawingToolPoint(event, drawingDrag.kind);
-      const nextDrawingDrag = getDrawingPointerMove(drawingDrag, event.pointerId, point, scene, drawingTemplateSize, event.shiftKey);
-      if (!nextDrawingDrag) {
-        return;
+      const action = getDrawingPointerMoveAction(getDrawingPointerMove(drawingDrag, event.pointerId, point, scene, drawingTemplateSize, event.shiftKey));
+      if (action.kind === "set-preview") {
+        drawingPreviewRef.current = action.preview;
+        setDrawingPreview(action.preview);
+        onTemplatePreviewChange?.(getTemplatePreviewDrawing(action.preview));
       }
-      drawingPreviewRef.current = nextDrawingDrag;
-      setDrawingPreview(nextDrawingDrag);
-      onTemplatePreviewChange?.(getTemplatePreviewDrawing(nextDrawingDrag));
       return;
     }
 

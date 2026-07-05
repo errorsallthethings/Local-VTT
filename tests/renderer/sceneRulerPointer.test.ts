@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getRulerPointerStart, getUpdatedRulerPointerDrag } from "../../src/renderer/components/scene/sceneRulerPointer";
+import { getRulerPointerMoveAction, getRulerPointerStart, getUpdatedRulerPointerDrag } from "../../src/renderer/components/scene/sceneRulerPointer";
 
 describe("scene ruler pointer helpers", () => {
   it("starts a ruler drag for a GM left-click with the ruler tool", () => {
@@ -49,6 +49,25 @@ describe("scene ruler pointer helpers", () => {
     expect(getUpdatedRulerPointerDrag(activeDrag, 7, { x: 40, y: 50 })).toEqual({
       ...activeDrag,
       current: { x: 40, y: 50 }
+    });
+  });
+
+  it("maps ruler pointer move results to SceneCanvas actions", () => {
+    const activeDrag = {
+      pointerId: 7,
+      start: { x: 10, y: 20 },
+      current: { x: 10, y: 20 },
+      waypoints: []
+    };
+    const nextDrag = getUpdatedRulerPointerDrag(activeDrag, 7, { x: 40, y: 50 });
+
+    expect(getRulerPointerMoveAction(null)).toEqual({ kind: "none" });
+    expect(getRulerPointerMoveAction(nextDrag)).toEqual({
+      kind: "set-drag",
+      drag: {
+        ...activeDrag,
+        current: { x: 40, y: 50 }
+      }
     });
   });
 });

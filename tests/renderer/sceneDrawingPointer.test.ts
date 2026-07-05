@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene } from "../../src/shared/localvtt";
 import type { DrawingPreview } from "../../src/renderer/canvas/drawings";
-import { getDrawingPointerMove, getDrawingPointerStart } from "../../src/renderer/components/scene/sceneDrawingPointer";
+import { getDrawingPointerMove, getDrawingPointerMoveAction, getDrawingPointerStart } from "../../src/renderer/components/scene/sceneDrawingPointer";
 
 const style = {
   color: "#ff0000",
@@ -76,6 +76,30 @@ describe("scene drawing pointer helpers", () => {
     expect(getDrawingPointerMove(null, 6, { x: 20, y: 10 }, scene, "custom", false)).toBeNull();
     expect(getDrawingPointerMove(preview, 7, { x: 20, y: 10 }, scene, "custom", false)).toBeNull();
     expect(getDrawingPointerMove(preview, 6, { x: 20, y: 10 }, scene, "custom", true)?.current).toEqual({ x: 20, y: 20 });
+  });
+
+  it("maps drawing pointer move results to SceneCanvas actions", () => {
+    const scene = createDefaultScene("Drawing Move Action");
+    const preview: DrawingPreview = {
+      pointerId: 6,
+      kind: "rectangle",
+      points: [{ x: 0, y: 0 }],
+      current: { x: 0, y: 0 },
+      color: "#ff0000",
+      opacity: 1,
+      strokeWidth: 2,
+      templateEffect: "plain",
+      templateWidth: 5
+    };
+    const nextPreview = getDrawingPointerMove(preview, 6, { x: 20, y: 10 }, scene, "custom", true);
+
+    expect(getDrawingPointerMoveAction(null)).toEqual({ kind: "none" });
+    expect(getDrawingPointerMoveAction(nextPreview)).toMatchObject({
+      kind: "set-preview",
+      preview: {
+        current: { x: 20, y: 20 }
+      }
+    });
   });
 
   it("starts template previews with template-specific presentation fields", () => {

@@ -36,6 +36,17 @@ export function getLaserPointerMove(
   return getUpdatedLaserDrag(activeDrag, point, now);
 }
 
+export type LaserPointerMoveAction =
+  | { kind: "emit"; drag: LaserDragState }
+  | { kind: "none" };
+
+export function getLaserPointerMoveAction(drag: LaserDragState | null): LaserPointerMoveAction {
+  if (!drag) {
+    return { kind: "none" };
+  }
+  return { kind: "emit", drag };
+}
+
 export function shouldEndLaserPointer(activeDrag: LaserDragState | null, pointerId: number): boolean {
   return Boolean(activeDrag && activeDrag.pointerId === pointerId);
 }

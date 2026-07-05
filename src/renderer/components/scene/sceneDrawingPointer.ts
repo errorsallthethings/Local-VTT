@@ -41,3 +41,14 @@ export function getDrawingPointerMove(
 
   return getUpdatedDrawingPreview(activePreview, point, scene, templateSize, squareConstrained);
 }
+
+export type DrawingPointerMoveAction =
+  | { kind: "set-preview"; preview: DrawingPreview }
+  | { kind: "none" };
+
+export function getDrawingPointerMoveAction(preview: DrawingPreview | null): DrawingPointerMoveAction {
+  if (!preview) {
+    return { kind: "none" };
+  }
+  return { kind: "set-preview", preview };
+}

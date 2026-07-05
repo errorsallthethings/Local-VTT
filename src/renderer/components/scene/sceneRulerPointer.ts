@@ -28,3 +28,14 @@ export function getUpdatedRulerPointerDrag(activeDrag: RulerPointerDrag | null, 
     current: point
   };
 }
+
+export type RulerPointerMoveAction =
+  | { kind: "set-drag"; drag: RulerPointerDrag }
+  | { kind: "none" };
+
+export function getRulerPointerMoveAction(drag: RulerPointerDrag | null): RulerPointerMoveAction {
+  if (!drag) {
+    return { kind: "none" };
+  }
+  return { kind: "set-drag", drag };
+}
