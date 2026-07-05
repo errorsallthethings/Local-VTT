@@ -22,6 +22,7 @@ GM and Player windows run with `contextIsolation: true`, `nodeIntegration: false
 - Electron resolves absolute asset paths at runtime after a campaign is opened.
 - Imported map, video, and token assets are copied into campaign-owned asset folders before being referenced by metadata. Thumbnail generation is best-effort; missing thumbnails should not make campaign metadata invalid.
 - Saved campaign metadata must not contain absolute asset paths. Persistence codecs strip runtime-only absolute paths and reject asset paths that are absolute, contain drive prefixes, or traverse outside the campaign folder.
+- Renderer asset URLs use the `localvtt://asset/` protocol. The preload helper only formats URLs; the main-process protocol handler enforces the trust boundary by allowing only registered campaign asset paths or short-lived registered external token-import paths.
 - Renderer code saves campaign and scene changes through the preload API.
 - Player View receives a projected scene payload that strips GM-only content before crossing the IPC boundary.
 - Campaign and scene files include schema versions so future migrations have an explicit upgrade path. Local VTT `0.1.8` writes campaign and scene schema version `2`.

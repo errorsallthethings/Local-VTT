@@ -4,11 +4,13 @@ import {
   createAssetProtocolFileResponse,
   getAssetProtocolStatFailureResponse,
   getAssetProtocolStatResultFailureResponse,
+  LOCALVTT_INVALID_ASSET_URL_MESSAGE,
   LOCALVTT_ASSET_MISSING_MESSAGE,
   LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE,
   LOCALVTT_UNKNOWN_RESOURCE_MESSAGE,
   resolveAssetProtocolRequest
 } from "../../electron/assetProtocol";
+import { CampaignSessionRegistry } from "../../electron/campaignSessionRegistry";
 
 describe("asset protocol responses", () => {
   it("formats blocked asset responses as text", async () => {
@@ -76,6 +78,20 @@ describe("asset protocol responses", () => {
     }
   });
 
+  it("rejects malformed or empty asset URLs without throwing", async () => {
+    for (const resolution of [
+      resolveAssetProtocolRequest("not a url", () => true, () => true),
+      resolveAssetProtocolRequest("localvtt://asset/", () => true, () => true),
+      resolveAssetProtocolRequest("localvtt://asset/%E0%A4%A", () => true, () => true)
+    ]) {
+      expect(resolution.ok).toBe(false);
+      if (!resolution.ok) {
+        expect(resolution.response.status).toBe(400);
+        await expect(resolution.response.text()).resolves.toBe(LOCALVTT_INVALID_ASSET_URL_MESSAGE);
+      }
+    }
+  });
+
   it("rejects unknown asset paths and registered paths outside opened campaigns", async () => {
     for (const resolution of [
       resolveAssetProtocolRequest("localvtt://asset/C%3A%2FCampaign%2Fmap.png", () => true, () => false),
@@ -96,6 +112,26 @@ describe("asset protocol responses", () => {
       ok: true,
       filePath: expect.stringContaining("Campaign")
     });
+  });
+
+  it("rejects encoded traversal outside the opened campaign", async () => {
+    const registry = new CampaignSessionRegistry();
+    const campaignPath = "C:/Campaign";
+    const assetPath = "C:/Outside/map.png";
+    registry.registerCampaignPath(campaignPath);
+    registry.registerAssetPath(assetPath);
+
+    const resolution = resolveAssetProtocolRequest(
+      "localvtt://asset/C%3A%2FCampaign%2F..%2FOutside%2Fmap.png",
+      (candidatePath) => registry.isInsideOpenedCampaign(candidatePath),
+      (candidatePath) => registry.isKnownAssetPath(candidatePath)
+    );
+
+    expect(resolution.ok).toBe(false);
+    if (!resolution.ok) {
+      expect(resolution.response.status).toBe(403);
+      await expect(resolution.response.text()).resolves.toBe(LOCALVTT_ASSET_NOT_REGISTERED_MESSAGE);
+    }
   });
 
   it("resolves explicitly temporary external asset paths", () => {
