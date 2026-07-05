@@ -52,6 +52,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted and tested SceneCanvas pointer-move fallback routing for polygon drafts, brush hover, and default hover/snap updates.
 - Extracted and tested SceneCanvas pointer-move fallback update helpers for polygon draft current points and brush hover point selection.
 - Extracted and tested token pointer-move action policy so missing-token cancellation and drag preview updates are no longer inline SceneCanvas branching.
+- Extracted and tested fog, weather-mask, and environment-effect pointer-move action policies so preview/ref updates are no longer inline SceneCanvas branching.
 - Extracted and tested SceneCanvas context-menu routing for waypoint removal, polygon backtracking, and target menu kind selection.
 - Split the environment effect drawer registry out of the layer renderer so future effect-family modules can move behind a stable registry seam.
 - Extracted shared WebGL environment-effect runtime helpers and moved the smoke/fog effect family into its own renderer module while preserving the existing public effect exports.

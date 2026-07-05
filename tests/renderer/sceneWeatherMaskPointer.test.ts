@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getWeatherMaskPointerMove, getWeatherMaskPointerStart } from "../../src/renderer/components/scene/sceneWeatherMaskPointer";
+import { getWeatherMaskPointerMove, getWeatherMaskPointerMoveAction, getWeatherMaskPointerStart } from "../../src/renderer/components/scene/sceneWeatherMaskPointer";
 import type { WeatherMaskDrag } from "../../src/renderer/canvas/weather";
 
 describe("scene weather mask pointer helpers", () => {
@@ -71,5 +71,23 @@ describe("scene weather mask pointer helpers", () => {
     expect(getWeatherMaskPointerMove(null, 6, { x: 20, y: 10 }, false)).toBeNull();
     expect(getWeatherMaskPointerMove(drag, 7, { x: 20, y: 10 }, false)).toBeNull();
     expect(getWeatherMaskPointerMove(drag, 6, { x: 20, y: 10 }, true)?.current).toEqual({ x: 20, y: 20 });
+  });
+
+  it("maps weather mask pointer move results to SceneCanvas actions", () => {
+    const drag: WeatherMaskDrag = {
+      pointerId: 6,
+      kind: "rectangle",
+      start: { x: 0, y: 0 },
+      current: { x: 0, y: 0 }
+    };
+    const nextDrag = getWeatherMaskPointerMove(drag, 6, { x: 20, y: 10 }, true);
+
+    expect(getWeatherMaskPointerMoveAction(null)).toEqual({ kind: "none" });
+    expect(getWeatherMaskPointerMoveAction(nextDrag)).toMatchObject({
+      kind: "set-preview",
+      drag: {
+        current: { x: 20, y: 20 }
+      }
+    });
   });
 });

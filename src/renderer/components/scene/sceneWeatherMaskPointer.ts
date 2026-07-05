@@ -38,3 +38,14 @@ export function getWeatherMaskPointerMove(activeDrag: WeatherMaskDrag | null, po
 
   return getUpdatedWeatherMaskDrag(activeDrag, point, squareConstrained);
 }
+
+export type WeatherMaskPointerMoveAction =
+  | { kind: "set-preview"; drag: WeatherMaskDrag }
+  | { kind: "none" };
+
+export function getWeatherMaskPointerMoveAction(drag: WeatherMaskDrag | null): WeatherMaskPointerMoveAction {
+  if (!drag) {
+    return { kind: "none" };
+  }
+  return { kind: "set-preview", drag };
+}

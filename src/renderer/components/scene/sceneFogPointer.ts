@@ -38,3 +38,14 @@ export function getFogPointerMove(activeDrag: FogDrag | null, pointerId: number,
 
   return getUpdatedFogDrag(activeDrag, point, squareConstrained);
 }
+
+export type FogPointerMoveAction =
+  | { kind: "set-preview"; drag: FogDrag }
+  | { kind: "none" };
+
+export function getFogPointerMoveAction(drag: FogDrag | null): FogPointerMoveAction {
+  if (!drag) {
+    return { kind: "none" };
+  }
+  return { kind: "set-preview", drag };
+}

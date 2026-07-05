@@ -212,9 +212,9 @@ import { getScenePointerUpRoute } from "./scene/scenePointerUpRouting";
 import { getSceneSelectionKindsToClear, type SceneSelectionTargetKind } from "./scene/sceneSelectionRouting";
 import { canAcceptTokenAssetDrop as canAcceptSceneTokenAssetDrop, getDroppedTokenAsset } from "./scene/sceneTokenAssetDrop";
 import { getDrawingPointerMove, getDrawingPointerStart } from "./scene/sceneDrawingPointer";
-import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerStart } from "./scene/sceneEnvironmentEffectPointer";
+import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerMoveAction, getEnvironmentEffectPointerStart } from "./scene/sceneEnvironmentEffectPointer";
 import { getLaserPointerMove, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
-import { getFogPointerMove, getFogPointerStart } from "./scene/sceneFogPointer";
+import { getFogPointerMove, getFogPointerMoveAction, getFogPointerStart } from "./scene/sceneFogPointer";
 import {
   getEnvironmentEffectHitPointerStart,
   getMaskEffectPointerComplete,
@@ -230,7 +230,7 @@ import { getDrawingTransformPointerComplete, getDrawingTransformPointerMove, get
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
-import { getWeatherMaskPointerMove, getWeatherMaskPointerStart } from "./scene/sceneWeatherMaskPointer";
+import { getWeatherMaskPointerMove, getWeatherMaskPointerMoveAction, getWeatherMaskPointerStart } from "./scene/sceneWeatherMaskPointer";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
@@ -1687,34 +1687,31 @@ export function SceneCanvas({
 
     const fogDrag = fogDragRef.current;
     if (pointerMoveRoute === "fog" && fogDrag) {
-      const nextDrag = getFogPointerMove(fogDrag, event.pointerId, getToolPoint(event, fogDrag.kind !== "brush"), event.shiftKey);
-      if (!nextDrag) {
-        return;
+      const action = getFogPointerMoveAction(getFogPointerMove(fogDrag, event.pointerId, getToolPoint(event, fogDrag.kind !== "brush"), event.shiftKey));
+      if (action.kind === "set-preview") {
+        fogDragRef.current = action.drag;
+        setFogPreview(action.drag);
       }
-      fogDragRef.current = nextDrag;
-      setFogPreview(nextDrag);
       return;
     }
 
     const weatherMaskDrag = weatherMaskDragRef.current;
     if (pointerMoveRoute === "weather-mask" && weatherMaskDrag) {
-      const nextDrag = getWeatherMaskPointerMove(weatherMaskDrag, event.pointerId, getToolPoint(event), event.shiftKey);
-      if (!nextDrag) {
-        return;
+      const action = getWeatherMaskPointerMoveAction(getWeatherMaskPointerMove(weatherMaskDrag, event.pointerId, getToolPoint(event), event.shiftKey));
+      if (action.kind === "set-preview") {
+        weatherMaskDragRef.current = action.drag;
+        setWeatherMaskPreview(action.drag);
       }
-      weatherMaskDragRef.current = nextDrag;
-      setWeatherMaskPreview(nextDrag);
       return;
     }
 
     const environmentEffectDrag = environmentEffectDragRef.current;
     if (pointerMoveRoute === "environment-effect" && environmentEffectDrag) {
-      const nextDrag = getEnvironmentEffectPointerMove(environmentEffectDrag, event.pointerId, getToolPoint(event), event.shiftKey);
-      if (!nextDrag) {
-        return;
+      const action = getEnvironmentEffectPointerMoveAction(getEnvironmentEffectPointerMove(environmentEffectDrag, event.pointerId, getToolPoint(event), event.shiftKey));
+      if (action.kind === "set-preview") {
+        environmentEffectDragRef.current = action.drag;
+        setEnvironmentEffectPreview(action.drag);
       }
-      environmentEffectDragRef.current = nextDrag;
-      setEnvironmentEffectPreview(nextDrag);
       return;
     }
 

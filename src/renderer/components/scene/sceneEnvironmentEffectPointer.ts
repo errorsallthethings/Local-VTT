@@ -41,3 +41,14 @@ export function getEnvironmentEffectPointerMove(activeDrag: EnvironmentEffectDra
 
   return getUpdatedEnvironmentEffectDrag(activeDrag, point, squareConstrained);
 }
+
+export type EnvironmentEffectPointerMoveAction =
+  | { kind: "set-preview"; drag: EnvironmentEffectDrag }
+  | { kind: "none" };
+
+export function getEnvironmentEffectPointerMoveAction(drag: EnvironmentEffectDrag | null): EnvironmentEffectPointerMoveAction {
+  if (!drag) {
+    return { kind: "none" };
+  }
+  return { kind: "set-preview", drag };
+}

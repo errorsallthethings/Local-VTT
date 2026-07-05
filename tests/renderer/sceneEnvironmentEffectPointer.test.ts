@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerStart } from "../../src/renderer/components/scene/sceneEnvironmentEffectPointer";
+import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerMoveAction, getEnvironmentEffectPointerStart } from "../../src/renderer/components/scene/sceneEnvironmentEffectPointer";
 import type { EnvironmentEffectDrag } from "../../src/renderer/canvas/effects";
 
 describe("scene environment effect pointer helpers", () => {
@@ -85,5 +85,25 @@ describe("scene environment effect pointer helpers", () => {
     expect(getEnvironmentEffectPointerMove(null, 6, { x: 20, y: 10 }, false)).toBeNull();
     expect(getEnvironmentEffectPointerMove(drag, 7, { x: 20, y: 10 }, false)).toBeNull();
     expect(getEnvironmentEffectPointerMove(drag, 6, { x: 20, y: 10 }, true)?.current).toEqual({ x: 20, y: 20 });
+  });
+
+  it("maps environment effect pointer move results to SceneCanvas actions", () => {
+    const drag: EnvironmentEffectDrag = {
+      pointerId: 6,
+      kind: "rectangle",
+      effect: "fire",
+      feather: 0.5,
+      start: { x: 0, y: 0 },
+      current: { x: 0, y: 0 }
+    };
+    const nextDrag = getEnvironmentEffectPointerMove(drag, 6, { x: 20, y: 10 }, true);
+
+    expect(getEnvironmentEffectPointerMoveAction(null)).toEqual({ kind: "none" });
+    expect(getEnvironmentEffectPointerMoveAction(nextDrag)).toMatchObject({
+      kind: "set-preview",
+      drag: {
+        current: { x: 20, y: 20 }
+      }
+    });
   });
 });

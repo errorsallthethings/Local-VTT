@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getFogPointerMove, getFogPointerStart } from "../../src/renderer/components/scene/sceneFogPointer";
+import { getFogPointerMove, getFogPointerMoveAction, getFogPointerStart } from "../../src/renderer/components/scene/sceneFogPointer";
 import type { FogDrag } from "../../src/renderer/canvas/fog";
 
 describe("scene fog pointer helpers", () => {
@@ -80,5 +80,25 @@ describe("scene fog pointer helpers", () => {
     expect(getFogPointerMove(null, 6, { x: 20, y: 10 }, false)).toBeNull();
     expect(getFogPointerMove(drag, 7, { x: 20, y: 10 }, false)).toBeNull();
     expect(getFogPointerMove(drag, 6, { x: 20, y: 10 }, true)?.current).toEqual({ x: 20, y: 20 });
+  });
+
+  it("maps fog pointer move results to SceneCanvas actions", () => {
+    const drag: FogDrag = {
+      pointerId: 6,
+      kind: "rectangle",
+      start: { x: 0, y: 0 },
+      current: { x: 0, y: 0 },
+      points: [{ x: 0, y: 0 }],
+      operation: "hide"
+    };
+    const nextDrag = getFogPointerMove(drag, 6, { x: 20, y: 10 }, true);
+
+    expect(getFogPointerMoveAction(null)).toEqual({ kind: "none" });
+    expect(getFogPointerMoveAction(nextDrag)).toMatchObject({
+      kind: "set-preview",
+      drag: {
+        current: { x: 20, y: 20 }
+      }
+    });
   });
 });
