@@ -49,10 +49,9 @@ import {
 import { removeCampaignAssetFiles } from "./assetFileRemoval.js";
 import { mapMediaType } from "./assetImportValidation.js";
 import {
-  directoryDialogOptions,
-  mapFileDialogOptions,
-  selectedDialogPath,
-  tokenFileDialogOptions
+  chooseDirectory,
+  chooseMapFile,
+  chooseTokenFile
 } from "./fileDialogOptions.js";
 import { unlinkIfExists } from "./fileOperations.js";
 import { backupExistingMetadataFile } from "./metadataBackupFiles.js";
@@ -392,24 +391,6 @@ async function listMetadataBackups(campaignPath: string) {
   return listCampaignMetadataBackups(campaignPath, loadCampaignFromPath);
 }
 
-async function chooseDirectory(title: string, createDirectory = false): Promise<string | null> {
-  const options = directoryDialogOptions(title, createDirectory);
-  const result = gmWindow ? await dialog.showOpenDialog(gmWindow, options) : await dialog.showOpenDialog(options);
-  return selectedDialogPath(result);
-}
-
-async function chooseMapFile(): Promise<string | null> {
-  const options = mapFileDialogOptions();
-  const result = gmWindow ? await dialog.showOpenDialog(gmWindow, options) : await dialog.showOpenDialog(options);
-  return selectedDialogPath(result);
-}
-
-async function chooseTokenFile(): Promise<string | null> {
-  const options = tokenFileDialogOptions();
-  const result = gmWindow ? await dialog.showOpenDialog(gmWindow, options) : await dialog.showOpenDialog(options);
-  return selectedDialogPath(result);
-}
-
 async function createMapThumbnail(campaignPath: string, sourcePath: string, assetId: string, rendererWebContents?: WebContents): Promise<MapThumbnailResult> {
   const mediaType = mapMediaType(sourcePath);
   const thumbnailResult = mediaType === "video" ? await createVideoMapThumbnailWithFallback(sourcePath, assetId, rendererWebContents) : { thumbnail: createImageMapThumbnail(sourcePath) };
@@ -600,7 +581,7 @@ async function closeGmWindowAfterPausing(win: BrowserWindow): Promise<void> {
 }
 
 ipcMain.handle("campaign:create", async () => {
-  const campaignPath = await chooseDirectory("Choose a folder for the new Local VTT campaign", true);
+  const campaignPath = await chooseDirectory(dialog, gmWindow, "Choose a folder for the new Local VTT campaign", true);
   if (!campaignPath) {
     return null;
   }
@@ -613,7 +594,7 @@ ipcMain.handle("campaign:create", async () => {
 });
 
 ipcMain.handle("campaign:open", async () => {
-  const campaignPath = await chooseDirectory("Open Local VTT campaign folder");
+  const campaignPath = await chooseDirectory(dialog, gmWindow, "Open Local VTT campaign folder");
   if (!campaignPath) {
     return null;
   }
@@ -730,7 +711,7 @@ ipcMain.handle("scene:delete", async (_event, campaignPath: string, sceneId: str
 
 ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
   assertKnownCampaignPath(campaignPath);
-  const sourcePath = await chooseMapFile();
+  const sourcePath = await chooseMapFile(dialog, gmWindow);
   if (!sourcePath) {
     return null;
   }
@@ -769,7 +750,7 @@ ipcMain.handle("asset:previewMapReplacement", async (_event, campaignPath: strin
   assertKnownCampaignPath(campaignPath);
   assertIpcSafeId(sceneId, "Scene id");
   assertIpcSafeId(currentAssetId, "Asset id");
-  const sourcePath = await chooseMapFile();
+  const sourcePath = await chooseMapFile(dialog, gmWindow);
   if (!sourcePath) {
     return null;
   }
@@ -854,7 +835,7 @@ ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: 
 
 ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
   assertKnownCampaignPath(campaignPath);
-  const sourcePath = await chooseTokenFile();
+  const sourcePath = await chooseTokenFile(dialog, gmWindow);
   if (!sourcePath) {
     return null;
   }

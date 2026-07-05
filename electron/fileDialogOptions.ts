@@ -14,6 +14,13 @@ export interface FileDialogResult {
   filePaths: string[];
 }
 
+export type FileDialogWindow = object;
+
+export interface FileDialogAdapter {
+  showOpenDialog(window: FileDialogWindow, options: FileDialogOptions): Promise<FileDialogResult>;
+  showOpenDialog(options: FileDialogOptions): Promise<FileDialogResult>;
+}
+
 export function directoryDialogOptions(title: string, createDirectory = false): FileDialogOptions {
   return {
     title,
@@ -46,4 +53,30 @@ export function tokenFileDialogOptions(): FileDialogOptions {
 
 export function selectedDialogPath(result: FileDialogResult): string | null {
   return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+}
+
+export async function chooseDirectory(
+  dialog: FileDialogAdapter,
+  ownerWindow: FileDialogWindow | null,
+  title: string,
+  createDirectory = false
+): Promise<string | null> {
+  return showOpenDialogAndSelectPath(dialog, ownerWindow, directoryDialogOptions(title, createDirectory));
+}
+
+export async function chooseMapFile(dialog: FileDialogAdapter, ownerWindow: FileDialogWindow | null): Promise<string | null> {
+  return showOpenDialogAndSelectPath(dialog, ownerWindow, mapFileDialogOptions());
+}
+
+export async function chooseTokenFile(dialog: FileDialogAdapter, ownerWindow: FileDialogWindow | null): Promise<string | null> {
+  return showOpenDialogAndSelectPath(dialog, ownerWindow, tokenFileDialogOptions());
+}
+
+async function showOpenDialogAndSelectPath(
+  dialog: FileDialogAdapter,
+  ownerWindow: FileDialogWindow | null,
+  options: FileDialogOptions
+): Promise<string | null> {
+  const result = ownerWindow ? await dialog.showOpenDialog(ownerWindow, options) : await dialog.showOpenDialog(options);
+  return selectedDialogPath(result);
 }

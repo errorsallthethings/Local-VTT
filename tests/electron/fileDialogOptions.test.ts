@@ -1,9 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  chooseDirectory,
+  chooseMapFile,
+  chooseTokenFile,
   directoryDialogOptions,
   mapFileDialogOptions,
   selectedDialogPath,
-  tokenFileDialogOptions
+  tokenFileDialogOptions,
+  type FileDialogAdapter,
+  type FileDialogWindow
 } from "../../electron/fileDialogOptions";
 
 describe("file dialog options", () => {
@@ -49,4 +54,35 @@ describe("file dialog options", () => {
     expect(selectedDialogPath({ canceled: true, filePaths: ["ignored.png"] })).toBeNull();
     expect(selectedDialogPath({ canceled: false, filePaths: [] })).toBeNull();
   });
+
+  it("chooses a directory with the owner window when one is available", async () => {
+    const ownerWindow: FileDialogWindow = {};
+    const dialog = dialogAdapter(["campaign"]);
+
+    await expect(chooseDirectory(dialog, ownerWindow, "Create campaign", true)).resolves.toBe("campaign");
+
+    expect(dialog.showOpenDialog).toHaveBeenCalledWith(ownerWindow, directoryDialogOptions("Create campaign", true));
+  });
+
+  it("chooses files without an owner window when needed", async () => {
+    const dialog = dialogAdapter(["map.png"]);
+
+    await expect(chooseMapFile(dialog, null)).resolves.toBe("map.png");
+
+    expect(dialog.showOpenDialog).toHaveBeenCalledWith(mapFileDialogOptions());
+  });
+
+  it("returns null from token selection when the user cancels", async () => {
+    const dialog = dialogAdapter([], true);
+
+    await expect(chooseTokenFile(dialog, null)).resolves.toBeNull();
+
+    expect(dialog.showOpenDialog).toHaveBeenCalledWith(tokenFileDialogOptions());
+  });
 });
+
+function dialogAdapter(filePaths: string[], canceled = false): FileDialogAdapter & { showOpenDialog: ReturnType<typeof vi.fn> } {
+  return {
+    showOpenDialog: vi.fn().mockResolvedValue({ canceled, filePaths })
+  };
+}
