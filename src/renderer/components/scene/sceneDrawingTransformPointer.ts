@@ -172,6 +172,27 @@ export function getDrawingTransformPointerMove(options: DrawingTransformPointerM
   return null;
 }
 
+export type DrawingTransformPointerMoveAction =
+  | { kind: "set-preview"; preview: DrawingPointOverrides; snapPoint?: Point | null }
+  | { kind: "none" };
+
+export function getDrawingTransformPointerMoveAction(move: DrawingTransformPointerMove | null): DrawingTransformPointerMoveAction {
+  if (!move) {
+    return { kind: "none" };
+  }
+  if (move.kind === "move") {
+    return {
+      kind: "set-preview",
+      preview: move.preview,
+      snapPoint: move.snapPoint
+    };
+  }
+  return {
+    kind: "set-preview",
+    preview: move.preview
+  };
+}
+
 export type DrawingTransformPointerComplete =
   | { kind: "move"; preview: DrawingPointOverrides | null; clearSnapPoint: true }
   | { kind: "resize"; preview: DrawingPointOverrides | null; clearSnapPoint: false }

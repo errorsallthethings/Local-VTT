@@ -40,6 +40,21 @@ export function getMapCalibrationPointerMove(
   return getUpdatedMapCalibrationDrag(activeDrag, point);
 }
 
+export type MapCalibrationPointerMoveAction =
+  | { kind: "set-drag"; drag: MapCalibrationDrag; draftBox: MapCalibrationBox }
+  | { kind: "none" };
+
+export function getMapCalibrationPointerMoveAction(update: { drag: MapCalibrationDrag; draftBox: MapCalibrationBox } | null): MapCalibrationPointerMoveAction {
+  if (!update) {
+    return { kind: "none" };
+  }
+  return {
+    kind: "set-drag",
+    drag: update.drag,
+    draftBox: update.draftBox
+  };
+}
+
 export function getMapCalibrationPointerComplete(
   activeDrag: MapCalibrationDrag | null,
   pointerId: number,

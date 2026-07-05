@@ -219,14 +219,15 @@ import {
   getEnvironmentEffectHitPointerStart,
   getMaskEffectPointerComplete,
   getMaskEffectPointerMove,
+  getMaskEffectPointerMoveAction,
   getMaskPointerStart,
   type EnvironmentEffectMoveState,
   type WeatherMaskMoveState
 } from "./scene/sceneMaskEffectPointer";
-import { getMapCalibrationPointerComplete, getMapCalibrationPointerMove, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
+import { getMapCalibrationPointerComplete, getMapCalibrationPointerMove, getMapCalibrationPointerMoveAction, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
 import { getRulerPointerMoveAction, getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
 import { getTokenPointerMove, getTokenPointerMoveAction, getTokenPointerStart } from "./scene/sceneTokenPointer";
-import { getDrawingTransformPointerComplete, getDrawingTransformPointerMove, getDrawingTransformPointerStart } from "./scene/sceneDrawingTransformPointer";
+import { getDrawingTransformPointerComplete, getDrawingTransformPointerMove, getDrawingTransformPointerMoveAction, getDrawingTransformPointerStart } from "./scene/sceneDrawingTransformPointer";
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
@@ -1584,11 +1585,11 @@ export function SceneCanvas({
     });
     if (pointerMoveRoute === "map-calibration" && mapCalibrationDragValue) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const update = getMapCalibrationPointerMove(mapCalibrationDragValue, event.pointerId, point);
-      if (update) {
-        mapCalibrationDragRef.current = update.drag;
-        setMapCalibrationDrag(update.drag);
-        setMapCalibrationDraftBox(update.draftBox);
+      const action = getMapCalibrationPointerMoveAction(getMapCalibrationPointerMove(mapCalibrationDragValue, event.pointerId, point));
+      if (action.kind === "set-drag") {
+        mapCalibrationDragRef.current = action.drag;
+        setMapCalibrationDrag(action.drag);
+        setMapCalibrationDraftBox(action.draftBox);
       }
       return;
     }
@@ -1631,41 +1632,43 @@ export function SceneCanvas({
     }
 
     if (pointerMoveRoute === "drawing-transform") {
-      const drawingTransformMove = getDrawingTransformPointerMove({
-        dragState: drawingDragValue,
-        point: eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)),
-        pointerId: event.pointerId,
-        resizeState: drawingResizeValue,
-        rotateState: drawingRotateValue,
-        scene,
-        snapEnabled: isSnapModifier(event),
-        squareConstrained: event.shiftKey
-      });
-      if (drawingTransformMove) {
-        if (drawingTransformMove.kind === "move") {
-          setSnapPoint(drawingTransformMove.snapPoint);
+      const action = getDrawingTransformPointerMoveAction(
+        getDrawingTransformPointerMove({
+          dragState: drawingDragValue,
+          point: eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)),
+          pointerId: event.pointerId,
+          resizeState: drawingResizeValue,
+          rotateState: drawingRotateValue,
+          scene,
+          snapEnabled: isSnapModifier(event),
+          squareConstrained: event.shiftKey
+        })
+      );
+      if (action.kind === "set-preview") {
+        if (action.snapPoint !== undefined) {
+          setSnapPoint(action.snapPoint);
         }
-        setDrawingDragPreview(drawingTransformMove.preview);
+        setDrawingDragPreview(action.preview);
       }
       return;
     }
 
     if (pointerMoveRoute === "mask-effect") {
-      const maskEffectMove = getMaskEffectPointerMove({
-        environmentEffectMoveState: environmentEffectMoveValue,
-        point: eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)),
-        pointerId: event.pointerId,
-        scene,
-        snapEnabled: isSnapModifier(event),
-        weatherMaskMoveState: weatherMaskMoveValue
-      });
-      if (maskEffectMove) {
-        if (maskEffectMove.kind === "environment-effect") {
-          setSnapPoint(maskEffectMove.snapPoint);
-          setEnvironmentEffectMovePreview(maskEffectMove.preview);
-        } else {
-          setWeatherMaskMovePreview(maskEffectMove.preview);
-        }
+      const action = getMaskEffectPointerMoveAction(
+        getMaskEffectPointerMove({
+          environmentEffectMoveState: environmentEffectMoveValue,
+          point: eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)),
+          pointerId: event.pointerId,
+          scene,
+          snapEnabled: isSnapModifier(event),
+          weatherMaskMoveState: weatherMaskMoveValue
+        })
+      );
+      if (action.kind === "set-environment-preview") {
+        setSnapPoint(action.snapPoint);
+        setEnvironmentEffectMovePreview(action.preview);
+      } else if (action.kind === "set-weather-preview") {
+        setWeatherMaskMovePreview(action.preview);
       }
       return;
     }

@@ -4,6 +4,7 @@ import type { DrawingDragState, DrawingResizeState, DrawingRotateState } from ".
 import {
   getDrawingTransformPointerComplete,
   getDrawingTransformPointerMove,
+  getDrawingTransformPointerMoveAction,
   getDrawingTransformPointerStart
 } from "../../src/renderer/components/scene/sceneDrawingTransformPointer";
 
@@ -241,6 +242,35 @@ describe("scene drawing transform pointer helpers", () => {
     expect(rotate?.kind).toBe("rotate");
     expect(rotate?.preview.get("drawing-1")?.[0].x).toBeCloseTo(0);
     expect(rotate?.preview.get("drawing-1")?.[0].y).toBeCloseTo(10);
+  });
+
+  it("maps drawing transform pointer moves to SceneCanvas actions", () => {
+    const scene = createDefaultScene("Move Drawing Action");
+    scene.drawings = [drawing()];
+    const dragState: DrawingDragState = {
+      pointerId: 6,
+      drawingId: "drawing-1",
+      start: { x: 50, y: 50 },
+      snapAnchor: { x: 50, y: 50 },
+      groupStartPoints: new Map([["drawing-1", [{ x: 0, y: 0 }, { x: 100, y: 100 }]]])
+    };
+    const move = getDrawingTransformPointerMove({
+      dragState,
+      point: { x: 75, y: 80 },
+      pointerId: 6,
+      resizeState: null,
+      rotateState: null,
+      scene,
+      snapEnabled: false,
+      squareConstrained: false
+    });
+
+    expect(getDrawingTransformPointerMoveAction(null)).toEqual({ kind: "none" });
+    expect(getDrawingTransformPointerMoveAction(move)).toEqual({
+      kind: "set-preview",
+      preview: new Map([["drawing-1", [{ x: 25, y: 30 }, { x: 125, y: 130 }]]]),
+      snapPoint: null
+    });
   });
 
   it("completes matching drawing transform pointers with the active preview", () => {

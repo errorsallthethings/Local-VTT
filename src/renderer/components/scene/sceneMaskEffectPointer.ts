@@ -148,6 +148,28 @@ export function getMaskEffectPointerMove(options: MaskEffectPointerMoveOptions):
   return null;
 }
 
+export type MaskEffectPointerMoveAction =
+  | { kind: "set-weather-preview"; preview: Map<string, Point[]> }
+  | { kind: "set-environment-preview"; preview: Map<string, Point[]>; snapPoint: Point | null }
+  | { kind: "none" };
+
+export function getMaskEffectPointerMoveAction(move: MaskEffectPointerMove | null): MaskEffectPointerMoveAction {
+  if (!move) {
+    return { kind: "none" };
+  }
+  if (move.kind === "environment-effect") {
+    return {
+      kind: "set-environment-preview",
+      preview: move.preview,
+      snapPoint: move.snapPoint
+    };
+  }
+  return {
+    kind: "set-weather-preview",
+    preview: move.preview
+  };
+}
+
 export type MaskEffectPointerComplete =
   | { kind: "weather"; preview: Map<string, Point[]> | null }
   | { kind: "environment-effect"; preview: Map<string, Point[]> | null };

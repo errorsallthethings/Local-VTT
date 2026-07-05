@@ -4,6 +4,7 @@ import {
   getEnvironmentEffectHitPointerStart,
   getMaskEffectPointerComplete,
   getMaskEffectPointerMove,
+  getMaskEffectPointerMoveAction,
   getMaskPointerStart,
   type EnvironmentEffectMoveState,
   type WeatherMaskMoveState
@@ -183,6 +184,52 @@ describe("scene mask and effect pointer helpers", () => {
       })
     ).toEqual({
       kind: "environment-effect",
+      preview: new Map([["effect-1", [{ x: 20, y: 30 }, { x: 120, y: 130 }]]]),
+      snapPoint: null
+    });
+  });
+
+  it("maps mask and effect pointer moves to SceneCanvas actions", () => {
+    const scene = createDefaultScene("Move Mask Actions");
+    scene.environment.effects = [environmentEffect()];
+    scene.weather.masks = [weatherMask()];
+    const weatherMaskMoveState: WeatherMaskMoveState = {
+      pointerId: 6,
+      maskId: "weather-1",
+      start: { x: 50, y: 50 },
+      groupStartPoints: new Map([["weather-1", [{ x: 0, y: 0 }, { x: 100, y: 100 }]]])
+    };
+    const environmentEffectMoveState: EnvironmentEffectMoveState = {
+      pointerId: 7,
+      effectId: "effect-1",
+      start: { x: 50, y: 50 },
+      snapAnchor: { x: 50, y: 50 },
+      groupStartPoints: new Map([["effect-1", [{ x: 0, y: 0 }, { x: 100, y: 100 }]]])
+    };
+    const weatherMove = getMaskEffectPointerMove({
+      environmentEffectMoveState,
+      point: { x: 70, y: 80 },
+      pointerId: 6,
+      scene,
+      snapEnabled: false,
+      weatherMaskMoveState
+    });
+    const effectMove = getMaskEffectPointerMove({
+      environmentEffectMoveState,
+      point: { x: 70, y: 80 },
+      pointerId: 7,
+      scene,
+      snapEnabled: false,
+      weatherMaskMoveState
+    });
+
+    expect(getMaskEffectPointerMoveAction(null)).toEqual({ kind: "none" });
+    expect(getMaskEffectPointerMoveAction(weatherMove)).toEqual({
+      kind: "set-weather-preview",
+      preview: new Map([["weather-1", [{ x: 20, y: 30 }, { x: 120, y: 130 }]]])
+    });
+    expect(getMaskEffectPointerMoveAction(effectMove)).toEqual({
+      kind: "set-environment-preview",
       preview: new Map([["effect-1", [{ x: 20, y: 30 }, { x: 120, y: 130 }]]]),
       snapPoint: null
     });
