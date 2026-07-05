@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { LocalVttApi } from "../src/shared/localVttApi.js";
 import type {
   Asset,
   AssetPruneResult,
@@ -18,7 +19,7 @@ import type {
   ThumbnailRegenerationResult
 } from "../src/shared/localvtt.js";
 
-const api = {
+const api: LocalVttApi = {
   createCampaign: () => ipcRenderer.invoke("campaign:create") as Promise<CampaignSummary | null>,
   openCampaign: () => ipcRenderer.invoke("campaign:open") as Promise<CampaignSummary | null>,
   openRecentCampaign: (campaignPath: string) => ipcRenderer.invoke("campaign:openRecent", campaignPath) as Promise<CampaignSummary>,
@@ -97,17 +98,7 @@ const api = {
     ipcRenderer.invoke("player:setFullscreen", fullscreen) as Promise<boolean>,
   closePlayerView: () => ipcRenderer.invoke("player:close") as Promise<boolean>,
   getLastPlayerState: () => ipcRenderer.invoke("player:getLastState") as Promise<unknown>,
-  getDisplays: () => ipcRenderer.invoke("app:getDisplays") as Promise<
-    Array<{
-      id: number;
-      label: string;
-      bounds: { x: number; y: number; width: number; height: number };
-      workArea: { x: number; y: number; width: number; height: number };
-      nativeResolution: { width: number; height: number };
-      scaleFactor: number;
-      rotation: number;
-    }>
-  >,
+  getDisplays: () => ipcRenderer.invoke("app:getDisplays") as ReturnType<LocalVttApi["getDisplays"]>,
   setUnsavedChanges: (hasUnsavedChanges: boolean) => {
     ipcRenderer.send("app:setUnsavedChanges", hasUnsavedChanges);
   },
@@ -139,5 +130,4 @@ const api = {
 };
 
 contextBridge.exposeInMainWorld("localVtt", api);
-
-export type LocalVttApi = typeof api;
+export type { LocalVttApi } from "../src/shared/localVttApi.js";

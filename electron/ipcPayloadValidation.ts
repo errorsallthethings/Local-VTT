@@ -1,4 +1,4 @@
-import type { MetadataBackupRef, SquareCropRect } from "../src/shared/localvtt.js";
+import { isPlayerSceneProjection, type MetadataBackupRef, type PlayerSceneProjection, type SquareCropRect } from "../src/shared/localvtt.js";
 import type { PlayerOpenOptions } from "./playerViewIpc.js";
 import { requireBackupFileName, requireSceneBackupId } from "./metadataBackups.js";
 import { assertSafePathSegment } from "./safePathSegments.js";
@@ -51,6 +51,12 @@ export function assertPlayerOpenOptions(value: unknown): asserts value is Player
   }
   if ("fullscreen" in value && typeof value.fullscreen !== "boolean") {
     throw new Error("Player View fullscreen option is invalid.");
+  }
+}
+
+export function assertPlayerSceneProjection(value: unknown): asserts value is PlayerSceneProjection {
+  if (!isPlayerSceneProjection(value)) {
+    throw new Error("Invalid Player View scene projection.");
   }
 }
 

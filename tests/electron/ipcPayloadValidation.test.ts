@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  createDefaultCampaign,
+  createDefaultScene,
+  projectSceneForPlayer
+} from "../../src/shared/localvtt";
+import {
   assertIpcBoolean,
   assertIpcSafeId,
   assertMetadataBackupRef,
   assertOptionalIpcSafeId,
   assertPlayerOpenOptions,
+  assertPlayerSceneProjection,
   assertSquareCropRect
 } from "../../electron/ipcPayloadValidation";
 
@@ -50,5 +56,18 @@ describe("IPC payload validation", () => {
     expect(() => assertPlayerOpenOptions({ displayId: 1.5 })).toThrow("Player View display selection is invalid.");
     expect(() => assertPlayerOpenOptions({ fullscreen: "yes" })).toThrow("Player View fullscreen option is invalid.");
     expect(() => assertIpcBoolean("false", "Player View fullscreen setting")).toThrow("Player View fullscreen setting is invalid.");
+  });
+
+  it("validates player scene projections before sending them to Player View", () => {
+    const campaign = createDefaultCampaign("Campaign");
+    const scene = createDefaultScene("Scene");
+    expect(() => assertPlayerSceneProjection(projectSceneForPlayer(campaign, scene))).not.toThrow();
+
+    expect(() => assertPlayerSceneProjection({ campaignName: "Broken", playerDisplay: {}, assets: [], scene: {} })).toThrow(
+      "Invalid Player View scene projection."
+    );
+    expect(() => assertPlayerSceneProjection({ ...projectSceneForPlayer(campaign, scene), assets: "nope" } as never)).toThrow(
+      "Invalid Player View scene projection."
+    );
   });
 });

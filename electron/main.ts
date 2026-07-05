@@ -91,6 +91,7 @@ import {
   assertMetadataBackupRef,
   assertOptionalIpcSafeId,
   assertPlayerOpenOptions,
+  assertPlayerSceneProjection,
   assertSquareCropRect
 } from "./ipcPayloadValidation.js";
 import { addImportedAssetToCampaign, createImportedAsset, createStagedTokenImportAsset } from "./importedAssets.js";
@@ -1058,6 +1059,7 @@ ipcMain.handle("player:open", async (_event, options?: { displayId?: number; ful
 });
 
 ipcMain.handle("player:sendScene", async (_event, projection: PlayerSceneProjection) => {
+  assertPlayerSceneProjection(projection);
   lastPlayerProjection = projection;
   if (!playerWindow || playerWindow.isDestroyed()) {
     playerWindow = createWindow("player");
@@ -1067,6 +1069,7 @@ ipcMain.handle("player:sendScene", async (_event, projection: PlayerSceneProject
 });
 
 ipcMain.handle("player:updateSceneIfOpen", async (_event, projection: PlayerSceneProjection) => {
+  assertPlayerSceneProjection(projection);
   if (!playerWindow || playerWindow.isDestroyed()) {
     return false;
   }
@@ -1142,6 +1145,7 @@ ipcMain.handle("player:getLastState", async () => lastPlayerProjection);
 ipcMain.handle("app:getDisplays", async () => screen.getAllDisplays().map(summarizeDisplay));
 
 ipcMain.on("app:setUnsavedChanges", (_event, hasUnsavedChanges: boolean) => {
+  assertIpcBoolean(hasUnsavedChanges, "Unsaved changes state");
   gmHasUnsavedChanges = hasUnsavedChanges;
 });
 
