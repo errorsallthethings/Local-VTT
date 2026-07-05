@@ -146,7 +146,7 @@ npm run package:linux
 npm run package:linux:check
 ```
 
-The platform `package:*:check` commands validate the artifact set expected by the release workflow. Run the matching check after packaging locally; the GitHub release workflow runs the same validators before uploading platform artifacts.
+The platform `package:*:check` commands validate the artifact set expected by the release workflow, including that versioned package filenames match `package.json`. Run the matching check after packaging locally; the GitHub release workflow runs the same validators before uploading platform artifacts.
 
 Successful Windows packaging creates:
 
