@@ -153,16 +153,17 @@ import { getSelectedTokenAssetIds, getTokenAssetDeleteDialogState, getTokenAsset
 import { addTurnOrderEntry, createTurnOrderEntryFromToken } from "../lib/turn-order";
 import {
   DEFAULT_TOKEN_LIBRARY_HEIGHT,
-  getTokenLibraryResizeHeight,
-  getWorkspacePanelResizeDelta,
-  getWorkspacePanelWidth,
+  getResizedTokenLibraryHeight,
+  getResizedWorkspacePanelLayout,
+  getTokenLibraryResizePlan,
+  getWorkspacePanelResizePlan,
   getWorkspaceShellPresentation,
   loadTokenLibraryHeight,
   loadWorkspaceLayout,
   resetPanelWidth as resetWorkspacePanelWidth,
-  resizePanelWidth,
   saveTokenLibraryHeight,
   saveWorkspaceLayout,
+  startWindowPointerDrag,
   toggleWorkspacePanel as toggleWorkspacePanelLayout,
   type WorkspaceLayout,
   type WorkspacePanelSide
@@ -1474,23 +1475,15 @@ export function GmApp() {
   };
 
   const startPanelResize = (side: WorkspacePanelSide, event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = getWorkspacePanelWidth(workspaceLayout, side);
+    const resizePlan = getWorkspacePanelResizePlan(workspaceLayout, side, event.clientX);
 
-    const resizePanel = (moveEvent: PointerEvent) => {
-      const delta = getWorkspacePanelResizeDelta(side, startX, moveEvent.clientX);
-      setWorkspaceLayout((layout) => resizePanelWidth(layout, side, startWidth, delta));
-    };
-    const stopResize = () => {
-      document.body.classList.remove("resizing-panels");
-      window.removeEventListener("pointermove", resizePanel);
-      window.removeEventListener("pointerup", stopResize);
-    };
-
-    document.body.classList.add("resizing-panels");
-    window.addEventListener("pointermove", resizePanel);
-    window.addEventListener("pointerup", stopResize, { once: true });
+    startWindowPointerDrag({
+      startEvent: event,
+      bodyClassName: "resizing-panels",
+      onPointerMove: (moveEvent) => {
+        setWorkspaceLayout((layout) => getResizedWorkspacePanelLayout(layout, resizePlan, moveEvent.clientX));
+      }
+    });
   };
 
   const resetPanelWidth = (side: WorkspacePanelSide) => {
@@ -1498,22 +1491,15 @@ export function GmApp() {
   };
 
   const startTokenLibraryResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    const startY = event.clientY;
-    const startHeight = tokenLibraryHeight;
+    const resizePlan = getTokenLibraryResizePlan(tokenLibraryHeight, event.clientY);
 
-    const resizeDrawer = (moveEvent: PointerEvent) => {
-      setTokenLibraryHeight(getTokenLibraryResizeHeight(startHeight, startY, moveEvent.clientY));
-    };
-    const stopResize = () => {
-      document.body.classList.remove("resizing-token-library");
-      window.removeEventListener("pointermove", resizeDrawer);
-      window.removeEventListener("pointerup", stopResize);
-    };
-
-    document.body.classList.add("resizing-token-library");
-    window.addEventListener("pointermove", resizeDrawer);
-    window.addEventListener("pointerup", stopResize, { once: true });
+    startWindowPointerDrag({
+      startEvent: event,
+      bodyClassName: "resizing-token-library",
+      onPointerMove: (moveEvent) => {
+        setTokenLibraryHeight(getResizedTokenLibraryHeight(resizePlan, moveEvent.clientY));
+      }
+    });
   };
 
   const resetTokenLibraryHeight = () => {

@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_WORKSPACE_LAYOUT,
   DEFAULT_TOKEN_LIBRARY_HEIGHT,
+  getResizedTokenLibraryHeight,
+  getResizedWorkspacePanelLayout,
   loadWorkspaceLayout,
   loadTokenLibraryHeight,
   getTokenLibraryResizeHeight,
+  getTokenLibraryResizePlan,
   getWorkspacePanelResizeDelta,
+  getWorkspacePanelResizePlan,
   getWorkspaceShellPresentation,
   normalizeTokenLibraryHeight,
   normalizeWorkspaceLayout,
@@ -75,6 +79,15 @@ describe("workspace layout helpers", () => {
     expect(resetPanelWidth(layout, "right").rightWidth).toBe(DEFAULT_WORKSPACE_LAYOUT.rightWidth);
   });
 
+  it("builds and applies panel resize plans from pointer movement", () => {
+    const leftPlan = getWorkspacePanelResizePlan(layout, "left", 100);
+    const rightPlan = getWorkspacePanelResizePlan(layout, "right", 100);
+
+    expect(leftPlan).toEqual({ side: "left", startClientX: 100, startWidth: 300 });
+    expect(getResizedWorkspacePanelLayout(layout, leftPlan, 150).leftWidth).toBe(350);
+    expect(getResizedWorkspacePanelLayout(layout, rightPlan, 150).rightWidth).toBe(310);
+  });
+
   it("derives panel resize deltas from pointer movement per side", () => {
     expect(getWorkspacePanelResizeDelta("left", 100, 140)).toBe(40);
     expect(getWorkspacePanelResizeDelta("left", 100, 80)).toBe(-20);
@@ -92,6 +105,14 @@ describe("workspace layout helpers", () => {
     expect(getTokenLibraryResizeHeight(300, 200, 150)).toBe(350);
     expect(getTokenLibraryResizeHeight(300, 200, 500)).toBe(170);
     expect(getTokenLibraryResizeHeight(700, 200, 0)).toBe(MAX_TOKEN_LIBRARY_HEIGHT);
+  });
+
+  it("builds and applies token library resize plans from pointer movement", () => {
+    const plan = getTokenLibraryResizePlan(300, 200);
+
+    expect(plan).toEqual({ startHeight: 300, startClientY: 200 });
+    expect(getResizedTokenLibraryHeight(plan, 125)).toBe(375);
+    expect(getResizedTokenLibraryHeight(plan, 500)).toBe(170);
   });
 
   it("builds app shell presentation from workspace layout", () => {

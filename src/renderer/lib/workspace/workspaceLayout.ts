@@ -83,6 +83,25 @@ export function resizePanelWidth(layout: WorkspaceLayout, side: WorkspacePanelSi
   return side === "left" ? { ...layout, leftWidth: width } : { ...layout, rightWidth: width };
 }
 
+export interface WorkspacePanelResizePlan {
+  side: WorkspacePanelSide;
+  startClientX: number;
+  startWidth: number;
+}
+
+export function getWorkspacePanelResizePlan(layout: WorkspaceLayout, side: WorkspacePanelSide, startClientX: number): WorkspacePanelResizePlan {
+  return {
+    side,
+    startClientX,
+    startWidth: getWorkspacePanelWidth(layout, side)
+  };
+}
+
+export function getResizedWorkspacePanelLayout(layout: WorkspaceLayout, plan: WorkspacePanelResizePlan, currentClientX: number): WorkspaceLayout {
+  const delta = getWorkspacePanelResizeDelta(plan.side, plan.startClientX, currentClientX);
+  return resizePanelWidth(layout, plan.side, plan.startWidth, delta);
+}
+
 export function getWorkspacePanelResizeDelta(side: WorkspacePanelSide, startClientX: number, currentClientX: number): number {
   return side === "left" ? currentClientX - startClientX : startClientX - currentClientX;
 }
@@ -96,6 +115,22 @@ export function getWorkspacePanelWidth(layout: WorkspaceLayout, side: WorkspaceP
 
 export function getTokenLibraryResizeHeight(startHeight: number, startClientY: number, currentClientY: number): number {
   return normalizeTokenLibraryHeight(startHeight + startClientY - currentClientY);
+}
+
+export interface TokenLibraryResizePlan {
+  startClientY: number;
+  startHeight: number;
+}
+
+export function getTokenLibraryResizePlan(startHeight: number, startClientY: number): TokenLibraryResizePlan {
+  return {
+    startClientY,
+    startHeight
+  };
+}
+
+export function getResizedTokenLibraryHeight(plan: TokenLibraryResizePlan, currentClientY: number): number {
+  return getTokenLibraryResizeHeight(plan.startHeight, plan.startClientY, currentClientY);
 }
 
 export interface WorkspaceShellPresentation {
