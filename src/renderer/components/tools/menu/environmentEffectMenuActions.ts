@@ -63,6 +63,52 @@ export interface EnvironmentEffectResetHandlers {
   onFogEffectTuningReset: () => void;
 }
 
+export function createEnvironmentEffectPresetChangeHandlers(source: EnvironmentEffectPresetChangeHandlers): EnvironmentEffectPresetChangeHandlers {
+  return {
+    onAcidEffectTuningChange: source.onAcidEffectTuningChange,
+    onColdEffectTuningChange: source.onColdEffectTuningChange,
+    onDarknessEffectTuningChange: source.onDarknessEffectTuningChange,
+    onPoisonEffectTuningChange: source.onPoisonEffectTuningChange,
+    onWaterEffectTuningChange: source.onWaterEffectTuningChange,
+    onLavaEffectTuningChange: source.onLavaEffectTuningChange,
+    onFireEffectTuningChange: source.onFireEffectTuningChange,
+    onLightningEffectTuningChange: source.onLightningEffectTuningChange,
+    onArcaneEffectTuningChange: source.onArcaneEffectTuningChange,
+    onChaosEffectTuningChange: source.onChaosEffectTuningChange,
+    onVoidEffectTuningChange: source.onVoidEffectTuningChange,
+    onNatureEffectTuningChange: source.onNatureEffectTuningChange,
+    onDistortionEffectTuningChange: source.onDistortionEffectTuningChange,
+    onRadiantEffectTuningChange: source.onRadiantEffectTuningChange,
+    onForceFieldEffectTuningChange: source.onForceFieldEffectTuningChange,
+    onShockwaveEffectTuningChange: source.onShockwaveEffectTuningChange,
+    onSmokeEffectTuningChange: source.onSmokeEffectTuningChange,
+    onFogEffectTuningChange: source.onFogEffectTuningChange
+  };
+}
+
+export function createEnvironmentEffectResetHandlers(source: EnvironmentEffectResetHandlers): EnvironmentEffectResetHandlers {
+  return {
+    onAcidEffectTuningReset: source.onAcidEffectTuningReset,
+    onColdEffectTuningReset: source.onColdEffectTuningReset,
+    onDarknessEffectTuningReset: source.onDarknessEffectTuningReset,
+    onPoisonEffectTuningReset: source.onPoisonEffectTuningReset,
+    onWaterEffectTuningReset: source.onWaterEffectTuningReset,
+    onLavaEffectTuningReset: source.onLavaEffectTuningReset,
+    onFireEffectTuningReset: source.onFireEffectTuningReset,
+    onLightningEffectTuningReset: source.onLightningEffectTuningReset,
+    onArcaneEffectTuningReset: source.onArcaneEffectTuningReset,
+    onChaosEffectTuningReset: source.onChaosEffectTuningReset,
+    onVoidEffectTuningReset: source.onVoidEffectTuningReset,
+    onNatureEffectTuningReset: source.onNatureEffectTuningReset,
+    onDistortionEffectTuningReset: source.onDistortionEffectTuningReset,
+    onRadiantEffectTuningReset: source.onRadiantEffectTuningReset,
+    onForceFieldEffectTuningReset: source.onForceFieldEffectTuningReset,
+    onShockwaveEffectTuningReset: source.onShockwaveEffectTuningReset,
+    onSmokeEffectTuningReset: source.onSmokeEffectTuningReset,
+    onFogEffectTuningReset: source.onFogEffectTuningReset
+  };
+}
+
 export function applySelectedEnvironmentEffectPreset(
   effect: EnvironmentEffectType,
   presetValue: string,

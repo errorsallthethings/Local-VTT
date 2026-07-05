@@ -9,9 +9,9 @@ import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffec
 import { ENVIRONMENT_EFFECT_OPTIONS } from "../../../lib/effects";
 import {
   applySelectedEnvironmentEffectPreset,
+  createEnvironmentEffectPresetChangeHandlers,
+  createEnvironmentEffectResetHandlers,
   resetSelectedEnvironmentEffectTuning,
-  type EnvironmentEffectPresetChangeHandlers,
-  type EnvironmentEffectResetHandlers
 } from "./environmentEffectMenuActions";
 import { ToolsMenuCategoryRail } from "./ToolsMenuCategoryRail";
 import { DrawingToolsPanel, TemplateToolsPanel } from "./ToolsMenuDrawingPanels";
@@ -176,7 +176,8 @@ interface ToolsMenuProps {
   onClearSelection: () => void;
 }
 
-export function ToolsMenu({
+export function ToolsMenu(props: ToolsMenuProps) {
+  const {
   activeCanvasTool,
   activeFogTool,
   activeWeatherMaskTool,
@@ -238,41 +239,23 @@ export function ToolsMenu({
   onEnvironmentEffectTypeChange,
   onEnvironmentEffectFeatherChange,
   onAcidEffectTuningChange,
-  onAcidEffectTuningReset,
   onColdEffectTuningChange,
-  onColdEffectTuningReset,
   onDarknessEffectTuningChange,
-  onDarknessEffectTuningReset,
   onPoisonEffectTuningChange,
-  onPoisonEffectTuningReset,
   onWaterEffectTuningChange,
-  onWaterEffectTuningReset,
   onLavaEffectTuningChange,
-  onLavaEffectTuningReset,
   onFireEffectTuningChange,
-  onFireEffectTuningReset,
   onLightningEffectTuningChange,
-  onLightningEffectTuningReset,
   onArcaneEffectTuningChange,
-  onArcaneEffectTuningReset,
   onChaosEffectTuningChange,
-  onChaosEffectTuningReset,
   onVoidEffectTuningChange,
-  onVoidEffectTuningReset,
   onNatureEffectTuningChange,
-  onNatureEffectTuningReset,
   onDistortionEffectTuningChange,
-  onDistortionEffectTuningReset,
   onRadiantEffectTuningChange,
-  onRadiantEffectTuningReset,
   onForceFieldEffectTuningChange,
-  onForceFieldEffectTuningReset,
   onShockwaveEffectTuningChange,
-  onShockwaveEffectTuningReset,
   onSmokeEffectTuningChange,
-  onSmokeEffectTuningReset,
   onFogEffectTuningChange,
-  onFogEffectTuningReset,
   onMouseBehaviorChange,
   onFogOperationChange,
   onBrushSizeChange,
@@ -304,7 +287,7 @@ export function ToolsMenu({
   onHideSelectedOnPlayerView,
   onDeleteSelected,
   onClearSelection
-}: ToolsMenuProps) {
+  } = props;
   const [activeCategory, setActiveCategory] = useState<ToolCategory | null>(null);
   const [toolsExpanded, setToolsExpanded] = useState(true);
   const [fogBrushCustomOpen, setFogBrushCustomOpen] = useState(false);
@@ -325,46 +308,8 @@ export function ToolsMenu({
     setEnvironmentEffectPresetValue("custom");
   }, [environmentEffectType]);
 
-  const environmentEffectPresetHandlers: EnvironmentEffectPresetChangeHandlers = {
-    onAcidEffectTuningChange,
-    onColdEffectTuningChange,
-    onDarknessEffectTuningChange,
-    onPoisonEffectTuningChange,
-    onWaterEffectTuningChange,
-    onLavaEffectTuningChange,
-    onFireEffectTuningChange,
-    onLightningEffectTuningChange,
-    onArcaneEffectTuningChange,
-    onChaosEffectTuningChange,
-    onVoidEffectTuningChange,
-    onNatureEffectTuningChange,
-    onDistortionEffectTuningChange,
-    onRadiantEffectTuningChange,
-    onForceFieldEffectTuningChange,
-    onShockwaveEffectTuningChange,
-    onSmokeEffectTuningChange,
-    onFogEffectTuningChange
-  };
-  const environmentEffectResetHandlers: EnvironmentEffectResetHandlers = {
-    onAcidEffectTuningReset,
-    onColdEffectTuningReset,
-    onDarknessEffectTuningReset,
-    onPoisonEffectTuningReset,
-    onWaterEffectTuningReset,
-    onLavaEffectTuningReset,
-    onFireEffectTuningReset,
-    onLightningEffectTuningReset,
-    onArcaneEffectTuningReset,
-    onChaosEffectTuningReset,
-    onVoidEffectTuningReset,
-    onNatureEffectTuningReset,
-    onDistortionEffectTuningReset,
-    onRadiantEffectTuningReset,
-    onForceFieldEffectTuningReset,
-    onShockwaveEffectTuningReset,
-    onSmokeEffectTuningReset,
-    onFogEffectTuningReset
-  };
+  const environmentEffectPresetHandlers = createEnvironmentEffectPresetChangeHandlers(props);
+  const environmentEffectResetHandlers = createEnvironmentEffectResetHandlers(props);
 
   const resetEnvironmentEffectTuning = () => {
     resetSelectedEnvironmentEffectTuning(environmentEffectType, environmentEffectPresetValue, environmentEffectPresetHandlers, environmentEffectResetHandlers);

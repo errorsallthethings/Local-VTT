@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { EnvironmentEffectType } from "../../src/shared/localvtt";
 import {
   applySelectedEnvironmentEffectPreset,
+  createEnvironmentEffectPresetChangeHandlers,
+  createEnvironmentEffectResetHandlers,
   getEnvironmentEffectResetHandler,
   resetSelectedEnvironmentEffectTuning,
   type EnvironmentEffectPresetChangeHandlers,
@@ -65,6 +67,19 @@ describe("environment effect menu actions", () => {
     getEnvironmentEffectResetHandler("field", resetHandlers)();
 
     expect(resetHandlers.onForceFieldEffectTuningReset).toHaveBeenCalledTimes(1);
+  });
+
+  it("builds preset and reset handler bundles from a wider source object", () => {
+    const presetHandlers = presetChangeHandlers();
+    const resetHandlers = resetHandlersForTest();
+    const source = {
+      ...presetHandlers,
+      ...resetHandlers,
+      unrelated: vi.fn()
+    };
+
+    expect(createEnvironmentEffectPresetChangeHandlers(source)).toEqual(presetHandlers);
+    expect(createEnvironmentEffectResetHandlers(source)).toEqual(resetHandlers);
   });
 });
 
