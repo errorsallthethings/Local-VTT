@@ -7,6 +7,7 @@ import {
   getRenameSceneFolderNameDialogState,
   getRenameSceneNameDialogState,
   getSceneDraftsAfterSceneRename,
+  getSceneNameDialogCompletion,
   renameCampaign,
   renameCampaignTokenAsset,
   setCampaignTokenAssetDefaults,
@@ -111,5 +112,44 @@ describe("campaign mutation helpers", () => {
     expect(getActiveSceneAfterSceneRename(activeScene, "scene-1", "Renamed", savedScene)).toMatchObject({ id: "scene-1", name: "Renamed" });
     expect(getActiveSceneAfterSceneRename(otherScene, "scene-1", "Renamed", savedScene)).toBe(otherScene);
     expect(getActiveSceneAfterSceneRename(null, "scene-1", "Renamed", savedScene)).toBeNull();
+  });
+
+  it("builds scene dialog completion state after creating scenes", () => {
+    const savedScene = { ...createDefaultScene("Created"), id: "scene-new" };
+    const draft = { ...createDefaultScene("Draft"), id: "scene-draft" };
+    const sceneDrafts = { "scene-draft": draft };
+
+    expect(
+      getSceneNameDialogCompletion({
+        mode: "create",
+        name: "Created",
+        savedScene,
+        sceneDrafts,
+        activeScene: null
+      })
+    ).toEqual({
+      activeScene: savedScene,
+      cleanScene: savedScene,
+      sceneDrafts
+    });
+  });
+
+  it("builds scene dialog completion state after renaming scenes", () => {
+    const activeScene = { ...createDefaultScene("Old Active"), id: "scene-1" };
+    const draft = { ...createDefaultScene("Old Draft"), id: "scene-1" };
+    const savedScene = { ...createDefaultScene("Saved"), id: "scene-1" };
+
+    const completion = getSceneNameDialogCompletion({
+      mode: "rename",
+      sceneId: "scene-1",
+      name: "Renamed",
+      savedScene,
+      sceneDrafts: { "scene-1": draft },
+      activeScene
+    });
+
+    expect(completion.activeScene).toMatchObject({ id: "scene-1", name: "Renamed" });
+    expect(completion.cleanScene).toBeNull();
+    expect(completion.sceneDrafts["scene-1"]).toMatchObject({ id: "scene-1", name: "Renamed" });
   });
 });

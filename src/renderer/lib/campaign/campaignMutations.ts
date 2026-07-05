@@ -113,3 +113,47 @@ export function getActiveSceneAfterSceneRename(activeScene: Scene | null, sceneI
 
   return activeScene ? { ...activeScene, name } : savedScene;
 }
+
+export interface SceneNameDialogCompletion {
+  activeScene: Scene | null;
+  cleanScene: Scene | null;
+  sceneDrafts: Record<string, Scene>;
+}
+
+export function getSceneNameDialogCompletion({
+  mode,
+  sceneId,
+  name,
+  savedScene,
+  sceneDrafts,
+  activeScene
+}: {
+  mode: "create" | "rename";
+  sceneId?: string;
+  name: string;
+  savedScene: Scene;
+  sceneDrafts: Record<string, Scene>;
+  activeScene: Scene | null;
+}): SceneNameDialogCompletion {
+  if (mode === "create") {
+    return {
+      activeScene: savedScene,
+      cleanScene: savedScene,
+      sceneDrafts
+    };
+  }
+
+  if (!sceneId) {
+    return {
+      activeScene,
+      cleanScene: null,
+      sceneDrafts
+    };
+  }
+
+  return {
+    activeScene: getActiveSceneAfterSceneRename(activeScene, sceneId, name, savedScene),
+    cleanScene: null,
+    sceneDrafts: getSceneDraftsAfterSceneRename(sceneDrafts, sceneId, name)
+  };
+}

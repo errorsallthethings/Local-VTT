@@ -1,8 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { Asset, Campaign, CampaignSummary, Scene } from "../../shared/localvtt";
 import {
-  getActiveSceneAfterSceneRename,
-  getSceneDraftsAfterSceneRename,
+  getSceneNameDialogCompletion,
   getTokenAssetDeleteCompletion
 } from "../lib/campaign";
 import { updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
@@ -100,13 +99,30 @@ export function useSavedProjectDialogActions({
         if (sceneDialog.mode === "create") {
           const result = await window.localVtt.createScene(campaignPath, name);
           applySummary(result.campaignSummary, campaignDirty);
-          setActiveScene(result.scene);
-          setSceneClean(result.scene);
+          const completion = getSceneNameDialogCompletion({
+            mode: "create",
+            name,
+            savedScene: result.scene,
+            sceneDrafts,
+            activeScene
+          });
+          setActiveScene(completion.activeScene);
+          if (completion.cleanScene) {
+            setSceneClean(completion.cleanScene);
+          }
         } else {
           const result = await window.localVtt.renameScene(campaignPath, sceneDialog.sceneId, name);
           applySummary(result.campaignSummary, campaignDirty);
-          setSceneDrafts((drafts) => getSceneDraftsAfterSceneRename(drafts, sceneDialog.sceneId, name));
-          setActiveScene((scene) => getActiveSceneAfterSceneRename(scene, sceneDialog.sceneId, name, result.scene));
+          const completion = getSceneNameDialogCompletion({
+            mode: "rename",
+            sceneId: sceneDialog.sceneId,
+            name,
+            savedScene: result.scene,
+            sceneDrafts,
+            activeScene
+          });
+          setSceneDrafts(completion.sceneDrafts);
+          setActiveScene(completion.activeScene);
         }
         setSceneDialog(null);
       })
