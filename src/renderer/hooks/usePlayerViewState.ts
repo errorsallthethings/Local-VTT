@@ -4,6 +4,7 @@ import { isLiveTableEvent } from "../../shared/localvtt";
 import { updateDiceRollHistory as updateDiceRollHistoryList } from "../lib/dice";
 import {
   filterActiveLiveTableEvents,
+  getPlayerViewModeState,
   getPlayerViewDisplayStateFromLastState,
   mergeLiveTableEvent,
   showDefaultPlayerHold,
@@ -84,6 +85,7 @@ interface UsePlayerViewStateOptions {
   templatePreviewVisibleInPlayer: boolean;
   playerTemplatePreviewDrawing: DrawingElement | null;
   onDiceRollHistoryChange: Dispatch<SetStateAction<DiceRollEvent[]>>;
+  onClosePlayerMenu: () => void;
 }
 
 export function usePlayerViewState({
@@ -92,7 +94,8 @@ export function usePlayerViewState({
   playersPanelOpen,
   templatePreviewVisibleInPlayer,
   playerTemplatePreviewDrawing,
-  onDiceRollHistoryChange
+  onDiceRollHistoryChange,
+  onClosePlayerMenu
 }: UsePlayerViewStateOptions) {
   const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
   const [playerDisplayMode, setPlayerDisplayMode] = useState<PlayerDisplayMode>("scene");
@@ -124,6 +127,19 @@ export function usePlayerViewState({
   const skipNextPlayerSceneAutoSync = useCallback(() => {
     skipNextPlayerSceneAutoSyncRef.current = true;
   }, []);
+
+  const applyPlayerViewModeState = useCallback((
+    nextPlayerDisplayMode: PlayerDisplayMode,
+    nextPlayerSceneId: string | null = null,
+    closeMenu = true
+  ) => {
+    const playerViewState = getPlayerViewModeState(nextPlayerDisplayMode, nextPlayerSceneId);
+    setPlayerSceneId(playerViewState.playerSceneId);
+    setPlayerDisplayMode(playerViewState.playerDisplayMode);
+    if (closeMenu) {
+      onClosePlayerMenu();
+    }
+  }, [onClosePlayerMenu]);
 
   useEffect(() => {
     const removeListener = window.localVtt.onLiveTableEvent((event) => {
@@ -231,12 +247,11 @@ export function usePlayerViewState({
 
   return {
     playerSceneId,
-    setPlayerSceneId,
     playerDisplayMode,
-    setPlayerDisplayMode,
     liveTableEvents,
     emitLiveTableEvent,
     updateDiceRollHistory,
+    applyPlayerViewModeState,
     skipNextPlayerSceneAutoSync
   };
 }

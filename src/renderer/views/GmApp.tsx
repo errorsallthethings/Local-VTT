@@ -1,6 +1,5 @@
 import {
   type CSSProperties,
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -33,7 +32,6 @@ import { ThumbnailRegenerationResultDialog } from "../components/modals/Thumbnai
 import { TokenAssetPromotionResultDialog } from "../components/modals/TokenAssetPromotionResultDialog";
 import { EnvironmentEffectEditorModal } from "../components/layers";
 import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
-import type { DisplayInfo } from "../components/settings/PlayerDisplayScalePanel";
 import { ToolsMenu, type SelectorSelectionFilters } from "../components/tools";
 import { getImageMapAssetPath } from "../lib/map";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
@@ -41,6 +39,7 @@ import { TurnOrderModal } from "../components/turn-order/TurnOrderModal";
 import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
+import { useAvailableDisplays } from "../hooks/useAvailableDisplays";
 import { useCampaignActions, type CampaignBusyState, type MapReplacementPreview } from "../hooks/useCampaignActions";
 import { useCampaignPlayerActions } from "../hooks/useCampaignPlayerActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
@@ -87,9 +86,6 @@ import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from ".
 import { getEffectiveDiceSettings, loadDiceSettingsPreference } from "../lib/dice";
 import { formatUserFacingError } from "../lib/errors";
 import { logRendererError } from "../lib/rendererDiagnostics";
-import {
-  getPlayerViewModeState,
-} from "../lib/player-view";
 import { buildSceneSelectionIds } from "../lib/scene";
 import { loadRecentCampaigns, type RecentCampaign } from "../lib/campaign";
 import { getSelectedTokenAssetIds } from "../lib/tokens";
@@ -316,7 +312,6 @@ export function GmApp() {
   const [newTokenBorderColor, setNewTokenBorderColor] = useState(DEFAULT_TOKEN_BORDER_COLOR);
   const [newFolderColor, setNewFolderColor] = useState(DEFAULT_SCENE_FOLDER_COLOR);
   const [newCampaignName, setNewCampaignName] = useState("");
-  const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [environmentEffectEditorPosition, setEnvironmentEffectEditorPosition] = useState<{ x: number; y: number } | null>(null);
   const [environmentEffectEditorSize, setEnvironmentEffectEditorSize] = useState<{ width: number; height: number } | null>(null);
   const [selectorSelectionFilters, setSelectorSelectionFilters] = useState<SelectorSelectionFilters>(DEFAULT_SELECTOR_SELECTION_FILTERS);
@@ -387,12 +382,11 @@ export function GmApp() {
   );
   const {
     playerSceneId,
-    setPlayerSceneId,
     playerDisplayMode,
-    setPlayerDisplayMode,
     liveTableEvents,
     emitLiveTableEvent,
     updateDiceRollHistory,
+    applyPlayerViewModeState,
     skipNextPlayerSceneAutoSync
   } = usePlayerViewState({
     activeScene,
@@ -400,21 +394,9 @@ export function GmApp() {
     playersPanelOpen,
     templatePreviewVisibleInPlayer,
     playerTemplatePreviewDrawing,
-    onDiceRollHistoryChange: setDiceRollHistory
+    onDiceRollHistoryChange: setDiceRollHistory,
+    onClosePlayerMenu: () => setPlayerMenuOpen(false)
   });
-
-  const applyPlayerViewModeState = (
-    playerDisplayMode: Parameters<typeof getPlayerViewModeState>[0],
-    playerSceneId: string | null = null,
-    closeMenu = true
-  ) => {
-    const playerViewState = getPlayerViewModeState(playerDisplayMode, playerSceneId);
-    setPlayerSceneId(playerViewState.playerSceneId);
-    setPlayerDisplayMode(playerViewState.playerDisplayMode);
-    if (closeMenu) {
-      setPlayerMenuOpen(false);
-    }
-  };
 
   useEffect(() => {
     setMapCalibrationBox(null);
@@ -491,6 +473,8 @@ export function GmApp() {
     setTokenDefaultsDialog,
     updateCampaignDraft
   });
+
+  const { displays, refreshDisplays } = useAvailableDisplays({ run });
 
   const {
     applyMapCalibration,
@@ -583,11 +567,6 @@ export function GmApp() {
     updateCampaignDraft
   });
 
-  const refreshDisplays = useCallback(() =>
-    run(async () => {
-      setDisplays(await window.localVtt.getDisplays());
-    }), [run]);
-
   const {
     addLibraryTokenToScene,
     cancelTokenCrop,
@@ -641,11 +620,6 @@ export function GmApp() {
       setPlayerMenuOpen(false);
     }
   }, [activeScene]);
-
-  useEffect(() => {
-    void refreshDisplays();
-    // Displays are refreshed once on mount; later updates happen when the GM opens display settings.
-  }, [refreshDisplays]);
 
   const {
     appShellPresentation,
