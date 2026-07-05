@@ -1,4 +1,5 @@
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 import type { Asset } from "../src/shared/localvtt.js";
 import { buildAssetThumbnailRelativePath, requireCampaignRelativePath } from "./assetFiles.js";
@@ -7,6 +8,7 @@ import { unlinkIfExists } from "./fileOperations.js";
 export async function writeAssetThumbnail(campaignPath: string, assetId: string, thumbnail: Buffer, variant = ""): Promise<string> {
   const relativePath = buildAssetThumbnailRelativePath(assetId, variant);
   const destination = requireCampaignRelativePath(campaignPath, relativePath);
+  await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, thumbnail);
   return relativePath;
 }

@@ -29,6 +29,15 @@ describe("thumbnail file helpers", () => {
     expect(relativePath).toBe("assets/thumbnails/asset-1-crop-1bad.jpg");
   });
 
+  it("recreates the thumbnail folder before writing thumbnails", async () => {
+    await rm(path.join(tempRoot, "assets", "thumbnails"), { recursive: true, force: true });
+
+    const relativePath = await writeAssetThumbnail(tempRoot, "asset-1", Buffer.from("thumbnail"));
+
+    expect(relativePath).toBe("assets/thumbnails/asset-1.jpg");
+    await expect(readFile(path.join(tempRoot, relativePath), "utf8")).resolves.toBe("thumbnail");
+  });
+
   it("removes thumbnails that are no longer referenced", async () => {
     const relativePath = "assets/thumbnails/asset-1.jpg";
     const absolutePath = path.join(tempRoot, relativePath);

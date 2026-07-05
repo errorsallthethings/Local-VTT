@@ -1,6 +1,7 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { isManualTokenCropThumbnail, regenerateThumbnailAssets, shouldRegenerateAssetThumbnail, type CreateAssetThumbnail } from "../../electron/thumbnailRegeneration";
+import { MAP_ASSET_MAX_BYTES, TOKEN_ASSET_MAX_BYTES } from "../../electron/assetImportValidation";
+import { getThumbnailSourceIssue, isManualTokenCropThumbnail, regenerateThumbnailAssets, shouldRegenerateAssetThumbnail, type CreateAssetThumbnail } from "../../electron/thumbnailRegeneration";
 import { createDefaultCampaign, type Asset, type ThumbnailRegenerationProgress } from "../../src/shared/localvtt";
 
 describe("thumbnail regeneration", () => {
@@ -94,6 +95,48 @@ describe("thumbnail regeneration", () => {
       { assetId: "decode-fail", reason: "decode failed" },
       { assetId: "missing-source", reason: "missing source" }
     ]);
+  });
+
+  it("preflights source files before thumbnail decoding", async () => {
+    const campaign = createCampaign([
+      asset({ id: "folder-source", kind: "map", relativePath: "assets/maps/folder-source.png" }),
+      asset({ id: "empty-token", kind: "token", relativePath: "assets/tokens/empty-token.png" }),
+      asset({ id: "huge-map", kind: "map", relativePath: "assets/maps/huge-map.mp4", mediaType: "video" })
+    ]);
+    let decodeCalls = 0;
+
+    const plan = await regenerateThumbnailAssets(
+      "campaign-root",
+      campaign,
+      async () => {
+        decodeCalls += 1;
+        return { thumbnailRelativePath: "unexpected.jpg" };
+      },
+      undefined,
+      async (filePath) => {
+        if (filePath.endsWith(path.join("assets", "maps", "folder-source.png"))) {
+          return { isFile: () => false, size: 100 };
+        }
+        if (filePath.endsWith(path.join("assets", "tokens", "empty-token.png"))) {
+          return { isFile: () => true, size: 0 };
+        }
+        return { isFile: () => true, size: MAP_ASSET_MAX_BYTES + 1 };
+      }
+    );
+
+    expect(decodeCalls).toBe(0);
+    expect(plan.regenerated).toBe(0);
+    expect(plan.failed).toMatchObject([
+      { assetId: "folder-source", reason: "Asset source path is not a file." },
+      { assetId: "empty-token", reason: "Asset source file is empty or could not be read." },
+      { assetId: "huge-map", reason: "Map asset is too large to regenerate a thumbnail." }
+    ]);
+  });
+
+  it("reports token source files that are too large for thumbnail regeneration", () => {
+    expect(getThumbnailSourceIssue({ kind: "token" }, { isFile: () => true, size: TOKEN_ASSET_MAX_BYTES + 1 })).toBe(
+      "Token asset is too large to regenerate a thumbnail."
+    );
   });
 
   it("keeps campaigns unchanged when there are no regenerated thumbnails", async () => {

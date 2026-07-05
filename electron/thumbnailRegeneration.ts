@@ -2,6 +2,7 @@ import { stat as statFile } from "node:fs/promises";
 
 import { normalizeCampaign, type Asset, type Campaign, type ThumbnailRegenerationFailure, type ThumbnailRegenerationProgress } from "../src/shared/localvtt.js";
 import { requireCampaignRelativePath } from "./assetFiles.js";
+import { MAP_ASSET_MAX_BYTES, TOKEN_ASSET_MAX_BYTES } from "./assetImportValidation.js";
 import type { MapThumbnailResult } from "./mapThumbnailRepair.js";
 import { createThumbnailRegenerationFailure } from "./thumbnailDiagnostics.js";
 
@@ -14,7 +15,11 @@ export interface ThumbnailRegenerationPlan {
 }
 
 export type CreateAssetThumbnail = (asset: Asset, sourcePath: string) => Promise<MapThumbnailResult>;
-export type StatFile = (filePath: string) => Promise<unknown>;
+export type ThumbnailSourceStat = {
+  isFile?: () => boolean;
+  size?: number;
+};
+export type StatFile = (filePath: string) => Promise<ThumbnailSourceStat>;
 
 export function isManualTokenCropThumbnail(asset: Pick<Asset, "kind" | "thumbnailRelativePath">): boolean {
   return asset.kind === "token" && /(^|\/)[^/]+-crop-[^/]+\.jpg$/i.test(asset.thumbnailRelativePath ?? "");
@@ -60,7 +65,15 @@ export async function regenerateThumbnailAssets(
     onProgress?.({ current: processed, total: eligibleAssetCount, assetName: asset.name, message: `Regenerating ${asset.name}.` });
     const sourcePath = requireCampaignRelativePath(campaignPath, asset.relativePath);
     try {
-      await stat(sourcePath);
+      const sourceStats = await stat(sourcePath);
+      const sourceIssue = getThumbnailSourceIssue(asset, sourceStats);
+      if (sourceIssue) {
+        failures.push(createThumbnailRegenerationFailure(asset, sourceIssue));
+        assets.push(asset);
+        processed += 1;
+        onProgress?.({ current: processed, total: eligibleAssetCount, assetName: asset.name, message: `Processed ${asset.name}.` });
+        continue;
+      }
       const thumbnailResult = await createThumbnail(asset, sourcePath);
       if (!thumbnailResult.thumbnailRelativePath) {
         failures.push(createThumbnailRegenerationFailure(asset, thumbnailResult.failureReason ?? "Thumbnail could not be generated."));
@@ -88,4 +101,27 @@ export async function regenerateThumbnailAssets(
     skipped,
     failed: failures
   };
+}
+
+export function getThumbnailSourceIssue(asset: Pick<Asset, "kind">, sourceStats: ThumbnailSourceStat): string | null {
+  if (sourceStats.isFile && !sourceStats.isFile()) {
+    return "Asset source path is not a file.";
+  }
+
+  if (typeof sourceStats.size === "number" && Number.isFinite(sourceStats.size)) {
+    if (sourceStats.size <= 0) {
+      return "Asset source file is empty or could not be read.";
+    }
+    if (asset.kind !== "map" && asset.kind !== "token") {
+      return null;
+    }
+    const maxBytes = asset.kind === "map" ? MAP_ASSET_MAX_BYTES : TOKEN_ASSET_MAX_BYTES;
+    if (sourceStats.size > maxBytes) {
+      return asset.kind === "map"
+        ? "Map asset is too large to regenerate a thumbnail."
+        : "Token asset is too large to regenerate a thumbnail.";
+    }
+  }
+
+  return null;
 }
