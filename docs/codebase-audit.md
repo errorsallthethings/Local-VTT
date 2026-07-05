@@ -59,6 +59,8 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted and tested drag creation commit actions for drawings, fog, weather masks, and environment effects so SceneCanvas creation branches no longer interpret nullable commit helpers inline.
 - Extracted and tested polygon draft commit actions for drawings, fog, weather masks, and environment effects so keyboard/double-click draft commits follow the same explicit action pattern as drag commits.
 - Extracted and tested SceneCanvas keyboard waypoint actions, double-click draft routing, and hover/snap update helpers so several event decisions now live in focused policy helpers.
+- Extracted and tested SceneCanvas map viewport policy for GM auto-fit and video-map error/readiness handling so media viewport decisions are no longer inline condition ladders.
+- Extracted and tested SceneCanvas lifecycle reset action policies so scene/tool/mode cleanup effects share explicit reset lists instead of repeated inline clearing code.
 - Extracted and tested SceneCanvas context-menu routing for waypoint removal, polygon backtracking, and target menu kind selection.
 - Split the environment effect drawer registry out of the layer renderer so future effect-family modules can move behind a stable registry seam.
 - Extracted shared WebGL environment-effect runtime helpers and moved the smoke/fog effect family into its own renderer module while preserving the existing public effect exports.

@@ -192,6 +192,15 @@ import {
   hasCancelableSceneInteraction
 } from "./scene/sceneInteractionCancellation";
 import {
+  getCanvasToolResetActions,
+  getDrawingToolResetActions,
+  getEnvironmentToolResetActions,
+  getModeOrSceneResetActions,
+  getSceneOrFogToolResetActions,
+  getWeatherToolResetActions,
+  type SceneLifecycleResetAction
+} from "./scene/sceneLifecycleReset";
+import {
   appendScenePolygonDraftPoint,
   appendScopedScenePolygonDraftPoint,
   clearScenePolygonDraft,
@@ -204,6 +213,12 @@ import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import { getSceneContextMenuTarget } from "./scene/sceneContextMenuTarget";
 import { getSceneDoubleClickActions } from "./scene/sceneDoubleClickRouting";
 import { getDrawingTransformHoverUpdate, getSceneItemHoverUpdate, getSceneSnapPointUpdate } from "./scene/sceneHoverUpdates";
+import {
+  getGmMapAutoFitAction,
+  getVideoMapDeferredErrorAction,
+  getVideoMapImmediateErrorAction,
+  shouldFitGmCameraToVideoMap
+} from "./scene/sceneMapViewportPolicy";
 import { getScenePointerDownRoute } from "./scene/scenePointerDownRouting";
 import { getScenePointerMoveFallbackRoute } from "./scene/scenePointerMoveFallbackRouting";
 import { getBrushHoverPointForPointerMove, getScenePolygonDraftPointerMoveUpdate } from "./scene/scenePointerMoveFallbackUpdates";
@@ -574,6 +589,75 @@ export function SceneCanvas({
     onDismiss: dismissCanvasContextMenus
   });
 
+  const applySceneLifecycleResetActions = useCallback(
+    (actions: readonly SceneLifecycleResetAction[]) => {
+      for (const action of actions) {
+        if (action === "clear-fog-polygon-draft") {
+          clearScenePolygonDraft({ ref: polygonDraftRef, setDraft: setPolygonDraft });
+        } else if (action === "clear-drawing-polygon-draft") {
+          clearScenePolygonDraft({ ref: drawingPolygonDraftRef, setDraft: setDrawingPolygonDraft });
+        } else if (action === "clear-weather-polygon-draft") {
+          clearScenePolygonDraft({ ref: weatherPolygonDraftRef, setDraft: setWeatherPolygonDraft });
+        } else if (action === "clear-environment-polygon-draft") {
+          clearScenePolygonDraft({ ref: environmentPolygonDraftRef, setDraft: setEnvironmentPolygonDraft });
+        } else if (action === "clear-fog-preview") {
+          clearFogPreview();
+        } else if (action === "clear-drawing-preview") {
+          clearDrawingPreview();
+        } else if (action === "clear-weather-preview") {
+          clearWeatherMaskPreview();
+        } else if (action === "clear-environment-preview") {
+          clearEnvironmentEffectPreview();
+        } else if (action === "cancel-weather-move") {
+          cancelWeatherMaskMove();
+        } else if (action === "cancel-environment-move") {
+          cancelEnvironmentEffectMove();
+        } else if (action === "clear-token-drag") {
+          tokenDragRef.current = null;
+          setTokenDragPreview(null);
+        } else if (action === "clear-pan-drag") {
+          dragRef.current = null;
+          setIsPanning(false);
+        } else if (action === "clear-selection-drag") {
+          selectionDragRef.current = null;
+          setSelectionDrag(null);
+        } else if (action === "clear-brush-hover") {
+          setBrushHoverPoint(null);
+        } else if (action === "clear-snap-point") {
+          setSnapPoint(null);
+        } else if (action === "clear-scene-item-hover") {
+          setSceneItemHover(false);
+        } else if (action === "clear-ruler-drag") {
+          setRulerDrag(null);
+          rulerDragRef.current = null;
+        } else if (action === "clear-released-ruler") {
+          if (releasedRulerTimeoutRef.current !== null) {
+            window.clearTimeout(releasedRulerTimeoutRef.current);
+            releasedRulerTimeoutRef.current = null;
+          }
+          setReleasedRulerDrag(null);
+        } else if (action === "clear-laser-drag") {
+          laserDragRef.current = null;
+        } else if (action === "emit-ruler-clear") {
+          onLiveTableEvent?.(createRulerClearEvent());
+        }
+      }
+    },
+    [
+      cancelEnvironmentEffectMove,
+      cancelWeatherMaskMove,
+      clearDrawingPreview,
+      clearEnvironmentEffectPreview,
+      clearFogPreview,
+      clearWeatherMaskPreview,
+      drawingPolygonDraftRef,
+      environmentPolygonDraftRef,
+      onLiveTableEvent,
+      polygonDraftRef,
+      weatherPolygonDraftRef
+    ]
+  );
+
   const mapAsset = useMemo(() => {
     if (!campaign || !scene?.mapAssetId) {
       return null;
@@ -760,32 +844,28 @@ export function SceneCanvas({
   }, [mapAsset?.id, mode, scene?.id]);
 
   useEffect(() => {
-    if (mode !== "gm" || !scene) {
-      return;
-    }
-
-    const fitSignature = `${scene.id}:${mapAsset?.id ?? "no-map"}`;
-    if (fittedSceneCameraRef.current === fitSignature) {
-      return;
-    }
-
     const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) {
-      return;
-    }
-
-    if (!canShowMap || !mapAsset) {
-      fittedSceneCameraRef.current = fitSignature;
+    const rect = canvas?.getBoundingClientRect();
+    const action = getGmMapAutoFitAction({
+      canShowMap,
+      fittedSignature: fittedSceneCameraRef.current,
+      hasCanvas: Boolean(canvas),
+      hasMapAsset: Boolean(mapAsset),
+      hasScene: Boolean(scene),
+      mapAssetId: mapAsset?.id,
+      mode,
+      sceneId: scene?.id,
+      viewportHeight: rect?.height ?? 0,
+      viewportWidth: rect?.width ?? 0
+    });
+    if (action.kind === "reset-empty-map") {
+      fittedSceneCameraRef.current = action.signature;
       setCamera({ x: 0, y: 0, zoom: 1 });
       return;
     }
-
-    fitGmCameraToReadyMap(rect.width, rect.height);
+    if (action.kind === "fit-ready-map") {
+      fitGmCameraToReadyMap(action.viewportWidth, action.viewportHeight);
+    }
   }, [canShowMap, fitGmCameraToReadyMap, mapAsset, mode, scene]);
 
   useEffect(() => {
@@ -797,65 +877,28 @@ export function SceneCanvas({
   }, [onMapCalibrationBox]);
 
   useEffect(() => {
-    clearScenePolygonDraft({ ref: polygonDraftRef, setDraft: setPolygonDraft });
-    clearScenePolygonDraft({ ref: drawingPolygonDraftRef, setDraft: setDrawingPolygonDraft });
-    clearScenePolygonDraft({ ref: weatherPolygonDraftRef, setDraft: setWeatherPolygonDraft });
-    clearScenePolygonDraft({ ref: environmentPolygonDraftRef, setDraft: setEnvironmentPolygonDraft });
-    clearFogPreview();
-    clearDrawingPreview();
-    setBrushHoverPoint(null);
-    setSnapPoint(null);
-    setSceneItemHover(false);
-  }, [clearDrawingPreview, clearFogPreview, drawingPolygonDraftRef, environmentPolygonDraftRef, fogTool, polygonDraftRef, scene?.id, weatherPolygonDraftRef]);
+    applySceneLifecycleResetActions(getSceneOrFogToolResetActions());
+  }, [applySceneLifecycleResetActions, fogTool, scene?.id]);
 
   useEffect(() => {
-    clearDrawingPreview();
-    setBrushHoverPoint(null);
-    setSnapPoint(null);
-  }, [clearDrawingPreview, drawingTool, scene?.id]);
+    applySceneLifecycleResetActions(getDrawingToolResetActions());
+  }, [applySceneLifecycleResetActions, drawingTool, scene?.id]);
 
   useEffect(() => {
-    if (rulerDragRef.current) {
-      onLiveTableEvent?.({
-        id: "ruler-clear",
-        type: "ruler-clear",
-        createdAt: Date.now()
-      });
-    }
-    setRulerDrag(null);
-    if (releasedRulerTimeoutRef.current !== null) {
-      window.clearTimeout(releasedRulerTimeoutRef.current);
-      releasedRulerTimeoutRef.current = null;
-    }
-    setReleasedRulerDrag(null);
-    rulerDragRef.current = null;
-    laserDragRef.current = null;
-  }, [canvasTool, onLiveTableEvent, scene?.id]);
+    applySceneLifecycleResetActions(getCanvasToolResetActions(Boolean(rulerDragRef.current)));
+  }, [applySceneLifecycleResetActions, canvasTool, scene?.id]);
 
   useEffect(() => {
-    tokenDragRef.current = null;
-    setTokenDragPreview(null);
-    dragRef.current = null;
-    clearWeatherMaskPreview();
-    clearEnvironmentEffectPreview();
-    cancelWeatherMaskMove();
-    cancelEnvironmentEffectMove();
-    setIsPanning(false);
-    selectionDragRef.current = null;
-    setSelectionDrag(null);
-    setSnapPoint(null);
-    setBrushHoverPoint(null);
-  }, [cancelEnvironmentEffectMove, cancelWeatherMaskMove, clearEnvironmentEffectPreview, clearWeatherMaskPreview, mode, scene?.id]);
+    applySceneLifecycleResetActions(getModeOrSceneResetActions());
+  }, [applySceneLifecycleResetActions, mode, scene?.id]);
 
   useEffect(() => {
-    clearWeatherMaskPreview();
-    clearScenePolygonDraft({ ref: weatherPolygonDraftRef, setDraft: setWeatherPolygonDraft });
-  }, [clearWeatherMaskPreview, scene?.id, weatherMaskTool, weatherPolygonDraftRef]);
+    applySceneLifecycleResetActions(getWeatherToolResetActions());
+  }, [applySceneLifecycleResetActions, scene?.id, weatherMaskTool]);
 
   useEffect(() => {
-    clearEnvironmentEffectPreview();
-    clearScenePolygonDraft({ ref: environmentPolygonDraftRef, setDraft: setEnvironmentPolygonDraft });
-  }, [clearEnvironmentEffectPreview, environmentEffectTool, environmentPolygonDraftRef, scene?.id]);
+    applySceneLifecycleResetActions(getEnvironmentToolResetActions());
+  }, [applySceneLifecycleResetActions, environmentEffectTool, scene?.id]);
 
   const sceneInteractionCancelable = hasCancelableSceneInteraction({
     tokenDragPreview,
@@ -2319,25 +2362,25 @@ export function SceneCanvas({
   });
 
   const fitGmCameraToVideoMap = (video: HTMLVideoElement) => {
-    if (mode !== "gm" || !scene || !mapAsset || !isVideoMap || video.dataset.mapAssetId !== mapAsset.id) {
-      return;
-    }
-
-    if (video.videoWidth <= 0 || video.videoHeight <= 0) {
-      return;
-    }
-
     const canvas = canvasRef.current;
-    if (!canvas) {
+    const rect = canvas?.getBoundingClientRect();
+    if (
+      !shouldFitGmCameraToVideoMap({
+        hasScene: Boolean(scene),
+        isVideoMap,
+        mapAssetId: mapAsset?.id,
+        mode,
+        videoHeight: video.videoHeight,
+        videoMapAssetId: video.dataset.mapAssetId,
+        videoWidth: video.videoWidth,
+        viewportHeight: rect?.height ?? 0,
+        viewportWidth: rect?.width ?? 0
+      })
+    ) {
       return;
     }
 
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) {
-      return;
-    }
-
-    fitGmCameraToReadyMap(rect.width, rect.height);
+    fitGmCameraToReadyMap(rect?.width ?? 0, rect?.height ?? 0);
   };
 
   const handleVideoMapCanPlay = (video: HTMLVideoElement, index: number) => {
@@ -2356,18 +2399,21 @@ export function SceneCanvas({
   };
 
   const handleVideoMapError = (video: HTMLVideoElement, index: number) => {
-    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-      setVideoMapLoadStatus("ready");
+    const immediateAction = getVideoMapImmediateErrorAction(video.readyState);
+    if (immediateAction.kind === "set-status") {
+      setVideoMapLoadStatus(immediateAction.status);
       return;
     }
     window.setTimeout(() => {
-      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-        setVideoMapLoadStatus("ready");
-        return;
-      }
-      if (index === activeVideoIndex) {
-        setVideoMapLoadStatus((status) => (status === "ready" ? status : "error"));
-      }
+      setVideoMapLoadStatus((status) => {
+        const deferredAction = getVideoMapDeferredErrorAction({
+          activeVideoIndex,
+          currentStatus: status,
+          index,
+          readyState: video.readyState
+        });
+        return deferredAction.kind === "set-status" ? deferredAction.status : status;
+      });
     }, 180);
   };
 
