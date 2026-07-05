@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createCanvasAnimationSources,
   getCanvasAnimationFramePlan,
   hasCanvasAnimationSources,
   WEATHER_ONLY_FRAME_INTERVAL_MS,
@@ -17,6 +18,28 @@ const idleSources: CanvasAnimationSources = {
 };
 
 describe("canvas animation planning", () => {
+  it("creates animation source state from named inputs", () => {
+    expect(
+      createCanvasAnimationSources({
+        mapAnimating: true,
+        tokenAnimating: false,
+        tokenConditionAnimating: true,
+        tableEventsAnimating: false,
+        weatherAnimating: true,
+        environmentAnimating: false,
+        selectionAnimating: true
+      })
+    ).toEqual({
+      mapAnimating: true,
+      tokenAnimating: false,
+      tokenConditionAnimating: true,
+      tableEventsAnimating: false,
+      weatherAnimating: true,
+      environmentAnimating: false,
+      selectionAnimating: true
+    });
+  });
+
   it("does not request animation frames when no sources are active", () => {
     expect(hasCanvasAnimationSources(idleSources)).toBe(false);
     expect(getCanvasAnimationFramePlan(idleSources, 100, 0)).toMatchObject({

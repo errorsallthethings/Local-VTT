@@ -10,6 +10,28 @@ export interface CanvasAnimationSources {
   selectionAnimating: boolean;
 }
 
+export interface CanvasAnimationSourceOptions {
+  environmentAnimating: boolean;
+  mapAnimating: boolean;
+  selectionAnimating: boolean;
+  tableEventsAnimating: boolean;
+  tokenAnimating: boolean;
+  tokenConditionAnimating: boolean;
+  weatherAnimating: boolean;
+}
+
+export function createCanvasAnimationSources(options: CanvasAnimationSourceOptions): CanvasAnimationSources {
+  return {
+    mapAnimating: options.mapAnimating,
+    tokenAnimating: options.tokenAnimating,
+    tokenConditionAnimating: options.tokenConditionAnimating,
+    tableEventsAnimating: options.tableEventsAnimating,
+    weatherAnimating: options.weatherAnimating,
+    environmentAnimating: options.environmentAnimating,
+    selectionAnimating: options.selectionAnimating
+  };
+}
+
 export interface CanvasAnimationFramePlan {
   shouldDrawFrame: boolean;
   shouldRequestNextFrame: boolean;
