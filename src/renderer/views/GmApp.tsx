@@ -18,7 +18,6 @@ import type {
   Campaign,
   CampaignSummary,
   CampaignSceneEntry,
-  CampaignSceneFolder,
   DiceSettings,
   LiveTableEvent,
   Point,
@@ -71,6 +70,7 @@ import {
   useEnvironmentEffectTuning
 } from "../hooks/useEnvironmentEffectTuning";
 import { useGmDialogEscape, useGmDialogState } from "../hooks/useGmDialogState";
+import { useGmDialogActions } from "../hooks/useGmDialogActions";
 import { useGmToolOptions } from "../hooks/useGmToolOptions";
 import { useGmToolSelection } from "../hooks/useGmToolSelection";
 import { useMapCalibrationActions } from "../hooks/useMapCalibrationActions";
@@ -85,17 +85,8 @@ import { useTokenImportActions } from "../hooks/useTokenImportActions";
 import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assets";
 import {
   getActiveSceneAfterSceneRename,
-  getCreateSceneFolderNameDialogState,
-  getCreateSceneNameDialogState,
-  getRenameSceneFolderNameDialogState,
-  getRenameSceneNameDialogState,
   getSceneDraftsAfterSceneRename,
   getTokenAssetDeleteSceneUpdate,
-  moveSceneFolder,
-  renameCampaign,
-  renameCampaignTokenAsset,
-  setSceneFolderColor,
-  submitSceneFolderName,
 } from "../lib/campaign";
 import { buildLiveTableDiceClearEvent, buildLiveTableDiceRollEvent, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import { applyDiceSettingsPatch, getEffectiveDiceSettings, loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/dice";
@@ -115,23 +106,13 @@ import {
 } from "../lib/scene";
 import { buildSceneSelectionIds, removeSelectedSceneItems, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
 import {
-  applySceneColorDialog,
-  getSceneColorDialogState,
-  getSceneItemRenameName,
-  getTokenColorDialogState,
-  renameEnvironmentEffect,
-  renameFogShape,
-  renameSceneToken,
-  setSceneTokenColor
-} from "../lib/scene";
-import {
   addRecentCampaign,
   loadRecentCampaigns,
   removeRecentCampaign,
   saveRecentCampaigns,
   type RecentCampaign
 } from "../lib/campaign";
-import { getSelectedTokenAssetIds, getTokenAssetDeleteDialogState, getTokenAssetRenameDialogState } from "../lib/tokens";
+import { getSelectedTokenAssetIds, getTokenAssetDeleteDialogState } from "../lib/tokens";
 import {
   DEFAULT_TOKEN_LIBRARY_HEIGHT,
   getResizedTokenLibraryHeight,
@@ -150,10 +131,7 @@ import {
   type WorkspacePanelSide
 } from "../lib/workspace";
 import { formatSaveStatus } from "../lib/workspace";
-import {
-  GmDialogs,
-  type SceneColorDialog,
-} from "./GmDialogs";
+import { GmDialogs } from "./GmDialogs";
 import { GmInspector } from "./GmInspector";
 import { GmSidebar } from "./GmSidebar";
 
@@ -827,6 +805,74 @@ export function GmApp() {
     onClearFogConfirmed: () => setConfirmClearFogOpen(false)
   });
 
+  const {
+    openSceneDialog,
+    openFolderDialog,
+    openRenameDialog,
+    openRenameFolderDialog,
+    openRenameFogShapeDialog,
+    openRenameEnvironmentEffectDialog,
+    openRenameTokenDialog,
+    openRenameTokenAssetDialog,
+    openFolderColorDialog,
+    submitFolderName,
+    submitFogShapeName,
+    submitEnvironmentEffectName,
+    submitTokenName,
+    submitTokenAssetName,
+    submitFolderColor,
+    moveFolder,
+    openSceneColorDialog,
+    openTokenColorDialog,
+    updateSceneColorDraft,
+    submitSceneColor,
+    submitTokenBorderColor,
+    openCampaignRenameDialog,
+    submitCampaignName
+  } = useGmDialogActions({
+    activeScene,
+    campaign,
+    environmentEffectDialog,
+    fogShapeDialog,
+    folderColorDialog,
+    folderDialog,
+    newCampaignName,
+    newEnvironmentEffectName,
+    newFogShapeName,
+    newFolderColor,
+    newFolderName,
+    newTokenBorderColor,
+    newTokenName,
+    sceneColorDialog,
+    tokenAssetDialog,
+    tokenColorDialog,
+    tokenDialog,
+    setCampaignNameDialogOpen,
+    setEnvironmentEffectDialog,
+    setFolderColorDialog,
+    setFolderDialog,
+    setFogShapeDialog,
+    setNewCampaignName,
+    setNewEnvironmentEffectName,
+    setNewFogShapeName,
+    setNewFolderColor,
+    setNewFolderName,
+    setNewSceneName,
+    setNewTokenBorderColor,
+    setNewTokenName,
+    setOpenFolderMenuId,
+    setOpenSceneMenuId,
+    setSceneColorDialog,
+    setSceneDialog,
+    setTokenAssetDialog,
+    setTokenColorDialog,
+    setTokenDialog,
+    updateCampaignDraft,
+    updateFog,
+    updateGrid,
+    updateScene
+  });
+
   const undoWeatherMask = () => {
     if (!activeScene || activeScene.weather.masks.length === 0) {
       return;
@@ -855,53 +901,6 @@ export function GmApp() {
     }
   };
 
-  const openSceneDialog = () => {
-    const state = getCreateSceneNameDialogState();
-    setNewSceneName(state.name);
-    setSceneDialog(state.dialog);
-  };
-
-  const openFolderDialog = () => {
-    const state = getCreateSceneFolderNameDialogState();
-    setNewFolderName(state.name);
-    setFolderDialog(state.dialog);
-  };
-
-  const openRenameDialog = (scene: CampaignSceneEntry) => {
-    const state = getRenameSceneNameDialogState(scene);
-    setOpenSceneMenuId(null);
-    setNewSceneName(state.name);
-    setSceneDialog(state.dialog);
-  };
-
-  const openRenameFolderDialog = (folder: CampaignSceneFolder) => {
-    const state = getRenameSceneFolderNameDialogState(folder);
-    setOpenFolderMenuId(null);
-    setNewFolderName(state.name);
-    setFolderDialog(state.dialog);
-  };
-
-  const openRenameFogShapeDialog = (shapeId: string, fallbackName: string) => {
-    setNewFogShapeName(getSceneItemRenameName(activeScene, "fog-shape", shapeId, fallbackName));
-    setFogShapeDialog({ shapeId });
-  };
-
-  const openRenameEnvironmentEffectDialog = (effectId: string, fallbackName: string) => {
-    setNewEnvironmentEffectName(getSceneItemRenameName(activeScene, "environment-effect", effectId, fallbackName));
-    setEnvironmentEffectDialog({ effectId });
-  };
-
-  const openRenameTokenDialog = (tokenId: string, fallbackName: string) => {
-    setNewTokenName(getSceneItemRenameName(activeScene, "token", tokenId, fallbackName));
-    setTokenDialog({ tokenId });
-  };
-
-  const openRenameTokenAssetDialog = (asset: Asset) => {
-    const dialog = getTokenAssetRenameDialogState(asset);
-    setNewTokenName(dialog.name);
-    setTokenAssetDialog({ assetId: dialog.assetId });
-  };
-
   const openDeleteTokenAssetDialog = (asset: Asset) =>
     run(async () => {
       if (!campaignPath || !campaign) {
@@ -910,79 +909,6 @@ export function GmApp() {
       const savedUsage = await window.localVtt.getTokenAssetUsage(campaignPath, asset.id);
       setTokenAssetToDelete(getTokenAssetDeleteDialogState(asset, savedUsage, campaign, sceneDrafts, activeScene));
     });
-
-  const openFolderColorDialog = (folder: CampaignSceneFolder) => {
-    setOpenFolderMenuId(null);
-    setNewFolderColor(folder.color);
-    setFolderColorDialog({ folderId: folder.id, folderName: folder.name });
-  };
-
-  const submitFolderName = () => {
-    if (!campaign || !folderDialog) {
-      return;
-    }
-    const now = new Date().toISOString();
-    const nextCampaign = submitSceneFolderName(
-      campaign,
-      folderDialog.mode === "create"
-        ? { mode: "create", folderId: crypto.randomUUID(), name: newFolderName }
-        : { mode: "rename", folderId: folderDialog.folderId, name: newFolderName },
-      now
-    );
-    if (!nextCampaign) {
-      return;
-    }
-    updateCampaignDraft(nextCampaign);
-    setFolderDialog(null);
-  };
-
-  const submitFogShapeName = () => {
-    if (!activeScene || !fogShapeDialog) {
-      return;
-    }
-    const nextScene = renameFogShape(activeScene, fogShapeDialog.shapeId, newFogShapeName);
-    if (!nextScene) {
-      return;
-    }
-    updateScene(nextScene);
-    setFogShapeDialog(null);
-  };
-
-  const submitEnvironmentEffectName = () => {
-    if (!activeScene || !environmentEffectDialog) {
-      return;
-    }
-    const nextScene = renameEnvironmentEffect(activeScene, environmentEffectDialog.effectId, newEnvironmentEffectName);
-    if (!nextScene) {
-      return;
-    }
-    updateScene(nextScene);
-    setEnvironmentEffectDialog(null);
-  };
-
-  const submitTokenName = () => {
-    if (!activeScene || !tokenDialog) {
-      return;
-    }
-    const nextScene = renameSceneToken(activeScene, tokenDialog.tokenId, newTokenName);
-    if (!nextScene) {
-      return;
-    }
-    updateScene(nextScene);
-    setTokenDialog(null);
-  };
-
-  const submitTokenAssetName = () => {
-    if (!campaign || !tokenAssetDialog) {
-      return;
-    }
-    const nextCampaign = renameCampaignTokenAsset(campaign, tokenAssetDialog.assetId, newTokenName, new Date().toISOString());
-    if (!nextCampaign) {
-      return;
-    }
-    updateCampaignDraft(nextCampaign);
-    setTokenAssetDialog(null);
-  };
 
   const confirmDeleteTokenAsset = () =>
     run(async () => {
@@ -1003,60 +929,6 @@ export function GmApp() {
       selectTokens(sceneUpdate.selectedTokenIds);
       setTokenAssetToDelete(null);
     });
-
-  const submitFolderColor = () => {
-    if (!campaign || !folderColorDialog) {
-      return;
-    }
-    updateCampaignDraft(setSceneFolderColor(campaign, folderColorDialog.folderId, newFolderColor, new Date().toISOString()));
-    setFolderColorDialog(null);
-  };
-
-  const moveFolder = (folderId: string, direction: "up" | "down") => {
-    if (!campaign) {
-      return;
-    }
-    updateCampaignDraft(moveSceneFolder(campaign, folderId, direction, new Date().toISOString()), false);
-    setOpenFolderMenuId(null);
-  };
-
-  const openSceneColorDialog = (kind: SceneColorDialog["kind"]) => {
-    if (!activeScene) {
-      return;
-    }
-    setSceneColorDialog(getSceneColorDialogState(activeScene, kind));
-  };
-
-  const openTokenColorDialog = (tokenId: string, value: string, kind: "border" | "glow") => {
-    setNewTokenBorderColor(value);
-    setTokenColorDialog(getTokenColorDialogState(activeScene, tokenId, value, kind));
-  };
-
-  const updateSceneColorDraft = (value: string) => {
-    setSceneColorDialog((dialog) => (dialog ? { ...dialog, value } : dialog));
-  };
-
-  const submitSceneColor = () => {
-    if (!sceneColorDialog) {
-      return;
-    }
-    const colorPatch = applySceneColorDialog(sceneColorDialog);
-    if (colorPatch.fogPatch) {
-      updateFog(colorPatch.fogPatch);
-    }
-    if (colorPatch.gridPatch) {
-      updateGrid(colorPatch.gridPatch);
-    }
-    setSceneColorDialog(null);
-  };
-
-  const submitTokenBorderColor = () => {
-    if (!activeScene || !tokenColorDialog) {
-      return;
-    }
-    updateScene(setSceneTokenColor(activeScene, tokenColorDialog.tokenId, newTokenBorderColor, tokenColorDialog.kind));
-    setTokenColorDialog(null);
-  };
 
   const submitSceneName = () =>
     run(async () => {
@@ -1081,26 +953,6 @@ export function GmApp() {
       }
       setSceneDialog(null);
     });
-
-  const openCampaignRenameDialog = () => {
-    if (!campaign) {
-      return;
-    }
-    setNewCampaignName(campaign.name);
-    setCampaignNameDialogOpen(true);
-  };
-
-  const submitCampaignName = () => {
-    if (!campaign) {
-      return;
-    }
-    const nextCampaign = renameCampaign(campaign, newCampaignName, new Date().toISOString());
-    if (!nextCampaign) {
-      return;
-    }
-    updateCampaignDraft(nextCampaign);
-    setCampaignNameDialogOpen(false);
-  };
 
   const confirmDeleteScene = (scene: CampaignSceneEntry) =>
     run(async () => {
