@@ -14,6 +14,7 @@ import {
   TokenAssetPromotionResult,
   ThumbnailRegenerationProgress,
   ThumbnailRegenerationResult,
+  assertValidCampaign,
   assertValidScene,
   isLiveTableEvent,
   isPlayerIdleState,
@@ -618,6 +619,7 @@ ipcMain.handle("campaign:openRecent", async (_event, campaignPath: string) => {
 
 ipcMain.handle("campaign:save", async (_event, campaignPath: string, campaign: Campaign) => {
   assertKnownCampaignPath(campaignPath);
+  assertValidCampaign(campaign);
   await writeCampaign(campaignPath, campaign);
   return loadCampaignFromPath(campaignPath);
 });
@@ -674,6 +676,7 @@ ipcMain.handle("scene:load", async (_event, campaignPath: string, sceneId: strin
 
 ipcMain.handle("scene:save", async (_event, campaignPath: string, scene: Scene) => {
   assertKnownCampaignPath(campaignPath);
+  assertValidScene(scene);
   assertInsideCampaign(campaignPath, sceneFile(campaignPath, scene.id));
   const summary = await loadCampaignFromPath(campaignPath);
   const { campaign, scene: updated } = saveSceneInCampaign(summary.campaign, scene);

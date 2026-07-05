@@ -31,6 +31,7 @@ export function parseSceneMetadata(raw: string): Scene {
 }
 
 export function toPortableCampaignMetadata(campaign: Campaign): Campaign {
+  assertValidCampaign(campaign);
   const normalizedCampaign = normalizeCampaign(campaign);
   return {
     ...normalizedCampaign,
@@ -47,6 +48,7 @@ export function toPortableCampaignMetadata(campaign: Campaign): Campaign {
 }
 
 export function toPortableSceneMetadata(scene: Scene): Scene {
+  assertValidScene(scene);
   return normalizeScene(scene);
 }
 

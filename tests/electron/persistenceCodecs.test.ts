@@ -125,6 +125,12 @@ describe("persistence codecs", () => {
     expect(portable.schemaVersion).toBeDefined();
   });
 
+  it("rejects invalid campaign and scene objects before saving", () => {
+    expect(() => toPortableCampaignMetadata({ id: "campaign", name: "Broken", scenes: "nope" } as never)).toThrow("Invalid campaign.json file.");
+    expect(() => toPortableCampaignMetadata({ ...createDefaultCampaign("Broken"), assets: "nope" } as never)).toThrow("Invalid campaign assets list.");
+    expect(() => toPortableSceneMetadata({ id: "scene", name: "Broken", layers: "nope" } as never)).toThrow("Invalid scene file.");
+  });
+
   it("parses valid campaign and scene metadata", () => {
     const campaign = createDefaultCampaign("Parsed Campaign");
     const scene = createDefaultScene("Parsed Scene");
