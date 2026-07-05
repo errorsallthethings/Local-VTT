@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene, DEFAULT_CALIBRATION, type DisplayCalibration } from "../../src/shared/localvtt";
 import {
+  getDirtySceneIdsAfterPreviousPlayerScenePause,
   getMissingPlayerDisplayWarning,
+  getPlayerViewOpenOptions,
+  getPlayerViewOpenWarning,
   getPreviousPlayerScenePauseUpdate,
   getPlayerTestPatternState,
+  getSceneDraftsAfterPreviousPlayerScenePause,
   getPlayerViewModeState
 } from "../../src/renderer/lib/player-view";
 import type { DisplayInfo } from "../../src/renderer/components/settings/PlayerDisplayScalePanel";
@@ -37,6 +41,20 @@ describe("player view orchestration helpers", () => {
     expect(getMissingPlayerDisplayWarning(true, "Table TV")).toBeNull();
     expect(getMissingPlayerDisplayWarning(false)).toBeNull();
     expect(getMissingPlayerDisplayWarning(false, "Table TV")).toBe(
+      "The saved Player View display (Table TV) is not connected. Player View opened normally so you can move it manually."
+    );
+  });
+
+  it("builds Player View open options from display calibration", () => {
+    expect(getPlayerViewOpenOptions(calibration({ selectedDisplayId: 4, openPlayerViewFullscreen: false }))).toEqual({
+      displayId: 4,
+      fullscreen: false
+    });
+  });
+
+  it("formats Player View open warnings from the open result and display calibration", () => {
+    expect(getPlayerViewOpenWarning({ displayFound: true }, calibration())).toBeNull();
+    expect(getPlayerViewOpenWarning({ displayFound: false }, calibration({ selectedDisplayLabel: "Table TV" }))).toBe(
       "The saved Player View display (Table TV) is not connected. Player View opened normally so you can move it manually."
     );
   });
@@ -105,6 +123,27 @@ describe("player view orchestration helpers", () => {
         updatedAt: "now"
       })
     ).toBeNull();
+  });
+
+  it("applies paused previous Player View scenes to drafts and dirty scene ids", () => {
+    const pausedScene = { ...createDefaultScene("Previous"), id: "scene-1" };
+    const existingScene = { ...createDefaultScene("Existing"), id: "scene-2" };
+    const drafts = { [existingScene.id]: existingScene };
+    const dirtySceneIds = new Set(["scene-2"]);
+
+    expect(getSceneDraftsAfterPreviousPlayerScenePause(drafts, pausedScene)).toEqual({
+      "scene-1": pausedScene,
+      "scene-2": existingScene
+    });
+    expect([...getDirtySceneIdsAfterPreviousPlayerScenePause(dirtySceneIds, pausedScene)].sort()).toEqual(["scene-1", "scene-2"]);
+  });
+
+  it("leaves drafts and dirty scene ids unchanged when no previous Player View scene was paused", () => {
+    const drafts = {};
+    const dirtySceneIds = new Set<string>();
+
+    expect(getSceneDraftsAfterPreviousPlayerScenePause(drafts, null)).toBe(drafts);
+    expect(getDirtySceneIdsAfterPreviousPlayerScenePause(dirtySceneIds, null)).toBe(dirtySceneIds);
   });
 
   it("builds test pattern idle state with connected display metadata", () => {

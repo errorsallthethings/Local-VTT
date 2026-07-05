@@ -108,10 +108,13 @@ import { formatUserFacingError } from "../lib/errors";
 import { logRendererError } from "../lib/rendererDiagnostics";
 import { loadImageDimensions } from "../lib/assets";
 import {
-  getMissingPlayerDisplayWarning,
+  getDirtySceneIdsAfterPreviousPlayerScenePause,
+  getPlayerViewOpenOptions,
+  getPlayerViewOpenWarning,
   getPreviousPlayerScenePauseUpdate,
   getPlayerTestPatternState,
   getPlayerViewModeState,
+  getSceneDraftsAfterPreviousPlayerScenePause,
   showDefaultPlayerHold,
   showPlayerBlackout as sendPlayerBlackout
 } from "../lib/player-view";
@@ -1066,13 +1069,10 @@ export function GmApp() {
         getPlayerViewTargetDimensions(campaign.playerDisplay, displays)
       );
       updateScene(nextScene);
-      const openResult = await window.localVtt.openPlayerView({
-        displayId: campaign.playerDisplay.selectedDisplayId,
-        fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
-      });
+      const openResult = await window.localVtt.openPlayerView(getPlayerViewOpenOptions(campaign.playerDisplay));
       await sendSceneToPlayer(window.localVtt, campaign, nextScene, playerViewSyncOptions);
       applyPlayerViewModeState("scene", nextScene.id);
-      const warning = getMissingPlayerDisplayWarning(openResult.displayFound, campaign.playerDisplay.selectedDisplayLabel);
+      const warning = getPlayerViewOpenWarning(openResult, campaign.playerDisplay);
       if (warning) {
         setError(warning);
       }
@@ -1400,17 +1400,14 @@ export function GmApp() {
           updatedAt: new Date().toISOString()
         });
         if (pausedPreviousScene) {
-          setSceneDrafts((drafts) => ({ ...drafts, [pausedPreviousScene.id]: pausedPreviousScene }));
-          setDirtySceneIds((ids) => new Set(ids).add(pausedPreviousScene.id));
+          setSceneDrafts((drafts) => getSceneDraftsAfterPreviousPlayerScenePause(drafts, pausedPreviousScene));
+          setDirtySceneIds((ids) => getDirtySceneIdsAfterPreviousPlayerScenePause(ids, pausedPreviousScene));
         }
       }
-      const openResult = await window.localVtt.openPlayerView({
-        displayId: campaign.playerDisplay.selectedDisplayId,
-        fullscreen: campaign.playerDisplay.openPlayerViewFullscreen
-      });
+      const openResult = await window.localVtt.openPlayerView(getPlayerViewOpenOptions(campaign.playerDisplay));
       await sendSceneToPlayer(window.localVtt, campaign, activeScene, playerViewSyncOptions);
       applyPlayerViewModeState("scene", activeScene.id, false);
-      const warning = getMissingPlayerDisplayWarning(openResult.displayFound, campaign.playerDisplay.selectedDisplayLabel);
+      const warning = getPlayerViewOpenWarning(openResult, campaign.playerDisplay);
       if (warning) {
         setError(warning);
       }
@@ -1442,13 +1439,10 @@ export function GmApp() {
 
   const showPlayerTestPattern = async (gridMode: PlayerViewTestPattern["gridMode"], display: DisplayCalibration, cellSizePx: number) =>
     run(async () => {
-      const openResult = await window.localVtt.openPlayerView({
-        displayId: display.selectedDisplayId,
-        fullscreen: display.openPlayerViewFullscreen
-      });
+      const openResult = await window.localVtt.openPlayerView(getPlayerViewOpenOptions(display));
       await window.localVtt.showPlayerTestPattern(getPlayerTestPatternState(gridMode, display, cellSizePx, displays));
       applyPlayerViewModeState("test-pattern");
-      const warning = getMissingPlayerDisplayWarning(openResult.displayFound, display.selectedDisplayLabel);
+      const warning = getPlayerViewOpenWarning(openResult, display);
       if (warning) {
         setError(warning);
       }
