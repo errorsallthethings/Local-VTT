@@ -71,7 +71,6 @@ import {
   drawRuler,
   type RulerDrag
 } from "../canvas/measurement";
-import { updatePolygonDraftCurrent } from "../canvas/scene";
 import {
   getSceneCanvasRenderPlan,
   getDrawingDragCommit,
@@ -207,6 +206,7 @@ import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import { getSceneContextMenuTarget } from "./scene/sceneContextMenuTarget";
 import { getScenePointerDownRoute } from "./scene/scenePointerDownRouting";
 import { getScenePointerMoveFallbackRoute } from "./scene/scenePointerMoveFallbackRouting";
+import { getBrushHoverPointForPointerMove, getScenePolygonDraftPointerMoveUpdate } from "./scene/scenePointerMoveFallbackUpdates";
 import { getScenePointerMoveRoute } from "./scene/scenePointerMoveRouting";
 import { getScenePointerUpRoute } from "./scene/scenePointerUpRouting";
 import { getSceneSelectionKindsToClear, type SceneSelectionTargetKind } from "./scene/sceneSelectionRouting";
@@ -1739,31 +1739,44 @@ export function SceneCanvas({
     });
 
     if (pointerMoveFallbackRoute === "drawing-polygon-draft" && drawingPolygonDraftRef.current) {
-      setDrawingPolygonDraft(updatePolygonDraftCurrent(drawingPolygonDraftRef.current, getDrawingToolPoint(event, "polygon")));
+      const update = getScenePolygonDraftPointerMoveUpdate(drawingPolygonDraftRef.current, getDrawingToolPoint(event, "polygon"));
+      if (update) {
+        setDrawingPolygonDraft(update.draft);
+      }
       return;
     }
 
     if (pointerMoveFallbackRoute === "fog-polygon-draft" && polygonDraftRef.current) {
-      setPolygonDraft(updatePolygonDraftCurrent(polygonDraftRef.current, getToolPoint(event)));
+      const update = getScenePolygonDraftPointerMoveUpdate(polygonDraftRef.current, getToolPoint(event));
+      if (update) {
+        setPolygonDraft(update.draft);
+      }
       return;
     }
 
     if (pointerMoveFallbackRoute === "weather-polygon-draft" && weatherPolygonDraftRef.current) {
-      setWeatherPolygonDraft(updatePolygonDraftCurrent(weatherPolygonDraftRef.current, getToolPoint(event)));
+      const update = getScenePolygonDraftPointerMoveUpdate(weatherPolygonDraftRef.current, getToolPoint(event));
+      if (update) {
+        setWeatherPolygonDraft(update.draft);
+      }
       return;
     }
 
     if (pointerMoveFallbackRoute === "environment-polygon-draft" && environmentPolygonDraftRef.current) {
-      setEnvironmentPolygonDraft(updatePolygonDraftCurrent(environmentPolygonDraftRef.current, getToolPoint(event)));
+      const update = getScenePolygonDraftPointerMoveUpdate(environmentPolygonDraftRef.current, getToolPoint(event));
+      if (update) {
+        setEnvironmentPolygonDraft(update.draft);
+      }
       return;
     }
 
-    if (pointerMoveFallbackRoute === "fog-brush-hover") {
-      setBrushHoverPoint(getToolPoint(event, false));
-      return;
-    }
-    if (pointerMoveFallbackRoute === "drawing-freehand-hover") {
-      setBrushHoverPoint(eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)));
+    if (pointerMoveFallbackRoute === "fog-brush-hover" || pointerMoveFallbackRoute === "drawing-freehand-hover") {
+      const brushHoverPointUpdate = getBrushHoverPointForPointerMove(
+        pointerMoveFallbackRoute,
+        getToolPoint(event, false),
+        eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale))
+      );
+      setBrushHoverPoint(brushHoverPointUpdate);
       return;
     }
 
