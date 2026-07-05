@@ -1,4 +1,5 @@
 import path from "node:path";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { createAppWindowOptions, createWindowLoadTarget } from "../../electron/windowConfig";
 
@@ -18,6 +19,12 @@ describe("window config", () => {
       }
     });
     expect(options.webPreferences?.preload).toContain(path.join("dist-electron", "electron", "preload.js"));
+  });
+
+  it("documents why renderer sandboxing is deferred", () => {
+    expect(readFileSync(path.resolve("electron", "windowConfig.ts"), "utf8")).toContain(
+      "preload is emitted in a sandbox-compatible CommonJS bundle"
+    );
   });
 
   it("creates Player window options", () => {

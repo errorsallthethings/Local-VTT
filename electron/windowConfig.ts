@@ -20,6 +20,8 @@ export function createAppWindowOptions(kind: AppWindowKind, appPath: string, ico
       preload: path.join(appPath, "dist-electron", "electron", "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      // Keep disabled until the Electron preload is emitted in a sandbox-compatible CommonJS bundle.
+      // The current NodeNext/ESM preload fails under sandbox with "Cannot use import statement outside a module".
       sandbox: false
     }
   };

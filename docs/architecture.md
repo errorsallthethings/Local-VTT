@@ -12,6 +12,8 @@ Local VTT is a local-first Electron desktop app with a private GM View and a sep
 
 Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog of war, ruler measurement, lightweight GM tokens, drawings, templates, and scene overlays. Three.js is used where 3D rendering is needed, such as dice.
 
+GM and Player windows run with `contextIsolation: true`, `nodeIntegration: false`, and a narrow preload bridge. Renderer sandboxing is currently deferred because the Electron preload is emitted as NodeNext/ESM JavaScript, which Electron's sandbox preload loader rejects. Enabling `sandbox: true` should be paired with changing the preload build output to a sandbox-compatible CommonJS bundle and rerunning the Electron smoke tests.
+
 ## Data Flow
 
 - Campaigns are stored as local folders with `campaign.json`, scene JSON files, and relative asset paths.
