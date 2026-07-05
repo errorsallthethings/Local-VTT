@@ -27,7 +27,6 @@ import type {
   PlayerViewTestPattern,
   Point,
   Scene,
-  SquareCropRect,
   ThumbnailRegenerationResult,
   TokenAssetPromotionResult,
   TokenPresentationDefaults
@@ -82,6 +81,7 @@ import { useGmToolSelection } from "../hooks/useGmToolSelection";
 import { shouldShowPlayerHoldAfterSceneDelete, usePlayerViewState } from "../hooks/usePlayerViewState";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { useSceneSelection } from "../hooks/useSceneSelection";
+import { useTokenImportActions } from "../hooks/useTokenImportActions";
 import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assets";
 import {
   addCampaignPlayerToCampaign,
@@ -147,7 +147,6 @@ import {
   saveRecentCampaigns,
   type RecentCampaign
 } from "../lib/campaign";
-import { createImportedToken } from "../lib/tokens";
 import { getSelectedTokenAssetIds, getTokenAssetDeleteDialogState, getTokenAssetRenameDialogState } from "../lib/tokens";
 import { addTurnOrderEntry, createTurnOrderEntryFromToken } from "../lib/turn-order";
 import {
@@ -171,7 +170,6 @@ import { formatSaveStatus } from "../lib/workspace";
 import {
   GmDialogs,
   type SceneColorDialog,
-  type TokenCropDialogState,
 } from "./GmDialogs";
 import { GmInspector } from "./GmInspector";
 import { GmSidebar } from "./GmSidebar";
@@ -609,16 +607,25 @@ export function GmApp() {
       setDisplays(await window.localVtt.getDisplays());
     }), [run]);
 
-  const cancelTokenCrop = useCallback(() =>
-    run(async () => {
-      if (!campaignPath || !tokenCropDialog) {
-        setTokenCropDialog(null);
-        return;
-      }
-      const summary = await window.localVtt.discardTokenImport(campaignPath, tokenCropDialog.asset.id);
-      applySummary(summary, campaignDirty);
-      setTokenCropDialog(null);
-    }), [applySummary, campaignDirty, campaignPath, run, setTokenCropDialog, tokenCropDialog]);
+  const {
+    addLibraryTokenToScene,
+    cancelTokenCrop,
+    dropLibraryTokenOnScene,
+    importToken,
+    submitTokenCrop
+  } = useTokenImportActions({
+    activeScene,
+    campaign,
+    campaignDirty,
+    campaignPath,
+    gmCanvasCenter,
+    tokenCropDialog,
+    applySummary,
+    run,
+    selectTokens,
+    setTokenCropDialog,
+    updateScene,
+  });
 
   useGmDialogEscape({
     dialogs,
@@ -796,41 +803,6 @@ export function GmApp() {
     }
   };
 
-  const importToken = (mode: TokenCropDialogState["mode"] = "scene") =>
-    run(async () => {
-      if (!campaignPath || (mode === "scene" && !activeScene)) {
-        return;
-      }
-      const result = await window.localVtt.importToken(campaignPath);
-      if (!result) {
-        return;
-      }
-      applySummary(result.campaignSummary, campaignDirty);
-      setTokenCropDialog({ asset: result.asset, mode });
-    });
-
-  const addImportedTokenToScene = (asset: Asset, syncCampaign: Campaign | null = campaign, placementPoint: Point | null = gmCanvasCenter) => {
-    if (!activeScene) {
-      return;
-    }
-    const tokenId = crypto.randomUUID();
-    const nextToken = createImportedToken(activeScene, asset, tokenId, placementPoint ?? undefined);
-    updateScene(
-      {
-        ...activeScene,
-        tokens: [...activeScene.tokens, nextToken],
-        updatedAt: new Date().toISOString()
-      },
-      syncCampaign
-    );
-    selectTokens([tokenId]);
-    setTokenCropDialog(null);
-  };
-
-  const addLibraryTokenToScene = (asset: Asset) => {
-    addImportedTokenToScene(asset);
-  };
-
   const addCampaignPlayer = () => {
     if (!campaign) {
       return;
@@ -897,24 +869,6 @@ export function GmApp() {
     updateCampaignDraft(setCampaignTokenAssetDefaults(campaign, tokenDefaultsDialog.assetId, tokenDefaultsDialog.draft, new Date().toISOString()));
     setTokenDefaultsDialog(null);
   };
-
-  const dropLibraryTokenOnScene = (asset: Asset, point: Point) => {
-    addImportedTokenToScene(asset, campaign, point);
-  };
-
-  const submitTokenCrop = (crop: SquareCropRect) =>
-    run(async () => {
-      if (!campaignPath || !tokenCropDialog) {
-        return;
-      }
-      const result = await window.localVtt.updateTokenThumbnail(campaignPath, tokenCropDialog.asset.id, crop);
-      applySummary(result.campaignSummary, campaignDirty);
-      if (tokenCropDialog.mode === "scene") {
-        addImportedTokenToScene(result.asset, result.campaignSummary.campaign);
-      } else {
-        setTokenCropDialog(null);
-      }
-    });
 
   const updatePlayerDisplay = (nextDisplay: DisplayCalibration) => {
     if (!campaign) {

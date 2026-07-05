@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   createImportedToken,
   duplicateToken,
+  canStartTokenImport,
   getDefaultTokenPosition,
   getDefaultTokenSize,
+  getImportedTokenSceneUpdate,
+  getTokenCropDialogState,
   getTokenPresentationDefaults,
   getTokenPositionAtPoint,
   stripFileExtension
@@ -73,6 +76,32 @@ describe("token defaults", () => {
       assetId: tokenAsset.id,
       order: 1
     });
+  });
+
+  it("builds token import workflow state and guards scene-only imports", () => {
+    const scene = createDefaultScene("Import Guard");
+
+    expect(canStartTokenImport("campaign-path", "scene", scene)).toBe(true);
+    expect(canStartTokenImport("campaign-path", "library", null)).toBe(true);
+    expect(canStartTokenImport("campaign-path", "scene", null)).toBe(false);
+    expect(canStartTokenImport(null, "library", scene)).toBe(false);
+    expect(getTokenCropDialogState(tokenAsset, "library")).toEqual({ asset: tokenAsset, mode: "library" });
+  });
+
+  it("builds imported token scene updates with the new token selected by id", () => {
+    const scene = createDefaultScene("Imported Token Update");
+    scene.grid = { ...scene.grid, type: "square", sizePx: 50, offsetX: 10, offsetY: 10 };
+
+    const update = getImportedTokenSceneUpdate(scene, tokenAsset, "token-2", "2026-07-04T12:00:00.000Z", { x: 137, y: 84 });
+
+    expect(update?.tokenId).toBe("token-2");
+    expect(update?.scene.updatedAt).toBe("2026-07-04T12:00:00.000Z");
+    expect(update?.scene.tokens.at(-1)).toMatchObject({
+      id: "token-2",
+      assetId: tokenAsset.id,
+      position: { x: 110, y: 60 }
+    });
+    expect(getImportedTokenSceneUpdate(null, tokenAsset, "token-3", "now")).toBeNull();
   });
 
   it("applies saved library token presentation defaults to new scene tokens", () => {

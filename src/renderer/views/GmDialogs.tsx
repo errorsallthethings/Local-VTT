@@ -22,6 +22,7 @@ import { TableDisplaySetupWizard, type WizardMapFitMode } from "../components/se
 import { TokenDefaultsPanel } from "../components/tokens/TokenDefaultsPanel";
 import type { MapReplacementPreview } from "../hooks/useCampaignActions";
 import { getFolderSceneDeleteDetail } from "../lib/scene";
+import type { TokenCropDialogState } from "../lib/tokens";
 
 export type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
 export type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };
@@ -31,7 +32,6 @@ export type FogShapeNameDialog = { shapeId: string };
 export type EnvironmentEffectNameDialog = { effectId: string };
 export type TokenNameDialog = { tokenId: string };
 export type TokenColorDialog = { tokenId: string; tokenName: string; value: string; kind: "border" | "glow" };
-export type TokenCropDialogState = { asset: Asset; mode: "scene" | "library" };
 export type TokenAssetNameDialog = { assetId: string };
 export type TokenDefaultsDialog = { assetId: string; assetName: string; draft: TokenPresentationDefaults };
 export type TokenAssetDeleteDialog = { asset: Asset; usage: Array<{ sceneId: string; sceneName: string; count: number }> };
