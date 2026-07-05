@@ -50,6 +50,7 @@ import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import { useCampaignActions, type CampaignBusyState, type MapReplacementPreview } from "../hooks/useCampaignActions";
+import { useCampaignPlayerActions } from "../hooks/useCampaignPlayerActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useEnvironmentEffectActions } from "../hooks/useEnvironmentEffectActions";
@@ -77,14 +78,13 @@ import {
 import { useGmDialogEscape, useGmDialogState } from "../hooks/useGmDialogState";
 import { useGmToolOptions } from "../hooks/useGmToolOptions";
 import { useGmToolSelection } from "../hooks/useGmToolSelection";
+import { usePlayerDisplayActions } from "../hooks/usePlayerDisplayActions";
 import { shouldShowPlayerHoldAfterSceneDelete, usePlayerViewState } from "../hooks/usePlayerViewState";
 import { useSceneEditingActions } from "../hooks/useSceneEditingActions";
 import { useSceneSelection } from "../hooks/useSceneSelection";
 import { useTokenImportActions } from "../hooks/useTokenImportActions";
 import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assets";
 import {
-  addCampaignPlayerToCampaign,
-  deleteCampaignPlayerFromCampaign,
   getActiveSceneAfterSceneRename,
   getCreateSceneFolderNameDialogState,
   getCreateSceneNameDialogState,
@@ -98,7 +98,6 @@ import {
   setCampaignTokenAssetDefaults,
   setSceneFolderColor,
   submitSceneFolderName,
-  updateCampaignPlayerInCampaign
 } from "../lib/campaign";
 import { buildLiveTableDiceClearEvent, buildLiveTableDiceRollEvent, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
 import { applyDiceSettingsPatch, getEffectiveDiceSettings, loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/dice";
@@ -116,9 +115,6 @@ import {
   showDefaultPlayerHold,
   showPlayerBlackout as sendPlayerBlackout
 } from "../lib/player-view";
-import {
-  applyPlayerDisplayProfileAction,
-} from "../lib/player-display/playerDisplayProfiles";
 import { sendSceneToPlayer, updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
 import {
   getCollapsedFolderIds,
@@ -555,6 +551,20 @@ export function GmApp() {
     updateWorkspaceCampaignDraft(nextCampaign, syncActiveSceneToPlayer && activeScene?.id === playerSceneId ? activeScene : null);
   };
 
+  const {
+    updatePlayerDisplay,
+    selectPlayerDisplayProfile,
+    createPlayerDisplayProfileFromDraft,
+    renamePlayerDisplayProfile,
+    deletePlayerDisplayProfile
+  } = usePlayerDisplayActions({ campaign, updateCampaignDraft });
+
+  const {
+    addCampaignPlayer,
+    updateCampaignPlayer,
+    deleteCampaignPlayer
+  } = useCampaignPlayerActions({ activeScene, campaign, updateCampaignDraft, updateScene });
+
   const updateDiceSettings = (patch: Partial<DiceSettings>) => {
     const result = applyDiceSettingsPatch(diceSettingsDraftRef.current, patch, campaign, new Date().toISOString());
     diceSettingsDraftRef.current = result.settings;
@@ -789,40 +799,6 @@ export function GmApp() {
     }
   };
 
-  const addCampaignPlayer = () => {
-    if (!campaign) {
-      return;
-    }
-    const nextCampaign = addCampaignPlayerToCampaign(campaign, crypto.randomUUID(), new Date().toISOString());
-    if (nextCampaign) {
-      updateCampaignDraft(nextCampaign);
-    }
-  };
-
-  const updateCampaignPlayer = (playerId: string, patch: Partial<Campaign["players"][number]>) => {
-    if (!campaign) {
-      return;
-    }
-    const updatedAt = new Date().toISOString();
-    const result = updateCampaignPlayerInCampaign(campaign, activeScene, playerId, patch, updatedAt);
-    updateCampaignDraft(result.campaign);
-    if (result.scene) {
-      updateScene(result.scene, result.campaign);
-    }
-  };
-
-  const deleteCampaignPlayer = (playerId: string) => {
-    if (!campaign) {
-      return;
-    }
-    const updatedAt = new Date().toISOString();
-    const result = deleteCampaignPlayerFromCampaign(campaign, activeScene, playerId, updatedAt);
-    updateCampaignDraft(result.campaign);
-    if (result.scene) {
-      updateScene(result.scene, result.campaign);
-    }
-  };
-
   const addSceneTokenToTurnOrder = (tokenId: string) => {
     if (!activeScene) {
       return;
@@ -854,77 +830,6 @@ export function GmApp() {
     }
     updateCampaignDraft(setCampaignTokenAssetDefaults(campaign, tokenDefaultsDialog.assetId, tokenDefaultsDialog.draft, new Date().toISOString()));
     setTokenDefaultsDialog(null);
-  };
-
-  const updatePlayerDisplay = (nextDisplay: DisplayCalibration) => {
-    if (!campaign) {
-      return;
-    }
-    const nextCampaign = applyPlayerDisplayProfileAction(
-      campaign,
-      { type: "update-display", display: nextDisplay },
-      new Date().toISOString()
-    );
-    if (nextCampaign) {
-      updateCampaignDraft(nextCampaign);
-    }
-  };
-
-  const selectPlayerDisplayProfile = (profileId: string) => {
-    if (!campaign) {
-      return;
-    }
-    const nextCampaign = applyPlayerDisplayProfileAction(
-      campaign,
-      { type: "select-profile", profileId },
-      new Date().toISOString()
-    );
-    if (nextCampaign) {
-      updateCampaignDraft(nextCampaign);
-    }
-  };
-
-  const createPlayerDisplayProfileFromDraft = (name: string, calibration: DisplayCalibration) => {
-    if (!campaign) {
-      return;
-    }
-    const now = new Date().toISOString();
-    const nextCampaign = applyPlayerDisplayProfileAction(
-      campaign,
-      { type: "create-profile", profileId: crypto.randomUUID(), name, calibration },
-      now
-    );
-    if (nextCampaign) {
-      updateCampaignDraft(nextCampaign);
-    }
-  };
-
-  const renamePlayerDisplayProfile = (profileId: string, name: string) => {
-    if (!campaign) {
-      return;
-    }
-    const nextCampaign = applyPlayerDisplayProfileAction(
-      campaign,
-      { type: "rename-profile", profileId, name },
-      new Date().toISOString()
-    );
-    if (nextCampaign) {
-      updateCampaignDraft(nextCampaign);
-    }
-  };
-
-  const deletePlayerDisplayProfile = (profileId: string) => {
-    if (!campaign) {
-      return;
-    }
-    const nextCampaign = applyPlayerDisplayProfileAction(
-      campaign,
-      { type: "delete-profile", profileId },
-      new Date().toISOString()
-    );
-    if (nextCampaign) {
-      updateCampaignDraft(nextCampaign);
-    }
   };
 
   const buildMapCalibratedScene = async (draft: MapCalibrationDraft) => {
