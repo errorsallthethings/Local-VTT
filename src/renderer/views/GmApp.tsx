@@ -46,6 +46,7 @@ import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import { useCampaignActions, type CampaignBusyState, type MapReplacementPreview } from "../hooks/useCampaignActions";
 import { useCampaignPlayerActions } from "../hooks/useCampaignPlayerActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
+import { useDiceActions } from "../hooks/useDiceActions";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useEnvironmentEffectActions } from "../hooks/useEnvironmentEffectActions";
 import {
@@ -84,8 +85,7 @@ import { useSceneTokenTurnOrderActions } from "../hooks/useSceneTokenTurnOrderAc
 import { useTokenDefaultsActions } from "../hooks/useTokenDefaultsActions";
 import { useTokenImportActions } from "../hooks/useTokenImportActions";
 import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assets";
-import { buildLiveTableDiceClearEvent, buildLiveTableDiceRollEvent, rollDiceEvent, rollDiceExpression, type DiceType } from "../lib/dice";
-import { applyDiceSettingsPatch, getEffectiveDiceSettings, loadDiceSettingsPreference, saveDiceSettingsPreference } from "../lib/dice";
+import { getEffectiveDiceSettings, loadDiceSettingsPreference } from "../lib/dice";
 import { formatUserFacingError } from "../lib/errors";
 import { logRendererError } from "../lib/rendererDiagnostics";
 import {
@@ -408,7 +408,6 @@ export function GmApp() {
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const [diceSettingsPreference, setDiceSettingsPreference] = useState<DiceSettings>(() => loadDiceSettingsPreference());
   const diceSettings = useMemo<DiceSettings>(() => getEffectiveDiceSettings(campaign, diceSettingsPreference), [campaign, diceSettingsPreference]);
-  const diceSettingsDraftRef = useRef<DiceSettings>(diceSettings);
   const collapsedFolderIds = useMemo(
     () => getCollapsedFolderIds(campaign?.sceneFolders, expandedFolderIds),
     [campaign?.sceneFolders, expandedFolderIds]
@@ -447,10 +446,6 @@ export function GmApp() {
       setPlayerMenuOpen(false);
     }
   };
-
-  useEffect(() => {
-    diceSettingsDraftRef.current = diceSettings;
-  }, [diceSettings]);
 
   useEffect(() => {
     setMapCalibrationBox(null);
@@ -620,38 +615,19 @@ export function GmApp() {
     setTokenAssetToDelete
   });
 
-  const updateDiceSettings = (patch: Partial<DiceSettings>) => {
-    const result = applyDiceSettingsPatch(diceSettingsDraftRef.current, patch, campaign, new Date().toISOString());
-    diceSettingsDraftRef.current = result.settings;
-    if (result.kind === "preference") {
-      setDiceSettingsPreference(result.settings);
-      saveDiceSettingsPreference(result.settings);
-      return;
-    }
-    updateCampaignDraft(result.campaign);
-  };
-
-  const rollTableDie = (die: DiceType) => {
-    const roll = rollDiceEvent(die);
-    setError(null);
-    emitLiveTableEvent(buildLiveTableDiceRollEvent(roll, diceSettings, crypto.randomUUID(), Date.now()));
-  };
-
-  const rollTableExpression = (expression: string, rollLabel?: string) => {
-    try {
-      const roll = rollDiceExpression(expression);
-      setError(null);
-      emitLiveTableEvent(buildLiveTableDiceRollEvent(roll, diceSettings, crypto.randomUUID(), Date.now(), rollLabel));
-      return null;
-    } catch (caught) {
-      return caught instanceof Error ? caught.message : "Could not roll that dice expression.";
-    }
-  };
-
-  const clearDiceRolls = () => {
-    setError(null);
-    emitLiveTableEvent(buildLiveTableDiceClearEvent(crypto.randomUUID(), Date.now()));
-  };
+  const {
+    updateDiceSettings,
+    rollTableDie,
+    rollTableExpression,
+    clearDiceRolls
+  } = useDiceActions({
+    campaign,
+    diceSettings,
+    emitLiveTableEvent,
+    setDiceSettingsPreference,
+    setError,
+    updateCampaignDraft
+  });
 
   const refreshDisplays = useCallback(() =>
     run(async () => {
