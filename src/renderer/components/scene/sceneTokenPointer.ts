@@ -57,3 +57,21 @@ export function getTokenPointerMove(scene: Scene | null, activeDrag: TokenDragSt
     preview: getTokenDragPreviewFromPoint(scene, activeDrag, token, point)
   };
 }
+
+export type TokenPointerMoveAction =
+  | { kind: "cancel-drag" }
+  | { kind: "set-preview"; preview: TokenDragPreview }
+  | { kind: "none" };
+
+export function getTokenPointerMoveAction(move: TokenPointerMove | null): TokenPointerMoveAction {
+  if (!move) {
+    return { kind: "none" };
+  }
+  if (move.kind === "missing-token") {
+    return { kind: "cancel-drag" };
+  }
+  return {
+    kind: "set-preview",
+    preview: move.preview
+  };
+}

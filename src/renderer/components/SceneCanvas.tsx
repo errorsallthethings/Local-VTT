@@ -225,7 +225,7 @@ import {
 } from "./scene/sceneMaskEffectPointer";
 import { getMapCalibrationPointerComplete, getMapCalibrationPointerMove, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
 import { getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
-import { getTokenPointerMove, getTokenPointerStart } from "./scene/sceneTokenPointer";
+import { getTokenPointerMove, getTokenPointerMoveAction, getTokenPointerStart } from "./scene/sceneTokenPointer";
 import { getDrawingTransformPointerComplete, getDrawingTransformPointerMove, getDrawingTransformPointerStart } from "./scene/sceneDrawingTransformPointer";
 import { getRulerWaypointAppendKeyboardUpdate, getTokenWaypointAppendKeyboardUpdate } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
@@ -1674,13 +1674,13 @@ export function SceneCanvas({
 
     if (pointerMoveRoute === "token" && tokenDrag && scene) {
       const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const update = getTokenPointerMove(scene, tokenDrag, event.pointerId, point);
-      if (update?.kind === "missing-token") {
+      const action = getTokenPointerMoveAction(getTokenPointerMove(scene, tokenDrag, event.pointerId, point));
+      if (action.kind === "cancel-drag") {
         cancelTokenDrag();
         return;
       }
-      if (update?.kind === "preview") {
-        setTokenDragPreview(update.preview);
+      if (action.kind === "set-preview") {
+        setTokenDragPreview(action.preview);
       }
       return;
     }

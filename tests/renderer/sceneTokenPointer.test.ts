@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultScene, type Token } from "../../src/shared/localvtt";
 import type { TokenDragState } from "../../src/renderer/canvas/scene";
-import { getTokenPointerMove, getTokenPointerStart } from "../../src/renderer/components/scene/sceneTokenPointer";
+import { getTokenPointerMove, getTokenPointerMoveAction, getTokenPointerStart } from "../../src/renderer/components/scene/sceneTokenPointer";
 
 function token(patch: Partial<Token> = {}): Token {
   return {
@@ -102,6 +102,32 @@ describe("scene token pointer helpers", () => {
     expect(getTokenPointerMove({ ...scene, tokens: [] }, drag, 3, { x: 40, y: 45 })).toEqual({ kind: "missing-token", tokenId: sceneToken.id });
     expect(getTokenPointerMove(scene, drag, 3, { x: 40, y: 45 })).toMatchObject({
       kind: "preview",
+      preview: {
+        tokenId: sceneToken.id,
+        currentPosition: { x: 35, y: 40 }
+      }
+    });
+  });
+
+  it("maps token pointer move outcomes to SceneCanvas actions", () => {
+    const scene = createDefaultScene("Move Action Token");
+    const sceneToken = token({ position: { x: 0, y: 0 } });
+    scene.tokens = [sceneToken];
+    const drag: TokenDragState = {
+      pointerId: 3,
+      tokenId: sceneToken.id,
+      offset: { x: 5, y: 5 },
+      startPosition: { x: 0, y: 0 },
+      waypoints: [],
+      groupStartPositions: new Map([[sceneToken.id, { x: 0, y: 0 }]])
+    };
+
+    const previewMove = getTokenPointerMove(scene, drag, 3, { x: 40, y: 45 });
+
+    expect(getTokenPointerMoveAction(null)).toEqual({ kind: "none" });
+    expect(getTokenPointerMoveAction({ kind: "missing-token", tokenId: sceneToken.id })).toEqual({ kind: "cancel-drag" });
+    expect(getTokenPointerMoveAction(previewMove)).toMatchObject({
+      kind: "set-preview",
       preview: {
         tokenId: sceneToken.id,
         currentPosition: { x: 35, y: 40 }
