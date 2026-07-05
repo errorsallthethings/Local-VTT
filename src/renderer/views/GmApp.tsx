@@ -90,12 +90,7 @@ import { logRendererError } from "../lib/rendererDiagnostics";
 import {
   getPlayerViewModeState,
 } from "../lib/player-view";
-import {
-  removeLastDrawing,
-  removeLastEnvironmentEffect,
-  removeLastWeatherMask
-} from "../lib/scene";
-import { buildSceneSelectionIds, removeSelectedSceneItems, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
+import { buildSceneSelectionIds } from "../lib/scene";
 import { loadRecentCampaigns, type RecentCampaign } from "../lib/campaign";
 import { getSelectedTokenAssetIds } from "../lib/tokens";
 import {
@@ -462,21 +457,6 @@ export function GmApp() {
     updateEnvironmentEffectType
   } = useEnvironmentEffectActions({ activeScene, updateScene });
 
-  const updateSelectedPlayerVisibility = (visibleInPlayer: boolean) => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene(setSelectedSceneItemsPlayerVisibility(activeScene, selectedSceneItemIds, visibleInPlayer));
-  };
-
-  const deleteSelectedSceneItems = () => {
-    if (!activeScene) {
-      return;
-    }
-    updateScene(removeSelectedSceneItems(activeScene, selectedSceneItemIds));
-    clearSceneSelection();
-  };
-
   const updateCampaignDraft = (nextCampaign: Campaign, syncActiveSceneToPlayer = true) => {
     updateWorkspaceCampaignDraft(nextCampaign, syncActiveSceneToPlayer && activeScene?.id === playerSceneId ? activeScene : null);
   };
@@ -760,10 +740,17 @@ export function GmApp() {
     clearFogShapes,
     updateMapTransform,
     setLayerOrderLocked,
-    moveLayer
+    moveLayer,
+    updateSelectedPlayerVisibility,
+    deleteSelectedSceneItems,
+    undoWeatherMask,
+    undoEnvironmentEffect,
+    undoDrawing
   } = useSceneEditingActions({
     activeScene,
+    selectedSceneItemIds,
     updateScene,
+    clearSceneSelection,
     onClearFogConfirmed: () => setConfirmClearFogOpen(false)
   });
 
@@ -834,27 +821,6 @@ export function GmApp() {
     updateGrid,
     updateScene
   });
-
-  const undoWeatherMask = () => {
-    if (!activeScene || activeScene.weather.masks.length === 0) {
-      return;
-    }
-    updateScene(removeLastWeatherMask(activeScene));
-  };
-
-  const undoEnvironmentEffect = () => {
-    if (!activeScene || activeScene.environment.effects.length === 0) {
-      return;
-    }
-    updateScene(removeLastEnvironmentEffect(activeScene));
-  };
-
-  const undoDrawing = () => {
-    if (!activeScene || activeScene.drawings.length === 0) {
-      return;
-    }
-    updateScene(removeLastDrawing(activeScene));
-  };
 
   const reopenRecentCampaign = async (recentCampaignPath: string) => {
     const ok = await openRecentCampaign(recentCampaignPath);
