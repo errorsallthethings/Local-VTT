@@ -1,8 +1,39 @@
-import { DEFAULT_SCENE_FOLDER_COLOR, type Campaign, type TokenPresentationDefaults } from "../../../shared/localvtt";
+import { DEFAULT_SCENE_FOLDER_COLOR, type Campaign, type Scene, type TokenPresentationDefaults } from "../../../shared/localvtt";
 
 export type SceneFolderNameRequest =
   | { mode: "create"; name: string; folderId: string }
   | { mode: "rename"; name: string; folderId: string };
+
+export type SceneNameDialogState = { name: string; dialog: { mode: "create" } | { mode: "rename"; sceneId: string } };
+export type SceneFolderNameDialogState = { name: string; dialog: { mode: "create" } | { mode: "rename"; folderId: string } };
+
+export function getCreateSceneNameDialogState(defaultName = "New Battle Map"): SceneNameDialogState {
+  return {
+    name: defaultName,
+    dialog: { mode: "create" }
+  };
+}
+
+export function getRenameSceneNameDialogState(scene: Pick<Scene, "id" | "name">): SceneNameDialogState {
+  return {
+    name: scene.name,
+    dialog: { mode: "rename", sceneId: scene.id }
+  };
+}
+
+export function getCreateSceneFolderNameDialogState(defaultName = "New Folder"): SceneFolderNameDialogState {
+  return {
+    name: defaultName,
+    dialog: { mode: "create" }
+  };
+}
+
+export function getRenameSceneFolderNameDialogState(folder: Pick<Campaign["sceneFolders"][number], "id" | "name">): SceneFolderNameDialogState {
+  return {
+    name: folder.name,
+    dialog: { mode: "rename", folderId: folder.id }
+  };
+}
 
 export function submitSceneFolderName(campaign: Campaign, request: SceneFolderNameRequest, updatedAt: string): Campaign | null {
   const name = request.name.trim();
@@ -55,4 +86,30 @@ export function setCampaignTokenAssetDefaults(
     assets: campaign.assets.map((asset) => (asset.id === assetId ? { ...asset, tokenDefaults } : asset)),
     updatedAt
   };
+}
+
+export function renameCampaign(campaign: Campaign, name: string, updatedAt: string): Campaign | null {
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return null;
+  }
+
+  return {
+    ...campaign,
+    name: trimmedName,
+    updatedAt
+  };
+}
+
+export function getSceneDraftsAfterSceneRename(sceneDrafts: Record<string, Scene>, sceneId: string, name: string): Record<string, Scene> {
+  const draft = sceneDrafts[sceneId];
+  return draft ? { ...sceneDrafts, [sceneId]: { ...draft, name } } : sceneDrafts;
+}
+
+export function getActiveSceneAfterSceneRename(activeScene: Scene | null, sceneId: string, name: string, savedScene: Scene): Scene | null {
+  if (activeScene?.id !== sceneId) {
+    return activeScene;
+  }
+
+  return activeScene ? { ...activeScene, name } : savedScene;
 }

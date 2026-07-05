@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createDefaultCampaign, DEFAULT_SCENE_FOLDER_COLOR, type Asset } from "../../src/shared/localvtt";
+import { createDefaultCampaign, createDefaultScene, DEFAULT_SCENE_FOLDER_COLOR, type Asset } from "../../src/shared/localvtt";
 import {
+  getActiveSceneAfterSceneRename,
+  getCreateSceneFolderNameDialogState,
+  getCreateSceneNameDialogState,
+  getRenameSceneFolderNameDialogState,
+  getRenameSceneNameDialogState,
+  getSceneDraftsAfterSceneRename,
+  renameCampaign,
   renameCampaignTokenAsset,
   setCampaignTokenAssetDefaults,
   setSceneFolderColor,
@@ -22,6 +29,16 @@ function tokenAsset(id = "token-1"): Asset {
 }
 
 describe("campaign mutation helpers", () => {
+  it("builds scene and folder name dialog state", () => {
+    const scene = { ...createDefaultScene("Dungeon"), id: "scene-1" };
+    const folder = { id: "folder-1", name: "Act One", color: "#111111", createdAt: now };
+
+    expect(getCreateSceneNameDialogState()).toEqual({ name: "New Battle Map", dialog: { mode: "create" } });
+    expect(getRenameSceneNameDialogState(scene)).toEqual({ name: "Dungeon", dialog: { mode: "rename", sceneId: "scene-1" } });
+    expect(getCreateSceneFolderNameDialogState()).toEqual({ name: "New Folder", dialog: { mode: "create" } });
+    expect(getRenameSceneFolderNameDialogState(folder)).toEqual({ name: "Act One", dialog: { mode: "rename", folderId: "folder-1" } });
+  });
+
   it("creates and renames scene folders from trimmed names", () => {
     const campaign = createDefaultCampaign("Folders");
     const created = submitSceneFolderName(campaign, { mode: "create", folderId: "folder-1", name: "  Act One  " }, now);
@@ -64,5 +81,35 @@ describe("campaign mutation helpers", () => {
 
     expect(updated.assets[0].tokenDefaults).toEqual(tokenDefaults);
     expect(updated.updatedAt).toBe(now);
+  });
+
+  it("renames campaigns with trimmed names and rejects blanks", () => {
+    const campaign = createDefaultCampaign("Old Campaign");
+
+    expect(renameCampaign(campaign, "  New Campaign  ", now)).toMatchObject({ name: "New Campaign", updatedAt: now });
+    expect(renameCampaign(campaign, "   ", now)).toBeNull();
+  });
+
+  it("patches scene drafts after scene renames without touching unrelated drafts", () => {
+    const sceneOne = { ...createDefaultScene("One"), id: "scene-1" };
+    const sceneTwo = { ...createDefaultScene("Two"), id: "scene-2" };
+    const drafts = { "scene-1": sceneOne, "scene-2": sceneTwo };
+
+    const renamed = getSceneDraftsAfterSceneRename(drafts, "scene-1", "Renamed");
+
+    expect(renamed).not.toBe(drafts);
+    expect(renamed["scene-1"]).toMatchObject({ id: "scene-1", name: "Renamed" });
+    expect(renamed["scene-2"]).toBe(sceneTwo);
+    expect(getSceneDraftsAfterSceneRename(drafts, "missing", "Ignored")).toBe(drafts);
+  });
+
+  it("derives the active scene after scene renames", () => {
+    const activeScene = { ...createDefaultScene("Active"), id: "scene-1" };
+    const savedScene = { ...createDefaultScene("Saved"), id: "scene-1" };
+    const otherScene = { ...createDefaultScene("Other"), id: "scene-2" };
+
+    expect(getActiveSceneAfterSceneRename(activeScene, "scene-1", "Renamed", savedScene)).toMatchObject({ id: "scene-1", name: "Renamed" });
+    expect(getActiveSceneAfterSceneRename(otherScene, "scene-1", "Renamed", savedScene)).toBe(otherScene);
+    expect(getActiveSceneAfterSceneRename(null, "scene-1", "Renamed", savedScene)).toBeNull();
   });
 });

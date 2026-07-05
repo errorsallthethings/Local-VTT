@@ -87,8 +87,15 @@ import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from ".
 import {
   addCampaignPlayerToCampaign,
   deleteCampaignPlayerFromCampaign,
+  getActiveSceneAfterSceneRename,
+  getCreateSceneFolderNameDialogState,
+  getCreateSceneNameDialogState,
+  getRenameSceneFolderNameDialogState,
+  getRenameSceneNameDialogState,
+  getSceneDraftsAfterSceneRename,
   getTokenAssetDeleteSceneUpdate,
   moveSceneFolder,
+  renameCampaign,
   renameCampaignTokenAsset,
   setCampaignTokenAssetDefaults,
   setSceneFolderColor,
@@ -1133,25 +1140,29 @@ export function GmApp() {
   };
 
   const openSceneDialog = () => {
-    setNewSceneName("New Battle Map");
-    setSceneDialog({ mode: "create" });
+    const state = getCreateSceneNameDialogState();
+    setNewSceneName(state.name);
+    setSceneDialog(state.dialog);
   };
 
   const openFolderDialog = () => {
-    setNewFolderName("New Folder");
-    setFolderDialog({ mode: "create" });
+    const state = getCreateSceneFolderNameDialogState();
+    setNewFolderName(state.name);
+    setFolderDialog(state.dialog);
   };
 
   const openRenameDialog = (scene: CampaignSceneEntry) => {
+    const state = getRenameSceneNameDialogState(scene);
     setOpenSceneMenuId(null);
-    setNewSceneName(scene.name);
-    setSceneDialog({ mode: "rename", sceneId: scene.id });
+    setNewSceneName(state.name);
+    setSceneDialog(state.dialog);
   };
 
   const openRenameFolderDialog = (folder: CampaignSceneFolder) => {
+    const state = getRenameSceneFolderNameDialogState(folder);
     setOpenFolderMenuId(null);
-    setNewFolderName(folder.name);
-    setFolderDialog({ mode: "rename", folderId: folder.id });
+    setNewFolderName(state.name);
+    setFolderDialog(state.dialog);
   };
 
   const openRenameFogShapeDialog = (shapeId: string, fallbackName: string) => {
@@ -1349,13 +1360,8 @@ export function GmApp() {
       } else {
         const result = await window.localVtt.renameScene(campaignPath, sceneDialog.sceneId, name);
         applySummary(result.campaignSummary, campaignDirty);
-        setSceneDrafts((drafts) => {
-          const draft = drafts[sceneDialog.sceneId];
-          return draft ? { ...drafts, [sceneDialog.sceneId]: { ...draft, name } } : drafts;
-        });
-        if (activeScene?.id === sceneDialog.sceneId) {
-          setActiveScene((scene) => (scene ? { ...scene, name } : result.scene));
-        }
+        setSceneDrafts((drafts) => getSceneDraftsAfterSceneRename(drafts, sceneDialog.sceneId, name));
+        setActiveScene((scene) => getActiveSceneAfterSceneRename(scene, sceneDialog.sceneId, name, result.scene));
       }
       setSceneDialog(null);
     });
@@ -1372,11 +1378,11 @@ export function GmApp() {
     if (!campaign) {
       return;
     }
-    const name = newCampaignName.trim();
-    if (!name) {
+    const nextCampaign = renameCampaign(campaign, newCampaignName, new Date().toISOString());
+    if (!nextCampaign) {
       return;
     }
-    updateCampaignDraft({ ...campaign, name, updatedAt: new Date().toISOString() });
+    updateCampaignDraft(nextCampaign);
     setCampaignNameDialogOpen(false);
   };
 
