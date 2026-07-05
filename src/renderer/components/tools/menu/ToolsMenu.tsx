@@ -1,25 +1,12 @@
 import { useEffect, useState } from "react";
-import {
-  Circle,
-  Pentagon,
-  Square,
-  Undo2,
-} from "lucide-react";
 import type { DrawingTool } from "../../../canvas/drawings";
 import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType } from "../../../../shared/localvtt";
 import type { FogTool } from "../../../canvas/fog";
 import type { DrawingTemplateSize, DrawingTemplateWidth } from "../settings/DrawingToolSettings";
-import { AcidEffectTuningPanel, ArcaneEffectTuningPanel, ChaosEffectTuningPanel, ColdEffectTuningPanel, DarknessEffectTuningPanel, DistortionEffectTuningPanel, FireEffectTuningPanel, FogEffectTuningPanel, ForceFieldEffectTuningPanel, LavaEffectTuningPanel, LightningEffectTuningPanel, NatureEffectTuningPanel, PoisonEffectTuningPanel, RadiantEffectTuningPanel, ShockwaveEffectTuningPanel, SmokeEffectTuningPanel, VoidEffectTuningPanel, WaterEffectTuningPanel } from "../effects/EnvironmentEffectTuningPanels";
 import type { SelectorSelectionCounts, SelectorSelectionFilters } from "../settings/SelectorToolControls";
-import { ToolHelpCard, type ToolHelpTopic } from "../settings/ToolHelpCard";
+import type { ToolHelpTopic } from "../settings/ToolHelpCard";
 import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffectTuning, DarknessEffectTuning, DistortionEffectTuning, FireEffectTuning, FogEffectTuning, ForceFieldEffectTuning, LavaEffectTuning, LightningEffectTuning, NatureEffectTuning, PoisonEffectTuning, RadiantEffectTuning, ShockwaveEffectTuning, SmokeEffectTuning, VoidEffectTuning, WaterEffectTuning } from "../../../canvas/effects";
-import {
-  ENVIRONMENT_EFFECT_FEATHER_OPTIONS,
-  ENVIRONMENT_EFFECT_OPTIONS,
-  formatEnvironmentEffectOptionLabel,
-  getEnvironmentEffectFeatherSelectValue,
-  getEnvironmentEffectPresetOptions
-} from "../../../lib/effects";
+import { ENVIRONMENT_EFFECT_OPTIONS } from "../../../lib/effects";
 import {
   applySelectedEnvironmentEffectPreset,
   resetSelectedEnvironmentEffectTuning,
@@ -28,8 +15,9 @@ import {
 } from "./environmentEffectMenuActions";
 import { ToolsMenuCategoryRail } from "./ToolsMenuCategoryRail";
 import { DrawingToolsPanel, TemplateToolsPanel } from "./ToolsMenuDrawingPanels";
+import { EnvironmentEffectsPanel } from "./ToolsMenuEffectsPanel";
 import { ToolsMenuMousePanel } from "./ToolsMenuMousePanel";
-import { HelpButton, PanelHeader, Placeholder, ToolButton } from "./ToolsMenuPrimitives";
+import { PanelHeader, Placeholder } from "./ToolsMenuPrimitives";
 import { FogToolsPanel, TableToolsPanel } from "./ToolsMenuUtilityPanels";
 import { getToolCategoryLabel, type ToolCategory } from "./toolCategoryLabels";
 import {
@@ -710,279 +698,63 @@ export function ToolsMenu({
             />
           )}
           {activeCategory === "effects" && (
-            <div className="tools-panel-section">
-              <HelpButton active={helpTopic === "effects"} label="Effects Tools Help" onClick={() => setHelpTopic((topic) => (topic === "effects" ? null : "effects"))} />
-              <div className="tools-section-label">Weather Masks</div>
-              {!weatherToolsEnabled && <span className="tools-section-note">Enable scene weather to use weather masks.</span>}
-              <div className="tools-button-row">
-                <ToolButton active={activeWeatherMaskTool === "rectangle"} label="Rectangle Weather Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("rectangle")}>
-                  <Square size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeWeatherMaskTool === "circle"} label="Circle Weather Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("circle")}>
-                  <Circle size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeWeatherMaskTool === "polygon"} label="Polygon Weather Mask" disabled={!weatherToolsEnabled} onClick={() => setWeatherMaskTool("polygon")}>
-                  <Pentagon size={17} aria-hidden="true" />
-                </ToolButton>
-                <span className="tools-vertical-divider" aria-hidden="true" />
-                <ToolButton label="Undo Last Weather Mask" disabled={!weatherToolsEnabled || weatherMaskCount === 0} onClick={onUndoWeatherMask}>
-                  <Undo2 size={17} aria-hidden="true" />
-                </ToolButton>
-              </div>
-              <div className="tools-section-divider" />
-              <div className="tools-section-label">Animated Effects</div>
-              <div className="tools-button-row">
-                <ToolButton active={activeEnvironmentEffectTool === "circle"} label="Radius Animated Effect" onClick={() => setEnvironmentEffectTool("circle")}>
-                  <Circle size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeEnvironmentEffectTool === "rectangle"} label="Rectangle Animated Effect" onClick={() => setEnvironmentEffectTool("rectangle")}>
-                  <Square size={17} aria-hidden="true" />
-                </ToolButton>
-                <ToolButton active={activeEnvironmentEffectTool === "polygon"} label="Polygon Animated Effect" onClick={() => setEnvironmentEffectTool("polygon")}>
-                  <Pentagon size={17} aria-hidden="true" />
-                </ToolButton>
-                <span className="tools-vertical-divider" aria-hidden="true" />
-                <ToolButton label="Undo Last Animated Effect" disabled={environmentEffectCount === 0} onClick={onUndoEnvironmentEffect}>
-                  <Undo2 size={17} aria-hidden="true" />
-                </ToolButton>
-              </div>
-              <div className="tools-section-divider" />
-              <div className="tools-section-label">Settings</div>
-              <div className="tools-effect-select-row">
-                <div className="tools-strip-select-field">
-                  <strong>Effect</strong>
-                  <div>
-                    <select
-                      aria-label="Animated effect type"
-                      title="Animated effect type"
-                      value={environmentEffectType}
-                      onChange={(event) => onEnvironmentEffectTypeChange(event.target.value as EnvironmentEffectType)}
-                    >
-                      {ENVIRONMENT_EFFECT_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="tools-strip-select-field">
-                  <strong>Preset</strong>
-                  <div>
-                    <select
-                      aria-label={`${formatEnvironmentEffectOptionLabel(environmentEffectType)} effect preset`}
-                      title={`${formatEnvironmentEffectOptionLabel(environmentEffectType)} effect preset`}
-                      value={environmentEffectPresetValue}
-                      onChange={(event) => {
-                        const nextPreset = event.target.value;
-                        setEnvironmentEffectPresetValue(nextPreset);
-                        applySelectedEnvironmentEffectPreset(environmentEffectType, nextPreset, environmentEffectPresetHandlers);
-                      }}
-                    >
-                      {getEnvironmentEffectPresetOptions(environmentEffectType).map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div className="tools-effect-select-row tools-effect-select-row-single">
-                <div className="tools-strip-select-field">
-                  <strong>Feather</strong>
-                  <div>
-                    <select
-                      aria-label="Animated effect feather"
-                      title="Animated effect feather"
-                      value={getEnvironmentEffectFeatherSelectValue(environmentEffectFeather)}
-                      onChange={(event) => onEnvironmentEffectFeatherChange(Number(event.target.value))}
-                    >
-                      {ENVIRONMENT_EFFECT_FEATHER_OPTIONS.map((option) => (
-                        <option key={option.label} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-              {environmentEffectType === "acid" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <AcidEffectTuningPanel
-                    tuning={acidEffectTuning}
-                    onChange={onAcidEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "cold" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <ColdEffectTuningPanel
-                    tuning={coldEffectTuning}
-                    onChange={onColdEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "darkness" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <DarknessEffectTuningPanel
-                    tuning={darknessEffectTuning}
-                    onChange={onDarknessEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "poison" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <PoisonEffectTuningPanel
-                    tuning={poisonEffectTuning}
-                    onChange={onPoisonEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "water" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <WaterEffectTuningPanel
-                    tuning={waterEffectTuning}
-                    onChange={onWaterEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "lava" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <LavaEffectTuningPanel
-                    tuning={lavaEffectTuning}
-                    onChange={onLavaEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "fire" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <FireEffectTuningPanel
-                    tuning={fireEffectTuning}
-                    onChange={onFireEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "electric" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <LightningEffectTuningPanel
-                    tuning={lightningEffectTuning}
-                    onChange={onLightningEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "arcane" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <ArcaneEffectTuningPanel
-                    tuning={arcaneEffectTuning}
-                    onChange={onArcaneEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "chaos" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <ChaosEffectTuningPanel
-                    tuning={chaosEffectTuning}
-                    onChange={onChaosEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "void" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <VoidEffectTuningPanel
-                    tuning={voidEffectTuning}
-                    onChange={onVoidEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "nature" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <NatureEffectTuningPanel
-                    tuning={natureEffectTuning}
-                    onChange={onNatureEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "distortion" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <DistortionEffectTuningPanel
-                    tuning={distortionEffectTuning}
-                    onChange={onDistortionEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "radiant" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <RadiantEffectTuningPanel
-                    tuning={radiantEffectTuning}
-                    onChange={onRadiantEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "field" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <ForceFieldEffectTuningPanel
-                    tuning={forceFieldEffectTuning}
-                    onChange={onForceFieldEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "shockwave" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <ShockwaveEffectTuningPanel
-                    tuning={shockwaveEffectTuning}
-                    onChange={onShockwaveEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "smoke" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <SmokeEffectTuningPanel
-                    tuning={smokeEffectTuning}
-                    onChange={onSmokeEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {environmentEffectType === "fog" && (
-                <>
-                  <div className="tools-section-divider" />
-                  <FogEffectTuningPanel
-                    tuning={fogEffectTuning}
-                    onChange={onFogEffectTuningChange}
-                    onReset={resetEnvironmentEffectTuning}
-                  />
-                </>
-              )}
-              {helpTopic === "effects" && <ToolHelpCard topic="effects" />}
-            </div>
+            <EnvironmentEffectsPanel
+              activeWeatherMaskTool={activeWeatherMaskTool}
+              activeEnvironmentEffectTool={activeEnvironmentEffectTool}
+              environmentEffectType={environmentEffectType}
+              environmentEffectFeather={environmentEffectFeather}
+              environmentEffectPresetValue={environmentEffectPresetValue}
+              weatherToolsEnabled={weatherToolsEnabled}
+              weatherMaskCount={weatherMaskCount}
+              environmentEffectCount={environmentEffectCount}
+              helpTopic={helpTopic}
+              acidEffectTuning={acidEffectTuning}
+              coldEffectTuning={coldEffectTuning}
+              darknessEffectTuning={darknessEffectTuning}
+              poisonEffectTuning={poisonEffectTuning}
+              waterEffectTuning={waterEffectTuning}
+              lavaEffectTuning={lavaEffectTuning}
+              fireEffectTuning={fireEffectTuning}
+              lightningEffectTuning={lightningEffectTuning}
+              arcaneEffectTuning={arcaneEffectTuning}
+              chaosEffectTuning={chaosEffectTuning}
+              voidEffectTuning={voidEffectTuning}
+              natureEffectTuning={natureEffectTuning}
+              distortionEffectTuning={distortionEffectTuning}
+              radiantEffectTuning={radiantEffectTuning}
+              forceFieldEffectTuning={forceFieldEffectTuning}
+              shockwaveEffectTuning={shockwaveEffectTuning}
+              smokeEffectTuning={smokeEffectTuning}
+              fogEffectTuning={fogEffectTuning}
+              onWeatherMaskToolChange={setWeatherMaskTool}
+              onEnvironmentEffectToolChange={setEnvironmentEffectTool}
+              onUndoWeatherMask={onUndoWeatherMask}
+              onUndoEnvironmentEffect={onUndoEnvironmentEffect}
+              onEnvironmentEffectTypeChange={onEnvironmentEffectTypeChange}
+              onEnvironmentEffectFeatherChange={onEnvironmentEffectFeatherChange}
+              onEnvironmentEffectPresetValueChange={setEnvironmentEffectPresetValue}
+              onEnvironmentEffectPresetApply={(presetValue) => applySelectedEnvironmentEffectPreset(environmentEffectType, presetValue, environmentEffectPresetHandlers)}
+              onEnvironmentEffectTuningReset={resetEnvironmentEffectTuning}
+              onAcidEffectTuningChange={onAcidEffectTuningChange}
+              onColdEffectTuningChange={onColdEffectTuningChange}
+              onDarknessEffectTuningChange={onDarknessEffectTuningChange}
+              onPoisonEffectTuningChange={onPoisonEffectTuningChange}
+              onWaterEffectTuningChange={onWaterEffectTuningChange}
+              onLavaEffectTuningChange={onLavaEffectTuningChange}
+              onFireEffectTuningChange={onFireEffectTuningChange}
+              onLightningEffectTuningChange={onLightningEffectTuningChange}
+              onArcaneEffectTuningChange={onArcaneEffectTuningChange}
+              onChaosEffectTuningChange={onChaosEffectTuningChange}
+              onVoidEffectTuningChange={onVoidEffectTuningChange}
+              onNatureEffectTuningChange={onNatureEffectTuningChange}
+              onDistortionEffectTuningChange={onDistortionEffectTuningChange}
+              onRadiantEffectTuningChange={onRadiantEffectTuningChange}
+              onForceFieldEffectTuningChange={onForceFieldEffectTuningChange}
+              onShockwaveEffectTuningChange={onShockwaveEffectTuningChange}
+              onSmokeEffectTuningChange={onSmokeEffectTuningChange}
+              onFogEffectTuningChange={onFogEffectTuningChange}
+              onHelpTopicChange={setHelpTopic}
+            />
           )}
           {activeCategory === "lighting" && <Placeholder message="Dynamic lighting tools will be added here." />}
         </div>
