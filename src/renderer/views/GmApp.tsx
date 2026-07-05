@@ -1,6 +1,5 @@
 import {
   type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -16,7 +15,6 @@ import type {
   Asset,
   AssetPruneResult,
   Campaign,
-  CampaignSummary,
   CampaignSceneEntry,
   DiceSettings,
   LiveTableEvent,
@@ -74,6 +72,7 @@ import { useGmDialogEscape, useGmDialogState } from "../hooks/useGmDialogState";
 import { useGmDialogActions } from "../hooks/useGmDialogActions";
 import { useGmToolOptions } from "../hooks/useGmToolOptions";
 import { useGmToolSelection } from "../hooks/useGmToolSelection";
+import { useGmWorkspaceShellActions } from "../hooks/useGmWorkspaceShellActions";
 import { useMapCalibrationActions } from "../hooks/useMapCalibrationActions";
 import { usePlayerDisplayActions } from "../hooks/usePlayerDisplayActions";
 import { usePlayerViewActions } from "../hooks/usePlayerViewActions";
@@ -92,38 +91,17 @@ import {
   getPlayerViewModeState,
 } from "../lib/player-view";
 import {
-  getCollapsedFolderIds,
-  pruneExpandedFolderIds,
   removeLastDrawing,
   removeLastEnvironmentEffect,
-  removeLastWeatherMask,
-  toggleExpandedFolderId
+  removeLastWeatherMask
 } from "../lib/scene";
 import { buildSceneSelectionIds, removeSelectedSceneItems, setSelectedSceneItemsPlayerVisibility } from "../lib/scene";
-import {
-  addRecentCampaign,
-  loadRecentCampaigns,
-  removeRecentCampaign,
-  saveRecentCampaigns,
-  type RecentCampaign
-} from "../lib/campaign";
+import { loadRecentCampaigns, type RecentCampaign } from "../lib/campaign";
 import { getSelectedTokenAssetIds } from "../lib/tokens";
 import {
-  DEFAULT_TOKEN_LIBRARY_HEIGHT,
-  getResizedTokenLibraryHeight,
-  getResizedWorkspacePanelLayout,
-  getTokenLibraryResizePlan,
-  getWorkspacePanelResizePlan,
-  getWorkspaceShellPresentation,
   loadTokenLibraryHeight,
   loadWorkspaceLayout,
-  resetPanelWidth as resetWorkspacePanelWidth,
-  saveTokenLibraryHeight,
-  saveWorkspaceLayout,
-  startWindowPointerDrag,
-  toggleWorkspacePanel as toggleWorkspacePanelLayout,
-  type WorkspaceLayout,
-  type WorkspacePanelSide
+  type WorkspaceLayout
 } from "../lib/workspace";
 import { formatSaveStatus } from "../lib/workspace";
 import { GmDialogs } from "./GmDialogs";
@@ -408,10 +386,6 @@ export function GmApp() {
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const [diceSettingsPreference, setDiceSettingsPreference] = useState<DiceSettings>(() => loadDiceSettingsPreference());
   const diceSettings = useMemo<DiceSettings>(() => getEffectiveDiceSettings(campaign, diceSettingsPreference), [campaign, diceSettingsPreference]);
-  const collapsedFolderIds = useMemo(
-    () => getCollapsedFolderIds(campaign?.sceneFolders, expandedFolderIds),
-    [campaign?.sceneFolders, expandedFolderIds]
-  );
   const sceneThumbnailAssets = useMemo(
     () => buildSceneThumbnailAssets(campaignScenes, sceneDrafts, activeScene, assetsById),
     [activeScene, assetsById, campaignScenes, sceneDrafts]
@@ -693,42 +667,33 @@ export function GmApp() {
     // Displays are refreshed once on mount; later updates happen when the GM opens display settings.
   }, [refreshDisplays]);
 
-  useEffect(() => {
-    saveWorkspaceLayout(workspaceLayout);
-  }, [workspaceLayout]);
-
-  useEffect(() => {
-    saveTokenLibraryHeight(tokenLibraryHeight);
-  }, [tokenLibraryHeight]);
-
-  useEffect(() => {
-    saveRecentCampaigns(recentCampaigns);
-  }, [recentCampaigns]);
-
-  const rememberCampaign = useCallback((summary: CampaignSummary) => {
-    setRecentCampaigns((recents) => addRecentCampaign(recents, summary.campaign, summary.campaignPath));
-  }, []);
-
-  const removeRecentCampaignPath = useCallback((campaignPathToRemove: string) => {
-    setRecentCampaigns((recents) => removeRecentCampaign(recents, campaignPathToRemove));
-  }, []);
-
-  const resetSceneLibraryUi = () => {
-    setOpenSceneMenuId(null);
-    setOpenFolderMenuId(null);
-    setExpandedFolderIds(new Set());
-    setPlayersPanelOpen(false);
-    setTokenLibraryExpanded(false);
-    setWorkspaceLayout((layout) => ({ ...layout, leftCollapsed: false, rightCollapsed: false }));
-  };
-
-  const handleCampaignOpened = useCallback(
-    (summary: CampaignSummary) => {
-      resetSceneLibraryUi();
-      rememberCampaign(summary);
-    },
-    [rememberCampaign]
-  );
+  const {
+    appShellPresentation,
+    collapsedFolderIds,
+    handleCampaignOpened,
+    removeRecentCampaignPath,
+    resetPanelWidth,
+    resetSceneLibraryUi,
+    resetTokenLibraryHeight,
+    startPanelResize,
+    startTokenLibraryResize,
+    toggleFolderCollapsed,
+    toggleWorkspacePanel
+  } = useGmWorkspaceShellActions({
+    campaign,
+    expandedFolderIds,
+    recentCampaigns,
+    tokenLibraryHeight,
+    workspaceLayout,
+    setExpandedFolderIds,
+    setOpenFolderMenuId,
+    setOpenSceneMenuId,
+    setPlayersPanelOpen,
+    setRecentCampaigns,
+    setTokenLibraryExpanded,
+    setTokenLibraryHeight,
+    setWorkspaceLayout
+  });
 
   const {
     createCampaign,
@@ -906,51 +871,6 @@ export function GmApp() {
       }
     });
 
-  const toggleFolderCollapsed = (folderId: string) => {
-    setExpandedFolderIds((ids) => toggleExpandedFolderId(ids, folderId));
-  };
-
-  useEffect(() => {
-    setExpandedFolderIds((ids) => pruneExpandedFolderIds(ids, campaign?.sceneFolders));
-  }, [campaign?.sceneFolders, campaign]);
-
-  const toggleWorkspacePanel = (side: WorkspacePanelSide) => {
-    setWorkspaceLayout((layout) => toggleWorkspacePanelLayout(layout, side));
-  };
-
-  const startPanelResize = (side: WorkspacePanelSide, event: ReactPointerEvent<HTMLButtonElement>) => {
-    const resizePlan = getWorkspacePanelResizePlan(workspaceLayout, side, event.clientX);
-
-    startWindowPointerDrag({
-      startEvent: event,
-      bodyClassName: "resizing-panels",
-      onPointerMove: (moveEvent) => {
-        setWorkspaceLayout((layout) => getResizedWorkspacePanelLayout(layout, resizePlan, moveEvent.clientX));
-      }
-    });
-  };
-
-  const resetPanelWidth = (side: WorkspacePanelSide) => {
-    setWorkspaceLayout((layout) => resetWorkspacePanelWidth(layout, side));
-  };
-
-  const startTokenLibraryResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const resizePlan = getTokenLibraryResizePlan(tokenLibraryHeight, event.clientY);
-
-    startWindowPointerDrag({
-      startEvent: event,
-      bodyClassName: "resizing-token-library",
-      onPointerMove: (moveEvent) => {
-        setTokenLibraryHeight(getResizedTokenLibraryHeight(resizePlan, moveEvent.clientY));
-      }
-    });
-  };
-
-  const resetTokenLibraryHeight = () => {
-    setTokenLibraryHeight(DEFAULT_TOKEN_LIBRARY_HEIGHT);
-  };
-
-  const appShellPresentation = getWorkspaceShellPresentation(workspaceLayout, tokenLibraryHeight);
   const appShellStyle = appShellPresentation.style as CSSProperties;
   const appShellClassName = appShellPresentation.className;
 
