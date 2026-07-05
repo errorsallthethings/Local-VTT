@@ -83,7 +83,7 @@ import { pauseCampaignTurnOrders } from "./campaignTurnOrderPause.js";
 import { createPlayerOpenPlan, liveTableEventRoute, summarizeDisplay } from "./playerViewIpc.js";
 import { getGmCloseRequestAction, getUnsavedChangesDialogAction } from "./gmWindowClose.js";
 import { getLinuxGraphicsSwitches } from "./linuxGraphicsSwitches.js";
-import { createSmokeTestScript, getSmokeTestTimeoutMs } from "./smokeTestPlan.js";
+import { runSmokeTest } from "./smokeTestRunner.js";
 import {
   assertIpcBoolean,
   assertIpcSafeId,
@@ -435,14 +435,14 @@ app.whenReady().then(() => {
 
   gmWindow = createGmWindow();
   if (isSmokeTest) {
-    runSmokeTest(gmWindow);
+    runAppSmokeTest(gmWindow);
   }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       gmWindow = createGmWindow();
       if (isSmokeTest) {
-        runSmokeTest(gmWindow);
+        runAppSmokeTest(gmWindow);
       }
     }
   });
@@ -507,64 +507,14 @@ function createGmWindow(): BrowserWindow {
   return win;
 }
 
-function runSmokeTest(win: BrowserWindow): void {
-  let completed = false;
-  const timeout = setTimeout(() => {
-    if (completed) {
-      return;
-    }
-    completed = true;
-    console.error("LOCALVTT_SMOKE_ERROR GM window did not finish loading in time.");
-    app.exit(1);
-  }, getSmokeTestTimeoutMs(isVisualSmokeTest));
-
-  const finish = () => {
-    if (completed) {
-      return;
-    }
-    completed = true;
-    void win.webContents
-      .executeJavaScript(createSmokeTestScript())
-      .then(async (result: unknown) => {
-        if (isVisualSmokeTest) {
-          const { runVisualSmokeTest } = await import("./visualSmokeTest.js");
-          return {
-            ...(result as Record<string, unknown>),
-            visualSmoke: await runVisualSmokeTest(win, {
-              getPlayerWindow: () => playerWindow,
-              registerAssetPaths
-            })
-          };
-        }
-        return result;
-      })
-      .then((result: unknown) => {
-        clearTimeout(timeout);
-        console.log(`LOCALVTT_SMOKE_RESULT ${JSON.stringify(result)}`);
-        app.exit(0);
-      })
-      .catch((caught: unknown) => {
-        clearTimeout(timeout);
-        console.error("LOCALVTT_SMOKE_ERROR", caught);
-        app.exit(1);
-      });
-  };
-
-  win.webContents.once("did-fail-load", (_event, errorCode, errorDescription) => {
-    if (completed) {
-      return;
-    }
-    completed = true;
-    clearTimeout(timeout);
-    console.error(`LOCALVTT_SMOKE_ERROR GM window failed to load: ${errorCode} ${errorDescription}`);
-    app.exit(1);
+function runAppSmokeTest(win: BrowserWindow): void {
+  runSmokeTest({
+    app,
+    getPlayerWindow: () => playerWindow,
+    isVisualSmokeTest,
+    registerAssetPaths,
+    win
   });
-
-  if (win.webContents.isLoading()) {
-    win.webContents.once("did-finish-load", finish);
-  } else {
-    queueMicrotask(finish);
-  }
 }
 
 async function closeGmWindowAfterPausing(win: BrowserWindow): Promise<void> {
