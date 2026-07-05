@@ -38,11 +38,16 @@ import type { AcidEffectTuning, ArcaneEffectTuning, ChaosEffectTuning, ColdEffec
 import {
   ENVIRONMENT_EFFECT_FEATHER_OPTIONS,
   ENVIRONMENT_EFFECT_OPTIONS,
-  applyEnvironmentEffectPreset,
   formatEnvironmentEffectOptionLabel,
   getEnvironmentEffectFeatherSelectValue,
   getEnvironmentEffectPresetOptions
 } from "../../../lib/effects";
+import {
+  applySelectedEnvironmentEffectPreset,
+  resetSelectedEnvironmentEffectTuning,
+  type EnvironmentEffectPresetChangeHandlers,
+  type EnvironmentEffectResetHandlers
+} from "./environmentEffectMenuActions";
 import { getToolCategoryLabel, type ToolCategory } from "./toolCategoryLabels";
 import {
   getActiveFogShape,
@@ -368,68 +373,49 @@ export function ToolsMenu({
     setEnvironmentEffectPresetValue("custom");
   }, [environmentEffectType]);
 
-  const resetEnvironmentEffectTuning = () => {
-    if (environmentEffectPresetValue !== "custom") {
-      applyEnvironmentEffectPreset(environmentEffectType, environmentEffectPresetValue, {
-        onAcidEffectTuningChange,
-        onColdEffectTuningChange,
-        onDarknessEffectTuningChange,
-        onPoisonEffectTuningChange,
-        onWaterEffectTuningChange,
-        onLavaEffectTuningChange,
-        onFireEffectTuningChange,
-        onLightningEffectTuningChange,
-        onArcaneEffectTuningChange,
-        onChaosEffectTuningChange,
-        onVoidEffectTuningChange,
-        onNatureEffectTuningChange,
-        onDistortionEffectTuningChange,
-        onRadiantEffectTuningChange,
-        onForceFieldEffectTuningChange,
-        onShockwaveEffectTuningChange,
-        onSmokeEffectTuningChange,
-        onFogEffectTuningChange
-      });
-      return;
-    }
+  const environmentEffectPresetHandlers: EnvironmentEffectPresetChangeHandlers = {
+    onAcidEffectTuningChange,
+    onColdEffectTuningChange,
+    onDarknessEffectTuningChange,
+    onPoisonEffectTuningChange,
+    onWaterEffectTuningChange,
+    onLavaEffectTuningChange,
+    onFireEffectTuningChange,
+    onLightningEffectTuningChange,
+    onArcaneEffectTuningChange,
+    onChaosEffectTuningChange,
+    onVoidEffectTuningChange,
+    onNatureEffectTuningChange,
+    onDistortionEffectTuningChange,
+    onRadiantEffectTuningChange,
+    onForceFieldEffectTuningChange,
+    onShockwaveEffectTuningChange,
+    onSmokeEffectTuningChange,
+    onFogEffectTuningChange
+  };
+  const environmentEffectResetHandlers: EnvironmentEffectResetHandlers = {
+    onAcidEffectTuningReset,
+    onColdEffectTuningReset,
+    onDarknessEffectTuningReset,
+    onPoisonEffectTuningReset,
+    onWaterEffectTuningReset,
+    onLavaEffectTuningReset,
+    onFireEffectTuningReset,
+    onLightningEffectTuningReset,
+    onArcaneEffectTuningReset,
+    onChaosEffectTuningReset,
+    onVoidEffectTuningReset,
+    onNatureEffectTuningReset,
+    onDistortionEffectTuningReset,
+    onRadiantEffectTuningReset,
+    onForceFieldEffectTuningReset,
+    onShockwaveEffectTuningReset,
+    onSmokeEffectTuningReset,
+    onFogEffectTuningReset
+  };
 
-    if (environmentEffectType === "acid") {
-      onAcidEffectTuningReset();
-    } else if (environmentEffectType === "cold") {
-      onColdEffectTuningReset();
-    } else if (environmentEffectType === "darkness") {
-      onDarknessEffectTuningReset();
-    } else if (environmentEffectType === "poison") {
-      onPoisonEffectTuningReset();
-    } else if (environmentEffectType === "water") {
-      onWaterEffectTuningReset();
-    } else if (environmentEffectType === "lava") {
-      onLavaEffectTuningReset();
-    } else if (environmentEffectType === "fire") {
-      onFireEffectTuningReset();
-    } else if (environmentEffectType === "electric") {
-      onLightningEffectTuningReset();
-    } else if (environmentEffectType === "arcane") {
-      onArcaneEffectTuningReset();
-    } else if (environmentEffectType === "chaos") {
-      onChaosEffectTuningReset();
-    } else if (environmentEffectType === "void") {
-      onVoidEffectTuningReset();
-    } else if (environmentEffectType === "nature") {
-      onNatureEffectTuningReset();
-    } else if (environmentEffectType === "distortion") {
-      onDistortionEffectTuningReset();
-    } else if (environmentEffectType === "radiant") {
-      onRadiantEffectTuningReset();
-    } else if (environmentEffectType === "field") {
-      onForceFieldEffectTuningReset();
-    } else if (environmentEffectType === "shockwave") {
-      onShockwaveEffectTuningReset();
-    } else if (environmentEffectType === "smoke") {
-      onSmokeEffectTuningReset();
-    } else if (environmentEffectType === "fog") {
-      onFogEffectTuningReset();
-    }
+  const resetEnvironmentEffectTuning = () => {
+    resetSelectedEnvironmentEffectTuning(environmentEffectType, environmentEffectPresetValue, environmentEffectPresetHandlers, environmentEffectResetHandlers);
   };
 
   useEffect(() => {
@@ -990,29 +976,7 @@ export function ToolsMenu({
                       onChange={(event) => {
                         const nextPreset = event.target.value;
                         setEnvironmentEffectPresetValue(nextPreset);
-                        if (nextPreset === "custom") {
-                          return;
-                        }
-                        applyEnvironmentEffectPreset(environmentEffectType, nextPreset, {
-                          onAcidEffectTuningChange,
-                          onColdEffectTuningChange,
-                          onDarknessEffectTuningChange,
-                          onPoisonEffectTuningChange,
-                          onWaterEffectTuningChange,
-                          onLavaEffectTuningChange,
-                          onFireEffectTuningChange,
-                          onLightningEffectTuningChange,
-                          onArcaneEffectTuningChange,
-                          onChaosEffectTuningChange,
-                          onVoidEffectTuningChange,
-                          onNatureEffectTuningChange,
-                          onDistortionEffectTuningChange,
-                          onRadiantEffectTuningChange,
-                          onForceFieldEffectTuningChange,
-                          onShockwaveEffectTuningChange,
-                          onSmokeEffectTuningChange,
-                          onFogEffectTuningChange
-                        });
+                        applySelectedEnvironmentEffectPreset(environmentEffectType, nextPreset, environmentEffectPresetHandlers);
                       }}
                     >
                       {getEnvironmentEffectPresetOptions(environmentEffectType).map((option) => (
