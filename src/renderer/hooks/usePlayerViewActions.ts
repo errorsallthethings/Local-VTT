@@ -8,7 +8,7 @@ import {
   getPlayerViewOpenWarning,
   getPreviousPlayerScenePauseUpdate,
   getSceneDraftsAfterPreviousPlayerScenePause,
-  sendSceneToPlayer,
+  openAndSendSceneToPlayer,
   showDefaultPlayerHold,
   showPlayerBlackout as sendPlayerBlackout
 } from "../lib/player-view";
@@ -70,12 +70,10 @@ export function usePlayerViewActions({
             setDirtySceneIds((ids) => getDirtySceneIdsAfterPreviousPlayerScenePause(ids, pausedPreviousScene));
           }
         }
-        const openResult = await window.localVtt.openPlayerView(getPlayerViewOpenOptions(campaign.playerDisplay));
-        await sendSceneToPlayer(window.localVtt, campaign, activeScene, playerViewSyncOptions);
+        const result = await openAndSendSceneToPlayer(window.localVtt, campaign, activeScene, playerViewSyncOptions);
         applyPlayerViewModeState("scene", activeScene.id, false);
-        const warning = getPlayerViewOpenWarning(openResult, campaign.playerDisplay);
-        if (warning) {
-          setError(warning);
+        if (result.warning) {
+          setError(result.warning);
         }
       }),
     setPlayerFullscreen: (fullscreen: boolean) =>

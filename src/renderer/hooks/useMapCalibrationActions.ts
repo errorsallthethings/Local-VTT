@@ -11,7 +11,7 @@ import {
   type MapCalibrationDraft,
   type MapFitPresetMode
 } from "../lib/map";
-import { getPlayerViewOpenOptions, getPlayerViewOpenWarning, sendSceneToPlayer } from "../lib/player-view";
+import { openAndSendSceneToPlayer, sendSceneToPlayer } from "../lib/player-view";
 
 interface UseMapCalibrationActionsOptions {
   activeScene: Scene | null;
@@ -85,12 +85,10 @@ export function useMapCalibrationActions({
         const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(mapAssetPath));
         const nextScene = buildWizardMapFitScene(activeScene, columns, rows, fitMode, dimensions, getPlayerTargetDimensions());
         updateScene(nextScene);
-        const openResult = await window.localVtt.openPlayerView(getPlayerViewOpenOptions(campaign.playerDisplay));
-        await sendSceneToPlayer(window.localVtt, campaign, nextScene, playerViewSyncOptions);
+        const result = await openAndSendSceneToPlayer(window.localVtt, campaign, nextScene, playerViewSyncOptions);
         applyPlayerViewModeState("scene", nextScene.id);
-        const warning = getPlayerViewOpenWarning(openResult, campaign.playerDisplay);
-        if (warning) {
-          setError(warning);
+        if (result.warning) {
+          setError(result.warning);
         }
       }),
     applyMapFitPreset: (fitMode: MapFitPresetMode, gridPatch: Partial<Scene["grid"]> = {}) =>

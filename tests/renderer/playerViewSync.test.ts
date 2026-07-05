@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { createDefaultCampaign, createDefaultScene, type Asset, type Campaign, type Scene } from "../../src/shared/localvtt";
-import { sendSceneToPlayer, updatePlayerSceneIfOpen, updatePlayerSceneIfOpenInBackground, type PlayerViewSceneSyncApi } from "../../src/renderer/lib/player-view";
+import {
+  openAndSendSceneToPlayer,
+  sendSceneToPlayer,
+  updatePlayerSceneIfOpen,
+  updatePlayerSceneIfOpenInBackground,
+  type PlayerViewSceneSyncApi
+} from "../../src/renderer/lib/player-view";
 
 function createPlayerViewSyncFixture(): { campaign: Campaign; scene: Scene } {
   const campaign = createDefaultCampaign("One-Way Sync Campaign");
@@ -172,6 +178,30 @@ describe("player view sync", () => {
     expect(projection.scene.name).toBe("Player Send Scene");
     expect(projection.scene.notes).toBe("");
     expect(projection.showPlayerSeatIndicators).toBe(true);
+  });
+
+  it("opens Player View before sending scenes and returns display warnings", async () => {
+    const campaign = createDefaultCampaign("Player Send Campaign");
+    campaign.playerDisplay = {
+      ...campaign.playerDisplay,
+      selectedDisplayId: 99,
+      selectedDisplayLabel: "Table TV",
+      openPlayerViewFullscreen: true
+    };
+    const scene = createDefaultScene("Synced Scene");
+    const api = {
+      openPlayerView: vi.fn().mockResolvedValue({ ok: true, displayFound: false }),
+      sendSceneToPlayer: vi.fn().mockResolvedValue(true),
+      updatePlayerSceneIfOpen: vi.fn().mockResolvedValue(false)
+    };
+
+    await expect(openAndSendSceneToPlayer(api, campaign, scene, { showPlayerSeatIndicators: true })).resolves.toEqual({
+      sent: true,
+      warning: "The saved Player View display (Table TV) is not connected. Player View opened normally so you can move it manually."
+    });
+    expect(api.openPlayerView).toHaveBeenCalledWith({ displayId: 99, fullscreen: true });
+    expect(api.sendSceneToPlayer).toHaveBeenCalledOnce();
+    expect(vi.mocked(api.sendSceneToPlayer).mock.calls[0][0].showPlayerSeatIndicators).toBe(true);
   });
 
   it("does not mutate GM campaign or scene data while sending a projected scene", async () => {
