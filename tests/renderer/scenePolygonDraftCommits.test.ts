@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import { createDefaultScene } from "../../src/shared/localvtt";
 import {
   getDrawingPolygonDraftCommit,
+  getDrawingPolygonDraftCommitAction,
   getEnvironmentPolygonDraftCommit,
+  getEnvironmentPolygonDraftCommitAction,
   getFogPolygonDraftCommit,
-  getWeatherPolygonDraftCommit
+  getFogPolygonDraftCommitAction,
+  getWeatherPolygonDraftCommit,
+  getWeatherPolygonDraftCommitAction
 } from "../../src/renderer/canvas/scene";
 
 const polygonPoints = [
@@ -22,6 +26,16 @@ describe("scene polygon draft commits", () => {
     expect(getWeatherPolygonDraftCommit(scene, draft, "weather-1")).toBeNull();
     expect(getFogPolygonDraftCommit(scene, { ...draft, operation: "hide" }, "fog-1")).toBeNull();
     expect(getEnvironmentPolygonDraftCommit(scene, draft, "effect-1", "fire", 0.25)).toBeNull();
+  });
+
+  it("maps drafts that are not meaningful polygons to no-op actions", () => {
+    const scene = createDefaultScene("Draft Noop Actions");
+    const draft = { points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] };
+
+    expect(getDrawingPolygonDraftCommitAction(scene, draft, "drawing-1", drawingStyle())).toEqual({ kind: "none" });
+    expect(getWeatherPolygonDraftCommitAction(scene, draft, "weather-1")).toEqual({ kind: "none" });
+    expect(getFogPolygonDraftCommitAction(scene, { ...draft, operation: "hide" }, "fog-1")).toEqual({ kind: "none" });
+    expect(getEnvironmentPolygonDraftCommitAction(scene, draft, "effect-1", "fire", 0.25)).toEqual({ kind: "none" });
   });
 
   it("builds fog polygon commits with default names and visibility patches", () => {
@@ -114,6 +128,58 @@ describe("scene polygon draft commits", () => {
       points: polygonPoints,
       visibleInGm: true,
       visibleInPlayer: true
+    });
+  });
+
+  it("maps meaningful polygon drafts to creation commit actions", () => {
+    const scene = createDefaultScene("Draft Commit Actions");
+    scene.fog.newShapesVisibleInPlayer = false;
+
+    expect(getDrawingPolygonDraftCommitAction(scene, { points: polygonPoints }, "drawing-1", drawingStyle())).toMatchObject({
+      kind: "commit-drawing",
+      drawing: {
+        id: "drawing-1",
+        kind: "polygon",
+        points: polygonPoints
+      }
+    });
+    expect(getWeatherPolygonDraftCommitAction(scene, { points: polygonPoints }, "weather-1")).toEqual({
+      kind: "commit-weather-mask",
+      mask: {
+        id: "weather-1",
+        name: "Weather Effect Mask 1",
+        kind: "polygon",
+        points: polygonPoints,
+        visible: true
+      }
+    });
+    expect(getFogPolygonDraftCommitAction(scene, { operation: "hide", points: polygonPoints }, "fog-1")).toEqual({
+      kind: "commit-fog",
+      shape: {
+        id: "fog-1",
+        name: "Hide Polygon 1",
+        operation: "hide",
+        kind: "polygon",
+        points: polygonPoints,
+        visibleInGm: true,
+        visibleInPlayer: false,
+        visible: true
+      },
+      fogPatch: {
+        gmOpacity: 0.5,
+        playerOpacity: 1,
+        opacity: 1
+      }
+    });
+    expect(getEnvironmentPolygonDraftCommitAction(scene, { points: polygonPoints }, "effect-1", "fire", 0.4)).toMatchObject({
+      kind: "commit-environment-effect",
+      effect: {
+        id: "effect-1",
+        kind: "polygon",
+        effect: "fire",
+        feather: 0.4,
+        points: polygonPoints
+      }
     });
   });
 });

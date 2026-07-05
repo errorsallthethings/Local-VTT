@@ -74,13 +74,13 @@ import {
 import {
   getSceneCanvasRenderPlan,
   getDrawingDragCommitAction,
-  getDrawingPolygonDraftCommit,
+  getDrawingPolygonDraftCommitAction,
   getEnvironmentEffectDragCommitAction,
-  getEnvironmentPolygonDraftCommit,
+  getEnvironmentPolygonDraftCommitAction,
   getFogDragCommitAction,
-  getFogPolygonDraftCommit,
+  getFogPolygonDraftCommitAction,
   getWeatherMaskDragCommitAction,
-  getWeatherPolygonDraftCommit,
+  getWeatherPolygonDraftCommitAction,
   type DrawingContextMenu,
   type EnvironmentEffectContextMenu,
   type MaskContextMenu,
@@ -2219,12 +2219,12 @@ export function SceneCanvas({
     if (!scene || !onSceneChange || !draft) {
       return;
     }
-    const commit = getFogPolygonDraftCommit(scene, draft, crypto.randomUUID());
-    if (!commit) {
+    const action = getFogPolygonDraftCommitAction(scene, draft, crypto.randomUUID());
+    if (action.kind !== "commit-fog") {
       return;
     }
     clearScenePolygonDraft({ ref: polygonDraftRef, setDraft: setPolygonDraft });
-    onSceneChange(addSceneFogShape(scene, commit.shape, commit.fogPatch));
+    onSceneChange(addSceneFogShape(scene, action.shape, action.fogPatch));
   };
 
   const commitDrawingPolygonDraft = () => {
@@ -2232,7 +2232,7 @@ export function SceneCanvas({
     if (!scene || !onSceneChange || !draft) {
       return;
     }
-    const drawing = getDrawingPolygonDraftCommit(scene, draft, crypto.randomUUID(), {
+    const action = getDrawingPolygonDraftCommitAction(scene, draft, crypto.randomUUID(), {
       color: drawingColor,
       opacity: drawingOpacity,
       fillColor: drawingFillColor,
@@ -2240,11 +2240,11 @@ export function SceneCanvas({
       strokeStyle: drawingStrokeStyle,
       strokeWidth: drawingStrokeWidth
     });
-    if (!drawing) {
+    if (action.kind !== "commit-drawing") {
       return;
     }
     clearScenePolygonDraft({ ref: drawingPolygonDraftRef, setDraft: setDrawingPolygonDraft });
-    onSceneChange(addSceneDrawing(scene, drawing));
+    onSceneChange(addSceneDrawing(scene, action.drawing));
   };
 
   const commitWeatherPolygonDraft = () => {
@@ -2252,12 +2252,12 @@ export function SceneCanvas({
     if (!scene || !onSceneChange || !draft) {
       return;
     }
-    const mask = getWeatherPolygonDraftCommit(scene, draft, crypto.randomUUID());
-    if (!mask) {
+    const action = getWeatherPolygonDraftCommitAction(scene, draft, crypto.randomUUID());
+    if (action.kind !== "commit-weather-mask") {
       return;
     }
     clearScenePolygonDraft({ ref: weatherPolygonDraftRef, setDraft: setWeatherPolygonDraft });
-    onSceneChange(addSceneWeatherMask(scene, mask));
+    onSceneChange(addSceneWeatherMask(scene, action.mask));
   };
 
   const commitEnvironmentPolygonDraft = () => {
@@ -2265,7 +2265,7 @@ export function SceneCanvas({
     if (!scene || !onSceneChange || !draft) {
       return;
     }
-    const effect = getEnvironmentPolygonDraftCommit(
+    const action = getEnvironmentPolygonDraftCommitAction(
       scene,
       draft,
       crypto.randomUUID(),
@@ -2273,11 +2273,11 @@ export function SceneCanvas({
       environmentEffectFeather,
       currentEnvironmentEffectTuning
     );
-    if (!effect) {
+    if (action.kind !== "commit-environment-effect") {
       return;
     }
     clearScenePolygonDraft({ ref: environmentPolygonDraftRef, setDraft: setEnvironmentPolygonDraft });
-    onSceneChange(addEnvironmentEffect(scene, effect));
+    onSceneChange(addEnvironmentEffect(scene, action.effect));
   };
 
   usePolygonDraftKeyboard({
