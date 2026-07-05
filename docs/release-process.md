@@ -26,8 +26,7 @@ npm run release:notes -- --milestone 0.1.6 --output docs/release-notes/v0.1.6.md
 npm run release:check-metadata
 npm run check
 npm run build
-npm run smoke:electron
-npm run smoke:visual
+npm run smoke
 ```
 
 Commit the release metadata:
@@ -80,8 +79,7 @@ Review the generated notes before committing. They are grouped by existing `type
 npm run release:check-metadata
 npm run check
 npm run build
-npm run smoke:electron
-npm run smoke:visual
+npm run smoke
 ```
 
 `npm run release:check-metadata` verifies that `package.json` and `package-lock.json` versions agree, that tag-triggered release builds match the package version, that `docs/release-notes/` contains notes for the package version with a matching `# Local VTT vX.Y.Z` heading, and that the core `electron-builder` metadata needed for packaged app identity is present. It is also included in `npm run check`.
@@ -253,8 +251,8 @@ Before packaging or sharing a build, run through these workflows:
 - Confirm common failure messages are actionable, including missing recent campaigns, missing assets, and disconnected Player View displays.
 - For canvas-sensitive releases, run the representative stress scenes in `docs/canvas-performance-budget.md` and record any warning-threshold misses.
 - Run `npm run check` and `npm run build`.
-- Run `npm run smoke:electron` to launch the built Electron app, confirm the GM preload bridge is available, open Player View through IPC, send a Player View idle state, and verify display enumeration.
-- Run `npm run smoke:visual` for canvas-sensitive releases. It launches the built Electron app with deterministic visual fixtures, sends a rendered scene and test pattern to Player View, checks that the scene canvas is nonblank, verifies Player View dice, turn order, and seat overlays, and writes Player View screenshots to the OS temp folder for failure evidence. Automated video-map visual coverage is deferred, so video maps still need the manual smoke pass above.
+- Run `npm run smoke` to build once, launch the built Electron app, confirm the GM preload bridge is available, open Player View through IPC, send a Player View idle state, verify display enumeration, and run the visual smoke fixture.
+- For targeted reruns, use `npm run smoke:electron` or `npm run smoke:visual`. The visual smoke test checks that the scene canvas is nonblank, verifies Player View dice, turn order, and seat overlays, and writes Player View screenshots to the OS temp folder for failure evidence. Automated video-map visual coverage is deferred, so video maps still need the manual smoke pass above.
 
 Playwright is a good fit for future end-to-end workflow coverage, especially once the app needs click-through tests for GM authoring flows. For now, the Electron visual smoke path stays dependency-light and covers the production Electron renderer/IPC path directly.
 
