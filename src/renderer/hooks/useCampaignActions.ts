@@ -17,6 +17,7 @@ import {
   getCampaignMaintenanceInitialBusyState,
   getMapAssetDeleteSceneUpdate,
   getThumbnailRegenerationBusyState,
+  completeCampaignMaintenance,
   openSavedCampaignHealth,
   getSceneDraftToSave,
   insertSceneFolderAfterSource,
@@ -352,12 +353,8 @@ export function useCampaignActions({
         saveCampaign,
         subscribeProgress: () => window.localVtt.onThumbnailRegenerationProgress((progress) => onBusyChange(getThumbnailRegenerationBusyState(progress))),
         runOperation: (path) => window.localVtt.regenerateThumbnails(path),
-        onComplete: (result) => {
-          applySummary(result.campaignSummary);
-          setCampaignDirty(false);
-          setError(null);
-          onThumbnailRegenerationComplete(result);
-        }
+        onComplete: (result) =>
+          completeCampaignMaintenance({ result, applySummary, setCampaignDirty, setError, onComplete: onThumbnailRegenerationComplete })
       });
     });
 
@@ -371,12 +368,8 @@ export function useCampaignActions({
         onBusyChange,
         saveCampaign,
         runOperation: (path) => window.localVtt.promoteTokenAssets(path),
-        onComplete: (result) => {
-          applySummary(result.campaignSummary);
-          setCampaignDirty(false);
-          setError(null);
-          onTokenAssetPromotionComplete(result);
-        }
+        onComplete: (result) =>
+          completeCampaignMaintenance({ result, applySummary, setCampaignDirty, setError, onComplete: onTokenAssetPromotionComplete })
       });
     });
 
@@ -390,12 +383,7 @@ export function useCampaignActions({
         onBusyChange,
         saveCampaign,
         runOperation: (path) => window.localVtt.pruneUnreferencedAssets(path),
-        onComplete: (result) => {
-          applySummary(result.campaignSummary);
-          setCampaignDirty(false);
-          setError(null);
-          onAssetPruneComplete(result);
-        }
+        onComplete: (result) => completeCampaignMaintenance({ result, applySummary, setCampaignDirty, setError, onComplete: onAssetPruneComplete })
       });
     });
 

@@ -84,6 +84,25 @@ export async function runSavedCampaignMaintenance<TResult>(options: RunSavedCamp
   }
 }
 
+export interface CampaignMaintenanceResult {
+  campaignSummary: CampaignSummary;
+}
+
+export interface CompleteCampaignMaintenanceOptions<TResult extends CampaignMaintenanceResult> {
+  result: TResult;
+  applySummary: (summary: CampaignSummary) => void;
+  setCampaignDirty: (dirty: boolean) => void;
+  setError: (message: string | null) => void;
+  onComplete: (result: TResult) => void;
+}
+
+export function completeCampaignMaintenance<TResult extends CampaignMaintenanceResult>(options: CompleteCampaignMaintenanceOptions<TResult>): void {
+  options.applySummary(options.result.campaignSummary);
+  options.setCampaignDirty(false);
+  options.setError(null);
+  options.onComplete(options.result);
+}
+
 export interface OpenSavedCampaignHealthOptions {
   campaignPath: string | null | undefined;
   campaignAvailable: boolean;

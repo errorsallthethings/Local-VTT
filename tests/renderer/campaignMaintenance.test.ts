@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  completeCampaignMaintenance,
   getCampaignMaintenanceInitialBusyState,
   getThumbnailRegenerationBusyState,
   openSavedCampaignHealth,
@@ -61,6 +62,22 @@ describe("campaign maintenance helpers", () => {
     expect(onComplete).toHaveBeenCalledWith(result);
     expect(removeProgressListener).toHaveBeenCalledOnce();
     expect(busyStates).toEqual([getCampaignMaintenanceInitialBusyState("token-asset-promotion"), null]);
+  });
+
+  it("applies maintenance results consistently", () => {
+    const summary = { campaign: { id: "campaign-1" }, missingAssets: [], campaignPath: "campaign-path", health: {} };
+    const result = { campaignSummary: summary, regenerated: 3, skipped: 1, failed: [] };
+    const applySummary = vi.fn();
+    const setCampaignDirty = vi.fn();
+    const setError = vi.fn();
+    const onComplete = vi.fn();
+
+    completeCampaignMaintenance({ result, applySummary, setCampaignDirty, setError, onComplete });
+
+    expect(applySummary).toHaveBeenCalledWith(summary);
+    expect(setCampaignDirty).toHaveBeenCalledWith(false);
+    expect(setError).toHaveBeenCalledWith(null);
+    expect(onComplete).toHaveBeenCalledWith(result);
   });
 
   it("skips maintenance when unavailable or save fails", async () => {
