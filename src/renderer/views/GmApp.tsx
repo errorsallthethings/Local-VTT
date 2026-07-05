@@ -23,13 +23,6 @@ import type {
   TokenAssetPromotionResult
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
-import { AssetPruneResultDialog } from "../components/modals/AssetPruneResultDialog";
-import { CampaignBusyOverlay } from "../components/modals/CampaignBusyOverlay";
-import { CampaignHealthDialog } from "../components/modals/CampaignHealthDialog";
-import { ConfirmDialog } from "../components/modals/ConfirmDialog";
-import { MetadataBackupRestoreDialog } from "../components/modals/MetadataBackupRestoreDialog";
-import { ThumbnailRegenerationResultDialog } from "../components/modals/ThumbnailRegenerationResultDialog";
-import { TokenAssetPromotionResultDialog } from "../components/modals/TokenAssetPromotionResultDialog";
 import { EnvironmentEffectEditorModal } from "../components/layers";
 import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
 import { ToolsMenu, type SelectorSelectionFilters } from "../components/tools";
@@ -85,8 +78,6 @@ import { useTokenDefaultsActions } from "../hooks/useTokenDefaultsActions";
 import { useTokenImportActions } from "../hooks/useTokenImportActions";
 import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assets";
 import { getEffectiveDiceSettings, loadDiceSettingsPreference } from "../lib/dice";
-import { formatUserFacingError } from "../lib/errors";
-import { logRendererError } from "../lib/rendererDiagnostics";
 import { buildSceneSelectionIds } from "../lib/scene";
 import { loadRecentCampaigns, type RecentCampaign } from "../lib/campaign";
 import { getSelectedTokenAssetIds } from "../lib/tokens";
@@ -98,6 +89,7 @@ import {
 import { formatSaveStatus } from "../lib/workspace";
 import { GmDialogs } from "./GmDialogs";
 import { GmInspector } from "./GmInspector";
+import { GmMaintenanceDialogs } from "./GmMaintenanceDialogs";
 import { GmSidebar } from "./GmSidebar";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
@@ -1423,44 +1415,27 @@ export function GmApp() {
         onConfirmDeleteTokenAsset={() => void confirmDeleteTokenAsset()}
         onConfirmClearFog={clearFogShapes}
       />
-      {metadataRestoreOpen && campaignPath && (
-        <MetadataBackupRestoreDialog
-          campaignPath={campaignPath}
-          onCancel={() => setMetadataRestoreOpen(false)}
-          onOpenBackupsFolder={() => void openBackupsFolder()}
-          onRestore={handleMetadataRestore}
-          onError={(caught) => {
-            logRendererError("LOCALVTT_METADATA_BACKUP_RESTORE_FAILED", caught);
-            setError(formatUserFacingError(caught));
-          }}
-        />
-      )}
-      {campaignHealthOpen && <CampaignHealthDialog health={campaignHealth} onClose={() => setCampaignHealthOpen(false)} />}
-      {assetPruneConfirmOpen && (
-        <ConfirmDialog
-          title="Prune Unreferenced Assets?"
-          confirmLabel="Prune Assets"
-          onCancel={() => setAssetPruneConfirmOpen(false)}
-          onConfirm={() => {
-            setAssetPruneConfirmOpen(false);
-            void pruneUnreferencedAssets();
-          }}
-        >
-          <p>
-            This will remove {campaignHealth.unreferencedAssets.length} unreferenced asset
-            {campaignHealth.unreferencedAssets.length === 1 ? "" : "s"} from the campaign and delete their unused files from the campaign folder.
-          </p>
-          <p>Referenced maps, tokens, player portraits, scene overlays, and turn-order assets will be kept.</p>
-        </ConfirmDialog>
-      )}
-      {busyState && <CampaignBusyOverlay busyState={busyState} />}
-      {thumbnailRegenerationResult && (
-        <ThumbnailRegenerationResultDialog result={thumbnailRegenerationResult} onClose={() => setThumbnailRegenerationResult(null)} />
-      )}
-      {tokenAssetPromotionResult && (
-        <TokenAssetPromotionResultDialog result={tokenAssetPromotionResult} onClose={() => setTokenAssetPromotionResult(null)} />
-      )}
-      {assetPruneResult && <AssetPruneResultDialog result={assetPruneResult} onClose={() => setAssetPruneResult(null)} />}
+      <GmMaintenanceDialogs
+        assetPruneConfirmOpen={assetPruneConfirmOpen}
+        assetPruneResult={assetPruneResult}
+        busyState={busyState}
+        campaignHealth={campaignHealth}
+        campaignHealthOpen={campaignHealthOpen}
+        campaignPath={campaignPath}
+        metadataRestoreOpen={metadataRestoreOpen}
+        thumbnailRegenerationResult={thumbnailRegenerationResult}
+        tokenAssetPromotionResult={tokenAssetPromotionResult}
+        onCloseAssetPruneConfirm={() => setAssetPruneConfirmOpen(false)}
+        onCloseAssetPruneResult={() => setAssetPruneResult(null)}
+        onCloseCampaignHealth={() => setCampaignHealthOpen(false)}
+        onCloseMetadataRestore={() => setMetadataRestoreOpen(false)}
+        onCloseThumbnailRegenerationResult={() => setThumbnailRegenerationResult(null)}
+        onCloseTokenAssetPromotionResult={() => setTokenAssetPromotionResult(null)}
+        onMetadataRestore={handleMetadataRestore}
+        onOpenBackupsFolder={() => void openBackupsFolder()}
+        onPruneUnreferencedAssets={() => void pruneUnreferencedAssets()}
+        onSetError={setError}
+      />
     </div>
   );
 }
