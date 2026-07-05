@@ -158,11 +158,6 @@ import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { useWindowKeyDown } from "../hooks/useWindowKeyDown";
 import { calculateCanvasContextMenuPosition, type CanvasContextMenuKind } from "../lib/ui";
-import {
-  updateSceneDrawingPoints,
-  updateSceneEnvironmentEffectPoints,
-  updateSceneWeatherMaskPoints,
-} from "../lib/scene";
 import { SceneCanvasContextMenus } from "./scene/SceneCanvasContextMenus";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
 import { getSceneContextMenuOpening, type SceneContextMenuOpening } from "./scene/sceneContextMenuOpening";
@@ -203,6 +198,10 @@ import {
   getSceneAfterFogDragCommit,
   getSceneAfterWeatherMaskDragCommit
 } from "./scene/sceneDragCommitScenes";
+import {
+  getSceneAfterDrawingTransformPointerComplete,
+  getSceneAfterMaskEffectPointerComplete
+} from "./scene/scenePointerCompleteScenes";
 import {
   MapLoadOverlay,
 } from "./scene/SceneCanvasStatusStrips";
@@ -1948,8 +1947,11 @@ export function SceneCanvas({
       if (action.kind === "none") {
         return;
       }
-      if (scene && onSceneChange && action.preview) {
-        onSceneChange(updateSceneDrawingPoints(scene, action.preview));
+      if (scene && onSceneChange) {
+        const nextScene = getSceneAfterDrawingTransformPointerComplete(scene, action);
+        if (nextScene) {
+          onSceneChange(nextScene);
+        }
       }
       if (action.kind === "commit-move") {
         drawingDragRef.current = null;
@@ -1976,16 +1978,22 @@ export function SceneCanvas({
         })
       );
       if (action.kind === "commit-weather") {
-        if (scene && onSceneChange && action.preview) {
-          onSceneChange(updateSceneWeatherMaskPoints(scene, action.preview));
+        if (scene && onSceneChange) {
+          const nextScene = getSceneAfterMaskEffectPointerComplete(scene, action);
+          if (nextScene) {
+            onSceneChange(nextScene);
+          }
         }
         cancelWeatherMaskMove();
         return;
       }
 
       if (action.kind === "commit-environment-effect") {
-        if (scene && onSceneChange && action.preview) {
-          onSceneChange(updateSceneEnvironmentEffectPoints(scene, action.preview));
+        if (scene && onSceneChange) {
+          const nextScene = getSceneAfterMaskEffectPointerComplete(scene, action);
+          if (nextScene) {
+            onSceneChange(nextScene);
+          }
         }
         cancelEnvironmentEffectMove();
         return;
