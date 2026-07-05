@@ -59,10 +59,7 @@ import { drawMapSource, getCameraForMapFit } from "../canvas/map";
 import {
   getInitialMapLoadStatus,
   getMapCanvasBackgroundPlan,
-  getMapOverlayMessage,
   getReadyMapSourceForFit,
-  isMapOverlayActive,
-  isMapReady,
   type MapLoadStatus,
   type ReadyMapSource
 } from "../canvas/map";
@@ -72,6 +69,7 @@ import {
 } from "../canvas/measurement";
 import {
   getSceneCanvasRenderPlan,
+  getSceneCanvasReadiness,
   getDrawingDragCommitAction,
   getDrawingPolygonDraftCommitAction,
   getEnvironmentEffectDragCommitAction,
@@ -117,7 +115,7 @@ import { getTurnOrderTokenIndicators } from "../lib/turn-order";
 import {
   getTemplatePreviewDrawing
 } from "../canvas/drawings";
-import { areTokenImagesReady, getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey } from "../canvas/tokens";
+import { getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey } from "../canvas/tokens";
 import {
   getSceneAfterTokenDrag,
   getTokenDragWaypointRemovalUpdate
@@ -792,7 +790,6 @@ export function SceneCanvas({
     imageMapReady: Boolean(loadedMap?.ready)
   });
   const mapLoadStatus = isVideoMap ? videoMapLoadStatus : imageMapLoadStatus;
-  const mapOverlayActive = isMapOverlayActive(canShowMap, Boolean(mapAsset), mapLoadStatus);
   const playerDisplayScale = getPlayerDisplayScale(campaign, scene, mode);
   const videoPlayback = scene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const videoPaused = videoPlayback.paused;
@@ -805,8 +802,16 @@ export function SceneCanvas({
       paused: videoPaused
     });
 
-  const tokensReady = areTokenImagesReady(canShowTokens, tokenImageSourceKey, loadedTokenImages, failedTokenImageIds);
-  const mapReady = isMapReady(canShowMap, Boolean(mapAsset), mapLoadStatus);
+  const sceneCanvasReadiness = getSceneCanvasReadiness({
+    canShowMap,
+    canShowTokens,
+    failedTokenImageIds,
+    hasMapAsset: Boolean(mapAsset),
+    loadedTokenImages,
+    mapLoadStatus,
+    mapMediaType: mapAsset?.mediaType,
+    tokenImageSourceKey
+  });
 
   const getCurrentReadyMapSourceForFit = useCallback((): ReadyMapSource | null => {
     if (!mapAsset || !canShowMap) {
@@ -841,11 +846,11 @@ export function SceneCanvas({
   );
 
   useEffect(() => {
-    if (scene && mapReady && tokensReady) {
+    if (scene && sceneCanvasReadiness.ready) {
       // Player scene transitions wait for map/token assets so the splash does not reveal half-loaded content.
       onReady?.();
     }
-  }, [mapReady, onReady, scene, tokensReady]);
+  }, [onReady, scene, sceneCanvasReadiness.ready]);
 
   useEffect(() => {
     autoFitCameraRef.current = true;
@@ -1101,7 +1106,7 @@ export function SceneCanvas({
         // Fog is drawn after world content so hidden/partial modes mask maps, tokens, grid, and ruler consistently.
         drawFog(ctx, scene, width, height, renderCamera, mode, fogPreview, polygonDraft, effectiveSelectedFogShapeIds);
       }
-      if (canShowWeather && !mapOverlayActive) {
+      if (canShowWeather && !sceneCanvasReadiness.mapOverlayActive) {
         if (weatherMapReady) {
           drawWeather(ctx, scene, width, height, renderCamera, now, weatherLayer?.opacity ?? 1, weatherMapSource);
         }
@@ -1203,7 +1208,7 @@ export function SceneCanvas({
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, coldEffectTuning, darknessEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, effectRenderState, effectiveSelectedDrawingIds, effectiveSelectedFogShapeIds, effectiveSelectedTokenIds, effectiveSelectedWeatherMaskIds, environmentEffectFeather, environmentEffectMovePreview, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapCanvasBackgroundPlan, mapLayer?.opacity, mapOverlayActive, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, playerTokenTweenPositionsRef, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, sceneAnimationState, sceneSelectionAnimating, selectedDrawingId, selectedDrawingIds, selectedTokenId, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, turnOrderTokenIndicators, videoRefs, visibleCanvasLiveTableEvents, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskMovePreview, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
+  }, [acidEffectTuning, activeFogBrushSize, activeTableTools, activeVideoIndex, arcaneEffectTuning, brushHoverPoint, camera, canShowDrawings, canShowFog, canShowGrid, canShowMap, canShowTokens, canShowWeather, chaosEffectTuning, coldEffectTuning, darknessEffectTuning, distortionEffectTuning, drawingColor, drawingDragPreview, drawingFillColor, drawingFillOpacity, drawingLayer?.opacity, drawingOpacity, drawingPolygonDraft, drawingPreview, drawingStrokeStyle, drawingStrokeWidth, drawingTemplateEffect, drawingTemplateWidth, drawingTool, effectRenderState, effectiveSelectedDrawingIds, effectiveSelectedFogShapeIds, effectiveSelectedTokenIds, effectiveSelectedWeatherMaskIds, environmentEffectFeather, environmentEffectMovePreview, environmentEffectPreview, environmentEffectTool, environmentPolygonDraft, fireEffectTuning, fitGmCameraToReadyMap, fogEffectTuning, fogPreview, fogTool, forceFieldEffectTuning, isVideoMap, lavaEffectTuning, lightningEffectTuning, liveTableEvents, loadedMap, loadedTokenImages, mapAsset, mapCalibrationBox, mapCalibrationDraftBox, mapCalibrationDrag, mapCanvasBackgroundPlan, mapLayer?.opacity, mode, natureEffectTuning, onMapCalibrationBox, playerDisplayScale, playerTokenTweenPositions, playerTokenTweenPositionsRef, poisonEffectTuning, polygonDraft, radiantEffectTuning, releasedRulerDrag, rulerDrag, scene, sceneAnimationState, sceneCanvasReadiness.mapOverlayActive, sceneSelectionAnimating, selectedDrawingId, selectedDrawingIds, selectedTokenId, selectionDrag, shockwaveEffectTuning, smokeEffectTuning, snapPoint, tokenDragPreview, turnOrderTokenIndicators, videoRefs, visibleCanvasLiveTableEvents, voidEffectTuning, waterEffectTuning, weatherLayer?.opacity, weatherMaskMovePreview, weatherMaskPreview, weatherMaskTool, weatherPolygonDraft]);
 
   useEffect(() => {
     return retainEnvironmentEffectRuntimes();
@@ -2425,8 +2430,8 @@ export function SceneCanvas({
     }, 180);
   };
 
-  const showMapOverlay = mapOverlayActive;
-  const mapOverlayMessage = getMapOverlayMessage(mapLoadStatus, mapAsset?.mediaType);
+  const showMapOverlay = sceneCanvasReadiness.mapOverlayActive;
+  const mapOverlayMessage = sceneCanvasReadiness.mapOverlayMessage;
   const activeCalibrationBox = onMapCalibrationBox ? mapCalibrationDraftBox : null;
   const activeCalibrationBoxCamera = getRenderCamera(camera, playerDisplayScale);
 

@@ -3,6 +3,7 @@ export * from "./polygonDraft";
 export * from "./sceneContextLabels";
 export * from "./sceneContextMenus";
 export * from "./sceneCanvasRenderPlan";
+export * from "./sceneCanvasReadiness";
 export * from "./sceneDragGroups";
 export * from "./sceneHitTesting";
 export * from "./sceneInteractionTypes";
