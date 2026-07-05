@@ -8,8 +8,8 @@ describe("safe path segment helpers", () => {
     expect(() => assertSafePathSegment("map-1.png", "Unsafe segment.")).not.toThrow();
   });
 
-  it("rejects empty, traversal, separator, and absolute segments", () => {
-    for (const value of ["", ".", "..", "../scene", "folder/scene", "folder\\scene", path.resolve("scene")]) {
+  it("rejects empty, traversal, separator, absolute, and colon-containing segments", () => {
+    for (const value of ["", ".", "..", "../scene", "folder/scene", "folder\\scene", path.resolve("scene"), "C:scene", "scene:backup"]) {
       expect(() => assertSafePathSegment(value, "Unsafe segment.")).toThrow("Unsafe segment.");
     }
   });

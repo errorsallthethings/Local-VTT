@@ -54,4 +54,15 @@ describe("asset import file helpers", () => {
     expect(imported.relativePath).toBe(`assets/tokens/${imported.fileName}`);
     await expect(readFile(imported.destination, "utf8")).resolves.toBe("token data");
   });
+
+  it("recreates missing destination asset folders before copying imports", async () => {
+    const sourcePath = path.join(tempRoot, "source", "Recovered Map.png");
+    await writeFile(sourcePath, "map data", "utf8");
+    await rm(path.join(tempRoot, "campaign", "assets", "maps"), { recursive: true, force: true });
+
+    const imported = await copyAssetImportToCampaign(path.join(tempRoot, "campaign"), sourcePath, "map");
+
+    expect(imported.relativePath).toBe(`assets/maps/${imported.fileName}`);
+    await expect(readFile(imported.destination, "utf8")).resolves.toBe("map data");
+  });
 });

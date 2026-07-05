@@ -7,7 +7,8 @@ export function assertSafePathSegment(value: string, errorMessage: string): void
     value === ".." ||
     path.isAbsolute(value) ||
     value.includes("/") ||
-    value.includes("\\")
+    value.includes("\\") ||
+    value.includes(":")
   ) {
     throw new Error(errorMessage);
   }
