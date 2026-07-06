@@ -76,12 +76,13 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted and tested SceneCanvas asset preparation, selection state preparation, and environment-effect tuning aggregation so render/input code consumes focused view models instead of rebuilding them inline.
 - Documented that Electron smoke and visual smoke should run sequentially because both scripts drive Player View IPC and can interfere when launched concurrently.
 - Split drawing stroke dash policy and template asset overlay composition out of `drawingRenderer.ts`, reducing the drawing renderer to shape orchestration while keeping cached template overlays behind a focused module.
+- Centralized template-effect WebGL canvas creation, snapshotting, and disposal so generated template renderables share one lifecycle path instead of repeating setup/cleanup in every effect recipe.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
 
 - `src/renderer/components/SceneCanvas.tsx`: high-responsibility canvas interaction component. Recent work moved context menus, asset prep, selection prep, and effect tuning prep into tested helpers; continue splitting by interaction mode before adding more tools.
-- `src/renderer/canvas/drawings/templateEffectRenderables.ts`: large generated-style Three.js effect catalog. Keep the public registry stable, but split effect families or primitive helpers before adding more template effects.
+- `src/renderer/canvas/drawings/templateEffectRenderables.ts`: still a large generated-style Three.js effect catalog after lifecycle cleanup. Keep the public registry stable, but split effect families or primitive helpers before adding more template effects.
 - `src/renderer/canvas/drawings/drawingRenderer.ts`: improved after overlay/stroke extraction, but still mixes base shape rendering with template-specific guide/label behavior. Continue separating template rendering from freehand/shape rendering.
 - `src/renderer/components/layers/LayerPanel.tsx`: layer UI is feature rich but broad. Extract per-layer panels when touching those areas.
 - `src/renderer/views/GmApp.tsx`: smaller after audit work, but still coordinates many workflows. Prefer extracting domain helpers or feature hooks before adding new state.

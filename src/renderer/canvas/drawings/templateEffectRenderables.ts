@@ -10,6 +10,8 @@ interface TemplateEffectRenderableDefinition {
   id: string;
 }
 
+type TemplateEffectSceneBuilder = (scene: THREE.Scene, random: () => number) => void;
+
 function disposeTransientRenderer(renderer: THREE.WebGLRenderer) {
   renderer.forceContextLoss();
   renderer.dispose();
@@ -25,6 +27,37 @@ function snapshotRendererCanvas(canvas: HTMLCanvasElement): HTMLCanvasElement {
   }
   snapshotContext.drawImage(canvas, 0, 0);
   return snapshot;
+}
+
+function createTemplateEffectImage(seed: number, buildScene: TemplateEffectSceneBuilder): HTMLCanvasElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  let renderer: THREE.WebGLRenderer | null = null;
+  let scene: THREE.Scene | null = null;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(canvas.width, canvas.height, false);
+    scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 5;
+    buildScene(scene, createSeededRandom(seed));
+    renderer.render(scene, camera);
+    return snapshotRendererCanvas(canvas);
+  } catch {
+    return null;
+  } finally {
+    if (scene) {
+      disposeScene(scene);
+    }
+    if (renderer) {
+      disposeTransientRenderer(renderer);
+    }
+  }
 }
 
 const TEMPLATE_EFFECT_RENDERABLE_DEFINITIONS: Record<TemplateEffectAssetEffect, TemplateEffectRenderableDefinition> = {
@@ -84,20 +117,7 @@ function createCanvasTemplateRenderable(id: string, canvas: HTMLCanvasElement): 
 }
 
 function createPoisonBubbleImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0x51f15e);
+  return createTemplateEffectImage(0x51f15e, (scene, random) => {
     for (let index = 0; index < 58; index += 1) {
       addPoisonCloudPuff(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.055 + random() * 0.19, random);
     }
@@ -107,31 +127,11 @@ function createPoisonBubbleImage(): HTMLCanvasElement | null {
       const y = -0.82 + random() * 1.64;
       addPoisonBubble(scene, x, y, radius, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function createPsychicHazeImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0x951c1c);
+  return createTemplateEffectImage(0x951c1c, (scene, random) => {
     for (let index = 0; index < 16; index += 1) {
       addPsychicBand(scene, -0.88 + random() * 1.76, -0.88 + random() * 1.76, 0.28 + random() * 0.62, random);
     }
@@ -141,31 +141,11 @@ function createPsychicHazeImage(): HTMLCanvasElement | null {
     for (let index = 0; index < 34; index += 1) {
       addPsychicSpark(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.01 + random() * 0.03, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function createAcidSpatterImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0xac1d);
+  return createTemplateEffectImage(0xac1d, (scene, random) => {
     for (let index = 0; index < 6; index += 1) {
       addAcidBubble(scene, -0.86 + random() * 1.72, -0.86 + random() * 1.72, 0.035 + random() * 0.11, random);
     }
@@ -178,31 +158,11 @@ function createAcidSpatterImage(): HTMLCanvasElement | null {
     for (let index = 0; index < 10; index += 1) {
       addAcidWave(scene, -0.88 + random() * 1.76, -0.88 + random() * 1.76, 0.18 + random() * 0.34, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function createArcaneGlyphImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0xa2ca3e);
+  return createTemplateEffectImage(0xa2ca3e, (scene, random) => {
     for (let index = 0; index < 14; index += 1) {
       addArcaneGlyph(scene, -0.84 + random() * 1.68, -0.84 + random() * 1.68, 0.08 + random() * 0.18, random);
     }
@@ -212,31 +172,11 @@ function createArcaneGlyphImage(): HTMLCanvasElement | null {
     for (let index = 0; index < 30; index += 1) {
       addArcaneSpark(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.008 + random() * 0.024, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function createColdShardImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0xc01df057);
+  return createTemplateEffectImage(0xc01df057, (scene, random) => {
     for (let index = 0; index < 34; index += 1) {
       const x = -0.84 + random() * 1.68;
       const y = -0.84 + random() * 1.68;
@@ -249,31 +189,11 @@ function createColdShardImage(): HTMLCanvasElement | null {
       const size = 0.025 + random() * 0.18;
       addColdStarburst(scene, x, y, size, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function createLightningForkImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0x1e471e);
+  return createTemplateEffectImage(0x1e471e, (scene, random) => {
     for (let index = 0; index < 15; index += 1) {
       const start = { x: -0.88 + random() * 1.76, y: -0.88 + random() * 1.76 };
       const angle = random() * Math.PI * 2;
@@ -284,31 +204,11 @@ function createLightningForkImage(): HTMLCanvasElement | null {
       };
       addLightningBolt(scene, start, end, 6 + Math.floor(random() * 6), 0.28 + random() * 0.5, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function createNatureThornImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0x71a7e);
+  return createTemplateEffectImage(0x71a7e, (scene, random) => {
     for (let index = 0; index < 18; index += 1) {
       addNatureVine(scene, -0.88 + random() * 1.76, -0.88 + random() * 1.76, 0.22 + random() * 0.52, random);
     }
@@ -318,31 +218,11 @@ function createNatureThornImage(): HTMLCanvasElement | null {
     for (let index = 0; index < 26; index += 1) {
       addNatureLeaf(scene, -0.88 + random() * 1.76, -0.88 + random() * 1.76, 0.035 + random() * 0.09, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function createFireTongueImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0xf17e);
+  return createTemplateEffectImage(0xf17e, (scene, random) => {
     for (let index = 0; index < 28; index += 1) {
       const x = -0.84 + random() * 1.68;
       const y = -0.84 + random() * 1.68;
@@ -355,62 +235,22 @@ function createFireTongueImage(): HTMLCanvasElement | null {
       const radius = 0.008 + random() * 0.024;
       addFireEmber(scene, x, y, radius, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function createFogCloudImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0xf06c10d);
+  return createTemplateEffectImage(0xf06c10d, (scene, random) => {
     for (let index = 0; index < 72; index += 1) {
       const x = -0.9 + random() * 1.8;
       const y = -0.9 + random() * 1.8;
       const radius = 0.045 + random() * 0.17;
       addFogPuff(scene, x, y, radius, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function createDarknessMistImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0xda2c);
+  return createTemplateEffectImage(0xda2c, (scene, random) => {
     for (let index = 0; index < 58; index += 1) {
       const x = -0.9 + random() * 1.8;
       const y = -0.9 + random() * 1.8;
@@ -422,31 +262,11 @@ function createDarknessMistImage(): HTMLCanvasElement | null {
       const y = -0.86 + random() * 1.72;
       addDarknessTendril(scene, x, y, 0.16 + random() * 0.34, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function createStormCloudImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0x570a);
+  return createTemplateEffectImage(0x570a, (scene, random) => {
     for (let index = 0; index < 64; index += 1) {
       const x = -0.9 + random() * 1.8;
       const y = -0.9 + random() * 1.8;
@@ -463,31 +283,11 @@ function createStormCloudImage(): HTMLCanvasElement | null {
       };
       addLightningBolt(scene, start, end, 4 + Math.floor(random() * 5), 0.16 + random() * 0.32, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function createThunderWaveImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0x7e2d);
+  return createTemplateEffectImage(0x7e2d, (scene, random) => {
     for (let index = 0; index < 10; index += 1) {
       addThunderArc(scene, -0.82 + random() * 1.64, -0.82 + random() * 1.64, 0.24 + random() * 0.48, random);
     }
@@ -497,31 +297,11 @@ function createThunderWaveImage(): HTMLCanvasElement | null {
     for (let index = 0; index < 18; index += 1) {
       addThunderTick(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.08 + random() * 0.16, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function createRadiantLightImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0xad1a17);
+  return createTemplateEffectImage(0xad1a17, (scene, random) => {
     for (let index = 0; index < 18; index += 1) {
       addRadiantRay(scene, -0.88 + random() * 1.76, -0.88 + random() * 1.76, 0.24 + random() * 0.58, random);
     }
@@ -531,31 +311,11 @@ function createRadiantLightImage(): HTMLCanvasElement | null {
     for (let index = 0; index < 32; index += 1) {
       addRadiantSpark(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.008 + random() * 0.026, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function createWaterDropletImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0x0ce4);
+  return createTemplateEffectImage(0x0ce4, (scene, random) => {
     for (let index = 0; index < 10; index += 1) {
       addWaterRipple(scene, -0.86 + random() * 1.72, -0.86 + random() * 1.72, 0.38 + random() * 0.62, random);
     }
@@ -565,45 +325,18 @@ function createWaterDropletImage(): HTMLCanvasElement | null {
     for (let index = 0; index < 16; index += 1) {
       addWaterDroplet(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.018 + random() * 0.052, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function createWebStrandImage(): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  try {
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    const random = createSeededRandom(0x5a1d);
+  return createTemplateEffectImage(0x5a1d, (scene, random) => {
     for (let index = 0; index < 5; index += 1) {
       addWebCluster(scene, -0.76 + random() * 1.52, -0.76 + random() * 1.52, 0.22 + random() * 0.34, random);
     }
     for (let index = 0; index < 20; index += 1) {
       addWebStrayThread(scene, -0.92 + random() * 1.84, -0.92 + random() * 1.84, 0.18 + random() * 0.42, random);
     }
-    renderer.render(scene, camera);
-    const snapshot = snapshotRendererCanvas(canvas);
-    disposeScene(scene);
-    disposeTransientRenderer(renderer);
-    return snapshot;
-  } catch {
-    return null;
-  }
+  });
 }
 
 function addPoisonBubble(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
