@@ -94,26 +94,12 @@ import { useImageMapLoader } from "../hooks/useImageMapLoader";
 import { usePlayerTokenTweens } from "../hooks/usePlayerTokenTweens";
 import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
-import { useWindowKeyDown } from "../hooks/useWindowKeyDown";
 import { SceneCanvasContextMenus } from "./scene/SceneCanvasContextMenus";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
 import { useSceneCanvasAssets } from "./scene/useSceneCanvasAssets";
 import { useSceneCanvasContextMenus } from "./scene/useSceneCanvasContextMenus";
 import { useSceneCanvasEnvironmentTuning } from "./scene/useSceneCanvasEnvironmentTuning";
 import { useSceneCanvasSelectionState } from "./scene/useSceneCanvasSelectionState";
-import {
-  cancelSceneInteractionsForKeyboardEvent,
-  hasCancelableSceneInteraction
-} from "./scene/sceneInteractionCancellation";
-import {
-  getCanvasToolResetActions,
-  getDrawingToolResetActions,
-  getEnvironmentToolResetActions,
-  getModeOrSceneResetActions,
-  getSceneOrFogToolResetActions,
-  getWeatherToolResetActions,
-  type SceneLifecycleResetAction
-} from "./scene/sceneLifecycleReset";
 import {
   MapLoadOverlay,
 } from "./scene/SceneCanvasStatusStrips";
@@ -126,7 +112,6 @@ import {
   type EnvironmentEffectMoveState,
   type WeatherMaskMoveState
 } from "./scene/sceneMaskEffectPointer";
-import { getRulerWaypointAppendKeyboardAction, getTokenWaypointAppendKeyboardAction } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
 import { useSceneViewportCenterReporting } from "./scene/useSceneViewportCenterReporting";
@@ -140,6 +125,8 @@ import { useSceneCanvasRenderer } from "./scene/useSceneCanvasRenderer";
 import { useSceneCanvasPointerDown } from "./scene/useSceneCanvasPointerDown";
 import { useSceneCanvasPointerUp } from "./scene/useSceneCanvasPointerUp";
 import { useSceneCanvasPointerMove } from "./scene/useSceneCanvasPointerMove";
+import { useSceneCanvasKeyboardInteractions } from "./scene/useSceneCanvasKeyboardInteractions";
+import { useSceneLifecycleResets } from "./scene/useSceneLifecycleResets";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
@@ -517,75 +504,6 @@ export function SceneCanvas({
     };
   }, []);
 
-  const applySceneLifecycleResetActions = useCallback(
-    (actions: readonly SceneLifecycleResetAction[]) => {
-      for (const action of actions) {
-        if (action === "clear-fog-polygon-draft") {
-          clearFogPolygonDraft();
-        } else if (action === "clear-drawing-polygon-draft") {
-          clearDrawingPolygonDraft();
-        } else if (action === "clear-weather-polygon-draft") {
-          clearWeatherPolygonDraft();
-        } else if (action === "clear-environment-polygon-draft") {
-          clearEnvironmentPolygonDraft();
-        } else if (action === "clear-fog-preview") {
-          clearFogPreview();
-        } else if (action === "clear-drawing-preview") {
-          clearDrawingPreview();
-        } else if (action === "clear-weather-preview") {
-          clearWeatherMaskPreview();
-        } else if (action === "clear-environment-preview") {
-          clearEnvironmentEffectPreview();
-        } else if (action === "cancel-weather-move") {
-          cancelWeatherMaskMove();
-        } else if (action === "cancel-environment-move") {
-          cancelEnvironmentEffectMove();
-        } else if (action === "clear-token-drag") {
-          tokenDragRef.current = null;
-          setTokenDragPreview(null);
-        } else if (action === "clear-pan-drag") {
-          dragRef.current = null;
-          setIsPanning(false);
-        } else if (action === "clear-selection-drag") {
-          selectionDragRef.current = null;
-          setSelectionDrag(null);
-        } else if (action === "clear-brush-hover") {
-          setBrushHoverPoint(null);
-        } else if (action === "clear-snap-point") {
-          setSnapPoint(null);
-        } else if (action === "clear-scene-item-hover") {
-          setSceneItemHover(false);
-        } else if (action === "clear-ruler-drag") {
-          setRulerDrag(null);
-          rulerDragRef.current = null;
-        } else if (action === "clear-released-ruler") {
-          if (releasedRulerTimeoutRef.current !== null) {
-            window.clearTimeout(releasedRulerTimeoutRef.current);
-            releasedRulerTimeoutRef.current = null;
-          }
-          setReleasedRulerDrag(null);
-        } else if (action === "clear-laser-drag") {
-          laserDragRef.current = null;
-        } else if (action === "emit-ruler-clear") {
-          onLiveTableEvent?.(createRulerClearEvent());
-        }
-      }
-    },
-    [
-      cancelEnvironmentEffectMove,
-      cancelWeatherMaskMove,
-      clearDrawingPreview,
-      clearEnvironmentEffectPreview,
-      clearDrawingPolygonDraft,
-      clearEnvironmentPolygonDraft,
-      clearFogPreview,
-      clearFogPolygonDraft,
-      clearWeatherMaskPreview,
-      clearWeatherPolygonDraft,
-      onLiveTableEvent,
-    ]
-  );
-
   const {
     assetUrl,
     mapAsset,
@@ -842,84 +760,66 @@ export function SceneCanvas({
     }
   }, [onMapCalibrationBox]);
 
-  useEffect(() => {
-    applySceneLifecycleResetActions(getSceneOrFogToolResetActions());
-  }, [applySceneLifecycleResetActions, fogTool, scene?.id]);
-
-  useEffect(() => {
-    applySceneLifecycleResetActions(getDrawingToolResetActions());
-  }, [applySceneLifecycleResetActions, drawingTool, scene?.id]);
-
-  useEffect(() => {
-    applySceneLifecycleResetActions(getCanvasToolResetActions(Boolean(rulerDragRef.current)));
-  }, [applySceneLifecycleResetActions, canvasTool, scene?.id]);
-
-  useEffect(() => {
-    applySceneLifecycleResetActions(getModeOrSceneResetActions());
-  }, [applySceneLifecycleResetActions, mode, scene?.id]);
-
-  useEffect(() => {
-    applySceneLifecycleResetActions(getWeatherToolResetActions());
-  }, [applySceneLifecycleResetActions, scene?.id, weatherMaskTool]);
-
-  useEffect(() => {
-    applySceneLifecycleResetActions(getEnvironmentToolResetActions());
-  }, [applySceneLifecycleResetActions, environmentEffectTool, scene?.id]);
-
-  const sceneInteractionCancelable = hasCancelableSceneInteraction({
-    tokenDragPreview,
-    drawingDragPreview,
-    weatherMaskMovePreview,
-    environmentEffectMovePreview,
-    rulerDrag,
-    fogPreview,
-    drawingPreview,
-    environmentEffectPreview
+  useSceneLifecycleResets({
+    cancelEnvironmentEffectMove,
+    cancelWeatherMaskMove,
+    canvasTool,
+    clearDrawingPolygonDraft,
+    clearDrawingPreview,
+    clearEnvironmentEffectPolygonDraft: clearEnvironmentPolygonDraft,
+    clearEnvironmentEffectPreview,
+    clearFogPolygonDraft,
+    clearFogPreview,
+    clearWeatherMaskPreview,
+    clearWeatherPolygonDraft,
+    dragRef,
+    drawingTool,
+    environmentEffectTool,
+    fogTool,
+    laserDragRef,
+    mode,
+    onLiveTableEvent,
+    releasedRulerTimeoutRef,
+    rulerDragRef,
+    sceneId: scene?.id,
+    selectionDragRef,
+    setBrushHoverPoint,
+    setIsPanning,
+    setReleasedRulerDrag,
+    setRulerDrag,
+    setSceneItemHover,
+    setSelectionDrag,
+    setSnapPoint,
+    setTokenDragPreview,
+    tokenDragRef,
+    weatherMaskTool
   });
-  const cancelSceneInteractionOnEscape = useCallback((event: KeyboardEvent) => {
-    cancelSceneInteractionsForKeyboardEvent(event, {
-      cancelTokenDrag,
-      cancelDrawingDrag,
-      cancelWeatherMaskMove,
-      cancelEnvironmentEffectMove,
-      cancelRulerDrag,
-      clearFogPreview,
-      clearEnvironmentEffectPreview,
-      clearDrawingPreview
-    });
-  }, [cancelDrawingDrag, cancelEnvironmentEffectMove, cancelRulerDrag, cancelTokenDrag, cancelWeatherMaskMove, clearDrawingPreview, clearEnvironmentEffectPreview, clearFogPreview]);
-  useWindowKeyDown(mode === "gm" && sceneInteractionCancelable, cancelSceneInteractionOnEscape);
 
-  const appendTokenWaypointOnShift = useCallback((event: KeyboardEvent) => {
-    if (!scene) {
-      return;
-    }
-    const action = getTokenWaypointAppendKeyboardAction(scene, tokenDragRef.current, tokenDragPreview, event);
-    if (action.kind !== "set-token-waypoint") {
-      return;
-    }
-
-    event.preventDefault();
-    tokenDragRef.current = action.update.drag;
-    setTokenDragPreview(action.update.preview);
-  }, [scene, tokenDragPreview]);
-  useWindowKeyDown(mode === "gm" && Boolean(scene && tokenDragPreview), appendTokenWaypointOnShift);
-
-  const appendRulerWaypointOnShift = useCallback((event: KeyboardEvent) => {
-    if (!scene) {
-      return;
-    }
-    const action = getRulerWaypointAppendKeyboardAction(scene, rulerDragRef.current, event);
-    if (action.kind !== "set-ruler-waypoint") {
-      return;
-    }
-
-    event.preventDefault();
-    rulerDragRef.current = action.drag;
-    setRulerDrag(action.drag);
-    emitRulerEvent(action.drag);
-  }, [emitRulerEvent, scene]);
-  useWindowKeyDown(mode === "gm" && Boolean(scene && rulerDrag), appendRulerWaypointOnShift);
+  useSceneCanvasKeyboardInteractions({
+    cancelDrawingDrag,
+    cancelEnvironmentEffectMove,
+    cancelRulerDrag,
+    cancelTokenDrag,
+    cancelWeatherMaskMove,
+    clearDrawingPreview,
+    clearEnvironmentEffectPreview,
+    clearFogPreview,
+    drawingDragPreview,
+    drawingPreview,
+    emitRulerEvent,
+    environmentEffectMovePreview,
+    environmentEffectPreview,
+    fogPreview,
+    mode,
+    rulerDrag,
+    rulerDragRef,
+    scene,
+    setRulerDrag,
+    setTokenDragPreview,
+    tokenDragPreview,
+    tokenDragRef,
+    weatherMaskMovePreview
+  });
 
   useEffect(() => {
     setVideoMapLoadStatus(isVideoMap ? getInitialMapLoadStatus(mapAsset?.mediaType, assetUrl) : "idle");
