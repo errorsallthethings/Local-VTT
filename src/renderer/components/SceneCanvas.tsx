@@ -4,7 +4,7 @@ import {
   DEFAULT_TABLE_TOOLS,
   DEFAULT_VIDEO_PLAYBACK,
 } from "../../shared/localvtt";
-import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectMask, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings } from "../../shared/localvtt";
+import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings } from "../../shared/localvtt";
 import {
   WEATHER_ONLY_FRAME_INTERVAL_MS,
   areCamerasEqual,
@@ -72,7 +72,6 @@ import {
 } from "../canvas/scene";
 import {
   getMarqueeSelectionMode,
-  shouldAnimateSceneSelection,
   getSelectionDragFromPoint,
   getUpdatedSelectionDrag
 } from "../canvas/selection";
@@ -96,12 +95,10 @@ import {
 import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/effects";
 import { getSceneEffectRenderState, getSceneLayerVisibility } from "../canvas/scene";
 import { getSceneSnapMarkerOperations, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint } from "../canvas/scene";
-import { getSelectedItemIdList } from "../lib/scene";
 import { getTurnOrderTokenIndicators } from "../lib/turn-order";
 import {
   getTemplatePreviewDrawing
 } from "../canvas/drawings";
-import { getTokenAssetIds, getTokenImageAssets, getTokenImageSourceKey } from "../canvas/tokens";
 import { getTokenDragWaypointRemovalUpdate } from "../canvas/tokens";
 import { drawTokenDragHighlights, drawTokens, hasVisibleTokenConditions, type TokenDragPreview } from "../canvas/tokens";
 import { clientToWorldPoint, eventToWorldPoint, isSnapModifier } from "../canvas/core";
@@ -153,7 +150,10 @@ import { calculateCanvasContextMenuPosition, type CanvasContextMenuKind } from "
 import { SceneCanvasContextMenus } from "./scene/SceneCanvasContextMenus";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
 import { getSceneContextMenuOpening } from "./scene/sceneContextMenuOpening";
+import { useSceneCanvasAssets } from "./scene/useSceneCanvasAssets";
 import { useSceneCanvasContextMenus } from "./scene/useSceneCanvasContextMenus";
+import { useSceneCanvasEnvironmentTuning } from "./scene/useSceneCanvasEnvironmentTuning";
+import { useSceneCanvasSelectionState } from "./scene/useSceneCanvasSelectionState";
 import {
   getCanvasContextMenuKindForSceneTarget,
   getSceneContextMenuRoute,
@@ -644,93 +644,56 @@ export function SceneCanvas({
     ]
   );
 
-  const mapAsset = useMemo(() => {
-    if (!campaign || !scene?.mapAssetId) {
-      return null;
-    }
-    return campaign.assets.find((asset) => asset.id === scene.mapAssetId) ?? null;
-  }, [campaign, scene?.mapAssetId]);
-
-  const assetUrl = useMemo(() => {
-    return mapAsset?.absolutePath ? window.localVtt.toAssetUrl(mapAsset.absolutePath) : null;
-  }, [mapAsset?.absolutePath]);
-  const campaignAssets = campaign?.assets;
-
-  const tokenAssetIds = useMemo(() => {
-    return getTokenAssetIds(scene?.tokens);
-  }, [scene?.tokens]);
-
-  const tokenAssets = useMemo(() => {
-    return getTokenImageAssets(campaignAssets, tokenAssetIds);
-  }, [campaignAssets, tokenAssetIds]);
-
-  const tokenImageSourceKey = useMemo(() => {
-    return getTokenImageSourceKey(tokenAssets);
-  }, [tokenAssets]);
+  const {
+    assetUrl,
+    mapAsset,
+    tokenImageSourceKey
+  } = useSceneCanvasAssets(campaign, scene);
   const { failedTokenImageIds, loadedTokenImages } = useTokenImageLoader(tokenImageSourceKey);
   const { tokenTweenPositions: playerTokenTweenPositions, tokenTweenPositionsRef: playerTokenTweenPositionsRef } = usePlayerTokenTweens(scene, mode);
   const visibleCanvasLiveTableEvents = useMemo(() => getVisibleCanvasLiveTableEvents(liveTableEvents, mode), [liveTableEvents, mode]);
-  const effectiveSelectedTokenIds = useMemo(() => getSelectedItemIdList(selectedTokenId, selectedTokenIds), [selectedTokenId, selectedTokenIds]);
   const turnOrderTokenIndicators = useMemo(() => (scene && mode === "gm" ? getTurnOrderTokenIndicators(scene) : null), [mode, scene]);
-  const effectiveSelectedDrawingIds = useMemo(() => getSelectedItemIdList(selectedDrawingId, selectedDrawingIds), [selectedDrawingId, selectedDrawingIds]);
-  const effectiveSelectedFogShapeIds = useMemo(() => getSelectedItemIdList(selectedFogShapeId, selectedFogShapeIds), [selectedFogShapeId, selectedFogShapeIds]);
-  const effectiveSelectedWeatherMaskIds = useMemo(() => getSelectedItemIdList(selectedWeatherMaskId, selectedWeatherMaskIds), [selectedWeatherMaskId, selectedWeatherMaskIds]);
-  const sceneSelectionAnimating = useMemo(
-    () =>
-      shouldAnimateSceneSelection(mode, {
-        drawingIds: effectiveSelectedDrawingIds,
-        fogShapeIds: effectiveSelectedFogShapeIds,
-        tokenIds: effectiveSelectedTokenIds,
-        weatherMaskIds: effectiveSelectedWeatherMaskIds
-      }),
-    [effectiveSelectedDrawingIds, effectiveSelectedFogShapeIds, effectiveSelectedTokenIds, effectiveSelectedWeatherMaskIds, mode]
-  );
+  const {
+    effectiveSelectedDrawingIds,
+    effectiveSelectedFogShapeIds,
+    effectiveSelectedTokenIds,
+    effectiveSelectedWeatherMaskIds,
+    sceneSelectionAnimating
+  } = useSceneCanvasSelectionState({
+    mode,
+    selectedDrawingId,
+    selectedDrawingIds,
+    selectedFogShapeId,
+    selectedFogShapeIds,
+    selectedTokenId,
+    selectedTokenIds,
+    selectedWeatherMaskId,
+    selectedWeatherMaskIds
+  });
   const authoringToolActive = useMemo(
     () => hasAuthoringToolActive({ canvasTool, drawingTool, fogTool, weatherMaskTool, environmentEffectTool }),
     [canvasTool, drawingTool, environmentEffectTool, fogTool, weatherMaskTool]
   );
-  const currentEnvironmentEffectTuning = useMemo<Partial<EnvironmentEffectMask>>(
-    () => ({
-      acidTuning: acidEffectTuning,
-      coldTuning: coldEffectTuning,
-      darknessTuning: darknessEffectTuning,
-      poisonTuning: poisonEffectTuning,
-      waterTuning: waterEffectTuning,
-      lavaTuning: lavaEffectTuning,
-      fireTuning: fireEffectTuning,
-      lightningTuning: lightningEffectTuning,
-      arcaneTuning: arcaneEffectTuning,
-      chaosTuning: chaosEffectTuning,
-      voidTuning: voidEffectTuning,
-      natureTuning: natureEffectTuning,
-      distortionTuning: distortionEffectTuning,
-      radiantTuning: radiantEffectTuning,
-      fieldTuning: forceFieldEffectTuning,
-      shockwaveTuning: shockwaveEffectTuning,
-      smokeTuning: smokeEffectTuning,
-      fogTuning: fogEffectTuning
-    }),
-    [
-      acidEffectTuning,
-      arcaneEffectTuning,
-      chaosEffectTuning,
-      coldEffectTuning,
-      darknessEffectTuning,
-      distortionEffectTuning,
-      fireEffectTuning,
-      fogEffectTuning,
-      forceFieldEffectTuning,
-      lavaEffectTuning,
-      lightningEffectTuning,
-      natureEffectTuning,
-      poisonEffectTuning,
-      radiantEffectTuning,
-      shockwaveEffectTuning,
-      smokeEffectTuning,
-      voidEffectTuning,
-      waterEffectTuning
-    ]
-  );
+  const currentEnvironmentEffectTuning = useSceneCanvasEnvironmentTuning({
+    acidTuning: acidEffectTuning,
+    arcaneTuning: arcaneEffectTuning,
+    chaosTuning: chaosEffectTuning,
+    coldTuning: coldEffectTuning,
+    darknessTuning: darknessEffectTuning,
+    distortionTuning: distortionEffectTuning,
+    fieldTuning: forceFieldEffectTuning,
+    fireTuning: fireEffectTuning,
+    fogTuning: fogEffectTuning,
+    lavaTuning: lavaEffectTuning,
+    lightningTuning: lightningEffectTuning,
+    natureTuning: natureEffectTuning,
+    poisonTuning: poisonEffectTuning,
+    radiantTuning: radiantEffectTuning,
+    shockwaveTuning: shockwaveEffectTuning,
+    smokeTuning: smokeEffectTuning,
+    voidTuning: voidEffectTuning,
+    waterTuning: waterEffectTuning
+  });
 
   const {
     mapLayer,
