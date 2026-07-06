@@ -30,6 +30,8 @@ import { useEnvironmentEffectActions } from "../hooks/useEnvironmentEffectAction
 import {
   useEnvironmentEffectTuning
 } from "../hooks/useEnvironmentEffectTuning";
+import { useGmDialogCancelActions } from "../hooks/useGmDialogCancelActions";
+import { useGmDialogConfirmActions } from "../hooks/useGmDialogConfirmActions";
 import { useGmDialogEscape, useGmDialogState } from "../hooks/useGmDialogState";
 import { useGmDialogActions } from "../hooks/useGmDialogActions";
 import { useGmDialogDraftState } from "../hooks/useGmDialogDraftState";
@@ -523,6 +525,14 @@ export function GmApp() {
     setTokenCropDialog,
     updateScene,
   });
+  const gmDialogCancelActions = useGmDialogCancelActions({
+    dialogs,
+    onCancelTokenCrop: cancelTokenCrop,
+    onCancelMapReplacement: maintenanceState.closeMapReplacementPreview,
+    onCancelTableDisplayWizard: playerViewMenuActions.closeTableDisplaySetup,
+    onCancelPlayerDisplayDialog: playerViewMenuActions.closePlayerDisplayScale,
+    onCancelMapCalibrationAssistant: playerViewMenuActions.closeMapCalibrationAssistant
+  });
 
   useGmDialogEscape({
     dialogs,
@@ -719,6 +729,15 @@ export function GmApp() {
     openRecentCampaign,
     removeRecentCampaignPath,
     showPlayerIdle
+  });
+  const gmDialogConfirmActions = useGmDialogConfirmActions({
+    mapReplacementPreview: maintenanceState.mapReplacementPreview,
+    onConfirmDeleteScene: confirmDeleteScene,
+    onConfirmDeleteFolder: deleteFolder,
+    onConfirmDeleteMapAsset: confirmDeleteMapAsset,
+    onConfirmMapReplacement: commitMapReplacement,
+    onConfirmDeleteTokenAsset: confirmDeleteTokenAsset,
+    onConfirmClearFog: clearFogShapes
   });
 
   const appShellStyle = appShellPresentation.style as CSSProperties;
@@ -1150,27 +1169,7 @@ export function GmApp() {
         dirtySceneIds={dirtySceneIds}
         displays={displays}
         {...dialogDrafts.dialogProps}
-        onCancelSceneDialog={() => setSceneDialog(null)}
-        onCancelFolderDialog={() => setFolderDialog(null)}
-        onCancelFogShapeDialog={() => setFogShapeDialog(null)}
-        onCancelEnvironmentEffectDialog={() => setEnvironmentEffectDialog(null)}
-        onCancelTokenDialog={() => setTokenDialog(null)}
-        onCancelTokenCropDialog={() => void cancelTokenCrop()}
-        onCancelTokenAssetDialog={() => setTokenAssetDialog(null)}
-        onCancelTokenDefaultsDialog={() => setTokenDefaultsDialog(null)}
-        onCancelFolderColorDialog={() => setFolderColorDialog(null)}
-        onCancelSceneColorDialog={() => setSceneColorDialog(null)}
-        onCancelTokenColorDialog={() => setTokenColorDialog(null)}
-        onCancelCampaignNameDialog={() => setCampaignNameDialogOpen(false)}
-        onCancelTableDisplayWizard={playerViewMenuActions.closeTableDisplaySetup}
-        onCancelPlayerDisplayDialog={playerViewMenuActions.closePlayerDisplayScale}
-        onCancelMapCalibrationAssistant={playerViewMenuActions.closeMapCalibrationAssistant}
-        onCancelSceneDelete={() => setSceneToDelete(null)}
-        onCancelFolderDelete={() => setFolderToDelete(null)}
-        onCancelMapAssetDelete={() => setMapAssetToDelete(null)}
-        onCancelMapReplacement={maintenanceState.closeMapReplacementPreview}
-        onCancelTokenAssetDelete={() => setTokenAssetToDelete(null)}
-        onCancelClearFog={() => setConfirmClearFogOpen(false)}
+        {...gmDialogCancelActions}
         onSubmitSceneName={() => void submitSceneName()}
         onSubmitFolderName={submitFolderName}
         onSubmitFogShapeName={submitFogShapeName}
@@ -1201,16 +1200,7 @@ export function GmApp() {
         onOpenMapCalibrationAssistantFromWizard={playerViewMenuActions.openMapCalibrationAssistantFromWizard}
         onOpenPlayerViewSetupFromAssistant={playerViewMenuActions.openPlayerViewSetupFromAssistant}
         onRefreshDisplays={refreshDisplays}
-        onConfirmDeleteScene={(scene) => void confirmDeleteScene(scene)}
-        onConfirmDeleteFolder={deleteFolder}
-        onConfirmDeleteMapAsset={() => void confirmDeleteMapAsset()}
-        onConfirmMapReplacement={() => {
-          if (maintenanceState.mapReplacementPreview) {
-            void commitMapReplacement(maintenanceState.mapReplacementPreview);
-          }
-        }}
-        onConfirmDeleteTokenAsset={() => void confirmDeleteTokenAsset()}
-        onConfirmClearFog={clearFogShapes}
+        {...gmDialogConfirmActions}
       />
       <GmMaintenanceDialogs
         assetPruneConfirmOpen={maintenanceState.assetPruneConfirmOpen}
