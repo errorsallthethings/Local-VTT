@@ -82,6 +82,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Split template-effect renderable runtime setup, shared lightning-line primitives, and the fog/lightning/storm/thunder family out of the main renderable catalog while preserving the stable renderable asset ids.
 - Split the acid/poison/cold/darkness hazard template-effect family out of the main renderable catalog while keeping shared lightning-line primitives reusable across effect families.
 - Split the nature/radiant/water/web template-effect family out of the main renderable catalog, leaving `templateEffectRenderables.ts` as mostly registry/cache plus the remaining arcane/psychic/fire recipes.
+- Extracted SceneCanvas viewport center reporting, wheel zoom wiring, and video-map event handling into focused hooks so map media/lifecycle mechanics no longer sit inline with pointer-mode orchestration.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots

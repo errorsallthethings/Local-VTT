@@ -205,9 +205,6 @@ import { getSceneDoubleClickActions } from "./scene/sceneDoubleClickRouting";
 import { getDrawingTransformHoverUpdate, getSceneItemHoverUpdate, getSceneSnapPointUpdate } from "./scene/sceneHoverUpdates";
 import {
   getGmMapAutoFitAction,
-  getVideoMapDeferredErrorAction,
-  getVideoMapImmediateErrorAction,
-  shouldFitGmCameraToVideoMap
 } from "./scene/sceneMapViewportPolicy";
 import { getScenePointerDownRoute } from "./scene/scenePointerDownRouting";
 import { getScenePointerMoveFallbackRoute } from "./scene/scenePointerMoveFallbackRouting";
@@ -215,7 +212,6 @@ import { getBrushHoverPointForPointerMove, getScenePolygonDraftPointerMoveUpdate
 import { getScenePointerMoveRoute } from "./scene/scenePointerMoveRouting";
 import { getScenePointerUpRoute } from "./scene/scenePointerUpRouting";
 import { clearSceneSelectionsExcept as clearSceneSelectionsExceptTarget, getSceneMarqueeSelectionPayload } from "./scene/sceneSelectionRouting";
-import { getSceneViewportCenterReport, getSceneWheelZoomCamera } from "./scene/sceneViewportActions";
 import { canAcceptTokenAssetDrop as canAcceptSceneTokenAssetDrop, getDroppedTokenAsset } from "./scene/sceneTokenAssetDrop";
 import { getDrawingPointerMove, getDrawingPointerMoveAction } from "./scene/sceneDrawingPointer";
 import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerMoveAction } from "./scene/sceneEnvironmentEffectPointer";
@@ -239,6 +235,9 @@ import { getRulerWaypointAppendKeyboardAction, getTokenWaypointAppendKeyboardAct
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
 import { getWeatherMaskPointerMove, getWeatherMaskPointerMoveAction } from "./scene/sceneWeatherMaskPointer";
+import { useSceneViewportCenterReporting } from "./scene/useSceneViewportCenterReporting";
+import { useSceneVideoMapHandlers } from "./scene/useSceneVideoMapHandlers";
+import { useSceneWheelZoom } from "./scene/useSceneWheelZoom";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
@@ -1164,27 +1163,14 @@ export function SceneCanvas({
     return retainEnvironmentEffectRuntimes();
   }, []);
 
-  useEffect(() => {
-    if (mode !== "gm" || !scene || !onViewportCenterChange) {
-      return;
-    }
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-
-    const reportCenter = () => {
-      const center = getSceneViewportCenterReport(canvas, camera, playerDisplayScale);
-      if (center) {
-        onViewportCenterChange(center);
-      }
-    };
-
-    reportCenter();
-    const observer = new ResizeObserver(reportCenter);
-    observer.observe(canvas);
-    return () => observer.disconnect();
-  }, [camera, mode, onViewportCenterChange, playerDisplayScale, scene]);
+  useSceneViewportCenterReporting({
+    camera,
+    canvasRef,
+    mode,
+    onViewportCenterChange,
+    playerDisplayScale,
+    scene
+  });
 
   const selectFromMarquee = (currentScene: Scene, drag: SelectionDrag) => {
     const selection = getSceneMarqueeSelectionPayload(currentScene, drag, selectorSelectionFilters, {
@@ -1207,36 +1193,17 @@ export function SceneCanvas({
     });
   };
 
-  const onWheel = useCallback((event: WheelEvent) => {
-    if (!interactive) {
-      return;
-    }
-    event.preventDefault();
-    const canvas = canvasRef.current;
-    const nextCamera = getSceneWheelZoomCamera({
-      camera,
-      clientX: event.clientX,
-      clientY: event.clientY,
-      deltaY: event.deltaY,
-      element: canvas,
-      interactive
-    });
-    if (!nextCamera) {
-      return;
-    }
-
+  const disableAutoFitCamera = useCallback(() => {
     autoFitCameraRef.current = false;
-    setCamera(nextCamera);
-  }, [camera, interactive]);
+  }, []);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return undefined;
-    }
-    canvas.addEventListener("wheel", onWheel, { passive: false });
-    return () => canvas.removeEventListener("wheel", onWheel);
-  }, [onWheel]);
+  useSceneWheelZoom({
+    camera,
+    canvasRef,
+    interactive,
+    onAutoFitCameraDisabled: disableAutoFitCamera,
+    onCameraChange: setCamera
+  });
 
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     dismissCanvasContextMenus();
@@ -2279,61 +2246,22 @@ export function SceneCanvas({
     onCommit: commitEnvironmentPolygonDraft
   });
 
-  const fitGmCameraToVideoMap = (video: HTMLVideoElement) => {
-    const canvas = canvasRef.current;
-    const rect = canvas?.getBoundingClientRect();
-    if (
-      !shouldFitGmCameraToVideoMap({
-        hasScene: Boolean(scene),
-        isVideoMap,
-        mapAssetId: mapAsset?.id,
-        mode,
-        videoHeight: video.videoHeight,
-        videoMapAssetId: video.dataset.mapAssetId,
-        videoWidth: video.videoWidth,
-        viewportHeight: rect?.height ?? 0,
-        viewportWidth: rect?.width ?? 0
-      })
-    ) {
-      return;
-    }
-
-    fitGmCameraToReadyMap(rect?.width ?? 0, rect?.height ?? 0);
-  };
-
-  const handleVideoMapCanPlay = (video: HTMLVideoElement, index: number) => {
-    setVideoMapLoadStatus("ready");
-    fitGmCameraToVideoMap(video);
-    playActiveWhenReady(index);
-  };
-
-  const handleVideoMapReady = (video: HTMLVideoElement) => {
-    setVideoMapLoadStatus("ready");
-    fitGmCameraToVideoMap(video);
-  };
-
-  const handleVideoMapMetadataReady = (video: HTMLVideoElement) => {
-    fitGmCameraToVideoMap(video);
-  };
-
-  const handleVideoMapError = (video: HTMLVideoElement, index: number) => {
-    const immediateAction = getVideoMapImmediateErrorAction(video.readyState);
-    if (immediateAction.kind === "set-status") {
-      setVideoMapLoadStatus(immediateAction.status);
-      return;
-    }
-    window.setTimeout(() => {
-      setVideoMapLoadStatus((status) => {
-        const deferredAction = getVideoMapDeferredErrorAction({
-          activeVideoIndex,
-          currentStatus: status,
-          index,
-          readyState: video.readyState
-        });
-        return deferredAction.kind === "set-status" ? deferredAction.status : status;
-      });
-    }, 180);
-  };
+  const {
+    handleVideoMapCanPlay,
+    handleVideoMapError,
+    handleVideoMapMetadataReady,
+    handleVideoMapReady
+  } = useSceneVideoMapHandlers({
+    activeVideoIndex,
+    canvasRef,
+    fitGmCameraToReadyMap,
+    isVideoMap,
+    mapAssetId: mapAsset?.id,
+    mode,
+    playActiveWhenReady,
+    scene,
+    setVideoMapLoadStatus
+  });
 
   const showMapOverlay = sceneCanvasReadiness.mapOverlayActive;
   const mapOverlayMessage = sceneCanvasReadiness.mapOverlayMessage;
