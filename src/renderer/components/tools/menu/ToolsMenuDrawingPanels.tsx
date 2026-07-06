@@ -35,7 +35,7 @@ export function getDrawingPanelFillSettingsVisible(activeDrawingTool: DrawingToo
   return activeDrawingTool !== "freehand" && activeDrawingTool !== "line";
 }
 
-interface DrawingPanelSettingsProps {
+export interface DrawingPanelSettingsState {
   activeDrawingTool: DrawingTool | null;
   drawingColor: string;
   drawingOpacity: number;
@@ -48,6 +48,9 @@ interface DrawingPanelSettingsProps {
   drawingTemplateWidth: DrawingTemplateWidth;
   drawingThicknessCustomOpen: boolean;
   drawingOpacityCustomOpen: boolean;
+}
+
+export interface DrawingPanelSettingsChangeHandlers {
   onDrawingColorChange: (color: string) => void;
   onDrawingOpacityChange: (opacity: number) => void;
   onDrawingFillColorChange: (color: string) => void;
@@ -61,7 +64,9 @@ interface DrawingPanelSettingsProps {
   onDrawingOpacityCustomOpenChange: (open: boolean) => void;
 }
 
-interface DrawingToolsPanelProps extends DrawingPanelSettingsProps {
+interface DrawingToolsPanelProps {
+  settings: DrawingPanelSettingsState;
+  onSettingsChange: DrawingPanelSettingsChangeHandlers;
   drawingCount: number;
   drawingSettingsOpen: boolean;
   helpTopic: ToolHelpTopic | null;
@@ -71,7 +76,9 @@ interface DrawingToolsPanelProps extends DrawingPanelSettingsProps {
   onHelpTopicChange: (topic: ToolHelpTopic | null) => void;
 }
 
-interface TemplateToolsPanelProps extends DrawingPanelSettingsProps {
+interface TemplateToolsPanelProps {
+  settings: DrawingPanelSettingsState;
+  onSettingsChange: DrawingPanelSettingsChangeHandlers;
   drawingCount: number;
   templateSettingsOpen: boolean;
   templatePreviewVisibleInPlayer: boolean;
@@ -84,22 +91,22 @@ interface TemplateToolsPanelProps extends DrawingPanelSettingsProps {
 }
 
 export function DrawingToolsPanel({
-  activeDrawingTool,
+  settings,
+  onSettingsChange,
   drawingCount,
   drawingSettingsOpen,
   helpTopic,
   onDrawingToolChange,
   onUndoDrawing,
   onDrawingSettingsOpenChange,
-  onHelpTopicChange,
-  ...settingsProps
+  onHelpTopicChange
 }: DrawingToolsPanelProps) {
   return (
     <div className="tools-panel-section">
       <HelpButton active={helpTopic === "drawing"} label="Drawing tools help" onClick={() => onHelpTopicChange(getNextToolHelpTopic(helpTopic, "drawing"))} />
       <DrawingToolButtonRow
         buttons={DRAWING_TOOL_BUTTONS}
-        activeDrawingTool={activeDrawingTool}
+        activeDrawingTool={settings.activeDrawingTool}
         drawingCount={drawingCount}
         undoLabel="Undo Last Drawing"
         onDrawingToolChange={onDrawingToolChange}
@@ -109,9 +116,9 @@ export function DrawingToolsPanel({
       <SettingsToggle open={drawingSettingsOpen} label="Settings" onToggle={() => onDrawingSettingsOpenChange(!drawingSettingsOpen)} />
       {drawingSettingsOpen && (
         <DrawingSettings
-          {...settingsProps}
-          activeDrawingTool={activeDrawingTool}
-          showFillSettings={getDrawingPanelFillSettingsVisible(activeDrawingTool)}
+          {...settings}
+          {...onSettingsChange}
+          showFillSettings={getDrawingPanelFillSettingsVisible(settings.activeDrawingTool)}
           templateToolActive={false}
         />
       )}
@@ -121,7 +128,8 @@ export function DrawingToolsPanel({
 }
 
 export function TemplateToolsPanel({
-  activeDrawingTool,
+  settings,
+  onSettingsChange,
   drawingCount,
   templateSettingsOpen,
   templatePreviewVisibleInPlayer,
@@ -130,15 +138,14 @@ export function TemplateToolsPanel({
   onUndoDrawing,
   onTemplateSettingsOpenChange,
   onTemplatePreviewVisibleInPlayerChange,
-  onHelpTopicChange,
-  ...settingsProps
+  onHelpTopicChange
 }: TemplateToolsPanelProps) {
   return (
     <div className="tools-panel-section">
       <HelpButton active={helpTopic === "templates"} label="Template tools help" onClick={() => onHelpTopicChange(getNextToolHelpTopic(helpTopic, "templates"))} />
       <DrawingToolButtonRow
         buttons={TEMPLATE_TOOL_BUTTONS}
-        activeDrawingTool={activeDrawingTool}
+        activeDrawingTool={settings.activeDrawingTool}
         drawingCount={drawingCount}
         undoLabel="Undo Last Drawing"
         onDrawingToolChange={onDrawingToolChange}
@@ -148,9 +155,9 @@ export function TemplateToolsPanel({
       <SettingsToggle open={templateSettingsOpen} label="Settings" onToggle={() => onTemplateSettingsOpenChange(!templateSettingsOpen)} />
       {templateSettingsOpen && (
         <DrawingSettings
-          {...settingsProps}
+          {...settings}
+          {...onSettingsChange}
           templatePreviewVisibleInPlayer={templatePreviewVisibleInPlayer}
-          activeDrawingTool={activeDrawingTool}
           showFillSettings={false}
           templateToolActive
           onTemplatePreviewVisibleInPlayerChange={onTemplatePreviewVisibleInPlayerChange}

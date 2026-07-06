@@ -14,8 +14,8 @@ import {
   resetSelectedEnvironmentEffectTuning,
 } from "./environmentEffectMenuActions";
 import { ToolsMenuCategoryRail } from "./ToolsMenuCategoryRail";
-import { DrawingToolsPanel, TemplateToolsPanel } from "./ToolsMenuDrawingPanels";
-import { EnvironmentEffectsPanel } from "./ToolsMenuEffectsPanel";
+import { DrawingToolsPanel, TemplateToolsPanel, type DrawingPanelSettingsChangeHandlers, type DrawingPanelSettingsState } from "./ToolsMenuDrawingPanels";
+import { EnvironmentEffectsPanel, type EnvironmentEffectTuningChangeHandlers, type EnvironmentEffectTuningState } from "./ToolsMenuEffectsPanel";
 import { ToolsMenuMousePanel } from "./ToolsMenuMousePanel";
 import { PanelHeader, Placeholder } from "./ToolsMenuPrimitives";
 import { FogToolsPanel, TableToolsPanel } from "./ToolsMenuUtilityPanels";
@@ -310,6 +310,73 @@ export function ToolsMenu(props: ToolsMenuProps) {
 
   const environmentEffectPresetHandlers = createEnvironmentEffectPresetChangeHandlers(props);
   const environmentEffectResetHandlers = createEnvironmentEffectResetHandlers(props);
+  const environmentEffectTuning: EnvironmentEffectTuningState = {
+    acidEffectTuning,
+    coldEffectTuning,
+    darknessEffectTuning,
+    poisonEffectTuning,
+    waterEffectTuning,
+    lavaEffectTuning,
+    fireEffectTuning,
+    lightningEffectTuning,
+    arcaneEffectTuning,
+    chaosEffectTuning,
+    voidEffectTuning,
+    natureEffectTuning,
+    distortionEffectTuning,
+    radiantEffectTuning,
+    forceFieldEffectTuning,
+    shockwaveEffectTuning,
+    smokeEffectTuning,
+    fogEffectTuning
+  };
+  const environmentEffectTuningChangeHandlers: EnvironmentEffectTuningChangeHandlers = {
+    onAcidEffectTuningChange,
+    onColdEffectTuningChange,
+    onDarknessEffectTuningChange,
+    onPoisonEffectTuningChange,
+    onWaterEffectTuningChange,
+    onLavaEffectTuningChange,
+    onFireEffectTuningChange,
+    onLightningEffectTuningChange,
+    onArcaneEffectTuningChange,
+    onChaosEffectTuningChange,
+    onVoidEffectTuningChange,
+    onNatureEffectTuningChange,
+    onDistortionEffectTuningChange,
+    onRadiantEffectTuningChange,
+    onForceFieldEffectTuningChange,
+    onShockwaveEffectTuningChange,
+    onSmokeEffectTuningChange,
+    onFogEffectTuningChange
+  };
+  const drawingPanelSettings: DrawingPanelSettingsState = {
+    activeDrawingTool,
+    drawingColor,
+    drawingOpacity,
+    drawingFillColor,
+    drawingFillOpacity,
+    drawingStrokeStyle,
+    drawingStrokeWidth,
+    drawingTemplateSize,
+    drawingTemplateEffect,
+    drawingTemplateWidth,
+    drawingThicknessCustomOpen,
+    drawingOpacityCustomOpen
+  };
+  const drawingPanelSettingsChangeHandlers: DrawingPanelSettingsChangeHandlers = {
+    onDrawingColorChange,
+    onDrawingOpacityChange,
+    onDrawingFillColorChange,
+    onDrawingFillOpacityChange,
+    onDrawingStrokeStyleChange,
+    onDrawingStrokeWidthChange,
+    onDrawingTemplateSizeChange,
+    onDrawingTemplateEffectChange,
+    onDrawingTemplateWidthChange,
+    onDrawingThicknessCustomOpenChange: setDrawingThicknessCustomOpen,
+    onDrawingOpacityCustomOpenChange: setDrawingOpacityCustomOpen
+  };
 
   const resetEnvironmentEffectTuning = () => {
     resetSelectedEnvironmentEffectTuning(environmentEffectType, environmentEffectPresetValue, environmentEffectPresetHandlers, environmentEffectResetHandlers);
@@ -527,72 +594,30 @@ export function ToolsMenu(props: ToolsMenuProps) {
           )}
           {activeCategory === "drawing" && (
             <DrawingToolsPanel
-              activeDrawingTool={activeDrawingTool}
+              settings={drawingPanelSettings}
+              onSettingsChange={drawingPanelSettingsChangeHandlers}
               drawingCount={drawingCount}
               drawingSettingsOpen={drawingSettingsOpen}
               helpTopic={helpTopic}
-              drawingColor={drawingColor}
-              drawingOpacity={drawingOpacity}
-              drawingFillColor={drawingFillColor}
-              drawingFillOpacity={drawingFillOpacity}
-              drawingStrokeStyle={drawingStrokeStyle}
-              drawingStrokeWidth={drawingStrokeWidth}
-              drawingTemplateSize={drawingTemplateSize}
-              drawingTemplateEffect={drawingTemplateEffect}
-              drawingTemplateWidth={drawingTemplateWidth}
-              drawingThicknessCustomOpen={drawingThicknessCustomOpen}
-              drawingOpacityCustomOpen={drawingOpacityCustomOpen}
               onDrawingToolChange={setDrawingTool}
               onUndoDrawing={onUndoDrawing}
               onDrawingSettingsOpenChange={setDrawingSettingsOpen}
               onHelpTopicChange={setHelpTopic}
-              onDrawingColorChange={onDrawingColorChange}
-              onDrawingOpacityChange={onDrawingOpacityChange}
-              onDrawingFillColorChange={onDrawingFillColorChange}
-              onDrawingFillOpacityChange={onDrawingFillOpacityChange}
-              onDrawingStrokeStyleChange={onDrawingStrokeStyleChange}
-              onDrawingStrokeWidthChange={onDrawingStrokeWidthChange}
-              onDrawingTemplateSizeChange={onDrawingTemplateSizeChange}
-              onDrawingTemplateEffectChange={onDrawingTemplateEffectChange}
-              onDrawingTemplateWidthChange={onDrawingTemplateWidthChange}
-              onDrawingThicknessCustomOpenChange={setDrawingThicknessCustomOpen}
-              onDrawingOpacityCustomOpenChange={setDrawingOpacityCustomOpen}
             />
           )}
           {activeCategory === "templates" && (
             <TemplateToolsPanel
-              activeDrawingTool={activeDrawingTool}
+              settings={drawingPanelSettings}
+              onSettingsChange={drawingPanelSettingsChangeHandlers}
               drawingCount={drawingCount}
               templateSettingsOpen={templateSettingsOpen}
               templatePreviewVisibleInPlayer={templatePreviewVisibleInPlayer}
               helpTopic={helpTopic}
-              drawingColor={drawingColor}
-              drawingOpacity={drawingOpacity}
-              drawingFillColor={drawingFillColor}
-              drawingFillOpacity={drawingFillOpacity}
-              drawingStrokeStyle={drawingStrokeStyle}
-              drawingStrokeWidth={drawingStrokeWidth}
-              drawingTemplateSize={drawingTemplateSize}
-              drawingTemplateEffect={drawingTemplateEffect}
-              drawingTemplateWidth={drawingTemplateWidth}
-              drawingThicknessCustomOpen={drawingThicknessCustomOpen}
-              drawingOpacityCustomOpen={drawingOpacityCustomOpen}
               onDrawingToolChange={setDrawingTool}
               onUndoDrawing={onUndoDrawing}
               onTemplateSettingsOpenChange={setTemplateSettingsOpen}
               onTemplatePreviewVisibleInPlayerChange={onTemplatePreviewVisibleInPlayerChange}
               onHelpTopicChange={setHelpTopic}
-              onDrawingColorChange={onDrawingColorChange}
-              onDrawingOpacityChange={onDrawingOpacityChange}
-              onDrawingFillColorChange={onDrawingFillColorChange}
-              onDrawingFillOpacityChange={onDrawingFillOpacityChange}
-              onDrawingStrokeStyleChange={onDrawingStrokeStyleChange}
-              onDrawingStrokeWidthChange={onDrawingStrokeWidthChange}
-              onDrawingTemplateSizeChange={onDrawingTemplateSizeChange}
-              onDrawingTemplateEffectChange={onDrawingTemplateEffectChange}
-              onDrawingTemplateWidthChange={onDrawingTemplateWidthChange}
-              onDrawingThicknessCustomOpenChange={setDrawingThicknessCustomOpen}
-              onDrawingOpacityCustomOpenChange={setDrawingOpacityCustomOpen}
             />
           )}
           {activeCategory === "text" && <Placeholder message="Text tools will be added here." />}
@@ -653,24 +678,7 @@ export function ToolsMenu(props: ToolsMenuProps) {
               weatherMaskCount={weatherMaskCount}
               environmentEffectCount={environmentEffectCount}
               helpTopic={helpTopic}
-              acidEffectTuning={acidEffectTuning}
-              coldEffectTuning={coldEffectTuning}
-              darknessEffectTuning={darknessEffectTuning}
-              poisonEffectTuning={poisonEffectTuning}
-              waterEffectTuning={waterEffectTuning}
-              lavaEffectTuning={lavaEffectTuning}
-              fireEffectTuning={fireEffectTuning}
-              lightningEffectTuning={lightningEffectTuning}
-              arcaneEffectTuning={arcaneEffectTuning}
-              chaosEffectTuning={chaosEffectTuning}
-              voidEffectTuning={voidEffectTuning}
-              natureEffectTuning={natureEffectTuning}
-              distortionEffectTuning={distortionEffectTuning}
-              radiantEffectTuning={radiantEffectTuning}
-              forceFieldEffectTuning={forceFieldEffectTuning}
-              shockwaveEffectTuning={shockwaveEffectTuning}
-              smokeEffectTuning={smokeEffectTuning}
-              fogEffectTuning={fogEffectTuning}
+              tuning={environmentEffectTuning}
               onWeatherMaskToolChange={setWeatherMaskTool}
               onEnvironmentEffectToolChange={setEnvironmentEffectTool}
               onUndoWeatherMask={onUndoWeatherMask}
@@ -680,24 +688,7 @@ export function ToolsMenu(props: ToolsMenuProps) {
               onEnvironmentEffectPresetValueChange={setEnvironmentEffectPresetValue}
               onEnvironmentEffectPresetApply={(presetValue) => applySelectedEnvironmentEffectPreset(environmentEffectType, presetValue, environmentEffectPresetHandlers)}
               onEnvironmentEffectTuningReset={resetEnvironmentEffectTuning}
-              onAcidEffectTuningChange={onAcidEffectTuningChange}
-              onColdEffectTuningChange={onColdEffectTuningChange}
-              onDarknessEffectTuningChange={onDarknessEffectTuningChange}
-              onPoisonEffectTuningChange={onPoisonEffectTuningChange}
-              onWaterEffectTuningChange={onWaterEffectTuningChange}
-              onLavaEffectTuningChange={onLavaEffectTuningChange}
-              onFireEffectTuningChange={onFireEffectTuningChange}
-              onLightningEffectTuningChange={onLightningEffectTuningChange}
-              onArcaneEffectTuningChange={onArcaneEffectTuningChange}
-              onChaosEffectTuningChange={onChaosEffectTuningChange}
-              onVoidEffectTuningChange={onVoidEffectTuningChange}
-              onNatureEffectTuningChange={onNatureEffectTuningChange}
-              onDistortionEffectTuningChange={onDistortionEffectTuningChange}
-              onRadiantEffectTuningChange={onRadiantEffectTuningChange}
-              onForceFieldEffectTuningChange={onForceFieldEffectTuningChange}
-              onShockwaveEffectTuningChange={onShockwaveEffectTuningChange}
-              onSmokeEffectTuningChange={onSmokeEffectTuningChange}
-              onFogEffectTuningChange={onFogEffectTuningChange}
+              onTuningChange={environmentEffectTuningChangeHandlers}
               onHelpTopicChange={setHelpTopic}
             />
           )}

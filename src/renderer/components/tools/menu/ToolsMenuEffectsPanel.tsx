@@ -61,16 +61,7 @@ export function getNextEffectsHelpTopic(currentTopic: ToolHelpTopic | null): Too
   return currentTopic === "effects" ? null : "effects";
 }
 
-interface EnvironmentEffectsPanelProps {
-  activeWeatherMaskTool: WeatherMaskTool | null;
-  activeEnvironmentEffectTool: EnvironmentEffectTool | null;
-  environmentEffectType: EnvironmentEffectType;
-  environmentEffectFeather: number;
-  environmentEffectPresetValue: string;
-  weatherToolsEnabled: boolean;
-  weatherMaskCount: number;
-  environmentEffectCount: number;
-  helpTopic: ToolHelpTopic | null;
+export interface EnvironmentEffectTuningState {
   acidEffectTuning: AcidEffectTuning;
   coldEffectTuning: ColdEffectTuning;
   darknessEffectTuning: DarknessEffectTuning;
@@ -89,15 +80,9 @@ interface EnvironmentEffectsPanelProps {
   shockwaveEffectTuning: ShockwaveEffectTuning;
   smokeEffectTuning: SmokeEffectTuning;
   fogEffectTuning: FogEffectTuning;
-  onWeatherMaskToolChange: (tool: WeatherMaskTool) => void;
-  onEnvironmentEffectToolChange: (tool: EnvironmentEffectTool) => void;
-  onUndoWeatherMask: () => void;
-  onUndoEnvironmentEffect: () => void;
-  onEnvironmentEffectTypeChange: (effect: EnvironmentEffectType) => void;
-  onEnvironmentEffectFeatherChange: (feather: number) => void;
-  onEnvironmentEffectPresetValueChange: (presetValue: string) => void;
-  onEnvironmentEffectPresetApply: (presetValue: string) => void;
-  onEnvironmentEffectTuningReset: () => void;
+}
+
+export interface EnvironmentEffectTuningChangeHandlers {
   onAcidEffectTuningChange: (tuning: AcidEffectTuning) => void;
   onColdEffectTuningChange: (tuning: ColdEffectTuning) => void;
   onDarknessEffectTuningChange: (tuning: DarknessEffectTuning) => void;
@@ -116,6 +101,29 @@ interface EnvironmentEffectsPanelProps {
   onShockwaveEffectTuningChange: (tuning: ShockwaveEffectTuning) => void;
   onSmokeEffectTuningChange: (tuning: SmokeEffectTuning) => void;
   onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
+}
+
+interface EnvironmentEffectsPanelProps {
+  activeWeatherMaskTool: WeatherMaskTool | null;
+  activeEnvironmentEffectTool: EnvironmentEffectTool | null;
+  environmentEffectType: EnvironmentEffectType;
+  environmentEffectFeather: number;
+  environmentEffectPresetValue: string;
+  weatherToolsEnabled: boolean;
+  weatherMaskCount: number;
+  environmentEffectCount: number;
+  helpTopic: ToolHelpTopic | null;
+  tuning: EnvironmentEffectTuningState;
+  onWeatherMaskToolChange: (tool: WeatherMaskTool) => void;
+  onEnvironmentEffectToolChange: (tool: EnvironmentEffectTool) => void;
+  onUndoWeatherMask: () => void;
+  onUndoEnvironmentEffect: () => void;
+  onEnvironmentEffectTypeChange: (effect: EnvironmentEffectType) => void;
+  onEnvironmentEffectFeatherChange: (feather: number) => void;
+  onEnvironmentEffectPresetValueChange: (presetValue: string) => void;
+  onEnvironmentEffectPresetApply: (presetValue: string) => void;
+  onEnvironmentEffectTuningReset: () => void;
+  onTuningChange: EnvironmentEffectTuningChangeHandlers;
   onHelpTopicChange: (topic: ToolHelpTopic | null) => void;
 }
 
@@ -129,24 +137,7 @@ export function EnvironmentEffectsPanel({
   weatherMaskCount,
   environmentEffectCount,
   helpTopic,
-  acidEffectTuning,
-  coldEffectTuning,
-  darknessEffectTuning,
-  poisonEffectTuning,
-  waterEffectTuning,
-  lavaEffectTuning,
-  fireEffectTuning,
-  lightningEffectTuning,
-  arcaneEffectTuning,
-  chaosEffectTuning,
-  voidEffectTuning,
-  natureEffectTuning,
-  distortionEffectTuning,
-  radiantEffectTuning,
-  forceFieldEffectTuning,
-  shockwaveEffectTuning,
-  smokeEffectTuning,
-  fogEffectTuning,
+  tuning,
   onWeatherMaskToolChange,
   onEnvironmentEffectToolChange,
   onUndoWeatherMask,
@@ -156,24 +147,7 @@ export function EnvironmentEffectsPanel({
   onEnvironmentEffectPresetValueChange,
   onEnvironmentEffectPresetApply,
   onEnvironmentEffectTuningReset,
-  onAcidEffectTuningChange,
-  onColdEffectTuningChange,
-  onDarknessEffectTuningChange,
-  onPoisonEffectTuningChange,
-  onWaterEffectTuningChange,
-  onLavaEffectTuningChange,
-  onFireEffectTuningChange,
-  onLightningEffectTuningChange,
-  onArcaneEffectTuningChange,
-  onChaosEffectTuningChange,
-  onVoidEffectTuningChange,
-  onNatureEffectTuningChange,
-  onDistortionEffectTuningChange,
-  onRadiantEffectTuningChange,
-  onForceFieldEffectTuningChange,
-  onShockwaveEffectTuningChange,
-  onSmokeEffectTuningChange,
-  onFogEffectTuningChange,
+  onTuningChange,
   onHelpTopicChange
 }: EnvironmentEffectsPanelProps) {
   return (
@@ -222,43 +196,9 @@ export function EnvironmentEffectsPanel({
       />
       <EnvironmentEffectTuning
         environmentEffectType={environmentEffectType}
-        acidEffectTuning={acidEffectTuning}
-        coldEffectTuning={coldEffectTuning}
-        darknessEffectTuning={darknessEffectTuning}
-        poisonEffectTuning={poisonEffectTuning}
-        waterEffectTuning={waterEffectTuning}
-        lavaEffectTuning={lavaEffectTuning}
-        fireEffectTuning={fireEffectTuning}
-        lightningEffectTuning={lightningEffectTuning}
-        arcaneEffectTuning={arcaneEffectTuning}
-        chaosEffectTuning={chaosEffectTuning}
-        voidEffectTuning={voidEffectTuning}
-        natureEffectTuning={natureEffectTuning}
-        distortionEffectTuning={distortionEffectTuning}
-        radiantEffectTuning={radiantEffectTuning}
-        forceFieldEffectTuning={forceFieldEffectTuning}
-        shockwaveEffectTuning={shockwaveEffectTuning}
-        smokeEffectTuning={smokeEffectTuning}
-        fogEffectTuning={fogEffectTuning}
+        tuning={tuning}
         onReset={onEnvironmentEffectTuningReset}
-        onAcidEffectTuningChange={onAcidEffectTuningChange}
-        onColdEffectTuningChange={onColdEffectTuningChange}
-        onDarknessEffectTuningChange={onDarknessEffectTuningChange}
-        onPoisonEffectTuningChange={onPoisonEffectTuningChange}
-        onWaterEffectTuningChange={onWaterEffectTuningChange}
-        onLavaEffectTuningChange={onLavaEffectTuningChange}
-        onFireEffectTuningChange={onFireEffectTuningChange}
-        onLightningEffectTuningChange={onLightningEffectTuningChange}
-        onArcaneEffectTuningChange={onArcaneEffectTuningChange}
-        onChaosEffectTuningChange={onChaosEffectTuningChange}
-        onVoidEffectTuningChange={onVoidEffectTuningChange}
-        onNatureEffectTuningChange={onNatureEffectTuningChange}
-        onDistortionEffectTuningChange={onDistortionEffectTuningChange}
-        onRadiantEffectTuningChange={onRadiantEffectTuningChange}
-        onForceFieldEffectTuningChange={onForceFieldEffectTuningChange}
-        onShockwaveEffectTuningChange={onShockwaveEffectTuningChange}
-        onSmokeEffectTuningChange={onSmokeEffectTuningChange}
-        onFogEffectTuningChange={onFogEffectTuningChange}
+        onTuningChange={onTuningChange}
       />
       {helpTopic === "effects" && <ToolHelpCard topic="effects" />}
     </div>
@@ -345,66 +285,34 @@ function EnvironmentEffectSettings({
 
 interface EnvironmentEffectTuningProps {
   environmentEffectType: EnvironmentEffectType;
-  acidEffectTuning: AcidEffectTuning;
-  coldEffectTuning: ColdEffectTuning;
-  darknessEffectTuning: DarknessEffectTuning;
-  poisonEffectTuning: PoisonEffectTuning;
-  waterEffectTuning: WaterEffectTuning;
-  lavaEffectTuning: LavaEffectTuning;
-  fireEffectTuning: FireEffectTuning;
-  lightningEffectTuning: LightningEffectTuning;
-  arcaneEffectTuning: ArcaneEffectTuning;
-  chaosEffectTuning: ChaosEffectTuning;
-  voidEffectTuning: VoidEffectTuning;
-  natureEffectTuning: NatureEffectTuning;
-  distortionEffectTuning: DistortionEffectTuning;
-  radiantEffectTuning: RadiantEffectTuning;
-  forceFieldEffectTuning: ForceFieldEffectTuning;
-  shockwaveEffectTuning: ShockwaveEffectTuning;
-  smokeEffectTuning: SmokeEffectTuning;
-  fogEffectTuning: FogEffectTuning;
+  tuning: EnvironmentEffectTuningState;
   onReset: () => void;
-  onAcidEffectTuningChange: (tuning: AcidEffectTuning) => void;
-  onColdEffectTuningChange: (tuning: ColdEffectTuning) => void;
-  onDarknessEffectTuningChange: (tuning: DarknessEffectTuning) => void;
-  onPoisonEffectTuningChange: (tuning: PoisonEffectTuning) => void;
-  onWaterEffectTuningChange: (tuning: WaterEffectTuning) => void;
-  onLavaEffectTuningChange: (tuning: LavaEffectTuning) => void;
-  onFireEffectTuningChange: (tuning: FireEffectTuning) => void;
-  onLightningEffectTuningChange: (tuning: LightningEffectTuning) => void;
-  onArcaneEffectTuningChange: (tuning: ArcaneEffectTuning) => void;
-  onChaosEffectTuningChange: (tuning: ChaosEffectTuning) => void;
-  onVoidEffectTuningChange: (tuning: VoidEffectTuning) => void;
-  onNatureEffectTuningChange: (tuning: NatureEffectTuning) => void;
-  onDistortionEffectTuningChange: (tuning: DistortionEffectTuning) => void;
-  onRadiantEffectTuningChange: (tuning: RadiantEffectTuning) => void;
-  onForceFieldEffectTuningChange: (tuning: ForceFieldEffectTuning) => void;
-  onShockwaveEffectTuningChange: (tuning: ShockwaveEffectTuning) => void;
-  onSmokeEffectTuningChange: (tuning: SmokeEffectTuning) => void;
-  onFogEffectTuningChange: (tuning: FogEffectTuning) => void;
+  onTuningChange: EnvironmentEffectTuningChangeHandlers;
 }
 
 function EnvironmentEffectTuning(props: EnvironmentEffectTuningProps) {
+  const { environmentEffectType, tuning, onReset, onTuningChange } = props;
+
   return (
     <>
-      {props.environmentEffectType === "acid" && <TuningSection><AcidEffectTuningPanel tuning={props.acidEffectTuning} onChange={props.onAcidEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "cold" && <TuningSection><ColdEffectTuningPanel tuning={props.coldEffectTuning} onChange={props.onColdEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "darkness" && <TuningSection><DarknessEffectTuningPanel tuning={props.darknessEffectTuning} onChange={props.onDarknessEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "poison" && <TuningSection><PoisonEffectTuningPanel tuning={props.poisonEffectTuning} onChange={props.onPoisonEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "water" && <TuningSection><WaterEffectTuningPanel tuning={props.waterEffectTuning} onChange={props.onWaterEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "lava" && <TuningSection><LavaEffectTuningPanel tuning={props.lavaEffectTuning} onChange={props.onLavaEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "fire" && <TuningSection><FireEffectTuningPanel tuning={props.fireEffectTuning} onChange={props.onFireEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "electric" && <TuningSection><LightningEffectTuningPanel tuning={props.lightningEffectTuning} onChange={props.onLightningEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "arcane" && <TuningSection><ArcaneEffectTuningPanel tuning={props.arcaneEffectTuning} onChange={props.onArcaneEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "chaos" && <TuningSection><ChaosEffectTuningPanel tuning={props.chaosEffectTuning} onChange={props.onChaosEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "void" && <TuningSection><VoidEffectTuningPanel tuning={props.voidEffectTuning} onChange={props.onVoidEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "nature" && <TuningSection><NatureEffectTuningPanel tuning={props.natureEffectTuning} onChange={props.onNatureEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "distortion" && <TuningSection><DistortionEffectTuningPanel tuning={props.distortionEffectTuning} onChange={props.onDistortionEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "radiant" && <TuningSection><RadiantEffectTuningPanel tuning={props.radiantEffectTuning} onChange={props.onRadiantEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "field" && <TuningSection><ForceFieldEffectTuningPanel tuning={props.forceFieldEffectTuning} onChange={props.onForceFieldEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "shockwave" && <TuningSection><ShockwaveEffectTuningPanel tuning={props.shockwaveEffectTuning} onChange={props.onShockwaveEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "smoke" && <TuningSection><SmokeEffectTuningPanel tuning={props.smokeEffectTuning} onChange={props.onSmokeEffectTuningChange} onReset={props.onReset} /></TuningSection>}
-      {props.environmentEffectType === "fog" && <TuningSection><FogEffectTuningPanel tuning={props.fogEffectTuning} onChange={props.onFogEffectTuningChange} onReset={props.onReset} /></TuningSection>}
+      {environmentEffectType === "acid" && <TuningSection><AcidEffectTuningPanel tuning={tuning.acidEffectTuning} onChange={onTuningChange.onAcidEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "cold" && <TuningSection><ColdEffectTuningPanel tuning={tuning.coldEffectTuning} onChange={onTuningChange.onColdEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "darkness" && <TuningSection><DarknessEffectTuningPanel tuning={tuning.darknessEffectTuning} onChange={onTuningChange.onDarknessEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "poison" && <TuningSection><PoisonEffectTuningPanel tuning={tuning.poisonEffectTuning} onChange={onTuningChange.onPoisonEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "water" && <TuningSection><WaterEffectTuningPanel tuning={tuning.waterEffectTuning} onChange={onTuningChange.onWaterEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "lava" && <TuningSection><LavaEffectTuningPanel tuning={tuning.lavaEffectTuning} onChange={onTuningChange.onLavaEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "fire" && <TuningSection><FireEffectTuningPanel tuning={tuning.fireEffectTuning} onChange={onTuningChange.onFireEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "electric" && <TuningSection><LightningEffectTuningPanel tuning={tuning.lightningEffectTuning} onChange={onTuningChange.onLightningEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "arcane" && <TuningSection><ArcaneEffectTuningPanel tuning={tuning.arcaneEffectTuning} onChange={onTuningChange.onArcaneEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "chaos" && <TuningSection><ChaosEffectTuningPanel tuning={tuning.chaosEffectTuning} onChange={onTuningChange.onChaosEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "void" && <TuningSection><VoidEffectTuningPanel tuning={tuning.voidEffectTuning} onChange={onTuningChange.onVoidEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "nature" && <TuningSection><NatureEffectTuningPanel tuning={tuning.natureEffectTuning} onChange={onTuningChange.onNatureEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "distortion" && <TuningSection><DistortionEffectTuningPanel tuning={tuning.distortionEffectTuning} onChange={onTuningChange.onDistortionEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "radiant" && <TuningSection><RadiantEffectTuningPanel tuning={tuning.radiantEffectTuning} onChange={onTuningChange.onRadiantEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "field" && <TuningSection><ForceFieldEffectTuningPanel tuning={tuning.forceFieldEffectTuning} onChange={onTuningChange.onForceFieldEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "shockwave" && <TuningSection><ShockwaveEffectTuningPanel tuning={tuning.shockwaveEffectTuning} onChange={onTuningChange.onShockwaveEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "smoke" && <TuningSection><SmokeEffectTuningPanel tuning={tuning.smokeEffectTuning} onChange={onTuningChange.onSmokeEffectTuningChange} onReset={onReset} /></TuningSection>}
+      {environmentEffectType === "fog" && <TuningSection><FogEffectTuningPanel tuning={tuning.fogEffectTuning} onChange={onTuningChange.onFogEffectTuningChange} onReset={onReset} /></TuningSection>}
     </>
   );
 }
