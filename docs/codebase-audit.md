@@ -78,6 +78,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Split drawing stroke dash policy and template asset overlay composition out of `drawingRenderer.ts`, reducing the drawing renderer to shape orchestration while keeping cached template overlays behind a focused module.
 - Centralized template-effect WebGL canvas creation, snapshotting, and disposal so generated template renderables share one lifecycle path instead of repeating setup/cleanup in every effect recipe.
 - Split drawing transform point-snapshot movement helpers and pure resize/rotation geometry out of `drawingTransform.ts`, leaving the transform module focused on selected-drawing bounds, handle hit-testing, and drag-start orchestration.
+- Moved template grid-highlight rendering into the grid-highlight module and isolated rectangle/circle/polygon intersection math with direct tests, keeping template presentation focused on fills, effect paths, and labels.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
@@ -86,6 +87,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - `src/renderer/canvas/drawings/templateEffectRenderables.ts`: still a large generated-style Three.js effect catalog after lifecycle cleanup. Keep the public registry stable, but split effect families or primitive helpers before adding more template effects.
 - `src/renderer/canvas/drawings/drawingRenderer.ts`: improved after overlay/stroke extraction, but still mixes base shape rendering with template-specific guide/label behavior. Continue separating template rendering from freehand/shape rendering.
 - `src/renderer/canvas/drawings/drawingTransform.ts`: improved after point-snapshot and geometry extraction. Further cleanup should focus on transform drag policy only if SceneCanvas needs new transform behavior.
+- `src/renderer/canvas/drawings/templateDrawingPresentation.ts`: improved after grid-highlight rendering extraction. Further changes should separate labels from fills only when label behavior changes.
 - `src/renderer/components/layers/LayerPanel.tsx`: layer UI is feature rich but broad. Extract per-layer panels when touching those areas.
 - `src/renderer/views/GmApp.tsx`: smaller after audit work, but still coordinates many workflows. Prefer extracting domain helpers or feature hooks before adding new state.
 - `electron/main.ts`: smaller after audit work, but still coordinates app lifecycle, IPC, windows, file IO, asset copy/delete, and Player View control. Continue extracting pure helpers or injectable service functions before changing behavior.

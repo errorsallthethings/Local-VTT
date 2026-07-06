@@ -3,7 +3,6 @@ import { distanceBetweenPoints, getConeTriangle } from "./drawingGeometry";
 import { getLineTemplateCorridorPoints, getRectanglePathPoints, scalePointsToCenter } from "./templateEffectGeometry";
 import { supportsTemplateEffectInnerGlow } from "./templateEffectAssets";
 import { getTemplateEffectStyle, getTemplateInnerGlowStyle } from "./templateEffectStyles";
-import { getTemplateGridHighlightCells } from "./templateGridHighlights";
 import { getTemplateLabel, getTemplateLabelPosition } from "./templateLabels";
 
 export function fillTemplateShape(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number, tracePath: () => void) {
@@ -102,34 +101,6 @@ export function traceClosedPath(ctx: CanvasRenderingContext2D, points: Point[]) 
   ctx.closePath();
 }
 
-export function drawTemplateGridHighlights(ctx: CanvasRenderingContext2D, drawing: DrawingElement, grid: GridSettings) {
-  if (grid.type === "gridless" || grid.sizePx <= 0 || drawing.points.length < 2) {
-    return;
-  }
-  const cells = getTemplateGridHighlightCells(drawing, grid);
-  if (cells.length === 0) {
-    return;
-  }
-  ctx.save();
-  ctx.setLineDash([5, 4]);
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "rgba(239, 68, 68, 0)";
-  ctx.strokeStyle = "#ff0000";
-  ctx.lineWidth = Math.max(5, Math.min(8, grid.lineThickness * 4));
-  for (const center of cells) {
-    if (grid.type === "hex") {
-      tracePointyHex(ctx, center.x, center.y, Math.max(8, grid.sizePx / 2));
-      ctx.fill();
-      ctx.stroke();
-    } else {
-      const size = grid.sizePx;
-      ctx.fillRect(center.x - size / 2, center.y - size / 2, size, size);
-      ctx.strokeRect(center.x - size / 2, center.y - size / 2, size, size);
-    }
-  }
-  ctx.restore();
-}
-
 function fillTemplateEffectPath(ctx: CanvasRenderingContext2D, drawing: DrawingElement, layerOpacity: number) {
   const effect = getTemplateEffectStyle(drawing.templateEffect ?? "plain");
   if (supportsTemplateEffectInnerGlow(drawing)) {
@@ -195,19 +166,4 @@ function drawTemplateLabelHalo(ctx: CanvasRenderingContext2D, label: string, sca
   ctx.strokeText(label, 0, scale);
 }
 
-function tracePointyHex(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
-  ctx.beginPath();
-  for (let index = 0; index < 6; index += 1) {
-    const angle = (Math.PI / 180) * (60 * index - 30);
-    const point = {
-      x: x + Math.cos(angle) * radius,
-      y: y + Math.sin(angle) * radius
-    };
-    if (index === 0) {
-      ctx.moveTo(point.x, point.y);
-    } else {
-      ctx.lineTo(point.x, point.y);
-    }
-  }
-  ctx.closePath();
-}
+export { drawTemplateGridHighlights } from "./templateGridHighlights";

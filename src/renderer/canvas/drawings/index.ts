@@ -16,6 +16,7 @@ export * from "./templateEffectRenderables";
 export * from "./templateEffectStyles";
 export * from "./templateEffectTuning";
 export * from "./templateGridHighlights";
+export * from "./templateGridIntersections";
 export * from "./templateLabels";
 export * from "./templateDrawing";
 export * from "./templateDrawingPresentation";

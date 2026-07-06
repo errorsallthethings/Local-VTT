@@ -3,8 +3,7 @@ import { getNearestHexCoordinate, hexAxialToPoint } from "../tokens/tokenGeometr
 import { getDrawingBounds, type DrawingBounds } from "./drawingBounds";
 import { distanceBetweenPoints, distanceToSegment, getConeTriangle, isPointInTriangle } from "./drawingGeometry";
 import { getLineTemplateCorridorPoints } from "./templateEffectGeometry";
-
-type Rect = { left: number; top: number; right: number; bottom: number };
+import { doesRectIntersectCircle, doesRectIntersectPolygon, doRectsIntersect } from "./templateGridIntersections";
 
 export function getTemplateGridHighlightCells(drawing: DrawingElement, grid: GridSettings): Point[] {
   const bounds = getDrawingBounds(drawing);
@@ -34,6 +33,34 @@ export function getTemplateGridHighlightCells(drawing: DrawingElement, grid: Gri
     }
   }
   return cells;
+}
+
+export function drawTemplateGridHighlights(ctx: CanvasRenderingContext2D, drawing: DrawingElement, grid: GridSettings) {
+  if (grid.type === "gridless" || grid.sizePx <= 0 || drawing.points.length < 2) {
+    return;
+  }
+  const cells = getTemplateGridHighlightCells(drawing, grid);
+  if (cells.length === 0) {
+    return;
+  }
+  ctx.save();
+  ctx.setLineDash([5, 4]);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(239, 68, 68, 0)";
+  ctx.strokeStyle = "#ff0000";
+  ctx.lineWidth = Math.max(5, Math.min(8, grid.lineThickness * 4));
+  for (const center of cells) {
+    if (grid.type === "hex") {
+      tracePointyHex(ctx, center.x, center.y, Math.max(8, grid.sizePx / 2));
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      const size = grid.sizePx;
+      ctx.fillRect(center.x - size / 2, center.y - size / 2, size, size);
+      ctx.strokeRect(center.x - size / 2, center.y - size / 2, size, size);
+    }
+  }
+  ctx.restore();
 }
 
 function isSquareGridCellInsideTemplate(center: Point, drawing: DrawingElement, grid: GridSettings): boolean {
@@ -150,84 +177,19 @@ function getTemplateWidthPixels(drawing: DrawingElement, grid: GridSettings): nu
   return (widthFeet / unitsPerCell) * grid.sizePx;
 }
 
-function doesRectIntersectCircle(rect: Rect, center: Point, radius: number): boolean {
-  const closestX = Math.max(rect.left, Math.min(center.x, rect.right));
-  const closestY = Math.max(rect.top, Math.min(center.y, rect.bottom));
-  return distanceBetweenPoints(center, { x: closestX, y: closestY }) < radius - 0.0001;
-}
-
-function doRectsIntersect(a: Rect, b: Rect): boolean {
-  return a.left < b.right - 0.0001 && a.right > b.left + 0.0001 && a.top < b.bottom - 0.0001 && a.bottom > b.top + 0.0001;
-}
-
-function doesRectIntersectPolygon(rect: Rect, polygon: Point[]): boolean {
-  return getPolygonArea(clipPolygonToRect(polygon, rect)) > 0.01;
-}
-
-function clipPolygonToRect(polygon: Point[], rect: Rect): Point[] {
-  return clipPolygonEdge(
-    clipPolygonEdge(
-      clipPolygonEdge(
-        clipPolygonEdge(polygon, (point) => point.x > rect.left, (start, end) => getLineIntersectionWithVertical(start, end, rect.left)),
-        (point) => point.x < rect.right,
-        (start, end) => getLineIntersectionWithVertical(start, end, rect.right)
-      ),
-      (point) => point.y > rect.top,
-      (start, end) => getLineIntersectionWithHorizontal(start, end, rect.top)
-    ),
-    (point) => point.y < rect.bottom,
-    (start, end) => getLineIntersectionWithHorizontal(start, end, rect.bottom)
-  );
-}
-
-function clipPolygonEdge(polygon: Point[], isInside: (point: Point) => boolean, getIntersection: (start: Point, end: Point) => Point): Point[] {
-  if (polygon.length === 0) {
-    return [];
-  }
-  const result: Point[] = [];
-  for (let index = 0; index < polygon.length; index += 1) {
-    const current = polygon[index];
-    const previous = polygon[(index + polygon.length - 1) % polygon.length];
-    const currentInside = isInside(current);
-    const previousInside = isInside(previous);
-    if (currentInside) {
-      if (!previousInside) {
-        result.push(getIntersection(previous, current));
-      }
-      result.push(current);
-    } else if (previousInside) {
-      result.push(getIntersection(previous, current));
+function tracePointyHex(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
+  ctx.beginPath();
+  for (let index = 0; index < 6; index += 1) {
+    const angle = (Math.PI / 180) * (60 * index - 30);
+    const point = {
+      x: x + Math.cos(angle) * radius,
+      y: y + Math.sin(angle) * radius
+    };
+    if (index === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
     }
   }
-  return result;
-}
-
-function getLineIntersectionWithVertical(start: Point, end: Point, x: number): Point {
-  const t = (x - start.x) / getSafeDelta(end.x - start.x);
-  return { x, y: start.y + (end.y - start.y) * t };
-}
-
-function getLineIntersectionWithHorizontal(start: Point, end: Point, y: number): Point {
-  const t = (y - start.y) / getSafeDelta(end.y - start.y);
-  return { x: start.x + (end.x - start.x) * t, y };
-}
-
-function getSafeDelta(delta: number): number {
-  if (Math.abs(delta) >= 0.0001) {
-    return delta;
-  }
-  return delta < 0 ? -0.0001 : 0.0001;
-}
-
-function getPolygonArea(points: Point[]): number {
-  if (points.length < 3) {
-    return 0;
-  }
-  let area = 0;
-  for (let index = 0; index < points.length; index += 1) {
-    const current = points[index];
-    const next = points[(index + 1) % points.length];
-    area += current.x * next.y - next.x * current.y;
-  }
-  return Math.abs(area) / 2;
+  ctx.closePath();
 }

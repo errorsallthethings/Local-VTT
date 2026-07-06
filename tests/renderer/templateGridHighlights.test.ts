@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { getTemplateGridHighlightCells } from "../../src/renderer/canvas/drawings";
+import { describe, expect, it, vi } from "vitest";
+import { drawTemplateGridHighlights, getTemplateGridHighlightCells } from "../../src/renderer/canvas/drawings";
 import { createDefaultScene, type DrawingElement } from "../../src/shared/localvtt";
 
 describe("template grid highlights", () => {
@@ -60,6 +60,29 @@ describe("template grid highlights", () => {
     expect(cells.length).toBeLessThan(20);
     expect(cells).toContainEqual({ x: 0, y: 0 });
   });
+
+  it("draws highlighted square grid cells with stable presentation styling", () => {
+    const scene = createDefaultScene("Cube template");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 100;
+    scene.grid.offsetX = 0;
+    scene.grid.offsetY = 0;
+    scene.grid.lineThickness = 2;
+    const ctx = contextSpy();
+
+    drawTemplateGridHighlights(
+      ctx as unknown as CanvasRenderingContext2D,
+      drawing({ kind: "rectangle", points: [{ x: 0, y: 0 }, { x: 100, y: 100 }] }),
+      scene.grid
+    );
+
+    expect(ctx.save).toHaveBeenCalledTimes(1);
+    expect(ctx.setLineDash).toHaveBeenCalledWith([5, 4]);
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, 100, 100);
+    expect(ctx.strokeRect).toHaveBeenCalledWith(0, 0, 100, 100);
+    expect(ctx.lineWidth).toBe(8);
+    expect(ctx.restore).toHaveBeenCalledTimes(1);
+  });
 });
 
 function drawing(patch: Partial<DrawingElement>): DrawingElement {
@@ -74,5 +97,25 @@ function drawing(patch: Partial<DrawingElement>): DrawingElement {
     measurementLabelVisible: true,
     visibleInPlayer: true,
     ...patch
+  };
+}
+
+function contextSpy() {
+  return {
+    beginPath: vi.fn(),
+    closePath: vi.fn(),
+    fill: vi.fn(),
+    fillRect: vi.fn(),
+    lineTo: vi.fn(),
+    moveTo: vi.fn(),
+    restore: vi.fn(),
+    save: vi.fn(),
+    setLineDash: vi.fn(),
+    stroke: vi.fn(),
+    strokeRect: vi.fn(),
+    fillStyle: "",
+    lineWidth: 1,
+    shadowBlur: 0,
+    strokeStyle: ""
   };
 }
