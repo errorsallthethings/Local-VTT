@@ -2,10 +2,6 @@ import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } fro
 import type { WebContents } from "electron";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import {
-  Campaign,
-  CampaignSummary,
-} from "../src/shared/localvtt.js";
 import { sceneFile } from "./campaignPaths.js";
 import { assertInsidePath } from "./campaignPathSafety.js";
 import {
@@ -65,6 +61,7 @@ import { registerAppLifecycleIpc } from "./appLifecycleIpc.js";
 import { registerLocalAssetProtocol } from "./assetProtocolRegistration.js";
 import { createLocalVttWindow } from "./appWindowFactory.js";
 import { createAssetMaintenanceServices } from "./assetMaintenanceServices.js";
+import { createCampaignRuntimeServices } from "./campaignRuntimeServices.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -87,10 +84,27 @@ let forceCloseGmWindow = false;
 let currentCampaignPath: string | null = null;
 const campaignSessions = new CampaignSessionRegistry();
 const mapReplacementTokens: MapReplacementTokenStore = new Map();
+const campaignRuntimeServices = createCampaignRuntimeServices({
+  campaignSessions,
+  createMapThumbnail,
+  ensureCampaignFolders,
+  ensureMapThumbnails,
+  hydrateCampaignAssetPaths,
+  hydrateSceneSummaries,
+  inspectCampaignHealth,
+  pauseCampaignTurnOrders,
+  readCampaignMetadata,
+  readSceneMetadata,
+  setCurrentCampaignPath: (campaignPath) => {
+    currentCampaignPath = campaignPath;
+  },
+  writeCampaign,
+  writeScene
+});
 const assetMaintenanceServices = createAssetMaintenanceServices({
   createMapThumbnail,
   createTokenThumbnail,
-  loadCampaignFromPath,
+  loadCampaignFromPath: campaignRuntimeServices.loadCampaignFromPath,
   writeCampaign
 });
 
@@ -125,56 +139,8 @@ function createWindow(hash: "gm" | "player"): BrowserWindow {
   });
 }
 
-function resolveAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
-  // Saved JSON stays portable with relative paths; absolute paths are runtime-only conveniences for renderers.
-  const resolvedCampaign = hydrateCampaignAssetPaths(campaignPath, campaign);
-  registerAssetPaths(resolvedCampaign);
-  return resolvedCampaign;
-}
-
 function assertInsideCampaign(campaignPath: string, candidatePath: string): void {
   assertInsidePath(campaignPath, candidatePath);
-}
-
-function registerCampaignPath(campaignPath: string): void {
-  campaignSessions.registerCampaignPath(campaignPath);
-}
-
-function registerAssetPaths(campaign: Campaign): void {
-  campaignSessions.registerAssetPaths(campaign);
-}
-
-function assertKnownCampaignPath(campaignPath: string): void {
-  campaignSessions.assertKnownCampaignPath(campaignPath);
-}
-
-function isInsideOpenedCampaign(candidatePath: string): boolean {
-  return campaignSessions.isInsideOpenedCampaign(candidatePath);
-}
-
-function isKnownAssetPath(candidatePath: string): boolean {
-  return campaignSessions.isKnownAssetPath(candidatePath);
-}
-
-function isTemporaryExternalAssetPath(candidatePath: string): boolean {
-  return campaignSessions.isTemporaryExternalAssetPath(candidatePath);
-}
-
-async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSummary> {
-  const parsed = await readCampaignMetadata(campaignPath);
-  await ensureCampaignFolders(campaignPath);
-  const campaignWithSceneSummaries = await hydrateSceneSummaries(campaignPath, parsed);
-  const campaignWithThumbnails = await ensureMapThumbnails(campaignPath, campaignWithSceneSummaries, createMapThumbnail);
-  if (campaignWithThumbnails !== campaignWithSceneSummaries) {
-    await writeCampaign(campaignPath, campaignWithThumbnails);
-  }
-  const health = await inspectCampaignHealth(campaignPath, campaignWithThumbnails);
-  return {
-    campaignPath,
-    campaign: resolveAssetPaths(campaignPath, campaignWithThumbnails),
-    missingAssets: health.missingAssetFiles.map((asset) => asset.relativePath),
-    health
-  };
 }
 
 function logThumbnailImportFailure(kind: "map" | "token", sourcePath: string, reason: string | undefined): void {
@@ -182,29 +148,12 @@ function logThumbnailImportFailure(kind: "map" | "token", sourcePath: string, re
   console.warn(diagnostic.label, diagnostic.kind, diagnostic.fileName, diagnostic.reason);
 }
 
-async function pauseActiveTurnOrders(campaignPath: string): Promise<void> {
-  assertKnownCampaignPath(campaignPath);
-  const summary = await loadCampaignFromPath(campaignPath);
-  await pauseCampaignTurnOrders(
-    summary.campaign,
-    (sceneId) => readSceneMetadata(campaignPath, sceneId),
-    (scene) => writeScene(campaignPath, scene)
-  );
-}
-
-async function loadCampaignWithPausedTurnOrders(campaignPath: string): Promise<CampaignSummary> {
-  registerCampaignPath(campaignPath);
-  currentCampaignPath = resolveCurrentCampaignPath(campaignPath);
-  await pauseActiveTurnOrders(campaignPath);
-  return loadCampaignFromPath(campaignPath);
-}
-
 async function backupSceneBeforeDelete(campaignPath: string, sceneId: string): Promise<void> {
   await backupExistingMetadataFile(campaignPath, sceneFile(campaignPath, sceneId), sceneBackupFolder(campaignPath, sceneId), `${sceneId}.scene.json`);
 }
 
 async function listMetadataBackups(campaignPath: string) {
-  return listCampaignMetadataBackups(campaignPath, loadCampaignFromPath);
+  return listCampaignMetadataBackups(campaignPath, campaignRuntimeServices.loadCampaignFromPath);
 }
 
 async function createMapThumbnail(campaignPath: string, sourcePath: string, assetId: string, rendererWebContents?: WebContents): Promise<MapThumbnailResult> {
@@ -229,9 +178,9 @@ async function createTokenThumbnail(campaignPath: string, sourcePath: string, as
 app.whenReady().then(() => {
   registerLocalAssetProtocol({
     fetchFile: (url) => net.fetch(url),
-    isInsideOpenedCampaign,
-    isKnownAssetPath,
-    isTemporaryExternalAssetPath,
+    isInsideOpenedCampaign: campaignRuntimeServices.isInsideOpenedCampaign,
+    isKnownAssetPath: campaignRuntimeServices.isKnownAssetPath,
+    isTemporaryExternalAssetPath: campaignRuntimeServices.isTemporaryExternalAssetPath,
     protocol
   });
 
@@ -314,7 +263,7 @@ function runAppSmokeTest(win: BrowserWindow): void {
     app,
     getPlayerWindow: () => playerWindow,
     isVisualSmokeTest,
-    registerAssetPaths,
+    registerAssetPaths: campaignRuntimeServices.registerAssetPaths,
     win
   });
 }
@@ -322,7 +271,7 @@ function runAppSmokeTest(win: BrowserWindow): void {
 async function closeGmWindowAfterPausing(win: BrowserWindow): Promise<void> {
   await closeGmWindowAfterPausingWithState({
     currentCampaignPath,
-    pauseActiveTurnOrders,
+    pauseActiveTurnOrders: campaignRuntimeServices.pauseActiveTurnOrders,
     setForceCloseGmWindow: (forceClose) => {
       forceCloseGmWindow = forceClose;
     },
@@ -349,9 +298,9 @@ registerPlayerViewIpc(ipcMain, {
 
 registerSceneIpc(ipcMain, {
   assertInsideCampaign,
-  assertKnownCampaignPath,
+  assertKnownCampaignPath: campaignRuntimeServices.assertKnownCampaignPath,
   backupSceneBeforeDelete,
-  loadCampaignFromPath,
+  loadCampaignFromPath: campaignRuntimeServices.loadCampaignFromPath,
   readSceneMetadata,
   unlinkIfExists,
   writeCampaign,
@@ -359,20 +308,20 @@ registerSceneIpc(ipcMain, {
 });
 
 registerCampaignIpc(ipcMain, {
-  assertKnownCampaignPath,
+  assertKnownCampaignPath: campaignRuntimeServices.assertKnownCampaignPath,
   createCampaignForFolder,
   dialogs: {
     chooseDirectory: (owner, title, createDirectory) => chooseDirectory(dialog, owner, title, createDirectory)
   },
   getGmWindow: () => gmWindow,
   listMetadataBackups,
-  loadCampaignFromPath,
-  loadCampaignWithPausedTurnOrders,
+  loadCampaignFromPath: campaignRuntimeServices.loadCampaignFromPath,
+  loadCampaignWithPausedTurnOrders: campaignRuntimeServices.loadCampaignWithPausedTurnOrders,
   openMetadataBackupsFolder: (campaignPath) => openMetadataBackupsFolder(campaignPath, shell.openPath),
   previewMetadataBackup,
-  registerCampaignPath,
+  registerCampaignPath: campaignRuntimeServices.registerCampaignPath,
   resolveCurrentCampaignPath,
-  restoreMetadataBackup: (campaignPath, ref) => restoreMetadataBackup(campaignPath, ref, loadCampaignFromPath),
+  restoreMetadataBackup: (campaignPath, ref) => restoreMetadataBackup(campaignPath, ref, campaignRuntimeServices.loadCampaignFromPath),
   setCurrentCampaignPath: (campaignPath) => {
     currentCampaignPath = campaignPath;
   },
@@ -380,7 +329,7 @@ registerCampaignIpc(ipcMain, {
 });
 
 registerMapAssetIpc(ipcMain, {
-  assertKnownCampaignPath,
+  assertKnownCampaignPath: campaignRuntimeServices.assertKnownCampaignPath,
   createAssetId: randomUUID,
   createMapThumbnail,
   dialogs: {
@@ -388,11 +337,11 @@ registerMapAssetIpc(ipcMain, {
   },
   getGmWindow: () => gmWindow,
   getTimestamp: () => new Date().toISOString(),
-  loadCampaignFromPath,
+  loadCampaignFromPath: campaignRuntimeServices.loadCampaignFromPath,
   logThumbnailImportFailure,
   mapReplacementTokens,
   readSceneMetadata,
-  registerAssetPath: (destination) => campaignSessions.registerAssetPath(destination),
+  registerAssetPath: campaignRuntimeServices.registerAssetPath,
   removeCampaignAssetFiles,
   writeCampaign,
   writeScene
@@ -400,7 +349,7 @@ registerMapAssetIpc(ipcMain, {
 
 registerTokenAssetIpc(ipcMain, {
   assertInsideCampaign,
-  assertKnownCampaignPath,
+  assertKnownCampaignPath: campaignRuntimeServices.assertKnownCampaignPath,
   createAssetId: randomUUID,
   createSquareImageThumbnail,
   dialogs: {
@@ -408,17 +357,17 @@ registerTokenAssetIpc(ipcMain, {
   },
   getGmWindow: () => gmWindow,
   getTimestamp: () => new Date().toISOString(),
-  loadCampaignFromPath,
+  loadCampaignFromPath: campaignRuntimeServices.loadCampaignFromPath,
   readSceneMetadata,
-  registerTemporaryExternalAssetPath: (sourcePath) => campaignSessions.registerTemporaryExternalAssetPath(sourcePath),
+  registerTemporaryExternalAssetPath: campaignRuntimeServices.registerTemporaryExternalAssetPath,
   removeCampaignAssetFiles,
-  unregisterTemporaryExternalAssetPath: (sourcePath) => campaignSessions.unregisterTemporaryExternalAssetPath(sourcePath),
+  unregisterTemporaryExternalAssetPath: campaignRuntimeServices.unregisterTemporaryExternalAssetPath,
   writeCampaign,
   writeScene
 });
 
 registerAssetMaintenanceIpc(ipcMain, {
-  assertKnownCampaignPath,
+  assertKnownCampaignPath: campaignRuntimeServices.assertKnownCampaignPath,
   promoteCampaignTokenAssets: assetMaintenanceServices.promoteCampaignTokenAssets,
   pruneCampaignUnreferencedAssets: assetMaintenanceServices.pruneCampaignUnreferencedAssets,
   regenerateCampaignThumbnails: assetMaintenanceServices.regenerateCampaignThumbnails
