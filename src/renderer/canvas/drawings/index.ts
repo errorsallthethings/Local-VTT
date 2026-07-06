@@ -4,6 +4,7 @@ export * from "./drawingHitTesting";
 export * from "./drawingPreview";
 export * from "./drawingRenderPreview";
 export * from "./drawingRenderer";
+export * from "./drawingStrokeStyle";
 export * from "./drawingTransform";
 export * from "./templateEffectGeometry";
 export * from "./templateEffectAssets";

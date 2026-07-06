@@ -75,12 +75,14 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted and tested SceneCanvas context-menu state/opening coordination so selection callback dispatch and menu state updates no longer live inline in the canvas component.
 - Extracted and tested SceneCanvas asset preparation, selection state preparation, and environment-effect tuning aggregation so render/input code consumes focused view models instead of rebuilding them inline.
 - Documented that Electron smoke and visual smoke should run sequentially because both scripts drive Player View IPC and can interfere when launched concurrently.
+- Split drawing stroke dash policy and template asset overlay composition out of `drawingRenderer.ts`, reducing the drawing renderer to shape orchestration while keeping cached template overlays behind a focused module.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
 
 - `src/renderer/components/SceneCanvas.tsx`: high-responsibility canvas interaction component. Recent work moved context menus, asset prep, selection prep, and effect tuning prep into tested helpers; continue splitting by interaction mode before adding more tools.
-- `src/renderer/canvas/drawingRenderer.ts`: large mixed renderer for drawings, templates, labels, and effect fills. Separate template rendering from freehand/shape rendering.
+- `src/renderer/canvas/drawings/templateEffectRenderables.ts`: large generated-style Three.js effect catalog. Keep the public registry stable, but split effect families or primitive helpers before adding more template effects.
+- `src/renderer/canvas/drawings/drawingRenderer.ts`: improved after overlay/stroke extraction, but still mixes base shape rendering with template-specific guide/label behavior. Continue separating template rendering from freehand/shape rendering.
 - `src/renderer/components/layers/LayerPanel.tsx`: layer UI is feature rich but broad. Extract per-layer panels when touching those areas.
 - `src/renderer/views/GmApp.tsx`: smaller after audit work, but still coordinates many workflows. Prefer extracting domain helpers or feature hooks before adding new state.
 - `electron/main.ts`: smaller after audit work, but still coordinates app lifecycle, IPC, windows, file IO, asset copy/delete, and Player View control. Continue extracting pure helpers or injectable service functions before changing behavior.
@@ -89,7 +91,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 
 1. Split `SceneCanvas` interaction modes into hooks or controllers: selection, token drag, drawing, templates, fog, effects, ruler, and calibration.
 2. Split `LayerPanel` by layer type after the scene canvas interaction split stabilizes.
-3. Separate template rendering from base drawing rendering in `drawingRenderer.ts`.
+3. Split `templateEffectRenderables.ts` into effect-family or primitive-helper modules with renderable registry tests preserving asset ids.
 4. Keep new animated effect implementations in effect-family modules behind the drawer registry instead of growing the compatibility export.
 5. Keep large renderer changes incremental and screenshot/smoke tested where visual behavior matters.
 
