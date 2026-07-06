@@ -11,16 +11,11 @@ import {
   DEFAULT_VIDEO_PLAYBACK,
 } from "../../shared/localvtt";
 import type {
-  Asset,
-  AssetPruneResult,
   Campaign,
-  CampaignSceneEntry,
   DiceSettings,
   LiveTableEvent,
   Point,
   Scene,
-  ThumbnailRegenerationResult,
-  TokenAssetPromotionResult
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { EnvironmentEffectEditorModal } from "../components/layers";
@@ -33,7 +28,7 @@ import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import { useAvailableDisplays } from "../hooks/useAvailableDisplays";
-import { useCampaignActions, type CampaignBusyState, type MapReplacementPreview } from "../hooks/useCampaignActions";
+import { useCampaignActions } from "../hooks/useCampaignActions";
 import { useCampaignPlayerActions } from "../hooks/useCampaignPlayerActions";
 import { createCampaignWorkflowActions } from "../hooks/campaignWorkflowActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
@@ -63,6 +58,8 @@ import {
 } from "../hooks/useEnvironmentEffectTuning";
 import { useGmDialogEscape, useGmDialogState } from "../hooks/useGmDialogState";
 import { useGmDialogActions } from "../hooks/useGmDialogActions";
+import { useGmCampaignAssets } from "../hooks/useGmCampaignAssets";
+import { useGmMaintenanceState } from "../hooks/useGmMaintenanceState";
 import { useGmToolOptions } from "../hooks/useGmToolOptions";
 import { useGmToolSelection } from "../hooks/useGmToolSelection";
 import { useGmWorkspaceShellActions } from "../hooks/useGmWorkspaceShellActions";
@@ -76,7 +73,6 @@ import { useSceneSelection } from "../hooks/useSceneSelection";
 import { useSceneTokenTurnOrderActions } from "../hooks/useSceneTokenTurnOrderActions";
 import { useTokenDefaultsActions } from "../hooks/useTokenDefaultsActions";
 import { useTokenImportActions } from "../hooks/useTokenImportActions";
-import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../lib/assets";
 import { getEffectiveDiceSettings, loadDiceSettingsPreference } from "../lib/dice";
 import { buildSceneSelectionIds } from "../lib/scene";
 import { loadRecentCampaigns, type RecentCampaign } from "../lib/campaign";
@@ -94,8 +90,6 @@ import { GmSidebar } from "./GmSidebar";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 
-const EMPTY_ASSETS: Asset[] = [];
-const EMPTY_SCENE_ENTRIES: CampaignSceneEntry[] = [];
 const DEFAULT_SELECTOR_SELECTION_FILTERS: SelectorSelectionFilters = {
   tokens: true,
   templates: false,
@@ -179,13 +173,7 @@ export function GmApp() {
   const [openSceneMenuId, setOpenSceneMenuId] = useState<string | null>(null);
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null);
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
-  const [metadataRestoreOpen, setMetadataRestoreOpen] = useState(false);
-  const [campaignHealthOpen, setCampaignHealthOpen] = useState(false);
-  const [thumbnailRegenerationResult, setThumbnailRegenerationResult] = useState<ThumbnailRegenerationResult | null>(null);
-  const [tokenAssetPromotionResult, setTokenAssetPromotionResult] = useState<TokenAssetPromotionResult | null>(null);
-  const [assetPruneConfirmOpen, setAssetPruneConfirmOpen] = useState(false);
-  const [assetPruneResult, setAssetPruneResult] = useState<AssetPruneResult | null>(null);
-  const [mapReplacementPreview, setMapReplacementPreview] = useState<MapReplacementPreview | null>(null);
+  const maintenanceState = useGmMaintenanceState();
   const {
     activeCanvasTool,
     setActiveCanvasTool,
@@ -322,14 +310,13 @@ export function GmApp() {
   const [tokenLibraryHeight, setTokenLibraryHeight] = useState(() => loadTokenLibraryHeight());
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
   const [recentCampaigns, setRecentCampaigns] = useState<RecentCampaign[]>(() => loadRecentCampaigns());
-  const [busyState, setBusyState] = useState<CampaignBusyState | null>(null);
-  const campaignAssets = campaign?.assets ?? EMPTY_ASSETS;
-  const campaignScenes = campaign?.scenes ?? EMPTY_SCENE_ENTRIES;
-  const assetsById = useMemo(() => buildAssetsById(campaignAssets), [campaignAssets]);
-  const mapAsset = useMemo(() => (activeScene?.mapAssetId ? (assetsById.get(activeScene.mapAssetId) ?? null) : null), [activeScene?.mapAssetId, assetsById]);
-  const activeMapIsVideo = mapAsset?.mediaType === "video";
-  const tokenAssets = useMemo(() => buildAssetsByKind(campaignAssets, "token"), [campaignAssets]);
-  const tokenLibraryAssets = useMemo(() => [...tokenAssets.values()], [tokenAssets]);
+  const {
+    activeMapIsVideo,
+    mapAsset,
+    sceneThumbnailAssets,
+    tokenAssets,
+    tokenLibraryAssets
+  } = useGmCampaignAssets(campaign, activeScene, sceneDrafts);
   const {
     selectedFogShapeId,
     selectedWeatherMaskId,
@@ -369,10 +356,6 @@ export function GmApp() {
   const videoPlayback = activeScene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const [diceSettingsPreference, setDiceSettingsPreference] = useState<DiceSettings>(() => loadDiceSettingsPreference());
   const diceSettings = useMemo<DiceSettings>(() => getEffectiveDiceSettings(campaign, diceSettingsPreference), [campaign, diceSettingsPreference]);
-  const sceneThumbnailAssets = useMemo(
-    () => buildSceneThumbnailAssets(campaignScenes, sceneDrafts, activeScene, assetsById),
-    [activeScene, assetsById, campaignScenes, sceneDrafts]
-  );
   const {
     playerSceneId,
     playerDisplayMode,
@@ -670,9 +653,7 @@ export function GmApp() {
   } = useCampaignActions({
     workspace,
     mapAssetToDelete,
-    onMapReplacementPreview: setMapReplacementPreview,
-    onMapReplacementHandled: () => setMapReplacementPreview(null),
-    onBusyChange: setBusyState,
+    ...maintenanceState.campaignActionCallbacks,
     onResetSceneLibraryUi: resetSceneLibraryUi,
     onCloseSceneMenu: () => setOpenSceneMenuId(null),
     onCloseFolderMenu: () => setOpenFolderMenuId(null),
@@ -680,12 +661,6 @@ export function GmApp() {
     onMapAssetDeleteHandled: () => setMapAssetToDelete(null),
     onSceneDeleteHandled: () => setSceneToDelete(null),
     onFolderDeleteHandled: () => setFolderToDelete(null),
-    onThumbnailRegenerationComplete: setThumbnailRegenerationResult,
-    onTokenAssetPromotionComplete: setTokenAssetPromotionResult,
-    onAssetPruneComplete: setAssetPruneResult,
-    onCampaignHealthOpen: () => setCampaignHealthOpen(true),
-    onMetadataRestoreOpen: () => setMetadataRestoreOpen(true),
-    onMetadataRestoreClosed: () => setMetadataRestoreOpen(false),
     shouldSyncSceneToPlayer: (sceneId) => sceneId === playerSceneId,
     playerViewSyncOptions
   });
@@ -843,7 +818,7 @@ export function GmApp() {
         onOpenBackupRestore={openMetadataRestoreDialog}
         onRegenerateThumbnails={() => void regenerateThumbnails()}
         onPromoteTokenAssets={() => void promoteTokenAssets()}
-        onPruneUnreferencedAssets={() => setAssetPruneConfirmOpen(true)}
+        onPruneUnreferencedAssets={maintenanceState.openAssetPruneConfirm}
         onAddPlayer={addCampaignPlayer}
         onUpdatePlayer={updateCampaignPlayer}
         onDeletePlayer={deleteCampaignPlayer}
@@ -1318,7 +1293,7 @@ export function GmApp() {
         sceneToDelete={sceneToDelete}
         folderToDelete={folderToDelete}
         mapAssetToDelete={mapAssetToDelete}
-        mapReplacementPreview={mapReplacementPreview}
+        mapReplacementPreview={maintenanceState.mapReplacementPreview}
         tokenAssetToDelete={tokenAssetToDelete}
         confirmClearFogOpen={confirmClearFogOpen}
         campaign={campaign}
@@ -1362,7 +1337,7 @@ export function GmApp() {
         onCancelSceneDelete={() => setSceneToDelete(null)}
         onCancelFolderDelete={() => setFolderToDelete(null)}
         onCancelMapAssetDelete={() => setMapAssetToDelete(null)}
-        onCancelMapReplacement={() => setMapReplacementPreview(null)}
+        onCancelMapReplacement={maintenanceState.closeMapReplacementPreview}
         onCancelTokenAssetDelete={() => setTokenAssetToDelete(null)}
         onCancelClearFog={() => setConfirmClearFogOpen(false)}
         onSubmitSceneName={() => void submitSceneName()}
@@ -1408,29 +1383,24 @@ export function GmApp() {
         onConfirmDeleteFolder={deleteFolder}
         onConfirmDeleteMapAsset={() => void confirmDeleteMapAsset()}
         onConfirmMapReplacement={() => {
-          if (mapReplacementPreview) {
-            void commitMapReplacement(mapReplacementPreview);
+          if (maintenanceState.mapReplacementPreview) {
+            void commitMapReplacement(maintenanceState.mapReplacementPreview);
           }
         }}
         onConfirmDeleteTokenAsset={() => void confirmDeleteTokenAsset()}
         onConfirmClearFog={clearFogShapes}
       />
       <GmMaintenanceDialogs
-        assetPruneConfirmOpen={assetPruneConfirmOpen}
-        assetPruneResult={assetPruneResult}
-        busyState={busyState}
+        assetPruneConfirmOpen={maintenanceState.assetPruneConfirmOpen}
+        assetPruneResult={maintenanceState.assetPruneResult}
+        busyState={maintenanceState.busyState}
         campaignHealth={campaignHealth}
-        campaignHealthOpen={campaignHealthOpen}
+        campaignHealthOpen={maintenanceState.campaignHealthOpen}
         campaignPath={campaignPath}
-        metadataRestoreOpen={metadataRestoreOpen}
-        thumbnailRegenerationResult={thumbnailRegenerationResult}
-        tokenAssetPromotionResult={tokenAssetPromotionResult}
-        onCloseAssetPruneConfirm={() => setAssetPruneConfirmOpen(false)}
-        onCloseAssetPruneResult={() => setAssetPruneResult(null)}
-        onCloseCampaignHealth={() => setCampaignHealthOpen(false)}
-        onCloseMetadataRestore={() => setMetadataRestoreOpen(false)}
-        onCloseThumbnailRegenerationResult={() => setThumbnailRegenerationResult(null)}
-        onCloseTokenAssetPromotionResult={() => setTokenAssetPromotionResult(null)}
+        metadataRestoreOpen={maintenanceState.metadataRestoreOpen}
+        thumbnailRegenerationResult={maintenanceState.thumbnailRegenerationResult}
+        tokenAssetPromotionResult={maintenanceState.tokenAssetPromotionResult}
+        {...maintenanceState.dialogActions}
         onMetadataRestore={handleMetadataRestore}
         onOpenBackupsFolder={() => void openBackupsFolder()}
         onPruneUnreferencedAssets={() => void pruneUnreferencedAssets()}
