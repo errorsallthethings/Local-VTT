@@ -93,7 +93,7 @@ import {
 } from "../canvas/scene";
 import { drawEnvironmentEffectPreview, drawEnvironmentEffects, drawEnvironmentEffectShape } from "../canvas/effects";
 import { getSceneEffectRenderState, getSceneLayerVisibility } from "../canvas/scene";
-import { getSceneSnapMarkerOperations, resolveDrawingToolEventPoint, resolveRulerEventPoint, resolveSceneToolEventPoint } from "../canvas/scene";
+import { getSceneSnapMarkerOperations } from "../canvas/scene";
 import { getTurnOrderTokenIndicators } from "../lib/turn-order";
 import {
   getTemplatePreviewDrawing
@@ -185,7 +185,6 @@ import {
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import { getSceneContextMenuTarget } from "./scene/sceneContextMenuTarget";
 import { getSceneDoubleClickActions } from "./scene/sceneDoubleClickRouting";
-import { getDrawingTransformHoverUpdate, getSceneItemHoverUpdate, getSceneSnapPointUpdate } from "./scene/sceneHoverUpdates";
 import {
   getGmMapAutoFitAction,
 } from "./scene/sceneMapViewportPolicy";
@@ -195,7 +194,6 @@ import { getBrushHoverPointForPointerMove, getScenePolygonDraftPointerMoveUpdate
 import { getScenePointerMoveRoute } from "./scene/scenePointerMoveRouting";
 import { getScenePointerUpRoute } from "./scene/scenePointerUpRouting";
 import { clearSceneSelectionsExcept as clearSceneSelectionsExceptTarget, getSceneMarqueeSelectionPayload } from "./scene/sceneSelectionRouting";
-import { canAcceptTokenAssetDrop as canAcceptSceneTokenAssetDrop, getDroppedTokenAsset } from "./scene/sceneTokenAssetDrop";
 import { getDrawingPointerMove, getDrawingPointerMoveAction } from "./scene/sceneDrawingPointer";
 import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerMoveAction } from "./scene/sceneEnvironmentEffectPointer";
 import { getLaserPointerMove, getLaserPointerMoveAction, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
@@ -222,6 +220,8 @@ import { useSceneViewportCenterReporting } from "./scene/useSceneViewportCenterR
 import { useSceneVideoMapHandlers } from "./scene/useSceneVideoMapHandlers";
 import { useSceneWheelZoom } from "./scene/useSceneWheelZoom";
 import { useScenePolygonDrafts } from "./scene/useScenePolygonDrafts";
+import { useSceneCanvasHoverPoints } from "./scene/useSceneCanvasHoverPoints";
+import { useSceneTokenAssetDrop } from "./scene/useSceneTokenAssetDrop";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
@@ -754,6 +754,42 @@ export function SceneCanvas({
   });
   const mapLoadStatus = isVideoMap ? videoMapLoadStatus : imageMapLoadStatus;
   const playerDisplayScale = getPlayerDisplayScale(campaign, scene, mode);
+  const {
+    getDrawingToolPoint,
+    getRulerPoint,
+    getToolPoint,
+    updateDrawingTransformHover,
+    updateSceneItemHover,
+    updateSnapPoint
+  } = useSceneCanvasHoverPoints({
+    authoringToolActive,
+    camera,
+    canShowDrawings,
+    canShowFog,
+    canShowTokens,
+    canShowWeather,
+    drawingDragPreview,
+    drawingTool,
+    environmentEffectTool,
+    fogTool,
+    mode,
+    playerDisplayScale,
+    scene,
+    selectedDrawingIds,
+    selectionDragRef,
+    setDrawingTransformHover,
+    setSceneItemHover,
+    setSnapPoint,
+    weatherMaskTool
+  });
+  const { onDragOver, onDrop } = useSceneTokenAssetDrop({
+    campaign,
+    camera,
+    mode,
+    onDropTokenAsset,
+    playerDisplayScale,
+    scene
+  });
   const videoPlayback = scene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const videoPaused = videoPlayback.paused;
   const videoMuted = videoPlayback.muted;
@@ -2055,102 +2091,6 @@ export function SceneCanvas({
     if (route === "environment-polygon-backtrack") {
       removeLastEnvironmentPolygonDraftPoint();
     }
-  };
-
-  const canAcceptTokenAssetDrop = (event: React.DragEvent<HTMLCanvasElement>): boolean => {
-    return canAcceptSceneTokenAssetDrop({
-      dataTransferTypes: event.dataTransfer.types,
-      hasCampaign: Boolean(campaign),
-      hasDropHandler: Boolean(onDropTokenAsset),
-      hasScene: Boolean(scene),
-      mode
-    });
-  };
-
-  const onDragOver = (event: React.DragEvent<HTMLCanvasElement>) => {
-    if (!canAcceptTokenAssetDrop(event)) {
-      return;
-    }
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
-  };
-
-  const onDrop = (event: React.DragEvent<HTMLCanvasElement>) => {
-    if (!canAcceptTokenAssetDrop(event)) {
-      return;
-    }
-    event.preventDefault();
-    const asset = getDroppedTokenAsset(campaign, event.dataTransfer);
-    if (!asset) {
-      return;
-    }
-    onDropTokenAsset?.(asset, clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale)));
-  };
-
-  const updateDrawingTransformHover = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const cameraState = getRenderCamera(camera, playerDisplayScale);
-    setDrawingTransformHover(
-      getDrawingTransformHoverUpdate({
-        mode,
-        scene,
-        point: eventToWorldPoint(event, cameraState),
-        camera: cameraState,
-        selectedDrawingIds,
-        canShowDrawings: Boolean(canShowDrawings),
-        hasActiveInteraction: Boolean(drawingDragPreview || authoringToolActive)
-      })
-    );
-  };
-
-  const updateSceneItemHover = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const cameraState = getRenderCamera(camera, playerDisplayScale);
-    setSceneItemHover(
-      getSceneItemHoverUpdate({
-        mode,
-        scene,
-        point: eventToWorldPoint(event, cameraState),
-        camera: cameraState,
-        canShowTokens: Boolean(canShowTokens),
-        canShowDrawings: Boolean(canShowDrawings),
-        canShowWeather: Boolean(canShowWeather),
-        canShowFog: Boolean(canShowFog),
-        hasActiveInteraction: Boolean(drawingDragPreview || authoringToolActive || selectionDragRef.current)
-      })
-    );
-  };
-
-  const getToolPoint = (event: React.PointerEvent<HTMLCanvasElement>, snapEnabled = true): Point => {
-    const result = resolveSceneToolEventPoint(event, getRenderCamera(camera, playerDisplayScale), scene, snapEnabled);
-    setSnapPoint(result.snapPoint);
-    return result.point;
-  };
-
-  const getRulerPoint = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
-    return resolveRulerEventPoint(event, getRenderCamera(camera, playerDisplayScale), scene);
-  };
-
-  const getDrawingToolPoint = (event: React.PointerEvent<HTMLCanvasElement>, tool: DrawingTool): Point => {
-    const result = resolveDrawingToolEventPoint(event, getRenderCamera(camera, playerDisplayScale), scene, tool !== "freehand");
-    setSnapPoint(result.snapPoint);
-    return result.point;
-  };
-
-  const updateSnapPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canSnapDrawing = drawingTool && drawingTool !== "freehand";
-    const canSnapFog = fogTool && !fogTool.includes("brush");
-    const canSnapWeather = Boolean(weatherMaskTool);
-    const canSnapEnvironment = Boolean(environmentEffectTool);
-    setSnapPoint(
-      getSceneSnapPointUpdate({
-        scene,
-        snapModifierActive: isSnapModifier(event),
-        canSnapDrawing: Boolean(canSnapDrawing),
-        canSnapFog: Boolean(canSnapFog),
-        canSnapWeather,
-        canSnapEnvironment,
-        point: eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale))
-      })
-    );
   };
 
   const {
