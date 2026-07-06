@@ -61,7 +61,6 @@ import { getLinuxGraphicsSwitches } from "./linuxGraphicsSwitches.js";
 import { runSmokeTest } from "./smokeTestRunner.js";
 import { promoteTokenAssetThumbnails } from "./tokenAssetPromotion.js";
 import { pruneUnreferencedAssets } from "./unreferencedAssetPruning.js";
-import { createAppWindowOptions, createWindowLoadTarget } from "./windowConfig.js";
 import { createCampaignForFolder, resolveCurrentCampaignPath } from "./campaignOpenState.js";
 import { createVideoMapThumbnailWithFallback } from "./videoThumbnailFallback.js";
 import { registerSceneIpc } from "./sceneIpc.js";
@@ -71,7 +70,7 @@ import { registerTokenAssetIpc } from "./tokenAssetIpc.js";
 import { registerAssetMaintenanceIpc } from "./assetMaintenanceIpc.js";
 import { registerAppLifecycleIpc } from "./appLifecycleIpc.js";
 import { registerLocalAssetProtocol } from "./assetProtocolRegistration.js";
-import { installWindowDiagnostics } from "./windowDiagnostics.js";
+import { createLocalVttWindow } from "./appWindowFactory.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -116,19 +115,14 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 function createWindow(hash: "gm" | "player"): BrowserWindow {
-  const appPath = app.getAppPath();
-  const win = new BrowserWindow(createAppWindowOptions(hash, appPath, appWindowIconPath));
-
-  installWindowDiagnostics(win, hash, { isDev });
-
-  const loadTarget = createWindowLoadTarget(hash, isDev, devServerUrl, appPath);
-  if (loadTarget.kind === "url") {
-    void win.loadURL(loadTarget.value);
-  } else {
-    void win.loadFile(loadTarget.value, { hash: loadTarget.hash });
-  }
-
-  return win;
+  return createLocalVttWindow({
+    BrowserWindowClass: BrowserWindow,
+    appPath: app.getAppPath(),
+    appWindowIconPath,
+    devServerUrl,
+    hash,
+    isDev
+  });
 }
 
 function resolveAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
