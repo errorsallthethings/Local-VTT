@@ -35,10 +35,7 @@ import {
   createSquareImageThumbnail
 } from "./assets.js";
 import { buildTokenAssetRelativePath, hydrateCampaignAssetPaths, requireCampaignRelativePath } from "./assetFiles.js";
-import {
-  assertAssetImportCandidate,
-  copyAssetImportToCampaign
-} from "./assetImportFiles.js";
+import { assertAssetImportCandidate } from "./assetImportFiles.js";
 import { removeCampaignAssetFiles } from "./assetFileRemoval.js";
 import { mapMediaType } from "./assetImportValidation.js";
 import {
@@ -58,15 +55,8 @@ import {
 } from "./metadataBackups.js";
 import { openMetadataBackupsFolder } from "./metadataBackupsFolder.js";
 import { hydrateSceneSummaries } from "./campaignSceneSummaries.js";
-import {
-  consumeMapReplacementToken,
-  createMapReplacementToken,
-  type MapReplacementTokenStore
-} from "./mapReplacementTokens.js";
-import { removeMapAssetFromCampaign, removeMapAssetFromScene, replaceSceneMapAsset } from "./mapAssetMutations.js";
+import type { MapReplacementTokenStore } from "./mapReplacementTokens.js";
 import { ensureMapThumbnails, type MapThumbnailResult } from "./mapThumbnailRepair.js";
-import { getMapReplacementPreview } from "./mapReplacementPreview.js";
-import { getMapAssetSceneNames, mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
 import { createThumbnailImportFailureDiagnostic } from "./thumbnailDiagnostics.js";
 import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.js";
 import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
@@ -87,13 +77,13 @@ import { tokenThumbnailVariant, updateTokenThumbnailInCampaign } from "./tokenTh
 import { removeTokenAssetFromCampaignScenes } from "./tokenAssetSceneCleanup.js";
 import { promoteTokenAssetThumbnails } from "./tokenAssetPromotion.js";
 import { pruneUnreferencedAssets } from "./unreferencedAssetPruning.js";
-import { assertSceneUsesMapAsset, requireCurrentMapAsset } from "./mapReplacementValidation.js";
 import { findCampaignAsset, requireCampaignAsset, requireTokenAssetWithAbsolutePath } from "./campaignAssetLookup.js";
 import { createAppWindowOptions, createWindowLoadTarget } from "./windowConfig.js";
 import { createCampaignForFolder, resolveCurrentCampaignPath } from "./campaignOpenState.js";
 import { createVideoMapThumbnailWithFallback } from "./videoThumbnailFallback.js";
 import { registerSceneIpc } from "./sceneIpc.js";
 import { registerCampaignIpc } from "./campaignIpc.js";
+import { registerMapAssetIpc } from "./mapAssetIpc.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -543,128 +533,23 @@ registerCampaignIpc(ipcMain, {
   writeCampaign
 });
 
-ipcMain.handle("asset:importMap", async (event, campaignPath: string) => {
-  assertKnownCampaignPath(campaignPath);
-  const sourcePath = await chooseMapFile(dialog, gmWindow);
-  if (!sourcePath) {
-    return null;
-  }
-
-  await assertAssetImportCandidate(sourcePath, "map");
-
-  const summary = await loadCampaignFromPath(campaignPath);
-  const { relativePath, destination } = await copyAssetImportToCampaign(campaignPath, sourcePath, "map");
-  campaignSessions.registerAssetPath(destination);
-
-  const assetId = randomUUID();
-  const thumbnailResult = await createMapThumbnail(campaignPath, destination, assetId, event.sender);
-  const thumbnailRelativePath = thumbnailResult.thumbnailRelativePath;
-  if (!thumbnailRelativePath) {
-    logThumbnailImportFailure("map", sourcePath, thumbnailResult.failureReason);
-  }
-  const updatedAt = new Date().toISOString();
-  const imported = createImportedAsset({
-    assetId,
-    kind: "map",
-    mediaType: mapMediaType(sourcePath),
-    sourcePath,
-    relativePath,
-    destination,
-    campaignPath,
-    thumbnailRelativePath,
-    createdAt: updatedAt
-  });
-
-  const campaign = addImportedAssetToCampaign(summary.campaign, imported, updatedAt);
-  await writeCampaign(campaignPath, campaign);
-  return { campaignSummary: await loadCampaignFromPath(campaignPath), asset: imported };
-});
-
-ipcMain.handle("asset:previewMapReplacement", async (_event, campaignPath: string, sceneId: string, currentAssetId: string) => {
-  assertKnownCampaignPath(campaignPath);
-  assertIpcSafeId(sceneId, "Scene id");
-  assertIpcSafeId(currentAssetId, "Asset id");
-  const sourcePath = await chooseMapFile(dialog, gmWindow);
-  if (!sourcePath) {
-    return null;
-  }
-
-  await assertAssetImportCandidate(sourcePath, "map");
-
-  const summary = await loadCampaignFromPath(campaignPath);
-  const currentAsset = requireCurrentMapAsset(summary.campaign, currentAssetId);
-  const currentScene = await readSceneMetadata(campaignPath, sceneId);
-  assertSceneUsesMapAsset(currentScene, currentAssetId);
-
-  const currentAssetPath = requireCampaignRelativePath(campaignPath, currentAsset.relativePath);
-  const nextMediaType = mapMediaType(sourcePath);
-  const dimensions = await getMapReplacementPreview(currentAssetPath, currentAsset.mediaType, sourcePath, nextMediaType);
-  const replacementToken = createMapReplacementToken(mapReplacementTokens, {
-    campaignPath,
-    sceneId,
-    currentAssetId,
-    sourcePath
-  });
-
-  return {
-    replacementId: replacementToken.id,
-    sourceName: path.basename(sourcePath),
-    currentAssetName: currentAsset.name,
-    currentDimensions: dimensions.currentDimensions,
-    nextDimensions: dimensions.nextDimensions,
-    warning: dimensions.warning
-  };
-});
-
-ipcMain.handle("asset:replaceMap", async (event, campaignPath: string, sceneId: string, currentAssetId: string, replacementId: string) => {
-  assertKnownCampaignPath(campaignPath);
-  assertIpcSafeId(sceneId, "Scene id");
-  assertIpcSafeId(currentAssetId, "Asset id");
-  assertIpcSafeId(replacementId, "Map replacement id");
-  const sourcePath = consumeMapReplacementToken(mapReplacementTokens, replacementId, {
-    campaignPath,
-    sceneId,
-    currentAssetId
-  });
-  await assertAssetImportCandidate(sourcePath, "map");
-
-  const summary = await loadCampaignFromPath(campaignPath);
-  const currentAsset = requireCurrentMapAsset(summary.campaign, currentAssetId);
-  const currentScene = await readSceneMetadata(campaignPath, sceneId);
-  assertSceneUsesMapAsset(currentScene, currentAssetId);
-
-  const { relativePath, destination } = await copyAssetImportToCampaign(campaignPath, sourcePath, "map");
-  campaignSessions.registerAssetPath(destination);
-
-  const assetId = randomUUID();
-  const thumbnailResult = await createMapThumbnail(campaignPath, destination, assetId, event.sender);
-  const thumbnailRelativePath = thumbnailResult.thumbnailRelativePath;
-  if (!thumbnailRelativePath) {
-    logThumbnailImportFailure("map", sourcePath, thumbnailResult.failureReason);
-  }
-  const updatedAt = new Date().toISOString();
-  const imported = createImportedAsset({
-    assetId,
-    kind: "map",
-    mediaType: mapMediaType(sourcePath),
-    sourcePath,
-    relativePath,
-    destination,
-    campaignPath,
-    thumbnailRelativePath,
-    createdAt: updatedAt
-  });
-
-  const keepCurrentAsset = await mapAssetUsedByOtherScenes(summary.campaign, currentAsset.id, sceneId, (candidateSceneId) =>
-    readSceneMetadata(campaignPath, candidateSceneId)
-  );
-  const { campaign, scene: updatedScene } = replaceSceneMapAsset(summary.campaign, currentScene, currentAsset.id, imported, keepCurrentAsset, updatedAt);
-  await writeScene(campaignPath, updatedScene);
-  await writeCampaign(campaignPath, campaign);
-  if (!keepCurrentAsset) {
-    await removeCampaignAssetFiles(campaignPath, currentAsset);
-  }
-  return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: updatedScene, asset: imported };
+registerMapAssetIpc(ipcMain, {
+  assertKnownCampaignPath,
+  createAssetId: randomUUID,
+  createMapThumbnail,
+  dialogs: {
+    chooseMapFile: (owner) => chooseMapFile(dialog, owner)
+  },
+  getGmWindow: () => gmWindow,
+  getTimestamp: () => new Date().toISOString(),
+  loadCampaignFromPath,
+  logThumbnailImportFailure,
+  mapReplacementTokens,
+  readSceneMetadata,
+  registerAssetPath: (destination) => campaignSessions.registerAssetPath(destination),
+  removeCampaignAssetFiles,
+  writeCampaign,
+  writeScene
 });
 
 ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
@@ -817,32 +702,6 @@ ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId
   const campaign = removeAssetFromCampaign(summary.campaign, assetId);
   await writeCampaign(campaignPath, campaign);
   return { campaignSummary: await loadCampaignFromPath(campaignPath), scenes: changedScenes };
-});
-
-ipcMain.handle("asset:deleteMap", async (_event, campaignPath: string, sceneId: string, assetId: string) => {
-  assertKnownCampaignPath(campaignPath);
-  assertIpcSafeId(sceneId, "Scene id");
-  assertIpcSafeId(assetId, "Asset id");
-  const summary = await loadCampaignFromPath(campaignPath);
-  const asset = requireCampaignAsset(summary.campaign, assetId, "map", "Map asset was not found in this campaign.");
-
-  const otherSceneNames = await getMapAssetSceneNames(summary.campaign, assetId, sceneId, (candidateSceneId) =>
-    readSceneMetadata(campaignPath, candidateSceneId)
-  );
-
-  if (otherSceneNames.length > 0) {
-    throw new Error(`This map asset is still used by: ${otherSceneNames.join(", ")}.`);
-  }
-
-  await removeCampaignAssetFiles(campaignPath, asset);
-
-  const currentScene = await readSceneMetadata(campaignPath, sceneId);
-  const updatedScene = removeMapAssetFromScene(currentScene, assetId);
-  await writeScene(campaignPath, updatedScene);
-
-  const campaign = removeMapAssetFromCampaign(summary.campaign, assetId);
-  await writeCampaign(campaignPath, campaign);
-  return { campaignSummary: await loadCampaignFromPath(campaignPath), scene: updatedScene };
 });
 
 ipcMain.on("app:setUnsavedChanges", (_event, hasUnsavedChanges: boolean) => {
