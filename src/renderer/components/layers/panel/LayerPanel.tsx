@@ -1,4 +1,4 @@
-import { useMemo, useState, type ComponentProps } from "react";
+import { useMemo, useState } from "react";
 import type {
   Asset,
   DrawingElement,
@@ -7,22 +7,17 @@ import type {
   Layer,
   MapTransform,
   Scene,
-  WeatherSettings,
-  WeatherTuningSettings
+  WeatherSettings
 } from "../../../../shared/localvtt";
 import { type Token } from "../../../../shared/localvtt";
 import { type DropPlacement } from "../../../lib/ui";
-import { type ActiveWeatherCategory } from "../../../lib/effects";
-import { FogShapeList, type FogShapeDropTarget } from "../lists/FogShapeList";
 import { DrawingList, type DrawingDropTarget } from "./DrawingList";
-import { EnvironmentEffectList } from "./EnvironmentEffectList";
-import { FogSettingsPanel } from "./FogSettingsPanel";
+import { EffectsLayerContent } from "./EffectsLayerContent";
+import { FogLayerContent } from "./FogLayerContent";
 import { LayerPanelRow } from "./LayerPanelRow";
 import { MapLayerContent } from "./MapLayerContent";
 import { MapLayerSettingsPanel } from "./MapLayerSettingsPanel";
 import { TokenLayerContent } from "./TokenLayerContent";
-import { WeatherMaskList } from "./WeatherMaskList";
-import { WeatherSettingsPanel } from "./WeatherSettingsPanel";
 import {
   getLayerItemCount,
   getReservedLayerGuidance,
@@ -34,7 +29,6 @@ import {
   getLayerPanelVisibleLayers,
   getLayerSettingsToggleIds,
   getReorderedDrawings,
-  getReorderedFogShapes,
   getSceneWithDrawings,
   getSceneWithEnvironmentPatch,
   getSceneWithTokenPatch,
@@ -42,14 +36,6 @@ import {
   getSceneWithWeatherPatch,
   hasLayerSettings
 } from "./layerPanelState";
-import {
-  getWeatherWithCategoryToggled,
-  getWeatherWithDriftReset,
-  getWeatherWithSelectedEffect,
-  getWeatherWithTuningPatch,
-  getWeatherWithTuningReset,
-  type WeatherTuningKey
-} from "./layerPanelWeather";
 
 const EMPTY_SELECTED_IDS: string[] = [];
 
@@ -127,12 +113,8 @@ export function LayerPanel({
   const visibleLayers = useMemo(() => getLayerPanelVisibleLayers(scene.layers), [scene.layers]);
   const [expandedLayerIds, setExpandedLayerIds] = useState<Set<string>>(() => new Set());
   const [settingsLayerIds, setSettingsLayerIds] = useState<Set<string>>(() => new Set());
-  const [draggedFogShapeId, setDraggedFogShapeId] = useState<string | null>(null);
-  const [fogShapeDropTarget, setFogShapeDropTarget] = useState<FogShapeDropTarget>(null);
   const [draggedDrawingId, setDraggedDrawingId] = useState<string | null>(null);
   const [drawingDropTarget, setDrawingDropTarget] = useState<DrawingDropTarget>(null);
-  const [expandedWeatherCategory, setExpandedWeatherCategory] = useState<ActiveWeatherCategory | null>(null);
-  const [fogPlayerDefaultHelpOpen, setFogPlayerDefaultHelpOpen] = useState(false);
   const [mapFitHelpOpen, setMapFitHelpOpen] = useState(false);
   const [mapAdvancedOpen, setMapAdvancedOpen] = useState(false);
 
@@ -148,13 +130,6 @@ export function LayerPanel({
 
   const toggleLayerSettings = (layerId: string) => {
     setSettingsLayerIds((ids) => getLayerSettingsToggleIds(layerId, ids));
-  };
-
-  const moveFogShape = (sourceShapeId: string, targetShapeId: string, placement: DropPlacement) => {
-    if (sourceShapeId === targetShapeId) {
-      return;
-    }
-    onUpdateFog({ shapes: getReorderedFogShapes(scene.fog.shapes, sourceShapeId, targetShapeId, placement) });
   };
 
   const updateDrawings = (drawings: DrawingElement[]) => onChange(getSceneWithDrawings(scene, drawings));
@@ -178,29 +153,6 @@ export function LayerPanel({
 
   const updateEnvironment = (patch: Partial<Scene["environment"]>) => {
     onChange(getSceneWithEnvironmentPatch(scene, patch));
-  };
-
-  const toggleWeatherCategory = (category: ActiveWeatherCategory, enabled: boolean) => {
-    updateWeather(getWeatherWithCategoryToggled(scene.weather, category, enabled));
-    if (!enabled && expandedWeatherCategory === category) {
-      setExpandedWeatherCategory(null);
-    }
-  };
-
-  const selectWeatherEffect: ComponentProps<typeof WeatherSettingsPanel>["onSelectWeatherEffect"] = (category, effect) => {
-    updateWeather(getWeatherWithSelectedEffect(scene.weather, category, effect));
-  };
-
-  const updateWeatherTuning = (category: ActiveWeatherCategory, patch: Partial<WeatherTuningSettings>) => {
-    updateWeather(getWeatherWithTuningPatch(scene.weather, category, patch));
-  };
-
-  const resetWeatherTuning = (category: ActiveWeatherCategory, key: WeatherTuningKey) => {
-    updateWeather(getWeatherWithTuningReset(scene.weather, category, key));
-  };
-
-  const resetWeatherDrift = (category: ActiveWeatherCategory) => {
-    updateWeather(getWeatherWithDriftReset(scene.weather, category));
   };
 
   return (
@@ -238,25 +190,14 @@ export function LayerPanel({
                   </div>
                 </div>
               )}
-              {layer.id === "fog" && areSettingsExpanded && (
-                <FogSettingsPanel
-                  fog={scene.fog}
-                  isNewShapeHelpOpen={fogPlayerDefaultHelpOpen}
-                  onToggleNewShapeHelp={() => setFogPlayerDefaultHelpOpen((open) => !open)}
-                  onUpdateFog={onUpdateFog}
-                  onOpenFogColor={onOpenFogColor}
-                />
-              )}
-              {layer.id === "fog" && isExpanded && (
-                <FogShapeList
+              {layer.id === "fog" && (
+                <FogLayerContent
                   scene={scene}
+                  settingsExpanded={areSettingsExpanded}
+                  contentsExpanded={isExpanded}
                   selectedFogShapeId={selectedFogShapeId}
                   selectedFogShapeIds={selectedFogShapeIds}
-                  draggedFogShapeId={draggedFogShapeId}
-                  fogShapeDropTarget={fogShapeDropTarget}
-                  onDraggedFogShapeIdChange={setDraggedFogShapeId}
-                  onFogShapeDropTargetChange={setFogShapeDropTarget}
-                  onMoveFogShape={moveFogShape}
+                  onOpenFogColor={onOpenFogColor}
                   onSelectFogShape={onSelectFogShape}
                   onRenameFogShape={onRenameFogShape}
                   onUpdateFog={onUpdateFog}
@@ -276,36 +217,21 @@ export function LayerPanel({
                   onUpdateDrawings={updateDrawings}
                 />
               )}
-              {isEffectsLayerId(layer.id) && areSettingsExpanded && (
-                <WeatherSettingsPanel
-                  weather={scene.weather}
-                  expandedWeatherCategory={expandedWeatherCategory}
-                  onExpandedWeatherCategoryChange={setExpandedWeatherCategory}
-                  onToggleWeatherCategory={toggleWeatherCategory}
-                  onSelectWeatherEffect={selectWeatherEffect}
-                  onUpdateWeatherTuning={updateWeatherTuning}
-                  onResetWeatherTuning={resetWeatherTuning}
-                  onResetWeatherDrift={resetWeatherDrift}
+              {isEffectsLayerId(layer.id) && (
+                <EffectsLayerContent
+                  scene={scene}
+                  settingsExpanded={areSettingsExpanded}
+                  contentsExpanded={isExpanded}
+                  selectedEnvironmentEffectId={selectedEnvironmentEffectId}
+                  selectedWeatherMaskId={selectedWeatherMaskId}
+                  selectedWeatherMaskIds={selectedWeatherMaskIds}
+                  onEditEnvironmentEffect={onEditEnvironmentEffect}
+                  onRenameEnvironmentEffect={onRenameEnvironmentEffect}
+                  onSelectEnvironmentEffect={onSelectEnvironmentEffect}
+                  onSelectWeatherMask={onSelectWeatherMask}
+                  onUpdateEnvironment={updateEnvironment}
+                  onUpdateWeather={updateWeather}
                 />
-              )}
-              {isEffectsLayerId(layer.id) && isExpanded && !areSettingsExpanded && (
-                <>
-                  <EnvironmentEffectList
-                    scene={scene}
-                    selectedEnvironmentEffectId={selectedEnvironmentEffectId}
-                    onSelectEnvironmentEffect={onSelectEnvironmentEffect}
-                    onEditEnvironmentEffect={onEditEnvironmentEffect}
-                    onRenameEnvironmentEffect={onRenameEnvironmentEffect}
-                    onUpdateEnvironment={updateEnvironment}
-                  />
-                  <WeatherMaskList
-                    scene={scene}
-                    selectedWeatherMaskId={selectedWeatherMaskId}
-                    selectedWeatherMaskIds={selectedWeatherMaskIds}
-                    onSelectWeatherMask={onSelectWeatherMask}
-                    onUpdateWeather={updateWeather}
-                  />
-                </>
               )}
               {layer.id === "token" && isExpanded && (
                 <TokenLayerContent
