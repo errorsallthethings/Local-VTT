@@ -12,16 +12,12 @@ import type {
   Campaign,
   DiceSettings,
   LiveTableEvent,
-  Point,
   Scene,
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
-import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
-import { ToolsMenu, type SelectorSelectionFilters } from "../components/tools";
+import { ToolsMenu } from "../components/tools";
 import { getImageMapAssetPath } from "../lib/map";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
-import { TurnOrderModal } from "../components/turn-order/TurnOrderModal";
-import { TurnOrderPanel } from "../components/turn-order/TurnOrderPanel";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import { useAvailableDisplays } from "../hooks/useAvailableDisplays";
@@ -38,6 +34,7 @@ import {
 import { useGmDialogEscape, useGmDialogState } from "../hooks/useGmDialogState";
 import { useGmDialogActions } from "../hooks/useGmDialogActions";
 import { useGmDialogDraftState } from "../hooks/useGmDialogDraftState";
+import { useGmFloatingWorkspaceState } from "../hooks/useGmFloatingWorkspaceState";
 import { useGmCampaignAssets } from "../hooks/useGmCampaignAssets";
 import { useGmMaintenanceState } from "../hooks/useGmMaintenanceState";
 import { useGmToolOptions } from "../hooks/useGmToolOptions";
@@ -68,16 +65,9 @@ import { GmEnvironmentEffectEditor } from "./GmEnvironmentEffectEditor";
 import { GmInspector } from "./GmInspector";
 import { GmMaintenanceDialogs } from "./GmMaintenanceDialogs";
 import { GmSidebar } from "./GmSidebar";
+import { GmTurnOrderDock } from "./GmTurnOrderDock";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
-
-const DEFAULT_SELECTOR_SELECTION_FILTERS: SelectorSelectionFilters = {
-  tokens: true,
-  templates: false,
-  fogMasks: false,
-  weatherMasks: false,
-  drawings: true
-};
 
 export function GmApp() {
   const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
@@ -267,20 +257,28 @@ export function GmApp() {
     setPlayerTemplatePreviewDrawing
   } = useGmToolOptions();
   const dialogDrafts = useGmDialogDraftState();
-  const [environmentEffectEditorPosition, setEnvironmentEffectEditorPosition] = useState<{ x: number; y: number } | null>(null);
-  const [environmentEffectEditorSize, setEnvironmentEffectEditorSize] = useState<{ width: number; height: number } | null>(null);
-  const [selectorSelectionFilters, setSelectorSelectionFilters] = useState<SelectorSelectionFilters>(DEFAULT_SELECTOR_SELECTION_FILTERS);
-  const [mapCalibrationBox, setMapCalibrationBox] = useState<MapCalibrationBox | null>(null);
+  const floatingWorkspace = useGmFloatingWorkspaceState();
+  const {
+    dicePanelOpen,
+    environmentEffectEditorPosition,
+    environmentEffectEditorSize,
+    gmCanvasCenter,
+    mapCalibrationBox,
+    selectorSelectionFilters,
+    tokenLibraryExpanded,
+    turnOrderModalOpen,
+    setDicePanelOpen,
+    setEnvironmentEffectEditorPosition,
+    setEnvironmentEffectEditorSize,
+    setGmCanvasCenter,
+    setMapCalibrationBox,
+    setSelectorSelectionFilters,
+    setTokenLibraryExpanded,
+    setTurnOrderModalOpen,
+    toggleTurnOrderModal
+  } = floatingWorkspace;
   const [diceRollHistory, setDiceRollHistory] = useState<DiceRollEvent[]>([]);
-  const [dicePanelOpen, setDicePanelOpen] = useState(false);
-  const [tokenLibraryExpanded, setTokenLibraryExpanded] = useState(false);
-  const [turnOrderModalOpen, setTurnOrderModalOpen] = useState(false);
-  const [turnOrderModalCollapsed, setTurnOrderModalCollapsed] = useState(false);
-  const [turnOrderModalPosition, setTurnOrderModalPosition] = useState<{ x: number; y: number } | null>(null);
-  const [turnOrderModalSize, setTurnOrderModalSize] = useState<{ width: number; height: number } | null>(null);
-  const [turnOrderSettingsOpen, setTurnOrderSettingsOpen] = useState(false);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
-  const [gmCanvasCenter, setGmCanvasCenter] = useState<Point | null>(null);
   const [tokenLibraryHeight, setTokenLibraryHeight] = useState(() => loadTokenLibraryHeight());
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
   const [recentCampaigns, setRecentCampaigns] = useState<RecentCampaign[]>(() => loadRecentCampaigns());
@@ -352,7 +350,7 @@ export function GmApp() {
     setMapCalibrationBox(null);
     setMapCalibrationBoxPicking(false);
     setPlayerTemplatePreviewDrawing(null);
-  }, [activeScene?.id, setMapCalibrationBoxPicking, setPlayerTemplatePreviewDrawing]);
+  }, [activeScene?.id, setMapCalibrationBox, setMapCalibrationBoxPicking, setPlayerTemplatePreviewDrawing]);
 
   const updateScene = (nextScene: Scene, syncCampaign: Campaign | null = campaign, syncScene: Scene = nextScene) => {
     // Only sync the active edit to Player View when that same scene is already being shown to players.
@@ -625,7 +623,7 @@ export function GmApp() {
 
   useEffect(() => {
     setGmCanvasCenter(null);
-  }, [activeScene?.id]);
+  }, [activeScene?.id, setGmCanvasCenter]);
 
   const {
     updateVideoPlayback,
@@ -983,14 +981,7 @@ export function GmApp() {
               onUndoEnvironmentEffect={undoEnvironmentEffect}
               onRequestClearFog={() => setConfirmClearFogOpen(true)}
               onToggleDicePanel={() => setDicePanelOpen((open) => !open)}
-              onToggleTurnOrder={() =>
-                setTurnOrderModalOpen((open) => {
-                  if (!open) {
-                    setTurnOrderModalCollapsed(false);
-                  }
-                  return !open;
-                })
-              }
+              onToggleTurnOrder={toggleTurnOrderModal}
               onShowSelectedOnPlayerView={() => updateSelectedPlayerVisibility(true)}
               onHideSelectedOnPlayerView={() => updateSelectedPlayerVisibility(false)}
               onDeleteSelected={deleteSelectedSceneItems}
@@ -1089,29 +1080,15 @@ export function GmApp() {
           onDeleteToken={(asset) => void openDeleteTokenAssetDialog(asset)}
         />
         {turnOrderModalOpen && (
-          <TurnOrderModal
-            position={turnOrderModalPosition}
-            size={turnOrderModalSize}
-            settingsOpen={turnOrderSettingsOpen}
-            settingsDisabled={!activeScene}
-            collapsed={turnOrderModalCollapsed}
-            onToggleSettings={() => setTurnOrderSettingsOpen((open) => !open)}
-            onToggleCollapsed={() => setTurnOrderModalCollapsed((collapsed) => !collapsed)}
-            onPositionChange={setTurnOrderModalPosition}
-            onSizeChange={setTurnOrderModalSize}
+          <GmTurnOrderDock
+            campaignPlayers={campaign?.players ?? []}
+            canStartTurnOrder={Boolean(activeScene && activeScene.id === playerSceneId && playerDisplayMode === "scene")}
+            onChangeScene={updateScene}
             onClose={() => setTurnOrderModalOpen(false)}
-          >
-            <TurnOrderPanel
-              scene={activeScene}
-              campaignPlayers={campaign?.players ?? []}
-              tokenAssets={tokenAssets}
-              canStartTurnOrder={Boolean(activeScene && activeScene.id === playerSceneId && playerDisplayMode === "scene")}
-              onChangeScene={updateScene}
-              settingsOpen={turnOrderSettingsOpen}
-              onSettingsOpenChange={setTurnOrderSettingsOpen}
-              settingsControlVisible={false}
-            />
-          </TurnOrderModal>
+            scene={activeScene}
+            state={floatingWorkspace}
+            tokenAssets={tokenAssets}
+          />
         )}
 
         <footer className="statusbar">

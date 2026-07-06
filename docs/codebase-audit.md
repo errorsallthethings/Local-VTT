@@ -97,6 +97,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Split low-level drawing shape rendering out of the drawing renderer so scene drawing orchestration is separated from primitive line, shape, guide, and template-fill rendering.
 - Moved the remaining arcane, psychic, and fire template-effect recipes into a dedicated renderable-family module, leaving `templateEffectRenderables.ts` as a small registry/cache layer.
 - Extracted GM environment-effect editor wiring out of `GmApp` so tuning reset/change handlers live beside the modal instead of bloating the app composition root.
+- Extracted GM floating workspace state and turn-order dock composition out of `GmApp` so floating panels, selector filters, and initiative panel wiring share focused owners.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
