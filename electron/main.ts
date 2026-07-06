@@ -73,6 +73,7 @@ import { registerSceneIpc } from "./sceneIpc.js";
 import { registerCampaignIpc } from "./campaignIpc.js";
 import { registerMapAssetIpc } from "./mapAssetIpc.js";
 import { registerTokenAssetIpc } from "./tokenAssetIpc.js";
+import { registerAssetMaintenanceIpc } from "./assetMaintenanceIpc.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -541,21 +542,11 @@ registerTokenAssetIpc(ipcMain, {
   writeScene
 });
 
-ipcMain.handle("asset:regenerateThumbnails", async (event, campaignPath: string) => {
-  assertKnownCampaignPath(campaignPath);
-  return regenerateCampaignThumbnails(campaignPath, (progress) => {
-    event.sender.send("asset:thumbnailRegenerationProgress", progress);
-  }, event.sender);
-});
-
-ipcMain.handle("asset:promoteTokenAssets", async (_event, campaignPath: string) => {
-  assertKnownCampaignPath(campaignPath);
-  return promoteCampaignTokenAssets(campaignPath);
-});
-
-ipcMain.handle("asset:pruneUnreferencedAssets", async (_event, campaignPath: string) => {
-  assertKnownCampaignPath(campaignPath);
-  return pruneCampaignUnreferencedAssets(campaignPath);
+registerAssetMaintenanceIpc(ipcMain, {
+  assertKnownCampaignPath,
+  promoteCampaignTokenAssets,
+  pruneCampaignUnreferencedAssets,
+  regenerateCampaignThumbnails
 });
 
 ipcMain.on("app:setUnsavedChanges", (_event, hasUnsavedChanges: boolean) => {
