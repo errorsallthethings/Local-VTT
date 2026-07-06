@@ -102,6 +102,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted GM workspace shell state initialization and the status footer out of `GmApp` so layout persistence and footer formatting no longer add view-root noise.
 - Grouped drawing/template and environment-effect tuning props inside `ToolsMenu` panels so tool-surface sections have clearer state and handler contracts.
 - Grouped mouse, table-tool, and fog-tool panel props inside `ToolsMenu` so utility panels now follow the same state/action contract pattern as drawing and effect panels.
+- Centralized GM Player View menu and display/calibration dialog navigation actions so topbar and modal wiring no longer duplicate panel-switching rules.
 - Extracted layer-row content switching and expansion/settings state out of `LayerPanel` so the panel root focuses on scene mutation wiring and row orchestration.
 - Split weather category list and expanded weather tuning controls out of `WeatherSettingsPanel` so the weather layer settings root is now a small composition component.
 - Extracted animated-effect layer rows and their row presentation helper out of `EnvironmentEffectList`, with regression coverage for labels, shape text, visibility defaults, and selection state.

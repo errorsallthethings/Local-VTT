@@ -36,6 +36,7 @@ import { useGmDialogDraftState } from "../hooks/useGmDialogDraftState";
 import { useGmFloatingWorkspaceState } from "../hooks/useGmFloatingWorkspaceState";
 import { useGmCampaignAssets } from "../hooks/useGmCampaignAssets";
 import { useGmMaintenanceState } from "../hooks/useGmMaintenanceState";
+import { useGmPlayerViewMenuActions } from "../hooks/useGmPlayerViewMenuActions";
 import { useGmToolOptions } from "../hooks/useGmToolOptions";
 import { useGmToolSelection } from "../hooks/useGmToolSelection";
 import { useGmWorkspaceShellActions } from "../hooks/useGmWorkspaceShellActions";
@@ -139,6 +140,13 @@ export function GmApp() {
   const [openSceneMenuId, setOpenSceneMenuId] = useState<string | null>(null);
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null);
   const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
+  const playerViewMenuActions = useGmPlayerViewMenuActions({
+    activeScenePresent: Boolean(activeScene),
+    setMapCalibrationAssistantOpen,
+    setPlayerDisplayDialogOpen,
+    setPlayerMenuOpen,
+    setTableDisplayWizardOpen
+  });
   const maintenanceState = useGmMaintenanceState();
   const {
     activeCanvasTool,
@@ -345,7 +353,7 @@ export function GmApp() {
     templatePreviewVisibleInPlayer,
     playerTemplatePreviewDrawing,
     onDiceRollHistoryChange: setDiceRollHistory,
-    onClosePlayerMenu: () => setPlayerMenuOpen(false)
+    onClosePlayerMenu: playerViewMenuActions.closePlayerMenu
   });
 
   useEffect(() => {
@@ -524,7 +532,7 @@ export function GmApp() {
     onCancelTokenCrop: () => void cancelTokenCrop(),
     onCloseSceneMenu: () => setOpenSceneMenuId(null),
     onCloseFolderMenu: () => setOpenFolderMenuId(null),
-    onClosePlayerMenu: () => setPlayerMenuOpen(false)
+    onClosePlayerMenu: playerViewMenuActions.closePlayerMenu
   });
 
   useDismissableMenu({
@@ -540,15 +548,15 @@ export function GmApp() {
   useDismissableMenu({
     enabled: playerMenuOpen,
     menuRootClass: "player-view-menu-wrap",
-    onDismiss: () => setPlayerMenuOpen(false),
+    onDismiss: playerViewMenuActions.closePlayerMenu,
     closeOnEscape: false
   });
 
   useEffect(() => {
     if (!activeScene) {
-      setPlayerMenuOpen(false);
+      playerViewMenuActions.closePlayerMenu();
     }
-  }, [activeScene]);
+  }, [activeScene, playerViewMenuActions]);
 
   const {
     appShellPresentation,
@@ -796,25 +804,12 @@ export function GmApp() {
           playerMenuOpen={playerMenuOpen}
           playerDisplayMode={playerDisplayMode}
           onSendToPlayer={sendToPlayer}
-          onTogglePlayerMenu={() => {
-            if (activeScene) {
-              setPlayerMenuOpen((open) => !open);
-            }
-          }}
+          onTogglePlayerMenu={playerViewMenuActions.togglePlayerMenu}
           onShowPlayerHold={showPlayerHold}
           onShowPlayerBlackout={showPlayerBlackout}
-          onOpenTableDisplaySetup={() => {
-            setTableDisplayWizardOpen(true);
-            setPlayerMenuOpen(false);
-          }}
-          onOpenPlayerDisplayScale={() => {
-            setPlayerDisplayDialogOpen(true);
-            setPlayerMenuOpen(false);
-          }}
-          onOpenMapCalibrationAssistant={() => {
-            setMapCalibrationAssistantOpen(true);
-            setPlayerMenuOpen(false);
-          }}
+          onOpenTableDisplaySetup={playerViewMenuActions.openTableDisplaySetup}
+          onOpenPlayerDisplayScale={playerViewMenuActions.openPlayerDisplayScale}
+          onOpenMapCalibrationAssistant={playerViewMenuActions.openMapCalibrationAssistant}
           onSetPlayerFullscreen={(fullscreen) => void setPlayerFullscreen(fullscreen)}
           onClosePlayerView={closePlayerView}
           diceSettings={diceSettings}
@@ -1167,9 +1162,9 @@ export function GmApp() {
         onCancelSceneColorDialog={() => setSceneColorDialog(null)}
         onCancelTokenColorDialog={() => setTokenColorDialog(null)}
         onCancelCampaignNameDialog={() => setCampaignNameDialogOpen(false)}
-        onCancelTableDisplayWizard={() => setTableDisplayWizardOpen(false)}
-        onCancelPlayerDisplayDialog={() => setPlayerDisplayDialogOpen(false)}
-        onCancelMapCalibrationAssistant={() => setMapCalibrationAssistantOpen(false)}
+        onCancelTableDisplayWizard={playerViewMenuActions.closeTableDisplaySetup}
+        onCancelPlayerDisplayDialog={playerViewMenuActions.closePlayerDisplayScale}
+        onCancelMapCalibrationAssistant={playerViewMenuActions.closeMapCalibrationAssistant}
         onCancelSceneDelete={() => setSceneToDelete(null)}
         onCancelFolderDelete={() => setFolderToDelete(null)}
         onCancelMapAssetDelete={() => setMapAssetToDelete(null)}
@@ -1202,18 +1197,9 @@ export function GmApp() {
         onShowPlayerTestPattern={showPlayerTestPattern}
         onSendToPlayer={sendToPlayer}
         onImportMap={importMap}
-        onOpenPlayerViewSetupFromWizard={() => {
-          setTableDisplayWizardOpen(false);
-          setPlayerDisplayDialogOpen(true);
-        }}
-        onOpenMapCalibrationAssistantFromWizard={() => {
-          setTableDisplayWizardOpen(false);
-          setMapCalibrationAssistantOpen(true);
-        }}
-        onOpenPlayerViewSetupFromAssistant={() => {
-          setMapCalibrationAssistantOpen(false);
-          setPlayerDisplayDialogOpen(true);
-        }}
+        onOpenPlayerViewSetupFromWizard={playerViewMenuActions.openPlayerViewSetupFromWizard}
+        onOpenMapCalibrationAssistantFromWizard={playerViewMenuActions.openMapCalibrationAssistantFromWizard}
+        onOpenPlayerViewSetupFromAssistant={playerViewMenuActions.openPlayerViewSetupFromAssistant}
         onRefreshDisplays={refreshDisplays}
         onConfirmDeleteScene={(scene) => void confirmDeleteScene(scene)}
         onConfirmDeleteFolder={deleteFolder}
