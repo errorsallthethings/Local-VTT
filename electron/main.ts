@@ -1,5 +1,4 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } from "electron";
-import type { WebContents } from "electron";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { sceneFile } from "./campaignPaths.js";
@@ -19,7 +18,6 @@ import {
 } from "./assets.js";
 import { hydrateCampaignAssetPaths } from "./assetFiles.js";
 import { removeCampaignAssetFiles } from "./assetFileRemoval.js";
-import { mapMediaType } from "./assetImportValidation.js";
 import {
   chooseDirectory,
   chooseMapFile,
@@ -38,7 +36,7 @@ import {
 import { openMetadataBackupsFolder } from "./metadataBackupsFolder.js";
 import { hydrateSceneSummaries } from "./campaignSceneSummaries.js";
 import type { MapReplacementTokenStore } from "./mapReplacementTokens.js";
-import { ensureMapThumbnails, type MapThumbnailResult } from "./mapThumbnailRepair.js";
+import { ensureMapThumbnails } from "./mapThumbnailRepair.js";
 import { createThumbnailImportFailureDiagnostic } from "./thumbnailDiagnostics.js";
 import { writeAssetThumbnail } from "./thumbnailFiles.js";
 import { pauseCampaignTurnOrders } from "./campaignTurnOrderPause.js";
@@ -52,6 +50,7 @@ import { getLinuxGraphicsSwitches } from "./linuxGraphicsSwitches.js";
 import { runSmokeTest } from "./smokeTestRunner.js";
 import { createCampaignForFolder, resolveCurrentCampaignPath } from "./campaignOpenState.js";
 import { createVideoMapThumbnailWithFallback } from "./videoThumbnailFallback.js";
+import { createThumbnailServices } from "./thumbnailServices.js";
 import { registerSceneIpc } from "./sceneIpc.js";
 import { registerCampaignIpc } from "./campaignIpc.js";
 import { registerMapAssetIpc } from "./mapAssetIpc.js";
@@ -84,9 +83,15 @@ let forceCloseGmWindow = false;
 let currentCampaignPath: string | null = null;
 const campaignSessions = new CampaignSessionRegistry();
 const mapReplacementTokens: MapReplacementTokenStore = new Map();
+const thumbnailServices = createThumbnailServices({
+  createImageMapThumbnail,
+  createSquareImageThumbnail,
+  createVideoMapThumbnailWithFallback,
+  writeAssetThumbnail
+});
 const campaignRuntimeServices = createCampaignRuntimeServices({
   campaignSessions,
-  createMapThumbnail,
+  createMapThumbnail: thumbnailServices.createMapThumbnail,
   ensureCampaignFolders,
   ensureMapThumbnails,
   hydrateCampaignAssetPaths,
@@ -102,8 +107,8 @@ const campaignRuntimeServices = createCampaignRuntimeServices({
   writeScene
 });
 const assetMaintenanceServices = createAssetMaintenanceServices({
-  createMapThumbnail,
-  createTokenThumbnail,
+  createMapThumbnail: thumbnailServices.createMapThumbnail,
+  createTokenThumbnail: thumbnailServices.createTokenThumbnail,
   loadCampaignFromPath: campaignRuntimeServices.loadCampaignFromPath,
   writeCampaign
 });
@@ -154,25 +159,6 @@ async function backupSceneBeforeDelete(campaignPath: string, sceneId: string): P
 
 async function listMetadataBackups(campaignPath: string) {
   return listCampaignMetadataBackups(campaignPath, campaignRuntimeServices.loadCampaignFromPath);
-}
-
-async function createMapThumbnail(campaignPath: string, sourcePath: string, assetId: string, rendererWebContents?: WebContents): Promise<MapThumbnailResult> {
-  const mediaType = mapMediaType(sourcePath);
-  const thumbnailResult = mediaType === "video" ? await createVideoMapThumbnailWithFallback(sourcePath, assetId, rendererWebContents) : { thumbnail: createImageMapThumbnail(sourcePath) };
-  const thumbnail = thumbnailResult.thumbnail;
-  if (!thumbnail) {
-    return { failureReason: thumbnailResult.failureReason ?? "Image file could not be decoded by Electron." };
-  }
-
-  return { thumbnailRelativePath: await writeAssetThumbnail(campaignPath, assetId, thumbnail) };
-}
-
-async function createTokenThumbnail(campaignPath: string, sourcePath: string, assetId: string): Promise<MapThumbnailResult> {
-  const thumbnail = await createSquareImageThumbnail(sourcePath);
-  if (!thumbnail) {
-    return { failureReason: "Image file could not be decoded by Electron." };
-  }
-  return { thumbnailRelativePath: await writeAssetThumbnail(campaignPath, assetId, thumbnail) };
 }
 
 app.whenReady().then(() => {
@@ -331,7 +317,7 @@ registerCampaignIpc(ipcMain, {
 registerMapAssetIpc(ipcMain, {
   assertKnownCampaignPath: campaignRuntimeServices.assertKnownCampaignPath,
   createAssetId: randomUUID,
-  createMapThumbnail,
+  createMapThumbnail: thumbnailServices.createMapThumbnail,
   dialogs: {
     chooseMapFile: (owner) => chooseMapFile(dialog, owner)
   },
