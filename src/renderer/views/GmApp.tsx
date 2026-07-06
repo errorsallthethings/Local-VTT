@@ -16,7 +16,6 @@ import type {
   Scene,
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
-import { EnvironmentEffectEditorModal } from "../components/layers";
 import type { MapCalibrationBox } from "../components/settings/MapCalibrationAssistant";
 import { ToolsMenu, type SelectorSelectionFilters } from "../components/tools";
 import { getImageMapAssetPath } from "../lib/map";
@@ -34,24 +33,6 @@ import { useDiceActions } from "../hooks/useDiceActions";
 import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useEnvironmentEffectActions } from "../hooks/useEnvironmentEffectActions";
 import {
-  getDefaultAcidEffectTuning,
-  getDefaultArcaneEffectTuning,
-  getDefaultChaosEffectTuning,
-  getDefaultColdEffectTuning,
-  getDefaultDarknessEffectTuning,
-  getDefaultDistortionEffectTuning,
-  getDefaultFireEffectTuning,
-  getDefaultFogEffectTuning,
-  getDefaultForceFieldEffectTuning,
-  getDefaultLavaEffectTuning,
-  getDefaultLightningEffectTuning,
-  getDefaultNatureEffectTuning,
-  getDefaultPoisonEffectTuning,
-  getDefaultRadiantEffectTuning,
-  getDefaultShockwaveEffectTuning,
-  getDefaultSmokeEffectTuning,
-  getDefaultVoidEffectTuning,
-  getDefaultWaterEffectTuning,
   useEnvironmentEffectTuning
 } from "../hooks/useEnvironmentEffectTuning";
 import { useGmDialogEscape, useGmDialogState } from "../hooks/useGmDialogState";
@@ -83,6 +64,7 @@ import {
 } from "../lib/workspace";
 import { formatSaveStatus } from "../lib/workspace";
 import { GmDialogs } from "./GmDialogs";
+import { GmEnvironmentEffectEditor } from "./GmEnvironmentEffectEditor";
 import { GmInspector } from "./GmInspector";
 import { GmMaintenanceDialogs } from "./GmMaintenanceDialogs";
 import { GmSidebar } from "./GmSidebar";
@@ -384,28 +366,7 @@ export function GmApp() {
     updateScene(nextScene, campaign, syncScene);
   };
 
-  const {
-    updateEnvironmentEffectAcidTuning,
-    updateEnvironmentEffectPoisonTuning,
-    updateEnvironmentEffectColdTuning,
-    updateEnvironmentEffectDarknessTuning,
-    updateEnvironmentEffectWaterTuning,
-    updateEnvironmentEffectLavaTuning,
-    updateEnvironmentEffectFireTuning,
-    updateEnvironmentEffectLightningTuning,
-    updateEnvironmentEffectArcaneTuning,
-    updateEnvironmentEffectChaosTuning,
-    updateEnvironmentEffectVoidTuning,
-    updateEnvironmentEffectNatureTuning,
-    updateEnvironmentEffectDistortionTuning,
-    updateEnvironmentEffectRadiantTuning,
-    updateEnvironmentEffectForceFieldTuning,
-    updateEnvironmentEffectShockwaveTuning,
-    updateEnvironmentEffectSmokeTuning,
-    updateEnvironmentEffectFogTuning,
-    updateEnvironmentEffectFeather,
-    updateEnvironmentEffectType
-  } = useEnvironmentEffectActions({ activeScene, updateScene });
+  const environmentEffectActions = useEnvironmentEffectActions({ activeScene, updateScene });
 
   const updateCampaignDraft = (nextCampaign: Campaign, syncActiveSceneToPlayer = true) => {
     updateWorkspaceCampaignDraft(nextCampaign, syncActiveSceneToPlayer && activeScene?.id === playerSceneId ? activeScene : null);
@@ -1205,51 +1166,14 @@ export function GmApp() {
       />
 
       {environmentEffectEditorEffect && (
-        <EnvironmentEffectEditorModal
+        <GmEnvironmentEffectEditor
+          actions={environmentEffectActions}
           effect={environmentEffectEditorEffect}
           position={environmentEffectEditorPosition}
           size={environmentEffectEditorSize}
           onClose={() => setEnvironmentEffectEditorId(null)}
           onPositionChange={setEnvironmentEffectEditorPosition}
           onSizeChange={setEnvironmentEffectEditorSize}
-          onAcidTuningChange={(acidTuning) => updateEnvironmentEffectAcidTuning(environmentEffectEditorEffect.id, acidTuning)}
-          onAcidTuningReset={() => updateEnvironmentEffectAcidTuning(environmentEffectEditorEffect.id, getDefaultAcidEffectTuning())}
-          onColdTuningChange={(coldTuning) => updateEnvironmentEffectColdTuning(environmentEffectEditorEffect.id, coldTuning)}
-          onColdTuningReset={() => updateEnvironmentEffectColdTuning(environmentEffectEditorEffect.id, getDefaultColdEffectTuning())}
-          onDarknessTuningChange={(darknessTuning) => updateEnvironmentEffectDarknessTuning(environmentEffectEditorEffect.id, darknessTuning)}
-          onDarknessTuningReset={() => updateEnvironmentEffectDarknessTuning(environmentEffectEditorEffect.id, getDefaultDarknessEffectTuning())}
-          onPoisonTuningChange={(poisonTuning) => updateEnvironmentEffectPoisonTuning(environmentEffectEditorEffect.id, poisonTuning)}
-          onPoisonTuningReset={() => updateEnvironmentEffectPoisonTuning(environmentEffectEditorEffect.id, getDefaultPoisonEffectTuning())}
-          onWaterTuningChange={(waterTuning) => updateEnvironmentEffectWaterTuning(environmentEffectEditorEffect.id, waterTuning)}
-          onWaterTuningReset={() => updateEnvironmentEffectWaterTuning(environmentEffectEditorEffect.id, getDefaultWaterEffectTuning())}
-          onLavaTuningChange={(lavaTuning) => updateEnvironmentEffectLavaTuning(environmentEffectEditorEffect.id, lavaTuning)}
-          onLavaTuningReset={() => updateEnvironmentEffectLavaTuning(environmentEffectEditorEffect.id, getDefaultLavaEffectTuning())}
-          onFireTuningChange={(fireTuning) => updateEnvironmentEffectFireTuning(environmentEffectEditorEffect.id, fireTuning)}
-          onFireTuningReset={() => updateEnvironmentEffectFireTuning(environmentEffectEditorEffect.id, getDefaultFireEffectTuning())}
-          onLightningTuningChange={(lightningTuning) => updateEnvironmentEffectLightningTuning(environmentEffectEditorEffect.id, lightningTuning)}
-          onLightningTuningReset={() => updateEnvironmentEffectLightningTuning(environmentEffectEditorEffect.id, getDefaultLightningEffectTuning())}
-          onArcaneTuningChange={(arcaneTuning) => updateEnvironmentEffectArcaneTuning(environmentEffectEditorEffect.id, arcaneTuning)}
-          onArcaneTuningReset={() => updateEnvironmentEffectArcaneTuning(environmentEffectEditorEffect.id, getDefaultArcaneEffectTuning())}
-          onChaosTuningChange={(chaosTuning) => updateEnvironmentEffectChaosTuning(environmentEffectEditorEffect.id, chaosTuning)}
-          onChaosTuningReset={() => updateEnvironmentEffectChaosTuning(environmentEffectEditorEffect.id, getDefaultChaosEffectTuning())}
-          onVoidTuningChange={(voidTuning) => updateEnvironmentEffectVoidTuning(environmentEffectEditorEffect.id, voidTuning)}
-          onVoidTuningReset={() => updateEnvironmentEffectVoidTuning(environmentEffectEditorEffect.id, getDefaultVoidEffectTuning())}
-          onNatureTuningChange={(natureTuning) => updateEnvironmentEffectNatureTuning(environmentEffectEditorEffect.id, natureTuning)}
-          onNatureTuningReset={() => updateEnvironmentEffectNatureTuning(environmentEffectEditorEffect.id, getDefaultNatureEffectTuning())}
-          onDistortionTuningChange={(distortionTuning) => updateEnvironmentEffectDistortionTuning(environmentEffectEditorEffect.id, distortionTuning)}
-          onDistortionTuningReset={() => updateEnvironmentEffectDistortionTuning(environmentEffectEditorEffect.id, getDefaultDistortionEffectTuning())}
-          onRadiantTuningChange={(radiantTuning) => updateEnvironmentEffectRadiantTuning(environmentEffectEditorEffect.id, radiantTuning)}
-          onRadiantTuningReset={() => updateEnvironmentEffectRadiantTuning(environmentEffectEditorEffect.id, getDefaultRadiantEffectTuning())}
-          onForceFieldTuningChange={(fieldTuning) => updateEnvironmentEffectForceFieldTuning(environmentEffectEditorEffect.id, fieldTuning)}
-          onForceFieldTuningReset={() => updateEnvironmentEffectForceFieldTuning(environmentEffectEditorEffect.id, getDefaultForceFieldEffectTuning())}
-          onShockwaveTuningChange={(shockwaveTuning) => updateEnvironmentEffectShockwaveTuning(environmentEffectEditorEffect.id, shockwaveTuning)}
-          onShockwaveTuningReset={() => updateEnvironmentEffectShockwaveTuning(environmentEffectEditorEffect.id, getDefaultShockwaveEffectTuning())}
-          onSmokeTuningChange={(smokeTuning) => updateEnvironmentEffectSmokeTuning(environmentEffectEditorEffect.id, smokeTuning)}
-          onSmokeTuningReset={() => updateEnvironmentEffectSmokeTuning(environmentEffectEditorEffect.id, getDefaultSmokeEffectTuning())}
-          onFogTuningChange={(fogTuning) => updateEnvironmentEffectFogTuning(environmentEffectEditorEffect.id, fogTuning)}
-          onFogTuningReset={() => updateEnvironmentEffectFogTuning(environmentEffectEditorEffect.id, getDefaultFogEffectTuning())}
-          onFeatherChange={(feather) => updateEnvironmentEffectFeather(environmentEffectEditorEffect.id, feather)}
-          onEffectTypeChange={(effectType) => updateEnvironmentEffectType(environmentEffectEditorEffect.id, effectType)}
         />
       )}
 
