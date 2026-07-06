@@ -100,6 +100,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted GM floating workspace state and turn-order dock composition out of `GmApp` so floating panels, selector filters, and initiative panel wiring share focused owners.
 - Extracted GM workspace shell state initialization and the status footer out of `GmApp` so layout persistence and footer formatting no longer add view-root noise.
 - Grouped drawing/template and environment-effect tuning props inside `ToolsMenu` panels so tool-surface sections have clearer state and handler contracts.
+- Grouped mouse, table-tool, and fog-tool panel props inside `ToolsMenu` so utility panels now follow the same state/action contract pattern as drawing and effect panels.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots

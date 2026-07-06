@@ -31,11 +31,14 @@ export function updateSelectorSelectionFilter(
   };
 }
 
-interface ToolsMenuMousePanelProps {
+export interface ToolsMenuMousePanelState {
   mouseBehavior: MouseBehavior;
   selectorSettingsOpen: boolean;
   selectorSelectionCounts: SelectorSelectionCounts;
   selectorSelectionFilters: SelectorSelectionFilters;
+}
+
+export interface ToolsMenuMousePanelActions {
   onClearActiveTools: () => void;
   onMouseBehaviorChange: (behavior: MouseBehavior) => void;
   onSelectorSettingsOpenChange: (open: boolean) => void;
@@ -46,20 +49,29 @@ interface ToolsMenuMousePanelProps {
   onClearSelection: () => void;
 }
 
-export function ToolsMenuMousePanel({
-  mouseBehavior,
-  selectorSettingsOpen,
-  selectorSelectionCounts,
-  selectorSelectionFilters,
-  onClearActiveTools,
-  onMouseBehaviorChange,
-  onSelectorSettingsOpenChange,
-  onSelectorSelectionFiltersChange,
-  onShowSelectedOnPlayerView,
-  onHideSelectedOnPlayerView,
-  onDeleteSelected,
-  onClearSelection
-}: ToolsMenuMousePanelProps) {
+interface ToolsMenuMousePanelProps {
+  state: ToolsMenuMousePanelState;
+  actions: ToolsMenuMousePanelActions;
+}
+
+export function ToolsMenuMousePanel({ state, actions }: ToolsMenuMousePanelProps) {
+  const {
+    mouseBehavior,
+    selectorSettingsOpen,
+    selectorSelectionCounts,
+    selectorSelectionFilters
+  } = state;
+  const {
+    onClearActiveTools,
+    onMouseBehaviorChange,
+    onSelectorSettingsOpenChange,
+    onSelectorSelectionFiltersChange,
+    onShowSelectedOnPlayerView,
+    onHideSelectedOnPlayerView,
+    onDeleteSelected,
+    onClearSelection
+  } = actions;
+
   const setMouseBehavior = (behavior: MouseBehavior) => {
     onClearActiveTools();
     onMouseBehaviorChange(behavior);

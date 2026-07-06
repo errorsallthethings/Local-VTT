@@ -38,7 +38,7 @@ export function getHiddenFromPlayerToggleValue(visibleInPlayer: boolean): boolea
   return !visibleInPlayer;
 }
 
-interface TableToolsPanelProps {
+export interface TableToolsPanelState {
   activeCanvasTool: CanvasTool | null;
   tableSettingsOpen: boolean;
   tableToolsVisibleInPlayer: boolean;
@@ -50,6 +50,9 @@ interface TableToolsPanelProps {
   pingSizeCustomOpen: boolean;
   laserThicknessCustomOpen: boolean;
   helpTopic: ToolHelpTopic | null;
+}
+
+export interface TableToolsPanelActions {
   onTableToolChange: (tool: CanvasTool) => void;
   onTableSettingsOpenChange: (open: boolean) => void;
   onTableToolsVisibleInPlayerChange: (visible: boolean) => void;
@@ -63,7 +66,12 @@ interface TableToolsPanelProps {
   onHelpTopicChange: (topic: ToolHelpTopic | null) => void;
 }
 
-interface FogToolsPanelProps {
+interface TableToolsPanelProps {
+  state: TableToolsPanelState;
+  actions: TableToolsPanelActions;
+}
+
+export interface FogToolsPanelState {
   activeFogShape: FogToolShape | null;
   fogOperation: FogOperation;
   fogShapeCount: number;
@@ -71,6 +79,9 @@ interface FogToolsPanelProps {
   brushSize: number;
   fogBrushCustomOpen: boolean;
   helpTopic: ToolHelpTopic | null;
+}
+
+export interface FogToolsPanelActions {
   onFogToolShapeChange: (shape: FogToolShape) => void;
   onFogToolOperationChange: (operation: FogOperation) => void;
   onUndoFogShape: () => void;
@@ -81,30 +92,39 @@ interface FogToolsPanelProps {
   onHelpTopicChange: (topic: ToolHelpTopic | null) => void;
 }
 
-export function TableToolsPanel({
-  activeCanvasTool,
-  tableSettingsOpen,
-  tableToolsVisibleInPlayer,
-  rulerLinger,
-  pingSize,
-  pingColor,
-  laserThickness,
-  laserColor,
-  pingSizeCustomOpen,
-  laserThicknessCustomOpen,
-  helpTopic,
-  onTableToolChange,
-  onTableSettingsOpenChange,
-  onTableToolsVisibleInPlayerChange,
-  onRulerLingerChange,
-  onPingSizeChange,
-  onPingColorChange,
-  onLaserThicknessChange,
-  onLaserColorChange,
-  onPingSizeCustomOpenChange,
-  onLaserThicknessCustomOpenChange,
-  onHelpTopicChange
-}: TableToolsPanelProps) {
+interface FogToolsPanelProps {
+  state: FogToolsPanelState;
+  actions: FogToolsPanelActions;
+}
+
+export function TableToolsPanel({ state, actions }: TableToolsPanelProps) {
+  const {
+    activeCanvasTool,
+    tableSettingsOpen,
+    tableToolsVisibleInPlayer,
+    rulerLinger,
+    pingSize,
+    pingColor,
+    laserThickness,
+    laserColor,
+    pingSizeCustomOpen,
+    laserThicknessCustomOpen,
+    helpTopic
+  } = state;
+  const {
+    onTableToolChange,
+    onTableSettingsOpenChange,
+    onTableToolsVisibleInPlayerChange,
+    onRulerLingerChange,
+    onPingSizeChange,
+    onPingColorChange,
+    onLaserThicknessChange,
+    onLaserColorChange,
+    onPingSizeCustomOpenChange,
+    onLaserThicknessCustomOpenChange,
+    onHelpTopicChange
+  } = actions;
+
   return (
     <div className="tools-panel-section">
       <HelpButton active={helpTopic === "table"} label="Table tools help" onClick={() => onHelpTopicChange(getNextUtilityHelpTopic(helpTopic, "table"))} />
@@ -170,23 +190,27 @@ export function TableToolsPanel({
   );
 }
 
-export function FogToolsPanel({
-  activeFogShape,
-  fogOperation,
-  fogShapeCount,
-  maskSettingsOpen,
-  brushSize,
-  fogBrushCustomOpen,
-  helpTopic,
-  onFogToolShapeChange,
-  onFogToolOperationChange,
-  onUndoFogShape,
-  onRequestClearFog,
-  onMaskSettingsOpenChange,
-  onBrushSizeChange,
-  onFogBrushCustomOpenChange,
-  onHelpTopicChange
-}: FogToolsPanelProps) {
+export function FogToolsPanel({ state, actions }: FogToolsPanelProps) {
+  const {
+    activeFogShape,
+    fogOperation,
+    fogShapeCount,
+    maskSettingsOpen,
+    brushSize,
+    fogBrushCustomOpen,
+    helpTopic
+  } = state;
+  const {
+    onFogToolShapeChange,
+    onFogToolOperationChange,
+    onUndoFogShape,
+    onRequestClearFog,
+    onMaskSettingsOpenChange,
+    onBrushSizeChange,
+    onFogBrushCustomOpenChange,
+    onHelpTopicChange
+  } = actions;
+
   return (
     <div className="tools-panel-section">
       <HelpButton active={helpTopic === "fog"} label="Fog Of War Tools Help" onClick={() => onHelpTopicChange(getNextUtilityHelpTopic(helpTopic, "fog"))} />

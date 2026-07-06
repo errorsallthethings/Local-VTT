@@ -16,9 +16,9 @@ import {
 import { ToolsMenuCategoryRail } from "./ToolsMenuCategoryRail";
 import { DrawingToolsPanel, TemplateToolsPanel, type DrawingPanelSettingsChangeHandlers, type DrawingPanelSettingsState } from "./ToolsMenuDrawingPanels";
 import { EnvironmentEffectsPanel, type EnvironmentEffectTuningChangeHandlers, type EnvironmentEffectTuningState } from "./ToolsMenuEffectsPanel";
-import { ToolsMenuMousePanel } from "./ToolsMenuMousePanel";
+import { ToolsMenuMousePanel, type ToolsMenuMousePanelActions, type ToolsMenuMousePanelState } from "./ToolsMenuMousePanel";
 import { PanelHeader, Placeholder } from "./ToolsMenuPrimitives";
-import { FogToolsPanel, TableToolsPanel } from "./ToolsMenuUtilityPanels";
+import { FogToolsPanel, TableToolsPanel, type FogToolsPanelActions, type FogToolsPanelState, type TableToolsPanelActions, type TableToolsPanelState } from "./ToolsMenuUtilityPanels";
 import { getToolCategoryLabel, type ToolCategory } from "./toolCategoryLabels";
 import {
   getActiveFogShape,
@@ -377,7 +377,6 @@ export function ToolsMenu(props: ToolsMenuProps) {
     onDrawingThicknessCustomOpenChange: setDrawingThicknessCustomOpen,
     onDrawingOpacityCustomOpenChange: setDrawingOpacityCustomOpen
   };
-
   const resetEnvironmentEffectTuning = () => {
     resetSelectedEnvironmentEffectTuning(environmentEffectType, environmentEffectPresetValue, environmentEffectPresetHandlers, environmentEffectResetHandlers);
   };
@@ -563,6 +562,68 @@ export function ToolsMenu(props: ToolsMenuProps) {
     });
   };
 
+  const mousePanelState: ToolsMenuMousePanelState = {
+    mouseBehavior,
+    selectorSettingsOpen,
+    selectorSelectionCounts,
+    selectorSelectionFilters
+  };
+  const mousePanelActions: ToolsMenuMousePanelActions = {
+    onClearActiveTools: clearActiveTools,
+    onMouseBehaviorChange,
+    onSelectorSettingsOpenChange: setSelectorSettingsOpen,
+    onSelectorSelectionFiltersChange,
+    onShowSelectedOnPlayerView,
+    onHideSelectedOnPlayerView,
+    onDeleteSelected,
+    onClearSelection
+  };
+  const tableToolsPanelState: TableToolsPanelState = {
+    activeCanvasTool,
+    tableSettingsOpen,
+    tableToolsVisibleInPlayer,
+    rulerLinger,
+    pingSize,
+    pingColor,
+    laserThickness,
+    laserColor,
+    pingSizeCustomOpen,
+    laserThicknessCustomOpen,
+    helpTopic
+  };
+  const tableToolsPanelActions: TableToolsPanelActions = {
+    onTableToolChange: setTableTool,
+    onTableSettingsOpenChange: setTableSettingsOpen,
+    onTableToolsVisibleInPlayerChange,
+    onRulerLingerChange,
+    onPingSizeChange,
+    onPingColorChange,
+    onLaserThicknessChange,
+    onLaserColorChange,
+    onPingSizeCustomOpenChange: setPingSizeCustomOpen,
+    onLaserThicknessCustomOpenChange: setLaserThicknessCustomOpen,
+    onHelpTopicChange: setHelpTopic
+  };
+  const fogToolsPanelState: FogToolsPanelState = {
+    activeFogShape,
+    fogOperation,
+    fogShapeCount,
+    maskSettingsOpen,
+    brushSize,
+    fogBrushCustomOpen,
+    helpTopic
+  };
+  const fogToolsPanelActions: FogToolsPanelActions = {
+    onFogToolShapeChange: setFogToolShape,
+    onFogToolOperationChange: setFogToolOperation,
+    onUndoFogShape,
+    onRequestClearFog,
+    onMaskSettingsOpenChange: setMaskSettingsOpen,
+    onBrushSizeChange,
+    onFogBrushCustomOpenChange: setFogBrushCustomOpen,
+    onHelpTopicChange: setHelpTopic
+  };
+
   return (
     <div className="tools-menu" aria-label="Tools menu">
       <ToolsMenuCategoryRail
@@ -578,18 +639,8 @@ export function ToolsMenu(props: ToolsMenuProps) {
           <PanelHeader title={getToolCategoryLabel(activeCategory)} />
           {activeCategory === "mouse" && (
             <ToolsMenuMousePanel
-              mouseBehavior={mouseBehavior}
-              selectorSettingsOpen={selectorSettingsOpen}
-              selectorSelectionCounts={selectorSelectionCounts}
-              selectorSelectionFilters={selectorSelectionFilters}
-              onClearActiveTools={clearActiveTools}
-              onMouseBehaviorChange={onMouseBehaviorChange}
-              onSelectorSettingsOpenChange={setSelectorSettingsOpen}
-              onSelectorSelectionFiltersChange={onSelectorSelectionFiltersChange}
-              onShowSelectedOnPlayerView={onShowSelectedOnPlayerView}
-              onHideSelectedOnPlayerView={onHideSelectedOnPlayerView}
-              onDeleteSelected={onDeleteSelected}
-              onClearSelection={onClearSelection}
+              state={mousePanelState}
+              actions={mousePanelActions}
             />
           )}
           {activeCategory === "drawing" && (
@@ -623,48 +674,15 @@ export function ToolsMenu(props: ToolsMenuProps) {
           {activeCategory === "text" && <Placeholder message="Text tools will be added here." />}
           {activeCategory === "table" && (
             <TableToolsPanel
-              activeCanvasTool={activeCanvasTool}
-              tableSettingsOpen={tableSettingsOpen}
-              tableToolsVisibleInPlayer={tableToolsVisibleInPlayer}
-              rulerLinger={rulerLinger}
-              pingSize={pingSize}
-              pingColor={pingColor}
-              laserThickness={laserThickness}
-              laserColor={laserColor}
-              pingSizeCustomOpen={pingSizeCustomOpen}
-              laserThicknessCustomOpen={laserThicknessCustomOpen}
-              helpTopic={helpTopic}
-              onTableToolChange={setTableTool}
-              onTableSettingsOpenChange={setTableSettingsOpen}
-              onTableToolsVisibleInPlayerChange={onTableToolsVisibleInPlayerChange}
-              onRulerLingerChange={onRulerLingerChange}
-              onPingSizeChange={onPingSizeChange}
-              onPingColorChange={onPingColorChange}
-              onLaserThicknessChange={onLaserThicknessChange}
-              onLaserColorChange={onLaserColorChange}
-              onPingSizeCustomOpenChange={setPingSizeCustomOpen}
-              onLaserThicknessCustomOpenChange={setLaserThicknessCustomOpen}
-              onHelpTopicChange={setHelpTopic}
+              state={tableToolsPanelState}
+              actions={tableToolsPanelActions}
             />
           )}
           {activeCategory === "pin" && <Placeholder message="Pin tools will be added here." />}
           {activeCategory === "fog" && (
             <FogToolsPanel
-              activeFogShape={activeFogShape}
-              fogOperation={fogOperation}
-              fogShapeCount={fogShapeCount}
-              maskSettingsOpen={maskSettingsOpen}
-              brushSize={brushSize}
-              fogBrushCustomOpen={fogBrushCustomOpen}
-              helpTopic={helpTopic}
-              onFogToolShapeChange={setFogToolShape}
-              onFogToolOperationChange={setFogToolOperation}
-              onUndoFogShape={onUndoFogShape}
-              onRequestClearFog={onRequestClearFog}
-              onMaskSettingsOpenChange={setMaskSettingsOpen}
-              onBrushSizeChange={onBrushSizeChange}
-              onFogBrushCustomOpenChange={setFogBrushCustomOpen}
-              onHelpTopicChange={setHelpTopic}
+              state={fogToolsPanelState}
+              actions={fogToolsPanelActions}
             />
           )}
           {activeCategory === "effects" && (
