@@ -5,10 +5,6 @@ import { randomUUID } from "node:crypto";
 import {
   Campaign,
   CampaignSummary,
-  AssetPruneResult,
-  TokenAssetPromotionResult,
-  ThumbnailRegenerationProgress,
-  ThumbnailRegenerationResult
 } from "../src/shared/localvtt.js";
 import { sceneFile } from "./campaignPaths.js";
 import { assertInsidePath } from "./campaignPathSafety.js";
@@ -25,7 +21,7 @@ import {
   createImageMapThumbnail,
   createSquareImageThumbnail
 } from "./assets.js";
-import { hydrateCampaignAssetPaths, requireCampaignRelativePath } from "./assetFiles.js";
+import { hydrateCampaignAssetPaths } from "./assetFiles.js";
 import { removeCampaignAssetFiles } from "./assetFileRemoval.js";
 import { mapMediaType } from "./assetImportValidation.js";
 import {
@@ -48,8 +44,7 @@ import { hydrateSceneSummaries } from "./campaignSceneSummaries.js";
 import type { MapReplacementTokenStore } from "./mapReplacementTokens.js";
 import { ensureMapThumbnails, type MapThumbnailResult } from "./mapThumbnailRepair.js";
 import { createThumbnailImportFailureDiagnostic } from "./thumbnailDiagnostics.js";
-import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.js";
-import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
+import { writeAssetThumbnail } from "./thumbnailFiles.js";
 import { pauseCampaignTurnOrders } from "./campaignTurnOrderPause.js";
 import { registerPlayerViewIpc } from "./playerViewIpc.js";
 import {
@@ -59,8 +54,6 @@ import {
 } from "./gmWindowClose.js";
 import { getLinuxGraphicsSwitches } from "./linuxGraphicsSwitches.js";
 import { runSmokeTest } from "./smokeTestRunner.js";
-import { promoteTokenAssetThumbnails } from "./tokenAssetPromotion.js";
-import { pruneUnreferencedAssets } from "./unreferencedAssetPruning.js";
 import { createCampaignForFolder, resolveCurrentCampaignPath } from "./campaignOpenState.js";
 import { createVideoMapThumbnailWithFallback } from "./videoThumbnailFallback.js";
 import { registerSceneIpc } from "./sceneIpc.js";
@@ -71,6 +64,7 @@ import { registerAssetMaintenanceIpc } from "./assetMaintenanceIpc.js";
 import { registerAppLifecycleIpc } from "./appLifecycleIpc.js";
 import { registerLocalAssetProtocol } from "./assetProtocolRegistration.js";
 import { createLocalVttWindow } from "./appWindowFactory.js";
+import { createAssetMaintenanceServices } from "./assetMaintenanceServices.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -93,6 +87,12 @@ let forceCloseGmWindow = false;
 let currentCampaignPath: string | null = null;
 const campaignSessions = new CampaignSessionRegistry();
 const mapReplacementTokens: MapReplacementTokenStore = new Map();
+const assetMaintenanceServices = createAssetMaintenanceServices({
+  createMapThumbnail,
+  createTokenThumbnail,
+  loadCampaignFromPath,
+  writeCampaign
+});
 
 function configureLinuxGraphicsSwitches(): void {
   getLinuxGraphicsSwitches(process.platform, process.env).forEach((commandLineSwitch) => {
@@ -174,78 +174,6 @@ async function loadCampaignFromPath(campaignPath: string): Promise<CampaignSumma
     campaign: resolveAssetPaths(campaignPath, campaignWithThumbnails),
     missingAssets: health.missingAssetFiles.map((asset) => asset.relativePath),
     health
-  };
-}
-
-async function regenerateCampaignThumbnails(
-  campaignPath: string,
-  onProgress?: (progress: ThumbnailRegenerationProgress) => void,
-  rendererWebContents?: WebContents
-): Promise<ThumbnailRegenerationResult> {
-  const summary = await loadCampaignFromPath(campaignPath);
-  const plan = await regenerateThumbnailAssets(
-    campaignPath,
-    summary.campaign,
-    (asset, sourcePath) =>
-      asset.kind === "map"
-        ? createMapThumbnail(campaignPath, sourcePath, asset.id, rendererWebContents)
-        : createTokenThumbnail(campaignPath, sourcePath, asset.id),
-    onProgress
-  );
-  const campaign = plan.campaign;
-  if (plan.regenerated > 0) {
-    await writeCampaign(campaignPath, campaign);
-    for (const asset of campaign.assets) {
-      await removeThumbnailIfUnused(campaignPath, plan.previousThumbnailPaths.get(asset.id), campaign.assets);
-    }
-  }
-
-  return {
-    campaignSummary: await loadCampaignFromPath(campaignPath),
-    regenerated: plan.regenerated,
-    skipped: plan.skipped,
-    failed: plan.failed
-  };
-}
-
-async function promoteCampaignTokenAssets(campaignPath: string): Promise<TokenAssetPromotionResult> {
-  const summary = await loadCampaignFromPath(campaignPath);
-  const plan = await promoteTokenAssetThumbnails(campaignPath, summary.campaign);
-  if (plan.promoted > 0) {
-    await writeCampaign(campaignPath, plan.campaign);
-    for (const replacedPaths of plan.replacedPaths.values()) {
-      for (const replacedPath of replacedPaths) {
-        if (plan.campaign.assets.some((asset) => asset.relativePath === replacedPath || asset.thumbnailRelativePath === replacedPath)) {
-          continue;
-        }
-        await unlinkIfExists(requireCampaignRelativePath(campaignPath, replacedPath));
-      }
-    }
-  }
-
-  return {
-    campaignSummary: await loadCampaignFromPath(campaignPath),
-    promoted: plan.promoted,
-    skipped: plan.skipped,
-    failed: plan.failed
-  };
-}
-
-async function pruneCampaignUnreferencedAssets(campaignPath: string): Promise<AssetPruneResult> {
-  const summary = await loadCampaignFromPath(campaignPath);
-  const health = await inspectCampaignHealth(campaignPath, summary.campaign);
-  const unreferencedAssetIds = new Set(health.unreferencedAssets.map((asset) => asset.assetId));
-  const plan = await pruneUnreferencedAssets(campaignPath, summary.campaign, unreferencedAssetIds);
-  if (plan.pruned > 0) {
-    await writeCampaign(campaignPath, plan.campaign);
-  }
-
-  return {
-    campaignSummary: await loadCampaignFromPath(campaignPath),
-    pruned: plan.pruned,
-    skipped: plan.skipped,
-    removedFiles: plan.removedFiles,
-    failed: plan.failed
   };
 }
 
@@ -491,9 +419,9 @@ registerTokenAssetIpc(ipcMain, {
 
 registerAssetMaintenanceIpc(ipcMain, {
   assertKnownCampaignPath,
-  promoteCampaignTokenAssets,
-  pruneCampaignUnreferencedAssets,
-  regenerateCampaignThumbnails
+  promoteCampaignTokenAssets: assetMaintenanceServices.promoteCampaignTokenAssets,
+  pruneCampaignUnreferencedAssets: assetMaintenanceServices.pruneCampaignUnreferencedAssets,
+  regenerateCampaignThumbnails: assetMaintenanceServices.regenerateCampaignThumbnails
 });
 
 registerAppLifecycleIpc(ipcMain, {
