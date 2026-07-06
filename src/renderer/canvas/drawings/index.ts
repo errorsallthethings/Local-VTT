@@ -5,6 +5,7 @@ export * from "./drawingPreview";
 export * from "./drawingPointSnapshot";
 export * from "./drawingRenderPreview";
 export * from "./drawingRenderer";
+export * from "./drawingShapeRenderer";
 export * from "./drawingStrokeStyle";
 export * from "./drawingTransform";
 export * from "./drawingTransformGeometry";
