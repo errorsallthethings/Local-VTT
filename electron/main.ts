@@ -60,10 +60,13 @@ import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.j
 import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
 import { pauseCampaignTurnOrders } from "./campaignTurnOrderPause.js";
 import { registerPlayerViewIpc } from "./playerViewIpc.js";
-import { getGmCloseRequestAction, getUnsavedChangesDialogAction } from "./gmWindowClose.js";
+import {
+  closeGmWindowAfterPausing as closeGmWindowAfterPausingWithState,
+  getGmCloseRequestAction,
+  getUnsavedChangesDialogAction
+} from "./gmWindowClose.js";
 import { getLinuxGraphicsSwitches } from "./linuxGraphicsSwitches.js";
 import { runSmokeTest } from "./smokeTestRunner.js";
-import { assertIpcBoolean } from "./ipcPayloadValidation.js";
 import { promoteTokenAssetThumbnails } from "./tokenAssetPromotion.js";
 import { pruneUnreferencedAssets } from "./unreferencedAssetPruning.js";
 import { createAppWindowOptions, createWindowLoadTarget } from "./windowConfig.js";
@@ -74,6 +77,7 @@ import { registerCampaignIpc } from "./campaignIpc.js";
 import { registerMapAssetIpc } from "./mapAssetIpc.js";
 import { registerTokenAssetIpc } from "./tokenAssetIpc.js";
 import { registerAssetMaintenanceIpc } from "./assetMaintenanceIpc.js";
+import { registerAppLifecycleIpc } from "./appLifecycleIpc.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -446,16 +450,17 @@ function runAppSmokeTest(win: BrowserWindow): void {
 }
 
 async function closeGmWindowAfterPausing(win: BrowserWindow): Promise<void> {
-  try {
-    if (currentCampaignPath) {
-      await pauseActiveTurnOrders(currentCampaignPath);
-    }
-  } catch (caught) {
-    console.error("Could not pause turn orders before closing.", caught);
-  }
-  forceCloseGmWindow = true;
-  gmHasUnsavedChanges = false;
-  win.close();
+  await closeGmWindowAfterPausingWithState({
+    currentCampaignPath,
+    pauseActiveTurnOrders,
+    setForceCloseGmWindow: (forceClose) => {
+      forceCloseGmWindow = forceClose;
+    },
+    setGmHasUnsavedChanges: (hasUnsavedChanges) => {
+      gmHasUnsavedChanges = hasUnsavedChanges;
+    },
+    win
+  });
 }
 
 registerPlayerViewIpc(ipcMain, {
@@ -549,14 +554,14 @@ registerAssetMaintenanceIpc(ipcMain, {
   regenerateCampaignThumbnails
 });
 
-ipcMain.on("app:setUnsavedChanges", (_event, hasUnsavedChanges: boolean) => {
-  assertIpcBoolean(hasUnsavedChanges, "Unsaved changes state");
-  gmHasUnsavedChanges = hasUnsavedChanges;
-});
-
-ipcMain.on("app:closeAfterSave", () => {
-  if (!gmWindow || gmWindow.isDestroyed()) {
-    return;
+registerAppLifecycleIpc(ipcMain, {
+  closeAfterSave: () => {
+    if (!gmWindow || gmWindow.isDestroyed()) {
+      return;
+    }
+    void closeGmWindowAfterPausing(gmWindow);
+  },
+  setUnsavedChanges: (hasUnsavedChanges) => {
+    gmHasUnsavedChanges = hasUnsavedChanges;
   }
-  void closeGmWindowAfterPausing(gmWindow);
 });
