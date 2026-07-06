@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type {
   Asset,
   FogSettings,
@@ -9,22 +9,15 @@ import type {
   WeatherSettings
 } from "../../../../shared/localvtt";
 import { type Token } from "../../../../shared/localvtt";
-import { DrawingLayerContent } from "./DrawingLayerContent";
-import { EffectsLayerContent } from "./EffectsLayerContent";
-import { FogLayerContent } from "./FogLayerContent";
+import { LayerPanelLayerContent } from "./LayerPanelLayerContent";
 import { LayerPanelRow } from "./LayerPanelRow";
-import { MapLayerSection } from "./MapLayerSection";
-import { TokenLayerContent } from "./TokenLayerContent";
 import {
   getLayerItemCount,
   getReservedLayerGuidance,
-  isEffectsLayerId
 } from "./layerPanelFormat";
 import {
   applyLayerPatch,
-  getLayerExpandedToggleState,
   getLayerPanelVisibleLayers,
-  getLayerSettingsToggleIds,
   getSceneWithDrawings,
   getSceneWithEnvironmentPatch,
   getSceneWithTokenPatch,
@@ -32,6 +25,7 @@ import {
   getSceneWithWeatherPatch,
   hasLayerSettings
 } from "./layerPanelState";
+import { useLayerPanelExpansionState } from "./useLayerPanelExpansionState";
 
 const EMPTY_SELECTED_IDS: string[] = [];
 
@@ -107,21 +101,15 @@ export function LayerPanel({
   onOpenTokenColor: (tokenId: string, value: string, kind: "border" | "glow") => void;
 }) {
   const visibleLayers = useMemo(() => getLayerPanelVisibleLayers(scene.layers), [scene.layers]);
-  const [expandedLayerIds, setExpandedLayerIds] = useState<Set<string>>(() => new Set());
-  const [settingsLayerIds, setSettingsLayerIds] = useState<Set<string>>(() => new Set());
+  const {
+    expandedLayerIds,
+    settingsLayerIds,
+    toggleLayerExpanded,
+    toggleLayerSettings
+  } = useLayerPanelExpansionState();
 
   const updateLayer = (layerId: string, patch: Partial<Layer>) => {
     onChange(applyLayerPatch(scene, layerId, patch));
-  };
-
-  const toggleLayerExpanded = (layerId: string) => {
-    const nextState = getLayerExpandedToggleState(layerId, expandedLayerIds, settingsLayerIds);
-    setExpandedLayerIds(nextState.expandedLayerIds);
-    setSettingsLayerIds(nextState.settingsLayerIds);
-  };
-
-  const toggleLayerSettings = (layerId: string) => {
-    setSettingsLayerIds((ids) => getLayerSettingsToggleIds(layerId, ids));
   };
 
   const updateDrawings = (drawings: typeof scene.drawings) => onChange(getSceneWithDrawings(scene, drawings));
@@ -167,81 +155,49 @@ export function LayerPanel({
               onTogglePlayerVisibility={(layerId, visibleInPlayer) => updateLayer(layerId, { visibleInPlayer })}
               onToggleSettings={toggleLayerSettings}
             >
-              {reservedLayerGuidance && isExpanded && (
-                <div className="layer-detail-controls" onClick={(event) => event.stopPropagation()}>
-                  <div className="layer-empty-state">
-                    <strong>{layer.name}</strong>
-                    <span>{reservedLayerGuidance}</span>
-                  </div>
-                </div>
-              )}
-              {layer.id === "fog" && (
-                <FogLayerContent
-                  scene={scene}
-                  settingsExpanded={areSettingsExpanded}
-                  contentsExpanded={isExpanded}
-                  selectedFogShapeId={selectedFogShapeId}
-                  selectedFogShapeIds={selectedFogShapeIds}
-                  onOpenFogColor={onOpenFogColor}
-                  onSelectFogShape={onSelectFogShape}
-                  onRenameFogShape={onRenameFogShape}
-                  onUpdateFog={onUpdateFog}
-                />
-              )}
-              {layer.id === "drawing" && isExpanded && (
-                <DrawingLayerContent
-                  drawings={scene.drawings}
-                  selectedDrawingId={selectedDrawingId}
-                  selectedDrawingIds={selectedDrawingIds}
-                  onSelectDrawing={onSelectDrawing}
-                  onUpdateDrawings={updateDrawings}
-                />
-              )}
-              {isEffectsLayerId(layer.id) && (
-                <EffectsLayerContent
-                  scene={scene}
-                  settingsExpanded={areSettingsExpanded}
-                  contentsExpanded={isExpanded}
-                  selectedEnvironmentEffectId={selectedEnvironmentEffectId}
-                  selectedWeatherMaskId={selectedWeatherMaskId}
-                  selectedWeatherMaskIds={selectedWeatherMaskIds}
-                  onEditEnvironmentEffect={onEditEnvironmentEffect}
-                  onRenameEnvironmentEffect={onRenameEnvironmentEffect}
-                  onSelectEnvironmentEffect={onSelectEnvironmentEffect}
-                  onSelectWeatherMask={onSelectWeatherMask}
-                  onUpdateEnvironment={updateEnvironment}
-                  onUpdateWeather={updateWeather}
-                />
-              )}
-              {layer.id === "token" && isExpanded && (
-                <TokenLayerContent
-                  scene={scene}
-                  tokenAssets={tokenAssets}
-                  selectedTokenId={selectedTokenId}
-                  selectedTokenIds={selectedTokenIds}
-                  onImportToken={onImportToken}
-                  onSelectToken={onSelectToken}
-                  onRenameToken={onRenameToken}
-                  onUpdateToken={updateToken}
-                  onUpdateTokens={updateTokens}
-                  onOpenTokenColor={onOpenTokenColor}
-                />
-              )}
-              {layer.id === "map" && (
-                <MapLayerSection
-                  scene={scene}
-                  mapAsset={mapAsset}
-                  contentsExpanded={isExpanded}
-                  settingsExpanded={areSettingsExpanded}
-                  onUpdateGrid={onUpdateGrid}
-                  onUpdateMapTransform={onUpdateMapTransform}
-                  onApplyMapFitPreset={onApplyMapFitPreset}
-                  onOpenGridColor={onOpenGridColor}
-                  onImportMap={onImportMap}
-                  onReplaceMap={onReplaceMap}
-                  onDeleteMap={onDeleteMap}
-                />
-              )}
+              <LayerPanelLayerContent
+                areSettingsExpanded={areSettingsExpanded}
+                isExpanded={isExpanded}
+                layer={layer}
+                mapAsset={mapAsset}
+                reservedLayerGuidance={reservedLayerGuidance}
+                scene={scene}
+                selectedDrawingId={selectedDrawingId}
+                selectedDrawingIds={selectedDrawingIds}
+                selectedEnvironmentEffectId={selectedEnvironmentEffectId}
+                selectedFogShapeId={selectedFogShapeId}
+                selectedFogShapeIds={selectedFogShapeIds}
+                selectedTokenId={selectedTokenId}
+                selectedTokenIds={selectedTokenIds}
+                selectedWeatherMaskId={selectedWeatherMaskId}
+                selectedWeatherMaskIds={selectedWeatherMaskIds}
+                tokenAssets={tokenAssets}
+                onApplyMapFitPreset={onApplyMapFitPreset}
+                onDeleteMap={onDeleteMap}
+                onEditEnvironmentEffect={onEditEnvironmentEffect}
+                onImportMap={onImportMap}
+                onImportToken={onImportToken}
+                onOpenFogColor={onOpenFogColor}
+                onOpenGridColor={onOpenGridColor}
+                onOpenTokenColor={onOpenTokenColor}
+                onRenameEnvironmentEffect={onRenameEnvironmentEffect}
+                onRenameFogShape={onRenameFogShape}
+                onRenameToken={onRenameToken}
+                onReplaceMap={onReplaceMap}
+                onSelectDrawing={onSelectDrawing}
+                onSelectEnvironmentEffect={onSelectEnvironmentEffect}
+                onSelectFogShape={onSelectFogShape}
+                onSelectToken={onSelectToken}
+                onSelectWeatherMask={onSelectWeatherMask}
+                onUpdateDrawings={updateDrawings}
+                onUpdateEnvironment={updateEnvironment}
+                onUpdateFog={onUpdateFog}
+                onUpdateGrid={onUpdateGrid}
+                onUpdateMapTransform={onUpdateMapTransform}
+                onUpdateToken={updateToken}
+                onUpdateTokens={updateTokens}
+                onUpdateWeather={updateWeather}
+              />
             </LayerPanelRow>
           );
         })}
