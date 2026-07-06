@@ -95,6 +95,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Split map layer settings into grid-basics and advanced-settings sections, with tested map-fit action dispatch, so the layer panel map controls are no longer concentrated in one broad component.
 - Centralized layer item drag/drop decisions for drawing, fog-shape, and token lists so row reordering no longer repeats source-id, placement, and drag-end fallback logic in each list component.
 - Split low-level drawing shape rendering out of the drawing renderer so scene drawing orchestration is separated from primitive line, shape, guide, and template-fill rendering.
+- Moved the remaining arcane, psychic, and fire template-effect recipes into a dedicated renderable-family module, leaving `templateEffectRenderables.ts` as a small registry/cache layer.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
