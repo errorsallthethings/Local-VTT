@@ -316,6 +316,8 @@ npm run smoke:electron
 npm run smoke:visual
 ```
 
+Run smoke commands sequentially. Both smoke paths launch Electron and exercise Player View IPC, so running them concurrently can make the visual smoke wait on the wrong Player View state and produce a false timeout.
+
 `npm run smoke:visual` launches the production Electron entrypoint with deterministic visual fixtures, sends a rendered scene and a test pattern to Player View, verifies that the scene canvas has nonblank visual output, checks Player View dice, turn order, and seat overlays, and writes Player View screenshots to the OS temp folder for failure evidence. It is the current dependency-light visual smoke path; Playwright remains a good future option for broader click-through workflow tests. Automated video-map visual coverage is deferred, so video maps still need the manual release smoke pass.
 
 ## Project Documentation

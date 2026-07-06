@@ -253,6 +253,7 @@ Before packaging or sharing a build, run through these workflows:
 - Run `npm run check` and `npm run build`.
 - Run `npm run smoke` to build once, launch the built Electron app, confirm the GM preload bridge is available, open Player View through IPC, send a Player View idle state, verify display enumeration, and run the visual smoke fixture.
 - For targeted reruns, use `npm run smoke:electron` or `npm run smoke:visual`. The visual smoke test checks that the scene canvas is nonblank, verifies Player View dice, turn order, and seat overlays, and writes Player View screenshots to the OS temp folder for failure evidence. Automated video-map visual coverage is deferred, so video maps still need the manual smoke pass above.
+- Run smoke commands sequentially. The Electron and visual smoke scripts both open the app and drive Player View IPC; running them at the same time can leave the visual smoke observing the waiting screen from another smoke run and create a false timeout.
 
 Playwright is a good fit for future end-to-end workflow coverage, especially once the app needs click-through tests for GM authoring flows. For now, the Electron visual smoke path stays dependency-light and covers the production Electron renderer/IPC path directly.
 
