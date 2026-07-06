@@ -19,7 +19,6 @@ import { ToolsMenu } from "../components/tools";
 import { getImageMapAssetPath } from "../lib/map";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
-import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import { useAvailableDisplays } from "../hooks/useAvailableDisplays";
 import { useCampaignActions } from "../hooks/useCampaignActions";
 import { useCampaignPlayerActions } from "../hooks/useCampaignPlayerActions";
@@ -59,6 +58,7 @@ import { GmEnvironmentEffectEditor } from "./GmEnvironmentEffectEditor";
 import { GmInspector } from "./GmInspector";
 import { GmMaintenanceDialogs } from "./GmMaintenanceDialogs";
 import { GmSidebar } from "./GmSidebar";
+import { GmWorkspaceTopbar } from "./GmWorkspaceTopbar";
 import { GmTurnOrderDock } from "./GmTurnOrderDock";
 import { GmWorkspaceStatusFooter } from "./GmWorkspaceStatusFooter";
 
@@ -789,7 +789,7 @@ export function GmApp() {
       />
 
       <main className="workspace">
-        <WorkspaceTopbar
+        <GmWorkspaceTopbar
           campaign={campaign}
           activeScene={activeScene}
           mapAsset={mapAsset}
@@ -817,35 +817,9 @@ export function GmApp() {
           }}
           onSetPlayerFullscreen={(fullscreen) => void setPlayerFullscreen(fullscreen)}
           onClosePlayerView={closePlayerView}
-          gmDiceDisplayMode={diceSettings.gmDisplayMode}
-          playerDiceDisplayMode={diceSettings.playerDisplayMode}
-          diceSceneRollEnabled={diceSettings.sceneRollEnabled}
-          diceSceneRollTarget={diceSettings.sceneRollTarget}
-          gmDiceSceneSize={diceSettings.gmSceneSize}
-          playerDiceSceneSize={diceSettings.playerSceneSize}
-          gmDicePanelEdge={diceSettings.gmPanelEdge}
-          playerDicePanelEdge={diceSettings.playerPanelEdge}
-          gmDicePanelFacing={diceSettings.gmPanelFacing}
-          playerDicePanelFacing={diceSettings.playerPanelFacing}
-          gmDicePanelPosition={diceSettings.gmPanelPosition}
-          playerDicePanelPosition={diceSettings.playerPanelPosition}
-          gmDicePanelAdvanced={diceSettings.gmPanelAdvanced}
-          playerDicePanelAdvanced={diceSettings.playerPanelAdvanced}
+          diceSettings={diceSettings}
           diceHistory={diceRollHistory}
-          onGmDiceDisplayModeChange={(gmDisplayMode) => updateDiceSettings({ gmDisplayMode })}
-          onPlayerDiceDisplayModeChange={(playerDisplayMode) => updateDiceSettings({ playerDisplayMode })}
-          onDiceSceneRollEnabledChange={(sceneRollEnabled) => updateDiceSettings({ sceneRollEnabled })}
-          onDiceSceneRollTargetChange={(sceneRollTarget) => updateDiceSettings({ sceneRollTarget })}
-          onGmDiceSceneSizeChange={(gmSceneSize) => updateDiceSettings({ gmSceneSize })}
-          onPlayerDiceSceneSizeChange={(playerSceneSize) => updateDiceSettings({ playerSceneSize })}
-          onGmDicePanelEdgeChange={(gmPanelEdge) => updateDiceSettings({ gmPanelEdge })}
-          onPlayerDicePanelEdgeChange={(playerPanelEdge) => updateDiceSettings({ playerPanelEdge })}
-          onGmDicePanelFacingChange={(gmPanelFacing) => updateDiceSettings({ gmPanelFacing })}
-          onPlayerDicePanelFacingChange={(playerPanelFacing) => updateDiceSettings({ playerPanelFacing })}
-          onGmDicePanelPositionChange={(gmPanelPosition) => updateDiceSettings({ gmPanelPosition })}
-          onPlayerDicePanelPositionChange={(playerPanelPosition) => updateDiceSettings({ playerPanelPosition })}
-          onGmDicePanelAdvancedChange={(gmPanelAdvanced) => updateDiceSettings({ gmPanelAdvanced })}
-          onPlayerDicePanelAdvancedChange={(playerPanelAdvanced) => updateDiceSettings({ playerPanelAdvanced })}
+          onUpdateDiceSettings={updateDiceSettings}
           onRollDie={rollTableDie}
           onRollExpression={rollTableExpression}
           onClearDiceRolls={clearDiceRolls}

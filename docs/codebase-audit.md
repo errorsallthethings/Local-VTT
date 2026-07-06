@@ -8,6 +8,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Added Electron smoke-test coverage for the packaged runtime path.
 - Documented architecture, data flow, and layer ownership in `docs/architecture.md`.
 - Extracted modal and tool UI pieces out of `GmApp` and `ToolsMenu` where the split was low risk.
+- Extracted GM workspace topbar bridge wiring so Player View menu actions and dice setting prop mapping live beside the workspace topbar instead of the app composition root.
 - Moved repeated scene mutation rules into focused helpers:
   - selection visibility and deletion
   - environment effect type switching
