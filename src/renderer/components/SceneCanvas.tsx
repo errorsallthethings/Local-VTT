@@ -33,7 +33,6 @@ import {
   drawFog,
   getFogOperationForTool,
   type FogDrag,
-  type FogPolygonDraft,
   type FogTool
 } from "../canvas/fog";
 import { drawHexGrid, drawSquareGrid } from "../canvas/grid";
@@ -125,8 +124,7 @@ import {
 } from "../canvas/effects";
 import {
   shouldAnimateEnvironmentEffects,
-  type EnvironmentEffectDrag,
-  type EnvironmentPolygonDraft
+  type EnvironmentEffectDrag
 } from "../canvas/effects";
 import { drawWeather, shouldAnimateWeather } from "../canvas/weather";
 import {
@@ -137,12 +135,9 @@ import {
 } from "../canvas/weather";
 import {
   type WeatherMaskDrag,
-  type WeatherPolygonDraft
 } from "../canvas/weather";
 import { useImageMapLoader } from "../hooks/useImageMapLoader";
 import { usePlayerTokenTweens } from "../hooks/usePlayerTokenTweens";
-import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
-import { useSyncedRef } from "../hooks/useSyncedRef";
 import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { useWindowKeyDown } from "../hooks/useWindowKeyDown";
@@ -173,18 +168,6 @@ import {
   getWeatherToolResetActions,
   type SceneLifecycleResetAction
 } from "./scene/sceneLifecycleReset";
-import {
-  appendScenePolygonDraftPoint,
-  appendScopedScenePolygonDraftPoint,
-  clearScenePolygonDraft,
-  removeLastScenePolygonDraftPoint
-} from "./scene/scenePolygonDraftState";
-import {
-  getSceneAfterDrawingPolygonDraftCommit,
-  getSceneAfterEnvironmentPolygonDraftCommit,
-  getSceneAfterFogPolygonDraftCommit,
-  getSceneAfterWeatherPolygonDraftCommit
-} from "./scene/scenePolygonDraftCommitScenes";
 import {
   getSceneAfterDrawingDragCommit,
   getSceneAfterEnvironmentEffectDragCommit,
@@ -238,6 +221,7 @@ import { getWeatherMaskPointerMove, getWeatherMaskPointerMoveAction } from "./sc
 import { useSceneViewportCenterReporting } from "./scene/useSceneViewportCenterReporting";
 import { useSceneVideoMapHandlers } from "./scene/useSceneVideoMapHandlers";
 import { useSceneWheelZoom } from "./scene/useSceneWheelZoom";
+import { useScenePolygonDrafts } from "./scene/useScenePolygonDrafts";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
@@ -319,11 +303,6 @@ interface SceneCanvasProps {
   onReady?: () => void;
   showPlayerSeatIndicators?: boolean;
 }
-
-type DrawingPolygonDraft = {
-  points: Point[];
-  current?: Point;
-};
 
 function getCanvasContextMenuPosition(event: React.MouseEvent<HTMLCanvasElement>, kind: CanvasContextMenuKind): { x: number; y: number } {
   return calculateCanvasContextMenuPosition({
@@ -431,10 +410,6 @@ export function SceneCanvas({
   const [drawingDragPreview, setDrawingDragPreview] = useState<DrawingPointOverrides | null>(null);
   const [weatherMaskMovePreview, setWeatherMaskMovePreview] = useState<Map<string, Point[]> | null>(null);
   const [environmentEffectMovePreview, setEnvironmentEffectMovePreview] = useState<Map<string, Point[]> | null>(null);
-  const [polygonDraft, setPolygonDraft] = useState<FogPolygonDraft | null>(null);
-  const [drawingPolygonDraft, setDrawingPolygonDraft] = useState<DrawingPolygonDraft | null>(null);
-  const [weatherPolygonDraft, setWeatherPolygonDraft] = useState<WeatherPolygonDraft | null>(null);
-  const [environmentPolygonDraft, setEnvironmentPolygonDraft] = useState<EnvironmentPolygonDraft | null>(null);
   const [mapCalibrationDrag, setMapCalibrationDrag] = useState<MapCalibrationDrag | null>(null);
   const [selectionDrag, setSelectionDrag] = useState<SelectionDrag | null>(null);
   const [drawingTransformHover, setDrawingTransformHover] = useState<DrawingTransformHover>(null);
@@ -459,14 +434,74 @@ export function SceneCanvas({
   const environmentEffectDragRef = useRef<EnvironmentEffectDrag | null>(null);
   const mapCalibrationDragRef = useRef<MapCalibrationDrag | null>(null);
   const selectionDragRef = useRef<SelectionDrag | null>(null);
-  const polygonDraftRef = useSyncedRef<FogPolygonDraft | null>(polygonDraft);
-  const drawingPolygonDraftRef = useSyncedRef<DrawingPolygonDraft | null>(drawingPolygonDraft);
-  const weatherPolygonDraftRef = useSyncedRef<WeatherPolygonDraft | null>(weatherPolygonDraft);
-  const environmentPolygonDraftRef = useSyncedRef<EnvironmentPolygonDraft | null>(environmentPolygonDraft);
   const fittedSceneCameraRef = useRef<string | null>(null);
   const autoFitCameraRef = useRef(true);
   const activeTableTools = tableTools ?? scene?.tableTools ?? DEFAULT_TABLE_TOOLS;
   const activeFogBrushSize = fogBrushSize ?? scene?.fog.brushSize ?? 80;
+  const currentEnvironmentEffectTuning = useSceneCanvasEnvironmentTuning({
+    acidTuning: acidEffectTuning,
+    arcaneTuning: arcaneEffectTuning,
+    chaosTuning: chaosEffectTuning,
+    coldTuning: coldEffectTuning,
+    darknessTuning: darknessEffectTuning,
+    distortionTuning: distortionEffectTuning,
+    fireTuning: fireEffectTuning,
+    fogTuning: fogEffectTuning,
+    fieldTuning: forceFieldEffectTuning,
+    lavaTuning: lavaEffectTuning,
+    lightningTuning: lightningEffectTuning,
+    natureTuning: natureEffectTuning,
+    poisonTuning: poisonEffectTuning,
+    radiantTuning: radiantEffectTuning,
+    shockwaveTuning: shockwaveEffectTuning,
+    smokeTuning: smokeEffectTuning,
+    voidTuning: voidEffectTuning,
+    waterTuning: waterEffectTuning
+  });
+  const {
+    appendDrawingPolygonDraftPoint,
+    appendEnvironmentPolygonDraftPoint,
+    appendFogPolygonDraftPoint,
+    appendWeatherPolygonDraftPoint,
+    clearDrawingPolygonDraft,
+    clearEnvironmentPolygonDraft,
+    clearFogPolygonDraft,
+    clearWeatherPolygonDraft,
+    commitDrawingPolygonDraft,
+    commitEnvironmentPolygonDraft,
+    commitFogPolygonDraft: commitPolygonDraft,
+    commitWeatherPolygonDraft,
+    drawingPolygonDraft,
+    drawingPolygonDraftRef,
+    environmentPolygonDraft,
+    environmentPolygonDraftRef,
+    fogPolygonDraft: polygonDraft,
+    fogPolygonDraftRef: polygonDraftRef,
+    removeLastDrawingPolygonDraftPoint,
+    removeLastEnvironmentPolygonDraftPoint,
+    removeLastFogPolygonDraftPoint,
+    removeLastWeatherPolygonDraftPoint,
+    setDrawingPolygonDraft,
+    setEnvironmentPolygonDraft,
+    setFogPolygonDraft: setPolygonDraft,
+    setWeatherPolygonDraft,
+    weatherPolygonDraft,
+    weatherPolygonDraftRef
+  } = useScenePolygonDrafts({
+    drawingStyle: {
+      color: drawingColor,
+      opacity: drawingOpacity,
+      fillColor: drawingFillColor,
+      fillOpacity: drawingFillOpacity,
+      strokeStyle: drawingStrokeStyle,
+      strokeWidth: drawingStrokeWidth
+    },
+    environmentEffectFeather,
+    environmentEffectTuning: currentEnvironmentEffectTuning,
+    environmentEffectType,
+    onSceneChange,
+    scene
+  });
   const visibleDiceOverlayEvents = useMemo(() => getVisibleDiceOverlayEvents(liveTableEvents, mode), [liveTableEvents, mode]);
   const contextMenuSelectionHandlers = useMemo(() => ({
     onSelectDrawing,
@@ -578,13 +613,13 @@ export function SceneCanvas({
     (actions: readonly SceneLifecycleResetAction[]) => {
       for (const action of actions) {
         if (action === "clear-fog-polygon-draft") {
-          clearScenePolygonDraft({ ref: polygonDraftRef, setDraft: setPolygonDraft });
+          clearFogPolygonDraft();
         } else if (action === "clear-drawing-polygon-draft") {
-          clearScenePolygonDraft({ ref: drawingPolygonDraftRef, setDraft: setDrawingPolygonDraft });
+          clearDrawingPolygonDraft();
         } else if (action === "clear-weather-polygon-draft") {
-          clearScenePolygonDraft({ ref: weatherPolygonDraftRef, setDraft: setWeatherPolygonDraft });
+          clearWeatherPolygonDraft();
         } else if (action === "clear-environment-polygon-draft") {
-          clearScenePolygonDraft({ ref: environmentPolygonDraftRef, setDraft: setEnvironmentPolygonDraft });
+          clearEnvironmentPolygonDraft();
         } else if (action === "clear-fog-preview") {
           clearFogPreview();
         } else if (action === "clear-drawing-preview") {
@@ -633,13 +668,13 @@ export function SceneCanvas({
       cancelWeatherMaskMove,
       clearDrawingPreview,
       clearEnvironmentEffectPreview,
+      clearDrawingPolygonDraft,
+      clearEnvironmentPolygonDraft,
       clearFogPreview,
+      clearFogPolygonDraft,
       clearWeatherMaskPreview,
-      drawingPolygonDraftRef,
-      environmentPolygonDraftRef,
+      clearWeatherPolygonDraft,
       onLiveTableEvent,
-      polygonDraftRef,
-      weatherPolygonDraftRef
     ]
   );
 
@@ -673,27 +708,6 @@ export function SceneCanvas({
     () => hasAuthoringToolActive({ canvasTool, drawingTool, fogTool, weatherMaskTool, environmentEffectTool }),
     [canvasTool, drawingTool, environmentEffectTool, fogTool, weatherMaskTool]
   );
-  const currentEnvironmentEffectTuning = useSceneCanvasEnvironmentTuning({
-    acidTuning: acidEffectTuning,
-    arcaneTuning: arcaneEffectTuning,
-    chaosTuning: chaosEffectTuning,
-    coldTuning: coldEffectTuning,
-    darknessTuning: darknessEffectTuning,
-    distortionTuning: distortionEffectTuning,
-    fieldTuning: forceFieldEffectTuning,
-    fireTuning: fireEffectTuning,
-    fogTuning: fogEffectTuning,
-    lavaTuning: lavaEffectTuning,
-    lightningTuning: lightningEffectTuning,
-    natureTuning: natureEffectTuning,
-    poisonTuning: poisonEffectTuning,
-    radiantTuning: radiantEffectTuning,
-    shockwaveTuning: shockwaveEffectTuning,
-    smokeTuning: smokeEffectTuning,
-    voidTuning: voidEffectTuning,
-    waterTuning: waterEffectTuning
-  });
-
   const {
     mapLayer,
     drawingLayer,
@@ -1336,7 +1350,7 @@ export function SceneCanvas({
       const activeDrawingTool = drawingTool!;
       const start = getAuthoringStart(pointerDownRoute, getDrawingToolPoint(event, activeDrawingTool));
       if (start?.kind === "drawing-polygon") {
-        updateDrawingPolygonDraft(start.point);
+        appendDrawingPolygonDraftPoint(start.point);
       }
       return;
     }
@@ -1358,7 +1372,7 @@ export function SceneCanvas({
         return;
       }
       if (start.start.kind === "polygon") {
-        updatePolygonDraft(start.start.tool, start.start.point);
+        appendFogPolygonDraftPoint(start.start.tool, start.start.point);
         return;
       }
       fogDragRef.current = start.start.drag;
@@ -1371,10 +1385,10 @@ export function SceneCanvas({
         return;
       }
       if (start.start.kind === "polygon") {
-        updateWeatherPolygonDraft(start.start.point);
+        appendWeatherPolygonDraftPoint(start.start.point);
         return;
       }
-      clearScenePolygonDraft({ ref: weatherPolygonDraftRef, setDraft: setWeatherPolygonDraft });
+      clearWeatherPolygonDraft();
       weatherMaskDragRef.current = start.start.drag;
       setWeatherMaskPreview(start.start.drag);
       return;
@@ -1385,10 +1399,10 @@ export function SceneCanvas({
         return;
       }
       if (start.start.kind === "polygon") {
-        updateEnvironmentPolygonDraft(start.start.point);
+        appendEnvironmentPolygonDraftPoint(start.start.point);
         return;
       }
-      clearScenePolygonDraft({ ref: environmentPolygonDraftRef, setDraft: setEnvironmentPolygonDraft });
+      clearEnvironmentPolygonDraft();
       environmentEffectDragRef.current = start.start.drag;
       setEnvironmentEffectPreview(start.start.drag);
       return;
@@ -2027,19 +2041,19 @@ export function SceneCanvas({
       return;
     }
     if (route === "fog-polygon-backtrack") {
-      removeLastScenePolygonDraftPoint({ ref: polygonDraftRef, setDraft: setPolygonDraft });
+      removeLastFogPolygonDraftPoint();
       return;
     }
     if (route === "drawing-polygon-backtrack") {
-      removeLastScenePolygonDraftPoint({ ref: drawingPolygonDraftRef, setDraft: setDrawingPolygonDraft });
+      removeLastDrawingPolygonDraftPoint();
       return;
     }
     if (route === "weather-polygon-backtrack") {
-      removeLastScenePolygonDraftPoint({ ref: weatherPolygonDraftRef, setDraft: setWeatherPolygonDraft });
+      removeLastWeatherPolygonDraftPoint();
       return;
     }
     if (route === "environment-polygon-backtrack") {
-      removeLastScenePolygonDraftPoint({ ref: environmentPolygonDraftRef, setDraft: setEnvironmentPolygonDraft });
+      removeLastEnvironmentPolygonDraftPoint();
     }
   };
 
@@ -2105,23 +2119,6 @@ export function SceneCanvas({
     );
   };
 
-  const updatePolygonDraft = (tool: FogTool, point: Point) => {
-    const operation = getFogOperationForTool(tool);
-    appendScopedScenePolygonDraftPoint({ ref: polygonDraftRef, setDraft: setPolygonDraft }, point, "operation", operation);
-  };
-
-  const updateWeatherPolygonDraft = (point: Point) => {
-    appendScenePolygonDraftPoint({ ref: weatherPolygonDraftRef, setDraft: setWeatherPolygonDraft }, point);
-  };
-
-  const updateEnvironmentPolygonDraft = (point: Point) => {
-    appendScenePolygonDraftPoint({ ref: environmentPolygonDraftRef, setDraft: setEnvironmentPolygonDraft }, point);
-  };
-
-  const updateDrawingPolygonDraft = (point: Point) => {
-    appendScenePolygonDraftPoint({ ref: drawingPolygonDraftRef, setDraft: setDrawingPolygonDraft }, point);
-  };
-
   const getToolPoint = (event: React.PointerEvent<HTMLCanvasElement>, snapEnabled = true): Point => {
     const result = resolveSceneToolEventPoint(event, getRenderCamera(camera, playerDisplayScale), scene, snapEnabled);
     setSnapPoint(result.snapPoint);
@@ -2155,96 +2152,6 @@ export function SceneCanvas({
       })
     );
   };
-
-  const commitPolygonDraft = () => {
-    const draft = polygonDraftRef.current;
-    if (!scene || !onSceneChange || !draft) {
-      return;
-    }
-    const nextScene = getSceneAfterFogPolygonDraftCommit(scene, draft, crypto.randomUUID());
-    if (!nextScene) {
-      return;
-    }
-    clearScenePolygonDraft({ ref: polygonDraftRef, setDraft: setPolygonDraft });
-    onSceneChange(nextScene);
-  };
-
-  const commitDrawingPolygonDraft = () => {
-    const draft = drawingPolygonDraftRef.current;
-    if (!scene || !onSceneChange || !draft) {
-      return;
-    }
-    const nextScene = getSceneAfterDrawingPolygonDraftCommit(scene, draft, crypto.randomUUID(), {
-      color: drawingColor,
-      opacity: drawingOpacity,
-      fillColor: drawingFillColor,
-      fillOpacity: drawingFillOpacity,
-      strokeStyle: drawingStrokeStyle,
-      strokeWidth: drawingStrokeWidth
-    });
-    if (!nextScene) {
-      return;
-    }
-    clearScenePolygonDraft({ ref: drawingPolygonDraftRef, setDraft: setDrawingPolygonDraft });
-    onSceneChange(nextScene);
-  };
-
-  const commitWeatherPolygonDraft = () => {
-    const draft = weatherPolygonDraftRef.current;
-    if (!scene || !onSceneChange || !draft) {
-      return;
-    }
-    const nextScene = getSceneAfterWeatherPolygonDraftCommit(scene, draft, crypto.randomUUID());
-    if (!nextScene) {
-      return;
-    }
-    clearScenePolygonDraft({ ref: weatherPolygonDraftRef, setDraft: setWeatherPolygonDraft });
-    onSceneChange(nextScene);
-  };
-
-  const commitEnvironmentPolygonDraft = () => {
-    const draft = environmentPolygonDraftRef.current;
-    if (!scene || !onSceneChange || !draft) {
-      return;
-    }
-    const nextScene = getSceneAfterEnvironmentPolygonDraftCommit(
-      scene,
-      draft,
-      crypto.randomUUID(),
-      environmentEffectType,
-      environmentEffectFeather,
-      currentEnvironmentEffectTuning
-    );
-    if (!nextScene) {
-      return;
-    }
-    clearScenePolygonDraft({ ref: environmentPolygonDraftRef, setDraft: setEnvironmentPolygonDraft });
-    onSceneChange(nextScene);
-  };
-
-  usePolygonDraftKeyboard({
-    active: Boolean(polygonDraft),
-    onCancel: () => clearScenePolygonDraft({ ref: polygonDraftRef, setDraft: setPolygonDraft }),
-    onCommit: commitPolygonDraft
-  });
-
-  usePolygonDraftKeyboard({
-    active: Boolean(drawingPolygonDraft),
-    onCancel: () => clearScenePolygonDraft({ ref: drawingPolygonDraftRef, setDraft: setDrawingPolygonDraft }),
-    onCommit: commitDrawingPolygonDraft
-  });
-
-  usePolygonDraftKeyboard({
-    active: Boolean(weatherPolygonDraft),
-    onCancel: () => clearScenePolygonDraft({ ref: weatherPolygonDraftRef, setDraft: setWeatherPolygonDraft }),
-    onCommit: commitWeatherPolygonDraft
-  });
-
-  usePolygonDraftKeyboard({
-    active: Boolean(environmentPolygonDraft),
-    onCancel: () => clearScenePolygonDraft({ ref: environmentPolygonDraftRef, setDraft: setEnvironmentPolygonDraft }),
-    onCommit: commitEnvironmentPolygonDraft
-  });
 
   const {
     handleVideoMapCanPlay,

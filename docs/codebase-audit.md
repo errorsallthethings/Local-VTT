@@ -83,6 +83,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Split the acid/poison/cold/darkness hazard template-effect family out of the main renderable catalog while keeping shared lightning-line primitives reusable across effect families.
 - Split the nature/radiant/water/web template-effect family out of the main renderable catalog, leaving `templateEffectRenderables.ts` as mostly registry/cache plus the remaining arcane/psychic/fire recipes.
 - Extracted SceneCanvas viewport center reporting, wheel zoom wiring, and video-map event handling into focused hooks so map media/lifecycle mechanics no longer sit inline with pointer-mode orchestration.
+- Extracted SceneCanvas polygon draft state, refs, keyboard commit/cancel behavior, and per-draft commit handlers into a focused hook so fog, drawing, weather, and environment polygon lifecycles share one owner.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
