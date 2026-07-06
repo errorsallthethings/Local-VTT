@@ -98,26 +98,24 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Moved the remaining arcane, psychic, and fire template-effect recipes into a dedicated renderable-family module, leaving `templateEffectRenderables.ts` as a small registry/cache layer.
 - Extracted GM environment-effect editor wiring out of `GmApp` so tuning reset/change handlers live beside the modal instead of bloating the app composition root.
 - Extracted GM floating workspace state and turn-order dock composition out of `GmApp` so floating panels, selector filters, and initiative panel wiring share focused owners.
+- Extracted GM workspace shell state initialization and the status footer out of `GmApp` so layout persistence and footer formatting no longer add view-root noise.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
 
-- `src/renderer/components/SceneCanvas.tsx`: high-responsibility canvas interaction component. Recent work moved context menus, asset prep, selection prep, and effect tuning prep into tested helpers; continue splitting by interaction mode before adding more tools.
-- `src/renderer/canvas/drawings/templateEffectRenderables.ts`: now much smaller after runtime, storm-family, hazard-family, and nature-family extraction. Remaining cleanup is optional and should focus on whether arcane/psychic/fire deserve their own family module.
-- `src/renderer/canvas/drawings/drawingRenderer.ts`: improved after overlay/stroke extraction, but still mixes base shape rendering with template-specific guide/label behavior. Continue separating template rendering from freehand/shape rendering.
-- `src/renderer/canvas/drawings/drawingTransform.ts`: improved after point-snapshot and geometry extraction. Further cleanup should focus on transform drag policy only if SceneCanvas needs new transform behavior.
-- `src/renderer/canvas/drawings/templateDrawingPresentation.ts`: improved after grid-highlight rendering extraction. Further changes should separate labels from fills only when label behavior changes.
-- `src/renderer/components/layers/LayerPanel.tsx`: layer UI is feature rich but broad. Extract per-layer panels when touching those areas.
-- `src/renderer/views/GmApp.tsx`: smaller after audit work, but still coordinates many workflows. Prefer extracting domain helpers or feature hooks before adding new state.
+- `src/renderer/views/GmApp.tsx`: much smaller after audit work, but still coordinates the topbar, tools menu, canvas, inspector, dialogs, and maintenance flows. Continue extracting cohesive view sections rather than adding more inline state.
+- `src/renderer/components/tools/ToolsMenu.tsx`: remains prop-heavy because it owns many tool controls and effect tuning controls. Prefer grouping props by tool family or extracting section components when changing tool UI.
+- `src/renderer/components/layers/LayerPanel.tsx`: improved after map-setting and drag/drop extraction, but still feature rich. Extract per-layer panels when touching token, drawing, fog, or weather sections.
+- `src/renderer/components/SceneCanvas.tsx`: significantly improved after interaction hooks and policy helpers, but still deserves caution because it is the live-session render/input surface. New interaction features should land behind focused hooks and policy tests.
 - `electron/main.ts`: smaller after audit work, but still coordinates app lifecycle, IPC, windows, file IO, asset copy/delete, and Player View control. Continue extracting pure helpers or injectable service functions before changing behavior.
 
 ## Next Recommended Refactors
 
-1. Split `SceneCanvas` interaction modes into hooks or controllers: selection, token drag, drawing, templates, fog, effects, ruler, and calibration.
-2. Split `LayerPanel` by layer type after the scene canvas interaction split stabilizes.
-3. Split `templateEffectRenderables.ts` into effect-family or primitive-helper modules with renderable registry tests preserving asset ids.
-4. Keep new animated effect implementations in effect-family modules behind the drawer registry instead of growing the compatibility export.
-5. Keep large renderer changes incremental and screenshot/smoke tested where visual behavior matters.
+1. Continue shrinking `GmApp` by extracting topbar/player-view coordination, tools-menu wiring, or dialog prop mapping only when the new owner is cohesive.
+2. Reduce `ToolsMenu` prop density by extracting effect tuning, drawing controls, and selector controls into smaller sections with stable prop groups.
+3. Split `LayerPanel` by layer type when touching token, drawing, fog, weather, or environment-effect layer behavior.
+4. Keep `electron/main.ts` extraction focused on file-safety, asset, and window/IPC service boundaries with regression tests around campaign path behavior.
+5. Keep visual/rendering changes incremental and run Electron or visual smoke tests whenever DOM, canvas, Player View, or media behavior changes.
 
 ## Audit Guardrails
 

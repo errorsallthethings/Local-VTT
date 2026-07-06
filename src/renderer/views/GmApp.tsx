@@ -40,6 +40,7 @@ import { useGmMaintenanceState } from "../hooks/useGmMaintenanceState";
 import { useGmToolOptions } from "../hooks/useGmToolOptions";
 import { useGmToolSelection } from "../hooks/useGmToolSelection";
 import { useGmWorkspaceShellActions } from "../hooks/useGmWorkspaceShellActions";
+import { useGmWorkspaceShellState } from "../hooks/useGmWorkspaceShellState";
 import { useMapCalibrationActions } from "../hooks/useMapCalibrationActions";
 import { usePlayerDisplayActions } from "../hooks/usePlayerDisplayActions";
 import { usePlayerViewActions } from "../hooks/usePlayerViewActions";
@@ -52,20 +53,14 @@ import { useTokenDefaultsActions } from "../hooks/useTokenDefaultsActions";
 import { useTokenImportActions } from "../hooks/useTokenImportActions";
 import { getEffectiveDiceSettings, loadDiceSettingsPreference } from "../lib/dice";
 import { buildSceneSelectionIds } from "../lib/scene";
-import { loadRecentCampaigns, type RecentCampaign } from "../lib/campaign";
 import { getSelectedTokenAssetIds } from "../lib/tokens";
-import {
-  loadTokenLibraryHeight,
-  loadWorkspaceLayout,
-  type WorkspaceLayout
-} from "../lib/workspace";
-import { formatSaveStatus } from "../lib/workspace";
 import { GmDialogs } from "./GmDialogs";
 import { GmEnvironmentEffectEditor } from "./GmEnvironmentEffectEditor";
 import { GmInspector } from "./GmInspector";
 import { GmMaintenanceDialogs } from "./GmMaintenanceDialogs";
 import { GmSidebar } from "./GmSidebar";
 import { GmTurnOrderDock } from "./GmTurnOrderDock";
+import { GmWorkspaceStatusFooter } from "./GmWorkspaceStatusFooter";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
 
@@ -278,10 +273,17 @@ export function GmApp() {
     toggleTurnOrderModal
   } = floatingWorkspace;
   const [diceRollHistory, setDiceRollHistory] = useState<DiceRollEvent[]>([]);
-  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
-  const [tokenLibraryHeight, setTokenLibraryHeight] = useState(() => loadTokenLibraryHeight());
-  const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => loadWorkspaceLayout());
-  const [recentCampaigns, setRecentCampaigns] = useState<RecentCampaign[]>(() => loadRecentCampaigns());
+  const workspaceShellState = useGmWorkspaceShellState();
+  const {
+    expandedFolderIds,
+    recentCampaigns,
+    tokenLibraryHeight,
+    workspaceLayout,
+    setExpandedFolderIds,
+    setRecentCampaigns,
+    setTokenLibraryHeight,
+    setWorkspaceLayout
+  } = workspaceShellState;
   const {
     activeMapIsVideo,
     mapAsset,
@@ -1091,12 +1093,7 @@ export function GmApp() {
           />
         )}
 
-        <footer className="statusbar">
-          <span>Mouse wheel zooms. Grabber left-drags the scene. Middle/right drag pans. Scene data uses world/map coordinates.</span>
-          <span>
-            Save status: {formatSaveStatus({ dirtySceneCount: dirtyCount, campaignDirty, saveState })}
-          </span>
-        </footer>
+        <GmWorkspaceStatusFooter campaignDirty={campaignDirty} dirtySceneCount={dirtyCount} saveState={saveState} />
       </main>
 
       <GmInspector
