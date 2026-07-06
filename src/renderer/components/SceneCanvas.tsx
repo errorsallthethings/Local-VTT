@@ -38,7 +38,6 @@ import {
 import { drawHexGrid, drawSquareGrid } from "../canvas/grid";
 import {
   createLaserLiveTableEvent,
-  createPingLiveTableEvent,
   createRulerClearEvent,
   createRulerLiveTableEvent,
   drawLiveTableEvents,
@@ -47,7 +46,7 @@ import {
   hasActiveLiveTableEvents,
   RULER_RELEASE_LINGER_MS
 } from "../canvas/live-table";
-import { getPlayerDisplayScale, getRulerDragWithRemovedWaypoint, getRulerLabel } from "../canvas/live-table";
+import { getPlayerDisplayScale, getRulerLabel } from "../canvas/live-table";
 import {
   getVisibleMapCalibrationBox,
   type MapCalibrationBox,
@@ -98,9 +97,8 @@ import { getTurnOrderTokenIndicators } from "../lib/turn-order";
 import {
   getTemplatePreviewDrawing
 } from "../canvas/drawings";
-import { getTokenDragWaypointRemovalUpdate } from "../canvas/tokens";
 import { drawTokenDragHighlights, drawTokens, hasVisibleTokenConditions, type TokenDragPreview } from "../canvas/tokens";
-import { clientToWorldPoint, eventToWorldPoint, isSnapModifier } from "../canvas/core";
+import { eventToWorldPoint, isSnapModifier } from "../canvas/core";
 import {
   type AcidEffectTuning,
   type ArcaneEffectTuning,
@@ -141,20 +139,12 @@ import { usePlayerTokenTweens } from "../hooks/usePlayerTokenTweens";
 import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
 import { useWindowKeyDown } from "../hooks/useWindowKeyDown";
-import { calculateCanvasContextMenuPosition, type CanvasContextMenuKind } from "../lib/ui";
 import { SceneCanvasContextMenus } from "./scene/SceneCanvasContextMenus";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
-import { getSceneContextMenuOpening } from "./scene/sceneContextMenuOpening";
 import { useSceneCanvasAssets } from "./scene/useSceneCanvasAssets";
 import { useSceneCanvasContextMenus } from "./scene/useSceneCanvasContextMenus";
 import { useSceneCanvasEnvironmentTuning } from "./scene/useSceneCanvasEnvironmentTuning";
 import { useSceneCanvasSelectionState } from "./scene/useSceneCanvasSelectionState";
-import {
-  getCanvasContextMenuKindForSceneTarget,
-  getSceneContextMenuRoute,
-  shouldPreventSceneContextMenuDefault
-} from "./scene/sceneContextMenuRouting";
-import { resetSceneHoverState } from "./scene/sceneHoverReset";
 import {
   cancelSceneInteractionsForKeyboardEvent,
   hasCancelableSceneInteraction
@@ -183,8 +173,6 @@ import {
   MapLoadOverlay,
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
-import { getSceneContextMenuTarget } from "./scene/sceneContextMenuTarget";
-import { getSceneDoubleClickActions } from "./scene/sceneDoubleClickRouting";
 import {
   getGmMapAutoFitAction,
 } from "./scene/sceneMapViewportPolicy";
@@ -222,6 +210,7 @@ import { useSceneWheelZoom } from "./scene/useSceneWheelZoom";
 import { useScenePolygonDrafts } from "./scene/useScenePolygonDrafts";
 import { useSceneCanvasHoverPoints } from "./scene/useSceneCanvasHoverPoints";
 import { useSceneTokenAssetDrop } from "./scene/useSceneTokenAssetDrop";
+import { useSceneCanvasMouseEvents } from "./scene/useSceneCanvasMouseEvents";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
@@ -302,16 +291,6 @@ interface SceneCanvasProps {
   onMapCalibrationCancel?: () => void;
   onReady?: () => void;
   showPlayerSeatIndicators?: boolean;
-}
-
-function getCanvasContextMenuPosition(event: React.MouseEvent<HTMLCanvasElement>, kind: CanvasContextMenuKind): { x: number; y: number } {
-  return calculateCanvasContextMenuPosition({
-    anchorX: event.clientX,
-    anchorY: event.clientY,
-    kind,
-    viewportWidth: window.innerWidth || document.documentElement.clientWidth,
-    viewportHeight: window.innerHeight || document.documentElement.clientHeight
-  });
 }
 
 export function SceneCanvas({
@@ -789,6 +768,51 @@ export function SceneCanvas({
     onDropTokenAsset,
     playerDisplayScale,
     scene
+  });
+  const {
+    onClick,
+    onContextMenu,
+    onDoubleClick,
+    onPointerLeave
+  } = useSceneCanvasMouseEvents({
+    activeTableTools,
+    applySceneContextMenuOpening,
+    authoringToolActive,
+    camera,
+    canShowDrawings,
+    canShowTokens,
+    canvasTool,
+    commitDrawingPolygonDraft,
+    commitEnvironmentPolygonDraft,
+    commitFogPolygonDraft: commitPolygonDraft,
+    commitWeatherPolygonDraft,
+    drawingPolygonDraftRef,
+    drawingTool,
+    emitRulerEvent,
+    environmentEffectTool,
+    environmentPolygonDraftRef,
+    fogPolygonDraftRef: polygonDraftRef,
+    mode,
+    onAddTokenToTurnOrder,
+    onLiveTableEvent,
+    playerDisplayScale,
+    removeLastDrawingPolygonDraftPoint,
+    removeLastEnvironmentPolygonDraftPoint,
+    removeLastFogPolygonDraftPoint,
+    removeLastWeatherPolygonDraftPoint,
+    rulerDragRef,
+    scene,
+    setBrushHoverPoint,
+    setDrawingTransformHover,
+    setRulerDrag,
+    setSceneItemHover,
+    setSnapPoint,
+    setTokenDragPreview,
+    tableToolsVisibleInPlayer,
+    tokenDragPreview,
+    tokenDragRef,
+    weatherMaskTool,
+    weatherPolygonDraftRef
   });
   const videoPlayback = scene?.videoPlayback ?? DEFAULT_VIDEO_PLAYBACK;
   const videoPaused = videoPlayback.paused;
@@ -1954,142 +1978,6 @@ export function SceneCanvas({
         }
       }
       cancelTokenDrag();
-    }
-  };
-
-  const onPointerLeave = () => {
-    resetSceneHoverState({
-      clearSnapPoint: () => setSnapPoint(null),
-      clearBrushHoverPoint: () => setBrushHoverPoint(null),
-      clearDrawingTransformHover: () => setDrawingTransformHover(null),
-      clearSceneItemHover: () => setSceneItemHover(false)
-    });
-  };
-
-  const emitPing = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    onLiveTableEvent?.(
-      createPingLiveTableEvent(
-        crypto.randomUUID(),
-        clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale)),
-        activeTableTools,
-        tableToolsVisibleInPlayer
-      )
-    );
-  };
-
-  const onClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (mode === "gm" && canvasTool === "ping" && scene) {
-      event.preventDefault();
-      emitPing(event);
-    }
-  };
-
-  const onDoubleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const actions = getSceneDoubleClickActions({
-      canvasTool,
-      drawingTool,
-      environmentEffectTool,
-      hasDrawingPolygonDraft: Boolean(drawingPolygonDraftRef.current),
-      hasEnvironmentPolygonDraft: Boolean(environmentPolygonDraftRef.current),
-      hasFogPolygonDraft: Boolean(polygonDraftRef.current),
-      hasScene: Boolean(scene),
-      hasWeatherPolygonDraft: Boolean(weatherPolygonDraftRef.current),
-      mode,
-      weatherMaskTool
-    });
-    if (actions.length > 0) {
-      event.preventDefault();
-    }
-    for (const action of actions) {
-      if (action === "suppress-ping") {
-        return;
-      }
-      if (action === "commit-fog-polygon") {
-        commitPolygonDraft();
-      } else if (action === "commit-drawing-polygon") {
-        commitDrawingPolygonDraft();
-      } else if (action === "commit-weather-polygon") {
-        commitWeatherPolygonDraft();
-      } else {
-        commitEnvironmentPolygonDraft();
-      }
-    }
-  };
-
-  const onContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const activeRulerDrag = rulerDragRef.current;
-    const tokenDrag = tokenDragRef.current;
-    const draft = polygonDraftRef.current;
-    const drawingDraft = drawingPolygonDraftRef.current;
-    const weatherDraft = weatherPolygonDraftRef.current;
-    const environmentDraft = environmentPolygonDraftRef.current;
-    const route = getSceneContextMenuRoute({
-      hasTokenDrag: Boolean(tokenDrag),
-      hasRulerDrag: Boolean(activeRulerDrag),
-      hasFogPolygonDraft: Boolean(draft),
-      hasDrawingPolygonDraft: Boolean(drawingDraft),
-      hasWeatherPolygonDraft: Boolean(weatherDraft),
-      hasEnvironmentPolygonDraft: Boolean(environmentDraft),
-      canOpenMenu: mode === "gm" && Boolean(scene)
-    });
-    if (shouldPreventSceneContextMenuDefault(route, authoringToolActive)) {
-      event.preventDefault();
-    }
-    if (route === "token-waypoint" && tokenDrag) {
-      const update = getTokenDragWaypointRemovalUpdate(tokenDrag, tokenDragPreview);
-      if (!update) {
-        return;
-      }
-      tokenDragRef.current = update.drag;
-      setTokenDragPreview(update.preview);
-      return;
-    }
-
-    if (route === "ruler-waypoint" && activeRulerDrag) {
-      const nextRulerDrag = getRulerDragWithRemovedWaypoint(activeRulerDrag);
-      if (!nextRulerDrag) {
-        return;
-      }
-      rulerDragRef.current = nextRulerDrag;
-      setRulerDrag(nextRulerDrag);
-      emitRulerEvent(nextRulerDrag);
-      return;
-    }
-
-    if (route === "open-menu") {
-      if (mode === "gm" && scene) {
-        const point = clientToWorldPoint(event.currentTarget, event.clientX, event.clientY, getRenderCamera(camera, playerDisplayScale));
-        const contextTarget = getSceneContextMenuTarget({
-          authoringToolActive,
-          camera: getRenderCamera(camera, playerDisplayScale),
-          canOpenTokenMenu: Boolean(onAddTokenToTurnOrder),
-          canShowDrawings: Boolean(canShowDrawings),
-          canShowTokens: Boolean(canShowTokens),
-          point,
-          scene
-        });
-        if (contextTarget) {
-          const menuKind: CanvasContextMenuKind = getCanvasContextMenuKindForSceneTarget(contextTarget);
-          applySceneContextMenuOpening(getSceneContextMenuOpening(contextTarget, getCanvasContextMenuPosition(event, menuKind)));
-          return;
-        }
-      }
-      return;
-    }
-    if (route === "fog-polygon-backtrack") {
-      removeLastFogPolygonDraftPoint();
-      return;
-    }
-    if (route === "drawing-polygon-backtrack") {
-      removeLastDrawingPolygonDraftPoint();
-      return;
-    }
-    if (route === "weather-polygon-backtrack") {
-      removeLastWeatherPolygonDraftPoint();
-      return;
-    }
-    if (route === "environment-polygon-backtrack") {
-      removeLastEnvironmentPolygonDraftPoint();
     }
   };
 
