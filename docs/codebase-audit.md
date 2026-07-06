@@ -110,19 +110,20 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 
 ## Current Hotspots
 
-- `src/renderer/views/GmApp.tsx`: much smaller after audit work, but still coordinates the topbar, tools menu, canvas, inspector, dialogs, and maintenance flows. Continue extracting cohesive view sections rather than adding more inline state.
-- `src/renderer/components/tools/ToolsMenu.tsx`: remains prop-heavy because it owns many tool controls and effect tuning controls. Prefer grouping props by tool family or extracting section components when changing tool UI.
-- `src/renderer/components/layers/LayerPanel.tsx`: improved after map-setting and drag/drop extraction, but still feature rich. Extract per-layer panels when touching token, drawing, fog, or weather sections.
-- `src/renderer/components/SceneCanvas.tsx`: significantly improved after interaction hooks and policy helpers, but still deserves caution because it is the live-session render/input surface. New interaction features should land behind focused hooks and policy tests.
-- `electron/main.ts`: smaller after audit work, but still coordinates app lifecycle, IPC, windows, file IO, asset copy/delete, and Player View control. Continue extracting pure helpers or injectable service functions before changing behavior.
+- `src/renderer/views/GmApp.tsx`: still the largest renderer composition root. It is now mostly orchestration, but topbar/player-view wiring, ToolsMenu props, inspector/dialog wiring, and maintenance actions still make changes noisy.
+- `src/renderer/components/tools/menu/ToolsMenu.tsx`: improved after state/action prop grouping, but it remains the densest live GM tool-surface component. Further work should extract cohesive category orchestration or prop builders only if tool behavior changes.
+- `src/renderer/views/GmDialogs.tsx`: still a broad modal aggregator. It is acceptable as a composition file, but new modal families should be grouped outside this file instead of adding more direct prop threading.
+- `electron/mapAssetIpc.ts` and `electron/tokenAssetIpc.ts`: still relatively large IPC modules around import/delete/update workflows. Future file-safety or asset lifecycle changes should prefer service/helper seams with Electron tests.
+- `electron/main.ts`: now primarily app composition and service registration. Avoid growing it again; add injectable services for new runtime policies such as metadata restore, asset maintenance, or thumbnail behavior.
+- `electron/videoThumbnailFallback.ts`: large but specialized. Treat it as a media compatibility module and add regressions before changing video thumbnail fallback behavior.
 
 ## Next Recommended Refactors
 
-1. Continue shrinking `GmApp` by extracting topbar/player-view coordination, tools-menu wiring, or dialog prop mapping only when the new owner is cohesive.
-2. Reduce `ToolsMenu` prop density by extracting effect tuning, drawing controls, and selector controls into smaller sections with stable prop groups.
-3. Split `LayerPanel` by layer type when touching token, drawing, fog, weather, or environment-effect layer behavior.
-4. Keep `electron/main.ts` extraction focused on file-safety, asset, and window/IPC service boundaries with regression tests around campaign path behavior.
-5. Keep visual/rendering changes incremental and run Electron or visual smoke tests whenever DOM, canvas, Player View, or media behavior changes.
+1. If continuing renderer cleanup, target `GmApp` topbar/player-view coordination or dialog prop mapping as a bundled pass; avoid extracting tiny one-off wrappers.
+2. If continuing tool cleanup, extract `ToolsMenu` category orchestration or prop-builder helpers behind the existing state/action groups, with behavior tests around `toolMenuState`.
+3. If continuing Electron cleanup, target `mapAssetIpc.ts` or `tokenAssetIpc.ts` workflow helpers with tests around path safety, thumbnail failure handling, and campaign summary writes.
+4. Keep `LayerPanel`, SceneCanvas, and drawing/template renderer work opportunistic rather than primary unless a feature touches those areas.
+5. Run Electron or visual smoke tests whenever DOM, canvas, Player View, media playback, or app-window behavior changes; otherwise `npm run check` is the default verification gate.
 
 ## Audit Guardrails
 
