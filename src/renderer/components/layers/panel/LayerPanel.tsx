@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import type {
   Asset,
-  DrawingElement,
   FogSettings,
   GridSettings,
   Layer,
@@ -10,13 +9,11 @@ import type {
   WeatherSettings
 } from "../../../../shared/localvtt";
 import { type Token } from "../../../../shared/localvtt";
-import { type DropPlacement } from "../../../lib/ui";
-import { DrawingList, type DrawingDropTarget } from "./DrawingList";
+import { DrawingLayerContent } from "./DrawingLayerContent";
 import { EffectsLayerContent } from "./EffectsLayerContent";
 import { FogLayerContent } from "./FogLayerContent";
 import { LayerPanelRow } from "./LayerPanelRow";
-import { MapLayerContent } from "./MapLayerContent";
-import { MapLayerSettingsPanel } from "./MapLayerSettingsPanel";
+import { MapLayerSection } from "./MapLayerSection";
 import { TokenLayerContent } from "./TokenLayerContent";
 import {
   getLayerItemCount,
@@ -28,7 +25,6 @@ import {
   getLayerExpandedToggleState,
   getLayerPanelVisibleLayers,
   getLayerSettingsToggleIds,
-  getReorderedDrawings,
   getSceneWithDrawings,
   getSceneWithEnvironmentPatch,
   getSceneWithTokenPatch,
@@ -113,10 +109,6 @@ export function LayerPanel({
   const visibleLayers = useMemo(() => getLayerPanelVisibleLayers(scene.layers), [scene.layers]);
   const [expandedLayerIds, setExpandedLayerIds] = useState<Set<string>>(() => new Set());
   const [settingsLayerIds, setSettingsLayerIds] = useState<Set<string>>(() => new Set());
-  const [draggedDrawingId, setDraggedDrawingId] = useState<string | null>(null);
-  const [drawingDropTarget, setDrawingDropTarget] = useState<DrawingDropTarget>(null);
-  const [mapFitHelpOpen, setMapFitHelpOpen] = useState(false);
-  const [mapAdvancedOpen, setMapAdvancedOpen] = useState(false);
 
   const updateLayer = (layerId: string, patch: Partial<Layer>) => {
     onChange(applyLayerPatch(scene, layerId, patch));
@@ -132,14 +124,7 @@ export function LayerPanel({
     setSettingsLayerIds((ids) => getLayerSettingsToggleIds(layerId, ids));
   };
 
-  const updateDrawings = (drawings: DrawingElement[]) => onChange(getSceneWithDrawings(scene, drawings));
-
-  const moveDrawing = (sourceDrawingId: string, targetDrawingId: string, placement: DropPlacement) => {
-    if (sourceDrawingId === targetDrawingId) {
-      return;
-    }
-    updateDrawings(getReorderedDrawings(scene.drawings, sourceDrawingId, targetDrawingId, placement));
-  };
+  const updateDrawings = (drawings: typeof scene.drawings) => onChange(getSceneWithDrawings(scene, drawings));
 
   const updateTokens = (tokens: Token[]) => onChange(getSceneWithTokens(scene, tokens));
 
@@ -204,15 +189,10 @@ export function LayerPanel({
                 />
               )}
               {layer.id === "drawing" && isExpanded && (
-                <DrawingList
+                <DrawingLayerContent
                   drawings={scene.drawings}
                   selectedDrawingId={selectedDrawingId}
                   selectedDrawingIds={selectedDrawingIds}
-                  draggedDrawingId={draggedDrawingId}
-                  drawingDropTarget={drawingDropTarget}
-                  onDraggedDrawingIdChange={setDraggedDrawingId}
-                  onDrawingDropTargetChange={setDrawingDropTarget}
-                  onMoveDrawing={moveDrawing}
                   onSelectDrawing={onSelectDrawing}
                   onUpdateDrawings={updateDrawings}
                 />
@@ -247,29 +227,19 @@ export function LayerPanel({
                   onOpenTokenColor={onOpenTokenColor}
                 />
               )}
-              {layer.id === "map" && isExpanded && !areSettingsExpanded && (
-                <MapLayerContent
+              {layer.id === "map" && (
+                <MapLayerSection
                   scene={scene}
                   mapAsset={mapAsset}
-                  onUpdateGrid={onUpdateGrid}
-                  onImportMap={onImportMap}
-                  onReplaceMap={onReplaceMap}
-                  onDeleteMap={onDeleteMap}
-                />
-              )}
-              {layer.id === "map" && areSettingsExpanded && (
-                <MapLayerSettingsPanel
-                  scene={scene}
-                  mapAsset={mapAsset}
-                  mapFitHelpOpen={mapFitHelpOpen}
-                  mapAdvancedOpen={mapAdvancedOpen}
-                  onToggleMapFitHelp={() => setMapFitHelpOpen((open) => !open)}
-                  onToggleMapAdvanced={() => setMapAdvancedOpen((open) => !open)}
+                  contentsExpanded={isExpanded}
+                  settingsExpanded={areSettingsExpanded}
                   onUpdateGrid={onUpdateGrid}
                   onUpdateMapTransform={onUpdateMapTransform}
                   onApplyMapFitPreset={onApplyMapFitPreset}
                   onOpenGridColor={onOpenGridColor}
                   onImportMap={onImportMap}
+                  onReplaceMap={onReplaceMap}
+                  onDeleteMap={onDeleteMap}
                 />
               )}
             </LayerPanelRow>
