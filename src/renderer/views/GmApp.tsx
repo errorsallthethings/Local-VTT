@@ -6,8 +6,6 @@ import {
   useState
 } from "react";
 import {
-  DEFAULT_SCENE_FOLDER_COLOR,
-  DEFAULT_TOKEN_BORDER_COLOR,
   DEFAULT_VIDEO_PLAYBACK,
 } from "../../shared/localvtt";
 import type {
@@ -58,6 +56,7 @@ import {
 } from "../hooks/useEnvironmentEffectTuning";
 import { useGmDialogEscape, useGmDialogState } from "../hooks/useGmDialogState";
 import { useGmDialogActions } from "../hooks/useGmDialogActions";
+import { useGmDialogDraftState } from "../hooks/useGmDialogDraftState";
 import { useGmCampaignAssets } from "../hooks/useGmCampaignAssets";
 import { useGmMaintenanceState } from "../hooks/useGmMaintenanceState";
 import { useGmToolOptions } from "../hooks/useGmToolOptions";
@@ -285,14 +284,7 @@ export function GmApp() {
     playerTemplatePreviewDrawing,
     setPlayerTemplatePreviewDrawing
   } = useGmToolOptions();
-  const [newSceneName, setNewSceneName] = useState("New Battle Map");
-  const [newFolderName, setNewFolderName] = useState("New Folder");
-  const [newFogShapeName, setNewFogShapeName] = useState("");
-  const [newEnvironmentEffectName, setNewEnvironmentEffectName] = useState("");
-  const [newTokenName, setNewTokenName] = useState("");
-  const [newTokenBorderColor, setNewTokenBorderColor] = useState(DEFAULT_TOKEN_BORDER_COLOR);
-  const [newFolderColor, setNewFolderColor] = useState(DEFAULT_SCENE_FOLDER_COLOR);
-  const [newCampaignName, setNewCampaignName] = useState("");
+  const dialogDrafts = useGmDialogDraftState();
   const [environmentEffectEditorPosition, setEnvironmentEffectEditorPosition] = useState<{ x: number; y: number } | null>(null);
   const [environmentEffectEditorSize, setEnvironmentEffectEditorSize] = useState<{ width: number; height: number } | null>(null);
   const [selectorSelectionFilters, setSelectorSelectionFilters] = useState<SelectorSelectionFilters>(DEFAULT_SELECTOR_SELECTION_FILTERS);
@@ -512,7 +504,7 @@ export function GmApp() {
     campaign,
     campaignDirty,
     campaignPath,
-    newSceneName,
+    newSceneName: dialogDrafts.values.newSceneName,
     playerSceneId,
     playerViewSyncOptions,
     sceneDialog,
@@ -727,13 +719,7 @@ export function GmApp() {
     fogShapeDialog,
     folderColorDialog,
     folderDialog,
-    newCampaignName,
-    newEnvironmentEffectName,
-    newFogShapeName,
-    newFolderColor,
-    newFolderName,
-    newTokenBorderColor,
-    newTokenName,
+    ...dialogDrafts.values,
     sceneColorDialog,
     tokenAssetDialog,
     tokenColorDialog,
@@ -743,14 +729,7 @@ export function GmApp() {
     setFolderColorDialog,
     setFolderDialog,
     setFogShapeDialog,
-    setNewCampaignName,
-    setNewEnvironmentEffectName,
-    setNewFogShapeName,
-    setNewFolderColor,
-    setNewFolderName,
-    setNewSceneName,
-    setNewTokenBorderColor,
-    setNewTokenName,
+    ...dialogDrafts.setters,
     setOpenFolderMenuId,
     setOpenSceneMenuId,
     setSceneColorDialog,
@@ -1303,22 +1282,7 @@ export function GmApp() {
         playerSceneId={playerSceneId}
         dirtySceneIds={dirtySceneIds}
         displays={displays}
-        newSceneName={newSceneName}
-        newFolderName={newFolderName}
-        newFogShapeName={newFogShapeName}
-        newEnvironmentEffectName={newEnvironmentEffectName}
-        newTokenName={newTokenName}
-        newFolderColor={newFolderColor}
-        newTokenBorderColor={newTokenBorderColor}
-        newCampaignName={newCampaignName}
-        onNewSceneNameChange={setNewSceneName}
-        onNewFolderNameChange={setNewFolderName}
-        onNewFogShapeNameChange={setNewFogShapeName}
-        onNewEnvironmentEffectNameChange={setNewEnvironmentEffectName}
-        onNewTokenNameChange={setNewTokenName}
-        onNewFolderColorChange={setNewFolderColor}
-        onNewTokenBorderColorChange={setNewTokenBorderColor}
-        onNewCampaignNameChange={setNewCampaignName}
+        {...dialogDrafts.dialogProps}
         onCancelSceneDialog={() => setSceneDialog(null)}
         onCancelFolderDialog={() => setFolderDialog(null)}
         onCancelFogShapeDialog={() => setFogShapeDialog(null)}

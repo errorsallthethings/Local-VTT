@@ -23,6 +23,10 @@ import {
 } from "../lib/scene";
 import { getTokenAssetRenameDialogState } from "../lib/tokens";
 import type {
+  GmDialogDraftSetters,
+  GmDialogDraftValues
+} from "./useGmDialogDraftState";
+import type {
   EnvironmentEffectNameDialog,
   FogShapeNameDialog,
   FolderColorDialog,
@@ -34,20 +38,13 @@ import type {
   TokenNameDialog
 } from "../views/GmDialogs";
 
-interface UseGmDialogActionsOptions {
+interface UseGmDialogActionsOptions extends GmDialogDraftValues, GmDialogDraftSetters {
   activeScene: Scene | null;
   campaign: Campaign | null;
   environmentEffectDialog: EnvironmentEffectNameDialog | null;
   fogShapeDialog: FogShapeNameDialog | null;
   folderColorDialog: FolderColorDialog | null;
   folderDialog: FolderNameDialog | null;
-  newCampaignName: string;
-  newEnvironmentEffectName: string;
-  newFogShapeName: string;
-  newFolderColor: string;
-  newFolderName: string;
-  newTokenBorderColor: string;
-  newTokenName: string;
   sceneColorDialog: SceneColorDialog | null;
   tokenAssetDialog: TokenAssetNameDialog | null;
   tokenColorDialog: TokenColorDialog | null;
@@ -57,14 +54,6 @@ interface UseGmDialogActionsOptions {
   setFolderColorDialog: Dispatch<SetStateAction<FolderColorDialog | null>>;
   setFolderDialog: Dispatch<SetStateAction<FolderNameDialog | null>>;
   setFogShapeDialog: Dispatch<SetStateAction<FogShapeNameDialog | null>>;
-  setNewCampaignName: (name: string) => void;
-  setNewEnvironmentEffectName: (name: string) => void;
-  setNewFogShapeName: (name: string) => void;
-  setNewFolderColor: (color: string) => void;
-  setNewFolderName: (name: string) => void;
-  setNewSceneName: (name: string) => void;
-  setNewTokenBorderColor: (color: string) => void;
-  setNewTokenName: (name: string) => void;
   setOpenFolderMenuId: (folderId: string | null) => void;
   setOpenSceneMenuId: (sceneId: string | null) => void;
   setSceneColorDialog: Dispatch<SetStateAction<SceneColorDialog | null>>;
