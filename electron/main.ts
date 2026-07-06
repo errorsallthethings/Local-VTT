@@ -1,8 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } from "electron";
 import type { WebContents } from "electron";
-import { stat } from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
 import {
   Campaign,
@@ -12,12 +10,6 @@ import {
   ThumbnailRegenerationProgress,
   ThumbnailRegenerationResult
 } from "../src/shared/localvtt.js";
-import {
-  createAssetProtocolFileResponse,
-  getAssetProtocolStatFailureResponse,
-  getAssetProtocolStatResultFailureResponse,
-  resolveAssetProtocolRequest
-} from "./assetProtocol.js";
 import { sceneFile } from "./campaignPaths.js";
 import { assertInsidePath } from "./campaignPathSafety.js";
 import {
@@ -78,6 +70,8 @@ import { registerMapAssetIpc } from "./mapAssetIpc.js";
 import { registerTokenAssetIpc } from "./tokenAssetIpc.js";
 import { registerAssetMaintenanceIpc } from "./assetMaintenanceIpc.js";
 import { registerAppLifecycleIpc } from "./appLifecycleIpc.js";
+import { registerLocalAssetProtocol } from "./assetProtocolRegistration.js";
+import { installWindowDiagnostics } from "./windowDiagnostics.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -125,7 +119,7 @@ function createWindow(hash: "gm" | "player"): BrowserWindow {
   const appPath = app.getAppPath();
   const win = new BrowserWindow(createAppWindowOptions(hash, appPath, appWindowIconPath));
 
-  installWindowDiagnostics(win, hash);
+  installWindowDiagnostics(win, hash, { isDev });
 
   const loadTarget = createWindowLoadTarget(hash, isDev, devServerUrl, appPath);
   if (loadTarget.kind === "url") {
@@ -135,38 +129,6 @@ function createWindow(hash: "gm" | "player"): BrowserWindow {
   }
 
   return win;
-}
-
-function installWindowDiagnostics(win: BrowserWindow, hash: "gm" | "player"): void {
-  const label = hash === "gm" ? "GM" : "Player";
-
-  win.webContents.on("render-process-gone", (_event, details) => {
-    console.error(`LOCALVTT_${label}_RENDER_PROCESS_GONE`, details.reason, details.exitCode);
-  });
-
-  win.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-    if (isMainFrame) {
-      console.error(`LOCALVTT_${label}_DID_FAIL_LOAD`, errorCode, errorDescription, validatedURL);
-    }
-  });
-
-  win.webContents.on("console-message", (details) => {
-    if (details.level === "warning" || details.level === "error") {
-      if (isDev && details.message.includes("Electron Security Warning")) {
-        return;
-      }
-      const log = details.level === "error" ? console.error : console.warn;
-      log(`LOCALVTT_${label}_CONSOLE`, details.message, `${details.sourceId}:${details.lineNumber}`);
-    }
-  });
-
-  win.on("unresponsive", () => {
-    console.warn(`LOCALVTT_${label}_WINDOW_UNRESPONSIVE`);
-  });
-
-  win.on("responsive", () => {
-    console.info(`LOCALVTT_${label}_WINDOW_RESPONSIVE`);
-  });
 }
 
 function resolveAssetPaths(campaignPath: string, campaign: Campaign): Campaign {
@@ -343,26 +305,12 @@ async function createTokenThumbnail(campaignPath: string, sourcePath: string, as
 }
 
 app.whenReady().then(() => {
-  protocol.handle("localvtt", async (request) => {
-    const resolvedRequest = resolveAssetProtocolRequest(request.url, isInsideOpenedCampaign, isKnownAssetPath, isTemporaryExternalAssetPath);
-    if (!resolvedRequest.ok) {
-      return resolvedRequest.response;
-    }
-    const filePath = resolvedRequest.filePath;
-    try {
-      const stats = await stat(filePath);
-      const failureResponse = getAssetProtocolStatResultFailureResponse(stats);
-      if (failureResponse) {
-        return failureResponse;
-      }
-    } catch (caught) {
-      const failureResponse = getAssetProtocolStatFailureResponse(caught);
-      if (failureResponse) {
-        return failureResponse;
-      }
-      throw caught;
-    }
-    return createAssetProtocolFileResponse(await net.fetch(pathToFileURL(filePath).toString()));
+  registerLocalAssetProtocol({
+    fetchFile: (url) => net.fetch(url),
+    isInsideOpenedCampaign,
+    isKnownAssetPath,
+    isTemporaryExternalAssetPath,
+    protocol
   });
 
   gmWindow = createGmWindow();
