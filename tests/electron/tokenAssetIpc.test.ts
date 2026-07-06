@@ -178,6 +178,18 @@ describe("token asset IPC", () => {
     expect(harness.options.unregisterTemporaryExternalAssetPath).toHaveBeenCalledWith(sourcePath);
   });
 
+  it("keeps existing token files when discard metadata cannot be written", async () => {
+    const asset = tokenAsset();
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.assets = [asset];
+    const harness = createTokenHarness(campaign);
+    vi.mocked(harness.options.writeCampaign).mockRejectedValueOnce(new Error("write failed"));
+
+    await expect(harness.ipc.invoke("asset:discardTokenImport", campaignPath, asset.id)).rejects.toThrow("write failed");
+
+    expect(harness.options.removeCampaignAssetFiles).not.toHaveBeenCalled();
+  });
+
   it("updates an existing token thumbnail from its campaign file", async () => {
     const tokenPath = path.join(campaignPath, "assets", "tokens", "hero.png");
     await writeFile(tokenPath, "old token image", "utf8");
@@ -224,5 +236,21 @@ describe("token asset IPC", () => {
     expect(harness.options.removeCampaignAssetFiles).toHaveBeenCalledWith(campaignPath, asset);
     expect(result.scenes[0].tokens).toEqual([]);
     expect(result.campaignSummary.campaign.assets).toEqual([]);
+  });
+
+  it("keeps token files when delete metadata cannot be written", async () => {
+    const asset = tokenAsset();
+    const scene = { ...createDefaultScene("Scene One"), id: "scene-1" };
+    scene.tokens = [{ id: "placed-1", assetId: asset.id, x: 0, y: 0, rotation: 0, scale: 1, hidden: false }];
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.assets = [asset];
+    campaign.scenes = [{ id: scene.id, name: scene.name, file: "scenes/scene-1.scene.json" }];
+    const harness = createTokenHarness(campaign, [scene]);
+    vi.mocked(harness.options.writeCampaign).mockRejectedValueOnce(new Error("write failed"));
+
+    await expect(harness.ipc.invoke("asset:deleteToken", campaignPath, asset.id)).rejects.toThrow("write failed");
+
+    expect(harness.options.writeScene).toHaveBeenCalledWith(campaignPath, expect.objectContaining({ id: scene.id, tokens: [] }));
+    expect(harness.options.removeCampaignAssetFiles).not.toHaveBeenCalled();
   });
 });

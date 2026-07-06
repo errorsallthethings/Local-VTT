@@ -110,10 +110,9 @@ export function registerTokenAssetIpc(ipcMain: Pick<IpcMain, "handle">, options:
       return summary;
     }
 
-    await options.removeCampaignAssetFiles(campaignPath, asset);
-
     const campaign = removeAssetFromCampaign(summary.campaign, assetId);
     await options.writeCampaign(campaignPath, campaign);
+    await options.removeCampaignAssetFiles(campaignPath, asset);
     return options.loadCampaignFromPath(campaignPath);
   });
 
@@ -137,10 +136,9 @@ export function registerTokenAssetIpc(ipcMain: Pick<IpcMain, "handle">, options:
       (scene) => options.writeScene(campaignPath, scene)
     );
 
-    await options.removeCampaignAssetFiles(campaignPath, asset);
-
     const campaign = removeAssetFromCampaign(summary.campaign, assetId);
     await options.writeCampaign(campaignPath, campaign);
+    await options.removeCampaignAssetFiles(campaignPath, asset);
     return { campaignSummary: await options.loadCampaignFromPath(campaignPath), scenes: changedScenes };
   });
 }

@@ -189,6 +189,21 @@ describe("map asset IPC", () => {
     expect(result.campaignSummary.campaign.assets).toEqual([]);
   });
 
+  it("keeps map files when delete metadata cannot be written", async () => {
+    const currentMap = mapAsset();
+    const scene = { ...createDefaultScene("Scene One"), id: "scene-1", mapAssetId: currentMap.id };
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.assets = [currentMap];
+    campaign.scenes = [{ id: scene.id, name: scene.name, file: "scenes/scene-1.scene.json", mapAssetId: currentMap.id }];
+    const harness = createMapHarness(campaign, [scene]);
+    vi.mocked(harness.options.writeCampaign).mockRejectedValueOnce(new Error("write failed"));
+
+    await expect(harness.ipc.invoke("asset:deleteMap", campaignPath, scene.id, currentMap.id)).rejects.toThrow("write failed");
+
+    expect(harness.options.writeScene).toHaveBeenCalledWith(campaignPath, expect.objectContaining({ id: scene.id, mapAssetId: undefined }));
+    expect(harness.options.removeCampaignAssetFiles).not.toHaveBeenCalled();
+  });
+
   it("blocks deleting a map asset that is still used by another scene", async () => {
     const currentMap = mapAsset();
     const scene = { ...createDefaultScene("Scene One"), id: "scene-1", mapAssetId: currentMap.id };

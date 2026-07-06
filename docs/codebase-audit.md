@@ -110,6 +110,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted drawing layer rows and row presentation state out of `DrawingList`, with regression coverage for labels, visibility defaults, selection, dragging, and drop placement.
 - Extracted Electron map/token thumbnail creation into an injectable thumbnail service, with tests covering image maps, video fallback, decode failures, and token thumbnails.
 - Extracted staged token import ownership out of token asset IPC, with regressions that temporary external asset access is released only by the owning campaign or final import commit.
+- Reordered map/token asset deletion workflows so campaign metadata writes complete before physical asset files are removed, with regressions covering write-failure recovery.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots

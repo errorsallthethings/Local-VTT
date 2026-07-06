@@ -135,14 +135,13 @@ export function registerMapAssetIpc(ipcMain: Pick<IpcMain, "handle">, options: R
       throw new Error(`This map asset is still used by: ${otherSceneNames.join(", ")}.`);
     }
 
-    await options.removeCampaignAssetFiles(campaignPath, asset);
-
     const currentScene = await options.readSceneMetadata(campaignPath, sceneId);
     const updatedScene = removeMapAssetFromScene(currentScene, assetId);
     await options.writeScene(campaignPath, updatedScene);
 
     const campaign = removeMapAssetFromCampaign(summary.campaign, assetId);
     await options.writeCampaign(campaignPath, campaign);
+    await options.removeCampaignAssetFiles(campaignPath, asset);
     return { campaignSummary: await options.loadCampaignFromPath(campaignPath), scene: updatedScene };
   });
 }
