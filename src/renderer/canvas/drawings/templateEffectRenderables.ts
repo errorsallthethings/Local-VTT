@@ -1,63 +1,19 @@
 import * as THREE from "three";
 import type { DrawingTemplateEffect, Point } from "../../../shared/localvtt";
-import { distanceBetweenPoints } from "./drawingGeometry";
-import { createSeededRandom } from "./templateEffectGeometry";
+import { addLightningLine } from "./templateEffectRenderableLines";
+import { createTemplateEffectImage } from "./templateEffectRenderableRuntime";
+import {
+  createFogCloudImage,
+  createLightningForkImage,
+  createStormCloudImage,
+  createThunderWaveImage
+} from "./templateEffectStormRenderables";
 import type { TemplateEffectAssetEffect } from "./templateEffectAssets";
 import type { TemplateEffectRenderable } from "./templateEffectPlacement";
 
 interface TemplateEffectRenderableDefinition {
   createCanvas: () => HTMLCanvasElement | null;
   id: string;
-}
-
-type TemplateEffectSceneBuilder = (scene: THREE.Scene, random: () => number) => void;
-
-function disposeTransientRenderer(renderer: THREE.WebGLRenderer) {
-  renderer.forceContextLoss();
-  renderer.dispose();
-}
-
-function snapshotRendererCanvas(canvas: HTMLCanvasElement): HTMLCanvasElement {
-  const snapshot = document.createElement("canvas");
-  snapshot.width = canvas.width;
-  snapshot.height = canvas.height;
-  const snapshotContext = snapshot.getContext("2d");
-  if (!snapshotContext) {
-    return canvas;
-  }
-  snapshotContext.drawImage(canvas, 0, 0);
-  return snapshot;
-}
-
-function createTemplateEffectImage(seed: number, buildScene: TemplateEffectSceneBuilder): HTMLCanvasElement | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  let renderer: THREE.WebGLRenderer | null = null;
-  let scene: THREE.Scene | null = null;
-  try {
-    renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(canvas.width, canvas.height, false);
-    scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 5;
-    buildScene(scene, createSeededRandom(seed));
-    renderer.render(scene, camera);
-    return snapshotRendererCanvas(canvas);
-  } catch {
-    return null;
-  } finally {
-    if (scene) {
-      disposeScene(scene);
-    }
-    if (renderer) {
-      disposeTransientRenderer(renderer);
-    }
-  }
 }
 
 const TEMPLATE_EFFECT_RENDERABLE_DEFINITIONS: Record<TemplateEffectAssetEffect, TemplateEffectRenderableDefinition> = {
@@ -192,21 +148,6 @@ function createColdShardImage(): HTMLCanvasElement | null {
   });
 }
 
-function createLightningForkImage(): HTMLCanvasElement | null {
-  return createTemplateEffectImage(0x1e471e, (scene, random) => {
-    for (let index = 0; index < 15; index += 1) {
-      const start = { x: -0.88 + random() * 1.76, y: -0.88 + random() * 1.76 };
-      const angle = random() * Math.PI * 2;
-      const length = 0.92 + random() * 1.24;
-      const end = {
-        x: Math.max(-0.92, Math.min(0.92, start.x + Math.cos(angle) * length)),
-        y: Math.max(-0.92, Math.min(0.92, start.y + Math.sin(angle) * length))
-      };
-      addLightningBolt(scene, start, end, 6 + Math.floor(random() * 6), 0.28 + random() * 0.5, random);
-    }
-  });
-}
-
 function createNatureThornImage(): HTMLCanvasElement | null {
   return createTemplateEffectImage(0x71a7e, (scene, random) => {
     for (let index = 0; index < 18; index += 1) {
@@ -238,17 +179,6 @@ function createFireTongueImage(): HTMLCanvasElement | null {
   });
 }
 
-function createFogCloudImage(): HTMLCanvasElement | null {
-  return createTemplateEffectImage(0xf06c10d, (scene, random) => {
-    for (let index = 0; index < 72; index += 1) {
-      const x = -0.9 + random() * 1.8;
-      const y = -0.9 + random() * 1.8;
-      const radius = 0.045 + random() * 0.17;
-      addFogPuff(scene, x, y, radius, random);
-    }
-  });
-}
-
 function createDarknessMistImage(): HTMLCanvasElement | null {
   return createTemplateEffectImage(0xda2c, (scene, random) => {
     for (let index = 0; index < 58; index += 1) {
@@ -261,41 +191,6 @@ function createDarknessMistImage(): HTMLCanvasElement | null {
       const x = -0.86 + random() * 1.72;
       const y = -0.86 + random() * 1.72;
       addDarknessTendril(scene, x, y, 0.16 + random() * 0.34, random);
-    }
-  });
-}
-
-function createStormCloudImage(): HTMLCanvasElement | null {
-  return createTemplateEffectImage(0x570a, (scene, random) => {
-    for (let index = 0; index < 64; index += 1) {
-      const x = -0.9 + random() * 1.8;
-      const y = -0.9 + random() * 1.8;
-      const radius = 0.045 + random() * 0.18;
-      addStormPuff(scene, x, y, radius, random);
-    }
-    for (let index = 0; index < 16; index += 1) {
-      const start = { x: -0.88 + random() * 1.76, y: -0.88 + random() * 1.76 };
-      const angle = random() * Math.PI * 2;
-      const length = 0.48 + random() * 0.78;
-      const end = {
-        x: Math.max(-0.92, Math.min(0.92, start.x + Math.cos(angle) * length)),
-        y: Math.max(-0.92, Math.min(0.92, start.y + Math.sin(angle) * length))
-      };
-      addLightningBolt(scene, start, end, 4 + Math.floor(random() * 5), 0.16 + random() * 0.32, random);
-    }
-  });
-}
-
-function createThunderWaveImage(): HTMLCanvasElement | null {
-  return createTemplateEffectImage(0x7e2d, (scene, random) => {
-    for (let index = 0; index < 10; index += 1) {
-      addThunderArc(scene, -0.82 + random() * 1.64, -0.82 + random() * 1.64, 0.24 + random() * 0.48, random);
-    }
-    for (let index = 0; index < 14; index += 1) {
-      addThunderWaveLine(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.36 + random() * 0.62, random);
-    }
-    for (let index = 0; index < 18; index += 1) {
-      addThunderTick(scene, -0.9 + random() * 1.8, -0.9 + random() * 1.8, 0.08 + random() * 0.16, random);
     }
   });
 }
@@ -618,17 +513,6 @@ function addFireEmber(scene: THREE.Scene, x: number, y: number, radius: number, 
   scene.add(ember);
 }
 
-function addFogPuff(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
-  const puff = new THREE.Mesh(
-    new THREE.CircleGeometry(radius, 28),
-    new THREE.MeshBasicMaterial({ color: random() > 0.55 ? 0xf8fafc : 0xcbd5e1, transparent: true, opacity: 0.035 + random() * 0.115, depthWrite: false })
-  );
-  puff.position.set(x, y, 0.02);
-  puff.scale.set(1 + random() * 0.9, 0.62 + random() * 0.62, 1);
-  puff.rotation.z = random() * Math.PI;
-  scene.add(puff);
-}
-
 function addDarkMistPuff(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
   const puff = new THREE.Mesh(
     new THREE.CircleGeometry(radius, 28),
@@ -652,81 +536,6 @@ function addDarknessTendril(scene: THREE.Scene, x: number, y: number, length: nu
     });
   }
   addLightningLine(scene, points, 0x0f172a, 0.16 + random() * 0.28, 0.01 + random() * 0.012);
-}
-
-function addStormPuff(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
-  const puff = new THREE.Mesh(
-    new THREE.CircleGeometry(radius, 28),
-    new THREE.MeshBasicMaterial({ color: random() > 0.5 ? 0x1e3a8a : 0x64748b, transparent: true, opacity: 0.055 + random() * 0.16, depthWrite: false })
-  );
-  puff.position.set(x, y, 0.02);
-  puff.scale.set(1 + random() * 0.9, 0.58 + random() * 0.72, 1);
-  puff.rotation.z = random() * Math.PI;
-  scene.add(puff);
-}
-
-function addThunderArc(scene: THREE.Scene, x: number, y: number, radius: number, random: () => number) {
-  const arcCount = 2 + Math.floor(random() * 2);
-  for (let index = 0; index < arcCount; index += 1) {
-    const arcRadius = radius * (0.72 + index * 0.36 + random() * 0.08);
-    const arc = new THREE.Mesh(
-      new THREE.RingGeometry(arcRadius * 0.94, arcRadius, 54, 1, random() * Math.PI * 2, Math.PI * (0.38 + random() * 0.55)),
-      new THREE.MeshBasicMaterial({ color: random() > 0.42 ? 0xd8b4fe : 0xc084fc, transparent: true, opacity: 0.16 + random() * 0.3, side: THREE.DoubleSide, depthWrite: false })
-    );
-    arc.position.set(x, y, 0.03 + index * 0.002);
-    arc.scale.set(1 + random() * 0.45, 0.7 + random() * 0.32, 1);
-    arc.rotation.z = random() * Math.PI;
-    scene.add(arc);
-  }
-}
-
-function addThunderWaveLine(scene: THREE.Scene, x: number, y: number, length: number, random: () => number) {
-  const angle = random() * Math.PI * 2;
-  const amplitude = length * (0.025 + random() * 0.045);
-  const points: Point[] = [];
-  for (let index = 0; index < 8; index += 1) {
-    const t = index / 7;
-    const wave = Math.sin(t * Math.PI * (1.8 + random() * 1.2)) * amplitude;
-    points.push({
-      x: x + Math.cos(angle) * length * (t - 0.5) + Math.cos(angle + Math.PI / 2) * wave,
-      y: y + Math.sin(angle) * length * (t - 0.5) + Math.sin(angle + Math.PI / 2) * wave
-    });
-  }
-  addLightningLine(scene, points, random() > 0.45 ? 0xc084fc : 0xf3e8ff, 0.18 + random() * 0.28, 0.004 + random() * 0.004);
-}
-
-function addThunderTick(scene: THREE.Scene, x: number, y: number, length: number, random: () => number) {
-  const angle = random() * Math.PI * 2;
-  const points = [
-    new THREE.Vector3(x - Math.cos(angle) * length * 0.5, y - Math.sin(angle) * length * 0.5, 0.04),
-    new THREE.Vector3(x + Math.cos(angle) * length * 0.5, y + Math.sin(angle) * length * 0.5, 0.04)
-  ];
-  scene.add(
-    new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(points),
-      new THREE.LineBasicMaterial({ color: random() > 0.5 ? 0xf3e8ff : 0xd8b4fe, transparent: true, opacity: 0.16 + random() * 0.42 })
-    )
-  );
-}
-
-function addLightningBolt(scene: THREE.Scene, start: Point, end: Point, segments: number, opacity: number, random: () => number) {
-  const points = getJaggedBoltPoints(start, end, segments, 0.08 + random() * 0.07, random);
-  addLightningLine(scene, points, 0xfacc15, opacity, 0.012);
-  addLightningLine(scene, points, 0xfef08a, opacity * 0.78, 0.006);
-  addLightningLine(scene, points, 0xeab308, opacity * 0.42, 0.018);
-  for (let index = 1; index < points.length - 1; index += 1) {
-    if (random() < 0.72) {
-      const current = points[index];
-      const previous = points[index - 1];
-      const angle = Math.atan2(current.y - previous.y, current.x - previous.x) + (random() > 0.5 ? 1 : -1) * (0.72 + random() * 0.7);
-      const length = distanceBetweenPoints(start, end) * (0.22 + random() * 0.34);
-      const branchEnd = {
-        x: Math.max(-0.96, Math.min(0.96, current.x + Math.cos(angle) * length)),
-        y: Math.max(-0.96, Math.min(0.96, current.y + Math.sin(angle) * length))
-      };
-      addLightningLine(scene, getJaggedBoltPoints(current, branchEnd, 2 + Math.floor(random() * 3), 0.035 + random() * 0.04, random), 0xfef08a, opacity * (0.46 + random() * 0.24), 0.006);
-    }
-  }
 }
 
 function addNatureVine(scene: THREE.Scene, x: number, y: number, length: number, random: () => number) {
@@ -928,40 +737,3 @@ function interpolatePoint(start: Point, end: Point, t: number): Point {
   };
 }
 
-function getJaggedBoltPoints(start: Point, end: Point, segments: number, jitter: number, random: () => number): Point[] {
-  const angle = Math.atan2(end.y - start.y, end.x - start.x) + Math.PI / 2;
-  const points: Point[] = [];
-  for (let index = 0; index <= segments; index += 1) {
-    const t = index / segments;
-    const offset = index === 0 || index === segments ? 0 : (random() - 0.5) * jitter;
-    points.push({
-      x: start.x + (end.x - start.x) * t + Math.cos(angle) * offset,
-      y: start.y + (end.y - start.y) * t + Math.sin(angle) * offset
-    });
-  }
-  return points;
-}
-
-function addLightningLine(scene: THREE.Scene, points: Point[], color: number, opacity: number, thickness = 0) {
-  const drawOffsets = thickness > 0 ? [{ x: 0, y: 0 }, { x: thickness, y: 0 }, { x: -thickness, y: 0 }, { x: 0, y: thickness }, { x: 0, y: -thickness }] : [{ x: 0, y: 0 }];
-  for (const offset of drawOffsets) {
-    const geometry = new THREE.BufferGeometry().setFromPoints(points.map((point) => new THREE.Vector3(point.x + offset.x, point.y + offset.y, 0.04)));
-    const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity: Math.max(0.05, Math.min(0.88, opacity / Math.sqrt(drawOffsets.length))) });
-    scene.add(new THREE.Line(geometry, material));
-  }
-}
-
-function disposeScene(scene: THREE.Scene) {
-  scene.traverse((object) => {
-    if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
-      object.geometry.dispose();
-      if (Array.isArray(object.material)) {
-        for (const material of object.material) {
-          material.dispose();
-        }
-      } else {
-        object.material.dispose();
-      }
-    }
-  });
-}

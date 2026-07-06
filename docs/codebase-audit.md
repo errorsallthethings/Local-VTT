@@ -79,12 +79,13 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Centralized template-effect WebGL canvas creation, snapshotting, and disposal so generated template renderables share one lifecycle path instead of repeating setup/cleanup in every effect recipe.
 - Split drawing transform point-snapshot movement helpers and pure resize/rotation geometry out of `drawingTransform.ts`, leaving the transform module focused on selected-drawing bounds, handle hit-testing, and drag-start orchestration.
 - Moved template grid-highlight rendering into the grid-highlight module and isolated rectangle/circle/polygon intersection math with direct tests, keeping template presentation focused on fills, effect paths, and labels.
+- Split template-effect renderable runtime setup, shared lightning-line primitives, and the fog/lightning/storm/thunder family out of the main renderable catalog while preserving the stable renderable asset ids.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots
 
 - `src/renderer/components/SceneCanvas.tsx`: high-responsibility canvas interaction component. Recent work moved context menus, asset prep, selection prep, and effect tuning prep into tested helpers; continue splitting by interaction mode before adding more tools.
-- `src/renderer/canvas/drawings/templateEffectRenderables.ts`: still a large generated-style Three.js effect catalog after lifecycle cleanup. Keep the public registry stable, but split effect families or primitive helpers before adding more template effects.
+- `src/renderer/canvas/drawings/templateEffectRenderables.ts`: smaller after runtime and storm-family extraction, but still a large generated-style Three.js effect catalog. Keep the public registry stable and continue splitting by effect family before adding more template effects.
 - `src/renderer/canvas/drawings/drawingRenderer.ts`: improved after overlay/stroke extraction, but still mixes base shape rendering with template-specific guide/label behavior. Continue separating template rendering from freehand/shape rendering.
 - `src/renderer/canvas/drawings/drawingTransform.ts`: improved after point-snapshot and geometry extraction. Further cleanup should focus on transform drag policy only if SceneCanvas needs new transform behavior.
 - `src/renderer/canvas/drawings/templateDrawingPresentation.ts`: improved after grid-highlight rendering extraction. Further changes should separate labels from fills only when label behavior changes.
