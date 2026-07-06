@@ -7,7 +7,6 @@ import {
 import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings } from "../../shared/localvtt";
 import {
   areCamerasEqual,
-  getCameraForPanDrag,
   getRenderCamera,
   type Camera,
   type CameraPanDrag
@@ -27,7 +26,6 @@ import {
   type FogTool
 } from "../canvas/fog";
 import {
-  createLaserLiveTableEvent,
   createRulerClearEvent,
   createRulerLiveTableEvent,
   getVisibleCanvasLiveTableEvents,
@@ -51,9 +49,6 @@ import type { RulerDrag } from "../canvas/measurement";
 import {
   getSceneCanvasReadiness
 } from "../canvas/scene";
-import {
-  getUpdatedSelectionDrag
-} from "../canvas/selection";
 import type {
   DrawingDragState,
   DrawingResizeState,
@@ -65,11 +60,7 @@ import type {
 } from "../canvas/scene";
 import { getSceneEffectRenderState, getSceneLayerVisibility } from "../canvas/scene";
 import { getTurnOrderTokenIndicators } from "../lib/turn-order";
-import {
-  getTemplatePreviewDrawing
-} from "../canvas/drawings";
 import { hasVisibleTokenConditions, type TokenDragPreview } from "../canvas/tokens";
-import { eventToWorldPoint, isSnapModifier } from "../canvas/core";
 import {
   type AcidEffectTuning,
   type ArcaneEffectTuning,
@@ -130,28 +121,14 @@ import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import {
   getGmMapAutoFitAction,
 } from "./scene/sceneMapViewportPolicy";
-import { getScenePointerMoveFallbackRoute } from "./scene/scenePointerMoveFallbackRouting";
-import { getBrushHoverPointForPointerMove, getScenePolygonDraftPointerMoveUpdate } from "./scene/scenePointerMoveFallbackUpdates";
-import { getScenePointerMoveRoute } from "./scene/scenePointerMoveRouting";
 import { clearSceneSelectionsExcept as clearSceneSelectionsExceptTarget, getSceneMarqueeSelectionPayload } from "./scene/sceneSelectionRouting";
-import { getDrawingPointerMove, getDrawingPointerMoveAction } from "./scene/sceneDrawingPointer";
-import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerMoveAction } from "./scene/sceneEnvironmentEffectPointer";
-import { getLaserPointerMove, getLaserPointerMoveAction } from "./scene/sceneLaserPointer";
-import { getFogPointerMove, getFogPointerMoveAction } from "./scene/sceneFogPointer";
 import {
-  getMaskEffectPointerMove,
-  getMaskEffectPointerMoveAction,
   type EnvironmentEffectMoveState,
   type WeatherMaskMoveState
 } from "./scene/sceneMaskEffectPointer";
-import { getMapCalibrationPointerMove, getMapCalibrationPointerMoveAction } from "./scene/sceneMapCalibrationPointer";
-import { getRulerPointerMoveAction, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
-import { getTokenPointerMove, getTokenPointerMoveAction } from "./scene/sceneTokenPointer";
-import { getDrawingTransformPointerMove, getDrawingTransformPointerMoveAction } from "./scene/sceneDrawingTransformPointer";
 import { getRulerWaypointAppendKeyboardAction, getTokenWaypointAppendKeyboardAction } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
-import { getWeatherMaskPointerMove, getWeatherMaskPointerMoveAction } from "./scene/sceneWeatherMaskPointer";
 import { useSceneViewportCenterReporting } from "./scene/useSceneViewportCenterReporting";
 import { useSceneVideoMapHandlers } from "./scene/useSceneVideoMapHandlers";
 import { useSceneWheelZoom } from "./scene/useSceneWheelZoom";
@@ -162,6 +139,7 @@ import { useSceneCanvasMouseEvents } from "./scene/useSceneCanvasMouseEvents";
 import { useSceneCanvasRenderer } from "./scene/useSceneCanvasRenderer";
 import { useSceneCanvasPointerDown } from "./scene/useSceneCanvasPointerDown";
 import { useSceneCanvasPointerUp } from "./scene/useSceneCanvasPointerUp";
+import { useSceneCanvasPointerMove } from "./scene/useSceneCanvasPointerMove";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
@@ -1172,235 +1150,70 @@ export function SceneCanvas({
     weatherMaskTool
   });
 
-  const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const tokenDrag = tokenDragRef.current;
-    const drawingDragValue = drawingDragRef.current;
-    const drawingResizeValue = drawingResizeRef.current;
-    const drawingRotateValue = drawingRotateRef.current;
-    const weatherMaskMoveValue = weatherMaskMoveRef.current;
-    const environmentEffectMoveValue = environmentEffectMoveRef.current;
-    const laserDrag = laserDragRef.current;
-    const drawingDrag = drawingPreviewRef.current;
-    const rulerDragValue = rulerDragRef.current;
-    const selectionDragValue = selectionDragRef.current;
-    const mapCalibrationDragValue = mapCalibrationDragRef.current;
-    const pointerMoveRoute = getScenePointerMoveRoute({
-      pointerId: event.pointerId,
-      mapCalibrationDrag: mapCalibrationDragValue,
-      laserDrag,
-      rulerDrag: rulerDragValue,
-      selectionDrag: selectionDragValue,
-      drawingDrag,
-      drawingMoveDrag: drawingDragValue,
-      drawingResizeDrag: drawingResizeValue,
-      drawingRotateDrag: drawingRotateValue,
-      weatherMaskMove: weatherMaskMoveValue,
-      environmentEffectMove: environmentEffectMoveValue,
-      tokenDrag,
-      fogDrag: fogDragRef.current,
-      weatherMaskDrag: weatherMaskDragRef.current,
-      environmentEffectDrag: environmentEffectDragRef.current,
-      panDrag: dragRef.current
-    });
-    if (pointerMoveRoute === "map-calibration" && mapCalibrationDragValue) {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const action = getMapCalibrationPointerMoveAction(getMapCalibrationPointerMove(mapCalibrationDragValue, event.pointerId, point));
-      if (action.kind === "set-drag") {
-        mapCalibrationDragRef.current = action.drag;
-        setMapCalibrationDrag(action.drag);
-        setMapCalibrationDraftBox(action.draftBox);
-      }
-      return;
-    }
-    if (pointerMoveRoute === "laser" && laserDrag) {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const action = getLaserPointerMoveAction(getLaserPointerMove(laserDrag, event.pointerId, point, Date.now()));
-      if (action.kind === "emit") {
-        laserDragRef.current = action.drag;
-        onLiveTableEvent?.(createLaserLiveTableEvent(laserDrag.eventId, action.drag.points, activeTableTools, tableToolsVisibleInPlayer));
-      }
-      return;
-    }
-    if (pointerMoveRoute === "ruler" && rulerDragValue) {
-      const action = getRulerPointerMoveAction(getUpdatedRulerPointerDrag(rulerDragValue, event.pointerId, getRulerPoint(event)));
-      if (action.kind === "set-drag") {
-        rulerDragRef.current = action.drag;
-        setRulerDrag(action.drag);
-        emitRulerEvent(action.drag);
-      }
-      return;
-    }
-
-    if (pointerMoveRoute === "selection" && selectionDragValue) {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const nextSelectionDrag = getUpdatedSelectionDrag(selectionDragValue, point);
-      selectionDragRef.current = nextSelectionDrag;
-      setSelectionDrag(nextSelectionDrag);
-      return;
-    }
-
-    if (pointerMoveRoute === "drawing" && drawingDrag) {
-      const point = getDrawingToolPoint(event, drawingDrag.kind);
-      const action = getDrawingPointerMoveAction(getDrawingPointerMove(drawingDrag, event.pointerId, point, scene, drawingTemplateSize, event.shiftKey));
-      if (action.kind === "set-preview") {
-        drawingPreviewRef.current = action.preview;
-        setDrawingPreview(action.preview);
-        onTemplatePreviewChange?.(getTemplatePreviewDrawing(action.preview));
-      }
-      return;
-    }
-
-    if (pointerMoveRoute === "drawing-transform") {
-      const action = getDrawingTransformPointerMoveAction(
-        getDrawingTransformPointerMove({
-          dragState: drawingDragValue,
-          point: eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)),
-          pointerId: event.pointerId,
-          resizeState: drawingResizeValue,
-          rotateState: drawingRotateValue,
-          scene,
-          snapEnabled: isSnapModifier(event),
-          squareConstrained: event.shiftKey
-        })
-      );
-      if (action.kind === "set-preview") {
-        if (action.snapPoint !== undefined) {
-          setSnapPoint(action.snapPoint);
-        }
-        setDrawingDragPreview(action.preview);
-      }
-      return;
-    }
-
-    if (pointerMoveRoute === "mask-effect") {
-      const action = getMaskEffectPointerMoveAction(
-        getMaskEffectPointerMove({
-          environmentEffectMoveState: environmentEffectMoveValue,
-          point: eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale)),
-          pointerId: event.pointerId,
-          scene,
-          snapEnabled: isSnapModifier(event),
-          weatherMaskMoveState: weatherMaskMoveValue
-        })
-      );
-      if (action.kind === "set-environment-preview") {
-        setSnapPoint(action.snapPoint);
-        setEnvironmentEffectMovePreview(action.preview);
-      } else if (action.kind === "set-weather-preview") {
-        setWeatherMaskMovePreview(action.preview);
-      }
-      return;
-    }
-
-    if (pointerMoveRoute === "token" && tokenDrag && scene) {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const action = getTokenPointerMoveAction(getTokenPointerMove(scene, tokenDrag, event.pointerId, point));
-      if (action.kind === "cancel-drag") {
-        cancelTokenDrag();
-        return;
-      }
-      if (action.kind === "set-preview") {
-        setTokenDragPreview(action.preview);
-      }
-      return;
-    }
-
-    const fogDrag = fogDragRef.current;
-    if (pointerMoveRoute === "fog" && fogDrag) {
-      const action = getFogPointerMoveAction(getFogPointerMove(fogDrag, event.pointerId, getToolPoint(event, fogDrag.kind !== "brush"), event.shiftKey));
-      if (action.kind === "set-preview") {
-        fogDragRef.current = action.drag;
-        setFogPreview(action.drag);
-      }
-      return;
-    }
-
-    const weatherMaskDrag = weatherMaskDragRef.current;
-    if (pointerMoveRoute === "weather-mask" && weatherMaskDrag) {
-      const action = getWeatherMaskPointerMoveAction(getWeatherMaskPointerMove(weatherMaskDrag, event.pointerId, getToolPoint(event), event.shiftKey));
-      if (action.kind === "set-preview") {
-        weatherMaskDragRef.current = action.drag;
-        setWeatherMaskPreview(action.drag);
-      }
-      return;
-    }
-
-    const environmentEffectDrag = environmentEffectDragRef.current;
-    if (pointerMoveRoute === "environment-effect" && environmentEffectDrag) {
-      const action = getEnvironmentEffectPointerMoveAction(getEnvironmentEffectPointerMove(environmentEffectDrag, event.pointerId, getToolPoint(event), event.shiftKey));
-      if (action.kind === "set-preview") {
-        environmentEffectDragRef.current = action.drag;
-        setEnvironmentEffectPreview(action.drag);
-      }
-      return;
-    }
-
-    const drag = dragRef.current;
-    if (pointerMoveRoute === "pan" && drag) {
-      autoFitCameraRef.current = false;
-      setCamera(getCameraForPanDrag(drag, event.clientX, event.clientY));
-      return;
-    }
-
-    const pointerMoveFallbackRoute = getScenePointerMoveFallbackRoute({
-      drawingPolygonDraftActive: Boolean(drawingPolygonDraftRef.current),
-      drawingTool,
-      environmentEffectTool,
-      environmentPolygonDraftActive: Boolean(environmentPolygonDraftRef.current),
-      fogPolygonDraftActive: Boolean(polygonDraftRef.current),
-      fogTool,
-      hasScene: Boolean(scene),
-      mode,
-      weatherMaskTool,
-      weatherPolygonDraftActive: Boolean(weatherPolygonDraftRef.current)
-    });
-
-    if (pointerMoveFallbackRoute === "drawing-polygon-draft" && drawingPolygonDraftRef.current) {
-      const update = getScenePolygonDraftPointerMoveUpdate(drawingPolygonDraftRef.current, getDrawingToolPoint(event, "polygon"));
-      if (update) {
-        setDrawingPolygonDraft(update.draft);
-      }
-      return;
-    }
-
-    if (pointerMoveFallbackRoute === "fog-polygon-draft" && polygonDraftRef.current) {
-      const update = getScenePolygonDraftPointerMoveUpdate(polygonDraftRef.current, getToolPoint(event));
-      if (update) {
-        setPolygonDraft(update.draft);
-      }
-      return;
-    }
-
-    if (pointerMoveFallbackRoute === "weather-polygon-draft" && weatherPolygonDraftRef.current) {
-      const update = getScenePolygonDraftPointerMoveUpdate(weatherPolygonDraftRef.current, getToolPoint(event));
-      if (update) {
-        setWeatherPolygonDraft(update.draft);
-      }
-      return;
-    }
-
-    if (pointerMoveFallbackRoute === "environment-polygon-draft" && environmentPolygonDraftRef.current) {
-      const update = getScenePolygonDraftPointerMoveUpdate(environmentPolygonDraftRef.current, getToolPoint(event));
-      if (update) {
-        setEnvironmentPolygonDraft(update.draft);
-      }
-      return;
-    }
-
-    if (pointerMoveFallbackRoute === "fog-brush-hover" || pointerMoveFallbackRoute === "drawing-freehand-hover") {
-      const brushHoverPointUpdate = getBrushHoverPointForPointerMove(
-        pointerMoveFallbackRoute,
-        getToolPoint(event, false),
-        eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale))
-      );
-      setBrushHoverPoint(brushHoverPointUpdate);
-      return;
-    }
-
-    updateDrawingTransformHover(event);
-    updateSceneItemHover(event);
-    updateSnapPoint(event);
-  };
+  const onPointerMove = useSceneCanvasPointerMove({
+    activeTableTools,
+    autoFitCameraRef,
+    camera,
+    cancelTokenDrag,
+    dragRef,
+    drawingDragRef,
+    drawingPolygonDraftRef,
+    drawingPreviewRef,
+    drawingResizeRef,
+    drawingRotateRef,
+    drawingTemplateSize,
+    drawingTool,
+    emitRulerEvent,
+    environmentEffectDragRef,
+    environmentEffectMovePreview,
+    environmentEffectMoveRef,
+    environmentEffectTool,
+    environmentPolygonDraftRef,
+    fogDragRef,
+    fogTool,
+    getDrawingToolPoint,
+    getRulerPoint,
+    getToolPoint,
+    laserDragRef,
+    mapCalibrationDragRef,
+    mode,
+    onLiveTableEvent,
+    onTemplatePreviewChange,
+    playerDisplayScale,
+    polygonDraftRef,
+    rulerDragRef,
+    scene,
+    selectionDragRef,
+    setBrushHoverPoint,
+    setCamera,
+    setDrawingDragPreview,
+    setDrawingPolygonDraft,
+    setDrawingPreview,
+    setEnvironmentEffectMovePreview,
+    setEnvironmentEffectPreview,
+    setEnvironmentPolygonDraft,
+    setFogPreview,
+    setMapCalibrationDraftBox,
+    setMapCalibrationDrag,
+    setPolygonDraft,
+    setRulerDrag,
+    setSelectionDrag,
+    setSnapPoint,
+    setTokenDragPreview,
+    setWeatherMaskMovePreview,
+    setWeatherMaskPreview,
+    setWeatherPolygonDraft,
+    tableToolsVisibleInPlayer,
+    tokenDragRef,
+    weatherMaskDragRef,
+    weatherMaskMovePreview,
+    weatherMaskMoveRef,
+    weatherMaskTool,
+    weatherPolygonDraftRef,
+    updateDrawingTransformHover,
+    updateSceneItemHover,
+    updateSnapPoint
+  });
 
   const onPointerUp = useSceneCanvasPointerUp({
     cancelEnvironmentEffectMove,
