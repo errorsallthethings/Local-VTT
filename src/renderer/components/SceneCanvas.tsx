@@ -68,11 +68,7 @@ import {
 } from "../canvas/measurement";
 import {
   getSceneCanvasRenderPlan,
-  getSceneCanvasReadiness,
-  type DrawingContextMenu,
-  type EnvironmentEffectContextMenu,
-  type MaskContextMenu,
-  type TokenContextMenu
+  getSceneCanvasReadiness
 } from "../canvas/scene";
 import {
   getMarqueeSelectionMode,
@@ -146,7 +142,6 @@ import {
   type WeatherMaskDrag,
   type WeatherPolygonDraft
 } from "../canvas/weather";
-import { useDismissableMenu } from "../hooks/useDismissableMenu";
 import { useImageMapLoader } from "../hooks/useImageMapLoader";
 import { usePlayerTokenTweens } from "../hooks/usePlayerTokenTweens";
 import { usePolygonDraftKeyboard } from "../hooks/usePolygonDraftKeyboard";
@@ -157,7 +152,8 @@ import { useWindowKeyDown } from "../hooks/useWindowKeyDown";
 import { calculateCanvasContextMenuPosition, type CanvasContextMenuKind } from "../lib/ui";
 import { SceneCanvasContextMenus } from "./scene/SceneCanvasContextMenus";
 import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
-import { getSceneContextMenuOpening, type SceneContextMenuOpening } from "./scene/sceneContextMenuOpening";
+import { getSceneContextMenuOpening } from "./scene/sceneContextMenuOpening";
+import { useSceneCanvasContextMenus } from "./scene/useSceneCanvasContextMenus";
 import {
   getCanvasContextMenuKindForSceneTarget,
   getSceneContextMenuRoute,
@@ -447,10 +443,6 @@ export function SceneCanvas({
   const [mapCalibrationDraftBox, setMapCalibrationDraftBox] = useState<MapCalibrationBox | null>(null);
   const [brushHoverPoint, setBrushHoverPoint] = useState<Point | null>(null);
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
-  const [tokenContextMenu, setTokenContextMenu] = useState<TokenContextMenu | null>(null);
-  const [maskContextMenu, setMaskContextMenu] = useState<MaskContextMenu | null>(null);
-  const [drawingContextMenu, setDrawingContextMenu] = useState<DrawingContextMenu | null>(null);
-  const [environmentEffectContextMenu, setEnvironmentEffectContextMenu] = useState<EnvironmentEffectContextMenu | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const dragRef = useRef<(CameraPanDrag & { pointerId: number }) | null>(null);
   const rulerDragRef = useRef<(RulerDrag & { pointerId: number }) | null>(null);
@@ -477,6 +469,18 @@ export function SceneCanvas({
   const activeTableTools = tableTools ?? scene?.tableTools ?? DEFAULT_TABLE_TOOLS;
   const activeFogBrushSize = fogBrushSize ?? scene?.fog.brushSize ?? 80;
   const visibleDiceOverlayEvents = useMemo(() => getVisibleDiceOverlayEvents(liveTableEvents, mode), [liveTableEvents, mode]);
+  const contextMenuSelectionHandlers = useMemo(() => ({
+    onSelectDrawing,
+    onSelectEnvironmentEffect,
+    onSelectFogShape,
+    onSelectToken,
+    onSelectWeatherMask
+  }), [onSelectDrawing, onSelectEnvironmentEffect, onSelectFogShape, onSelectToken, onSelectWeatherMask]);
+  const {
+    applySceneContextMenuOpening,
+    contextMenuProps,
+    dismissCanvasContextMenus
+  } = useSceneCanvasContextMenus(contextMenuSelectionHandlers);
 
   const clearDrawingPreview = useCallback(() => {
     drawingPreviewRef.current = null;
@@ -570,19 +574,6 @@ export function SceneCanvas({
       }
     };
   }, []);
-
-  const dismissCanvasContextMenus = useCallback(() => {
-    setTokenContextMenu(null);
-    setMaskContextMenu(null);
-    setDrawingContextMenu(null);
-    setEnvironmentEffectContextMenu(null);
-  }, []);
-
-  useDismissableMenu({
-    enabled: Boolean(tokenContextMenu || maskContextMenu || drawingContextMenu || environmentEffectContextMenu),
-    menuRootClass: "canvas-context-menu",
-    onDismiss: dismissCanvasContextMenus
-  });
 
   const applySceneLifecycleResetActions = useCallback(
     (actions: readonly SceneLifecycleResetAction[]) => {
@@ -1285,10 +1276,7 @@ export function SceneCanvas({
   }, [onWheel]);
 
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    setTokenContextMenu(null);
-    setMaskContextMenu(null);
-    setDrawingContextMenu(null);
-    setEnvironmentEffectContextMenu(null);
+    dismissCanvasContextMenus();
     if (!interactive) {
       return;
     }
@@ -2048,29 +2036,6 @@ export function SceneCanvas({
     }
   };
 
-  const applySceneContextMenuOpening = (opening: SceneContextMenuOpening) => {
-    const { selection } = opening;
-    if ("tokenId" in selection) {
-      onSelectToken?.(selection.tokenId ?? null);
-    }
-    if ("drawingId" in selection) {
-      onSelectDrawing?.(selection.drawingId ?? null);
-    }
-    if ("fogShapeId" in selection) {
-      onSelectFogShape?.(selection.fogShapeId ?? null);
-    }
-    if ("weatherMaskId" in selection) {
-      onSelectWeatherMask?.(selection.weatherMaskId ?? null);
-    }
-    if ("environmentEffectId" in selection) {
-      onSelectEnvironmentEffect?.(selection.environmentEffectId ?? null);
-    }
-    setTokenContextMenu(opening.tokenContextMenu);
-    setMaskContextMenu(opening.maskContextMenu);
-    setDrawingContextMenu(opening.drawingContextMenu);
-    setEnvironmentEffectContextMenu(opening.environmentEffectContextMenu);
-  };
-
   const onContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const activeRulerDrag = rulerDragRef.current;
     const tokenDrag = tokenDragRef.current;
@@ -2485,14 +2450,7 @@ export function SceneCanvas({
       {mode === "gm" && createPortal(
         <SceneCanvasContextMenus
           scene={scene}
-          tokenContextMenu={tokenContextMenu}
-          setTokenContextMenu={setTokenContextMenu}
-          maskContextMenu={maskContextMenu}
-          setMaskContextMenu={setMaskContextMenu}
-          drawingContextMenu={drawingContextMenu}
-          setDrawingContextMenu={setDrawingContextMenu}
-          environmentEffectContextMenu={environmentEffectContextMenu}
-          setEnvironmentEffectContextMenu={setEnvironmentEffectContextMenu}
+          {...contextMenuProps}
           onSceneChange={onSceneChange}
           onSelectToken={onSelectToken}
           onSelectDrawing={onSelectDrawing}

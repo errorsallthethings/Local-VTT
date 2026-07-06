@@ -7,6 +7,7 @@ import {
   type Scene
 } from "../../../shared/localvtt";
 import type { DrawingContextMenu, EnvironmentEffectContextMenu, MaskContextMenu, TokenContextMenu } from "../../canvas/scene";
+import type { SceneCanvasContextMenuProps } from "./useSceneCanvasContextMenus";
 import {
   duplicateEnvironmentEffect,
   duplicateSceneDrawing,
@@ -33,16 +34,8 @@ import { TokenSettings } from "../layers";
 
 type SceneChangeHandler = (scene: Scene) => void;
 
-interface SceneCanvasContextMenusProps {
+interface SceneCanvasContextMenusProps extends SceneCanvasContextMenuProps {
   scene: Scene | null;
-  tokenContextMenu: TokenContextMenu | null;
-  setTokenContextMenu: Dispatch<SetStateAction<TokenContextMenu | null>>;
-  maskContextMenu: MaskContextMenu | null;
-  setMaskContextMenu: Dispatch<SetStateAction<MaskContextMenu | null>>;
-  drawingContextMenu: DrawingContextMenu | null;
-  setDrawingContextMenu: Dispatch<SetStateAction<DrawingContextMenu | null>>;
-  environmentEffectContextMenu: EnvironmentEffectContextMenu | null;
-  setEnvironmentEffectContextMenu: Dispatch<SetStateAction<EnvironmentEffectContextMenu | null>>;
   onSceneChange?: SceneChangeHandler;
   onSelectToken?: (tokenId: string | null) => void;
   onSelectDrawing?: (drawingId: string | null) => void;
