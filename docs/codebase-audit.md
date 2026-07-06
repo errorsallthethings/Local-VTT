@@ -87,6 +87,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted SceneCanvas token-asset drop wiring and hover/snap/tool-point event helpers into focused hooks so browser event mechanics and canvas point resolution are separated from pointer-mode routing.
 - Extracted SceneCanvas mouse-event handling for pointer leave, ping clicks, double-click draft commits, and context-menu routing into a focused hook so non-drag mouse behavior is no longer inline with pointer drag handlers.
 - Extracted the SceneCanvas render loop into a dedicated renderer hook, keeping canvas drawing, resize handling, animation-frame scheduling, and visual-layer ordering out of the main interaction component.
+- Extracted SceneCanvas pointer-down/start-interaction orchestration into a focused hook so panning, calibration, ruler, laser, authoring starts, selection hits, and marquee starts are no longer inline in the component.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots

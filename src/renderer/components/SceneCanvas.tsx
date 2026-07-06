@@ -52,8 +52,6 @@ import {
   getSceneCanvasReadiness
 } from "../canvas/scene";
 import {
-  getMarqueeSelectionMode,
-  getSelectionDragFromPoint,
   getUpdatedSelectionDrag
 } from "../canvas/selection";
 import type {
@@ -143,7 +141,6 @@ import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import {
   getGmMapAutoFitAction,
 } from "./scene/sceneMapViewportPolicy";
-import { getScenePointerDownRoute } from "./scene/scenePointerDownRouting";
 import { getScenePointerMoveFallbackRoute } from "./scene/scenePointerMoveFallbackRouting";
 import { getBrushHoverPointForPointerMove, getScenePolygonDraftPointerMoveUpdate } from "./scene/scenePointerMoveFallbackUpdates";
 import { getScenePointerMoveRoute } from "./scene/scenePointerMoveRouting";
@@ -151,7 +148,7 @@ import { getScenePointerUpRoute } from "./scene/scenePointerUpRouting";
 import { clearSceneSelectionsExcept as clearSceneSelectionsExceptTarget, getSceneMarqueeSelectionPayload } from "./scene/sceneSelectionRouting";
 import { getDrawingPointerMove, getDrawingPointerMoveAction } from "./scene/sceneDrawingPointer";
 import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerMoveAction } from "./scene/sceneEnvironmentEffectPointer";
-import { getLaserPointerMove, getLaserPointerMoveAction, getLaserPointerStart, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
+import { getLaserPointerMove, getLaserPointerMoveAction, shouldEndLaserPointer } from "./scene/sceneLaserPointer";
 import { getFogPointerMove, getFogPointerMoveAction } from "./scene/sceneFogPointer";
 import {
   getMaskEffectPointerComplete,
@@ -161,12 +158,10 @@ import {
   type EnvironmentEffectMoveState,
   type WeatherMaskMoveState
 } from "./scene/sceneMaskEffectPointer";
-import { getMapCalibrationPointerCompleteAction, getMapCalibrationPointerMove, getMapCalibrationPointerMoveAction, getMapCalibrationPointerStart } from "./scene/sceneMapCalibrationPointer";
-import { getRulerPointerMoveAction, getRulerPointerStart, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
+import { getMapCalibrationPointerCompleteAction, getMapCalibrationPointerMove, getMapCalibrationPointerMoveAction } from "./scene/sceneMapCalibrationPointer";
+import { getRulerPointerMoveAction, getUpdatedRulerPointerDrag } from "./scene/sceneRulerPointer";
 import { getTokenPointerMove, getTokenPointerMoveAction } from "./scene/sceneTokenPointer";
 import { getDrawingTransformPointerComplete, getDrawingTransformPointerCompleteAction, getDrawingTransformPointerMove, getDrawingTransformPointerMoveAction } from "./scene/sceneDrawingTransformPointer";
-import { getSceneSelectorPointerStart } from "./scene/sceneSelectorPointerStart";
-import { getSceneAuthoringPointerStart } from "./scene/sceneAuthoringPointerStart";
 import { getRulerWaypointAppendKeyboardAction, getTokenWaypointAppendKeyboardAction } from "./scene/sceneWaypointKeyboard";
 import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
 import { VideoMapElements } from "./scene/VideoMapElements";
@@ -179,6 +174,7 @@ import { useSceneCanvasHoverPoints } from "./scene/useSceneCanvasHoverPoints";
 import { useSceneTokenAssetDrop } from "./scene/useSceneTokenAssetDrop";
 import { useSceneCanvasMouseEvents } from "./scene/useSceneCanvasMouseEvents";
 import { useSceneCanvasRenderer } from "./scene/useSceneCanvasRenderer";
+import { useSceneCanvasPointerDown } from "./scene/useSceneCanvasPointerDown";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
@@ -1103,295 +1099,91 @@ export function SceneCanvas({
     onCameraChange: setCamera
   });
 
-  const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    dismissCanvasContextMenus();
-    if (!interactive) {
-      return;
-    }
-    const pointerDownRoute = getScenePointerDownRoute({
-      authoringToolActive,
-      button: event.button,
-      canvasTool,
-      drawingTool,
-      environmentEffectTool,
-      fogTool,
-      hasMapCalibrationTool: Boolean(onMapCalibrationBox),
-      hasScene: Boolean(scene),
-      mode,
-      mouseBehavior,
-      onSceneChangeAvailable: Boolean(onSceneChange),
-      shiftKey: event.shiftKey,
-      ctrlKey: event.ctrlKey,
-      metaKey: event.metaKey,
-      weatherMaskTool
-    });
-    if (pointerDownRoute === "pan") {
-      event.preventDefault();
-      event.currentTarget.setPointerCapture(event.pointerId);
-      dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, camera };
-      setIsPanning(true);
-      return;
-    }
-    if (pointerDownRoute === "ignore-ping") {
-      return;
-    }
-    event.currentTarget.setPointerCapture(event.pointerId);
-    if (pointerDownRoute === "map-calibration") {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const drag = getMapCalibrationPointerStart({
-        button: event.button,
-        camera: getRenderCamera(camera, playerDisplayScale),
-        draftBox: mapCalibrationDraftBox,
-        existingBox: mapCalibrationBox ?? null,
-        hasScene: Boolean(scene),
-        mode,
-        point,
-        pointerId: event.pointerId,
-        toolActive: Boolean(onMapCalibrationBox)
-      });
-      if (!drag) {
-        return;
-      }
-      mapCalibrationDragRef.current = drag;
-      setMapCalibrationDrag(drag);
-      return;
-    }
-    if (pointerDownRoute === "ruler") {
-      const point = getRulerPoint(event);
-      const nextRulerDrag = getRulerPointerStart({
-        button: event.button,
-        canvasTool,
-        hasScene: Boolean(scene),
-        mode,
-        point,
-        pointerId: event.pointerId
-      });
-      if (!nextRulerDrag) {
-        return;
-      }
-      if (releasedRulerTimeoutRef.current !== null) {
-        window.clearTimeout(releasedRulerTimeoutRef.current);
-        releasedRulerTimeoutRef.current = null;
-      }
-      setReleasedRulerDrag(null);
-      rulerDragRef.current = nextRulerDrag;
-      setRulerDrag(nextRulerDrag);
-      emitRulerEvent(nextRulerDrag);
-      return;
-    }
-    if (pointerDownRoute === "laser") {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const start = getLaserPointerStart({
-        button: event.button,
-        canvasTool,
-        eventId: crypto.randomUUID(),
-        hasScene: Boolean(scene),
-        mode,
-        point,
-        pointerId: event.pointerId,
-        settings: activeTableTools,
-        visibleInPlayer: tableToolsVisibleInPlayer
-      });
-      if (!start) {
-        return;
-      }
-      const { drag, event: laserEvent } = start;
-      laserDragRef.current = drag;
-      onLiveTableEvent?.(laserEvent);
-      return;
-    }
-    const drawingPointerStyle = {
-      color: drawingColor,
-      opacity: drawingOpacity,
-      fillColor: drawingFillColor,
-      fillOpacity: drawingFillOpacity,
-      strokeStyle: drawingStrokeStyle,
-      strokeWidth: drawingStrokeWidth,
-      templateEffect: drawingTemplateEffect,
-      templateWidth: drawingTemplateWidth
-    };
-    const getAuthoringStart = (route: typeof pointerDownRoute, toolPoint: Point) =>
-      getSceneAuthoringPointerStart({
-        activeFogBrushSize,
-        button: event.button,
-        drawingStyle: drawingPointerStyle,
-        drawingTool,
-        environmentEffectFeather,
-        environmentEffectTool,
-        environmentEffectTuning: currentEnvironmentEffectTuning,
-        environmentEffectType,
-        fogTool,
-        hasScene: Boolean(scene),
-        mode,
-        onSceneChangeAvailable: Boolean(onSceneChange),
-        pointerId: event.pointerId,
-        route,
-        toolPoint,
-        weatherMaskTool
-      });
-
-    if (pointerDownRoute === "drawing-polygon") {
-      const activeDrawingTool = drawingTool!;
-      const start = getAuthoringStart(pointerDownRoute, getDrawingToolPoint(event, activeDrawingTool));
-      if (start?.kind === "drawing-polygon") {
-        appendDrawingPolygonDraftPoint(start.point);
-      }
-      return;
-    }
-    if (pointerDownRoute === "drawing") {
-      const activeDrawingTool = drawingTool!;
-      const start = getAuthoringStart(pointerDownRoute, getDrawingToolPoint(event, activeDrawingTool));
-      if (start?.kind !== "drawing") {
-        return;
-      }
-      drawingPreviewRef.current = start.preview;
-      setDrawingPreview(start.preview);
-      onTemplatePreviewChange?.(getTemplatePreviewDrawing(start.preview));
-      return;
-    }
-    if (pointerDownRoute === "fog") {
-      const activeFogTool = fogTool!;
-      const start = getAuthoringStart(pointerDownRoute, getToolPoint(event, !activeFogTool.includes("brush")));
-      if (start?.kind !== "fog") {
-        return;
-      }
-      if (start.start.kind === "polygon") {
-        appendFogPolygonDraftPoint(start.start.tool, start.start.point);
-        return;
-      }
-      fogDragRef.current = start.start.drag;
-      setFogPreview(start.start.drag);
-      return;
-    }
-    if (pointerDownRoute === "weather-mask") {
-      const start = getAuthoringStart(pointerDownRoute, getToolPoint(event));
-      if (start?.kind !== "weather-mask") {
-        return;
-      }
-      if (start.start.kind === "polygon") {
-        appendWeatherPolygonDraftPoint(start.start.point);
-        return;
-      }
-      clearWeatherPolygonDraft();
-      weatherMaskDragRef.current = start.start.drag;
-      setWeatherMaskPreview(start.start.drag);
-      return;
-    }
-    if (pointerDownRoute === "environment-effect") {
-      const start = getAuthoringStart(pointerDownRoute, getToolPoint(event));
-      if (start?.kind !== "environment-effect") {
-        return;
-      }
-      if (start.start.kind === "polygon") {
-        appendEnvironmentPolygonDraftPoint(start.start.point);
-        return;
-      }
-      clearEnvironmentPolygonDraft();
-      environmentEffectDragRef.current = start.start.drag;
-      setEnvironmentEffectPreview(start.start.drag);
-      return;
-    }
-    if (pointerDownRoute === "marquee-additive") {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const selectionMode: SelectionMode = getMarqueeSelectionMode(event);
-      const nextSelectionDrag = getSelectionDragFromPoint(event.pointerId, point, selectionMode);
-      selectionDragRef.current = nextSelectionDrag;
-      setSelectionDrag(nextSelectionDrag);
-      return;
-    }
-    if (pointerDownRoute === "selector") {
-      const activeScene = scene!;
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const selectorStart = getSceneSelectorPointerStart({
-        authoringToolActive,
-        camera: getRenderCamera(camera, playerDisplayScale),
-        canShowDrawings: Boolean(canShowDrawings),
-        canShowTokens: Boolean(canShowTokens),
-        mouseBehavior,
-        point,
-        pointerId: event.pointerId,
-        scene: activeScene,
-        selectedDrawingIds: effectiveSelectedDrawingIds,
-        selectedTokenIds: effectiveSelectedTokenIds,
-        selectedWeatherMaskIds: effectiveSelectedWeatherMaskIds
-      });
-      if (selectorStart.kind === "token") {
-        if (selectorStart.start.dragGroup.shouldSelectHitItem) {
-          onSelectToken?.(selectorStart.start.token.id);
-        }
-        clearSceneSelectionsExcept("token");
-        if (selectorStart.start.dragStart) {
-          tokenDragRef.current = selectorStart.start.dragStart.drag;
-          setTokenDragPreview(selectorStart.start.dragStart.preview);
-        }
-        return;
-      }
-      onSelectToken?.(null);
-
-      if (selectorStart.kind === "drawing-transform") {
-        if (selectorStart.start.transformKind === "rotate") {
-          drawingRotateRef.current = selectorStart.start.state;
-        } else {
-          drawingResizeRef.current = selectorStart.start.state;
-        }
-        setDrawingDragPreview(selectorStart.start.preview);
-        return;
-      }
-
-      if (selectorStart.kind === "drawing-hit") {
-        if (selectorStart.start.dragGroup.shouldSelectHitItem) {
-          onSelectDrawing?.(selectorStart.start.drawingId);
-        }
-        clearSceneSelectionsExcept("drawing");
-        if (selectorStart.start.dragStart) {
-          drawingDragRef.current = selectorStart.start.dragStart;
-          setDrawingDragPreview(selectorStart.start.preview);
-        }
-        return;
-      }
-
-      if (selectorStart.kind === "environment-effect") {
-        onSelectEnvironmentEffect?.(selectorStart.start.effectId);
-        clearSceneSelectionsExcept("environmentEffect");
-        if (selectorStart.start.moveStart) {
-          environmentEffectMoveRef.current = selectorStart.start.moveStart;
-          setEnvironmentEffectMovePreview(selectorStart.start.preview);
-        }
-        return;
-      }
-
-      if (selectorStart.kind === "weather-mask") {
-        onSelectWeatherMask?.(selectorStart.start.maskId);
-        clearSceneSelectionsExcept("weatherMask");
-        if (selectorStart.start.moveStart) {
-          weatherMaskMoveRef.current = selectorStart.start.moveStart;
-          setWeatherMaskMovePreview(selectorStart.start.preview);
-        }
-        return;
-      }
-
-      if (selectorStart.kind === "fog-shape") {
-        onSelectFogShape?.(selectorStart.start.shapeId);
-        clearSceneSelectionsExcept("fogShape");
-        return;
-      }
-
-      if (selectorStart.clearSceneSelections) {
-        clearSceneSelectionsExcept("empty");
-      }
-    }
-    if (pointerDownRoute === "marquee") {
-      const point = eventToWorldPoint(event, getRenderCamera(camera, playerDisplayScale));
-      const selectionMode: SelectionMode = getMarqueeSelectionMode(event);
-      const nextSelectionDrag = getSelectionDragFromPoint(event.pointerId, point, selectionMode);
-      selectionDragRef.current = nextSelectionDrag;
-      setSelectionDrag(nextSelectionDrag);
-      return;
-    }
-    if (pointerDownRoute === "none") {
-      return;
-    }
-  };
+  const onPointerDown = useSceneCanvasPointerDown({
+    activeFogBrushSize,
+    activeTableTools,
+    appendDrawingPolygonDraftPoint,
+    appendEnvironmentPolygonDraftPoint,
+    appendFogPolygonDraftPoint,
+    appendWeatherPolygonDraftPoint,
+    authoringToolActive,
+    camera,
+    canShowDrawings,
+    canShowTokens,
+    canvasTool,
+    clearEnvironmentPolygonDraft,
+    clearSceneSelectionsExcept,
+    clearWeatherPolygonDraft,
+    currentEnvironmentEffectTuning,
+    dismissCanvasContextMenus,
+    dragRef,
+    drawingColor,
+    drawingDragRef,
+    drawingFillColor,
+    drawingFillOpacity,
+    drawingOpacity,
+    drawingPreviewRef,
+    drawingResizeRef,
+    drawingRotateRef,
+    drawingStrokeStyle,
+    drawingStrokeWidth,
+    drawingTemplateEffect,
+    drawingTemplateWidth,
+    drawingTool,
+    emitRulerEvent,
+    environmentEffectDragRef,
+    environmentEffectFeather,
+    environmentEffectMoveRef,
+    environmentEffectTool,
+    environmentEffectType,
+    fogDragRef,
+    fogTool,
+    getDrawingToolPoint,
+    getRulerPoint,
+    getToolPoint,
+    interactive,
+    laserDragRef,
+    mapCalibrationBox,
+    mapCalibrationDraftBox,
+    mapCalibrationDragRef,
+    mode,
+    mouseBehavior,
+    onLiveTableEvent,
+    onMapCalibrationBox,
+    onSceneChange,
+    onSelectDrawing,
+    onSelectEnvironmentEffect,
+    onSelectFogShape,
+    onSelectToken,
+    onSelectWeatherMask,
+    onTemplatePreviewChange,
+    playerDisplayScale,
+    releasedRulerTimeoutRef,
+    rulerDragRef,
+    scene,
+    selectedDrawingIds: effectiveSelectedDrawingIds,
+    selectedTokenIds: effectiveSelectedTokenIds,
+    selectedWeatherMaskIds: effectiveSelectedWeatherMaskIds,
+    selectionDragRef,
+    setDrawingDragPreview,
+    setDrawingPreview,
+    setEnvironmentEffectMovePreview,
+    setEnvironmentEffectPreview,
+    setFogPreview,
+    setIsPanning,
+    setMapCalibrationDrag,
+    setReleasedRulerDrag,
+    setRulerDrag,
+    setSelectionDrag,
+    setTokenDragPreview,
+    setWeatherMaskMovePreview,
+    setWeatherMaskPreview,
+    tableToolsVisibleInPlayer,
+    tokenDragRef,
+    weatherMaskDragRef,
+    weatherMaskMoveRef,
+    weatherMaskTool
+  });
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const tokenDrag = tokenDragRef.current;
