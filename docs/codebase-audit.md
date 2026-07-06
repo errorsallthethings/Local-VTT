@@ -109,6 +109,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted animated-effect layer rows and their row presentation helper out of `EnvironmentEffectList`, with regression coverage for labels, shape text, visibility defaults, and selection state.
 - Extracted drawing layer rows and row presentation state out of `DrawingList`, with regression coverage for labels, visibility defaults, selection, dragging, and drop placement.
 - Extracted Electron map/token thumbnail creation into an injectable thumbnail service, with tests covering image maps, video fallback, decode failures, and token thumbnails.
+- Extracted staged token import ownership out of token asset IPC, with regressions that temporary external asset access is released only by the owning campaign or final import commit.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots

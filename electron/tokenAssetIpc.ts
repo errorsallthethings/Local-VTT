@@ -11,15 +11,8 @@ import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.j
 import { getTokenAssetUsage } from "./tokenAssetUsage.js";
 import { removeAssetFromCampaign } from "./tokenAssetMutations.js";
 import { removeTokenAssetFromCampaignScenes } from "./tokenAssetSceneCleanup.js";
+import { createStagedTokenImportStore, type StagedTokenImport } from "./stagedTokenImports.js";
 import { tokenThumbnailVariant, updateTokenThumbnailInCampaign } from "./tokenThumbnailUpdate.js";
-
-interface StagedTokenImport {
-  assetId: string;
-  campaignPath: string;
-  createdAt: string;
-  finalRelativePath: string;
-  sourcePath: string;
-}
 
 export interface TokenAssetDialogProvider {
   chooseTokenFile: (owner: BrowserWindow | null) => Promise<string | null>;
@@ -43,23 +36,7 @@ export interface RegisterTokenAssetIpcOptions {
 }
 
 export function registerTokenAssetIpc(ipcMain: Pick<IpcMain, "handle">, options: RegisterTokenAssetIpcOptions): void {
-  const stagedTokenImports = new Map<string, StagedTokenImport>();
-
-  const registerStagedTokenImport = (stagedImport: StagedTokenImport) => {
-    stagedTokenImports.set(stagedImport.assetId, stagedImport);
-    options.registerTemporaryExternalAssetPath(stagedImport.sourcePath);
-  };
-
-  const consumeStagedTokenImport = (assetId: string): StagedTokenImport | null => {
-    const stagedImport = stagedTokenImports.get(assetId) ?? null;
-    if (stagedImport) {
-      stagedTokenImports.delete(assetId);
-      options.unregisterTemporaryExternalAssetPath(stagedImport.sourcePath);
-    }
-    return stagedImport;
-  };
-
-  const discardStagedTokenImport = (assetId: string): boolean => Boolean(consumeStagedTokenImport(assetId));
+  const stagedTokenImports = createStagedTokenImportStore(options);
 
   ipcMain.handle("asset:importToken", async (_event: IpcMainInvokeEvent, campaignPath: string) => {
     options.assertKnownCampaignPath(campaignPath);
@@ -73,7 +50,7 @@ export function registerTokenAssetIpc(ipcMain: Pick<IpcMain, "handle">, options:
     const assetId = options.createAssetId();
     const updatedAt = options.getTimestamp();
     const finalRelativePath = buildTokenAssetRelativePath(assetId);
-    registerStagedTokenImport({
+    stagedTokenImports.register({
       assetId,
       sourcePath,
       campaignPath,
@@ -99,7 +76,7 @@ export function registerTokenAssetIpc(ipcMain: Pick<IpcMain, "handle">, options:
     const stagedImport = stagedTokenImports.get(assetId);
 
     if (stagedImport) {
-      return commitStagedTokenImport(campaignPath, assetId, crop, stagedImport, consumeStagedTokenImport, summary, options);
+      return commitStagedTokenImport(campaignPath, assetId, crop, stagedImport, stagedTokenImports.consume, summary, options);
     }
 
     const asset = requireTokenAssetWithAbsolutePath(summary.campaign, assetId);
@@ -124,7 +101,7 @@ export function registerTokenAssetIpc(ipcMain: Pick<IpcMain, "handle">, options:
   ipcMain.handle("asset:discardTokenImport", async (_event: IpcMainInvokeEvent, campaignPath: string, assetId: string) => {
     options.assertKnownCampaignPath(campaignPath);
     assertIpcSafeId(assetId, "Asset id");
-    if (discardStagedTokenImport(assetId)) {
+    if (stagedTokenImports.discardForCampaign(assetId, campaignPath)) {
       return options.loadCampaignFromPath(campaignPath);
     }
     const summary = await options.loadCampaignFromPath(campaignPath);

@@ -163,6 +163,21 @@ describe("token asset IPC", () => {
     expect(harness.options.writeCampaign).not.toHaveBeenCalled();
   });
 
+  it("does not discard a staged token import from a different campaign", async () => {
+    const harness = createTokenHarness();
+    await harness.ipc.invoke("asset:importToken", campaignPath);
+
+    await harness.ipc.invoke("asset:discardTokenImport", path.join(tempRoot, "other-campaign"), "token-new");
+
+    expect(harness.options.unregisterTemporaryExternalAssetPath).not.toHaveBeenCalled();
+    await harness.ipc.invoke("asset:updateTokenThumbnail", campaignPath, "token-new", {
+      x: 0,
+      y: 0,
+      size: 1
+    });
+    expect(harness.options.unregisterTemporaryExternalAssetPath).toHaveBeenCalledWith(sourcePath);
+  });
+
   it("updates an existing token thumbnail from its campaign file", async () => {
     const tokenPath = path.join(campaignPath, "assets", "tokens", "hero.png");
     await writeFile(tokenPath, "old token image", "utf8");
