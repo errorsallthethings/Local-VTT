@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } from "electron";
 import type { WebContents } from "electron";
-import { stat, writeFile } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -8,7 +8,6 @@ import {
   Campaign,
   CampaignSummary,
   AssetPruneResult,
-  SquareCropRect,
   TokenAssetPromotionResult,
   ThumbnailRegenerationProgress,
   ThumbnailRegenerationResult
@@ -34,8 +33,7 @@ import {
   createImageMapThumbnail,
   createSquareImageThumbnail
 } from "./assets.js";
-import { buildTokenAssetRelativePath, hydrateCampaignAssetPaths, requireCampaignRelativePath } from "./assetFiles.js";
-import { assertAssetImportCandidate } from "./assetImportFiles.js";
+import { hydrateCampaignAssetPaths, requireCampaignRelativePath } from "./assetFiles.js";
 import { removeCampaignAssetFiles } from "./assetFileRemoval.js";
 import { mapMediaType } from "./assetImportValidation.js";
 import {
@@ -60,30 +58,21 @@ import { ensureMapThumbnails, type MapThumbnailResult } from "./mapThumbnailRepa
 import { createThumbnailImportFailureDiagnostic } from "./thumbnailDiagnostics.js";
 import { removeThumbnailIfUnused, writeAssetThumbnail } from "./thumbnailFiles.js";
 import { regenerateThumbnailAssets } from "./thumbnailRegeneration.js";
-import { getTokenAssetUsage } from "./tokenAssetUsage.js";
-import { removeAssetFromCampaign } from "./tokenAssetMutations.js";
 import { pauseCampaignTurnOrders } from "./campaignTurnOrderPause.js";
 import { registerPlayerViewIpc } from "./playerViewIpc.js";
 import { getGmCloseRequestAction, getUnsavedChangesDialogAction } from "./gmWindowClose.js";
 import { getLinuxGraphicsSwitches } from "./linuxGraphicsSwitches.js";
 import { runSmokeTest } from "./smokeTestRunner.js";
-import {
-  assertIpcBoolean,
-  assertIpcSafeId,
-  assertSquareCropRect
-} from "./ipcPayloadValidation.js";
-import { addImportedAssetToCampaign, createImportedAsset, createStagedTokenImportAsset } from "./importedAssets.js";
-import { tokenThumbnailVariant, updateTokenThumbnailInCampaign } from "./tokenThumbnailUpdate.js";
-import { removeTokenAssetFromCampaignScenes } from "./tokenAssetSceneCleanup.js";
+import { assertIpcBoolean } from "./ipcPayloadValidation.js";
 import { promoteTokenAssetThumbnails } from "./tokenAssetPromotion.js";
 import { pruneUnreferencedAssets } from "./unreferencedAssetPruning.js";
-import { findCampaignAsset, requireCampaignAsset, requireTokenAssetWithAbsolutePath } from "./campaignAssetLookup.js";
 import { createAppWindowOptions, createWindowLoadTarget } from "./windowConfig.js";
 import { createCampaignForFolder, resolveCurrentCampaignPath } from "./campaignOpenState.js";
 import { createVideoMapThumbnailWithFallback } from "./videoThumbnailFallback.js";
 import { registerSceneIpc } from "./sceneIpc.js";
 import { registerCampaignIpc } from "./campaignIpc.js";
 import { registerMapAssetIpc } from "./mapAssetIpc.js";
+import { registerTokenAssetIpc } from "./tokenAssetIpc.js";
 
 const isSmokeTest = process.env.LOCALVTT_SMOKE_TEST === "1";
 const isVisualSmokeTest = process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1";
@@ -106,7 +95,6 @@ let forceCloseGmWindow = false;
 let currentCampaignPath: string | null = null;
 const campaignSessions = new CampaignSessionRegistry();
 const mapReplacementTokens: MapReplacementTokenStore = new Map();
-const stagedTokenImports = new Map<string, { campaignPath: string; sourcePath: string; assetId: string; finalRelativePath: string; createdAt: string }>();
 
 function configureLinuxGraphicsSwitches(): void {
   getLinuxGraphicsSwitches(process.platform, process.env).forEach((commandLineSwitch) => {
@@ -193,24 +181,6 @@ function registerCampaignPath(campaignPath: string): void {
 
 function registerAssetPaths(campaign: Campaign): void {
   campaignSessions.registerAssetPaths(campaign);
-}
-
-function registerStagedTokenImport(stagedImport: { assetId: string; sourcePath: string; campaignPath: string; finalRelativePath: string; createdAt: string }): void {
-  stagedTokenImports.set(stagedImport.assetId, stagedImport);
-  campaignSessions.registerTemporaryExternalAssetPath(stagedImport.sourcePath);
-}
-
-function consumeStagedTokenImport(assetId: string): { campaignPath: string; sourcePath: string; assetId: string; finalRelativePath: string; createdAt: string } | null {
-  const stagedImport = stagedTokenImports.get(assetId) ?? null;
-  if (stagedImport) {
-    stagedTokenImports.delete(assetId);
-    campaignSessions.unregisterTemporaryExternalAssetPath(stagedImport.sourcePath);
-  }
-  return stagedImport;
-}
-
-function discardStagedTokenImport(assetId: string): boolean {
-  return Boolean(consumeStagedTokenImport(assetId));
 }
 
 function assertKnownCampaignPath(campaignPath: string): void {
@@ -552,93 +522,23 @@ registerMapAssetIpc(ipcMain, {
   writeScene
 });
 
-ipcMain.handle("asset:importToken", async (_event, campaignPath: string) => {
-  assertKnownCampaignPath(campaignPath);
-  const sourcePath = await chooseTokenFile(dialog, gmWindow);
-  if (!sourcePath) {
-    return null;
-  }
-
-  await assertAssetImportCandidate(sourcePath, "token");
-
-  const assetId = randomUUID();
-  const updatedAt = new Date().toISOString();
-  const finalRelativePath = buildTokenAssetRelativePath(assetId);
-  registerStagedTokenImport({
-    assetId,
-    sourcePath,
-    campaignPath,
-    finalRelativePath,
-    createdAt: updatedAt
-  });
-  const stagedAsset = createStagedTokenImportAsset({
-    assetId,
-    sourcePath,
-    finalRelativePath,
-    campaignPath,
-    createdAt: updatedAt
-  });
-
-  return { campaignSummary: await loadCampaignFromPath(campaignPath), asset: stagedAsset };
-});
-
-ipcMain.handle("asset:updateTokenThumbnail", async (_event, campaignPath: string, assetId: string, crop: SquareCropRect) => {
-  assertKnownCampaignPath(campaignPath);
-  assertIpcSafeId(assetId, "Asset id");
-  assertSquareCropRect(crop);
-  const summary = await loadCampaignFromPath(campaignPath);
-  const stagedImport = stagedTokenImports.get(assetId);
-
-  if (stagedImport) {
-    if (path.resolve(stagedImport.campaignPath) !== path.resolve(campaignPath)) {
-      throw new Error("Token import belongs to a different campaign.");
-    }
-    const thumbnail = await createSquareImageThumbnail(stagedImport.sourcePath, crop);
-    if (!thumbnail) {
-      throw new Error("Unable to generate token thumbnail.");
-    }
-    const destination = requireCampaignRelativePath(campaignPath, stagedImport.finalRelativePath);
-    await writeFile(destination, thumbnail);
-    const updatedAt = new Date().toISOString();
-    const imported = createImportedAsset({
-      assetId,
-      kind: "token",
-      mediaType: "image",
-      sourcePath: stagedImport.sourcePath,
-      relativePath: stagedImport.finalRelativePath,
-      destination,
-      campaignPath,
-      thumbnailRelativePath: stagedImport.finalRelativePath,
-      createdAt: updatedAt
-    });
-    const campaign = addImportedAssetToCampaign(summary.campaign, imported, updatedAt);
-    await writeCampaign(campaignPath, campaign);
-    consumeStagedTokenImport(assetId);
-    const campaignSummary = await loadCampaignFromPath(campaignPath);
-    const updatedAsset = campaignSummary.campaign.assets.find((candidate) => candidate.id === assetId);
-    if (!updatedAsset) {
-      throw new Error("Token asset was not available after importing token.");
-    }
-    return { campaignSummary, asset: updatedAsset };
-  }
-
-  const asset = requireTokenAssetWithAbsolutePath(summary.campaign, assetId);
-
-  assertInsideCampaign(campaignPath, asset.absolutePath);
-  const thumbnail = await createSquareImageThumbnail(asset.absolutePath, crop);
-  if (!thumbnail) {
-    throw new Error("Unable to generate token thumbnail.");
-  }
-  const thumbnailRelativePath = await writeAssetThumbnail(campaignPath, assetId, thumbnail, tokenThumbnailVariant(Date.now()));
-  const campaign = updateTokenThumbnailInCampaign(summary.campaign, assetId, thumbnailRelativePath, new Date().toISOString());
-  await writeCampaign(campaignPath, campaign);
-  await removeThumbnailIfUnused(campaignPath, asset.thumbnailRelativePath, campaign.assets);
-  const campaignSummary = await loadCampaignFromPath(campaignPath);
-  const updatedAsset = campaignSummary.campaign.assets.find((candidate) => candidate.id === assetId);
-  if (!updatedAsset) {
-    throw new Error("Token asset was not available after updating thumbnail.");
-  }
-  return { campaignSummary, asset: updatedAsset };
+registerTokenAssetIpc(ipcMain, {
+  assertInsideCampaign,
+  assertKnownCampaignPath,
+  createAssetId: randomUUID,
+  createSquareImageThumbnail,
+  dialogs: {
+    chooseTokenFile: (owner) => chooseTokenFile(dialog, owner)
+  },
+  getGmWindow: () => gmWindow,
+  getTimestamp: () => new Date().toISOString(),
+  loadCampaignFromPath,
+  readSceneMetadata,
+  registerTemporaryExternalAssetPath: (sourcePath) => campaignSessions.registerTemporaryExternalAssetPath(sourcePath),
+  removeCampaignAssetFiles,
+  unregisterTemporaryExternalAssetPath: (sourcePath) => campaignSessions.unregisterTemporaryExternalAssetPath(sourcePath),
+  writeCampaign,
+  writeScene
 });
 
 ipcMain.handle("asset:regenerateThumbnails", async (event, campaignPath: string) => {
@@ -656,52 +556,6 @@ ipcMain.handle("asset:promoteTokenAssets", async (_event, campaignPath: string) 
 ipcMain.handle("asset:pruneUnreferencedAssets", async (_event, campaignPath: string) => {
   assertKnownCampaignPath(campaignPath);
   return pruneCampaignUnreferencedAssets(campaignPath);
-});
-
-ipcMain.handle("asset:discardTokenImport", async (_event, campaignPath: string, assetId: string) => {
-  assertKnownCampaignPath(campaignPath);
-  assertIpcSafeId(assetId, "Asset id");
-  if (discardStagedTokenImport(assetId)) {
-    return loadCampaignFromPath(campaignPath);
-  }
-  const summary = await loadCampaignFromPath(campaignPath);
-  const asset = findCampaignAsset(summary.campaign, assetId, "token");
-  if (!asset) {
-    return summary;
-  }
-
-  await removeCampaignAssetFiles(campaignPath, asset);
-
-  const campaign = removeAssetFromCampaign(summary.campaign, assetId);
-  await writeCampaign(campaignPath, campaign);
-  return loadCampaignFromPath(campaignPath);
-});
-
-ipcMain.handle("asset:getTokenUsage", async (_event, campaignPath: string, assetId: string) => {
-  assertKnownCampaignPath(campaignPath);
-  assertIpcSafeId(assetId, "Asset id");
-  const summary = await loadCampaignFromPath(campaignPath);
-  return getTokenAssetUsage(summary.campaign, assetId, (sceneId) => readSceneMetadata(campaignPath, sceneId));
-});
-
-ipcMain.handle("asset:deleteToken", async (_event, campaignPath: string, assetId: string) => {
-  assertKnownCampaignPath(campaignPath);
-  assertIpcSafeId(assetId, "Asset id");
-  const summary = await loadCampaignFromPath(campaignPath);
-  const asset = requireCampaignAsset(summary.campaign, assetId, "token", "Token asset was not found in this campaign.");
-
-  const changedScenes = await removeTokenAssetFromCampaignScenes(
-    summary.campaign,
-    assetId,
-    (sceneId) => readSceneMetadata(campaignPath, sceneId),
-    (scene) => writeScene(campaignPath, scene)
-  );
-
-  await removeCampaignAssetFiles(campaignPath, asset);
-
-  const campaign = removeAssetFromCampaign(summary.campaign, assetId);
-  await writeCampaign(campaignPath, campaign);
-  return { campaignSummary: await loadCampaignFromPath(campaignPath), scenes: changedScenes };
 });
 
 ipcMain.on("app:setUnsavedChanges", (_event, hasUnsavedChanges: boolean) => {
