@@ -5,14 +5,20 @@ import type { DropPlacement } from "../../../lib/ui";
 import { getSelectedItemIds } from "../../../lib/scene";
 import {
   getLayerItemActionButtonClassName,
+  acceptsLayerItemDrag,
+  getLayerItemDragEndMoveAction,
+  getLayerItemDropMoveAction,
+  getLayerItemDropSourceId,
+  getLayerItemDropTarget,
   getLayerItemRowClassName,
   getLayerItemVisibilityLabel,
   getLayerItemVisibilityTitle,
+  type LayerItemDropTarget,
   patchLayerItemById,
   removeLayerItemById
 } from "../panel/layerItemRows";
 
-export type FogShapeDropTarget = { shapeId: string; placement: DropPlacement } | null;
+export type FogShapeDropTarget = LayerItemDropTarget | null;
 const EMPTY_SELECTED_IDS: string[] = [];
 
 export function FogShapeList({
@@ -66,7 +72,7 @@ export function FogShapeList({
             const fallbackName = formatDefaultFogShapeName(shape.operation, shape.kind, shapeIndex);
             const label = shape.name?.trim() || fallbackName;
             const isSelected = selectedIds.has(shape.id);
-            const dropPlacement = fogShapeDropTarget?.shapeId === shape.id && draggedFogShapeId !== shape.id ? fogShapeDropTarget.placement : null;
+            const dropPlacement = fogShapeDropTarget?.itemId === shape.id && draggedFogShapeId !== shape.id ? fogShapeDropTarget.placement : null;
             return (
               <div
                 className={`${getLayerItemRowClassName({
@@ -85,32 +91,32 @@ export function FogShapeList({
                   event.dataTransfer.effectAllowed = "move";
                 }}
                 onDragOver={(event) => {
-                  if (!draggedFogShapeId && !event.dataTransfer.types.includes("application/x-localvtt-fog-shape-id")) {
+                  if (!acceptsLayerItemDrag(draggedFogShapeId, event.dataTransfer.types, "application/x-localvtt-fog-shape-id")) {
                     return;
                   }
                   event.preventDefault();
                   event.dataTransfer.dropEffect = "move";
-                  if (draggedFogShapeId !== shape.id) {
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    onFogShapeDropTargetChange({
-                      shapeId: shape.id,
-                      placement: event.clientY > rect.top + rect.height / 2 ? "after" : "before"
-                    });
-                  }
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  onFogShapeDropTargetChange(getLayerItemDropTarget(shape.id, draggedFogShapeId, event.clientY, rect.top, rect.height));
                 }}
                 onDrop={(event) => {
                   event.preventDefault();
-                  const sourceShapeId = event.dataTransfer.getData("application/x-localvtt-fog-shape-id") || event.dataTransfer.getData("text/plain") || draggedFogShapeId;
-                  const placement = fogShapeDropTarget?.shapeId === shape.id ? fogShapeDropTarget.placement : "before";
-                  if (sourceShapeId) {
-                    onMoveFogShape(sourceShapeId, shape.id, placement);
+                  const sourceShapeId = getLayerItemDropSourceId(
+                    event.dataTransfer.getData("application/x-localvtt-fog-shape-id"),
+                    event.dataTransfer.getData("text/plain"),
+                    draggedFogShapeId
+                  );
+                  const moveAction = getLayerItemDropMoveAction(sourceShapeId, shape.id, fogShapeDropTarget);
+                  if (moveAction) {
+                    onMoveFogShape(moveAction.sourceItemId, moveAction.targetItemId, moveAction.placement);
                   }
                   onDraggedFogShapeIdChange(null);
                   onFogShapeDropTargetChange(null);
                 }}
                 onDragEnd={() => {
-                  if (draggedFogShapeId && fogShapeDropTarget) {
-                    onMoveFogShape(draggedFogShapeId, fogShapeDropTarget.shapeId, fogShapeDropTarget.placement);
+                  const moveAction = getLayerItemDragEndMoveAction(draggedFogShapeId, fogShapeDropTarget);
+                  if (moveAction) {
+                    onMoveFogShape(moveAction.sourceItemId, moveAction.targetItemId, moveAction.placement);
                   }
                   onDraggedFogShapeIdChange(null);
                   onFogShapeDropTargetChange(null);

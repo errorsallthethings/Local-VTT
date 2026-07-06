@@ -3,6 +3,16 @@ import { reorderByDropTarget } from "../../../lib/ui";
 
 export type LayerItemVisibilityView = "GM" | "Player";
 export type LayerItemRowVariant = "weather-mask" | "token";
+export interface LayerItemDropTarget {
+  itemId: string;
+  placement: DropPlacement;
+}
+
+export interface LayerItemMoveAction {
+  sourceItemId: string;
+  targetItemId: string;
+  placement: DropPlacement;
+}
 
 export interface LayerItemRowPresentationOptions {
   visible: boolean;
@@ -71,6 +81,63 @@ export function patchLayerItemById<T extends { id: string }>(items: readonly T[]
 
 export function removeLayerItemById<T extends { id: string }>(items: readonly T[], itemId: string): T[] {
   return items.filter((item) => item.id !== itemId);
+}
+
+export function acceptsLayerItemDrag(draggedItemId: string | null, dataTransferTypes: ReadonlyArray<string>, mimeType: string): boolean {
+  return Boolean(draggedItemId || dataTransferTypes.includes(mimeType));
+}
+
+export function getLayerItemDropPlacement(pointerY: number, rowTop: number, rowHeight: number): DropPlacement {
+  return pointerY > rowTop + rowHeight / 2 ? "after" : "before";
+}
+
+export function getLayerItemDropTarget(
+  itemId: string,
+  draggedItemId: string | null,
+  pointerY: number,
+  rowTop: number,
+  rowHeight: number
+): LayerItemDropTarget | null {
+  if (draggedItemId === itemId) {
+    return null;
+  }
+  return {
+    itemId,
+    placement: getLayerItemDropPlacement(pointerY, rowTop, rowHeight)
+  };
+}
+
+export function getLayerItemDropSourceId(primaryData: string, fallbackData: string, draggedItemId: string | null): string | null {
+  return primaryData || fallbackData || draggedItemId || null;
+}
+
+export function getLayerItemDropMoveAction(
+  sourceItemId: string | null,
+  targetItemId: string,
+  dropTarget: LayerItemDropTarget | null
+): LayerItemMoveAction | null {
+  if (!sourceItemId) {
+    return null;
+  }
+  return {
+    sourceItemId,
+    targetItemId,
+    placement: dropTarget?.itemId === targetItemId ? dropTarget.placement : "before"
+  };
+}
+
+export function getLayerItemDragEndMoveAction(
+  draggedItemId: string | null,
+  dropTarget: LayerItemDropTarget | null
+): LayerItemMoveAction | null {
+  if (!draggedItemId || !dropTarget) {
+    return null;
+  }
+  return {
+    sourceItemId: draggedItemId,
+    targetItemId: dropTarget.itemId,
+    placement: dropTarget.placement
+  };
 }
 
 export function getReorderedLayerItems<T extends { id: string }>(

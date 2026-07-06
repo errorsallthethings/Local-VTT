@@ -12,16 +12,22 @@ import { type DropPlacement } from "../../../lib/ui";
 import { CompactAssetThumbnail } from "../../assets/CompactAssetThumbnail";
 import {
   getLayerItemActionButtonClassName,
+  acceptsLayerItemDrag,
+  getLayerItemDragEndMoveAction,
+  getLayerItemDropMoveAction,
+  getLayerItemDropSourceId,
+  getLayerItemDropTarget,
   getLayerItemRowClassName,
   getLayerItemVisibilityLabel,
   getLayerItemVisibilityTitle,
+  type LayerItemDropTarget,
   getReorderedTokenLayerItems,
   patchLayerItemById,
   removeLayerItemById
 } from "../panel/layerItemRows";
 import { TokenSettings } from "../settings/TokenSettings";
 
-type TokenDropTarget = { tokenId: string; placement: DropPlacement } | null;
+type TokenDropTarget = LayerItemDropTarget | null;
 const EMPTY_SELECTED_IDS: string[] = [];
 
 export function TokenList({
@@ -85,7 +91,7 @@ export function TokenList({
           </div>
           {tokenRows.map(({ token, asset, label, isVisibleInGm, isVisibleInPlayer }) => {
             const isSelected = selectedIds.has(token.id);
-            const dropPlacement = tokenDropTarget?.tokenId === token.id && draggedTokenId !== token.id ? tokenDropTarget.placement : null;
+            const dropPlacement = tokenDropTarget?.itemId === token.id && draggedTokenId !== token.id ? tokenDropTarget.placement : null;
             return (
               <div
                 className={getLayerItemRowClassName({
@@ -106,32 +112,32 @@ export function TokenList({
                   event.dataTransfer.effectAllowed = "move";
                 }}
                 onDragOver={(event) => {
-                  if (!draggedTokenId && !event.dataTransfer.types.includes("application/x-localvtt-token-id")) {
+                  if (!acceptsLayerItemDrag(draggedTokenId, event.dataTransfer.types, "application/x-localvtt-token-id")) {
                     return;
                   }
                   event.preventDefault();
                   event.dataTransfer.dropEffect = "move";
-                  if (draggedTokenId !== token.id) {
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    setTokenDropTarget({
-                      tokenId: token.id,
-                      placement: event.clientY > rect.top + rect.height / 2 ? "after" : "before"
-                    });
-                  }
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setTokenDropTarget(getLayerItemDropTarget(token.id, draggedTokenId, event.clientY, rect.top, rect.height));
                 }}
                 onDrop={(event) => {
                   event.preventDefault();
-                  const sourceTokenId = event.dataTransfer.getData("application/x-localvtt-token-id") || event.dataTransfer.getData("text/plain") || draggedTokenId;
-                  const placement = tokenDropTarget?.tokenId === token.id ? tokenDropTarget.placement : "before";
-                  if (sourceTokenId) {
-                    moveToken(sourceTokenId, token.id, placement);
+                  const sourceTokenId = getLayerItemDropSourceId(
+                    event.dataTransfer.getData("application/x-localvtt-token-id"),
+                    event.dataTransfer.getData("text/plain"),
+                    draggedTokenId
+                  );
+                  const moveAction = getLayerItemDropMoveAction(sourceTokenId, token.id, tokenDropTarget);
+                  if (moveAction) {
+                    moveToken(moveAction.sourceItemId, moveAction.targetItemId, moveAction.placement);
                   }
                   setDraggedTokenId(null);
                   setTokenDropTarget(null);
                 }}
                 onDragEnd={() => {
-                  if (draggedTokenId && tokenDropTarget) {
-                    moveToken(draggedTokenId, tokenDropTarget.tokenId, tokenDropTarget.placement);
+                  const moveAction = getLayerItemDragEndMoveAction(draggedTokenId, tokenDropTarget);
+                  if (moveAction) {
+                    moveToken(moveAction.sourceItemId, moveAction.targetItemId, moveAction.placement);
                   }
                   setDraggedTokenId(null);
                   setTokenDropTarget(null);

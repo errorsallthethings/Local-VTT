@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   getLayerItemActionButtonClassName,
+  acceptsLayerItemDrag,
+  getLayerItemDragEndMoveAction,
+  getLayerItemDropMoveAction,
+  getLayerItemDropPlacement,
+  getLayerItemDropSourceId,
+  getLayerItemDropTarget,
   getLayerItemHighlightLabel,
   getLayerItemHighlightTitle,
   getLayerItemRowClassName,
@@ -40,6 +46,33 @@ describe("layer item row helpers", () => {
     expect(getLayerItemToggleTitle("mask", false)).toBe("Enable mask");
     expect(getLayerItemHighlightLabel("Rain Mask", true)).toBe("Hide Rain Mask highlight");
     expect(getLayerItemHighlightTitle("mask", false)).toBe("Highlight mask");
+  });
+
+  it("derives shared drag and drop actions for layer item lists", () => {
+    expect(acceptsLayerItemDrag(null, ["application/x-localvtt-token-id"], "application/x-localvtt-token-id")).toBe(true);
+    expect(acceptsLayerItemDrag("token-1", [], "application/x-localvtt-token-id")).toBe(true);
+    expect(acceptsLayerItemDrag(null, ["text/plain"], "application/x-localvtt-token-id")).toBe(false);
+    expect(getLayerItemDropPlacement(51, 10, 80)).toBe("after");
+    expect(getLayerItemDropPlacement(49, 10, 80)).toBe("before");
+    expect(getLayerItemDropTarget("two", "one", 90, 10, 100)).toEqual({ itemId: "two", placement: "after" });
+    expect(getLayerItemDropTarget("two", "two", 90, 10, 100)).toBeNull();
+    expect(getLayerItemDropSourceId("", "fallback", "dragged")).toBe("fallback");
+    expect(getLayerItemDropMoveAction("one", "two", { itemId: "two", placement: "after" })).toEqual({
+      sourceItemId: "one",
+      targetItemId: "two",
+      placement: "after"
+    });
+    expect(getLayerItemDropMoveAction("one", "two", null)).toEqual({
+      sourceItemId: "one",
+      targetItemId: "two",
+      placement: "before"
+    });
+    expect(getLayerItemDragEndMoveAction("one", { itemId: "three", placement: "before" })).toEqual({
+      sourceItemId: "one",
+      targetItemId: "three",
+      placement: "before"
+    });
+    expect(getLayerItemDragEndMoveAction(null, { itemId: "three", placement: "before" })).toBeNull();
   });
 
   it("patches and removes items by id without changing other entries", () => {

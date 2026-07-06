@@ -6,14 +6,20 @@ import { getSelectedItemIds } from "../../../lib/scene";
 import type { DropPlacement } from "../../../lib/ui";
 import {
   getLayerItemActionButtonClassName,
+  acceptsLayerItemDrag,
+  getLayerItemDragEndMoveAction,
+  getLayerItemDropMoveAction,
+  getLayerItemDropSourceId,
+  getLayerItemDropTarget,
   getLayerItemRowClassName,
   getLayerItemVisibilityLabel,
   getLayerItemVisibilityTitle,
+  type LayerItemDropTarget,
   patchLayerItemById,
   removeLayerItemById
 } from "./layerItemRows";
 
-export type DrawingDropTarget = { drawingId: string; placement: DropPlacement } | null;
+export type DrawingDropTarget = LayerItemDropTarget | null;
 
 const EMPTY_SELECTED_IDS: string[] = [];
 
@@ -65,7 +71,7 @@ export function DrawingList({
             const isVisibleInPlayer = drawing.visibleInPlayer;
             const label = drawing.name?.trim() || formatDefaultDrawingName(drawing.kind, drawingIndex);
             const isSelected = selectedIds.has(drawing.id);
-            const dropPlacement = drawingDropTarget?.drawingId === drawing.id && draggedDrawingId !== drawing.id ? drawingDropTarget.placement : null;
+            const dropPlacement = drawingDropTarget?.itemId === drawing.id && draggedDrawingId !== drawing.id ? drawingDropTarget.placement : null;
             return (
               <div
                 className={getLayerItemRowClassName({
@@ -84,32 +90,32 @@ export function DrawingList({
                   event.dataTransfer.effectAllowed = "move";
                 }}
                 onDragOver={(event) => {
-                  if (!draggedDrawingId && !event.dataTransfer.types.includes("application/x-localvtt-drawing-id")) {
+                  if (!acceptsLayerItemDrag(draggedDrawingId, event.dataTransfer.types, "application/x-localvtt-drawing-id")) {
                     return;
                   }
                   event.preventDefault();
                   event.dataTransfer.dropEffect = "move";
-                  if (draggedDrawingId !== drawing.id) {
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    onDrawingDropTargetChange({
-                      drawingId: drawing.id,
-                      placement: event.clientY > rect.top + rect.height / 2 ? "after" : "before"
-                    });
-                  }
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  onDrawingDropTargetChange(getLayerItemDropTarget(drawing.id, draggedDrawingId, event.clientY, rect.top, rect.height));
                 }}
                 onDrop={(event) => {
                   event.preventDefault();
-                  const sourceDrawingId = event.dataTransfer.getData("application/x-localvtt-drawing-id") || event.dataTransfer.getData("text/plain") || draggedDrawingId;
-                  const placement = drawingDropTarget?.drawingId === drawing.id ? drawingDropTarget.placement : "before";
-                  if (sourceDrawingId) {
-                    onMoveDrawing(sourceDrawingId, drawing.id, placement);
+                  const sourceDrawingId = getLayerItemDropSourceId(
+                    event.dataTransfer.getData("application/x-localvtt-drawing-id"),
+                    event.dataTransfer.getData("text/plain"),
+                    draggedDrawingId
+                  );
+                  const moveAction = getLayerItemDropMoveAction(sourceDrawingId, drawing.id, drawingDropTarget);
+                  if (moveAction) {
+                    onMoveDrawing(moveAction.sourceItemId, moveAction.targetItemId, moveAction.placement);
                   }
                   onDraggedDrawingIdChange(null);
                   onDrawingDropTargetChange(null);
                 }}
                 onDragEnd={() => {
-                  if (draggedDrawingId && drawingDropTarget) {
-                    onMoveDrawing(draggedDrawingId, drawingDropTarget.drawingId, drawingDropTarget.placement);
+                  const moveAction = getLayerItemDragEndMoveAction(draggedDrawingId, drawingDropTarget);
+                  if (moveAction) {
+                    onMoveDrawing(moveAction.sourceItemId, moveAction.targetItemId, moveAction.placement);
                   }
                   onDraggedDrawingIdChange(null);
                   onDrawingDropTargetChange(null);
