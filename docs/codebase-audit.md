@@ -92,6 +92,7 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted SceneCanvas pointer-move/update-interaction orchestration into a focused hook so active drag updates, polygon draft hover updates, brush hover, pan updates, and default hover/snap refreshes are no longer inline in the component.
 - Extracted SceneCanvas keyboard interaction wiring and lifecycle reset application into focused hooks so Escape/waypoint keys and scene/tool cleanup effects no longer live inline with canvas composition.
 - Extracted SceneCanvas map readiness/auto-fit wiring and selection routing callbacks into focused hooks so viewport readiness and selection dispatch now sit beside their tested policy helpers.
+- Split map layer settings into grid-basics and advanced-settings sections, with tested map-fit action dispatch, so the layer panel map controls are no longer concentrated in one broad component.
 - Added focused unit tests around those helper seams.
 
 ## Current Hotspots

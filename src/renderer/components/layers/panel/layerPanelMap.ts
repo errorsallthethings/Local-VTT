@@ -7,6 +7,22 @@ export type MapFitAction =
   | { type: "apply-fit-preset"; fitMode: MapFitPresetMode; gridPatch?: Partial<GridSettings> }
   | { type: "update-map-transform"; mapTransformPatch: Partial<MapTransform> };
 
+export interface MapFitActionHandlers {
+  onApplyMapFitPreset: (fitMode: MapFitPresetMode, gridPatch?: Partial<GridSettings>) => void;
+  onUpdateGrid: (patch: Partial<GridSettings>) => void;
+  onUpdateMapTransform: (patch: Partial<MapTransform>) => void;
+}
+
+export function applyMapFitAction(action: MapFitAction, handlers: MapFitActionHandlers): void {
+  if (action.type === "apply-fit-preset") {
+    handlers.onApplyMapFitPreset(action.fitMode, action.gridPatch);
+  } else if (action.type === "update-map-transform") {
+    handlers.onUpdateMapTransform(action.mapTransformPatch);
+  } else {
+    handlers.onUpdateGrid(action.gridPatch);
+  }
+}
+
 export function getManualMapScalePatch(scale: number): Partial<MapTransform> {
   return {
     scale,

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { vi } from "vitest";
 import {
+  applyMapFitAction,
   getManualMapRotationPatch,
   getManualMapScalePatch,
   getMapCellSizeAction,
@@ -11,6 +13,22 @@ import {
 import { DEFAULT_MAP_TRANSFORM } from "../../src/shared/localvtt";
 
 describe("layer panel map helpers", () => {
+  it("dispatches map fit actions to the matching update handler", () => {
+    const handlers = {
+      onApplyMapFitPreset: vi.fn(),
+      onUpdateGrid: vi.fn(),
+      onUpdateMapTransform: vi.fn()
+    };
+
+    applyMapFitAction({ type: "apply-fit-preset", fitMode: "cover", gridPatch: { mapGridColumns: 12 } }, handlers);
+    applyMapFitAction({ type: "update-map-transform", mapTransformPatch: { fitMode: "manual" } }, handlers);
+    applyMapFitAction({ type: "update-grid", gridPatch: { sizePx: 72 } }, handlers);
+
+    expect(handlers.onApplyMapFitPreset).toHaveBeenCalledWith("cover", { mapGridColumns: 12 });
+    expect(handlers.onUpdateMapTransform).toHaveBeenCalledWith({ fitMode: "manual" });
+    expect(handlers.onUpdateGrid).toHaveBeenCalledWith({ sizePx: 72 });
+  });
+
   it("updates map scale axes and marks the fit mode manual", () => {
     expect(getManualMapScalePatch(1.25)).toEqual({
       scale: 1.25,
