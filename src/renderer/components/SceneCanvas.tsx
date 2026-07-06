@@ -6,7 +6,6 @@ import {
 } from "../../shared/localvtt";
 import type { Asset, Campaign, DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType, LiveTableEvent, Point, Scene, TableToolSettings } from "../../shared/localvtt";
 import {
-  areCamerasEqual,
   getRenderCamera,
   type Camera,
   type CameraPanDrag
@@ -37,13 +36,10 @@ import {
   type MapCalibrationBox,
   type MapCalibrationDrag
 } from "../canvas/map";
-import { getCameraForMapFit } from "../canvas/map";
 import {
   getInitialMapLoadStatus,
   getMapCanvasBackgroundPlan,
-  getReadyMapSourceForFit,
   type MapLoadStatus,
-  type ReadyMapSource
 } from "../canvas/map";
 import type { RulerDrag } from "../canvas/measurement";
 import {
@@ -105,10 +101,6 @@ import {
 } from "./scene/SceneCanvasStatusStrips";
 import { MapCalibrationControls } from "./scene/MapCalibrationControls";
 import {
-  getGmMapAutoFitAction,
-} from "./scene/sceneMapViewportPolicy";
-import { clearSceneSelectionsExcept as clearSceneSelectionsExceptTarget, getSceneMarqueeSelectionPayload } from "./scene/sceneSelectionRouting";
-import {
   type EnvironmentEffectMoveState,
   type WeatherMaskMoveState
 } from "./scene/sceneMaskEffectPointer";
@@ -127,6 +119,8 @@ import { useSceneCanvasPointerUp } from "./scene/useSceneCanvasPointerUp";
 import { useSceneCanvasPointerMove } from "./scene/useSceneCanvasPointerMove";
 import { useSceneCanvasKeyboardInteractions } from "./scene/useSceneCanvasKeyboardInteractions";
 import { useSceneLifecycleResets } from "./scene/useSceneLifecycleResets";
+import { useSceneCanvasMapReadiness } from "./scene/useSceneCanvasMapReadiness";
+import { useSceneCanvasSelectionRouting } from "./scene/useSceneCanvasSelectionRouting";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
@@ -683,74 +677,22 @@ export function SceneCanvas({
     tokenImageSourceKey
   });
 
-  const getCurrentReadyMapSourceForFit = useCallback((): ReadyMapSource | null => {
-    if (!mapAsset || !canShowMap) {
-      return null;
-    }
-    const activeVideo = isVideoMap ? (videoRefs.current[activeVideoIndex] ?? null) : null;
-    return getReadyMapSourceForFit(loadedMap, mapAsset.id, activeVideo, isVideoMap);
-  }, [activeVideoIndex, canShowMap, isVideoMap, loadedMap, mapAsset, videoRefs]);
-
-  const fitGmCameraToReadyMap = useCallback(
-    (viewportWidth: number, viewportHeight: number, force = false): boolean => {
-      if (mode !== "gm" || !scene || !mapAsset || viewportWidth <= 0 || viewportHeight <= 0) {
-        return false;
-      }
-
-      const fitSignature = `${scene.id}:${mapAsset.id}`;
-      if (!force && fittedSceneCameraRef.current === fitSignature) {
-        return false;
-      }
-
-      const mapSource = getCurrentReadyMapSourceForFit();
-      if (!mapSource) {
-        return false;
-      }
-
-      fittedSceneCameraRef.current = fitSignature;
-      const nextCamera = getCameraForMapFit(scene, mapSource.width, mapSource.height, viewportWidth, viewportHeight);
-      setCamera((currentCamera) => (areCamerasEqual(currentCamera, nextCamera) ? currentCamera : nextCamera));
-      return true;
-    },
-    [getCurrentReadyMapSourceForFit, mapAsset, mode, scene]
-  );
-
-  useEffect(() => {
-    if (scene && sceneCanvasReadiness.ready) {
-      // Player scene transitions wait for map/token assets so the splash does not reveal half-loaded content.
-      onReady?.();
-    }
-  }, [onReady, scene, sceneCanvasReadiness.ready]);
-
-  useEffect(() => {
-    autoFitCameraRef.current = true;
-    fittedSceneCameraRef.current = null;
-  }, [mapAsset?.id, mode, scene?.id]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const rect = canvas?.getBoundingClientRect();
-    const action = getGmMapAutoFitAction({
-      canShowMap,
-      fittedSignature: fittedSceneCameraRef.current,
-      hasCanvas: Boolean(canvas),
-      hasMapAsset: Boolean(mapAsset),
-      hasScene: Boolean(scene),
-      mapAssetId: mapAsset?.id,
-      mode,
-      sceneId: scene?.id,
-      viewportHeight: rect?.height ?? 0,
-      viewportWidth: rect?.width ?? 0
-    });
-    if (action.kind === "reset-empty-map") {
-      fittedSceneCameraRef.current = action.signature;
-      setCamera({ x: 0, y: 0, zoom: 1 });
-      return;
-    }
-    if (action.kind === "fit-ready-map") {
-      fitGmCameraToReadyMap(action.viewportWidth, action.viewportHeight);
-    }
-  }, [canShowMap, fitGmCameraToReadyMap, mapAsset, mode, scene]);
+  const fitGmCameraToReadyMap = useSceneCanvasMapReadiness({
+    activeVideoIndex,
+    autoFitCameraRef,
+    canShowMap: Boolean(canShowMap),
+    canvasRef,
+    fittedSceneCameraRef,
+    isVideoMap,
+    loadedMap,
+    mapAsset,
+    mode,
+    onReady,
+    scene,
+    sceneCanvasReadiness,
+    setCamera,
+    videoRefs
+  });
 
   useEffect(() => {
     if (!onMapCalibrationBox) {
@@ -931,26 +873,17 @@ export function SceneCanvas({
     scene
   });
 
-  const selectFromMarquee = (currentScene: Scene, drag: SelectionDrag) => {
-    const selection = getSceneMarqueeSelectionPayload(currentScene, drag, selectorSelectionFilters, {
-      tokens: Boolean(canShowTokens),
-      drawings: Boolean(canShowDrawings)
-    });
-    if (!selection) {
-      return;
-    }
-    onSelectSceneItems?.(selection);
-  };
-
-  const clearSceneSelectionsExcept = (activeKind: Parameters<typeof clearSceneSelectionsExceptTarget>[0]) => {
-    clearSceneSelectionsExceptTarget(activeKind, {
-      token: onSelectToken,
-      drawing: onSelectDrawing,
-      fogShape: onSelectFogShape,
-      weatherMask: onSelectWeatherMask,
-      environmentEffect: onSelectEnvironmentEffect
-    });
-  };
+  const { clearSceneSelectionsExcept, selectFromMarquee } = useSceneCanvasSelectionRouting({
+    canShowDrawings: Boolean(canShowDrawings),
+    canShowTokens: Boolean(canShowTokens),
+    onSelectDrawing,
+    onSelectEnvironmentEffect,
+    onSelectFogShape,
+    onSelectSceneItems,
+    onSelectToken,
+    onSelectWeatherMask,
+    selectorSelectionFilters
+  });
 
   const disableAutoFitCamera = useCallback(() => {
     autoFitCameraRef.current = false;
