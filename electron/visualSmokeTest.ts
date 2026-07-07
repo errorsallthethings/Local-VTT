@@ -34,8 +34,10 @@ export async function runVisualSmokeTest(win: BrowserWindow, options: VisualSmok
   await waitForPlayerSelector(playerWindow, ".player-shell");
   const sceneDelivery = await deliverVisualSmokeScene(win, playerWindow, fixture.projection);
   const sceneMetrics = await waitForSceneCanvasMetrics(playerWindow);
+  const sceneOverlayMetrics = await waitForPlayerSceneOverlayMetrics(playerWindow);
   const liveEventDelivery = await deliverVisualSmokeLiveEvents(win, playerWindow, fixture.liveEvents);
-  const overlayMetrics = await waitForPlayerOverlayMetrics(playerWindow);
+  const diceOverlayMetrics = await waitForPlayerDiceOverlayMetrics(playerWindow);
+  const overlayMetrics = combinePlayerOverlayMetrics(sceneOverlayMetrics, diceOverlayMetrics);
   const sceneScreenshotPath = path.join(outputDir, "player-scene.png");
   await captureWindowPng(playerWindow, sceneScreenshotPath);
 
@@ -314,6 +316,7 @@ async function createSmokeVisualFixture(options: VisualSmokeTestOptions): Promis
         name: "Smoke Token",
         initiative: 18,
         visibleInPlayer: true,
+        playerId: "visual-smoke-player",
         tokenId: "visual-smoke-token-1",
         assetId: tokenAsset.id
       }
@@ -550,36 +553,97 @@ async function getTestPatternMetrics(win: BrowserWindow): Promise<{ ok: boolean;
   })()`);
 }
 
-async function waitForPlayerOverlayMetrics(win: BrowserWindow): Promise<{ ok: boolean; reason: string; hasDiceOverlay: boolean; hasTurnOrderBar: boolean; hasPlayerSeat: boolean }> {
+interface PlayerSceneOverlayMetrics {
+  ok: boolean;
+  reason: string;
+  hasTurnOrderBar: boolean;
+  hasPlayerSeat: boolean;
+  hasTurnStatus: boolean;
+}
+
+interface PlayerDiceOverlayMetrics {
+  ok: boolean;
+  reason: string;
+  hasDiceOverlay: boolean;
+}
+
+interface PlayerOverlayMetrics {
+  ok: boolean;
+  reason: string;
+  hasDiceOverlay: boolean;
+  hasTurnOrderBar: boolean;
+  hasPlayerSeat: boolean;
+  hasTurnStatus: boolean;
+}
+
+async function waitForPlayerSceneOverlayMetrics(win: BrowserWindow): Promise<PlayerSceneOverlayMetrics> {
   const deadline = Date.now() + 10000;
-  let lastMetrics: Awaited<ReturnType<typeof getPlayerOverlayMetrics>> | null = null;
+  let lastMetrics: PlayerSceneOverlayMetrics | null = null;
 
   while (Date.now() < deadline) {
-    lastMetrics = await getPlayerOverlayMetrics(win);
+    lastMetrics = await getPlayerSceneOverlayMetrics(win);
     if (lastMetrics.ok) {
       return lastMetrics;
     }
     await waitForTimeout(250);
   }
 
-  throw new Error(`${lastMetrics?.reason ?? "Timed out waiting for Player View overlays."} ${JSON.stringify(lastMetrics ?? {})}`);
+  throw new Error(`${lastMetrics?.reason ?? "Timed out waiting for Player View scene overlays."} ${JSON.stringify(lastMetrics ?? {})}`);
 }
 
-async function getPlayerOverlayMetrics(win: BrowserWindow): Promise<{ ok: boolean; reason: string; hasDiceOverlay: boolean; hasTurnOrderBar: boolean; hasPlayerSeat: boolean }> {
+async function getPlayerSceneOverlayMetrics(win: BrowserWindow): Promise<PlayerSceneOverlayMetrics> {
   return win.webContents.executeJavaScript(`(() => {
-    const hasDiceOverlay = Boolean(document.querySelector(".dice-roll-overlay .dice-roll-card"));
     const turnOrderBar = document.querySelector(".turn-order-player-bar");
     const hasTurnOrderBar = Boolean(turnOrderBar && turnOrderBar.textContent?.includes("18"));
     const hasPlayerSeat = Boolean(document.querySelector(".player-seat-indicator"));
-    const ok = hasDiceOverlay && hasTurnOrderBar && hasPlayerSeat;
+    const hasTurnStatus = Boolean(document.querySelector(".player-turn-status"));
+    const ok = hasTurnOrderBar && hasPlayerSeat && hasTurnStatus;
     return {
       ok,
-      reason: ok ? "" : "Player View overlays did not render expected dice, turn order, and seat indicators.",
-      hasDiceOverlay,
+      reason: ok ? "" : "Player View scene overlays did not render expected turn order, seat, and turn status indicators.",
       hasTurnOrderBar,
-      hasPlayerSeat
+      hasPlayerSeat,
+      hasTurnStatus
     };
   })()`);
+}
+
+async function waitForPlayerDiceOverlayMetrics(win: BrowserWindow): Promise<PlayerDiceOverlayMetrics> {
+  const deadline = Date.now() + 10000;
+  let lastMetrics: PlayerDiceOverlayMetrics | null = null;
+
+  while (Date.now() < deadline) {
+    lastMetrics = await getPlayerDiceOverlayMetrics(win);
+    if (lastMetrics.ok) {
+      return lastMetrics;
+    }
+    await waitForTimeout(250);
+  }
+
+  throw new Error(`${lastMetrics?.reason ?? "Timed out waiting for Player View dice overlay."} ${JSON.stringify(lastMetrics ?? {})}`);
+}
+
+async function getPlayerDiceOverlayMetrics(win: BrowserWindow): Promise<PlayerDiceOverlayMetrics> {
+  return win.webContents.executeJavaScript(`(() => {
+    const hasDiceOverlay = Boolean(document.querySelector(".dice-roll-overlay .dice-roll-card"));
+    return {
+      ok: hasDiceOverlay,
+      reason: hasDiceOverlay ? "" : "Player View dice overlay did not render.",
+      hasDiceOverlay
+    };
+  })()`);
+}
+
+function combinePlayerOverlayMetrics(sceneOverlays: PlayerSceneOverlayMetrics, diceOverlay: PlayerDiceOverlayMetrics): PlayerOverlayMetrics {
+  const ok = sceneOverlays.ok && diceOverlay.ok;
+  return {
+    ok,
+    reason: ok ? "" : "Player View overlays did not render expected dice, turn order, seat, and turn status indicators.",
+    hasDiceOverlay: diceOverlay.hasDiceOverlay,
+    hasTurnOrderBar: sceneOverlays.hasTurnOrderBar,
+    hasPlayerSeat: sceneOverlays.hasPlayerSeat,
+    hasTurnStatus: sceneOverlays.hasTurnStatus
+  };
 }
 
 async function captureWindowPng(win: BrowserWindow, outputPath: string): Promise<void> {
