@@ -4,7 +4,7 @@ Local VTT is a local-first Electron desktop app with a private GM View and a sep
 
 ## Runtime Structure
 
-- `electron/main.ts`: application lifecycle, secure window creation, campaign folder IO, asset import/copy, metadata backups, and Player View window control.
+- `electron/main.ts`: application lifecycle, secure window creation, service registration, and Player View window control. Feature-specific filesystem workflows should stay in focused Electron services or IPC modules rather than growing this file.
 - `electron/preload.ts`: typed `contextBridge` API. The renderer never receives unrestricted filesystem access.
 - `src/shared`: TypeScript models, default scene data, validation, schema normalization, and player-safe scene projection.
 - `src/renderer`: React GM View, React Player View, and Canvas 2D scene rendering.
@@ -13,6 +13,17 @@ Local VTT is a local-first Electron desktop app with a private GM View and a sep
 Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog of war, ruler measurement, lightweight GM tokens, drawings, templates, and scene overlays. Three.js is used where 3D rendering is needed, such as dice.
 
 GM and Player windows run with `contextIsolation: true`, `nodeIntegration: false`, and a narrow preload bridge. Renderer sandboxing is currently deferred because the Electron preload is emitted as NodeNext/ESM JavaScript, which Electron's sandbox preload loader rejects. Enabling `sandbox: true` should be paired with changing the preload build output to a sandbox-compatible CommonJS bundle and rerunning the Electron smoke tests.
+
+## Application Structure
+
+Local VTT follows a React-friendly, Electron-friendly version of MVC rather than strict classic MVC:
+
+- **Model / domain:** `src/shared`, `src/renderer/lib`, and focused Electron helpers own schemas, migrations, validation, projections, pure state transitions, persistence codecs, and reusable file/path rules.
+- **View:** React components in `src/renderer/components` and app-level view composition in `src/renderer/views` render UI and expose typed user actions.
+- **Controller / workflow coordination:** React hooks in `src/renderer/hooks` and Electron IPC registration modules coordinate app workflows, async work, and state transitions between views, domain helpers, and platform services.
+- **Platform adapters:** Electron services in `electron/` own windows, dialogs, filesystem access, protocols, thumbnail/media integration, and packaging/runtime checks.
+
+The purpose of this structure is separation of concerns, not pattern purity. New code should keep domain rules, React rendering, workflow orchestration, persistence, and native platform access in their existing lanes. See [`project-structure.md`](project-structure.md) for folder growth guidance and preferred future subfolders.
 
 ## Data Flow
 

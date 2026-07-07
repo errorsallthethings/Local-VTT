@@ -112,6 +112,8 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted staged token import ownership out of token asset IPC, with regressions that temporary external asset access is released only by the owning campaign or final import commit.
 - Reordered map/token asset deletion workflows so campaign metadata writes complete before physical asset files are removed, with regressions covering write-failure recovery.
 - Ran the full verification gate plus sequential Electron and visual smoke tests after the audit remediation wave. The smoke pass covered the production Electron preload bridge, Player View IPC, scene rendering, test pattern rendering, dice overlay, turn order overlay, and player seat overlay.
+- Added project-structure guidance documenting the React/Electron MVC-style ownership model, folder growth rules, dependency direction, and when to introduce future subfolders.
+- Added a wiki sync checklist so external wiki updates can be driven from the repo docs without losing the repo as the source of truth.
 - Added focused unit tests around those helper seams.
 
 ## Current Readiness

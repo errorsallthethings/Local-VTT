@@ -300,6 +300,7 @@ npm run check
 ```
 
 `npm run check` runs TypeScript typechecking, ESLint, and the Vitest suite.
+It also runs release metadata validation so package/release identity problems are caught during the normal local verification pass.
 
 Run the Electron smoke checks:
 
@@ -326,7 +327,9 @@ Run smoke commands sequentially. Both smoke paths launch Electron and exercise P
 - [`docs/canvas-performance-budget.md`](docs/canvas-performance-budget.md): canvas performance targets, stress scenes, and measurement strategy.
 - [`docs/codebase-audit.md`](docs/codebase-audit.md): audit progress, current hotspots, and recommended refactor sequence.
 - [`docs/layer-ownership-rules.md`](docs/layer-ownership-rules.md): layer responsibilities, visibility rules, and guidance for placing new scene features.
+- [`docs/project-structure.md`](docs/project-structure.md): React/Electron MVC-style ownership, folder growth rules, and dependency direction.
 - [`docs/release-process.md`](docs/release-process.md): release branch flow, packaging notes, and smoke test checklist.
+- [`docs/wiki-sync-checklist.md`](docs/wiki-sync-checklist.md): checklist for syncing repo docs into the external Local VTT wiki.
 
 ## Known Limitations
 
