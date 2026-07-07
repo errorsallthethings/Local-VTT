@@ -1,9 +1,9 @@
 import type { Point, Scene, Token } from "../../../shared/localvtt";
-import { getNearestGridCellCenter, getNearestHexCenter, getSnappedTokenPosition, distanceBetween } from "../tokens/tokenGeometry";
-import { appendWaypoint, getPathDistance, normalizeMovementPath, removeLastWaypoint } from "../tokens/movementPath";
+import { getNearestGridCellCenter, getNearestHexCenter, getSnappedTokenPosition, distanceBetween } from "./tokenGeometry";
+import { appendWaypoint, getPathDistance, normalizeMovementPath, removeLastWaypoint } from "./movementPath";
 import { updateSceneTokenPositions } from "../../lib/scene";
 import type { TokenDragState } from "../scene/sceneInteractionTypes";
-import type { TokenDragPreview } from "../tokens/tokenRenderer";
+import type { TokenDragPreview } from "./tokenRenderer";
 
 export type TokenTween = {
   id: string;

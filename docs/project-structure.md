@@ -19,11 +19,18 @@ The goal is not to make every feature fit a rigid pattern. The goal is to keep r
 - `src/shared/`: shared schema types, defaults, normalization, migrations, and Player View projection rules.
 - `src/renderer/views/`: app-level React composition roots for GM and Player View screens.
 - `src/renderer/components/`: reusable UI, layer panels, tool panels, scene canvas support components, settings panels, and modal components.
+- `src/renderer/components/scene/`: scene-canvas React support code grouped by responsibility:
+  - `context-menu/`: context-menu components, target detection, routing, and opening state.
+  - `hooks/`: scene-canvas React hooks that coordinate canvas input, rendering, lifecycle, selection, assets, and viewport reporting.
+  - `input/`: pointer, keyboard, hover, selection, token, drawing, fog, ruler, and weather/effect interaction helpers.
+  - `map/`: map calibration, video map elements, map readiness, and video-map viewport policy.
+  - `overlays/`: Player View turn/seat overlays, scene status strips, and tool status overlays.
+  - `state/`: scene-canvas state transitions that are shared by hooks and tests.
 - `src/renderer/canvas/`: canvas rendering, geometry, hit-testing, visual effects, measurement, selection, and drawing/template renderers.
 - `src/renderer/hooks/`: renderer workflow controllers and state coordinators.
 - `src/renderer/lib/`: renderer-side domain helpers, pure state transitions, display/player-view helpers, dice logic, and UI-neutral utilities.
 - `src/renderer/styles/`: CSS organized by surface or feature and imported from `src/renderer/styles.css`.
-- `tests/`: unit and integration-style tests grouped by runtime area.
+- `tests/`: unit and integration-style tests grouped by runtime area. Renderer scene-canvas tests live under `tests/renderer/scene/` to mirror `src/renderer/components/scene/`.
 - `docs/`: architecture, release, performance, ownership, and contributor guidance.
 
 ## Folder Growth Rules
@@ -37,6 +44,19 @@ Use these thresholds as guidance:
 - If a file is mostly pure logic, prefer `src/renderer/lib`, `src/shared`, or a focused Electron helper over a component or hook folder.
 - If a file touches the filesystem, windows, dialogs, protocol registration, or native media behavior, keep it in `electron/` behind an injectable service/helper seam.
 
+## Active Scene Component Subfolders
+
+`src/renderer/components/scene/` is intentionally split because scene authoring combines React overlays, canvas hooks, input/controller helpers, map/video support, and state transition helpers. Keep new scene-canvas files in the smallest matching subfolder:
+
+- Use `context-menu/` for menu rendering, opening, target, and action-routing code.
+- Use `hooks/` for React hooks that wire `SceneCanvas` to state, refs, renderer calls, or browser events.
+- Use `input/` for pure pointer/keyboard/hover/drag routing helpers and interaction-specific action builders.
+- Use `map/` for map calibration, video map element planning, and map readiness policy.
+- Use `overlays/` for React components rendered over the canvas.
+- Use `state/` for reusable scene-canvas state transition helpers.
+
+Tests for these files should usually live in `tests/renderer/scene/` and keep the source filename in the test filename.
+
 ## Preferred Future Subfolders
 
 These are good destinations when future work already touches the relevant files:
@@ -45,9 +65,9 @@ These are good destinations when future work already touches the relevant files:
 - `src/renderer/hooks/gm/`: GM workspace shell, dialog, tool, maintenance, and inspector coordination.
 - `src/renderer/hooks/player-view/`: Player View sync, display profiles, test pattern, and projected-event coordination.
 - `src/renderer/hooks/scene-canvas/`: canvas input, lifecycle, selection, readiness, and viewport hooks.
-- `src/renderer/components/scene/input/`: pointer, keyboard, context-menu, and gesture helpers.
-- `src/renderer/components/scene/rendering/`: canvas render-loop and render-preparation hooks.
-- `src/renderer/components/scene/overlays/`: status strips, Player View overlays, tool overlays, and context menus.
+- `tests/renderer/canvas/`: canvas renderer, geometry, token, drawing, weather/effects, and template rendering tests.
+- `tests/renderer/lib/`: renderer domain helpers and UI-neutral utility tests.
+- `tests/renderer/components/`: reusable component behavior tests that are not specific to the scene canvas.
 
 Do not create these folders empty. Move files into them only when the move is part of a reviewed feature or cleanup bundle.
 

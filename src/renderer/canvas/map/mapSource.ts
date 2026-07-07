@@ -1,5 +1,5 @@
 import type { Scene } from "../../../shared/localvtt";
-import { getMapScaleX, getMapScaleY, resolveMapTransform } from "../map/mapRenderer";
+import { getMapScaleX, getMapScaleY, resolveMapTransform } from "./mapRenderer";
 
 const LARGE_MAP_CACHE_MAX_EDGE = 4096;
 const LARGE_MAP_CACHE_MAX_PIXELS = 16_000_000;

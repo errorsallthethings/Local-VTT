@@ -1,7 +1,7 @@
 import type { Point, Scene } from "../../../shared/localvtt";
 import type { Camera } from "../core/camera";
 import type { DrawingResizeHandle } from "../core/canvasInteraction";
-import { getDrawingBounds, type DrawingBounds } from "../drawings/drawingBounds";
+import { getDrawingBounds, type DrawingBounds } from "./drawingBounds";
 import { distanceBetween } from "../tokens/tokenGeometry";
 import {
   getDrawingPointSnapshot,

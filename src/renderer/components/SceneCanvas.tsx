@@ -90,37 +90,37 @@ import { useImageMapLoader } from "../hooks/useImageMapLoader";
 import { usePlayerTokenTweens } from "../hooks/usePlayerTokenTweens";
 import { useTokenImageLoader } from "../hooks/useTokenImageLoader";
 import { useVideoMapPlayback } from "../hooks/useVideoMapPlayback";
-import { SceneCanvasContextMenus } from "./scene/SceneCanvasContextMenus";
-import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/PlayerViewTurnOverlays";
-import { useSceneCanvasAssets } from "./scene/useSceneCanvasAssets";
-import { useSceneCanvasContextMenus } from "./scene/useSceneCanvasContextMenus";
-import { useSceneCanvasEnvironmentTuning } from "./scene/useSceneCanvasEnvironmentTuning";
-import { useSceneCanvasSelectionState } from "./scene/useSceneCanvasSelectionState";
+import { SceneCanvasContextMenus } from "./scene/context-menu/SceneCanvasContextMenus";
+import { PlayerSeatIndicators, PlayerTurnStatusIndicators, TurnOrderPlayerBar } from "./scene/overlays/PlayerViewTurnOverlays";
+import { useSceneCanvasAssets } from "./scene/hooks/useSceneCanvasAssets";
+import { useSceneCanvasContextMenus } from "./scene/context-menu/useSceneCanvasContextMenus";
+import { useSceneCanvasEnvironmentTuning } from "./scene/hooks/useSceneCanvasEnvironmentTuning";
+import { useSceneCanvasSelectionState } from "./scene/hooks/useSceneCanvasSelectionState";
 import {
   MapLoadOverlay,
-} from "./scene/SceneCanvasStatusStrips";
-import { MapCalibrationControls } from "./scene/MapCalibrationControls";
+} from "./scene/overlays/SceneCanvasStatusStrips";
+import { MapCalibrationControls } from "./scene/map/MapCalibrationControls";
 import {
   type EnvironmentEffectMoveState,
   type WeatherMaskMoveState
-} from "./scene/sceneMaskEffectPointer";
-import { SceneCanvasToolStatusOverlays } from "./scene/SceneCanvasToolStatusOverlays";
-import { VideoMapElements } from "./scene/VideoMapElements";
-import { useSceneViewportCenterReporting } from "./scene/useSceneViewportCenterReporting";
-import { useSceneVideoMapHandlers } from "./scene/useSceneVideoMapHandlers";
-import { useSceneWheelZoom } from "./scene/useSceneWheelZoom";
-import { useScenePolygonDrafts } from "./scene/useScenePolygonDrafts";
-import { useSceneCanvasHoverPoints } from "./scene/useSceneCanvasHoverPoints";
-import { useSceneTokenAssetDrop } from "./scene/useSceneTokenAssetDrop";
-import { useSceneCanvasMouseEvents } from "./scene/useSceneCanvasMouseEvents";
-import { useSceneCanvasRenderer } from "./scene/useSceneCanvasRenderer";
-import { useSceneCanvasPointerDown } from "./scene/useSceneCanvasPointerDown";
-import { useSceneCanvasPointerUp } from "./scene/useSceneCanvasPointerUp";
-import { useSceneCanvasPointerMove } from "./scene/useSceneCanvasPointerMove";
-import { useSceneCanvasKeyboardInteractions } from "./scene/useSceneCanvasKeyboardInteractions";
-import { useSceneLifecycleResets } from "./scene/useSceneLifecycleResets";
-import { useSceneCanvasMapReadiness } from "./scene/useSceneCanvasMapReadiness";
-import { useSceneCanvasSelectionRouting } from "./scene/useSceneCanvasSelectionRouting";
+} from "./scene/input/sceneMaskEffectPointer";
+import { SceneCanvasToolStatusOverlays } from "./scene/overlays/SceneCanvasToolStatusOverlays";
+import { VideoMapElements } from "./scene/map/VideoMapElements";
+import { useSceneViewportCenterReporting } from "./scene/hooks/useSceneViewportCenterReporting";
+import { useSceneVideoMapHandlers } from "./scene/map/useSceneVideoMapHandlers";
+import { useSceneWheelZoom } from "./scene/hooks/useSceneWheelZoom";
+import { useScenePolygonDrafts } from "./scene/hooks/useScenePolygonDrafts";
+import { useSceneCanvasHoverPoints } from "./scene/hooks/useSceneCanvasHoverPoints";
+import { useSceneTokenAssetDrop } from "./scene/hooks/useSceneTokenAssetDrop";
+import { useSceneCanvasMouseEvents } from "./scene/hooks/useSceneCanvasMouseEvents";
+import { useSceneCanvasRenderer } from "./scene/hooks/useSceneCanvasRenderer";
+import { useSceneCanvasPointerDown } from "./scene/hooks/useSceneCanvasPointerDown";
+import { useSceneCanvasPointerUp } from "./scene/hooks/useSceneCanvasPointerUp";
+import { useSceneCanvasPointerMove } from "./scene/hooks/useSceneCanvasPointerMove";
+import { useSceneCanvasKeyboardInteractions } from "./scene/hooks/useSceneCanvasKeyboardInteractions";
+import { useSceneLifecycleResets } from "./scene/hooks/useSceneLifecycleResets";
+import { useSceneCanvasMapReadiness } from "./scene/map/useSceneCanvasMapReadiness";
+import { useSceneCanvasSelectionRouting } from "./scene/hooks/useSceneCanvasSelectionRouting";
 import type { DrawingTemplateSize, EnvironmentEffectTool, MouseBehavior, SelectorSelectionFilters, WeatherMaskTool } from "./tools";
 
 const DiceRollOverlay = lazy(() => import("./dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
