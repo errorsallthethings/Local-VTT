@@ -24,7 +24,7 @@ The goal is not to make every feature fit a rigid pattern. The goal is to keep r
 - `src/renderer/lib/`: renderer-side domain helpers, pure state transitions, display/player-view helpers, dice logic, and UI-neutral utilities.
 - `src/renderer/styles/`: CSS organized by surface or feature and imported from `src/renderer/styles.css`.
 - `tests/`: unit and integration-style tests grouped by runtime area.
-- `docs/`: architecture, release, performance, ownership, audit, and contributor guidance.
+- `docs/`: architecture, release, performance, ownership, and contributor guidance.
 
 ## Folder Growth Rules
 

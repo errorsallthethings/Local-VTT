@@ -251,15 +251,15 @@ Use the Campaign panel's Restore Revision option to review and restore available
 
 ## Architecture
 
-- `electron/main.ts`: application lifecycle, secure window creation, campaign folder IO, asset import/copy, metadata backups, and Player View window control.
+- `electron/main.ts`: application lifecycle, secure window creation, service registration, and Player View window control. Feature-specific filesystem workflows live in focused Electron services and IPC modules.
 - `electron/preload.ts`: typed `contextBridge` API. The renderer never receives unrestricted filesystem access.
-- `src/shared`: TypeScript models, default scene data, validation, and player-safe scene projection.
-- `src/renderer`: React GM View, React Player View, and a Canvas 2D scene renderer.
+- `src/shared`: TypeScript models, default scene data, validation, schema normalization, migrations, and player-safe scene projection.
+- `src/renderer`: React GM View, React Player View, Canvas 2D scene rendering, workflow hooks, and renderer-side domain helpers.
 - `src/renderer/styles`: focused CSS files imported by `src/renderer/styles.css`.
 
-Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog of war, ruler measurement, and lightweight GM tokens. The scene model and renderer boundary are intentionally isolated so future versions can replace or augment the canvas layer with PixiJS/WebGL for very large maps, advanced vision, lighting, and overlays.
+Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog of war, ruler measurement, tokens, drawings, templates, weather, effects, and scene overlays. Three.js supports 3D dice plus WebGL-backed weather, environment effects, and cached template visuals that are composited back into the Canvas 2D scene.
 
-See [`docs/architecture.md`](docs/architecture.md) for data flow notes and [`docs/layer-ownership-rules.md`](docs/layer-ownership-rules.md) for layer ownership rules.
+See [`docs/architecture.md`](docs/architecture.md) for data flow notes, [`docs/diagrams/README.md`](docs/diagrams/README.md) for PlantUML diagrams, and [`docs/layer-ownership-rules.md`](docs/layer-ownership-rules.md) for layer ownership rules.
 
 ## Development
 
@@ -325,11 +325,10 @@ Run smoke commands sequentially. Both smoke paths launch Electron and exercise P
 
 - [`docs/architecture.md`](docs/architecture.md): runtime structure, data flow, and layer ownership rules.
 - [`docs/canvas-performance-budget.md`](docs/canvas-performance-budget.md): canvas performance targets, stress scenes, and measurement strategy.
-- [`docs/codebase-audit.md`](docs/codebase-audit.md): audit progress, current hotspots, and recommended refactor sequence.
+- [`docs/diagrams/README.md`](docs/diagrams/README.md): PlantUML architecture diagrams for Wiki and onboarding pages.
 - [`docs/layer-ownership-rules.md`](docs/layer-ownership-rules.md): layer responsibilities, visibility rules, and guidance for placing new scene features.
 - [`docs/project-structure.md`](docs/project-structure.md): React/Electron MVC-style ownership, folder growth rules, and dependency direction.
 - [`docs/release-process.md`](docs/release-process.md): release branch flow, packaging notes, and smoke test checklist.
-- [`docs/wiki-sync-checklist.md`](docs/wiki-sync-checklist.md): checklist for syncing repo docs into the external Local VTT wiki.
 
 ## Known Limitations
 

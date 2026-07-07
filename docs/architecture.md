@@ -10,7 +10,7 @@ Local VTT is a local-first Electron desktop app with a private GM View and a sep
 - `src/renderer`: React GM View, React Player View, and Canvas 2D scene rendering.
 - `src/renderer/styles`: focused CSS files imported by `src/renderer/styles.css`.
 
-Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog of war, ruler measurement, lightweight GM tokens, drawings, templates, and scene overlays. Three.js is used where 3D rendering is needed, such as dice.
+Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog of war, ruler measurement, lightweight GM tokens, drawings, templates, weather, effects, and scene overlays. Three.js supports 3D dice plus WebGL-backed weather, environment effects, and cached template visuals that are composited back into the Canvas 2D scene.
 
 GM and Player windows run with `contextIsolation: true`, `nodeIntegration: false`, and a narrow preload bridge. Renderer sandboxing is currently deferred because the Electron preload is emitted as NodeNext/ESM JavaScript, which Electron's sandbox preload loader rejects. Enabling `sandbox: true` should be paired with changing the preload build output to a sandbox-compatible CommonJS bundle and rerunning the Electron smoke tests.
 
@@ -24,6 +24,8 @@ Local VTT follows a React-friendly, Electron-friendly version of MVC rather than
 - **Platform adapters:** Electron services in `electron/` own windows, dialogs, filesystem access, protocols, thumbnail/media integration, and packaging/runtime checks.
 
 The purpose of this structure is separation of concerns, not pattern purity. New code should keep domain rules, React rendering, workflow orchestration, persistence, and native platform access in their existing lanes. See [`project-structure.md`](project-structure.md) for folder growth guidance and preferred future subfolders.
+
+Wiki-ready PlantUML versions of the architecture diagrams live in [`diagrams/plantuml.md`](diagrams/plantuml.md). Keep those diagrams aligned when changing runtime boundaries, persistence flows, Player View projection, asset import/delete behavior, or smoke-test coverage.
 
 ## Data Flow
 
@@ -46,7 +48,7 @@ When a release changes `campaign.json` or `*.scene.json` shape, update the relev
 
 ## Campaign Health
 
-Campaign summaries include a structured health report from `electron/campaignHealth.ts`. The current UI still uses the existing `missingAssets` list for compatibility, while the richer report tracks missing asset files, stale thumbnails, unreadable scene files, unknown asset references, and unreferenced campaign assets. This keeps JSON-folder campaigns auditable without committing Local VTT to a database before there is a concrete need.
+Campaign summaries include a structured health report from `electron/campaignHealth.ts`. The current UI still uses the existing `missingAssets` list for compatibility, while the richer report tracks missing asset files, stale thumbnails, unreadable scene files, unknown asset references, and unreferenced campaign assets. This keeps JSON-folder campaigns easy to inspect without committing Local VTT to a database before there is a concrete need.
 
 ## Layer Ownership
 
