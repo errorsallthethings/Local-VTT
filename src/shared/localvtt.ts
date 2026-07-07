@@ -2476,13 +2476,21 @@ function getUniqueProfileId(rawId: string, usedIds: Set<string>): string {
 export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options: PlayerSceneProjectionOptions = {}): PlayerSceneProjection {
   const normalizedCampaign = normalizeCampaign(campaign);
   const normalizedScene = normalizeScene(scene);
-  const projectedPlayers = normalizedCampaign.players.filter((player) => player.visibleInPlayer);
   const playerLayerIds = new Set(normalizedScene.layers.filter((layer) => layer.visibleInPlayer).map((layer) => layer.id));
   const projectedTurnOrderEntries = normalizedScene.turnOrder.entries.filter((entry) => entry.visibleInPlayer);
   const projectedTurnOrderSeats = normalizedScene.turnOrder.seats.filter((seat) => seat.visibleInPlayer);
   const projectedTurnOrderEntryIds = new Set(projectedTurnOrderEntries.map((entry) => entry.id));
   const projectedCurrentEntryId =
     normalizedScene.turnOrder.currentEntryId && projectedTurnOrderEntryIds.has(normalizedScene.turnOrder.currentEntryId) ? normalizedScene.turnOrder.currentEntryId : undefined;
+  const turnOrderPlayerIds = new Set<string>();
+  if (normalizedScene.turnOrder.active && normalizedScene.turnOrder.playerViewVisible) {
+    for (const entry of projectedTurnOrderEntries) {
+      if (entry.playerId) {
+        turnOrderPlayerIds.add(entry.playerId);
+      }
+    }
+  }
+  const projectedPlayers = normalizedCampaign.players.filter((player) => player.visibleInPlayer || turnOrderPlayerIds.has(player.id));
   const usedAssetIds = new Set<string>();
   if (normalizedScene.mapAssetId && playerLayerIds.has("map")) {
     usedAssetIds.add(normalizedScene.mapAssetId);

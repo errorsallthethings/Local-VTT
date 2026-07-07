@@ -102,6 +102,30 @@ describe("turn order helpers", () => {
     expect(scene.turnOrder.playerViewVisible).toBe(false);
   });
 
+  it("makes an all-hidden turn order visible when starting Player View tracking", () => {
+    let scene = sceneWithEntries(["a", "b"]);
+    scene.turnOrder.entries = scene.turnOrder.entries.map((entry) => ({ ...entry, visibleInPlayer: false }));
+
+    scene = startTurnOrder(scene, "now");
+
+    expect(scene.turnOrder.active).toBe(true);
+    expect(scene.turnOrder.playerViewVisible).toBe(true);
+    expect(scene.turnOrder.entries.map((entry) => entry.visibleInPlayer)).toEqual([true, true]);
+  });
+
+  it("preserves explicit hidden entries when at least one turn order entry is already visible", () => {
+    let scene = sceneWithEntries(["a", "b", "c"]);
+    scene.turnOrder.entries = [
+      { ...scene.turnOrder.entries[0], visibleInPlayer: false },
+      { ...scene.turnOrder.entries[1], visibleInPlayer: true },
+      { ...scene.turnOrder.entries[2], visibleInPlayer: false }
+    ];
+
+    scene = startTurnOrder(scene, "now");
+
+    expect(scene.turnOrder.entries.map((entry) => entry.visibleInPlayer)).toEqual([false, true, false]);
+  });
+
   it("resets round state when the turn order list is emptied", () => {
     let scene = sceneWithEntries(["a"]);
     scene.turnOrder.round = 4;

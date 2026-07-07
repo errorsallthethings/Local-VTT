@@ -356,11 +356,13 @@ export function startTurnOrder(scene: Scene, updatedAt = new Date().toISOString(
   if (scene.turnOrder.entries.length === 0) {
     return patchTurnOrder(scene, { active: false, currentEntryId: undefined }, updatedAt);
   }
+  const entries = ensureTurnOrderHasPlayerVisibleEntries(scene.turnOrder.entries);
   return patchTurnOrder(
     scene,
     {
       active: true,
-      currentEntryId: getValidCurrentEntryId(scene.turnOrder.entries, scene.turnOrder.currentEntryId) ?? scene.turnOrder.entries[0].id,
+      entries,
+      currentEntryId: getValidCurrentEntryId(entries, scene.turnOrder.currentEntryId) ?? entries[0].id,
       playerViewVisible: true
     },
     updatedAt
@@ -425,6 +427,13 @@ export function patchTurnOrder(scene: Scene, patch: Partial<TurnOrderSettings>, 
 
 function getValidCurrentEntryId(entries: TurnOrderEntry[], currentEntryId?: string): string | undefined {
   return currentEntryId && entries.some((entry) => entry.id === currentEntryId) ? currentEntryId : undefined;
+}
+
+function ensureTurnOrderHasPlayerVisibleEntries(entries: TurnOrderEntry[]): TurnOrderEntry[] {
+  if (entries.some((entry) => entry.visibleInPlayer)) {
+    return entries;
+  }
+  return entries.map((entry) => ({ ...entry, visibleInPlayer: true }));
 }
 
 function stripFileExtension(fileName: string): string {

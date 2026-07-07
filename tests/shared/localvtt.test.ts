@@ -1159,6 +1159,95 @@ it("projectSceneForPlayer preserves visible current turn order entries", () => {
   expect(projection.scene.turnOrder.entries.map((entry) => entry.id)).toEqual(["entry-1", "entry-2"]);
 });
 
+it("projectSceneForPlayer includes players referenced by visible active turn order entries", () => {
+  const campaign = createDefaultCampaign("Turn Players Campaign");
+  campaign.assets = [asset("hidden-player"), asset("unused-player")];
+  campaign.players = [
+    {
+      id: "hidden-player",
+      name: "Hidden Player",
+      color: "#7aa2f7",
+      assetId: "hidden-player",
+      defaultSeatEdge: "bottom",
+      defaultSeatPosition: 0.5,
+      visibleInPlayer: false
+    },
+    {
+      id: "unused-player",
+      name: "Unused Player",
+      color: "#f7768e",
+      assetId: "unused-player",
+      defaultSeatEdge: "top",
+      defaultSeatPosition: 0.5,
+      visibleInPlayer: false
+    }
+  ];
+  const scene = createDefaultScene("Turn Players Scene");
+  scene.turnOrder = {
+    ...scene.turnOrder,
+    active: true,
+    playerViewVisible: true,
+    currentEntryId: "hidden-player-entry",
+    entries: [
+      {
+        id: "hidden-player-entry",
+        name: "Hidden Player",
+        initiative: 18,
+        playerId: "hidden-player",
+        visibleInPlayer: true
+      },
+      {
+        id: "unused-player-entry",
+        name: "Unused Player",
+        initiative: 17,
+        playerId: "unused-player",
+        visibleInPlayer: false
+      }
+    ],
+    seats: []
+  };
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.players.map((player) => player.id)).toEqual(["hidden-player"]);
+  expect(projection.assets.map((projectionAsset) => projectionAsset.id)).toEqual(["hidden-player"]);
+});
+
+it("projectSceneForPlayer does not include hidden turn order players before Player View turn order is active", () => {
+  const campaign = createDefaultCampaign("Inactive Turn Players Campaign");
+  campaign.players = [
+    {
+      id: "hidden-player",
+      name: "Hidden Player",
+      color: "#7aa2f7",
+      defaultSeatEdge: "bottom",
+      defaultSeatPosition: 0.5,
+      visibleInPlayer: false
+    }
+  ];
+  const scene = createDefaultScene("Inactive Turn Players Scene");
+  scene.turnOrder = {
+    ...scene.turnOrder,
+    active: false,
+    playerViewVisible: true,
+    currentEntryId: "hidden-player-entry",
+    entries: [
+      {
+        id: "hidden-player-entry",
+        name: "Hidden Player",
+        initiative: 18,
+        playerId: "hidden-player",
+        visibleInPlayer: true
+      }
+    ],
+    seats: []
+  };
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.players).toEqual([]);
+});
+
 it("projectSceneForPlayer strips content owned by hidden Player View layers", () => {
   const campaign = createDefaultCampaign("Hidden Layers");
   campaign.assets = [asset("overlay")];
