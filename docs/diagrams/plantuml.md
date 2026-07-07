@@ -5,6 +5,7 @@ These versions use the C4-PlantUML standard library. Most online PlantUML render
 Architecture baseline: Local VTT `0.1.15` release-prep branch. The package metadata may still report the previous release until release metadata is updated.
 
 ## System Context
+<img width="766" height="847" alt="RLHDRnen4BqZyH-cN4ga1IuzzTIM49eA0eA4797P7LWd_bZPin1KzRztxFq8KRYjFJDltfjvtX-UXADIgsxdYpIfAZCidOASgF3VHoCdJiE3fBpSbHvTQWsXeM5gzQXGmeIwWQTCoTre_6sm35TFyzb82q_e-6ex3XLlD2nYXsw792c4cKs5WitZ8mnWVUPS3NLYo5cYyzRq3pg1tbHeX7" src="https://github.com/user-attachments/assets/365275dd-f25b-4ca9-80b4-a2bd9da5f0ca" />
 
 ```plantuml
 @startuml
@@ -39,6 +40,7 @@ SHOW_LEGEND()
 ```
 
 ## Container Diagram
+<img width="1386" height="1615" alt="ZLPDJoCv4BqZvJ_KS08fWBJQqvw6IHYM5O6807j4ZhkIU73RBTiToAxcl--ptTtv8ioUqlwegbTLxvNprGVXGbtgtj4NPQIk2wwTfaK8bV_ZuiA9j_Ev2ejwMdjsqfh09fnBMrvKMfXeT-P3eTNqOl3xsJXkFOrkBqhX0pjilGnW8PHXTrwb6BsZe89ckhLIQ7f-VAGpwkxuU3x6hpKdyx" src="https://github.com/user-attachments/assets/c1e4bb82-45cc-4014-9f3a-fdc392f0ba1e" />
 
 ```plantuml
 @startuml
@@ -85,6 +87,7 @@ SHOW_LEGEND()
 ```
 
 ## React/Electron MVC-Style Ownership
+<img width="564" height="1143" alt="RLJ1RXen4BqZyGzJJa62xAMddj8kKLk9D2X9oH4Pxy2wUEsLxGNHgl_UP-yka98JNdlcpPltPhZpGRZGL7eu-A2Cr4t1ZTDKXb3xJrdcnE5sgqBPh1lFJbeJs8HRQQkiriB4lAaFXLRhBFyuNSIhdm_ph18-iCFLAhTLRKtCgLEDuI2ee9dcLWfDovSNcj8J2ncoUyqoE6leOPbFdyCHGO" src="https://github.com/user-attachments/assets/323d0b7b-59e0-4c1f-9484-ed58695c29e3" />
 
 ```plantuml
 @startuml
@@ -114,6 +117,7 @@ SHOW_LEGEND()
 ```
 
 ## Renderer Component Diagram
+<img width="1318" height="1912" alt="XLTBRnit4BuRy7zWrOkDIbwWwAcdn7AG1B0QmyhZQ51BIcBD9GcIAqKjyjyxmzU-fFHYY-Hm-F6RcM-uRvodrhUDlBxwHQXQjeotLfAzzyRzMLMM7kzsmk_RJUkuhRNoNFcxMZULaLJXleNpJ8fDjVnZyOHJNrQFLKETvnQcNfQwCLhX7XFEkBxomajE7dLD9Vdw-JDPa6Uk6BVSacBiq7" src="https://github.com/user-attachments/assets/6d6565a2-ef37-4893-b18b-4a9714e3074a" />
 
 ```plantuml
 @startuml
@@ -172,6 +176,7 @@ SHOW_LEGEND()
 ```
 
 ## Scene Canvas Pipeline
+<img width="1494" height="1266" alt="XLTBRoCt3Bu7o7zWVKfGEmQAddhQr5bi5h2Rm7dq6CWpj4SRZIH86dlTel-zf3HFFv9BFEAGr2UItwV95n-42rMfBYz-aJfJLOwLKr24OFqVqwaJkvkD34MrgZowpEY0EjnaffnQ9JJ7JNp8bLnDPxzF7jdqifXFI-43EZAzpKnfZUOO6_Uul0WoA8IvoOI2r-TdcC1JXXfX9lHMU7YK5f" src="https://github.com/user-attachments/assets/9af14306-e298-4a6c-a43a-1d7cff20ea1e" />
 
 ```plantuml
 @startuml
@@ -221,6 +226,7 @@ SHOW_LEGEND()
 ```
 
 ## 3D Dice And Effect Rendering
+<img width="1589" height="897" alt="fLPDSzis4BrxnlzXuvCzrSTCqbDFSIJNRKTkFB8J7pqGkHBHW0070AcwdVxtxW84IPcCBxdO93vstzlTzwYFpWlhwrATdxsJEbDrZhLLK7XVkL-MIokEYuFqHRsh7ThCQ8_QBp9JBYibDD-REvyhkLkkVfxVyzANkyso5CwZfQNdbIahe_bE5NASdtdf5SB6P4B1ryT7cCE7DQnbXd2jSx" src="https://github.com/user-attachments/assets/546e9771-5c41-4bf1-8694-6c95a222049a" />
 
 ```plantuml
 @startuml
@@ -267,6 +273,7 @@ SHOW_LEGEND()
 ```
 
 ## Electron Main Components
+<img width="969" height="1645" alt="XLTBKniv4BvJnN_GSeAK7vSzxIbW864BWWiJSgHaJTkZe1bDIHextgtyz-rkIUFn0_RaqQDVNtT_BN_sGRhGLkRqv0zTAzCMq3eZoX0Q_zTuxEHwjDIXREUj1wTi7Q0E8sMhSMDaJN937mgZv-F9dyCfRNr_k1zNqWTmkFKwiLLZQv9fsCRfIT31WBYtIXhnylmiXkB6W0hErk91wbfq4f" src="https://github.com/user-attachments/assets/864f5902-d689-4b6a-ad4c-eb62f76729d1" />
 
 ```plantuml
 @startuml
@@ -320,6 +327,7 @@ SHOW_LEGEND()
 ```
 
 ## Campaign Data And Persistence Flow
+<img width="2003" height="660" alt="NPHDRzim38Rl1lmVY9mseB7lFWpjihNOi7H1a-REI4oYLfOCIawG_VfH_iZNILBqKY_vaF5ZYCYnhMsUHHCjmH-lqC9wjO8fpB1kqEmS_C28yEGqB8Y32P6S8dYs_fXdUOOgUeR92zO4SvHBdW06U9ddMIDl6sKQT544SrWREi8REKqygCR3dNR1P3rg-Cv6xwXJ3Z_T2NzQKf6zWr-B6S" src="https://github.com/user-attachments/assets/298a8e9e-6413-4436-8a22-9774a118b20a" />
 
 ```plantuml
 @startuml
@@ -356,6 +364,7 @@ end note
 ```
 
 ## Player View Trust Boundary
+<img width="1640" height="437" alt="PLF1Rjim3BqRy3yGFMr0tTvz68fkRHUWmOB5wCwCn2miD4cGv1J--r6oZJZkJHBv7laUgOUOCAJ-dwchnCaGl3g51jww3XhO6Hmem1lJ1tIXZmaUNMyrXg6kwieBa1Lxj0bkNhObxGOmmijs5VnDLbCGfYNXJpAUGYo8wRo2xKyOICCkk7TIYPqjkPVhAdqNo3ZKy1XO_wKfjpoj4f-Cu8" src="https://github.com/user-attachments/assets/8f8de957-b998-463f-afe4-c81691613315" />
 
 ```plantuml
 @startuml
@@ -385,6 +394,7 @@ end note
 ```
 
 ## Asset Import And Token Crop Flow
+<img width="1629" height="1037" alt="bLLDJnj13BsljF_1uaJLfjmZfOAcWY8LWKX4psR7oLhCpcnd9adfhw_dOnUQ1afFMTdFp_QpFJdr0LtOTBgk0WTDyCqsgE5kkOG9d7bF0Iwxthe0PqR1qZwGWRcpFPnhkwkhki8cM0T75zWHNA4Fv8u0FLnSrLKlpDnmZoO8u0hkc7R9UKj6aIEt1xbnf2qg-EnOhIaXYsaFMEgwcIUC_E" src="https://github.com/user-attachments/assets/c6858e24-fb2f-46d1-a91e-7b475c727886" />
 
 ```plantuml
 @startuml
@@ -434,6 +444,7 @@ end note
 ```
 
 ## Asset Deletion Safety Flow
+<img width="1418" height="560" alt="TLFBRjim4BmBq3yCV7Tzrw58wzPjWHW8QYSzhwcrHPWY1PAguh_ladgWCEAB7kJExCnm-HGY-TYtfYoYZeRnx1GPl1sFM6DFtURehcpn9GIE-CQ6etOM1pfpl65dt50MPT49XLQw8nkn-h77c-PX1GhupRPcp_wkP6JxzRBDHVA-styDT67yPDEn3xachznL7HHRtcofxKXVBFPzf2Hk12" src="https://github.com/user-attachments/assets/11a75032-595f-4280-811e-bcbe72bc4d6c" />
 
 ```plantuml
 @startuml
@@ -466,6 +477,7 @@ end
 ```
 
 ## Smoke Verification Flow
+<img width="1370" height="734" alt="TLJ1Rjim3BqRy3yGEIVjtOUXQxS61PesQ8BihCXCBKIML8bEchyV9Tck6sodAEBZ8zyZvRj0mbFNwh8WHHhXsKgXORVTmW8shJqYxD2hWvA2b3NmgEsvBCf2IB8UPh_mXDewz3CG0VXVMJZcKr8vOGXcnhKGf5UEGaAykFOAiRqut2G4tC9zftITWEbq1VsjKPBd9duwbq3yUmLPhk2FCh" src="https://github.com/user-attachments/assets/fdec78ed-8175-433e-8d4d-b6b270d951d5" />
 
 ```plantuml
 @startuml
