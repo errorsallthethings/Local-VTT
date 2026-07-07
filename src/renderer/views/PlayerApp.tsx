@@ -37,10 +37,13 @@ export function PlayerApp() {
     title: "Waiting for GM View",
     message: "The next scene will appear here."
   });
+  const livePlayerStateReceivedRef = useRef(false);
   const visibleIdleDiceOverlayEvents = useMemo(() => liveTableEvents.filter(isVisiblePlayerDiceOverlayEvent), [liveTableEvents]);
 
   useEffect(() => {
+    let mounted = true;
     const removeListener = window.localVtt.onPlayerState((state) => {
+      livePlayerStateReceivedRef.current = true;
       if (isPlayerSceneProjection(state)) {
         applyProjection(state);
       } else if (isPlayerIdleState(state)) {
@@ -48,13 +51,19 @@ export function PlayerApp() {
       }
     });
     void window.localVtt.getLastPlayerState().then((state) => {
+      if (!mounted || livePlayerStateReceivedRef.current) {
+        return;
+      }
       if (isPlayerSceneProjection(state)) {
         applyProjection(state);
       } else if (isPlayerIdleState(state)) {
         applyIdleState(state);
       }
     });
-    return removeListener;
+    return () => {
+      mounted = false;
+      removeListener();
+    };
   }, []);
 
   useEffect(() => {
