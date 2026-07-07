@@ -32,10 +32,7 @@ export async function runVisualSmokeTest(win: BrowserWindow, options: VisualSmok
   const playerOpenResult = await win.webContents.executeJavaScript(`window.localVtt.openPlayerView({ fullscreen: false })`);
   const playerWindow = await waitForPlayerWindow(options);
   await waitForPlayerSelector(playerWindow, ".player-shell");
-  const playerDelivered = await win.webContents.executeJavaScript(
-    `window.localVtt.sendSceneToPlayer(JSON.parse(${toJavaScriptStringLiteral(JSON.stringify(fixture.projection))}))`
-  );
-  await waitForVisualSmokeCanvas(playerWindow);
+  const sceneDelivery = await deliverVisualSmokeScene(win, playerWindow, fixture.projection);
   for (const event of fixture.liveEvents) {
     await win.webContents.executeJavaScript(`window.localVtt.sendLiveTableEvent(JSON.parse(${toJavaScriptStringLiteral(JSON.stringify(event))}))`);
   }
@@ -74,7 +71,8 @@ export async function runVisualSmokeTest(win: BrowserWindow, options: VisualSmok
 
   return {
     playerOpenResult,
-    playerDelivered,
+    playerDelivered: sceneDelivery.playerDelivered,
+    playerSceneSendAttempts: sceneDelivery.attempts,
     testPatternDelivered,
     sceneMetrics,
     overlayMetrics,
@@ -98,6 +96,26 @@ export async function runVisualSmokeTest(win: BrowserWindow, options: VisualSmok
       "test pattern"
     ]
   };
+}
+
+async function deliverVisualSmokeScene(win: BrowserWindow, playerWindow: BrowserWindow, projection: PlayerSceneProjection): Promise<{ playerDelivered: boolean; attempts: number }> {
+  const sendSceneScript = `window.localVtt.sendSceneToPlayer(JSON.parse(${toJavaScriptStringLiteral(JSON.stringify(projection))}))`;
+  const deadline = Date.now() + 10000;
+  let attempts = 0;
+  let playerDelivered = false;
+  let lastReadiness: VisualSmokeCanvasReadiness | null = null;
+
+  while (Date.now() < deadline) {
+    attempts += 1;
+    playerDelivered = Boolean((await win.webContents.executeJavaScript(sendSceneScript)) || playerDelivered);
+    lastReadiness = await getVisualSmokeCanvasReadiness(playerWindow);
+    if (lastReadiness.ready) {
+      return { playerDelivered, attempts };
+    }
+    await waitForTimeout(250);
+  }
+
+  throw new Error(`Timed out waiting for Player View scene canvas. ${JSON.stringify(lastReadiness?.diagnostics ?? {})}`);
 }
 
 async function createSmokeVisualFixture(options: VisualSmokeTestOptions): Promise<SmokeVisualFixture> {
@@ -366,17 +384,20 @@ function onceWebContentsLoaded(win: BrowserWindow): Promise<void> {
   });
 }
 
-async function waitForVisualSmokeCanvas(win: BrowserWindow): Promise<void> {
-  const result = await win.webContents.executeJavaScript(`new Promise((resolve, reject) => {
-    const startedAt = Date.now();
-    const check = () => {
+interface VisualSmokeCanvasReadiness {
+  ready: boolean;
+  diagnostics: Record<string, unknown>;
+}
+
+async function getVisualSmokeCanvasReadiness(win: BrowserWindow): Promise<VisualSmokeCanvasReadiness> {
+  return win.webContents.executeJavaScript(`(() => {
       const canvas = document.querySelector(".player-scene-layer-current .scene-canvas");
       if (canvas && canvas.width > 1 && canvas.height > 1) {
-        resolve(true);
-        return;
+        return { ready: true, diagnostics: {} };
       }
-      if (Date.now() - startedAt > 10000) {
-        reject(new Error("Timed out waiting for Player View scene canvas. " + JSON.stringify({
+      return {
+        ready: false,
+        diagnostics: {
           hash: window.location.hash,
           title: document.title,
           bodyClassName: document.body.className,
@@ -386,16 +407,9 @@ async function waitForVisualSmokeCanvas(win: BrowserWindow): Promise<void> {
           hasSceneLayer: Boolean(document.querySelector(".player-scene-layer-current")),
           hasAnySceneCanvas: Boolean(document.querySelector(".scene-canvas")),
           sceneLayerClassName: document.querySelector(".player-scene-layer-current")?.className ?? null
-        })));
-        return;
-      }
-      requestAnimationFrame(check);
-    };
-    check();
-  })`);
-  if (result !== true) {
-    throw new Error("Player View scene canvas was not ready.");
-  }
+        }
+      };
+  })()`);
 }
 
 async function waitForPlayerSelector(win: BrowserWindow, selector: string): Promise<void> {
