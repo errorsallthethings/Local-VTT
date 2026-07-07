@@ -9,6 +9,7 @@ import {
   getEdgeSlideTransform,
   getPlayerSeatStyle,
   getPlayerTurnStatusLabel,
+  getPlayerTurnStatusEntries,
   getPlayerTurnStatusStyle,
   getVisibleTurnOrderState,
   getTurnOrderPlayerBarLayout
@@ -158,28 +159,16 @@ export function PlayerTurnStatusIndicators({ scene, campaign }: { scene: Scene; 
     return null;
   }
 
-  const { nextEntry } = getVisibleTurnOrderState({ currentEntryId: turnOrder.currentEntryId, entries: renderedEntries });
-  const entriesByPlayerId = new Map<string, (typeof renderedEntries)[number]>();
-  for (const entry of renderedEntries) {
-    if (entry.playerId) {
-      entriesByPlayerId.set(entry.playerId, entry);
-    }
-  }
-  const players = renderedCampaign.players.filter((player) => entriesByPlayerId.has(player.id));
-  if (players.length === 0) {
+  const statusEntries = getPlayerTurnStatusEntries({ currentEntryId: turnOrder.currentEntryId, entries: renderedEntries }, renderedCampaign.players);
+  if (statusEntries.length === 0) {
     return null;
   }
 
   return (
     <>
-      {players.map((player) => {
-        const entry = entriesByPlayerId.get(player.id);
-        if (!entry) {
-          return null;
-        }
+      {statusEntries.map(({ player, status }) => {
         const asset = player.assetId ? assetsById.get(player.assetId) : null;
         const previewPath = getAssetThumbnailPreviewPath(asset);
-        const status = entry.id === turnOrder.currentEntryId ? "current" : entry.id === nextEntry?.id ? "next" : "waiting";
         const theme = player.indicatorTheme ?? "generic";
         const style = getPlayerTurnStatusStyle(player.defaultSeatEdge, player.defaultSeatPosition, player.color, reveal.progress);
         return (

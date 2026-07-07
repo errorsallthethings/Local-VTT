@@ -299,7 +299,7 @@ Run the full local verification pass:
 npm run check
 ```
 
-`npm run check` runs TypeScript typechecking, release metadata validation, ESLint, and the Vitest suite.
+`npm run check` runs TypeScript typechecking, release metadata validation, local documentation reference validation, ESLint, and the Vitest suite.
 
 Run the Electron smoke checks:
 

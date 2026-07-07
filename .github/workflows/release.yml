@@ -30,6 +30,9 @@ jobs:
       - name: Run verification
         run: npm run check
 
+      - name: Run Electron smoke tests
+        run: npm run smoke
+
       - name: Build Windows package
         run: npm run package:win -- --publish never
 
