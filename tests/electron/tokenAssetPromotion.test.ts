@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import path from "node:path";
 import { promoteTokenAssetThumbnails, shouldPromoteTokenAsset } from "../../electron/tokenAssetPromotion";
 import { createDefaultCampaign, type Asset } from "../../src/shared/localvtt";
 
@@ -45,8 +46,8 @@ describe("token asset promotion", () => {
     expect(plan.campaign.updatedAt).not.toBe("2026-07-02T00:00:00.000Z");
     expect(copied).toEqual([
       {
-        source: expect.stringContaining("assets\\thumbnails\\old-token-crop-123.jpg"),
-        destination: expect.stringContaining("assets\\tokens\\old-token.jpg")
+        source: expect.stringContaining(path.join("assets", "thumbnails", "old-token-crop-123.jpg")),
+        destination: expect.stringContaining(path.join("assets", "tokens", "old-token.jpg"))
       }
     ]);
     expect(plan.replacedPaths.get("old-token")).toEqual(["assets/tokens/original.png", "assets/thumbnails/old-token-crop-123.jpg"]);

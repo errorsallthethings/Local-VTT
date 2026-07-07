@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { pathToFileURL } from "node:url";
 import { LOCALVTT_ASSET_MISSING_MESSAGE } from "../../electron/assetProtocol";
 import { registerLocalAssetProtocol } from "../../electron/assetProtocolRegistration";
 
@@ -54,7 +55,7 @@ describe("asset protocol registration", () => {
 
     const response = await harness.request("localvtt://asset/C%3A%5CCampaign%5Cassets%5Cmaps%5Cmap.png");
 
-    expect(fetchFile).toHaveBeenCalledWith(expect.stringMatching(/^file:\/\/\/C:/));
+    expect(fetchFile).toHaveBeenCalledWith(pathToFileURL("C:\\Campaign\\assets\\maps\\map.png").toString());
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
     await expect(response.text()).resolves.toBe("asset bytes");
   });

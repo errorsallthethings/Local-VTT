@@ -97,15 +97,16 @@ describe("campaign IPC", () => {
   });
 
   it("creates a campaign after choosing a folder", async () => {
-    const harness = createCampaignHarness("C:\\Campaigns\\New Campaign");
+    const campaignPath = path.join("Campaigns", "New Campaign");
+    const harness = createCampaignHarness(campaignPath);
 
     const result = await harness.ipc.invoke("campaign:create") as CampaignSummary;
 
     expect(harness.options.dialogs.chooseDirectory).toHaveBeenCalledWith(null, "Choose a folder for the new Local VTT campaign", true);
-    expect(harness.options.registerCampaignPath).toHaveBeenCalledWith("C:\\Campaigns\\New Campaign");
-    expect(harness.options.setCurrentCampaignPath).toHaveBeenCalledWith(path.resolve("C:\\Campaigns\\New Campaign"));
-    expect(harness.options.writeCampaign).toHaveBeenCalledWith("C:\\Campaigns\\New Campaign", expect.objectContaining({ name: "New Campaign" }));
-    expect(result.campaignPath).toBe("C:\\Campaigns\\New Campaign");
+    expect(harness.options.registerCampaignPath).toHaveBeenCalledWith(campaignPath);
+    expect(harness.options.setCurrentCampaignPath).toHaveBeenCalledWith(path.resolve(campaignPath));
+    expect(harness.options.writeCampaign).toHaveBeenCalledWith(campaignPath, expect.objectContaining({ name: "New Campaign" }));
+    expect(result.campaignPath).toBe(campaignPath);
   });
 
   it("returns null when campaign creation is canceled", async () => {
