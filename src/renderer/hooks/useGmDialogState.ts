@@ -10,10 +10,10 @@ import type {
   TokenAssetDeleteDialog,
   TokenAssetNameDialog,
   TokenColorDialog,
-  TokenCropDialogState,
   TokenDefaultsDialog,
   TokenNameDialog
 } from "../views/GmDialogs";
+import type { TokenCropDialogState } from "../lib/tokens";
 
 interface UseGmDialogEscapeOptions {
   openSceneMenuId: string | null;

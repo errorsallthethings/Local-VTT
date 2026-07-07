@@ -1,4 +1,5 @@
-import type { Campaign, LiveTableEvent, Point, Scene, Token } from "../../../shared/localvtt";
+import type { Campaign, LiveTableEvent, Point, Scene, TableToolSettings, Token } from "../../../shared/localvtt";
+import type { LaserDragState } from "../scene/sceneInteractionTypes";
 import type { RulerDrag, RulerLabel } from "../measurement/measurement";
 import {
   formatMeasurementDistance,
@@ -7,7 +8,7 @@ import {
   getRulerPathPoints,
   getStraightLineMeasurementDistance
 } from "../measurement/measurement";
-import { appendWaypoint } from "../tokens/movementPath";
+import { appendWaypoint, removeLastWaypoint } from "../tokens/movementPath";
 import { getRulerSnapPoint } from "../scene/sceneSnapping";
 import { distanceBetween } from "../tokens/tokenGeometry";
 import type { TokenDragPreview } from "../tokens/tokenRenderer";
@@ -64,6 +65,14 @@ export function isVisibleDiceOverlayEvent(event: LiveTableEvent, mode: "gm" | "p
   return event.type === "dice" && shouldShowDiceOverlay(event, mode);
 }
 
+export function getVisibleDiceOverlayEvents(liveTableEvents: readonly LiveTableEvent[], mode: "gm" | "player"): Array<Extract<LiveTableEvent, { type: "dice" }>> {
+  return liveTableEvents.filter((event) => isVisibleDiceOverlayEvent(event, mode));
+}
+
+export function getVisibleCanvasLiveTableEvents(liveTableEvents: LiveTableEvent[], mode: "gm" | "player"): LiveTableEvent[] {
+  return mode === "gm" ? liveTableEvents.filter((event) => event.type !== "ruler") : liveTableEvents;
+}
+
 export function shouldShowDiceOverlay(event: Extract<LiveTableEvent, { type: "dice" }>, mode: "gm" | "player"): boolean {
   const displayMode = mode === "gm" ? event.gmDiceDisplay : event.playerDiceDisplay;
   if (displayMode) {
@@ -71,6 +80,79 @@ export function shouldShowDiceOverlay(event: Extract<LiveTableEvent, { type: "di
   }
   const presentation = mode === "gm" ? event.gmPresentation : event.playerPresentation;
   return presentation ? presentation === "3d" : event.presentation === "3d";
+}
+
+export type RulerPointerDrag = RulerDrag & { pointerId: number };
+
+export function createRulerDrag(pointerId: number, point: Point): RulerPointerDrag {
+  return { pointerId, start: point, current: point, waypoints: [] };
+}
+
+export function createRulerLiveTableEvent(rulerDrag: RulerDrag, scene: Scene, visibleInPlayer: boolean, now = Date.now(), expiresAt?: number): Extract<LiveTableEvent, { type: "ruler" }> {
+  const label = getRulerLabel(rulerDrag, scene);
+  return {
+    id: "ruler-live",
+    type: "ruler",
+    points: getRulerPathPoints(rulerDrag),
+    primary: label.primary,
+    secondary: label.secondary,
+    visibleInPlayer,
+    createdAt: now,
+    ...(expiresAt === undefined ? {} : { expiresAt })
+  };
+}
+
+export function createRulerClearEvent(now = Date.now()): Extract<LiveTableEvent, { type: "ruler-clear" }> {
+  return {
+    id: "ruler-clear",
+    type: "ruler-clear",
+    createdAt: now
+  };
+}
+
+export function createPingLiveTableEvent(id: string, point: Point, settings: TableToolSettings, visibleInPlayer: boolean, now = Date.now()): Extract<LiveTableEvent, { type: "ping" }> {
+  return {
+    id,
+    type: "ping",
+    point,
+    size: settings.pingSize,
+    color: settings.pingColor,
+    visibleInPlayer,
+    createdAt: now
+  };
+}
+
+export function createLaserDragStart(
+  pointerId: number,
+  eventId: string,
+  point: Point,
+  settings: TableToolSettings,
+  visibleInPlayer: boolean,
+  now = Date.now()
+): { drag: LaserDragState; event: Extract<LiveTableEvent, { type: "laser" }> } {
+  const points = [{ point, createdAt: now }];
+  return {
+    drag: { pointerId, eventId, points },
+    event: createLaserLiveTableEvent(eventId, points, settings, visibleInPlayer, now)
+  };
+}
+
+export function createLaserLiveTableEvent(
+  id: string,
+  points: LaserDragState["points"],
+  settings: TableToolSettings,
+  visibleInPlayer: boolean,
+  now = Date.now()
+): Extract<LiveTableEvent, { type: "laser" }> {
+  return {
+    id,
+    type: "laser",
+    createdAt: points[0]?.createdAt ?? now,
+    points,
+    thickness: settings.laserThickness,
+    color: settings.laserColor,
+    visibleInPlayer
+  };
 }
 
 export function isDuplicateRulerWaypoint(existingPosition: Point, waypoint: Point, scene: Scene): boolean {
@@ -83,4 +165,8 @@ export function getRulerDragWithAppendedWaypoint<TRulerDrag extends RulerDrag>(s
   const previousRoutePosition = rulerDrag.waypoints[rulerDrag.waypoints.length - 1] ?? rulerDrag.start;
   const nextRulerPath = appendWaypoint(rulerDrag, waypoint, previousRoutePosition, (previousPosition, nextWaypoint) => isDuplicateRulerWaypoint(previousPosition, nextWaypoint, scene));
   return nextRulerPath === rulerDrag ? rulerDrag : { ...nextRulerPath, current: waypoint };
+}
+
+export function getRulerDragWithRemovedWaypoint<TRulerDrag extends RulerDrag>(rulerDrag: TRulerDrag): TRulerDrag | null {
+  return removeLastWaypoint(rulerDrag);
 }

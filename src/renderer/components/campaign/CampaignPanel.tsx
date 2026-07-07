@@ -1,16 +1,24 @@
-import { ArchiveRestore, ChevronDown, ChevronRight, Clock3, Edit3, EllipsisVertical, Eye, EyeOff, FolderOpen, Plus, RefreshCw, Save, Settings2, Trash2, UserRoundPlus, X } from "lucide-react";
+import { Activity, ArchiveRestore, ChevronDown, ChevronRight, Clock3, Edit3, EllipsisVertical, Eye, EyeOff, FolderOpen, Plus, RefreshCw, Save, Settings2, Trash2, UserRoundPlus, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { PLAYER_INDICATOR_THEME_LABELS, PLAYER_INDICATOR_THEMES } from "../../../shared/localvtt";
 import type { Asset, Campaign, CampaignPlayer, PlayerIndicatorTheme } from "../../../shared/localvtt";
 import { ColorInput } from "../controls/ColorPickerField";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
-import type { RecentCampaign } from "../../lib/campaign";
+import {
+  getCampaignPlayerAddTitle,
+  getCampaignPlayerAvatarPresentation,
+  getCampaignPlayerCountLabel,
+  getCampaignPlayerSeatPositionFromPercent,
+  getCampaignPlayerSeatPositionPercent,
+  getCanAddCampaignPlayer,
+  type RecentCampaign
+} from "../../lib/campaign";
+import { getAssetThumbnailPreviewMessage, getAssetThumbnailPreviewPath } from "../../lib/assets";
 import { getMissingAssetsWarningItems, MISSING_ASSETS_WARNING_MESSAGE } from "../../lib/assets/assetRecovery";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
-
-const MAX_CAMPAIGN_PLAYERS = 7;
+import { CompactAssetThumbnail } from "../assets/CompactAssetThumbnail";
 
 interface CampaignPanelProps {
   campaign: Campaign | null;
@@ -25,8 +33,11 @@ interface CampaignPanelProps {
   onRemoveRecentCampaign: (campaignPath: string) => void;
   onSaveCampaign: () => void;
   onRenameCampaign: () => void;
+  onOpenCampaignHealth: () => void;
   onOpenBackupRestore: () => void;
   onRegenerateThumbnails: () => void;
+  onPromoteTokenAssets: () => void;
+  onPruneUnreferencedAssets: () => void;
   onAddPlayer: () => void;
   onUpdatePlayer: (playerId: string, patch: Partial<CampaignPlayer>) => void;
   onDeletePlayer: (playerId: string) => void;
@@ -46,8 +57,11 @@ export function CampaignPanel({
   onRemoveRecentCampaign,
   onSaveCampaign,
   onRenameCampaign,
+  onOpenCampaignHealth,
   onOpenBackupRestore,
   onRegenerateThumbnails,
+  onPromoteTokenAssets,
+  onPruneUnreferencedAssets,
   onAddPlayer,
   onUpdatePlayer,
   onDeletePlayer,
@@ -56,6 +70,8 @@ export function CampaignPanel({
   const [playersCollapsed, setPlayersCollapsed] = useState(true);
   const [maintenanceMenuOpen, setMaintenanceMenuOpen] = useState(false);
   const maintenanceButtonRef = useRef<HTMLButtonElement | null>(null);
+  const playerCount = campaign?.players.length ?? 0;
+  const canAddPlayer = getCanAddCampaignPlayer(playerCount);
   useEffect(() => {
     setPlayersCollapsed(true);
     setMaintenanceMenuOpen(false);
@@ -116,6 +132,16 @@ export function CampaignPanel({
                     type="button"
                     onClick={() => {
                       setMaintenanceMenuOpen(false);
+                      onOpenCampaignHealth();
+                    }}
+                  >
+                    <Activity size={16} aria-hidden="true" />
+                    <span>Campaign Health</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaintenanceMenuOpen(false);
                       onOpenBackupRestore();
                     }}
                   >
@@ -131,6 +157,26 @@ export function CampaignPanel({
                   >
                     <RefreshCw size={16} aria-hidden="true" />
                     <span>Regenerate Thumbnails</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaintenanceMenuOpen(false);
+                      onPromoteTokenAssets();
+                    }}
+                  >
+                    <Settings2 size={16} aria-hidden="true" />
+                    <span>Optimize Token Assets</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaintenanceMenuOpen(false);
+                      onPruneUnreferencedAssets();
+                    }}
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
+                    <span>Prune Unreferenced Assets</span>
                   </button>
                 </FloatingCampaignMaintenanceMenu>,
                 document.body
@@ -159,13 +205,13 @@ export function CampaignPanel({
             >
               {playersCollapsed ? <ChevronRight size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
               <strong>Players</strong>
-              <span>{campaign.players.length === 1 ? "1 player" : `${campaign.players.length} players`}</span>
+              <span>{getCampaignPlayerCountLabel(campaign.players.length)}</span>
             </button>
             <button
               className="icon-button"
               aria-label="Add Player"
-              title={campaign.players.length >= MAX_CAMPAIGN_PLAYERS ? "Maximum players reached" : "Add Player"}
-              disabled={campaign.players.length >= MAX_CAMPAIGN_PLAYERS}
+              title={getCampaignPlayerAddTitle(campaign.players.length)}
+              disabled={!canAddPlayer}
               onClick={onAddPlayer}
             >
               <UserRoundPlus size={15} aria-hidden="true" />
@@ -231,7 +277,7 @@ function FloatingCampaignMaintenanceMenu({ anchor, children }: { anchor: HTMLEle
     open: Boolean(anchor),
     anchor,
     fallbackWidth: 210,
-    fallbackHeight: 92
+    fallbackHeight: 132
   });
 
   return (
@@ -259,15 +305,18 @@ function CampaignPlayerRow({
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const selectedAsset = player.assetId ? tokenAssets.find((asset) => asset.id === player.assetId) : null;
-  const previewPath = selectedAsset?.thumbnailAbsolutePath ?? selectedAsset?.absolutePath;
+  const hasSelectedAsset = Boolean(selectedAsset);
+  const previewPath = getAssetThumbnailPreviewPath(selectedAsset);
+  const previewMessage = getAssetThumbnailPreviewMessage(selectedAsset);
+  const avatarPresentation = getCampaignPlayerAvatarPresentation(player, hasSelectedAsset, previewMessage);
   return (
     <article className="campaign-player-row">
       <button
         type="button"
-        className={previewPath ? "campaign-player-avatar" : "campaign-player-avatar campaign-player-avatar-drop"}
-        title={previewPath ? "Remove thumbnail" : "Drag a token here to use its thumbnail"}
+        className={avatarPresentation.className}
+        title={avatarPresentation.title}
         onClick={() => {
-          if (previewPath) {
+          if (hasSelectedAsset) {
             onUpdate({ assetId: undefined });
           }
         }}
@@ -287,8 +336,8 @@ function CampaignPlayerRow({
           onUpdate({ assetId });
         }}
       >
-        {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : player.name.slice(0, 1).toUpperCase()}
-        {previewPath && <span className="campaign-player-avatar-reset">Reset</span>}
+        <CompactAssetThumbnail previewPath={previewPath} fallback={avatarPresentation.fallback} />
+        {avatarPresentation.resetVisible && <span className="campaign-player-avatar-reset">Reset</span>}
       </button>
       <input className="campaign-player-name" value={player.name} aria-label="Player name" onChange={(event) => onUpdate({ name: event.target.value })} />
       <ColorInput className="campaign-player-color" value={player.color} aria-label="Player color" onChange={(color) => onUpdate({ color })} />
@@ -314,9 +363,9 @@ function CampaignPlayerRow({
               type="range"
               min="0"
               max="100"
-              value={Math.round(player.defaultSeatPosition * 100)}
+              value={getCampaignPlayerSeatPositionPercent(player.defaultSeatPosition)}
               aria-label="Default seat position"
-              onChange={(event) => onUpdate({ defaultSeatPosition: Number(event.target.value) / 100 })}
+              onChange={(event) => onUpdate({ defaultSeatPosition: getCampaignPlayerSeatPositionFromPercent(event.target.value) })}
             />
           </label>
           <div className="campaign-player-settings-label">Turn Indicator</div>

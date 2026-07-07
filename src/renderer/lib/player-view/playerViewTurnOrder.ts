@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { TurnOrderEntry, TurnOrderSettings } from "../../../shared/localvtt";
+import type { CampaignPlayer, TurnOrderEntry, TurnOrderSettings } from "../../../shared/localvtt";
 
 export type PlayerViewEdge = "top" | "right" | "bottom" | "left";
 export type PlayerViewFacing = "inward" | "outward";
@@ -14,6 +14,12 @@ export interface VisibleTurnOrderState {
   nextEntry: TurnOrderEntry | null;
 }
 
+export interface PlayerTurnStatusEntry {
+  player: CampaignPlayer;
+  entry: TurnOrderEntry;
+  status: PlayerTurnStatus;
+}
+
 export function getVisibleTurnOrderState(turnOrder: Pick<TurnOrderSettings, "currentEntryId" | "entries"> & Partial<Pick<TurnOrderSettings, "playerViewMaxEntries">>): VisibleTurnOrderState {
   const entries = turnOrder.entries.filter((entry) => entry.visibleInPlayer);
   const currentIndex = Math.max(0, entries.findIndex((entry) => entry.id === turnOrder.currentEntryId));
@@ -23,6 +29,34 @@ export function getVisibleTurnOrderState(turnOrder: Pick<TurnOrderSettings, "cur
   const displayedEntries = getCarouselEntries(entries, currentIndex, maxEntries);
   const hiddenEntryCount = getHiddenEntriesUntilWrap(entries.length, currentIndex, displayedEntries.length);
   return { entries, displayedEntries, hiddenEntryCount, currentIndex, currentEntry, nextEntry };
+}
+
+export function getPlayerTurnStatusEntries(turnOrder: Pick<TurnOrderSettings, "currentEntryId" | "entries">, players: readonly CampaignPlayer[]): PlayerTurnStatusEntry[] {
+  const visibleState = getVisibleTurnOrderState(turnOrder);
+  if (visibleState.entries.length === 0) {
+    return [];
+  }
+
+  const entriesByPlayerId = new Map<string, TurnOrderEntry>();
+  for (const entry of visibleState.entries) {
+    if (entry.playerId) {
+      entriesByPlayerId.set(entry.playerId, entry);
+    }
+  }
+
+  return players.flatMap((player) => {
+    const entry = entriesByPlayerId.get(player.id);
+    if (!entry) {
+      return [];
+    }
+    return [
+      {
+        player,
+        entry,
+        status: entry.id === turnOrder.currentEntryId ? "current" : entry.id === visibleState.nextEntry?.id ? "next" : "waiting"
+      }
+    ];
+  });
 }
 
 function getTurnOrderDisplayLimit(value: number | undefined): number {

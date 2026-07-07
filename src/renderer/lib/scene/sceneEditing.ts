@@ -70,6 +70,16 @@ export type SceneSelectionIds = {
   environmentEffectId?: string | null;
 };
 
+export function buildSceneSelectionIds(selection: SceneSelectionIds): SceneSelectionIds {
+  return {
+    tokenIds: selection.tokenIds ?? [],
+    drawingIds: selection.drawingIds ?? [],
+    fogShapeIds: selection.fogShapeIds ?? [],
+    weatherMaskIds: selection.weatherMaskIds ?? [],
+    environmentEffectId: selection.environmentEffectId ?? null
+  };
+}
+
 export function patchSceneVideoPlayback(scene: Scene, patch: Partial<Scene["videoPlayback"]>): Scene {
   return {
     ...scene,
@@ -155,6 +165,19 @@ export function patchSceneEnvironmentEffect(
     },
     updatedAt
   };
+}
+
+export function setSceneEnvironmentEffectPatch(
+  scene: Scene,
+  effectId: string,
+  patch: Partial<EnvironmentEffectMask>,
+  updatedAt = new Date().toISOString()
+): Scene {
+  return patchSceneEnvironmentEffect(scene, effectId, (effect) => ({ ...effect, ...patch }), updatedAt);
+}
+
+export function setSceneEnvironmentEffectFeather(scene: Scene, effectId: string, feather: number, updatedAt = new Date().toISOString()): Scene {
+  return setSceneEnvironmentEffectPatch(scene, effectId, { feather }, updatedAt);
 }
 
 export function setSceneEnvironmentEffectType(

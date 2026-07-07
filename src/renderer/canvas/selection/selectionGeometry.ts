@@ -29,10 +29,19 @@ export type SceneMarqueeSelection = {
 
 export type SceneSelectionIds = SceneMarqueeSelection;
 
+export type MarqueeSelectionMode = "replace" | "add" | "subtract";
+
 export type SelectionDragLike = {
   start: Point;
   current: Point;
 };
+
+export function getMarqueeSelectionMode(modifiers: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean }): MarqueeSelectionMode {
+  if (modifiers.ctrlKey || modifiers.metaKey) {
+    return "subtract";
+  }
+  return modifiers.shiftKey ? "add" : "replace";
+}
 
 export function getUpdatedSelectionDrag<TDrag extends { current: Point }>(drag: TDrag, point: Point): TDrag {
   return { ...drag, current: point };
@@ -92,6 +101,10 @@ export function getSceneMarqueeSelection(
 
 export function hasSelectedSceneItems(selection: SceneSelectionIds): boolean {
   return selection.tokenIds.length > 0 || selection.drawingIds.length > 0 || selection.fogShapeIds.length > 0 || selection.weatherMaskIds.length > 0;
+}
+
+export function shouldAnimateSceneSelection(mode: "gm" | "player", selection: SceneSelectionIds): boolean {
+  return mode === "gm" && hasSelectedSceneItems(selection);
 }
 
 export function pointsToSelectionRect(start: Point, end: Point): SelectionRect {

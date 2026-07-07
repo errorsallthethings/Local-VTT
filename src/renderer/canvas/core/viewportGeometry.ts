@@ -1,5 +1,5 @@
 import type { Point } from "../../../shared/localvtt";
-import type { Camera } from "../core/camera";
+import type { Camera } from "./camera";
 
 export interface ScreenRect {
   x: number;

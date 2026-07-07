@@ -3,6 +3,17 @@ import { useEffect, useMemo, useState } from "react";
 import type { Asset, DisplayCalibration, GridType, PlayerViewTestPattern, Scene } from "../../../shared/localvtt";
 import { loadImageDimensions } from "../../lib/assets";
 import { getMapGridDimensionHint, getMapGridFitPreview, type MapGridFitPreview, type MapImageDimensions } from "../../lib/map";
+import {
+  formatDisplayAspect,
+  formatDisplayPixels,
+  getDisplayAspect,
+  getDisplayCalibrationForTestGridMode,
+  getDisplayLabel,
+  getInitialPlayerTestPatternGridMode,
+  getPhysicalGridCellSizePx,
+  getTestPatternCellSize,
+  normalizeDisplayCalibrationDraft
+} from "../../lib/player-view";
 import type { DisplayInfo } from "./PlayerDisplayScalePanel";
 import { SettingsField, SettingsReadout } from "./SettingsSection";
 
@@ -39,7 +50,7 @@ export function TableDisplaySetupWizard({
   onOpenMapCalibrationAssistant: () => void;
 }) {
   const [displayDraft, setDisplayDraft] = useState<DisplayCalibration>(calibration);
-  const [testGridMode, setTestGridMode] = useState<TestPatternGridMode>(getInitialTestGridMode(scene.grid.type, calibration));
+  const [testGridMode, setTestGridMode] = useState<TestPatternGridMode>(getInitialPlayerTestPatternGridMode(scene.grid.type, calibration));
   const [patternCellSize, setPatternCellSize] = useState(Math.max(24, Math.round(scene.grid.sizePx)));
   const [helpTopic, setHelpTopic] = useState<string | null>(null);
   const selectedDisplay = displays.find((display) => display.id === displayDraft.selectedDisplayId) ?? null;
@@ -86,25 +97,25 @@ export function TableDisplaySetupWizard({
   }, [mapAsset?.absolutePath, mapAsset?.id, mapAsset?.mediaType]);
 
   const applyDisplayDraft = () => {
-    onApplyDisplay(normalizeDisplayDraft(displayDraft));
+    onApplyDisplay(normalizeDisplayCalibrationDraft(displayDraft));
   };
 
   const showTestPattern = async () => {
-    const nextDisplay = normalizeDisplayDraft(displayDraft);
+    const nextDisplay = normalizeDisplayCalibrationDraft(displayDraft);
     if (hasDisplayChanges) {
       onApplyDisplay(nextDisplay);
     }
-    await onShowTestPattern(testGridMode, nextDisplay, getPatternCellSize(testGridMode, patternCellSize, nextDisplay));
+    await onShowTestPattern(testGridMode, nextDisplay, getTestPatternCellSize(testGridMode, patternCellSize, nextDisplay));
   };
 
   const applyGridToScene = () => {
-    const nextDisplay = getDisplayForGridMode(testGridMode, normalizeDisplayDraft(displayDraft), patternCellSize);
+    const nextDisplay = getDisplayCalibrationForTestGridMode(testGridMode, normalizeDisplayCalibrationDraft(displayDraft), patternCellSize);
     setDisplayDraft(nextDisplay);
     if (testGridMode === "none") {
       onUpdateSceneGrid("gridless", patternCellSize, nextDisplay);
       return;
     }
-    onUpdateSceneGrid(testGridMode === "hex" ? "hex" : "square", getPatternCellSize(testGridMode, patternCellSize, nextDisplay), nextDisplay);
+    onUpdateSceneGrid(testGridMode === "hex" ? "hex" : "square", getTestPatternCellSize(testGridMode, patternCellSize, nextDisplay), nextDisplay);
   };
 
   return (
@@ -193,11 +204,11 @@ export function TableDisplaySetupWizard({
           <div className="calibration-readout">
             Display: {selectedDisplay ? getDisplayLabel(selectedDisplay) : displayDraft.selectedDisplayLabel ?? "No saved display"}
             <br />
-            Test Cell: {getPatternCellSize(testGridMode, patternCellSize, displayDraft)}px. Scene grid: {formatGridType(scene.grid.type)}, {scene.grid.sizePx}px.
+            Test Cell: {getTestPatternCellSize(testGridMode, patternCellSize, displayDraft)}px. Scene grid: {formatGridType(scene.grid.type)}, {scene.grid.sizePx}px.
             {displayDraft.physicalScaleEnabled && (
               <>
                 <br />
-                Physical Scale: Player View keeps manual scene grid cells at {getTestPatternCellSize(displayDraft)}px. Fit presets keep their own fitted Player View sizing.
+                Physical Scale: Player View keeps manual scene grid cells at {getPhysicalGridCellSizePx(displayDraft)}px. Fit presets keep their own fitted Player View sizing.
               </>
             )}
           </div>
@@ -322,7 +333,7 @@ export function TableDisplaySetupWizard({
             </SettingsField>
             <SettingsReadout label="Display Fit">
               <div className="calibration-readout">
-                Map shape: {formatAspect(mapAspect)}. Display shape: {formatAspect(displayAspect)}.
+                Map shape: {formatDisplayAspect(mapAspect)}. Display shape: {formatDisplayAspect(displayAspect)}.
                 <br />
                 {aspectDelta > 0.35 ? "This map and display are different shapes; showing the whole map will leave unused screen space, while filling the display will crop part of the map." : "This map and display are close enough that fitting should be straightforward."}
               </div>
@@ -331,11 +342,11 @@ export function TableDisplaySetupWizard({
               <div className="calibration-readout">
                 {mapFitPreview ? (
                   <>
-                    Image: {formatPixels(mapFitPreview.sourceWidth)} x {formatPixels(mapFitPreview.sourceHeight)}px.
+                    Image: {formatDisplayPixels(mapFitPreview.sourceWidth)} x {formatDisplayPixels(mapFitPreview.sourceHeight)}px.
                     <br />
                     {mapFitMode === "fill-grid" && (
                       <>
-                        Grid footprint: {mapFitPreview.columns} x {mapFitPreview.rows} cells = {formatPixels(mapFitPreview.targetWidth)} x {formatPixels(mapFitPreview.targetHeight)}px.
+                        Grid footprint: {mapFitPreview.columns} x {mapFitPreview.rows} cells = {formatDisplayPixels(mapFitPreview.targetWidth)} x {formatDisplayPixels(mapFitPreview.targetHeight)}px.
                         <br />
                       </>
                     )}
@@ -407,77 +418,11 @@ export function TableDisplaySetupWizard({
   );
 }
 
-function normalizeDisplayDraft(display: DisplayCalibration): DisplayCalibration {
-  if (display.mode !== "screen-size") {
-    return display;
-  }
-  return {
-    ...display,
-    pixelsPerInch: Math.round(estimatePixelsPerInch(display.screenResolutionWidth, display.screenResolutionHeight, display.screenDiagonalInches))
-  };
-}
-
-function getTestPatternCellSize(display: DisplayCalibration): number {
-  return Math.max(24, Math.round(display.pixelsPerInch * display.inchesPerGridCell));
-}
-
-function getPatternCellSize(gridMode: TestPatternGridMode, patternCellSize: number, display: DisplayCalibration): number {
-  return gridMode === "physical-square" ? getTestPatternCellSize(display) : Math.max(24, Math.round(patternCellSize));
-}
-
-function getDisplayForGridMode(gridMode: TestPatternGridMode, display: DisplayCalibration, patternCellSize: number): DisplayCalibration {
-  if (gridMode === "physical-square") {
-    return {
-      ...display,
-      physicalScaleEnabled: true,
-      mode: "grid-cell",
-      pixelsPerInch: getPatternCellSize(gridMode, patternCellSize, display),
-      inchesPerGridCell: 1
-    };
-  }
-  return { ...display, physicalScaleEnabled: false };
-}
-
-function getInitialTestGridMode(gridType: GridType, display: DisplayCalibration): TestPatternGridMode {
-  if (gridType === "gridless") {
-    return "none";
-  }
-  if (gridType === "hex") {
-    return "hex";
-  }
-  return display.physicalScaleEnabled ? "physical-square" : "square";
-}
-
 function formatGridType(gridType: GridType): string {
   if (gridType === "gridless") {
     return "No grid";
   }
   return gridType === "hex" ? "Hex" : "Square";
-}
-
-function estimatePixelsPerInch(width: number, height: number, diagonal: number): number {
-  if (diagonal <= 0) {
-    return 96;
-  }
-  return Math.sqrt(width ** 2 + height ** 2) / diagonal;
-}
-
-function getDisplayLabel(display: DisplayInfo): string {
-  return `${display.label} (${display.nativeResolution.width} x ${display.nativeResolution.height})`;
-}
-
-function getDisplayAspect(display: DisplayInfo | null, calibration: DisplayCalibration): number {
-  const width = display?.nativeResolution.width ?? calibration.screenResolutionWidth;
-  const height = display?.nativeResolution.height ?? calibration.screenResolutionHeight;
-  return height > 0 ? width / height : 16 / 9;
-}
-
-function formatAspect(value: number): string {
-  return `${value.toFixed(2)}:1`;
-}
-
-function formatPixels(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 function getMapFitResultText(preview: MapGridFitPreview): string {

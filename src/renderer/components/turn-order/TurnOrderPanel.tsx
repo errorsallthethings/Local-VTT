@@ -4,15 +4,23 @@ import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import type { Asset, CampaignPlayer, Scene, Token, TurnOrderEntry, TurnOrderSettings, TurnOrderTrackerPlacement } from "../../../shared/localvtt";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
+import { getAssetThumbnailPreviewMessage, getAssetThumbnailPreviewPath } from "../../lib/assets";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
+import { CompactAssetThumbnail } from "../assets/CompactAssetThumbnail";
 import {
   addTurnOrderEntry,
   addPlayersToTurnOrder,
   advanceTurnOrder,
+  clampTurnOrderCountdown,
+  clampTurnOrderRound,
+  clampTurnOrderVisibleEntryCount,
   createCountTrackerTurnOrderEntry,
   createManualTurnOrderEntry,
   createTurnOrderGroupFromEntry,
   createTurnOrderEntryFromAsset,
+  getAddableCampaignPlayerCount,
+  getTurnOrderDropTargetIndex,
+  getTurnOrderTrackerDisplayPatch,
   linkTurnOrderEntryToToken,
   removeTurnOrderEntry,
   resetTurnOrder,
@@ -58,7 +66,7 @@ export function TurnOrderPanel({
   const addButtonRef = useRef<HTMLButtonElement | null>(null);
   const turnOrder = scene?.turnOrder;
   const currentEntryId = turnOrder?.currentEntryId;
-  const playersToAddCount = scene ? campaignPlayers.filter((player) => !scene.turnOrder.entries.some((entry) => entry.playerId === player.id)).length : 0;
+  const playersToAddCount = getAddableCampaignPlayerCount(scene, campaignPlayers);
   const settingsOpen = controlledSettingsOpen ?? localSettingsOpen;
   const setSettingsOpen = (open: boolean | ((current: boolean) => boolean)) => {
     const nextOpen = typeof open === "function" ? open(settingsOpen) : open;
@@ -80,21 +88,9 @@ export function TurnOrderPanel({
     if (!turnOrder) {
       return;
     }
-    const currentTracker = turnOrder.playerViewTrackers[edge];
-    updateTurnOrder({
-      playerViewEdge: edge,
-      playerViewFacing: patch.facing ?? currentTracker.facing,
-      playerViewSize: patch.size ?? currentTracker.size,
-      playerViewTrackers: {
-        ...turnOrder.playerViewTrackers,
-        [edge]: {
-          ...currentTracker,
-          ...patch
-        }
-      }
-    });
+    updateTurnOrder(getTurnOrderTrackerDisplayPatch(turnOrder, edge, patch));
   };
-  const updateRound = (value: number) => updateTurnOrder({ round: clampRound(value) });
+  const updateRound = (value: number) => updateTurnOrder({ round: clampTurnOrderRound(value) });
 
   const addManualEntry = () => {
     if (!scene) {
@@ -141,16 +137,14 @@ export function TurnOrderPanel({
   }, [addMenuOpen]);
 
   const moveDraggedEntry = (targetEntryId: string, placement: "before" | "after") => {
-    if (!scene || !draggedEntryId || draggedEntryId === targetEntryId) {
+    if (!scene || !draggedEntryId) {
       return;
     }
-    const targetIndex = scene.turnOrder.entries.findIndex((entry) => entry.id === targetEntryId);
-    const sourceIndex = scene.turnOrder.entries.findIndex((entry) => entry.id === draggedEntryId);
-    if (targetIndex < 0 || sourceIndex < 0) {
+    const targetIndex = getTurnOrderDropTargetIndex(scene.turnOrder.entries, draggedEntryId, targetEntryId, placement);
+    if (targetIndex === null) {
       return;
     }
-    const adjustedTargetIndex = targetIndex - (sourceIndex < targetIndex ? 1 : 0) + (placement === "after" ? 1 : 0);
-    updateScene(reorderTurnOrderEntry(scene, draggedEntryId, adjustedTargetIndex));
+    updateScene(reorderTurnOrderEntry(scene, draggedEntryId, targetIndex));
   };
 
   return (
@@ -220,7 +214,7 @@ export function TurnOrderPanel({
                   max={30}
                   step={1}
                   value={turnOrder.playerViewMaxEntries}
-                  onChange={(event) => updateTurnOrder({ playerViewMaxEntries: Math.max(1, Math.min(30, Math.floor(Number(event.target.value) || 9))) })}
+                  onChange={(event) => updateTurnOrder({ playerViewMaxEntries: clampTurnOrderVisibleEntryCount(Number(event.target.value)) })}
                 />
               </label>
               <label>
@@ -482,10 +476,6 @@ function FloatingTurnOrderAddMenu({
   );
 }
 
-function clampRound(value: number): number {
-  return Math.max(1, Math.min(999, Math.floor(Number.isFinite(value) ? value : 1)));
-}
-
 function TurnOrderRow({
   entry,
   index,
@@ -527,7 +517,8 @@ function TurnOrderRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
-  const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
+  const previewPath = getAssetThumbnailPreviewPath(asset);
+  const previewMessage = getAssetThumbnailPreviewMessage(asset);
   const className = [
     active ? "turn-order-row turn-order-row-active" : "turn-order-row",
     entry.type === "count-tracker" ? "turn-order-row-count-tracker" : "",
@@ -595,7 +586,9 @@ function TurnOrderRow({
         <GripVertical size={14} aria-hidden="true" />
       </span>
       <span className="turn-order-rank">{index + 1}</span>
-      <span className="turn-order-avatar">{previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : entry.name.slice(0, 1).toUpperCase()}</span>
+      <span className="turn-order-avatar" title={previewMessage ?? undefined}>
+        <CompactAssetThumbnail previewPath={previewPath} fallback={entry.name.slice(0, 1).toUpperCase()} />
+      </span>
       <div className="turn-order-name-cell">
         <input className="turn-order-name" value={entry.name} aria-label="Entry name" onChange={(event) => onUpdate({ name: event.target.value })} />
         <span
@@ -832,7 +825,7 @@ function FloatingTurnOrderRowMenu({
               step={1}
               value={entry.countdown}
               aria-label={`Rounds left for ${entry.name}`}
-              onChange={(event) => onUpdateCountdown(clampCountdown(Number(event.target.value)))}
+              onChange={(event) => onUpdateCountdown(clampTurnOrderCountdown(Number(event.target.value)))}
             />
           </label>
         )}
@@ -864,6 +857,3 @@ function FloatingTurnOrderRowMenu({
   );
 }
 
-function clampCountdown(value: number): number {
-  return Math.max(0, Math.min(999, Math.floor(Number.isFinite(value) ? value : 1)));
-}

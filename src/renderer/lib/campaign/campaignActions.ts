@@ -1,4 +1,5 @@
 import type { Campaign, Scene } from "../../../shared/localvtt";
+import { stopActiveTurnOrder } from "../turn-order";
 import { mergeCampaignDraft } from "./campaignDraft";
 
 export function getSceneDraftToSave(
@@ -11,6 +12,11 @@ export function getSceneDraftToSave(
 
 export function getDirtySceneIdsInFolder(campaign: Campaign, dirtySceneIds: Set<string>, folderId: string): string[] {
   return campaign.scenes.filter((scene) => scene.folderId === folderId && dirtySceneIds.has(scene.id)).map((scene) => scene.id);
+}
+
+export function getSceneToSaveBeforeClose(scene: Scene, isDirty: boolean, updatedAt: string): Scene | null {
+  const stoppedScene = stopActiveTurnOrder(scene, updatedAt);
+  return isDirty || stoppedScene !== scene ? stoppedScene : null;
 }
 
 export function moveSceneEntryToFolder(campaign: Campaign, sceneId: string, folderId: string | undefined, updatedAt: string): Campaign {

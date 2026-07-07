@@ -11,9 +11,7 @@ import type {
   TokenPresentationDefaults
 } from "../../shared/localvtt";
 import { useState, type ReactNode } from "react";
-import { ColorPickerField } from "../components/controls/ColorPickerField";
 import { ConfirmDialog } from "../components/modals/ConfirmDialog";
-import { NameDialog } from "../components/modals/NameDialog";
 import { SettingsModal } from "../components/modals/SettingsModal";
 import { TokenCropDialog } from "../components/modals/TokenCropDialog";
 import { MapCalibrationAssistant, type MapCalibrationBox, type MapCalibrationDraft } from "../components/settings/MapCalibrationAssistant";
@@ -22,6 +20,8 @@ import { TableDisplaySetupWizard, type WizardMapFitMode } from "../components/se
 import { TokenDefaultsPanel } from "../components/tokens/TokenDefaultsPanel";
 import type { MapReplacementPreview } from "../hooks/useCampaignActions";
 import { getFolderSceneDeleteDetail } from "../lib/scene";
+import type { TokenCropDialogState } from "../lib/tokens";
+import { GmNameAndColorDialogs } from "./GmNameAndColorDialogs";
 
 export type SceneNameDialog = { mode: "create" } | { mode: "rename"; sceneId: string };
 export type FolderNameDialog = { mode: "create" } | { mode: "rename"; folderId: string };
@@ -31,7 +31,6 @@ export type FogShapeNameDialog = { shapeId: string };
 export type EnvironmentEffectNameDialog = { effectId: string };
 export type TokenNameDialog = { tokenId: string };
 export type TokenColorDialog = { tokenId: string; tokenName: string; value: string; kind: "border" | "glow" };
-export type TokenCropDialogState = { asset: Asset; mode: "scene" | "library" };
 export type TokenAssetNameDialog = { assetId: string };
 export type TokenDefaultsDialog = { assetId: string; assetName: string; draft: TokenPresentationDefaults };
 export type TokenAssetDeleteDialog = { asset: Asset; usage: Array<{ sceneId: string; sceneName: string; count: number }> };
@@ -111,7 +110,6 @@ export function GmDialogs({
   onSubmitTokenAssetName,
   onUpdateTokenDefaultsDraft,
   onSubmitTokenDefaults,
-  onUseDefaultTokenCrop,
   onSubmitFolderColor,
   onUpdateSceneColorDraft,
   onSubmitSceneColor,
@@ -214,7 +212,6 @@ export function GmDialogs({
   onSubmitTokenAssetName: () => void;
   onUpdateTokenDefaultsDraft: (draft: TokenPresentationDefaults) => void;
   onSubmitTokenDefaults: () => void;
-  onUseDefaultTokenCrop: () => void;
   onSubmitFolderColor: () => void;
   onUpdateSceneColorDraft: (value: string) => void;
   onSubmitSceneColor: () => void;
@@ -250,65 +247,55 @@ export function GmDialogs({
 
   return (
     <>
-      {sceneDialog && (
-        <NameDialog
-          title={sceneDialog.mode === "create" ? "New Scene" : "Rename Scene"}
-          label="Scene name"
-          value={newSceneName}
-          submitLabel={sceneDialog.mode === "create" ? "Create" : "Save"}
-          onChange={onNewSceneNameChange}
-          onCancel={onCancelSceneDialog}
-          onSubmit={onSubmitSceneName}
-        />
-      )}
-
-      {folderDialog && (
-        <NameDialog
-          title={folderDialog.mode === "create" ? "New Scene Folder" : "Rename Scene Folder"}
-          label="Folder name"
-          value={newFolderName}
-          submitLabel={folderDialog.mode === "create" ? "Create" : "Save"}
-          onChange={onNewFolderNameChange}
-          onCancel={onCancelFolderDialog}
-          onSubmit={onSubmitFolderName}
-        />
-      )}
-
-      {fogShapeDialog && (
-        <NameDialog
-          title="Rename Fog Shape"
-          label="Fog shape name"
-          value={newFogShapeName}
-          submitLabel="Save"
-          onChange={onNewFogShapeNameChange}
-          onCancel={onCancelFogShapeDialog}
-          onSubmit={onSubmitFogShapeName}
-        />
-      )}
-
-      {environmentEffectDialog && (
-        <NameDialog
-          title="Rename Environmental Effect"
-          label="Effect name"
-          value={newEnvironmentEffectName}
-          submitLabel="Save"
-          onChange={onNewEnvironmentEffectNameChange}
-          onCancel={onCancelEnvironmentEffectDialog}
-          onSubmit={onSubmitEnvironmentEffectName}
-        />
-      )}
-
-      {tokenDialog && (
-        <NameDialog
-          title="Rename Token"
-          label="Token name"
-          value={newTokenName}
-          submitLabel="Save"
-          onChange={onNewTokenNameChange}
-          onCancel={onCancelTokenDialog}
-          onSubmit={onSubmitTokenName}
-        />
-      )}
+      <GmNameAndColorDialogs
+        campaignNameDialogOpen={campaignNameDialogOpen}
+        environmentEffectDialog={environmentEffectDialog}
+        fogShapeDialog={fogShapeDialog}
+        folderColorDialog={folderColorDialog}
+        folderDialog={folderDialog}
+        newCampaignName={newCampaignName}
+        newEnvironmentEffectName={newEnvironmentEffectName}
+        newFogShapeName={newFogShapeName}
+        newFolderColor={newFolderColor}
+        newFolderName={newFolderName}
+        newSceneName={newSceneName}
+        newTokenBorderColor={newTokenBorderColor}
+        newTokenName={newTokenName}
+        sceneColorDialog={sceneColorDialog}
+        sceneDialog={sceneDialog}
+        tokenAssetDialog={tokenAssetDialog}
+        tokenColorDialog={tokenColorDialog}
+        tokenDialog={tokenDialog}
+        onCancelCampaignNameDialog={onCancelCampaignNameDialog}
+        onCancelEnvironmentEffectDialog={onCancelEnvironmentEffectDialog}
+        onCancelFogShapeDialog={onCancelFogShapeDialog}
+        onCancelFolderColorDialog={onCancelFolderColorDialog}
+        onCancelFolderDialog={onCancelFolderDialog}
+        onCancelSceneColorDialog={onCancelSceneColorDialog}
+        onCancelSceneDialog={onCancelSceneDialog}
+        onCancelTokenAssetDialog={onCancelTokenAssetDialog}
+        onCancelTokenColorDialog={onCancelTokenColorDialog}
+        onCancelTokenDialog={onCancelTokenDialog}
+        onNewCampaignNameChange={onNewCampaignNameChange}
+        onNewEnvironmentEffectNameChange={onNewEnvironmentEffectNameChange}
+        onNewFogShapeNameChange={onNewFogShapeNameChange}
+        onNewFolderColorChange={onNewFolderColorChange}
+        onNewFolderNameChange={onNewFolderNameChange}
+        onNewSceneNameChange={onNewSceneNameChange}
+        onNewTokenBorderColorChange={onNewTokenBorderColorChange}
+        onNewTokenNameChange={onNewTokenNameChange}
+        onSubmitCampaignName={onSubmitCampaignName}
+        onSubmitEnvironmentEffectName={onSubmitEnvironmentEffectName}
+        onSubmitFogShapeName={onSubmitFogShapeName}
+        onSubmitFolderColor={onSubmitFolderColor}
+        onSubmitFolderName={onSubmitFolderName}
+        onSubmitSceneColor={onSubmitSceneColor}
+        onSubmitSceneName={onSubmitSceneName}
+        onSubmitTokenAssetName={onSubmitTokenAssetName}
+        onSubmitTokenBorderColor={onSubmitTokenBorderColor}
+        onSubmitTokenName={onSubmitTokenName}
+        onUpdateSceneColorDraft={onUpdateSceneColorDraft}
+      />
 
       {tokenCropDialog && (
         <TokenCropDialog
@@ -316,20 +303,7 @@ export function GmDialogs({
           title={tokenCropDialog.mode === "library" ? "Add Token to Library" : "Frame Token"}
           submitLabel={tokenCropDialog.mode === "library" ? "Add to Library" : "Add Token"}
           onCancel={onCancelTokenCropDialog}
-          onUseDefault={onUseDefaultTokenCrop}
           onSubmit={onSubmitTokenCrop}
-        />
-      )}
-
-      {tokenAssetDialog && (
-        <NameDialog
-          title="Rename Library Token"
-          label="Token name"
-          value={newTokenName}
-          submitLabel="Save"
-          onChange={onNewTokenNameChange}
-          onCancel={onCancelTokenAssetDialog}
-          onSubmit={onSubmitTokenAssetName}
         />
       )}
 
@@ -345,57 +319,6 @@ export function GmDialogs({
             </div>
           </div>
         </div>
-      )}
-
-      {folderColorDialog && (
-        <div className="modal-backdrop" onMouseDown={onCancelFolderColorDialog}>
-          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
-            <h2>Change Folder Color</h2>
-            <ColorPickerField label={folderColorDialog.folderName} value={newFolderColor} onChange={onNewFolderColorChange} />
-            <div className="button-row modal-actions">
-              <button onClick={onCancelFolderColorDialog}>Cancel</button>
-              <button onClick={onSubmitFolderColor}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {sceneColorDialog && (
-        <div className="modal-backdrop" onMouseDown={onCancelSceneColorDialog}>
-          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
-            <h2>{sceneColorDialog.title}</h2>
-            <ColorPickerField label="Color" value={sceneColorDialog.value} onChange={onUpdateSceneColorDraft} />
-            <div className="button-row modal-actions">
-              <button onClick={onCancelSceneColorDialog}>Cancel</button>
-              <button onClick={onSubmitSceneColor}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tokenColorDialog && (
-        <div className="modal-backdrop" onMouseDown={onCancelTokenColorDialog}>
-          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
-            <h2>{tokenColorDialog.kind === "glow" ? "Token Glow Color" : "Token Border Color"}</h2>
-            <ColorPickerField label={tokenColorDialog.tokenName} value={newTokenBorderColor} onChange={onNewTokenBorderColorChange} />
-            <div className="button-row modal-actions">
-              <button onClick={onCancelTokenColorDialog}>Cancel</button>
-              <button onClick={onSubmitTokenBorderColor}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {campaignNameDialogOpen && (
-        <NameDialog
-          title="Rename Campaign"
-          label="Campaign name"
-          value={newCampaignName}
-          submitLabel="Save"
-          onChange={onNewCampaignNameChange}
-          onCancel={onCancelCampaignNameDialog}
-          onSubmit={onSubmitCampaignName}
-        />
       )}
 
       {tableDisplayWizardOpen && campaign && activeScene && (

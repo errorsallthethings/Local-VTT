@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Asset, Token } from "../../src/shared/localvtt";
 import {
   areTokenImagesReady,
+  getReusableTokenImageState,
   getTokenAssetIds,
   getTokenImageAssets,
   getRequiredTokenImageAssetIds,
@@ -72,6 +73,47 @@ describe("token image source parsing", () => {
     ]);
 
     expect(getRequiredTokenImageAssetIds(key)).toEqual(["asset-1", "asset-2"]);
+  });
+
+  it("reuses loaded and failed token image state for unchanged sources", () => {
+    const loadedImage = {};
+    const reusable = getReusableTokenImageState(
+      new Map([["asset-1", loadedImage]]),
+      new Map([["asset-1", "C:/tokens/one.png"]]),
+      new Set(["asset-2"]),
+      new Map([["asset-2", "C:/tokens/two.png"]]),
+      [
+        { id: "asset-1", path: "C:/tokens/one.png" },
+        { id: "asset-2", path: "C:/tokens/two.png" },
+        { id: "asset-3", path: "C:/tokens/three.png" }
+      ]
+    );
+
+    expect(reusable.loadedImages).toEqual(new Map([["asset-1", loadedImage]]));
+    expect(reusable.loadedImagePaths).toEqual(new Map([["asset-1", "C:/tokens/one.png"]]));
+    expect(reusable.failedIds).toEqual(new Set(["asset-2"]));
+    expect(reusable.failedPaths).toEqual(new Map([["asset-2", "C:/tokens/two.png"]]));
+    expect(reusable.pendingSources).toEqual([{ id: "asset-3", path: "C:/tokens/three.png" }]);
+  });
+
+  it("reloads token image sources when an asset path changes", () => {
+    const reusable = getReusableTokenImageState(
+      new Map([["asset-1", {}]]),
+      new Map([["asset-1", "C:/tokens/old.png"]]),
+      new Set(["asset-2"]),
+      new Map([["asset-2", "C:/tokens/old-failed.png"]]),
+      [
+        { id: "asset-1", path: "C:/tokens/new.png" },
+        { id: "asset-2", path: "C:/tokens/new-failed.png" }
+      ]
+    );
+
+    expect(reusable.loadedImages).toEqual(new Map());
+    expect(reusable.failedIds).toEqual(new Set());
+    expect(reusable.pendingSources).toEqual([
+      { id: "asset-1", path: "C:/tokens/new.png" },
+      { id: "asset-2", path: "C:/tokens/new-failed.png" }
+    ]);
   });
 
   it("treats token images as ready when token rendering is hidden", () => {

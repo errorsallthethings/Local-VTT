@@ -3,10 +3,13 @@ export function formatUserFacingError(caught: unknown): string {
   const message = stripElectronIpcPrefix(rawMessage);
 
   if (message.includes("Campaign metadata could not be read") || message.includes("Scene metadata could not be read")) {
-    return message;
+    return formatMetadataReadError(message);
   }
   if (message.includes("Campaign metadata could not be saved") || message.includes("Scene metadata could not be saved")) {
     return formatMetadataSaveError(message);
+  }
+  if (message.includes("must be a relative path inside the campaign folder")) {
+    return formatPortableAssetPathError();
   }
   if (message.includes("ENOENT") || message.includes("no such file or directory")) {
     return "That file or folder could not be found. It may have been moved, renamed, or deleted.";
@@ -31,6 +34,21 @@ export function formatUserFacingError(caught: unknown): string {
   }
   if (message.includes("Unsupported token type")) {
     return "That token file type is not supported. Use JPG, PNG, WebP, or GIF.";
+  }
+  if (message.includes("Selected asset file could not be read")) {
+    return "That asset file could not be read. It may have been moved, deleted, or locked by another app.";
+  }
+  if (message.includes("Selected asset must be a file")) {
+    return "Choose an image or video file instead of a folder.";
+  }
+  if (message.includes("Selected asset file is empty")) {
+    return "That asset file is empty or could not be read. Choose a different image or video file.";
+  }
+  if (message.includes("Map assets must be")) {
+    return "That map file is too large to import. Use a smaller map file, or reduce the video/image size and try again.";
+  }
+  if (message.includes("Token image assets must be")) {
+    return "That token image is too large to import. Use a smaller image file and try again.";
   }
   if (message.includes("Unable to generate token thumbnail")) {
     return "Local VTT could not create a token thumbnail from that image. Try a different image file.";
@@ -61,7 +79,29 @@ function formatMetadataSaveError(message: string): string {
   return action ? `${prefix} ${action}` : message;
 }
 
+function formatMetadataReadError(message: string): string {
+  if (message.includes("metadata file is not valid JSON")) {
+    return `${metadataReadPrefix(message)} The metadata file is not valid JSON. Restore a metadata backup or repair the JSON file.`;
+  }
+  if (message.includes("metadata was created by a newer version of Local VTT")) {
+    return `${metadataReadPrefix(message)} This campaign or scene was saved by a newer version of Local VTT. Update Local VTT, then try again.`;
+  }
+  if (message.includes("metadata structure is invalid")) {
+    return `${metadataReadPrefix(message)} The metadata structure is invalid. Restore a metadata backup or repair the campaign file.`;
+  }
+  return message;
+}
+
+function metadataReadPrefix(message: string): string {
+  return message.includes("Scene metadata could not be read")
+    ? "Scene metadata could not be read."
+    : "Campaign metadata could not be read.";
+}
+
 function formatKnownFilesystemError(message: string): string | null {
+  if (message.includes("must be a relative path inside the campaign folder")) {
+    return formatPortableAssetPathError();
+  }
   if (message.includes("ENOSPC") || message.includes("no space left on device")) {
     return "There is not enough free disk space to save that change. Free up space and try again.";
   }
@@ -72,4 +112,8 @@ function formatKnownFilesystemError(message: string): string | null {
     return "That file or folder could not be found. It may have been moved, renamed, or deleted.";
   }
   return null;
+}
+
+function formatPortableAssetPathError(): string {
+  return "Campaign metadata contains an asset path that points outside the campaign folder. Keep imported assets inside the campaign folder, then reopen or restore a metadata backup.";
 }

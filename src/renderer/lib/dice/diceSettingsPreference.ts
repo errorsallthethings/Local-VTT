@@ -1,22 +1,56 @@
-import { DEFAULT_DICE_SETTINGS, type DiceSettings } from "../../../shared/localvtt";
+import { DEFAULT_DICE_SETTINGS, type Campaign, type DiceSettings } from "../../../shared/localvtt";
+import { loadLocalStorageJson, saveLocalStorageJson, type LocalStorageLike } from "../storage/localStorageJson";
 
 export const DICE_SETTINGS_PREFERENCES_STORAGE_KEY = "localvtt.diceSettingsPreferences";
 
-export function loadDiceSettingsPreference(): DiceSettings {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(DICE_SETTINGS_PREFERENCES_STORAGE_KEY) ?? "null") as Partial<DiceSettings> | null;
-    return normalizeDiceSettingsPreference(parsed);
-  } catch {
+export function loadDiceSettingsPreference(storage: Pick<LocalStorageLike, "getItem"> = window.localStorage): DiceSettings {
+  const parsed = loadLocalStorageJson(storage, DICE_SETTINGS_PREFERENCES_STORAGE_KEY, null);
+  if (parsed !== null && !isRecord(parsed)) {
     return { ...DEFAULT_DICE_SETTINGS };
   }
+  return normalizeDiceSettingsPreference(parsed);
 }
 
-export function saveDiceSettingsPreference(settings: DiceSettings): void {
-  try {
-    window.localStorage.setItem(DICE_SETTINGS_PREFERENCES_STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // Preference persistence is helpful, but dice controls should still work if storage is unavailable.
+export function saveDiceSettingsPreference(
+  settings: DiceSettings,
+  storage: Pick<LocalStorageLike, "setItem"> = window.localStorage
+): void {
+  saveLocalStorageJson(storage, DICE_SETTINGS_PREFERENCES_STORAGE_KEY, settings);
+}
+
+export function getEffectiveDiceSettings(campaign: Campaign | null | undefined, preference: DiceSettings): DiceSettings {
+  return {
+    ...DEFAULT_DICE_SETTINGS,
+    ...(campaign?.diceSettings ?? preference)
+  };
+}
+
+export type DiceSettingsPatchResult =
+  | { kind: "preference"; settings: DiceSettings }
+  | { kind: "campaign"; settings: DiceSettings; campaign: Campaign };
+
+export function applyDiceSettingsPatch(
+  currentSettings: DiceSettings,
+  patch: Partial<DiceSettings>,
+  campaign: Campaign | null | undefined,
+  updatedAt: string
+): DiceSettingsPatchResult {
+  const settings = {
+    ...currentSettings,
+    ...patch
+  };
+  if (!campaign) {
+    return { kind: "preference", settings };
   }
+  return {
+    kind: "campaign",
+    settings,
+    campaign: {
+      ...campaign,
+      diceSettings: settings,
+      updatedAt
+    }
+  };
 }
 
 export function normalizeDiceSettingsPreference(settings?: Partial<DiceSettings> | null): DiceSettings {
@@ -53,4 +87,8 @@ function isDicePanelEdgePreference(value: unknown): value is DiceSettings["gmPan
 
 function clampUnitPreference(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : fallback;
+}
+
+function isRecord(value: unknown): value is Partial<DiceSettings> {
+  return typeof value === "object" && value !== null;
 }

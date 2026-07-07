@@ -20,7 +20,17 @@ import {
 } from "lucide-react";
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../../shared/localvtt";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
-import { buildSceneLibraryGroups } from "../../lib/scene";
+import { getAssetThumbnailPreviewLabel, getAssetThumbnailPreviewMessage } from "../../lib/assets";
+import {
+  buildSceneLibraryGroups,
+  getSceneDropPosition,
+  getSceneDropTargetId,
+  getSceneDropTargetKey,
+  getSceneFolderClassName,
+  getSceneMoveTargetFromDropTarget,
+  getSceneRowClassName,
+  type SceneDropTarget
+} from "../../lib/scene";
 import { getActiveWeatherEffects } from "../../lib/effects";
 
 interface SceneLibraryPanelProps {
@@ -48,10 +58,6 @@ interface SceneLibraryPanelProps {
   onMoveFolder: (folderId: string, direction: "up" | "down") => void;
   onDeleteFolder: (folder: CampaignSceneFolder) => void;
 }
-
-type SceneDropTarget =
-  | { kind: "folder"; folderId?: string }
-  | { kind: "scene"; sceneId: string; folderId?: string; position: "before" | "after" };
 
 const EMPTY_SCENES: CampaignSceneEntry[] = [];
 const EMPTY_SCENE_FOLDERS: CampaignSceneFolder[] = [];
@@ -83,15 +89,6 @@ export function SceneLibraryPanel({
 }: SceneLibraryPanelProps) {
   const [dropTarget, setDropTarget] = useState<SceneDropTarget | null>(null);
 
-  const getDropTargetId = (folderId?: string) => folderId ?? "root";
-  const getDropTargetKey = (target: SceneDropTarget | null) => {
-    if (!target) {
-      return null;
-    }
-    return target.kind === "folder"
-      ? `folder:${getDropTargetId(target.folderId)}`
-      : `scene:${target.sceneId}:${target.position}`;
-  };
   const campaignScenes = campaign?.scenes ?? EMPTY_SCENES;
   const campaignSceneFolders = campaign?.sceneFolders ?? EMPTY_SCENE_FOLDERS;
   const { folderGroups, unfiledScenes } = useMemo(() => buildSceneLibraryGroups(campaignScenes, campaignSceneFolders, dirtySceneIds), [campaignScenes, campaignSceneFolders, dirtySceneIds]);
@@ -101,7 +98,7 @@ export function SceneLibraryPanel({
   );
   const emptySceneMessage = getSceneLibraryEmptyMessage(campaign);
   const activeSceneId = activeScene?.id;
-  const sceneDropTargetKey = getDropTargetKey(dropTarget);
+  const sceneDropTargetKey = getSceneDropTargetKey(dropTarget);
 
   const renderSceneCard = (scene: CampaignSceneEntry) => {
     const isDirty = dirtySceneIds.has(scene.id);
@@ -109,14 +106,7 @@ export function SceneLibraryPanel({
     const thumbnailAsset = sceneThumbnailAssets.get(scene.id);
     const isDropBefore = sceneDropTargetKey === `scene:${scene.id}:before`;
     const isDropAfter = sceneDropTargetKey === `scene:${scene.id}:after`;
-    const sceneRowClassName = [
-      activeSceneId === scene.id ? "selected" : "",
-      "scene-row",
-      isDropBefore ? "scene-row-drop-before" : "",
-      isDropAfter ? "scene-row-drop-after" : ""
-    ]
-      .filter(Boolean)
-      .join(" ");
+    const sceneRowClassName = getSceneRowClassName(activeSceneId === scene.id, isDropBefore ? "before" : isDropAfter ? "after" : null);
     const loadScene = () => onLoadScene(scene.id);
     const onSceneKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
       if (event.key === "Enter" || event.key === " ") {
@@ -208,15 +198,7 @@ export function SceneLibraryPanel({
     if (!sceneId) {
       return;
     }
-    if (target?.kind === "scene") {
-      onMoveScene(sceneId, {
-        folderId: target.folderId,
-        beforeSceneId: target.position === "before" ? target.sceneId : undefined,
-        afterSceneId: target.position === "after" ? target.sceneId : undefined
-      });
-      return;
-    }
-    onMoveScene(sceneId, { folderId: target?.kind === "folder" ? target.folderId : folderId });
+    onMoveScene(sceneId, getSceneMoveTargetFromDropTarget(target, folderId));
   };
 
   const onSceneDragOver = (event: DragEvent<HTMLElement>, folderId?: string) => {
@@ -237,7 +219,7 @@ export function SceneLibraryPanel({
     event.stopPropagation();
     event.dataTransfer.dropEffect = "move";
     const rect = event.currentTarget.getBoundingClientRect();
-    const position = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+    const position = getSceneDropPosition(event.clientY, rect.top, rect.height);
     setDropTarget({ kind: "scene", sceneId: scene.id, folderId: scene.folderId, position });
   };
 
@@ -246,7 +228,7 @@ export function SceneLibraryPanel({
     if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
       return;
     }
-    if (getDropTargetKey(dropTarget) === `folder:${getDropTargetId(folderId)}`) {
+    if (getSceneDropTargetKey(dropTarget) === `folder:${getSceneDropTargetId(folderId)}`) {
       setDropTarget(null);
     }
   };
@@ -271,13 +253,7 @@ export function SceneLibraryPanel({
             "--scene-folder-color": folder.color,
             "--scene-folder-color-bg": hexToRgba(folder.color, 0.13)
           } as CSSProperties;
-          const folderClassName = [
-            "scene-folder",
-            isCollapsed ? "scene-folder-collapsed" : "",
-            folderDropTargetKey === `folder:${folder.id}` ? "scene-folder-drop-target" : ""
-          ]
-            .filter(Boolean)
-            .join(" ");
+          const folderClassName = getSceneFolderClassName(isCollapsed, folderDropTargetKey === `folder:${folder.id}`);
           return (
             <div
               className={folderClassName}
@@ -361,7 +337,7 @@ export function SceneLibraryPanel({
           );
         })}
         <div
-          className={folderDropTargetKey === "folder:root" ? "scene-folder scene-folder-unfiled scene-folder-drop-target" : "scene-folder scene-folder-unfiled"}
+          className={getSceneFolderClassName(false, folderDropTargetKey === "folder:root", true)}
           onDragOver={(event) => onSceneDragOver(event)}
           onDragLeave={(event) => onSceneDragLeave(event)}
           onDrop={(event) => onSceneDrop(event)}
@@ -485,11 +461,12 @@ const SceneThumbnail = memo(function SceneThumbnail({ asset, activeWeather }: { 
   }
 
   if (!asset.thumbnailAbsolutePath) {
+    const previewMessage = getAssetThumbnailPreviewMessage(asset);
     return (
-      <div className="scene-thumbnail scene-thumbnail-empty" aria-label="No preview available">
+      <div className="scene-thumbnail scene-thumbnail-empty" aria-label={getAssetThumbnailPreviewLabel(asset)} title={previewMessage ?? undefined}>
         <SceneWeatherBadges activeWeather={activeWeather} />
         <ImageOff size={16} aria-hidden="true" />
-        <span>No preview</span>
+        <span>{getAssetThumbnailPreviewLabel(asset)}</span>
       </div>
     );
   }

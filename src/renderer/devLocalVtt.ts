@@ -1,4 +1,4 @@
-import type { LocalVttApi } from "../../electron/preload";
+import type { LocalVttApi } from "../shared/localVttApi";
 import {
   createDefaultCampaign,
   createDefaultScene,
@@ -17,6 +17,7 @@ import {
   type ThumbnailRegenerationProgress,
   type ThumbnailRegenerationResult
 } from "../shared/localvtt";
+import { createEmptyCampaignHealthReport } from "../shared/campaignHealth";
 
 const DEV_CAMPAIGN_PATH = "dev://local-vtt/browser-campaign";
 const DEV_MAP_DATA_URL = `data:image/svg+xml,${encodeURIComponent(`
@@ -58,7 +59,8 @@ export function installDevLocalVtt() {
   const getSummary = (): CampaignSummary => ({
     campaignPath: DEV_CAMPAIGN_PATH,
     campaign,
-    missingAssets: []
+    missingAssets: [],
+    health: createEmptyCampaignHealthReport()
   });
 
   const upsertScene = (scene: Scene) => {
@@ -86,6 +88,7 @@ export function installDevLocalVtt() {
       campaign = nextCampaign;
       return getSummary();
     },
+    refreshCampaign: async () => getSummary(),
     openBackupsFolder: async () => false,
     listMetadataBackups: async () => [devBackup],
     previewMetadataBackup: async (_campaignPath: string, ref: MetadataBackupRef): Promise<MetadataBackupPreview> => ({
@@ -177,6 +180,19 @@ export function installDevLocalVtt() {
         failed: []
       };
     },
+    promoteTokenAssets: async () => ({
+      campaignSummary: getSummary(),
+      promoted: 0,
+      skipped: campaign.assets.filter((asset) => asset.kind !== "map").length,
+      failed: []
+    }),
+    pruneUnreferencedAssets: async () => ({
+      campaignSummary: getSummary(),
+      pruned: 0,
+      skipped: campaign.assets.length,
+      removedFiles: 0,
+      failed: []
+    }),
     onThumbnailRegenerationProgress: (callback: (progress: ThumbnailRegenerationProgress) => void) => {
       thumbnailProgressListeners.add(callback);
       return () => thumbnailProgressListeners.delete(callback);

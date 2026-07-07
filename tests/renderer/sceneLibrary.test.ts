@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { buildSceneLibraryGroups, getFolderSceneDeleteDetail } from "../../src/renderer/lib/scene";
+import {
+  buildSceneLibraryGroups,
+  getCollapsedFolderIds,
+  getFolderSceneDeleteDetail,
+  getSceneDropPosition,
+  getSceneDropTargetId,
+  getSceneDropTargetKey,
+  getSceneFolderClassName,
+  getSceneMoveTargetFromDropTarget,
+  getSceneRowClassName,
+  pruneExpandedFolderIds,
+  toggleExpandedFolderId
+} from "../../src/renderer/lib/scene";
 import type { CampaignSceneEntry, CampaignSceneFolder } from "../../src/shared/localvtt";
 
 describe("scene library helpers", () => {
@@ -53,6 +65,43 @@ describe("scene library helpers", () => {
     expect(groups.folderGroups[0].scenes.map((scene) => scene.id)).toEqual(["scene-2"]);
   });
 
+  it("builds stable scene drop target ids and keys", () => {
+    expect(getSceneDropTargetId()).toBe("root");
+    expect(getSceneDropTargetId("folder-a")).toBe("folder-a");
+    expect(getSceneDropTargetKey(null)).toBeNull();
+    expect(getSceneDropTargetKey({ kind: "folder" })).toBe("folder:root");
+    expect(getSceneDropTargetKey({ kind: "folder", folderId: "folder-a" })).toBe("folder:folder-a");
+    expect(getSceneDropTargetKey({ kind: "scene", sceneId: "scene-1", folderId: "folder-a", position: "before" })).toBe("scene:scene-1:before");
+  });
+
+  it("translates scene drop targets into move targets", () => {
+    expect(getSceneMoveTargetFromDropTarget({ kind: "scene", sceneId: "scene-1", folderId: "folder-a", position: "before" }, "fallback")).toEqual({
+      folderId: "folder-a",
+      beforeSceneId: "scene-1",
+      afterSceneId: undefined
+    });
+    expect(getSceneMoveTargetFromDropTarget({ kind: "scene", sceneId: "scene-2", position: "after" })).toEqual({
+      folderId: undefined,
+      beforeSceneId: undefined,
+      afterSceneId: "scene-2"
+    });
+    expect(getSceneMoveTargetFromDropTarget({ kind: "folder", folderId: "folder-b" }, "fallback")).toEqual({ folderId: "folder-b" });
+    expect(getSceneMoveTargetFromDropTarget(null, "fallback")).toEqual({ folderId: "fallback" });
+  });
+
+  it("derives scene drop position from pointer midpoint", () => {
+    expect(getSceneDropPosition(119, 100, 40)).toBe("before");
+    expect(getSceneDropPosition(120, 100, 40)).toBe("after");
+  });
+
+  it("builds scene row and folder class names", () => {
+    expect(getSceneRowClassName(true, "before")).toBe("selected scene-row scene-row-drop-before");
+    expect(getSceneRowClassName(false, "after")).toBe("scene-row scene-row-drop-after");
+    expect(getSceneRowClassName(false, null)).toBe("scene-row");
+    expect(getSceneFolderClassName(true, true)).toBe("scene-folder scene-folder-collapsed scene-folder-drop-target");
+    expect(getSceneFolderClassName(false, true, true)).toBe("scene-folder scene-folder-unfiled scene-folder-drop-target");
+  });
+
   it("does not surface scenes that point at a missing folder", () => {
     const folders: CampaignSceneFolder[] = [{ id: "folder-a", name: "A", color: "#111111", createdAt: "now" }];
     const scenes: CampaignSceneEntry[] = [
@@ -78,5 +127,36 @@ describe("scene library helpers", () => {
       dirtySceneCount: 1,
       sceneCount: 2
     });
+  });
+
+  it("derives collapsed folder ids from expanded folder state", () => {
+    const folders: CampaignSceneFolder[] = [
+      { id: "folder-a", name: "A", color: "#111111", createdAt: "now" },
+      { id: "folder-b", name: "B", color: "#222222", createdAt: "now" }
+    ];
+
+    expect([...getCollapsedFolderIds(folders, new Set(["folder-a"]))]).toEqual(["folder-b"]);
+    expect([...getCollapsedFolderIds(undefined, new Set(["folder-a"]))]).toEqual([]);
+  });
+
+  it("toggles expanded folder ids", () => {
+    expect([...toggleExpandedFolderId(new Set(["folder-a"]), "folder-b")]).toEqual(["folder-a", "folder-b"]);
+    expect([...toggleExpandedFolderId(new Set(["folder-a", "folder-b"]), "folder-a")]).toEqual(["folder-b"]);
+  });
+
+  it("prunes expanded folder ids when campaign folders change", () => {
+    const folders: CampaignSceneFolder[] = [{ id: "folder-a", name: "A", color: "#111111", createdAt: "now" }];
+    const expanded = new Set(["folder-a", "missing-folder"]);
+    const pruned = pruneExpandedFolderIds(expanded, folders);
+
+    expect([...pruned]).toEqual(["folder-a"]);
+    expect(pruned).not.toBe(expanded);
+
+    const unchanged = new Set(["folder-a"]);
+    expect(pruneExpandedFolderIds(unchanged, folders)).toBe(unchanged);
+    expect([...pruneExpandedFolderIds(unchanged, undefined)]).toEqual([]);
+
+    const empty = new Set<string>();
+    expect(pruneExpandedFolderIds(empty, undefined)).toBe(empty);
   });
 });

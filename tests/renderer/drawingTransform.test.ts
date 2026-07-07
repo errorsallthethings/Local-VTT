@@ -5,11 +5,16 @@ import {
   getDrawingGroupSnapAnchor,
   getDrawingMoveDelta,
   getDrawingPointSnapshot,
+  getMovedPointSnapshot,
+  getMovedPointSnapshotForMove,
   getMovedDrawingPointSnapshot,
+  getPointSnapshotMoveDelta,
+  getProjectedSnapAnchor,
   getDrawingResizeHandleAtPoint,
   getDrawingResizeHandles,
   getDrawingRotationHandle,
   getDrawingRotationHandleAtPoint,
+  getDrawingTransformDragStart,
   getResizedDrawingPointSnapshot,
   getRotatedDrawingPointSnapshot,
   getEllipseAxisPoints,
@@ -91,11 +96,51 @@ describe("drawing transform geometry", () => {
     const snapshot = new Map([["a", [{ x: 1, y: 2 }, { x: 3, y: 4 }]]]);
 
     expect(getMovedDrawingPointSnapshot(snapshot, { x: 5, y: -2 }).get("a")).toEqual([{ x: 6, y: 0 }, { x: 8, y: 2 }]);
+    expect(getMovedPointSnapshot(snapshot, { x: 5, y: -2 }).get("a")).toEqual([{ x: 6, y: 0 }, { x: 8, y: 2 }]);
   });
 
   it("prefers snap anchor delta when calculating drawing movement", () => {
     expect(getDrawingMoveDelta({ x: 10, y: 20 }, { x: 50, y: 60 }, { x: 20, y: 25 }, null)).toEqual({ x: 10, y: 5 });
     expect(getDrawingMoveDelta({ x: 10, y: 20 }, { x: 50, y: 60 }, { x: 20, y: 25 }, { x: 80, y: 100 })).toEqual({ x: 30, y: 40 });
+  });
+
+  it("projects snap anchors from pointer movement", () => {
+    expect(getProjectedSnapAnchor({ x: 10, y: 20 }, { x: 50, y: 60 }, { x: 20, y: 25 })).toEqual({ x: 60, y: 65 });
+  });
+
+  it("moves generic point snapshots with and without snap anchors", () => {
+    const snapshot = new Map([["item", [{ x: 1, y: 2 }, { x: 3, y: 4 }]]]);
+
+    expect(
+      getPointSnapshotMoveDelta(
+        {
+          start: { x: 10, y: 20 },
+          groupStartPoints: snapshot
+        },
+        { x: 15, y: 30 }
+      )
+    ).toEqual({ x: 5, y: 10 });
+    expect(
+      getPointSnapshotMoveDelta(
+        {
+          start: { x: 10, y: 20 },
+          snapAnchor: { x: 50, y: 60 },
+          groupStartPoints: snapshot
+        },
+        { x: 15, y: 30 },
+        { x: 70, y: 90 }
+      )
+    ).toEqual({ x: 20, y: 30 });
+
+    expect(
+      getMovedPointSnapshotForMove(
+        {
+          start: { x: 10, y: 20 },
+          groupStartPoints: snapshot
+        },
+        { x: 15, y: 30 }
+      ).get("item")
+    ).toEqual([{ x: 6, y: 12 }, { x: 8, y: 14 }]);
   });
 
   it("resizes drawing point snapshots and skips missing drawings", () => {
@@ -139,6 +184,40 @@ describe("drawing transform geometry", () => {
     expect(getDrawingResizeHandleAtPoint(drawings, ["box"], { x: 100, y: 100 }, camera)?.handle).toBe("se");
     expect(getDrawingRotationHandle({ left: 0, top: 0, right: 100, bottom: 100 }, camera)).toEqual({ x: 50, y: -30 });
     expect(getDrawingRotationHandleAtPoint(drawings, ["box"], { x: 50, y: -30 }, camera)?.center).toEqual({ x: 50, y: 50 });
+  });
+
+  it("starts drawing rotation drags before resize drags", () => {
+    const drawings = [drawing({ id: "box", kind: "rectangle", points: [{ x: 0, y: 0 }, { x: 100, y: 100 }] })];
+    const camera = { x: 0, y: 0, zoom: 1 };
+    const start = getDrawingTransformDragStart(drawings, ["box"], { x: 50, y: -30 }, camera, 7);
+
+    expect(start?.kind).toBe("rotate");
+    expect(start?.state).toMatchObject({
+      pointerId: 7,
+      center: { x: 50, y: 50 }
+    });
+    expect(start?.state.groupStartPoints.get("box")).toEqual([{ x: 0, y: 0 }, { x: 100, y: 100 }]);
+    expect(start?.preview).toBe(start?.state.groupStartPoints);
+  });
+
+  it("starts drawing resize drags when a resize handle is hit", () => {
+    const drawings = [drawing({ id: "box", kind: "rectangle", points: [{ x: 0, y: 0 }, { x: 100, y: 100 }] })];
+    const camera = { x: 0, y: 0, zoom: 1 };
+    const start = getDrawingTransformDragStart(drawings, ["box"], { x: 100, y: 100 }, camera, 9);
+
+    expect(start?.kind).toBe("resize");
+    expect(start?.state).toMatchObject({
+      pointerId: 9,
+      handle: "se",
+      bounds: { left: -2, top: -2, right: 102, bottom: 102 }
+    });
+    expect(start?.state.groupStartPoints.get("box")).toEqual([{ x: 0, y: 0 }, { x: 100, y: 100 }]);
+  });
+
+  it("returns null when no drawing transform handle is hit", () => {
+    const drawings = [drawing({ id: "box", kind: "rectangle", points: [{ x: 0, y: 0 }, { x: 100, y: 100 }] })];
+
+    expect(getDrawingTransformDragStart(drawings, ["box"], { x: 250, y: 250 }, { x: 0, y: 0, zoom: 1 }, 1)).toBeNull();
   });
 
   it("normalizes rectangle, ellipse, and two-point triangle control points", () => {

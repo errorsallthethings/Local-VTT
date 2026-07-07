@@ -3,13 +3,20 @@ import { createDefaultScene, normalizeScene, type Asset, type Scene } from "../.
 import {
   addTurnOrderEntry,
   addPlayersToTurnOrder,
+  addSceneTokenToTurnOrder,
   advanceTurnOrder,
+  clampTurnOrderCountdown,
+  clampTurnOrderRound,
+  clampTurnOrderVisibleEntryCount,
   createCountTrackerTurnOrderEntry,
   createManualTurnOrderEntry,
   createTurnOrderGroupFromEntry,
   createTurnOrderEntryFromAsset,
   createTurnOrderEntryFromToken,
+  getAddableCampaignPlayerCount,
+  getTurnOrderDropTargetIndex,
   getTurnOrderTokenIndicators,
+  getTurnOrderTrackerDisplayPatch,
   linkTurnOrderEntryToToken,
   moveTurnOrderEntry,
   reorderTurnOrderEntry,
@@ -62,6 +69,16 @@ describe("turn order helpers", () => {
     expect(scene.turnOrder.currentEntryId).toBe("c");
   });
 
+  it("calculates drag drop target indexes for turn order reordering", () => {
+    const scene = sceneWithEntries(["a", "b", "c", "d"]);
+
+    expect(getTurnOrderDropTargetIndex(scene.turnOrder.entries, "d", "b", "before")).toBe(1);
+    expect(getTurnOrderDropTargetIndex(scene.turnOrder.entries, "a", "c", "after")).toBe(2);
+    expect(getTurnOrderDropTargetIndex(scene.turnOrder.entries, "b", "b", "after")).toBeNull();
+    expect(getTurnOrderDropTargetIndex(scene.turnOrder.entries, "missing", "b", "before")).toBeNull();
+    expect(getTurnOrderDropTargetIndex(scene.turnOrder.entries, "a", "missing", "before")).toBeNull();
+  });
+
   it("starts, advances, wraps, and stops turn order", () => {
     let scene = sceneWithEntries(["a", "b"]);
     scene = startTurnOrder(scene, "now");
@@ -83,6 +100,30 @@ describe("turn order helpers", () => {
     scene = stopTurnOrder(scene, "now");
     expect(scene.turnOrder.active).toBe(false);
     expect(scene.turnOrder.playerViewVisible).toBe(false);
+  });
+
+  it("makes an all-hidden turn order visible when starting Player View tracking", () => {
+    let scene = sceneWithEntries(["a", "b"]);
+    scene.turnOrder.entries = scene.turnOrder.entries.map((entry) => ({ ...entry, visibleInPlayer: false }));
+
+    scene = startTurnOrder(scene, "now");
+
+    expect(scene.turnOrder.active).toBe(true);
+    expect(scene.turnOrder.playerViewVisible).toBe(true);
+    expect(scene.turnOrder.entries.map((entry) => entry.visibleInPlayer)).toEqual([true, true]);
+  });
+
+  it("preserves explicit hidden entries when at least one turn order entry is already visible", () => {
+    let scene = sceneWithEntries(["a", "b", "c"]);
+    scene.turnOrder.entries = [
+      { ...scene.turnOrder.entries[0], visibleInPlayer: false },
+      { ...scene.turnOrder.entries[1], visibleInPlayer: true },
+      { ...scene.turnOrder.entries[2], visibleInPlayer: false }
+    ];
+
+    scene = startTurnOrder(scene, "now");
+
+    expect(scene.turnOrder.entries.map((entry) => entry.visibleInPlayer)).toEqual([false, true, false]);
   });
 
   it("resets round state when the turn order list is emptied", () => {
@@ -198,6 +239,57 @@ describe("turn order helpers", () => {
       tokenId: "token-1",
       assetId: "asset-1",
       visibleInPlayer: false
+    });
+  });
+
+  it("adds scene tokens to turn order and selects the token", () => {
+    const scene = createDefaultScene("Scene Token Turn Order");
+    scene.tokens = [
+      {
+        id: "token-1",
+        assetId: "asset-1",
+        name: "Bandit",
+        position: { x: 0, y: 0 },
+        size: { width: 70, height: 70 },
+        visibleInPlayer: true
+      }
+    ];
+
+    const result = addSceneTokenToTurnOrder(scene, "token-1", "entry-1", "updated");
+
+    expect(result.selectedTokenId).toBe("token-1");
+    expect(result.scene?.turnOrder.entries).toHaveLength(1);
+    expect(result.scene?.turnOrder.entries[0]).toMatchObject({
+      id: "entry-1",
+      name: "Bandit",
+      tokenId: "token-1",
+      assetId: "asset-1",
+      visibleInPlayer: true
+    });
+    expect(result.scene?.updatedAt).toBe("updated");
+  });
+
+  it("does not add duplicate or missing scene tokens to turn order", () => {
+    let scene = createDefaultScene("Scene Token Turn Order");
+    scene.tokens = [
+      {
+        id: "token-1",
+        assetId: "asset-1",
+        name: "Bandit",
+        position: { x: 0, y: 0 },
+        size: { width: 70, height: 70 },
+        visibleInPlayer: true
+      }
+    ];
+    scene = addTurnOrderEntry(scene, createTurnOrderEntryFromToken("entry-1", scene.tokens[0]), "initial");
+
+    expect(addSceneTokenToTurnOrder(scene, "token-1", "entry-2", "updated")).toEqual({
+      scene: null,
+      selectedTokenId: "token-1"
+    });
+    expect(addSceneTokenToTurnOrder(scene, "missing", "entry-2", "updated")).toEqual({
+      scene: null,
+      selectedTokenId: "missing"
     });
   });
 
@@ -377,6 +469,59 @@ describe("turn order helpers", () => {
     expect(withPlayers.turnOrder.entries[0]).toMatchObject({ name: "Alice", visibleInPlayer: true });
     expect(withPlayers.turnOrder.entries[1]).toMatchObject({ name: "Ben", visibleInPlayer: true });
     expect(unchanged).toBe(withPlayers);
+  });
+
+  it("counts campaign players that can still be added", () => {
+    const scene = sceneWithEntries(["a"]);
+    const players = [
+      { id: "player-1", name: "Alice", color: "#ff0000", defaultSeatEdge: "bottom" as const, defaultSeatPosition: 0.25, visibleInPlayer: true },
+      { id: "player-2", name: "Ben", color: "#00ff00", defaultSeatEdge: "left" as const, defaultSeatPosition: 0.5, visibleInPlayer: false },
+      { id: "player-3", name: "Cora", color: "#0000ff", defaultSeatEdge: "right" as const, defaultSeatPosition: 0.75, visibleInPlayer: true }
+    ];
+    scene.turnOrder.entries = [
+      { ...scene.turnOrder.entries[0], playerId: "player-1" },
+      createManualTurnOrderEntry("monster", "Monster")
+    ];
+
+    expect(getAddableCampaignPlayerCount(scene, players)).toBe(2);
+    expect(getAddableCampaignPlayerCount(null, players)).toBe(0);
+  });
+
+  it("builds tracker display patches while preserving other tracker settings", () => {
+    const scene = createDefaultScene("Tracker Patch");
+
+    const enabledPatch = getTurnOrderTrackerDisplayPatch(scene.turnOrder, "left", { enabled: true });
+    expect(enabledPatch).toMatchObject({
+      playerViewEdge: "left",
+      playerViewFacing: "inward",
+      playerViewSize: "md",
+      playerViewTrackers: {
+        left: { enabled: true, facing: "inward", size: "md" },
+        top: { enabled: true, facing: "inward", size: "md" }
+      }
+    });
+
+    const facingPatch = getTurnOrderTrackerDisplayPatch(scene.turnOrder, "right", { facing: "outward", size: "lg" });
+    expect(facingPatch).toMatchObject({
+      playerViewEdge: "right",
+      playerViewFacing: "outward",
+      playerViewSize: "lg",
+      playerViewTrackers: {
+        right: { enabled: false, facing: "outward", size: "lg" }
+      }
+    });
+  });
+
+  it("clamps turn order numeric settings for UI input", () => {
+    expect(clampTurnOrderRound(-1)).toBe(1);
+    expect(clampTurnOrderRound(1000)).toBe(999);
+    expect(clampTurnOrderRound(Number.NaN)).toBe(1);
+    expect(clampTurnOrderCountdown(-1)).toBe(0);
+    expect(clampTurnOrderCountdown(1000)).toBe(999);
+    expect(clampTurnOrderCountdown(Number.NaN)).toBe(1);
+    expect(clampTurnOrderVisibleEntryCount(0)).toBe(1);
+    expect(clampTurnOrderVisibleEntryCount(99)).toBe(30);
+    expect(clampTurnOrderVisibleEntryCount(Number.NaN)).toBe(9);
   });
 
   it("rolls initiative for non-player entries only", () => {

@@ -1,3 +1,5 @@
+import { loadLocalStorageJson, readLocalStorageItem, writeLocalStorageItem, saveLocalStorageJson } from "../storage/localStorageJson";
+
 export type WorkspacePanelSide = "left" | "right";
 
 export type WorkspaceLayout = {
@@ -25,24 +27,19 @@ export const MIN_TOKEN_LIBRARY_HEIGHT = 170;
 export const MAX_TOKEN_LIBRARY_HEIGHT = 760;
 
 export function loadWorkspaceLayout(storage: Pick<Storage, "getItem"> = window.localStorage): WorkspaceLayout {
-  try {
-    const value = storage.getItem(WORKSPACE_LAYOUT_STORAGE_KEY);
-    if (!value) {
-      return DEFAULT_WORKSPACE_LAYOUT;
-    }
-    const parsed = JSON.parse(value) as Partial<WorkspaceLayout>;
-    return normalizeWorkspaceLayout(parsed);
-  } catch {
+  const parsed = loadLocalStorageJson(storage, WORKSPACE_LAYOUT_STORAGE_KEY, DEFAULT_WORKSPACE_LAYOUT);
+  if (!isRecord(parsed)) {
     return DEFAULT_WORKSPACE_LAYOUT;
   }
+  return normalizeWorkspaceLayout(parsed);
 }
 
 export function saveWorkspaceLayout(layout: WorkspaceLayout, storage: Pick<Storage, "setItem"> = window.localStorage): void {
-  storage.setItem(WORKSPACE_LAYOUT_STORAGE_KEY, JSON.stringify(layout));
+  saveLocalStorageJson(storage, WORKSPACE_LAYOUT_STORAGE_KEY, layout);
 }
 
 export function loadTokenLibraryHeight(storage: Pick<Storage, "getItem"> = window.localStorage): number {
-  const storedValue = storage.getItem(TOKEN_LIBRARY_HEIGHT_STORAGE_KEY);
+  const storedValue = readLocalStorageItem(storage, TOKEN_LIBRARY_HEIGHT_STORAGE_KEY);
   if (!storedValue) {
     return DEFAULT_TOKEN_LIBRARY_HEIGHT;
   }
@@ -54,7 +51,7 @@ export function loadTokenLibraryHeight(storage: Pick<Storage, "getItem"> = windo
 }
 
 export function saveTokenLibraryHeight(height: number, storage: Pick<Storage, "setItem"> = window.localStorage): void {
-  storage.setItem(TOKEN_LIBRARY_HEIGHT_STORAGE_KEY, String(height));
+  writeLocalStorageItem(storage, TOKEN_LIBRARY_HEIGHT_STORAGE_KEY, String(height));
 }
 
 export function normalizeWorkspaceLayout(layout: Partial<WorkspaceLayout>): WorkspaceLayout {
@@ -86,6 +83,29 @@ export function resizePanelWidth(layout: WorkspaceLayout, side: WorkspacePanelSi
   return side === "left" ? { ...layout, leftWidth: width } : { ...layout, rightWidth: width };
 }
 
+export interface WorkspacePanelResizePlan {
+  side: WorkspacePanelSide;
+  startClientX: number;
+  startWidth: number;
+}
+
+export function getWorkspacePanelResizePlan(layout: WorkspaceLayout, side: WorkspacePanelSide, startClientX: number): WorkspacePanelResizePlan {
+  return {
+    side,
+    startClientX,
+    startWidth: getWorkspacePanelWidth(layout, side)
+  };
+}
+
+export function getResizedWorkspacePanelLayout(layout: WorkspaceLayout, plan: WorkspacePanelResizePlan, currentClientX: number): WorkspaceLayout {
+  const delta = getWorkspacePanelResizeDelta(plan.side, plan.startClientX, currentClientX);
+  return resizePanelWidth(layout, plan.side, plan.startWidth, delta);
+}
+
+export function getWorkspacePanelResizeDelta(side: WorkspacePanelSide, startClientX: number, currentClientX: number): number {
+  return side === "left" ? currentClientX - startClientX : startClientX - currentClientX;
+}
+
 export function getWorkspacePanelWidth(layout: WorkspaceLayout, side: WorkspacePanelSide): number {
   if (side === "left") {
     return layout.leftWidth;
@@ -93,6 +113,57 @@ export function getWorkspacePanelWidth(layout: WorkspaceLayout, side: WorkspaceP
   return layout.rightWidth;
 }
 
+export function getTokenLibraryResizeHeight(startHeight: number, startClientY: number, currentClientY: number): number {
+  return normalizeTokenLibraryHeight(startHeight + startClientY - currentClientY);
+}
+
+export interface TokenLibraryResizePlan {
+  startClientY: number;
+  startHeight: number;
+}
+
+export function getTokenLibraryResizePlan(startHeight: number, startClientY: number): TokenLibraryResizePlan {
+  return {
+    startClientY,
+    startHeight
+  };
+}
+
+export function getResizedTokenLibraryHeight(plan: TokenLibraryResizePlan, currentClientY: number): number {
+  return getTokenLibraryResizeHeight(plan.startHeight, plan.startClientY, currentClientY);
+}
+
+export interface WorkspaceShellPresentation {
+  className: string;
+  style: {
+    "--left-sidebar-width": string;
+    "--right-inspector-width": string;
+    "--token-library-expanded-height": string;
+  };
+}
+
+export function getWorkspaceShellPresentation(layout: WorkspaceLayout, tokenLibraryHeight: number): WorkspaceShellPresentation {
+  return {
+    className: [
+      "app-shell",
+      layout.leftCollapsed ? "sidebar-collapsed" : "",
+      layout.rightCollapsed ? "inspector-collapsed" : "",
+      !layout.rightCollapsed && layout.rightWidth <= COMPACT_RIGHT_PANEL_WIDTH ? "inspector-compact" : ""
+    ]
+      .filter(Boolean)
+      .join(" "),
+    style: {
+      "--left-sidebar-width": `${layout.leftCollapsed ? COLLAPSED_RAIL_WIDTH : layout.leftWidth}px`,
+      "--right-inspector-width": `${layout.rightCollapsed ? COLLAPSED_RAIL_WIDTH : layout.rightWidth}px`,
+      "--token-library-expanded-height": `${tokenLibraryHeight}px`
+    }
+  };
+}
+
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function isRecord(value: unknown): value is Partial<WorkspaceLayout> {
+  return typeof value === "object" && value !== null;
 }

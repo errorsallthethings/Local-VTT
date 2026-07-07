@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { Asset, CampaignSceneEntry } from "../../src/shared/localvtt";
 import { createDefaultScene } from "../../src/shared/localvtt";
-import { buildAssetsById, buildAssetsByKind, buildSceneThumbnailAssets } from "../../src/renderer/lib/assets";
+import {
+  buildAssetsById,
+  buildAssetsByKind,
+  buildSceneThumbnailAssets,
+  getAssetThumbnailPreviewLabel,
+  getAssetThumbnailPreviewMessage,
+  getAssetThumbnailPreviewPath
+} from "../../src/renderer/lib/assets";
 
 function asset(id: string, kind: Asset["kind"]): Asset {
   return {
@@ -22,6 +29,27 @@ describe("asset library helpers", () => {
 
     expect(buildAssetsById([mapAsset, tokenAsset]).get("map-1")).toBe(mapAsset);
     expect([...buildAssetsByKind([mapAsset, tokenAsset], "token").keys()]).toEqual(["token-1"]);
+  });
+
+  it("uses thumbnail-only paths for compact asset previews", () => {
+    expect(getAssetThumbnailPreviewPath({ ...asset("token-1", "token"), absolutePath: "C:/tokens/original.png", thumbnailAbsolutePath: "C:/tokens/thumb.jpg" })).toBe(
+      "C:/tokens/thumb.jpg"
+    );
+    expect(getAssetThumbnailPreviewPath({ ...asset("token-2", "token"), absolutePath: "C:/tokens/original.png" })).toBeNull();
+    expect(getAssetThumbnailPreviewPath(null)).toBeNull();
+  });
+
+  it("explains missing compact thumbnail previews", () => {
+    expect(getAssetThumbnailPreviewMessage({ ...asset("token-1", "token"), thumbnailAbsolutePath: "C:/tokens/thumb.jpg" })).toBeNull();
+    expect(getAssetThumbnailPreviewMessage({ ...asset("token-2", "token"), thumbnailRelativePath: "assets/thumbnails/missing.jpg" })).toContain("missing");
+    expect(getAssetThumbnailPreviewMessage(asset("token-3", "token"))).toContain("No thumbnail preview");
+    expect(getAssetThumbnailPreviewMessage(null)).toBeNull();
+  });
+
+  it("labels missing compact previews consistently", () => {
+    expect(getAssetThumbnailPreviewLabel({ ...asset("map-1", "map"), thumbnailAbsolutePath: "C:/maps/thumb.jpg" })).toBe("No preview");
+    expect(getAssetThumbnailPreviewLabel({ ...asset("map-2", "map"), thumbnailRelativePath: "assets/thumbnails/missing.jpg" })).toBe("Missing preview");
+    expect(getAssetThumbnailPreviewLabel(asset("map-3", "map"))).toBe("Missing preview");
   });
 
   it("uses draft and active scene map ids for scene thumbnails", () => {

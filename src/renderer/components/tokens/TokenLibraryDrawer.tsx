@@ -22,9 +22,13 @@ import { createPortal } from "react-dom";
 import type { Asset } from "../../../shared/localvtt";
 import { useDismissableMenu } from "../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../hooks/useFloatingMenuPosition";
+import { getAssetThumbnailPreviewMessage, getAssetThumbnailPreviewPath } from "../../lib/assets";
 import { TOKEN_LIBRARY_ASSET_DRAG_TYPE } from "../../lib/tokens";
+import { CompactAssetThumbnail } from "../assets/CompactAssetThumbnail";
 import {
   buildTokenLibraryAssetIndex,
+  getTokenLibraryDrawerPresentation,
+  getTokenLibrarySplitPercent,
   filterTokenLibraryAssetIndex,
   getSelectedTokenLibraryAsset,
   getSelectedTokenLibraryAssetIds,
@@ -121,6 +125,7 @@ export function TokenLibraryDrawer({
     [selectedTokenAssetId, selectedTokenAssetIds]
   );
   const selectedTokenAsset = useMemo(() => getSelectedTokenLibraryAsset(assets, selectedTokenAssetId), [assets, selectedTokenAssetId]);
+  const drawerPresentation = useMemo(() => getTokenLibraryDrawerPresentation(view, expanded, Boolean(sidePanel), splitPercent), [expanded, sidePanel, splitPercent, view]);
   const virtualGridStyle = useMemo(
     () =>
       ({
@@ -186,8 +191,7 @@ export function TokenLibraryDrawer({
     event.stopPropagation();
     const bounds = content.getBoundingClientRect();
     const updateSplit = (clientX: number) => {
-      const nextPercent = ((clientX - bounds.left) / bounds.width) * 100;
-      setSplitPercent(Math.min(76, Math.max(38, nextPercent)));
+      setSplitPercent(getTokenLibrarySplitPercent(clientX, bounds.left, bounds.width));
     };
     updateSplit(event.clientX);
     const onPointerMove = (moveEvent: PointerEvent) => updateSplit(moveEvent.clientX);
@@ -201,9 +205,7 @@ export function TokenLibraryDrawer({
 
   return (
     <section
-      className={`token-library-drawer token-library-view-${view} ${
-        expanded ? "token-library-expanded" : "token-library-collapsed-click-target"
-      }`}
+      className={drawerPresentation.className}
       onClick={() => {
         if (!expanded) {
           onToggleExpanded();
@@ -242,7 +244,7 @@ export function TokenLibraryDrawer({
         <div
           ref={contentRef}
           className={sidePanel ? "token-library-content token-library-content-split" : "token-library-content"}
-          style={sidePanel ? ({ "--scene-tools-token-width": `${splitPercent}%` } as CSSProperties) : undefined}
+          style={drawerPresentation.contentStyle as CSSProperties | undefined}
         >
           <div className="token-library-main-panel">
             <div className="token-library-panel-heading">
@@ -425,7 +427,8 @@ function TokenLibraryItem({
   onRenameToken: (asset: Asset) => void;
   onDeleteToken: (asset: Asset) => void;
 }) {
-  const previewPath = asset.thumbnailAbsolutePath ?? asset.absolutePath;
+  const previewPath = getAssetThumbnailPreviewPath(asset);
+  const previewMessage = getAssetThumbnailPreviewMessage(asset);
   const label = asset.name || asset.originalFileName || "Token";
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   return (
@@ -448,8 +451,8 @@ function TokenLibraryItem({
       <span className="token-library-drag-indicator token-library-drag-indicator-horizontal" aria-hidden="true">
         <GripHorizontal size={14} />
       </span>
-      <div className="token-library-thumb">
-        {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" loading="lazy" decoding="async" draggable={false} /> : <PackageOpen size={18} aria-hidden="true" />}
+      <div className="token-library-thumb" title={previewMessage ?? undefined}>
+        <CompactAssetThumbnail previewPath={previewPath} fallback={<PackageOpen size={18} aria-hidden="true" />} lazy />
       </div>
       <div className="token-library-item-meta">
         <strong>{label}</strong>

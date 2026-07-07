@@ -363,8 +363,140 @@
   font-size: 12px;
 }
 
+.campaign-health-modal {
+  width: min(780px, 100%);
+  max-height: min(760px, 92vh);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.campaign-health-header,
+.campaign-health-status,
+.campaign-health-section-heading,
+.campaign-health-row {
+  display: flex;
+  gap: 10px;
+}
+
+.campaign-health-header {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.campaign-health-header p {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.campaign-health-status {
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 44%, var(--color-border-muted));
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-warning) 12%, var(--color-bg-input));
+  color: var(--color-text-muted);
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.campaign-health-status-ok {
+  border-color: color-mix(in srgb, var(--color-success-strong) 44%, var(--color-border-muted));
+  background: color-mix(in srgb, var(--color-success-strong) 10%, var(--color-bg-input));
+}
+
+.campaign-health-status svg {
+  flex: 0 0 auto;
+  color: var(--color-warning);
+}
+
+.campaign-health-status-ok svg {
+  color: var(--color-success-strong);
+}
+
+.campaign-health-sections {
+  display: grid;
+  gap: 10px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.campaign-health-section {
+  overflow: hidden;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-input);
+}
+
+.campaign-health-section-heading {
+  align-items: center;
+  border-bottom: 1px solid var(--color-border-muted);
+  padding: 9px 10px;
+}
+
+.campaign-health-section-heading strong {
+  flex: 1;
+  font-size: 13px;
+}
+
+.campaign-health-section-heading span {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 22px;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.campaign-health-list {
+  display: grid;
+  max-height: 170px;
+  overflow: auto;
+}
+
+.campaign-health-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.7fr) minmax(120px, 0.8fr) minmax(0, 1.4fr);
+  align-items: start;
+  border-bottom: 1px solid var(--color-border-muted);
+  padding: 9px 10px;
+  font-size: 12px;
+}
+
+.campaign-health-row:last-child {
+  border-bottom: 0;
+}
+
+.campaign-health-row strong,
+.campaign-health-row span,
+.campaign-health-row code {
+  overflow-wrap: anywhere;
+}
+
+.campaign-health-row span,
+.campaign-health-empty {
+  color: var(--color-text-muted);
+}
+
+.campaign-health-row code {
+  color: var(--color-text-soft);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+}
+
+.campaign-health-empty {
+  padding: 10px;
+  font-size: 12px;
+}
+
 @media (max-width: 760px) {
   .metadata-restore-body {
+    grid-template-columns: 1fr;
+  }
+
+  .campaign-health-row {
     grid-template-columns: 1fr;
   }
 }

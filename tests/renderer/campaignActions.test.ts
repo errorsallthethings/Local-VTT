@@ -5,6 +5,7 @@ import {
   getDuplicateSceneName,
   getDirtySceneIdsInFolder,
   getSceneDraftToSave,
+  getSceneToSaveBeforeClose,
   insertSceneFolderAfterSource,
   insertSceneEntryAfterSource,
   moveSceneEntry,
@@ -41,6 +42,28 @@ describe("campaign action helpers", () => {
     ];
 
     expect(getDirtySceneIdsInFolder(campaign, new Set(["scene-1", "scene-2"]), "folder-a")).toEqual(["scene-1"]);
+  });
+
+  it("selects scenes to save before close when dirty or turn order is visible", () => {
+    const cleanScene = createDefaultScene("Clean");
+    const dirtyScene = createDefaultScene("Dirty");
+    const activeTurnOrderScene = {
+      ...createDefaultScene("Active Turn Order"),
+      turnOrder: {
+        ...createDefaultScene("Active Turn Order").turnOrder,
+        active: true,
+        playerViewVisible: true
+      }
+    };
+
+    expect(getSceneToSaveBeforeClose(cleanScene, false, "now")).toBeNull();
+    expect(getSceneToSaveBeforeClose(dirtyScene, true, "now")).toBe(dirtyScene);
+
+    const stopped = getSceneToSaveBeforeClose(activeTurnOrderScene, false, "now");
+    expect(stopped).toMatchObject({
+      updatedAt: "now",
+      turnOrder: expect.objectContaining({ active: false, playerViewVisible: false })
+    });
   });
 
   it("moves a scene entry to a folder without changing other scene metadata", () => {

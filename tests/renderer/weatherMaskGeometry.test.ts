@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createDefaultScene } from "../../src/shared/localvtt";
 import type { WeatherMask } from "../../src/shared/localvtt";
 import {
   getVisibleWeatherMasks,
@@ -6,7 +7,9 @@ import {
   getWeatherMaskFromPolygonDraft,
   getWeatherMaskDragFromPoint,
   getWeatherMaskDragRect,
+  getWeatherMaskPointSnapshot,
   getWeatherMaskRect,
+  getWeatherMasksWithPointOverrides,
   getUpdatedWeatherMaskDrag,
   isMeaningfulWeatherMaskDrag,
   type WeatherMaskDrag
@@ -119,5 +122,35 @@ describe("weather mask geometry", () => {
     ];
 
     expect(getVisibleWeatherMasks(masks).map((mask) => mask.id)).toEqual(["visible-default", "visible-explicit"]);
+  });
+
+  it("captures cloned weather mask point snapshots for selected ids", () => {
+    const scene = createDefaultScene("Weather Snapshot");
+    scene.weather.masks = [
+      { id: "mask-1", kind: "polygon", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }, { x: 5, y: 6 }] },
+      { id: "mask-2", kind: "rectangle", points: [{ x: 10, y: 20 }, { x: 30, y: 40 }] }
+    ];
+
+    const snapshot = getWeatherMaskPointSnapshot(scene, ["mask-1", "missing"]);
+
+    expect([...snapshot.keys()]).toEqual(["mask-1"]);
+    expect(snapshot.get("mask-1")).toEqual([{ x: 1, y: 2 }, { x: 3, y: 4 }, { x: 5, y: 6 }]);
+    expect(snapshot.get("mask-1")).not.toBe(scene.weather.masks[0].points);
+  });
+
+  it("applies weather mask point overrides without mutating other masks", () => {
+    const scene = createDefaultScene("Weather Overrides");
+    scene.weather.masks = [
+      { id: "mask-1", kind: "rectangle", points: [{ x: 0, y: 0 }, { x: 10, y: 10 }] },
+      { id: "mask-2", kind: "rectangle", points: [{ x: 20, y: 20 }, { x: 30, y: 30 }] }
+    ];
+    const overridePoints = [{ x: 5, y: 5 }, { x: 15, y: 15 }];
+
+    const masks = getWeatherMasksWithPointOverrides(scene, new Map([["mask-1", overridePoints]]));
+
+    expect(masks[0]).toEqual({ ...scene.weather.masks[0], points: overridePoints });
+    expect(masks[0]).not.toBe(scene.weather.masks[0]);
+    expect(masks[1]).toBe(scene.weather.masks[1]);
+    expect(getWeatherMasksWithPointOverrides(scene, null)).toBe(scene.weather.masks);
   });
 });

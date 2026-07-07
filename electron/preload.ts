@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { LocalVttApi } from "../src/shared/localVttApi.js";
 import type {
   Asset,
+  AssetPruneResult,
   Campaign,
   CampaignSummary,
   LiveTableEvent,
@@ -12,16 +14,18 @@ import type {
   PlayerSceneProjection,
   Scene,
   SquareCropRect,
+  TokenAssetPromotionResult,
   ThumbnailRegenerationProgress,
   ThumbnailRegenerationResult
 } from "../src/shared/localvtt.js";
 
-const api = {
+const api: LocalVttApi = {
   createCampaign: () => ipcRenderer.invoke("campaign:create") as Promise<CampaignSummary | null>,
   openCampaign: () => ipcRenderer.invoke("campaign:open") as Promise<CampaignSummary | null>,
   openRecentCampaign: (campaignPath: string) => ipcRenderer.invoke("campaign:openRecent", campaignPath) as Promise<CampaignSummary>,
   saveCampaign: (campaignPath: string, campaign: Campaign) =>
     ipcRenderer.invoke("campaign:save", campaignPath, campaign) as Promise<CampaignSummary>,
+  refreshCampaign: (campaignPath: string) => ipcRenderer.invoke("campaign:refresh", campaignPath) as Promise<CampaignSummary>,
   openBackupsFolder: (campaignPath: string) => ipcRenderer.invoke("campaign:openBackupsFolder", campaignPath) as Promise<boolean>,
   listMetadataBackups: (campaignPath: string) => ipcRenderer.invoke("campaign:listMetadataBackups", campaignPath) as Promise<MetadataBackupEntry[]>,
   previewMetadataBackup: (campaignPath: string, ref: MetadataBackupRef) =>
@@ -44,21 +48,25 @@ const api = {
     ipcRenderer.invoke("asset:importMap", campaignPath) as Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>,
   previewMapReplacement: (campaignPath: string, sceneId: string, currentAssetId: string) =>
     ipcRenderer.invoke("asset:previewMapReplacement", campaignPath, sceneId, currentAssetId) as Promise<{
-      sourcePath: string;
+      replacementId: string;
       sourceName: string;
       currentAssetName: string;
       currentDimensions?: { width: number; height: number };
       nextDimensions?: { width: number; height: number };
       warning?: string;
     } | null>,
-  replaceMap: (campaignPath: string, sceneId: string, currentAssetId: string, sourcePath: string) =>
-    ipcRenderer.invoke("asset:replaceMap", campaignPath, sceneId, currentAssetId, sourcePath) as Promise<{ campaignSummary: CampaignSummary; scene: Scene; asset: Asset }>,
+  replaceMap: (campaignPath: string, sceneId: string, currentAssetId: string, replacementId: string) =>
+    ipcRenderer.invoke("asset:replaceMap", campaignPath, sceneId, currentAssetId, replacementId) as Promise<{ campaignSummary: CampaignSummary; scene: Scene; asset: Asset }>,
   importToken: (campaignPath: string) =>
     ipcRenderer.invoke("asset:importToken", campaignPath) as Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>,
   updateTokenThumbnail: (campaignPath: string, assetId: string, crop: SquareCropRect) =>
     ipcRenderer.invoke("asset:updateTokenThumbnail", campaignPath, assetId, crop) as Promise<{ campaignSummary: CampaignSummary; asset: Asset }>,
   regenerateThumbnails: (campaignPath: string) =>
     ipcRenderer.invoke("asset:regenerateThumbnails", campaignPath) as Promise<ThumbnailRegenerationResult>,
+  promoteTokenAssets: (campaignPath: string) =>
+    ipcRenderer.invoke("asset:promoteTokenAssets", campaignPath) as Promise<TokenAssetPromotionResult>,
+  pruneUnreferencedAssets: (campaignPath: string) =>
+    ipcRenderer.invoke("asset:pruneUnreferencedAssets", campaignPath) as Promise<AssetPruneResult>,
   onThumbnailRegenerationProgress: (callback: (progress: ThumbnailRegenerationProgress) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, progress: ThumbnailRegenerationProgress) => callback(progress);
     ipcRenderer.on("asset:thumbnailRegenerationProgress", listener);
@@ -90,17 +98,7 @@ const api = {
     ipcRenderer.invoke("player:setFullscreen", fullscreen) as Promise<boolean>,
   closePlayerView: () => ipcRenderer.invoke("player:close") as Promise<boolean>,
   getLastPlayerState: () => ipcRenderer.invoke("player:getLastState") as Promise<unknown>,
-  getDisplays: () => ipcRenderer.invoke("app:getDisplays") as Promise<
-    Array<{
-      id: number;
-      label: string;
-      bounds: { x: number; y: number; width: number; height: number };
-      workArea: { x: number; y: number; width: number; height: number };
-      nativeResolution: { width: number; height: number };
-      scaleFactor: number;
-      rotation: number;
-    }>
-  >,
+  getDisplays: () => ipcRenderer.invoke("app:getDisplays") as ReturnType<LocalVttApi["getDisplays"]>,
   setUnsavedChanges: (hasUnsavedChanges: boolean) => {
     ipcRenderer.send("app:setUnsavedChanges", hasUnsavedChanges);
   },
@@ -132,5 +130,4 @@ const api = {
 };
 
 contextBridge.exposeInMainWorld("localVtt", api);
-
-export type LocalVttApi = typeof api;
+export type { LocalVttApi } from "../src/shared/localVttApi.js";

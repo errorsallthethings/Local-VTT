@@ -40,8 +40,26 @@ import type {
   VoidEffectTuningSettings,
   WaterEffectTuningSettings
 } from "./environmentEffectTuning.js";
+import {
+  CURRENT_CAMPAIGN_SCHEMA_VERSION,
+  CURRENT_SCENE_SCHEMA_VERSION,
+  isSupportedSchemaVersion,
+  migrateCampaignToCurrent,
+  migrateSceneToCurrent
+} from "./schemaMigrations.js";
+import type { CampaignHealthReport } from "./campaignHealth.js";
 
 export type { EnvironmentEffectType } from "./environmentEffectCatalog.js";
+export type { CampaignHealthReport } from "./campaignHealth.js";
+export {
+  CURRENT_CAMPAIGN_SCHEMA_VERSION,
+  CURRENT_SCENE_SCHEMA_VERSION,
+  LEGACY_SCHEMA_VERSION,
+  isSupportedSchemaVersion,
+  migrateCampaignToCurrent,
+  migrateSceneToCurrent,
+  normalizeSchemaVersion
+} from "./schemaMigrations.js";
 
 export type AssetKind = "map" | "token" | "overlay" | "effect" | "handout";
 export type AssetMediaType = "image" | "video";
@@ -56,10 +74,6 @@ export type TokenSizePreset = "tiny" | "medium" | "large" | "huge" | "gargantuan
 export type TokenMask = "none" | "circle" | "square";
 export type TokenBorderStyle = "none" | "solid" | "dashed" | "dotted" | "double-line" | "embossed" | "inner-shadow" | "glow";
 export type TokenBorderWidthPreset = "thin" | "medium" | "thick" | "custom";
-
-export const CURRENT_CAMPAIGN_SCHEMA_VERSION = 2;
-export const CURRENT_SCENE_SCHEMA_VERSION = 2;
-const LEGACY_SCHEMA_VERSION = 0;
 
 export interface TokenPresentationDefaults {
   sizePreset?: TokenSizePreset;
@@ -701,6 +715,7 @@ export interface CampaignSummary {
   campaignPath: string;
   campaign: Campaign;
   missingAssets: string[];
+  health: CampaignHealthReport;
 }
 
 export type MetadataBackupKind = "campaign" | "scene";
@@ -741,6 +756,21 @@ export interface ThumbnailRegenerationResult {
   campaignSummary: CampaignSummary;
   regenerated: number;
   skipped: number;
+  failed: ThumbnailRegenerationFailure[];
+}
+
+export interface TokenAssetPromotionResult {
+  campaignSummary: CampaignSummary;
+  promoted: number;
+  skipped: number;
+  failed: ThumbnailRegenerationFailure[];
+}
+
+export interface AssetPruneResult {
+  campaignSummary: CampaignSummary;
+  pruned: number;
+  skipped: number;
+  removedFiles: number;
   failed: ThumbnailRegenerationFailure[];
 }
 
@@ -1639,20 +1669,6 @@ function normalizeSceneOverlays(overlays?: SceneOverlay[]): SceneOverlay[] {
   }));
 }
 
-function migrateSceneToCurrent(scene: Scene): Scene {
-  const schemaVersion = normalizeSchemaVersion(scene.schemaVersion, CURRENT_SCENE_SCHEMA_VERSION);
-  if (schemaVersion === LEGACY_SCHEMA_VERSION) {
-    return {
-      ...scene,
-      schemaVersion: CURRENT_SCENE_SCHEMA_VERSION
-    };
-  }
-  return {
-    ...scene,
-    schemaVersion: CURRENT_SCENE_SCHEMA_VERSION
-  };
-}
-
 function isUnitNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
@@ -1978,17 +1994,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function isSupportedSchemaVersion(value: unknown, currentVersion: number): boolean {
-  if (value === undefined) {
-    return true;
-  }
-  return typeof value === "number" && Number.isInteger(value) && value >= LEGACY_SCHEMA_VERSION && value <= currentVersion;
-}
-
-function normalizeSchemaVersion(value: unknown, currentVersion: number): number {
-  return isSupportedSchemaVersion(value, currentVersion) && typeof value === "number" ? value : LEGACY_SCHEMA_VERSION;
-}
-
 function normalizeFog(fog?: Partial<FogSettings>): FogSettings {
   const legacyOpacity = fog?.opacity ?? DEFAULT_FOG.opacity;
   const usedShapeIds = new Set<string>();
@@ -2306,20 +2311,6 @@ function normalizeDiceSettings(settings?: Partial<DiceSettings>): DiceSettings {
   };
 }
 
-function migrateCampaignToCurrent(campaign: Campaign): Campaign {
-  const schemaVersion = normalizeSchemaVersion(campaign.schemaVersion, CURRENT_CAMPAIGN_SCHEMA_VERSION);
-  if (schemaVersion === LEGACY_SCHEMA_VERSION) {
-    return {
-      ...campaign,
-      schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION
-    };
-  }
-  return {
-    ...campaign,
-    schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION
-  };
-}
-
 export function normalizeCampaign(campaign: Campaign): Campaign {
   const migratedCampaign = migrateCampaignToCurrent(campaign);
   const sceneFolders = (migratedCampaign.sceneFolders ?? []).map((folder) => ({
@@ -2486,6 +2477,20 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
   const normalizedCampaign = normalizeCampaign(campaign);
   const normalizedScene = normalizeScene(scene);
   const playerLayerIds = new Set(normalizedScene.layers.filter((layer) => layer.visibleInPlayer).map((layer) => layer.id));
+  const projectedTurnOrderEntries = normalizedScene.turnOrder.entries.filter((entry) => entry.visibleInPlayer);
+  const projectedTurnOrderSeats = normalizedScene.turnOrder.seats.filter((seat) => seat.visibleInPlayer);
+  const projectedTurnOrderEntryIds = new Set(projectedTurnOrderEntries.map((entry) => entry.id));
+  const projectedCurrentEntryId =
+    normalizedScene.turnOrder.currentEntryId && projectedTurnOrderEntryIds.has(normalizedScene.turnOrder.currentEntryId) ? normalizedScene.turnOrder.currentEntryId : undefined;
+  const turnOrderPlayerIds = new Set<string>();
+  if (normalizedScene.turnOrder.active && normalizedScene.turnOrder.playerViewVisible) {
+    for (const entry of projectedTurnOrderEntries) {
+      if (entry.playerId) {
+        turnOrderPlayerIds.add(entry.playerId);
+      }
+    }
+  }
+  const projectedPlayers = normalizedCampaign.players.filter((player) => player.visibleInPlayer || turnOrderPlayerIds.has(player.id));
   const usedAssetIds = new Set<string>();
   if (normalizedScene.mapAssetId && playerLayerIds.has("map")) {
     usedAssetIds.add(normalizedScene.mapAssetId);
@@ -2500,12 +2505,17 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
       usedAssetIds.add(overlay.assetId);
     }
   }
-  for (const entry of normalizedScene.turnOrder.entries) {
-    if (entry.visibleInPlayer && entry.assetId) {
+  for (const entry of projectedTurnOrderEntries) {
+    if (entry.assetId) {
       usedAssetIds.add(entry.assetId);
     }
   }
-  for (const player of normalizedCampaign.players) {
+  for (const seat of projectedTurnOrderSeats) {
+    if (seat.assetId) {
+      usedAssetIds.add(seat.assetId);
+    }
+  }
+  for (const player of projectedPlayers) {
     if (player.assetId) {
       usedAssetIds.add(player.assetId);
     }
@@ -2514,7 +2524,7 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
   return {
     campaignName: normalizedCampaign.name,
     playerDisplay: normalizedCampaign.playerDisplay,
-    players: normalizedCampaign.players,
+    players: projectedPlayers,
     showPlayerSeatIndicators: options.showPlayerSeatIndicators ?? false,
     scene: {
       ...normalizedScene,
@@ -2541,6 +2551,12 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
       lights: [],
       drawings: normalizedScene.drawings.filter((drawing) => drawing.visibleInPlayer && playerLayerIds.has("drawing")),
       overlays: normalizedScene.overlays.filter((overlay) => overlay.visibleInPlayer && playerLayerIds.has(overlay.layerId)),
+      turnOrder: {
+        ...normalizedScene.turnOrder,
+        currentEntryId: projectedCurrentEntryId,
+        entries: projectedTurnOrderEntries,
+        seats: projectedTurnOrderSeats
+      },
       notes: ""
     },
     assets: normalizedCampaign.assets.filter((asset) => usedAssetIds.has(asset.id))

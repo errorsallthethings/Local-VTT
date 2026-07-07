@@ -30,20 +30,21 @@ export async function runVisualSmokeTest(win: BrowserWindow, options: VisualSmok
   await mkdir(outputDir, { recursive: true });
 
   const playerOpenResult = await win.webContents.executeJavaScript(`window.localVtt.openPlayerView({ fullscreen: false })`);
-  const playerDelivered = await win.webContents.executeJavaScript(`window.localVtt.sendSceneToPlayer(${JSON.stringify(fixture.projection)})`);
   const playerWindow = await waitForPlayerWindow(options);
-  await waitForVisualSmokeCanvas(playerWindow);
+  await waitForPlayerSelector(playerWindow, ".player-shell");
+  const sceneDelivery = await deliverVisualSmokeScene(win, playerWindow, fixture.projection);
   for (const event of fixture.liveEvents) {
-    await win.webContents.executeJavaScript(`window.localVtt.sendLiveTableEvent(${JSON.stringify(event)})`);
+    await win.webContents.executeJavaScript(`window.localVtt.sendLiveTableEvent(JSON.parse(${toJavaScriptStringLiteral(JSON.stringify(event))}))`);
   }
   await waitForTimeout(250);
   const sceneMetrics = await getSceneCanvasMetrics(playerWindow);
   if (!sceneMetrics.ok) {
     throw new Error(sceneMetrics.reason);
   }
+  await waitForPlayerSelector(playerWindow, ".dice-roll-overlay .dice-roll-card");
   const overlayMetrics = await getPlayerOverlayMetrics(playerWindow);
   if (!overlayMetrics.ok) {
-    throw new Error(overlayMetrics.reason);
+    throw new Error(`${overlayMetrics.reason} ${JSON.stringify(overlayMetrics)}`);
   }
   const sceneScreenshotPath = path.join(outputDir, "player-scene.png");
   await captureWindowPng(playerWindow, sceneScreenshotPath);
@@ -70,7 +71,8 @@ export async function runVisualSmokeTest(win: BrowserWindow, options: VisualSmok
 
   return {
     playerOpenResult,
-    playerDelivered,
+    playerDelivered: sceneDelivery.playerDelivered,
+    playerSceneSendAttempts: sceneDelivery.attempts,
     testPatternDelivered,
     sceneMetrics,
     overlayMetrics,
@@ -94,6 +96,26 @@ export async function runVisualSmokeTest(win: BrowserWindow, options: VisualSmok
       "test pattern"
     ]
   };
+}
+
+async function deliverVisualSmokeScene(win: BrowserWindow, playerWindow: BrowserWindow, projection: PlayerSceneProjection): Promise<{ playerDelivered: boolean; attempts: number }> {
+  const sendSceneScript = `window.localVtt.sendSceneToPlayer(JSON.parse(${toJavaScriptStringLiteral(JSON.stringify(projection))}))`;
+  const deadline = Date.now() + 10000;
+  let attempts = 0;
+  let playerDelivered = false;
+  let lastReadiness: VisualSmokeCanvasReadiness | null = null;
+
+  while (Date.now() < deadline) {
+    attempts += 1;
+    playerDelivered = Boolean((await win.webContents.executeJavaScript(sendSceneScript)) || playerDelivered);
+    lastReadiness = await getVisualSmokeCanvasReadiness(playerWindow);
+    if (lastReadiness.ready) {
+      return { playerDelivered, attempts };
+    }
+    await waitForTimeout(250);
+  }
+
+  throw new Error(`Timed out waiting for Player View scene canvas. ${JSON.stringify(lastReadiness?.diagnostics ?? {})}`);
 }
 
 async function createSmokeVisualFixture(options: VisualSmokeTestOptions): Promise<SmokeVisualFixture> {
@@ -362,26 +384,32 @@ function onceWebContentsLoaded(win: BrowserWindow): Promise<void> {
   });
 }
 
-async function waitForVisualSmokeCanvas(win: BrowserWindow): Promise<void> {
-  const result = await win.webContents.executeJavaScript(`new Promise((resolve, reject) => {
-    const startedAt = Date.now();
-    const check = () => {
+interface VisualSmokeCanvasReadiness {
+  ready: boolean;
+  diagnostics: Record<string, unknown>;
+}
+
+async function getVisualSmokeCanvasReadiness(win: BrowserWindow): Promise<VisualSmokeCanvasReadiness> {
+  return win.webContents.executeJavaScript(`(() => {
       const canvas = document.querySelector(".player-scene-layer-current .scene-canvas");
       if (canvas && canvas.width > 1 && canvas.height > 1) {
-        resolve(true);
-        return;
+        return { ready: true, diagnostics: {} };
       }
-      if (Date.now() - startedAt > 10000) {
-        reject(new Error("Timed out waiting for Player View scene canvas."));
-        return;
-      }
-      requestAnimationFrame(check);
-    };
-    check();
-  })`);
-  if (result !== true) {
-    throw new Error("Player View scene canvas was not ready.");
-  }
+      return {
+        ready: false,
+        diagnostics: {
+          hash: window.location.hash,
+          title: document.title,
+          bodyClassName: document.body.className,
+          bodyText: document.body.innerText.slice(0, 500),
+          hasPlayerShell: Boolean(document.querySelector(".player-shell")),
+          hasSceneStack: Boolean(document.querySelector(".player-scene-stack")),
+          hasSceneLayer: Boolean(document.querySelector(".player-scene-layer-current")),
+          hasAnySceneCanvas: Boolean(document.querySelector(".scene-canvas")),
+          sceneLayerClassName: document.querySelector(".player-scene-layer-current")?.className ?? null
+        }
+      };
+  })()`);
 }
 
 async function waitForPlayerSelector(win: BrowserWindow, selector: string): Promise<void> {
@@ -406,36 +434,50 @@ async function waitForPlayerSelector(win: BrowserWindow, selector: string): Prom
 }
 
 async function getSceneCanvasMetrics(win: BrowserWindow): Promise<{ ok: boolean; reason: string; width: number; height: number; sampledPixels: number; distinctColors: number; nonTransparentPixels: number }> {
-  return win.webContents.executeJavaScript(`(() => {
+  const canvasMetrics = (await win.webContents.executeJavaScript(`(() => {
     const canvas = document.querySelector(".player-scene-layer-current .scene-canvas");
     if (!(canvas instanceof HTMLCanvasElement)) {
       return { ok: false, reason: "Scene canvas was not found.", width: 0, height: 0, sampledPixels: 0, distinctColors: 0, nonTransparentPixels: 0 };
     }
-    const context = canvas.getContext("2d");
-    if (!context) {
-      return { ok: false, reason: "Scene canvas 2D context was not available.", width: canvas.width, height: canvas.height, sampledPixels: 0, distinctColors: 0, nonTransparentPixels: 0 };
-    }
-    const width = canvas.width;
-    const height = canvas.height;
-    const stepX = Math.max(1, Math.floor(width / 32));
-    const stepY = Math.max(1, Math.floor(height / 18));
-    const colors = new Set();
-    let sampledPixels = 0;
-    let nonTransparentPixels = 0;
-    for (let y = 0; y < height; y += stepY) {
-      for (let x = 0; x < width; x += stepX) {
-        const pixel = context.getImageData(x, y, 1, 1).data;
-        sampledPixels += 1;
-        if (pixel[3] > 0) {
-          nonTransparentPixels += 1;
-        }
-        colors.add([pixel[0], pixel[1], pixel[2], pixel[3]].join(","));
+    return { ok: true, reason: "", width: canvas.width, height: canvas.height, sampledPixels: 0, distinctColors: 0, nonTransparentPixels: 0 };
+  })()`)) as { ok: boolean; reason: string; width: number; height: number; sampledPixels: number; distinctColors: number; nonTransparentPixels: number };
+  if (!canvasMetrics.ok) {
+    return canvasMetrics;
+  }
+
+  const screenshot = await win.webContents.capturePage();
+  const size = screenshot.getSize();
+  const bitmap = screenshot.toBitmap();
+  const stepX = Math.max(1, Math.floor(size.width / 32));
+  const stepY = Math.max(1, Math.floor(size.height / 18));
+  const colors = new Set<string>();
+  let sampledPixels = 0;
+  let nonTransparentPixels = 0;
+  for (let y = 0; y < size.height; y += stepY) {
+    for (let x = 0; x < size.width; x += stepX) {
+      const offset = (y * size.width + x) * 4;
+      const blue = bitmap[offset] ?? 0;
+      const green = bitmap[offset + 1] ?? 0;
+      const red = bitmap[offset + 2] ?? 0;
+      const alpha = bitmap[offset + 3] ?? 0;
+      sampledPixels += 1;
+      if (alpha > 0) {
+        nonTransparentPixels += 1;
       }
+      colors.add([red, green, blue, alpha].join(","));
     }
-    const distinctColors = colors.size;
-    const ok = width >= 640 && height >= 360 && nonTransparentPixels > sampledPixels * 0.7 && distinctColors >= 8;
-    return { ok, reason: ok ? "" : "Scene canvas did not render enough nonblank visual detail.", width, height, sampledPixels, distinctColors, nonTransparentPixels };
-  })()`);
+  }
+  const distinctColors = colors.size;
+  const ok = canvasMetrics.width >= 640 && canvasMetrics.height >= 360 && nonTransparentPixels > sampledPixels * 0.7 && distinctColors >= 8;
+  return {
+    ok,
+    reason: ok ? "" : "Scene screenshot did not contain enough nonblank visual detail.",
+    width: canvasMetrics.width,
+    height: canvasMetrics.height,
+    sampledPixels,
+    distinctColors,
+    nonTransparentPixels
+  };
 }
 
 async function getTestPatternMetrics(win: BrowserWindow): Promise<{ ok: boolean; reason: string; hasGridCanvas: boolean; hasTitle: boolean; hasCorners: boolean }> {
@@ -473,4 +515,8 @@ async function captureWindowPng(win: BrowserWindow, outputPath: string): Promise
 
 function waitForTimeout(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function toJavaScriptStringLiteral(value: string): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
 }

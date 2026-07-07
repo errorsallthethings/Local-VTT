@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   getTemplateLabel,
   getConeTriangle,
+  getDrawingPolygonDraftPreview,
   getDrawingPreviewPoints,
   getDrawingPreviewFromPoint,
   getDrawingAtPoint,
   getDrawingHitRadius,
+  getRenderableDrawingElementFromPreview,
   isMeaningfulDrawingPreview,
   shouldAddDrawingPoint,
   type DrawingPreview
@@ -72,6 +74,63 @@ describe("drawing renderer helpers", () => {
     });
   });
 
+  it("creates polygon drawing previews from active polygon drafts", () => {
+    expect(
+      getDrawingPolygonDraftPreview(
+        {
+          points: [{ x: 10, y: 20 }, { x: 30, y: 40 }],
+          current: { x: 50, y: 60 }
+        },
+        {
+          color: "#ff0000",
+          opacity: 0.8,
+          fillColor: "#00ff00",
+          fillOpacity: 0.4,
+          strokeStyle: "dashed",
+          strokeWidth: 12
+        }
+      )
+    ).toEqual({
+      pointerId: -1,
+      kind: "polygon",
+      points: [{ x: 10, y: 20 }, { x: 30, y: 40 }],
+      current: { x: 50, y: 60 },
+      color: "#ff0000",
+      opacity: 0.8,
+      strokeColor: "#ff0000",
+      strokeOpacity: 0.8,
+      fillColor: "#00ff00",
+      fillOpacity: 0.4,
+      strokeStyle: "dashed",
+      strokeWidth: 12,
+      templateEffect: "plain",
+      templateWidth: 5,
+      measurementLabelVisible: false
+    });
+  });
+
+  it("uses the final polygon draft point when the draft has no current pointer", () => {
+    expect(
+      getDrawingPolygonDraftPreview(
+        {
+          points: [{ x: 10, y: 20 }, { x: 30, y: 40 }]
+        },
+        {
+          color: "#ff0000",
+          opacity: 0.8,
+          strokeWidth: 12
+        }
+      )?.current
+    ).toEqual({ x: 30, y: 40 });
+  });
+
+  it("does not create polygon drawing previews without draft points", () => {
+    const style = { color: "#ff0000", opacity: 0.8, strokeWidth: 12 };
+
+    expect(getDrawingPolygonDraftPreview(null, style)).toBeNull();
+    expect(getDrawingPolygonDraftPreview({ points: [] }, style)).toBeNull();
+  });
+
   it("keeps line previews to start and current points", () => {
     const preview: DrawingPreview = {
       pointerId: 1,
@@ -118,6 +177,62 @@ describe("drawing renderer helpers", () => {
       { x: 10, y: 20 },
       { x: 50, y: 60 }
     ]);
+  });
+
+  it("converts drawing previews into render-only drawing elements", () => {
+    const preview: DrawingPreview = {
+      pointerId: 1,
+      kind: "circle",
+      points: [{ x: 10, y: 20 }],
+      current: { x: 50, y: 60 },
+      color: "#f97316",
+      opacity: 0.7,
+      strokeWidth: 12,
+      fillColor: "#fb923c",
+      fillOpacity: 0.2,
+      templateEffect: "fire",
+      templateWidth: 10,
+      measurementLabelVisible: true
+    };
+
+    expect(getRenderableDrawingElementFromPreview(preview)).toMatchObject({
+      id: "preview",
+      name: "Preview",
+      kind: "circle",
+      points: [{ x: 10, y: 20 }, { x: 50, y: 60 }],
+      color: "#f97316",
+      strokeColor: "#f97316",
+      strokeOpacity: 0.7,
+      fillColor: "#fb923c",
+      fillOpacity: 0.2,
+      templateEffect: "fire",
+      templateWidth: 10,
+      templateFootprintVisible: true,
+      measurementLabelVisible: true,
+      visibleInGm: true,
+      visibleInPlayer: true
+    });
+  });
+
+  it("keeps unconstrained circle previews renderable as ellipses", () => {
+    const preview: DrawingPreview = {
+      pointerId: 1,
+      kind: "circle",
+      points: [{ x: 10, y: 20 }],
+      current: { x: 50, y: 60 },
+      color: "#7dd3fc",
+      opacity: 1,
+      strokeWidth: 12,
+      ellipse: true
+    };
+
+    expect(getRenderableDrawingElementFromPreview(preview)).toMatchObject({
+      kind: "ellipse",
+      points: [{ x: 10, y: 20 }, { x: 50, y: 20 }, { x: 10, y: 60 }],
+      fillColor: "#7dd3fc",
+      fillOpacity: 0,
+      strokeStyle: "solid"
+    });
   });
 
   it("filters tiny freehand movements", () => {

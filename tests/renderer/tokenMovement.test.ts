@@ -5,6 +5,9 @@ import {
   getTokenDragStart,
   getTokenDragPreviewFromPoint,
   getTokenDragWithAppendedWaypoint,
+  getTokenDragWaypointAppendUpdate,
+  getTokenDragWaypointRemovalUpdate,
+  getTokenDragPreviewWithWaypoints,
   getTokenMovementPath,
   getTokenMovementTweens,
   getTokenWaypointPosition,
@@ -263,5 +266,108 @@ describe("token movement helpers", () => {
 
     expect(nextDrag).not.toBe(drag);
     expect(nextDrag.waypoints).toEqual([{ x: 125, y: 125 }]);
+  });
+
+  it("updates token drag and preview when appending a waypoint", () => {
+    const scene = createDefaultScene("Append Update");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 100;
+    scene.grid.offsetX = 0;
+    scene.grid.offsetY = 0;
+    const sceneToken = token({ size: { width: 50, height: 50 } });
+    scene.tokens = [sceneToken];
+    const drag = {
+      pointerId: 1,
+      tokenId: sceneToken.id,
+      offset: { x: 0, y: 0 },
+      startPosition: { x: 0, y: 0 },
+      waypoints: [],
+      groupStartPositions: new Map([[sceneToken.id, { x: 0, y: 0 }]])
+    };
+    const preview = {
+      tokenId: sceneToken.id,
+      startPosition: { x: 0, y: 0 },
+      currentPosition: { x: 130, y: 135 },
+      snappedPosition: { x: 125, y: 125 },
+      waypoints: [],
+      tokenPositions: new Map([[sceneToken.id, { x: 125, y: 125 }]])
+    };
+
+    const update = getTokenDragWaypointAppendUpdate(scene, drag, preview);
+
+    expect(update?.drag.waypoints).toEqual([{ x: 125, y: 125 }]);
+    expect(update?.preview?.waypoints).toEqual([{ x: 125, y: 125 }]);
+  });
+
+  it("does not append duplicate or mismatched token drag waypoints", () => {
+    const scene = createDefaultScene("Append No-op");
+    scene.grid.type = "gridless";
+    const sceneToken = token({ size: { width: 50, height: 50 } });
+    scene.tokens = [sceneToken];
+    const drag = {
+      pointerId: 1,
+      tokenId: sceneToken.id,
+      offset: { x: 0, y: 0 },
+      startPosition: { x: 0, y: 0 },
+      waypoints: [],
+      groupStartPositions: new Map([[sceneToken.id, { x: 0, y: 0 }]])
+    };
+    const duplicatePreview = {
+      tokenId: sceneToken.id,
+      startPosition: { x: 0, y: 0 },
+      currentPosition: { x: 20, y: 0 },
+      snappedPosition: { x: 20, y: 0 },
+      waypoints: [],
+      tokenPositions: new Map([[sceneToken.id, { x: 20, y: 0 }]])
+    };
+    const mismatchedPreview = { ...duplicatePreview, tokenId: "missing-token" };
+
+    expect(getTokenDragWaypointAppendUpdate(scene, drag, duplicatePreview)).toBeNull();
+    expect(getTokenDragWaypointAppendUpdate(scene, drag, mismatchedPreview)).toBeNull();
+    expect(getTokenDragWaypointAppendUpdate(scene, drag, null)).toBeNull();
+  });
+
+  it("updates token drag and preview when removing a waypoint", () => {
+    const sceneToken = token();
+    const drag = {
+      pointerId: 1,
+      tokenId: sceneToken.id,
+      offset: { x: 0, y: 0 },
+      startPosition: { x: 0, y: 0 },
+      waypoints: [
+        { x: 50, y: 0 },
+        { x: 100, y: 0 }
+      ],
+      groupStartPositions: new Map([[sceneToken.id, { x: 0, y: 0 }]])
+    };
+    const preview = {
+      tokenId: sceneToken.id,
+      startPosition: { x: 0, y: 0 },
+      currentPosition: { x: 125, y: 125 },
+      snappedPosition: { x: 125, y: 125 },
+      waypoints: drag.waypoints,
+      tokenPositions: new Map([[sceneToken.id, { x: 125, y: 125 }]])
+    };
+
+    const update = getTokenDragWaypointRemovalUpdate(drag, preview);
+
+    expect(update?.drag.waypoints).toEqual([{ x: 50, y: 0 }]);
+    expect(update?.preview?.waypoints).toEqual([{ x: 50, y: 0 }]);
+    expect(getTokenDragWaypointRemovalUpdate({ ...drag, waypoints: [] }, preview)).toBeNull();
+  });
+
+  it("only applies waypoint preview updates to the matching token", () => {
+    const preview = {
+      tokenId: "token-1",
+      startPosition: { x: 0, y: 0 },
+      currentPosition: { x: 10, y: 10 },
+      snappedPosition: { x: 10, y: 10 },
+      waypoints: [],
+      tokenPositions: new Map([["token-1", { x: 10, y: 10 }]])
+    };
+
+    expect(getTokenDragPreviewWithWaypoints(preview, "token-1", [{ x: 5, y: 5 }])?.waypoints).toEqual([{ x: 5, y: 5 }]);
+    expect(getTokenDragPreviewWithWaypoints(preview, "token-2", [{ x: 5, y: 5 }])).toBe(preview);
+    expect(getTokenDragPreviewWithWaypoints(null, "token-1", [{ x: 5, y: 5 }])).toBeNull();
   });
 });

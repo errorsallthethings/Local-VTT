@@ -1,4 +1,4 @@
-import { DEFAULT_MAP_TRANSFORM, type MapTransform, type Scene } from "../../../shared/localvtt";
+import { DEFAULT_MAP_TRANSFORM, type Asset, type Campaign, type DisplayCalibration, type GridType, type MapTransform, type Scene } from "../../../shared/localvtt";
 import type { MapCalibrationBox } from "../../canvas/map";
 import { getBoxCalibrationGridPatch } from "../../canvas/map";
 
@@ -16,12 +16,23 @@ export interface MapImageDimensions {
   height: number;
 }
 
+export function getImageMapAssetPath(asset: Pick<Asset, "absolutePath" | "mediaType"> | null | undefined): string | null {
+  return asset?.absolutePath && asset.mediaType === "image" ? asset.absolutePath : null;
+}
+
 export interface MapFitTargetDimensions {
   width: number;
   height: number;
 }
 
+export interface TableDisplayGridUpdate {
+  campaign: Campaign;
+  scene: Scene;
+}
+
 export type MapGridFitMode = "contain" | "cover";
+export type MapFitPresetMode = Exclude<MapTransform["fitMode"], "manual">;
+export type MapFitWizardMode = "whole-map" | "fill-grid";
 
 export interface MapGridFitDraft {
   mapGridColumns: number;
@@ -158,6 +169,127 @@ export function buildWholeMapFitScene(
       scaleY: scale
     },
     updatedAt
+  };
+}
+
+export function buildWizardMapFitScene(
+  scene: Scene,
+  columns: number,
+  rows: number,
+  fitMode: MapFitWizardMode,
+  imageDimensions: MapImageDimensions,
+  targetDimensions: MapFitTargetDimensions,
+  updatedAt = new Date().toISOString()
+): Scene {
+  if (fitMode === "whole-map") {
+    return buildWholeMapFitScene(scene, { mapGridColumns: columns, mapGridRows: rows }, imageDimensions, targetDimensions, updatedAt);
+  }
+
+  return applyMapGridFit(
+    {
+      ...scene,
+      grid: {
+        ...scene.grid,
+        showOnGm: true,
+        showOnPlayer: true
+      }
+    },
+    { mapGridColumns: columns, mapGridRows: rows, fitMode: "cover" },
+    imageDimensions,
+    updatedAt
+  );
+}
+
+export function buildMapFitPresetScene(
+  scene: Scene,
+  fitMode: MapFitPresetMode,
+  imageDimensions: MapImageDimensions,
+  targetDimensions: MapFitTargetDimensions,
+  gridPatch: Partial<Scene["grid"]> = {},
+  updatedAt = new Date().toISOString()
+): Scene {
+  const sceneForFit = {
+    ...scene,
+    grid: {
+      ...scene.grid,
+      ...gridPatch
+    }
+  };
+
+  if (fitMode === "contain") {
+    return buildWholeMapFitScene(
+      sceneForFit,
+      { mapGridColumns: sceneForFit.grid.mapGridColumns, mapGridRows: sceneForFit.grid.mapGridRows },
+      imageDimensions,
+      targetDimensions,
+      updatedAt
+    );
+  }
+
+  if (fitMode === "cover") {
+    return applyMapGridFit(
+      {
+        ...sceneForFit,
+        grid: {
+          ...sceneForFit.grid,
+          showOnGm: true,
+          showOnPlayer: true
+        }
+      },
+      { mapGridColumns: sceneForFit.grid.mapGridColumns, mapGridRows: sceneForFit.grid.mapGridRows, fitMode: "cover" },
+      imageDimensions,
+      updatedAt
+    );
+  }
+
+  return {
+    ...sceneForFit,
+    grid: {
+      ...sceneForFit.grid,
+      mapGridColumns: Math.max(1, Math.ceil(imageDimensions.width / Math.max(1, sceneForFit.grid.sizePx))),
+      mapGridRows: Math.max(1, Math.ceil(imageDimensions.height / Math.max(1, sceneForFit.grid.sizePx))),
+      offsetX: 0,
+      offsetY: 0,
+      showOnGm: true,
+      showOnPlayer: true
+    },
+    mapTransform: {
+      ...scene.mapTransform,
+      fitMode: "actual-size",
+      x: 0,
+      y: 0,
+      scale: 1,
+      scaleX: 1,
+      scaleY: 1
+    },
+    updatedAt
+  };
+}
+
+export function buildTableDisplayGridUpdate(
+  campaign: Campaign,
+  scene: Scene,
+  gridType: GridType,
+  sizePx: number,
+  playerDisplay: DisplayCalibration,
+  updatedAt = new Date().toISOString()
+): TableDisplayGridUpdate {
+  return {
+    campaign: {
+      ...campaign,
+      playerDisplay,
+      updatedAt
+    },
+    scene: {
+      ...scene,
+      grid: {
+        ...scene.grid,
+        type: gridType,
+        sizePx: Math.max(4, Math.round(sizePx)),
+        showOnPlayer: gridType !== "gridless" ? true : scene.grid.showOnPlayer
+      },
+      updatedAt
+    }
   };
 }
 

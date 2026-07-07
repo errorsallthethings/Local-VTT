@@ -1,16 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Campaign, CampaignSummary, Scene } from "../../shared/localvtt";
+import type { Campaign, CampaignSummary, PlayerSceneProjectionOptions, Scene } from "../../shared/localvtt";
+import { createEmptyCampaignHealthReport, type CampaignHealthReport } from "../../shared/campaignHealth";
 import { mergeCampaignDraft } from "../lib/campaign";
 import { formatUserFacingError } from "../lib/errors";
 import { showDefaultPlayerHold } from "../lib/player-view";
-import { updatePlayerSceneIfOpen } from "../lib/player-view";
+import { updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
+import { logRendererError } from "../lib/rendererDiagnostics";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
-export function useCampaignWorkspace() {
+interface UseCampaignWorkspaceOptions {
+  playerViewSyncOptions?: PlayerSceneProjectionOptions;
+}
+
+export function useCampaignWorkspace({ playerViewSyncOptions = {} }: UseCampaignWorkspaceOptions = {}) {
   const [campaignPath, setCampaignPath] = useState<string | null>(null);
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [missingAssets, setMissingAssets] = useState<string[]>([]);
+  const [campaignHealth, setCampaignHealth] = useState<CampaignHealthReport>(() => createEmptyCampaignHealthReport());
   const [activeScene, setActiveScene] = useState<Scene | null>(null);
   const [sceneDrafts, setSceneDrafts] = useState<Record<string, Scene>>({});
   const [dirtySceneIds, setDirtySceneIds] = useState<Set<string>>(() => new Set());
@@ -32,7 +39,7 @@ export function useCampaignWorkspace() {
       await action();
       return true;
     } catch (caught) {
-      console.error(caught);
+      logRendererError("LOCALVTT_CAMPAIGN_WORKSPACE_ACTION_FAILED", caught);
       setError(formatUserFacingError(caught));
       return false;
     }
@@ -44,6 +51,7 @@ export function useCampaignWorkspace() {
       preserveCampaignDraft && currentCampaign ? mergeCampaignDraft(summary.campaign, currentCampaign) : summary.campaign
     );
     setMissingAssets(summary.missingAssets);
+    setCampaignHealth(summary.health);
   };
 
   const clearWorkspaceState = () => {
@@ -51,6 +59,7 @@ export function useCampaignWorkspace() {
     setActiveScene(null);
     setSceneDrafts({});
     setDirtySceneIds(new Set());
+    setCampaignHealth(createEmptyCampaignHealthReport());
     setCampaignDirty(false);
     setSaveState("idle");
   };
@@ -92,7 +101,7 @@ export function useCampaignWorkspace() {
     setSaveState("idle");
     if (syncCampaign) {
       // Build the Player View projection in the renderer so dev hot reload and shared model changes stay in sync.
-      void updatePlayerSceneIfOpen(window.localVtt, syncCampaign, syncScene);
+      updatePlayerSceneIfOpenInBackground(window.localVtt, syncCampaign, syncScene, playerViewSyncOptions);
     }
   };
 
@@ -101,7 +110,7 @@ export function useCampaignWorkspace() {
     setCampaignDirty(true);
     if (syncScene) {
       // Campaign-level settings, such as Player Display Scale, still need a scene projection to update Player View.
-      void updatePlayerSceneIfOpen(window.localVtt, nextCampaign, syncScene);
+      updatePlayerSceneIfOpenInBackground(window.localVtt, nextCampaign, syncScene, playerViewSyncOptions);
     }
   };
 
@@ -112,6 +121,8 @@ export function useCampaignWorkspace() {
     setCampaign,
     missingAssets,
     setMissingAssets,
+    campaignHealth,
+    setCampaignHealth,
     activeScene,
     setActiveScene,
     sceneDrafts,
