@@ -34,10 +34,7 @@ export async function runVisualSmokeTest(win: BrowserWindow, options: VisualSmok
   await waitForPlayerSelector(playerWindow, ".player-shell");
   const sceneDelivery = await deliverVisualSmokeScene(win, playerWindow, fixture.projection);
   const liveEventDelivery = await deliverVisualSmokeLiveEvents(win, playerWindow, fixture.liveEvents);
-  const sceneMetrics = await getSceneCanvasMetrics(playerWindow);
-  if (!sceneMetrics.ok) {
-    throw new Error(sceneMetrics.reason);
-  }
+  const sceneMetrics = await waitForSceneCanvasMetrics(playerWindow);
   const overlayMetrics = await getPlayerOverlayMetrics(playerWindow);
   if (!overlayMetrics.ok) {
     throw new Error(`${overlayMetrics.reason} ${JSON.stringify(overlayMetrics)}`);
@@ -481,6 +478,21 @@ async function waitForPlayerSelector(win: BrowserWindow, selector: string): Prom
   if (result !== true) {
     throw new Error(`Player View selector ${selector} was not ready.`);
   }
+}
+
+async function waitForSceneCanvasMetrics(win: BrowserWindow): Promise<{ ok: boolean; reason: string; width: number; height: number; sampledPixels: number; distinctColors: number; nonTransparentPixels: number }> {
+  const deadline = Date.now() + 10000;
+  let lastMetrics: Awaited<ReturnType<typeof getSceneCanvasMetrics>> | null = null;
+
+  while (Date.now() < deadline) {
+    lastMetrics = await getSceneCanvasMetrics(win);
+    if (lastMetrics.ok) {
+      return lastMetrics;
+    }
+    await waitForTimeout(250);
+  }
+
+  throw new Error(lastMetrics?.reason ?? "Timed out waiting for Player View scene canvas metrics.");
 }
 
 async function getSceneCanvasMetrics(win: BrowserWindow): Promise<{ ok: boolean; reason: string; width: number; height: number; sampledPixels: number; distinctColors: number; nonTransparentPixels: number }> {
