@@ -33,15 +33,11 @@ export async function runVisualSmokeTest(win: BrowserWindow, options: VisualSmok
   const playerWindow = await waitForPlayerWindow(options);
   await waitForPlayerSelector(playerWindow, ".player-shell");
   const sceneDelivery = await deliverVisualSmokeScene(win, playerWindow, fixture.projection);
-  for (const event of fixture.liveEvents) {
-    await win.webContents.executeJavaScript(`window.localVtt.sendLiveTableEvent(JSON.parse(${toJavaScriptStringLiteral(JSON.stringify(event))}))`);
-  }
-  await waitForTimeout(250);
+  const liveEventDelivery = await deliverVisualSmokeLiveEvents(win, playerWindow, fixture.liveEvents);
   const sceneMetrics = await getSceneCanvasMetrics(playerWindow);
   if (!sceneMetrics.ok) {
     throw new Error(sceneMetrics.reason);
   }
-  await waitForPlayerSelector(playerWindow, ".dice-roll-overlay .dice-roll-card");
   const overlayMetrics = await getPlayerOverlayMetrics(playerWindow);
   if (!overlayMetrics.ok) {
     throw new Error(`${overlayMetrics.reason} ${JSON.stringify(overlayMetrics)}`);
@@ -73,6 +69,7 @@ export async function runVisualSmokeTest(win: BrowserWindow, options: VisualSmok
     playerOpenResult,
     playerDelivered: sceneDelivery.playerDelivered,
     playerSceneSendAttempts: sceneDelivery.attempts,
+    playerLiveEventSendAttempts: liveEventDelivery.attempts,
     testPatternDelivered,
     sceneMetrics,
     overlayMetrics,
@@ -116,6 +113,28 @@ async function deliverVisualSmokeScene(win: BrowserWindow, playerWindow: Browser
   }
 
   throw new Error(`Timed out waiting for Player View scene canvas. ${JSON.stringify(lastReadiness?.diagnostics ?? {})}`);
+}
+
+async function deliverVisualSmokeLiveEvents(win: BrowserWindow, playerWindow: BrowserWindow, liveEvents: LiveTableEvent[]): Promise<{ attempts: number }> {
+  const deadline = Date.now() + 10000;
+  let attempts = 0;
+  let lastReadiness: VisualSmokeOverlayReadiness | null = null;
+
+  while (Date.now() < deadline) {
+    attempts += 1;
+    const now = Date.now();
+    const attemptEvents = liveEvents.map((event) => ({ ...event, id: `${event.id}-${attempts}`, createdAt: now }));
+    for (const event of attemptEvents) {
+      await win.webContents.executeJavaScript(`window.localVtt.sendLiveTableEvent(JSON.parse(${toJavaScriptStringLiteral(JSON.stringify(event))}))`);
+    }
+    lastReadiness = await getVisualSmokeOverlayReadiness(playerWindow);
+    if (lastReadiness.ready) {
+      return { attempts };
+    }
+    await waitForTimeout(250);
+  }
+
+  throw new Error(`Timed out waiting for Player View dice overlay. ${JSON.stringify(lastReadiness?.diagnostics ?? {})}`);
 }
 
 async function createSmokeVisualFixture(options: VisualSmokeTestOptions): Promise<SmokeVisualFixture> {
@@ -389,6 +408,11 @@ interface VisualSmokeCanvasReadiness {
   diagnostics: Record<string, unknown>;
 }
 
+interface VisualSmokeOverlayReadiness {
+  ready: boolean;
+  diagnostics: Record<string, unknown>;
+}
+
 async function getVisualSmokeCanvasReadiness(win: BrowserWindow): Promise<VisualSmokeCanvasReadiness> {
   return win.webContents.executeJavaScript(`(() => {
       const canvas = document.querySelector(".player-scene-layer-current .scene-canvas");
@@ -407,6 +431,32 @@ async function getVisualSmokeCanvasReadiness(win: BrowserWindow): Promise<Visual
           hasSceneLayer: Boolean(document.querySelector(".player-scene-layer-current")),
           hasAnySceneCanvas: Boolean(document.querySelector(".scene-canvas")),
           sceneLayerClassName: document.querySelector(".player-scene-layer-current")?.className ?? null
+        }
+      };
+  })()`);
+}
+
+async function getVisualSmokeOverlayReadiness(win: BrowserWindow): Promise<VisualSmokeOverlayReadiness> {
+  return win.webContents.executeJavaScript(`(() => {
+      const diceCard = document.querySelector(".dice-roll-overlay .dice-roll-card");
+      if (diceCard) {
+        return { ready: true, diagnostics: {} };
+      }
+      return {
+        ready: false,
+        diagnostics: {
+          hash: window.location.hash,
+          title: document.title,
+          bodyClassName: document.body.className,
+          bodyText: document.body.innerText.slice(0, 500),
+          hasPlayerShell: Boolean(document.querySelector(".player-shell")),
+          hasSceneStack: Boolean(document.querySelector(".player-scene-stack")),
+          hasSceneLayer: Boolean(document.querySelector(".player-scene-layer-current")),
+          hasSceneCanvas: Boolean(document.querySelector(".player-scene-layer-current .scene-canvas")),
+          hasDiceOverlay: Boolean(document.querySelector(".dice-roll-overlay")),
+          hasDiceCard: false,
+          hasTurnOrderBar: Boolean(document.querySelector(".turn-order-player-bar")),
+          hasPlayerSeat: Boolean(document.querySelector(".player-seat-indicator"))
         }
       };
   })()`);
