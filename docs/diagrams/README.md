@@ -4,7 +4,7 @@ This folder contains Wiki-ready PlantUML architecture diagrams for Local VTT.
 
 Architecture baseline: Local VTT `0.1.15` release-prep branch. The package metadata may still report the previous release until release metadata is updated.
 
-- [`plantuml.md`](plantuml.md): PlantUML diagrams using the C4-PlantUML standard library where C4 notation is useful, plus plain PlantUML activity diagrams for focused flows.
+- [`plantuml.md`](plantuml.md): PlantUML diagrams using the C4-PlantUML standard library where C4 notation is useful, plus plain PlantUML activity diagrams for focused flows. Renderer diagrams reflect the current `src/renderer/components/scene/` split into `context-menu`, `hooks`, `input`, `map`, `overlays`, and `state`.
 
 Recommended Wiki order:
 
