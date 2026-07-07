@@ -35,10 +35,7 @@ export async function runVisualSmokeTest(win: BrowserWindow, options: VisualSmok
   const sceneDelivery = await deliverVisualSmokeScene(win, playerWindow, fixture.projection);
   const sceneMetrics = await waitForSceneCanvasMetrics(playerWindow);
   const liveEventDelivery = await deliverVisualSmokeLiveEvents(win, playerWindow, fixture.liveEvents);
-  const overlayMetrics = await getPlayerOverlayMetrics(playerWindow);
-  if (!overlayMetrics.ok) {
-    throw new Error(`${overlayMetrics.reason} ${JSON.stringify(overlayMetrics)}`);
-  }
+  const overlayMetrics = await waitForPlayerOverlayMetrics(playerWindow);
   const sceneScreenshotPath = path.join(outputDir, "player-scene.png");
   await captureWindowPng(playerWindow, sceneScreenshotPath);
 
@@ -551,6 +548,21 @@ async function getTestPatternMetrics(win: BrowserWindow): Promise<{ ok: boolean;
     const ok = hasGridCanvas && hasTitle && hasCorners;
     return { ok, reason: ok ? "" : "Player test pattern did not render expected grid/title/corners.", hasGridCanvas, hasTitle, hasCorners };
   })()`);
+}
+
+async function waitForPlayerOverlayMetrics(win: BrowserWindow): Promise<{ ok: boolean; reason: string; hasDiceOverlay: boolean; hasTurnOrderBar: boolean; hasPlayerSeat: boolean }> {
+  const deadline = Date.now() + 10000;
+  let lastMetrics: Awaited<ReturnType<typeof getPlayerOverlayMetrics>> | null = null;
+
+  while (Date.now() < deadline) {
+    lastMetrics = await getPlayerOverlayMetrics(win);
+    if (lastMetrics.ok) {
+      return lastMetrics;
+    }
+    await waitForTimeout(250);
+  }
+
+  throw new Error(`${lastMetrics?.reason ?? "Timed out waiting for Player View overlays."} ${JSON.stringify(lastMetrics ?? {})}`);
 }
 
 async function getPlayerOverlayMetrics(win: BrowserWindow): Promise<{ ok: boolean; reason: string; hasDiceOverlay: boolean; hasTurnOrderBar: boolean; hasPlayerSeat: boolean }> {
