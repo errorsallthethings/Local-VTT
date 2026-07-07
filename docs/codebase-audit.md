@@ -111,24 +111,31 @@ These notes summarize the mid-0.1.x codebase audit work and the next practical c
 - Extracted Electron map/token thumbnail creation into an injectable thumbnail service, with tests covering image maps, video fallback, decode failures, and token thumbnails.
 - Extracted staged token import ownership out of token asset IPC, with regressions that temporary external asset access is released only by the owning campaign or final import commit.
 - Reordered map/token asset deletion workflows so campaign metadata writes complete before physical asset files are removed, with regressions covering write-failure recovery.
+- Ran the full verification gate plus sequential Electron and visual smoke tests after the audit remediation wave. The smoke pass covered the production Electron preload bridge, Player View IPC, scene rendering, test pattern rendering, dice overlay, turn order overlay, and player seat overlay.
 - Added focused unit tests around those helper seams.
+
+## Current Readiness
+
+The mid-0.1.x audit remediation wave is substantially complete. The codebase is in a stronger pre-1.0 position for local/offline tabletop use: campaign metadata and asset-file failure paths are better guarded, Player View projection has regression coverage, the largest renderer/canvas paths have clearer helper seams, and production Electron smoke coverage now exercises both runtime IPC and visual Player View output.
+
+The app is still pre-1.0. Dynamic lighting, player/device input, signing/notarization, auto-update, and broader click-through end-to-end coverage remain future work. The remaining audit debt is now mostly incremental maintainability rather than urgent structural risk.
 
 ## Current Hotspots
 
-- `src/renderer/views/GmApp.tsx`: still the largest renderer composition root. It is now mostly orchestration, but topbar/player-view wiring, ToolsMenu props, inspector/dialog wiring, and maintenance actions still make changes noisy.
-- `src/renderer/components/tools/menu/ToolsMenu.tsx`: improved after state/action prop grouping, but it remains the densest live GM tool-surface component. Further work should extract cohesive category orchestration or prop builders only if tool behavior changes.
+- `src/renderer/views/GmApp.tsx`: still the largest renderer composition root. It is now mostly orchestration, but ToolsMenu props, inspector wiring, and workflow coordination still make changes noisy.
+- `src/renderer/components/tools/menu/ToolsMenu.tsx`: improved after state/action prop grouping, but it remains the densest live GM tool-surface component. Further work should extract cohesive category orchestration or prop builders only when tool behavior changes.
 - `src/renderer/views/GmDialogs.tsx`: still a broad modal aggregator. It is acceptable as a composition file, but new modal families should be grouped outside this file instead of adding more direct prop threading.
-- `electron/mapAssetIpc.ts` and `electron/tokenAssetIpc.ts`: still relatively large IPC modules around import/delete/update workflows. Future file-safety or asset lifecycle changes should prefer service/helper seams with Electron tests.
+- `electron/mapAssetIpc.ts` and `electron/tokenAssetIpc.ts`: smaller and safer after staged-import and write-before-delete hardening. Treat future changes here as file-safety work and keep adding focused Electron regressions.
 - `electron/main.ts`: now primarily app composition and service registration. Avoid growing it again; add injectable services for new runtime policies such as metadata restore, asset maintenance, or thumbnail behavior.
 - `electron/videoThumbnailFallback.ts`: large but specialized. Treat it as a media compatibility module and add regressions before changing video thumbnail fallback behavior.
 
 ## Next Recommended Refactors
 
-1. If continuing renderer cleanup, target `GmApp` topbar/player-view coordination or dialog prop mapping as a bundled pass; avoid extracting tiny one-off wrappers.
-2. If continuing tool cleanup, extract `ToolsMenu` category orchestration or prop-builder helpers behind the existing state/action groups, with behavior tests around `toolMenuState`.
-3. If continuing Electron cleanup, target `mapAssetIpc.ts` or `tokenAssetIpc.ts` workflow helpers with tests around path safety, thumbnail failure handling, and campaign summary writes.
+1. Stop broad audit-only refactoring unless a feature touches the area. The biggest structural risks found in this pass have been addressed.
+2. For future renderer work, keep using bundled passes around `GmApp`, `ToolsMenu`, or `GmDialogs` only when there is a clear ownership seam and a behavior reason to touch the code.
+3. For future Electron asset work, preserve write-before-delete ordering and campaign ownership checks, and add focused regressions for every file-removal or temporary-file-access rule.
 4. Keep `LayerPanel`, SceneCanvas, and drawing/template renderer work opportunistic rather than primary unless a feature touches those areas.
-5. Run Electron or visual smoke tests whenever DOM, canvas, Player View, media playback, or app-window behavior changes; otherwise `npm run check` is the default verification gate.
+5. Run Electron or visual smoke tests whenever DOM, canvas, Player View, media playback, app-window behavior, or local protocol behavior changes; otherwise `npm run check` is the default verification gate.
 
 ## Audit Guardrails
 
