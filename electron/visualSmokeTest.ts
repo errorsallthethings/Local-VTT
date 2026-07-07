@@ -33,8 +33,8 @@ export async function runVisualSmokeTest(win: BrowserWindow, options: VisualSmok
   const playerWindow = await waitForPlayerWindow(options);
   await waitForPlayerSelector(playerWindow, ".player-shell");
   const sceneDelivery = await deliverVisualSmokeScene(win, playerWindow, fixture.projection);
-  const liveEventDelivery = await deliverVisualSmokeLiveEvents(win, playerWindow, fixture.liveEvents);
   const sceneMetrics = await waitForSceneCanvasMetrics(playerWindow);
+  const liveEventDelivery = await deliverVisualSmokeLiveEvents(win, playerWindow, fixture.liveEvents);
   const overlayMetrics = await getPlayerOverlayMetrics(playerWindow);
   if (!overlayMetrics.ok) {
     throw new Error(`${overlayMetrics.reason} ${JSON.stringify(overlayMetrics)}`);
