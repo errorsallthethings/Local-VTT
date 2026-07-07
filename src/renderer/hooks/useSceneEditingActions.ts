@@ -1,27 +1,31 @@
-import type { Asset, FogSettings, GridSettings, MapTransform, Scene, VideoPlaybackSettings } from "../../shared/localvtt";
+import type { FogSettings, GridSettings, MapTransform, Scene, VideoPlaybackSettings } from "../../shared/localvtt";
 import {
-  getFitGridPatch,
   moveSceneLayer,
   patchSceneFog,
   patchSceneGrid,
   patchSceneMapTransform,
   patchSceneVideoPlayback,
+  removeLastDrawing,
+  removeLastEnvironmentEffect,
+  removeLastWeatherMask,
+  removeSelectedSceneItems,
+  setSelectedSceneItemsPlayerVisibility,
+  type SceneSelectionIds,
   setSceneLayerOrderLocked,
   type LayerMoveDirection
 } from "../lib/scene";
-import { loadImageDimensions } from "../lib/assets";
 
 export function useSceneEditingActions({
   activeScene,
-  mapAsset,
-  run,
+  selectedSceneItemIds,
   updateScene,
+  clearSceneSelection,
   onClearFogConfirmed
 }: {
   activeScene: Scene | null;
-  mapAsset: Asset | null;
-  run: (task: () => Promise<void>) => Promise<boolean>;
+  selectedSceneItemIds: SceneSelectionIds;
   updateScene: (nextScene: Scene) => void;
+  clearSceneSelection: () => void;
   onClearFogConfirmed: () => void;
 }) {
   const updateVideoPlayback = (patch: Partial<VideoPlaybackSettings>) => {
@@ -90,19 +94,41 @@ export function useSceneEditingActions({
     }
   };
 
-  const fitGridToMapDimensions = () =>
-    run(async () => {
-      if (!activeScene || !mapAsset?.absolutePath || mapAsset.mediaType !== "image") {
-        return;
-      }
-      const dimensions = await loadImageDimensions(window.localVtt.toAssetUrl(mapAsset.absolutePath));
-      updateScene(
-        patchSceneGrid(activeScene, {
-          ...activeScene.grid,
-          ...getFitGridPatch(activeScene, dimensions)
-        })
-      );
-    });
+  const updateSelectedPlayerVisibility = (visibleInPlayer: boolean) => {
+    if (!activeScene) {
+      return;
+    }
+    updateScene(setSelectedSceneItemsPlayerVisibility(activeScene, selectedSceneItemIds, visibleInPlayer));
+  };
+
+  const deleteSelectedSceneItems = () => {
+    if (!activeScene) {
+      return;
+    }
+    updateScene(removeSelectedSceneItems(activeScene, selectedSceneItemIds));
+    clearSceneSelection();
+  };
+
+  const undoWeatherMask = () => {
+    if (!activeScene || activeScene.weather.masks.length === 0) {
+      return;
+    }
+    updateScene(removeLastWeatherMask(activeScene));
+  };
+
+  const undoEnvironmentEffect = () => {
+    if (!activeScene || activeScene.environment.effects.length === 0) {
+      return;
+    }
+    updateScene(removeLastEnvironmentEffect(activeScene));
+  };
+
+  const undoDrawing = () => {
+    if (!activeScene || activeScene.drawings.length === 0) {
+      return;
+    }
+    updateScene(removeLastDrawing(activeScene));
+  };
 
   return {
     updateVideoPlayback,
@@ -114,6 +140,10 @@ export function useSceneEditingActions({
     updateMapTransform,
     setLayerOrderLocked,
     moveLayer,
-    fitGridToMapDimensions
+    updateSelectedPlayerVisibility,
+    deleteSelectedSceneItems,
+    undoWeatherMask,
+    undoEnvironmentEffect,
+    undoDrawing
   };
 }

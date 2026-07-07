@@ -70,6 +70,16 @@ export type SceneSelectionIds = {
   environmentEffectId?: string | null;
 };
 
+export function buildSceneSelectionIds(selection: SceneSelectionIds): SceneSelectionIds {
+  return {
+    tokenIds: selection.tokenIds ?? [],
+    drawingIds: selection.drawingIds ?? [],
+    fogShapeIds: selection.fogShapeIds ?? [],
+    weatherMaskIds: selection.weatherMaskIds ?? [],
+    environmentEffectId: selection.environmentEffectId ?? null
+  };
+}
+
 export function patchSceneVideoPlayback(scene: Scene, patch: Partial<Scene["videoPlayback"]>): Scene {
   return {
     ...scene,
@@ -155,6 +165,19 @@ export function patchSceneEnvironmentEffect(
     },
     updatedAt
   };
+}
+
+export function setSceneEnvironmentEffectPatch(
+  scene: Scene,
+  effectId: string,
+  patch: Partial<EnvironmentEffectMask>,
+  updatedAt = new Date().toISOString()
+): Scene {
+  return patchSceneEnvironmentEffect(scene, effectId, (effect) => ({ ...effect, ...patch }), updatedAt);
+}
+
+export function setSceneEnvironmentEffectFeather(scene: Scene, effectId: string, feather: number, updatedAt = new Date().toISOString()): Scene {
+  return setSceneEnvironmentEffectPatch(scene, effectId, { feather }, updatedAt);
 }
 
 export function setSceneEnvironmentEffectType(
@@ -636,16 +659,4 @@ export function moveLayerOrder(layers: readonly Layer[], layerId: string, direct
     ...layer,
     order: (nextSortedLayers.length - index) * 10
   }));
-}
-
-export function getFitGridPatch(scene: Scene, dimensions: { width: number; height: number }): Pick<GridSettings, "sizePx" | "offsetX" | "offsetY"> {
-  const columns = Math.max(1, scene.grid.mapGridColumns);
-  const rows = Math.max(1, scene.grid.mapGridRows);
-  const cellWidth = dimensions.width / columns;
-  const cellHeight = dimensions.height / rows;
-  return {
-    sizePx: Math.max(1, Math.round(((cellWidth + cellHeight) / 2) * 100) / 100),
-    offsetX: scene.mapTransform.fitMode === "manual" ? scene.mapTransform.x : 0,
-    offsetY: scene.mapTransform.fitMode === "manual" ? scene.mapTransform.y : 0
-  };
 }

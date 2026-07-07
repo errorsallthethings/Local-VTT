@@ -4,19 +4,78 @@ import { isLiveTableEvent } from "../../shared/localvtt";
 import { updateDiceRollHistory as updateDiceRollHistoryList } from "../lib/dice";
 import {
   filterActiveLiveTableEvents,
+  getPlayerViewModeState,
   getPlayerViewDisplayStateFromLastState,
   mergeLiveTableEvent,
   showDefaultPlayerHold,
-  updatePlayerSceneIfOpen,
+  updatePlayerSceneIfOpenInBackground,
   type PlayerDisplayMode
 } from "../lib/player-view";
+import { logRendererWarning } from "../lib/rendererDiagnostics";
 
 const PLAYER_TEMPLATE_PREVIEW_ID = "template-preview";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
+type PlayerSceneAutoSyncAction = "ignore" | "skip-once" | "sync";
 
 export function shouldShowPlayerHoldAfterSceneDelete(deletedSceneId: string, playerSceneId: string | null, deleteSucceeded: boolean): boolean {
   return deleteSucceeded && deletedSceneId === playerSceneId;
+}
+
+export function getPlayerSceneAutoSyncAction({
+  hasCampaign,
+  activeSceneId,
+  playerSceneId,
+  playerDisplayMode,
+  skipNextAutoSync
+}: {
+  hasCampaign: boolean;
+  activeSceneId: string | null;
+  playerSceneId: string | null;
+  playerDisplayMode: PlayerDisplayMode;
+  skipNextAutoSync: boolean;
+}): PlayerSceneAutoSyncAction {
+  if (!hasCampaign || !activeSceneId || activeSceneId !== playerSceneId || playerDisplayMode !== "scene") {
+    return "ignore";
+  }
+  return skipNextAutoSync ? "skip-once" : "sync";
+}
+
+export function getPlayerTemplatePreviewSyncScene({
+  activeScene,
+  hasCampaign,
+  playerSceneId,
+  playerDisplayMode,
+  templatePreviewVisibleInPlayer,
+  playerTemplatePreviewDrawing,
+  previewPublished
+}: {
+  activeScene: Scene | null;
+  hasCampaign: boolean;
+  playerSceneId: string | null;
+  playerDisplayMode: PlayerDisplayMode;
+  templatePreviewVisibleInPlayer: boolean;
+  playerTemplatePreviewDrawing: DrawingElement | null;
+  previewPublished: boolean;
+}): { scene: Scene | null; previewPublished: boolean } {
+  if (!hasCampaign || !activeScene || activeScene.id !== playerSceneId || playerDisplayMode !== "scene") {
+    return { scene: null, previewPublished: false };
+  }
+
+  const previewDrawing = templatePreviewVisibleInPlayer ? playerTemplatePreviewDrawing : null;
+  if (!previewDrawing && !previewPublished) {
+    return { scene: null, previewPublished: false };
+  }
+
+  return {
+    scene: previewDrawing
+      ? {
+          ...activeScene,
+          drawings: [...activeScene.drawings.filter((drawing) => drawing.id !== PLAYER_TEMPLATE_PREVIEW_ID), previewDrawing]
+        }
+      : activeScene,
+    previewPublished: Boolean(previewDrawing)
+  };
 }
 
 interface UsePlayerViewStateOptions {
@@ -26,6 +85,7 @@ interface UsePlayerViewStateOptions {
   templatePreviewVisibleInPlayer: boolean;
   playerTemplatePreviewDrawing: DrawingElement | null;
   onDiceRollHistoryChange: Dispatch<SetStateAction<DiceRollEvent[]>>;
+  onClosePlayerMenu: () => void;
 }
 
 export function usePlayerViewState({
@@ -34,7 +94,8 @@ export function usePlayerViewState({
   playersPanelOpen,
   templatePreviewVisibleInPlayer,
   playerTemplatePreviewDrawing,
-  onDiceRollHistoryChange
+  onDiceRollHistoryChange,
+  onClosePlayerMenu
 }: UsePlayerViewStateOptions) {
   const [playerSceneId, setPlayerSceneId] = useState<string | null>(null);
   const [playerDisplayMode, setPlayerDisplayMode] = useState<PlayerDisplayMode>("scene");
@@ -49,7 +110,7 @@ export function usePlayerViewState({
 
   const emitLiveTableEvent = useCallback((event: LiveTableEvent) => {
     if (!isLiveTableEvent(event)) {
-      console.warn("LOCALVTT_INVALID_LIVE_TABLE_EVENT", event);
+      logRendererWarning("LOCALVTT_INVALID_LIVE_TABLE_EVENT", event);
       return;
     }
     setLiveTableEvents((events) => mergeLiveTableEvent(events, event));
@@ -59,13 +120,26 @@ export function usePlayerViewState({
       onDiceRollHistoryChange([]);
     }
     void window.localVtt.sendLiveTableEvent(event).catch((caught) => {
-      console.warn("LOCALVTT_LIVE_TABLE_EVENT_SEND_FAILED", caught);
+      logRendererWarning("LOCALVTT_LIVE_TABLE_EVENT_SEND_FAILED", caught);
     });
   }, [onDiceRollHistoryChange, updateDiceRollHistory]);
 
   const skipNextPlayerSceneAutoSync = useCallback(() => {
     skipNextPlayerSceneAutoSyncRef.current = true;
   }, []);
+
+  const applyPlayerViewModeState = useCallback((
+    nextPlayerDisplayMode: PlayerDisplayMode,
+    nextPlayerSceneId: string | null = null,
+    closeMenu = true
+  ) => {
+    const playerViewState = getPlayerViewModeState(nextPlayerDisplayMode, nextPlayerSceneId);
+    setPlayerSceneId(playerViewState.playerSceneId);
+    setPlayerDisplayMode(playerViewState.playerDisplayMode);
+    if (closeMenu) {
+      onClosePlayerMenu();
+    }
+  }, [onClosePlayerMenu]);
 
   useEffect(() => {
     const removeListener = window.localVtt.onLiveTableEvent((event) => {
@@ -136,43 +210,48 @@ export function usePlayerViewState({
   }, [campaign?.scenes]);
 
   useEffect(() => {
-    if (!campaign || !activeScene || activeScene.id !== playerSceneId || playerDisplayMode !== "scene") {
+    const action = getPlayerSceneAutoSyncAction({
+      hasCampaign: Boolean(campaign),
+      activeSceneId: activeScene?.id ?? null,
+      playerSceneId,
+      playerDisplayMode,
+      skipNextAutoSync: skipNextPlayerSceneAutoSyncRef.current
+    });
+    if (action === "ignore") {
       return;
     }
-    if (skipNextPlayerSceneAutoSyncRef.current) {
+    if (action === "skip-once") {
       skipNextPlayerSceneAutoSyncRef.current = false;
       return;
     }
-    void updatePlayerSceneIfOpen(window.localVtt, campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
+    if (campaign && activeScene) {
+      updatePlayerSceneIfOpenInBackground(window.localVtt, campaign, activeScene, { showPlayerSeatIndicators: playersPanelOpen });
+    }
   }, [activeScene, campaign, playerDisplayMode, playerSceneId, playersPanelOpen]);
 
   useEffect(() => {
-    if (!campaign || !activeScene || activeScene.id !== playerSceneId || playerDisplayMode !== "scene") {
-      playerTemplatePreviewPublishedRef.current = false;
-      return;
+    const syncState = getPlayerTemplatePreviewSyncScene({
+      activeScene,
+      hasCampaign: Boolean(campaign),
+      playerSceneId,
+      playerDisplayMode,
+      templatePreviewVisibleInPlayer,
+      playerTemplatePreviewDrawing,
+      previewPublished: playerTemplatePreviewPublishedRef.current
+    });
+    playerTemplatePreviewPublishedRef.current = syncState.previewPublished;
+    if (campaign && syncState.scene) {
+      updatePlayerSceneIfOpenInBackground(window.localVtt, campaign, syncState.scene, { showPlayerSeatIndicators: playersPanelOpen });
     }
-    const previewDrawing = templatePreviewVisibleInPlayer ? playerTemplatePreviewDrawing : null;
-    if (!previewDrawing && !playerTemplatePreviewPublishedRef.current) {
-      return;
-    }
-    const previewScene = previewDrawing
-      ? {
-          ...activeScene,
-          drawings: [...activeScene.drawings.filter((drawing) => drawing.id !== PLAYER_TEMPLATE_PREVIEW_ID), previewDrawing]
-        }
-      : activeScene;
-    playerTemplatePreviewPublishedRef.current = Boolean(previewDrawing);
-    void updatePlayerSceneIfOpen(window.localVtt, campaign, previewScene, { showPlayerSeatIndicators: playersPanelOpen });
   }, [activeScene, campaign, playerDisplayMode, playerSceneId, playerTemplatePreviewDrawing, playersPanelOpen, templatePreviewVisibleInPlayer]);
 
   return {
     playerSceneId,
-    setPlayerSceneId,
     playerDisplayMode,
-    setPlayerDisplayMode,
     liveTableEvents,
     emitLiveTableEvent,
     updateDiceRollHistory,
+    applyPlayerViewModeState,
     skipNextPlayerSceneAutoSync
   };
 }

@@ -2,6 +2,9 @@ import type { DiceDisplayMode, DiceSettings, LiveTableEvent } from "../../../sha
 
 export type DiceType = Extract<LiveTableEvent, { type: "dice" }>["die"];
 export type DiceVisualRoll = NonNullable<Extract<LiveTableEvent, { type: "dice" }>["dice"]>[number];
+export type LiveTableDiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
+export type DiceClearEvent = Extract<LiveTableEvent, { type: "dice-clear" }>;
+export type DiceRollPayload = Omit<LiveTableDiceRollEvent, "id" | "type" | "createdAt">;
 export type DiceRollTone = "critical" | "fumble" | "max" | "normal";
 export type EffectiveDiceDisplayModes = {
   gmDisplayMode: DiceDisplayMode;
@@ -41,6 +44,44 @@ export function getEffectiveDiceDisplayModes(settings: Pick<DiceSettings, "gmDis
     playerDisplayMode: settings.playerDisplayMode === "panel" || settings.playerDisplayMode === "hidden" ? settings.playerDisplayMode : "results",
     gmPanelAdvanced: settings.gmPanelAdvanced,
     playerPanelAdvanced: settings.playerPanelAdvanced
+  };
+}
+
+export function buildLiveTableDiceRollEvent(
+  roll: DiceRollPayload,
+  settings: DiceSettings,
+  id: string,
+  createdAt: number,
+  rollLabel?: string
+): LiveTableDiceRollEvent {
+  const diceDisplayModes = getEffectiveDiceDisplayModes(settings);
+  const trimmedRollLabel = rollLabel?.trim();
+  return {
+    ...roll,
+    id,
+    type: "dice",
+    ...(trimmedRollLabel ? { rollLabel: trimmedRollLabel } : {}),
+    gmDiceDisplay: diceDisplayModes.gmDisplayMode,
+    playerDiceDisplay: diceDisplayModes.playerDisplayMode,
+    gmDiceSceneSize: settings.gmSceneSize,
+    playerDiceSceneSize: settings.playerSceneSize,
+    gmDicePanelEdge: settings.gmPanelEdge,
+    playerDicePanelEdge: settings.playerPanelEdge,
+    gmDicePanelFacing: settings.gmPanelFacing,
+    playerDicePanelFacing: settings.playerPanelFacing,
+    gmDicePanelPosition: settings.gmPanelPosition,
+    playerDicePanelPosition: settings.playerPanelPosition,
+    gmDicePanelAdvanced: diceDisplayModes.gmPanelAdvanced,
+    playerDicePanelAdvanced: diceDisplayModes.playerPanelAdvanced,
+    createdAt
+  };
+}
+
+export function buildLiveTableDiceClearEvent(id: string, createdAt: number): DiceClearEvent {
+  return {
+    id,
+    type: "dice-clear",
+    createdAt
   };
 }
 

@@ -4,9 +4,12 @@ import { createDefaultCampaign, createDefaultScene } from "../../src/shared/loca
 import {
   getPlayerDisplayScale,
   getRulerDragWithAppendedWaypoint,
+  getRulerDragWithRemovedWaypoint,
   getRulerLabel,
   getTokenCenterPoint,
   getTokenMoveLabel,
+  getVisibleCanvasLiveTableEvents,
+  getVisibleDiceOverlayEvents,
   isDuplicateRulerWaypoint,
   isVisibleDiceOverlayEvent,
   shouldShowDiceOverlay
@@ -86,6 +89,18 @@ describe("live table state helpers", () => {
     expect(getPlayerDisplayScale(campaign, { ...scene, grid: { ...scene.grid, sizePx: 0 } }, "player")).toBe(1);
   });
 
+  it("does not apply physical display scale on map fit presets", () => {
+    const campaign: Campaign = createDefaultCampaign("Campaign");
+    const scene: Scene = createDefaultScene("Scene");
+    campaign.playerDisplay.physicalScaleEnabled = true;
+    campaign.playerDisplay.pixelsPerInch = 96;
+    campaign.playerDisplay.inchesPerGridCell = 1;
+    scene.grid.sizePx = 48;
+    scene.mapTransform.fitMode = "contain";
+
+    expect(getPlayerDisplayScale(campaign, scene, "player")).toBe(1);
+  });
+
   it("uses current dice display modes before legacy presentation fields", () => {
     expect(shouldShowDiceOverlay(diceEvent({ gmDiceDisplay: "panel" }), "gm")).toBe(true);
     expect(shouldShowDiceOverlay(diceEvent({ playerDiceDisplay: "hidden", playerPresentation: "3d" }), "player")).toBe(false);
@@ -102,6 +117,30 @@ describe("live table state helpers", () => {
     expect(isVisibleDiceOverlayEvent(ping, "player")).toBe(false);
     expect(isVisibleDiceOverlayEvent(hiddenDice, "player")).toBe(false);
     expect(isVisibleDiceOverlayEvent(panelDice, "player")).toBe(true);
+  });
+
+  it("returns only visible dice overlay events so the lazy dice renderer can stay unloaded when idle", () => {
+    const events: LiveTableEvent[] = [
+      { id: "ping", type: "ping", point: { x: 0, y: 0 }, createdAt: 1 },
+      diceEvent({ id: "gm-hidden", gmDiceDisplay: "hidden", playerDiceDisplay: "panel" }),
+      diceEvent({ id: "gm-panel", gmDiceDisplay: "panel", playerDiceDisplay: "hidden" }),
+      diceEvent({ id: "scene", gmDiceDisplay: "scene", playerDiceDisplay: "scene" })
+    ];
+
+    expect(getVisibleDiceOverlayEvents(events, "gm").map((event) => event.id)).toEqual(["gm-panel", "scene"]);
+    expect(getVisibleDiceOverlayEvents(events, "player").map((event) => event.id)).toEqual(["gm-hidden", "scene"]);
+    expect(getVisibleDiceOverlayEvents([], "gm")).toEqual([]);
+  });
+
+  it("hides active ruler canvas events from the GM canvas because the GM ruler is drawn locally", () => {
+    const events: LiveTableEvent[] = [
+      { id: "ping", type: "ping", point: { x: 0, y: 0 }, createdAt: 1 },
+      { id: "ruler", type: "ruler", points: [{ x: 0, y: 0 }, { x: 10, y: 10 }], primary: "10 ft", visibleInPlayer: true, createdAt: 1 },
+      diceEvent({ id: "dice" })
+    ];
+
+    expect(getVisibleCanvasLiveTableEvents(events, "gm").map((event) => event.id)).toEqual(["ping", "dice"]);
+    expect(getVisibleCanvasLiveTableEvents(events, "player")).toBe(events);
   });
 
   it("uses a forgiving duplicate ruler waypoint distance on gridless scenes", () => {
@@ -137,5 +176,21 @@ describe("live table state helpers", () => {
     expect(nextRulerDrag).not.toBe(rulerDrag);
     expect(nextRulerDrag.current).toEqual({ x: 150, y: 150 });
     expect(nextRulerDrag.waypoints).toEqual([{ x: 150, y: 150 }]);
+  });
+
+  it("removes the last ruler waypoint", () => {
+    expect(
+      getRulerDragWithRemovedWaypoint({
+        start: { x: 0, y: 0 },
+        current: { x: 30, y: 30 },
+        waypoints: [{ x: 10, y: 10 }, { x: 20, y: 20 }]
+      })
+    ).toEqual({
+      start: { x: 0, y: 0 },
+      current: { x: 30, y: 30 },
+      waypoints: [{ x: 10, y: 10 }]
+    });
+
+    expect(getRulerDragWithRemovedWaypoint({ start: { x: 0, y: 0 }, current: { x: 30, y: 30 }, waypoints: [] })).toBeNull();
   });
 });

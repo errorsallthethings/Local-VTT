@@ -15,15 +15,28 @@ describe("formatUserFacingError", () => {
   });
 
   it("keeps backup guidance for corrupt campaign metadata", () => {
-    const message = "Campaign metadata could not be read. Metadata backups may exist in C:\\Campaign\\backups. Invalid campaign.json file.";
+    const message = "Campaign metadata could not be read. Metadata backups may exist in C:\\Campaign\\backups. Campaign metadata file is not valid JSON. Unexpected end of JSON input";
 
-    expect(formatUserFacingError(new Error(message))).toBe(message);
+    expect(formatUserFacingError(new Error(message))).toBe(
+      "Campaign metadata could not be read. The metadata file is not valid JSON. Restore a metadata backup or repair the JSON file."
+    );
   });
 
   it("keeps backup guidance for corrupt scene metadata", () => {
-    const message = "Scene metadata could not be read. Metadata backups may exist in C:\\Campaign\\backups\\scenes\\scene-1. Invalid scene file.";
+    const message = "Scene metadata could not be read. Metadata backups may exist in C:\\Campaign\\backups\\scenes\\scene-1. Scene metadata structure is invalid. Invalid scene file.";
 
-    expect(formatUserFacingError(new Error(message))).toBe(message);
+    expect(formatUserFacingError(new Error(message))).toBe(
+      "Scene metadata could not be read. The metadata structure is invalid. Restore a metadata backup or repair the campaign file."
+    );
+  });
+
+  it("explains metadata from newer app versions", () => {
+    const message =
+      "Campaign metadata could not be read. Metadata backups may exist in C:\\Campaign\\backups. Campaign metadata was created by a newer version of Local VTT.";
+
+    expect(formatUserFacingError(new Error(message))).toBe(
+      "Campaign metadata could not be read. This campaign or scene was saved by a newer version of Local VTT. Update Local VTT, then try again."
+    );
   });
 
   it("keeps metadata save context before matching generic filesystem errors", () => {
@@ -42,6 +55,21 @@ describe("formatUserFacingError", () => {
     const message = "Campaign metadata could not be saved. Drive temporarily unavailable.";
 
     expect(formatUserFacingError(new Error(message))).toBe(message);
+  });
+
+  it("turns unsafe asset path errors into campaign recovery guidance", () => {
+    const action =
+      "Campaign metadata contains an asset path that points outside the campaign folder. Keep imported assets inside the campaign folder, then reopen or restore a metadata backup.";
+
+    expect(formatUserFacingError(new Error("Asset path must be a relative path inside the campaign folder."))).toBe(action);
+    expect(
+      formatUserFacingError(new Error("Campaign metadata could not be saved. Asset thumbnail path must be a relative path inside the campaign folder."))
+    ).toBe(`Campaign metadata could not be saved. ${action}`);
+    expect(
+      formatUserFacingError(
+        new Error("Error invoking remote method 'campaign:save': Error: Campaign metadata could not be saved. Asset path must be a relative path inside the campaign folder.")
+      )
+    ).toBe(`Campaign metadata could not be saved. ${action}`);
   });
 
   it("turns permission errors into an actionable message", () => {
@@ -68,6 +96,22 @@ describe("formatUserFacingError", () => {
     );
     expect(formatUserFacingError(new SyntaxError("Unexpected end of JSON input"))).toBe(
       "That campaign or scene file appears to be incomplete or corrupted. Check the campaign backups folder for a previous copy."
+    );
+  });
+
+  it("turns asset import validation errors into actionable messages", () => {
+    expect(formatUserFacingError(new Error("Selected asset file could not be read. It may have been moved or deleted."))).toBe(
+      "That asset file could not be read. It may have been moved, deleted, or locked by another app."
+    );
+    expect(formatUserFacingError(new Error("Selected asset must be a file."))).toBe("Choose an image or video file instead of a folder.");
+    expect(formatUserFacingError(new Error("Selected asset file is empty or could not be read."))).toBe(
+      "That asset file is empty or could not be read. Choose a different image or video file."
+    );
+    expect(formatUserFacingError(new Error("Map assets must be 2 GB or smaller."))).toBe(
+      "That map file is too large to import. Use a smaller map file, or reduce the video/image size and try again."
+    );
+    expect(formatUserFacingError(new Error("Token image assets must be 100 MB or smaller."))).toBe(
+      "That token image is too large to import. Use a smaller image file and try again."
     );
   });
 

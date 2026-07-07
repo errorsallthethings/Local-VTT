@@ -4,11 +4,16 @@ import { createDefaultCampaign, createDefaultScene } from "../../src/shared/loca
 import {
   buildTokenLayerRows,
   buildTokenLibraryAssetIndex,
+  clampTokenLibrarySplitPercent,
   filterTokenLibraryAssetIndex,
   filterTokenLibraryAssets,
   getSelectedTokenAssetIds,
   getSelectedTokenLibraryAsset,
   getSelectedTokenLibraryAssetIds,
+  getTokenAssetDeleteDialogState,
+  getTokenAssetRenameDialogState,
+  getTokenLibraryDrawerPresentation,
+  getTokenLibrarySplitPercent,
   mergeTokenAssetUsage,
   removeSceneTokensByAsset
 } from "../../src/renderer/lib/tokens";
@@ -73,6 +78,34 @@ describe("token library helpers", () => {
     expect(getSelectedTokenLibraryAsset(assets, "zombie")?.name).toBe("zombie");
     expect(getSelectedTokenLibraryAsset(assets, "missing")).toBeNull();
     expect(getSelectedTokenLibraryAsset(assets, undefined)).toBeNull();
+  });
+
+  it("clamps and derives token library split percentages", () => {
+    expect(clampTokenLibrarySplitPercent(20)).toBe(38);
+    expect(clampTokenLibrarySplitPercent(90)).toBe(76);
+    expect(clampTokenLibrarySplitPercent(Number.NaN)).toBe(62);
+    expect(getTokenLibrarySplitPercent(300, 100, 400)).toBe(50);
+    expect(getTokenLibrarySplitPercent(900, 100, 400)).toBe(76);
+    expect(getTokenLibrarySplitPercent(300, 100, 0)).toBe(62);
+  });
+
+  it("builds token library drawer presentation state", () => {
+    expect(getTokenLibraryDrawerPresentation("medium", true, true, 82)).toEqual({
+      className: "token-library-drawer token-library-view-medium token-library-expanded",
+      contentStyle: { "--scene-tools-token-width": "76%" }
+    });
+    expect(getTokenLibraryDrawerPresentation("list", false, false, 50)).toEqual({
+      className: "token-library-drawer token-library-view-list token-library-collapsed-click-target",
+      contentStyle: undefined
+    });
+  });
+
+  it("builds token asset rename dialog state with label fallback", () => {
+    expect(getTokenAssetRenameDialogState(tokenAsset("asset-1", "Hero", "hero.png", "2026-01-01T00:00:00.000Z"))).toEqual({
+      assetId: "asset-1",
+      name: "Hero"
+    });
+    expect(getTokenAssetRenameDialogState(tokenAsset("asset-2", "", "source.png", "2026-01-01T00:00:00.000Z")).name).toBe("source.png");
   });
 
   it("builds token layer row labels and visibility from tokens and assets", () => {
@@ -157,5 +190,33 @@ describe("token library helpers", () => {
       { sceneId: "scene-1", sceneName: "Saved One", count: 1 },
       { sceneId: "scene-2", sceneName: "Two", count: 2 }
     ]);
+  });
+
+  it("builds token asset delete dialog state from saved and local usage", () => {
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.scenes = [
+      { id: "scene-1", name: "One", mapAssetId: null, folderId: null, color: "#ffffff", weather: createDefaultScene("One").weather },
+      { id: "scene-2", name: "Two", mapAssetId: null, folderId: null, color: "#ffffff", weather: createDefaultScene("Two").weather }
+    ];
+    const draft = createDefaultScene("Draft Two");
+    draft.id = "scene-2";
+    draft.tokens = [sceneToken("two-a", "asset-1")];
+    const asset = tokenAsset("asset-1", "Hero", "hero.png", "2026-01-01T00:00:00.000Z");
+
+    expect(
+      getTokenAssetDeleteDialogState(
+        asset,
+        [{ sceneId: "scene-1", sceneName: "Saved One", count: 2 }],
+        campaign,
+        { "scene-2": draft },
+        null
+      )
+    ).toEqual({
+      asset,
+      usage: [
+        { sceneId: "scene-1", sceneName: "Saved One", count: 2 },
+        { sceneId: "scene-2", sceneName: "Two", count: 1 }
+      ]
+    });
   });
 });

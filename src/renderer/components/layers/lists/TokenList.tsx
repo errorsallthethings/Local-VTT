@@ -4,13 +4,30 @@ import { Copy, Crown, Eye, EyeOff, GripVertical, MoreVertical, Trash2, User, Use
 import type { Asset, Scene, Token } from "../../../../shared/localvtt";
 import { useDismissableMenu } from "../../../hooks/useDismissableMenu";
 import { useFloatingMenuPosition } from "../../../hooks/useFloatingMenuPosition";
+import { getAssetThumbnailPreviewMessage, getAssetThumbnailPreviewPath } from "../../../lib/assets";
 import { getSelectedItemIds } from "../../../lib/scene";
 import { buildTokenLayerRows } from "../../../lib/tokens";
 import { duplicateToken } from "../../../lib/tokens";
-import { reorderByDropTarget, type DropPlacement } from "../../../lib/ui";
+import { type DropPlacement } from "../../../lib/ui";
+import { CompactAssetThumbnail } from "../../assets/CompactAssetThumbnail";
+import {
+  getLayerItemActionButtonClassName,
+  acceptsLayerItemDrag,
+  getLayerItemDragEndMoveAction,
+  getLayerItemDropMoveAction,
+  getLayerItemDropSourceId,
+  getLayerItemDropTarget,
+  getLayerItemRowClassName,
+  getLayerItemVisibilityLabel,
+  getLayerItemVisibilityTitle,
+  type LayerItemDropTarget,
+  getReorderedTokenLayerItems,
+  patchLayerItemById,
+  removeLayerItemById
+} from "../panel/layerItemRows";
 import { TokenSettings } from "../settings/TokenSettings";
 
-type TokenDropTarget = { tokenId: string; placement: DropPlacement } | null;
+type TokenDropTarget = LayerItemDropTarget | null;
 const EMPTY_SELECTED_IDS: string[] = [];
 
 export function TokenList({
@@ -50,8 +67,7 @@ export function TokenList({
     if (sourceTokenId === targetTokenId) {
       return;
     }
-    const tokens = reorderByDropTarget(scene.tokens, (token) => token.id, sourceTokenId, targetTokenId, placement);
-    onUpdateTokens(tokens.map((token, index) => ({ ...token, order: index })));
+    onUpdateTokens(getReorderedTokenLayerItems(scene.tokens, sourceTokenId, targetTokenId, placement));
   };
 
   return (
@@ -75,34 +91,17 @@ export function TokenList({
           </div>
           {tokenRows.map(({ token, asset, label, isVisibleInGm, isVisibleInPlayer }) => {
             const isSelected = selectedIds.has(token.id);
-            const dropPlacement = tokenDropTarget?.tokenId === token.id && draggedTokenId !== token.id ? tokenDropTarget.placement : null;
-            const gmVisibilityButtonClass = [
-              "icon-button",
-              "fog-shape-action-button",
-              isVisibleInGm ? "fog-shape-action-active" : ""
-            ]
-              .filter(Boolean)
-              .join(" ");
-            const playerVisibilityButtonClass = [
-              "icon-button",
-              "fog-shape-action-button",
-              isVisibleInPlayer ? "fog-shape-action-active" : ""
-            ]
-              .filter(Boolean)
-              .join(" ");
+            const dropPlacement = tokenDropTarget?.itemId === token.id && draggedTokenId !== token.id ? tokenDropTarget.placement : null;
             return (
               <div
-                className={[
-                  "fog-shape-row",
-                  isVisibleInGm || isVisibleInPlayer ? "" : "fog-shape-row-muted",
-                  isSelected ? "fog-shape-row-selected" : "",
-                  "token-shape-row",
-                  openTokenMenuId === token.id ? "token-shape-row-menu-open" : "",
-                  draggedTokenId === token.id ? "fog-shape-row-dragging" : "",
-                  dropPlacement ? `fog-shape-row-drop-${dropPlacement}` : ""
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                className={getLayerItemRowClassName({
+                  visible: isVisibleInGm || isVisibleInPlayer,
+                  selected: isSelected,
+                  dragging: draggedTokenId === token.id,
+                  dropPlacement,
+                  variant: "token",
+                  menuOpen: openTokenMenuId === token.id
+                })}
                 key={token.id}
                 draggable
                 onClick={() => onSelectToken(token.id)}
@@ -113,32 +112,32 @@ export function TokenList({
                   event.dataTransfer.effectAllowed = "move";
                 }}
                 onDragOver={(event) => {
-                  if (!draggedTokenId && !event.dataTransfer.types.includes("application/x-localvtt-token-id")) {
+                  if (!acceptsLayerItemDrag(draggedTokenId, event.dataTransfer.types, "application/x-localvtt-token-id")) {
                     return;
                   }
                   event.preventDefault();
                   event.dataTransfer.dropEffect = "move";
-                  if (draggedTokenId !== token.id) {
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    setTokenDropTarget({
-                      tokenId: token.id,
-                      placement: event.clientY > rect.top + rect.height / 2 ? "after" : "before"
-                    });
-                  }
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setTokenDropTarget(getLayerItemDropTarget(token.id, draggedTokenId, event.clientY, rect.top, rect.height));
                 }}
                 onDrop={(event) => {
                   event.preventDefault();
-                  const sourceTokenId = event.dataTransfer.getData("application/x-localvtt-token-id") || event.dataTransfer.getData("text/plain") || draggedTokenId;
-                  const placement = tokenDropTarget?.tokenId === token.id ? tokenDropTarget.placement : "before";
-                  if (sourceTokenId) {
-                    moveToken(sourceTokenId, token.id, placement);
+                  const sourceTokenId = getLayerItemDropSourceId(
+                    event.dataTransfer.getData("application/x-localvtt-token-id"),
+                    event.dataTransfer.getData("text/plain"),
+                    draggedTokenId
+                  );
+                  const moveAction = getLayerItemDropMoveAction(sourceTokenId, token.id, tokenDropTarget);
+                  if (moveAction) {
+                    moveToken(moveAction.sourceItemId, moveAction.targetItemId, moveAction.placement);
                   }
                   setDraggedTokenId(null);
                   setTokenDropTarget(null);
                 }}
                 onDragEnd={() => {
-                  if (draggedTokenId && tokenDropTarget) {
-                    moveToken(draggedTokenId, tokenDropTarget.tokenId, tokenDropTarget.placement);
+                  const moveAction = getLayerItemDragEndMoveAction(draggedTokenId, tokenDropTarget);
+                  if (moveAction) {
+                    moveToken(moveAction.sourceItemId, moveAction.targetItemId, moveAction.placement);
                   }
                   setDraggedTokenId(null);
                   setTokenDropTarget(null);
@@ -150,23 +149,23 @@ export function TokenList({
                   {label}
                 </span>
                 <button
-                  className={gmVisibilityButtonClass}
-                  aria-label={isVisibleInGm ? `Hide ${label} in GM View` : `Show ${label} in GM View`}
-                  title={isVisibleInGm ? "Hide in GM View" : "Show in GM View"}
+                  className={getLayerItemActionButtonClassName(isVisibleInGm)}
+                  aria-label={getLayerItemVisibilityLabel(label, "GM", isVisibleInGm)}
+                  title={getLayerItemVisibilityTitle("GM", isVisibleInGm)}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onUpdateTokens(scene.tokens.map((candidate) => (candidate.id === token.id ? { ...candidate, visibleInGm: !isVisibleInGm } : candidate)));
+                    onUpdateTokens(patchLayerItemById(scene.tokens, token.id, { visibleInGm: !isVisibleInGm }));
                   }}
                 >
                   {isVisibleInGm ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
                 </button>
                 <button
-                  className={playerVisibilityButtonClass}
-                  aria-label={isVisibleInPlayer ? `Hide ${label} in Player View` : `Show ${label} in Player View`}
-                  title={isVisibleInPlayer ? "Hide in Player View" : "Show in Player View"}
+                  className={getLayerItemActionButtonClassName(isVisibleInPlayer)}
+                  aria-label={getLayerItemVisibilityLabel(label, "Player", isVisibleInPlayer)}
+                  title={getLayerItemVisibilityTitle("Player", isVisibleInPlayer)}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onUpdateTokens(scene.tokens.map((candidate) => (candidate.id === token.id ? { ...candidate, visibleInPlayer: !isVisibleInPlayer } : candidate)));
+                    onUpdateTokens(patchLayerItemById(scene.tokens, token.id, { visibleInPlayer: !isVisibleInPlayer }));
                   }}
                 >
                   {isVisibleInPlayer ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
@@ -312,7 +311,7 @@ function FloatingTokenSettingsMenu({
       <button
         className="token-menu-action token-menu-delete"
         onClick={() => {
-          onUpdateTokens(scene.tokens.filter((candidate) => candidate.id !== token.id));
+          onUpdateTokens(removeLayerItemById(scene.tokens, token.id));
           if (selectedTokenId === token.id) {
             onSelectToken(null);
           }
@@ -327,10 +326,11 @@ function FloatingTokenSettingsMenu({
 }
 
 function TokenRowThumbnail({ asset, label }: { asset: Asset | null; label: string }) {
-  const previewPath = asset?.thumbnailAbsolutePath ?? asset?.absolutePath;
+  const previewPath = getAssetThumbnailPreviewPath(asset);
+  const previewMessage = getAssetThumbnailPreviewMessage(asset);
   return (
-    <span className="token-row-thumbnail" title={label} aria-hidden="true">
-      {previewPath ? <img src={window.localVtt.toAssetUrl(previewPath)} alt="" draggable={false} /> : <UsersRound size={13} />}
+    <span className="token-row-thumbnail" title={previewMessage ?? label} aria-hidden="true">
+      <CompactAssetThumbnail previewPath={previewPath} fallback={<UsersRound size={13} />} />
     </span>
   );
 }

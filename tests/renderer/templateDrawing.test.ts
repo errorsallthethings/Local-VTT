@@ -10,6 +10,7 @@ import {
   getTemplateDistancePixels,
   getTemplateEffectNamePart,
   getTemplatePreviewDrawing,
+  getUpdatedDrawingPreview,
   isTemplateDrawingTool
 } from "../../src/renderer/canvas/drawings";
 
@@ -94,6 +95,40 @@ describe("template drawing helpers", () => {
     });
     expect(getTemplatePreviewDrawing({ ...preview, kind: "line" })).toBeNull();
     expect(getTemplatePreviewDrawing({ ...preview, measurementLabelVisible: false })).toBeNull();
+  });
+
+  it("updates drawing previews with square constraints and circle ellipse state", () => {
+    const rectangle = drawingPreview({ kind: "rectangle", current: { x: 10, y: 20 } });
+    expect(getUpdatedDrawingPreview(rectangle, { x: 30, y: 10 }, null, "custom", true)).toMatchObject({
+      current: { x: 30, y: 30 },
+      points: [{ x: 0, y: 0 }],
+      ellipse: false
+    });
+
+    const circle = drawingPreview({ kind: "circle" });
+    expect(getUpdatedDrawingPreview(circle, { x: 30, y: 10 }, null, "custom", false)).toMatchObject({
+      current: { x: 30, y: 10 },
+      ellipse: true
+    });
+  });
+
+  it("updates freehand drawing previews only after meaningful movement", () => {
+    const preview = drawingPreview({ kind: "freehand", points: [{ x: 0, y: 0 }], current: { x: 0, y: 0 } });
+
+    expect(getUpdatedDrawingPreview(preview, { x: 1, y: 1 }, null, "custom", false).points).toEqual([{ x: 0, y: 0 }]);
+    expect(getUpdatedDrawingPreview(preview, { x: 4, y: 0 }, null, "custom", false).points).toEqual([{ x: 0, y: 0 }, { x: 4, y: 0 }]);
+  });
+
+  it("updates template drawing previews with preset distance constraints", () => {
+    const scene = createDefaultScene("Measured");
+    scene.grid.type = "square";
+    scene.grid.sizePx = 100;
+    scene.grid.measurement.unitsPerGridCell = 5;
+
+    expect(getUpdatedDrawingPreview(drawingPreview({ kind: "template-line" }), { x: 30, y: 40 }, scene, 10, false).current).toEqual({
+      x: 120,
+      y: 160
+    });
   });
 
   it("creates persisted drawing elements from non-template previews", () => {
@@ -197,3 +232,16 @@ describe("template drawing helpers", () => {
     });
   });
 });
+
+function drawingPreview(overrides: Partial<DrawingPreview> = {}): DrawingPreview {
+  return {
+    pointerId: 1,
+    kind: "line",
+    points: [{ x: 0, y: 0 }],
+    current: { x: 20, y: 20 },
+    color: "#ff0000",
+    opacity: 0.75,
+    strokeWidth: 12,
+    ...overrides
+  };
+}

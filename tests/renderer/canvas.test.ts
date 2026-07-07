@@ -14,7 +14,7 @@ import {
   normalizeBrushPoints,
   shouldAddBrushPoint
 } from "../../src/renderer/canvas/fog";
-import { getNearestGridPoint, getNearestSquareGridSnapPoint } from "../../src/renderer/canvas/grid";
+import { formatGridCellCoordinate, getNearestGridPoint, getNearestSquareGridSnapPoint } from "../../src/renderer/canvas/grid";
 import { getCameraForMapFit, resolveMapTransform } from "../../src/renderer/canvas/map";
 import { createDefaultScene } from "../../src/shared/localvtt";
 
@@ -69,6 +69,14 @@ it("getNearestGridPoint snaps to the configured grid offset", () => {
         color: "#fff",
         opacity: 1,
         lineThickness: 1,
+        showCoordinates: false,
+        coordinatePlacement: "inline",
+        coordinateXFormat: "alpha",
+        coordinateYFormat: "numeric",
+        coordinateCellPosition: "top-left",
+        coordinateColor: "#ffffff",
+        coordinateGmFontSize: 12,
+        coordinatePlayerFontSize: 12,
         showOnGm: true,
         showOnPlayer: true,
         measurement: { unit: "feet", unitsPerGridCell: 5, distanceMode: "euclidean" }
@@ -94,6 +102,14 @@ it("getNearestSquareGridSnapPoint includes square centers, corners, and edge mid
     color: "#fff",
     opacity: 1,
     lineThickness: 1,
+    showCoordinates: false,
+    coordinatePlacement: "inline",
+    coordinateXFormat: "alpha",
+    coordinateYFormat: "numeric",
+    coordinateCellPosition: "top-left",
+    coordinateColor: "#ffffff",
+    coordinateGmFontSize: 12,
+    coordinatePlayerFontSize: 12,
     showOnGm: true,
     showOnPlayer: true,
     measurement: { unit: "feet", unitsPerGridCell: 5, distanceMode: "euclidean" }
@@ -107,30 +123,44 @@ it("getNearestSquareGridSnapPoint includes square centers, corners, and edge mid
   expect(getNearestSquareGridSnapPoint({ x: 9, y: 44 }, grid)).toEqual({ x: 10, y: 45 });
 });
 
-it("resolveMapTransform centers contain, cover, and actual-size fit modes", () => {
+it("formats grid coordinate labels as alpha-numeric or numeric pairs", () => {
+  expect(formatGridCellCoordinate(0, 0, "alpha", "numeric")).toBe("A1");
+  expect(formatGridCellCoordinate(25, 4, "alpha", "numeric")).toBe("Z5");
+  expect(formatGridCellCoordinate(26, 9, "alpha", "numeric")).toBe("AA10");
+  expect(formatGridCellCoordinate(0, 0, "numeric", "numeric")).toBe("1,1");
+  expect(formatGridCellCoordinate(11, 6, "numeric", "numeric")).toBe("12,7");
+  expect(formatGridCellCoordinate(0, 0, "alpha", "alpha")).toBe("A,A");
+  expect(formatGridCellCoordinate(0, 0, "numeric", "alpha")).toBe("1,A");
+});
+
+it("resolveMapTransform returns the stored scene transform for preset modes", () => {
   const scene = createDefaultScene("Map");
 
-  expect(resolveMapTransform({ ...scene, mapTransform: { ...scene.mapTransform, fitMode: "contain" } }, 400, 200, 1000, 1000)).toEqual({
+  expect(resolveMapTransform({ ...scene, mapTransform: { ...scene.mapTransform, fitMode: "contain", x: 12, y: 34, scale: 2, scaleX: 2, scaleY: 2 } }, 400, 200, 1000, 1000)).toEqual({
     ...scene.mapTransform,
     fitMode: "contain",
-    x: 0,
-    y: 250,
-    scale: 2.5
+    x: 12,
+    y: 34,
+    scale: 2,
+    scaleX: 2,
+    scaleY: 2
   });
 
-  expect(resolveMapTransform({ ...scene, mapTransform: { ...scene.mapTransform, fitMode: "cover" } }, 400, 200, 1000, 1000)).toEqual({
+  expect(resolveMapTransform({ ...scene, mapTransform: { ...scene.mapTransform, fitMode: "cover", scaleX: 1.2, scaleY: 0.8 } }, 400, 200, 1000, 1000)).toEqual({
     ...scene.mapTransform,
     fitMode: "cover",
-    x: -500,
+    x: 0,
     y: 0,
-    scale: 5
+    scale: 1,
+    scaleX: 1.2,
+    scaleY: 0.8
   });
 
   expect(resolveMapTransform({ ...scene, mapTransform: { ...scene.mapTransform, fitMode: "actual-size" } }, 400, 200, 1000, 1000)).toEqual({
     ...scene.mapTransform,
     fitMode: "actual-size",
-    x: 300,
-    y: 400,
+    x: 0,
+    y: 0,
     scale: 1
   });
 });

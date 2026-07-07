@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   hydrateCampaignSceneEntry,
+  normalizePortableCampaignPath,
   parseCampaignMetadata,
   parseSceneMetadata,
   toPortableCampaignMetadata,
@@ -38,6 +39,78 @@ describe("persistence codecs", () => {
     expect(persistedJson).not.toContain("C:\\Campaign");
   });
 
+  it("normalizes portable asset path separators before campaign metadata is saved", () => {
+    const campaign = createDefaultCampaign("Portable Separators");
+    campaign.assets = [
+      {
+        id: "map-1",
+        name: "Map",
+        kind: "map",
+        mediaType: "image",
+        relativePath: "assets\\maps\\map.png",
+        thumbnailRelativePath: "assets\\thumbnails\\.\\map-1.jpg",
+        originalFileName: "map.png",
+        createdAt: "2026-06-01T00:00:00.000Z"
+      }
+    ];
+
+    const portable = toPortableCampaignMetadata(campaign);
+
+    expect(portable.assets[0].relativePath).toBe("assets/maps/map.png");
+    expect(portable.assets[0].thumbnailRelativePath).toBe("assets/thumbnails/map-1.jpg");
+  });
+
+  it("normalizes campaign scene file path separators before campaign metadata is saved", () => {
+    const campaign = createDefaultCampaign("Portable Scene Files");
+    campaign.scenes = [
+      {
+        id: "scene-1",
+        name: "Scene",
+        file: "scenes\\.\\scene-1.scene.json"
+      }
+    ];
+
+    expect(toPortableCampaignMetadata(campaign).scenes[0].file).toBe("scenes/scene-1.scene.json");
+  });
+
+  it("rejects absolute and traversal asset paths before campaign metadata is saved", () => {
+    const campaign = createDefaultCampaign("Unsafe Paths");
+    campaign.assets = [
+      {
+        id: "map-1",
+        name: "Map",
+        kind: "map",
+        mediaType: "image",
+        relativePath: "../outside.png",
+        originalFileName: "map.png",
+        createdAt: "2026-06-01T00:00:00.000Z"
+      }
+    ];
+
+    expect(() => toPortableCampaignMetadata(campaign)).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableCampaignPath("C:\\Campaign\\assets\\map.png", "Asset path")).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableCampaignPath("/Campaign/assets/map.png", "Asset path")).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableCampaignPath("assets/maps/../outside.png", "Asset path")).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableCampaignPath(".", "Asset path")).toThrow("Asset path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableCampaignPath("./.", "Asset path")).toThrow("Asset path must be a relative path inside the campaign folder.");
+  });
+
+  it("rejects absolute and traversal scene file paths before campaign metadata is saved", () => {
+    const campaign = createDefaultCampaign("Unsafe Scene Files");
+    campaign.scenes = [
+      {
+        id: "scene-1",
+        name: "Scene",
+        file: "../outside.scene.json"
+      }
+    ];
+
+    expect(() => toPortableCampaignMetadata(campaign)).toThrow("Scene file path must be a relative path inside the campaign folder.");
+    expect(() => normalizePortableCampaignPath("C:\\Campaign\\scenes\\scene.scene.json", "Scene file path")).toThrow(
+      "Scene file path must be a relative path inside the campaign folder."
+    );
+  });
+
   it("normalizes scene metadata before saving", () => {
     const legacyScene = {
       ...createDefaultScene("Legacy Scene"),
@@ -52,6 +125,12 @@ describe("persistence codecs", () => {
     expect(portable.schemaVersion).toBeDefined();
   });
 
+  it("rejects invalid campaign and scene objects before saving", () => {
+    expect(() => toPortableCampaignMetadata({ id: "campaign", name: "Broken", scenes: "nope" } as never)).toThrow("Invalid campaign.json file.");
+    expect(() => toPortableCampaignMetadata({ ...createDefaultCampaign("Broken"), assets: "nope" } as never)).toThrow("Invalid campaign assets list.");
+    expect(() => toPortableSceneMetadata({ id: "scene", name: "Broken", layers: "nope" } as never)).toThrow("Invalid scene file.");
+  });
+
   it("parses valid campaign and scene metadata", () => {
     const campaign = createDefaultCampaign("Parsed Campaign");
     const scene = createDefaultScene("Parsed Scene");
@@ -61,8 +140,18 @@ describe("persistence codecs", () => {
   });
 
   it("rejects invalid campaign and scene metadata", () => {
-    expect(() => parseCampaignMetadata(JSON.stringify({ id: "", name: "Broken", scenes: [] }))).toThrow(/Invalid campaign/);
-    expect(() => parseSceneMetadata(JSON.stringify({ id: "scene", name: "Broken", layers: "nope" }))).toThrow(/Invalid scene/);
+    expect(() => parseCampaignMetadata("{")).toThrow("Campaign metadata file is not valid JSON.");
+    expect(() => parseSceneMetadata("{")).toThrow("Scene metadata file is not valid JSON.");
+    expect(() => parseCampaignMetadata(JSON.stringify({ id: "", name: "Broken", scenes: [] }))).toThrow("Campaign metadata structure is invalid.");
+    expect(() => parseSceneMetadata(JSON.stringify({ id: "scene", name: "Broken", layers: "nope" }))).toThrow("Scene metadata structure is invalid.");
+  });
+
+  it("identifies metadata from newer app versions", () => {
+    const futureCampaign = { ...createDefaultCampaign("Future Campaign"), schemaVersion: 999 };
+    const futureScene = { ...createDefaultScene("Future Scene"), schemaVersion: 999 };
+
+    expect(() => parseCampaignMetadata(JSON.stringify(futureCampaign))).toThrow("Campaign metadata was created by a newer version of Local VTT.");
+    expect(() => parseSceneMetadata(JSON.stringify(futureScene))).toThrow("Scene metadata was created by a newer version of Local VTT.");
   });
 
   it("round trips portable campaign metadata with folders, scenes, players, and assets", () => {

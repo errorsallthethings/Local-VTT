@@ -1,9 +1,9 @@
 import type { Scene } from "../../../shared/localvtt";
-import { resolveMapTransform } from "../map/mapRenderer";
+import { getMapScaleX, getMapScaleY, resolveMapTransform } from "./mapRenderer";
 
 const LARGE_MAP_CACHE_MAX_EDGE = 4096;
 const LARGE_MAP_CACHE_MAX_PIXELS = 16_000_000;
-const GM_FULL_QUALITY_MAP_SCALE_THRESHOLD = 1.12;
+const FULL_QUALITY_MAP_SCALE_THRESHOLD = 1.12;
 const MEDIA_HAVE_METADATA_READY_STATE = 1;
 
 export type MapLoadStatus = "idle" | "loading" | "ready" | "error";
@@ -31,6 +31,15 @@ export interface PreparedLoadedImageMap {
   optimizedScale: number;
 }
 
+export type MapCanvasBackgroundPlan = "image-map" | "empty-map-prompt" | "fallback-fill" | "video-map";
+
+export interface MapCanvasBackgroundPlanOptions {
+  isVideoMap: boolean;
+  canShowMap: boolean | undefined;
+  hasMapAsset: boolean;
+  imageMapReady: boolean;
+}
+
 export function getInitialMapLoadStatus(mediaType: "image" | "video" | undefined, assetUrl: string | null): MapLoadStatus {
   return mediaType === "video" && assetUrl ? "loading" : "idle";
 }
@@ -48,6 +57,24 @@ export function getMapOverlayMessage(mapLoadStatus: MapLoadStatus, mediaType: "i
     return "Map asset unavailable. It may have been moved, renamed, or deleted.";
   }
   return mediaType === "video" ? "Loading video map..." : "Loading map...";
+}
+
+export function getMapCanvasBackgroundPlan({
+  isVideoMap,
+  canShowMap,
+  hasMapAsset,
+  imageMapReady
+}: MapCanvasBackgroundPlanOptions): MapCanvasBackgroundPlan {
+  if (isVideoMap) {
+    return "video-map";
+  }
+  if (canShowMap && hasMapAsset && imageMapReady) {
+    return "image-map";
+  }
+  if (!canShowMap || !hasMapAsset) {
+    return "empty-map-prompt";
+  }
+  return "fallback-fill";
 }
 
 export function getLargeMapCacheScale(width: number, height: number): number {
@@ -91,15 +118,17 @@ export function getMapDrawSource(
   viewportWidth: number,
   viewportHeight: number,
   cameraZoom: number,
-  mode: "gm" | "player"
+  _mode: "gm" | "player",
+  outputPixelRatio = 1
 ): CanvasImageSource {
-  if (mode === "player" || loadedMap.animate || !loadedMap.optimizedSource) {
+  if (loadedMap.animate || !loadedMap.optimizedSource) {
     return loadedMap.originalSource;
   }
 
   const transform = resolveMapTransform(scene, loadedMap.sourceWidth, loadedMap.sourceHeight, viewportWidth, viewportHeight);
-  const effectiveMapScale = Math.abs(transform.scale * cameraZoom);
-  if (effectiveMapScale > loadedMap.optimizedScale * GM_FULL_QUALITY_MAP_SCALE_THRESHOLD) {
+  const effectiveMapScale = Math.max(Math.abs(getMapScaleX(transform) * cameraZoom), Math.abs(getMapScaleY(transform) * cameraZoom));
+  const effectiveOutputScale = effectiveMapScale * Math.max(1, Number.isFinite(outputPixelRatio) ? outputPixelRatio : 1);
+  if (effectiveOutputScale > loadedMap.optimizedScale * FULL_QUALITY_MAP_SCALE_THRESHOLD) {
     return loadedMap.originalSource;
   }
   return loadedMap.optimizedSource;

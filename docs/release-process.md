@@ -23,9 +23,10 @@ Update `CHANGELOG.md`, then verify the release branch:
 
 ```bash
 npm run release:notes -- --milestone 0.1.6 --output docs/release-notes/v0.1.6.md
+npm run release:check-metadata
 npm run check
 npm run build
-npm run smoke:electron
+npm run smoke
 ```
 
 Commit the release metadata:
@@ -75,10 +76,14 @@ Review the generated notes before committing. They are grouped by existing `type
 4. Run local verification:
 
 ```bash
+npm run release:check-metadata
+npm run docs:check
 npm run check
 npm run build
-npm run smoke:electron
+npm run smoke
 ```
+
+`npm run release:check-metadata` verifies that `package.json` and `package-lock.json` versions agree, that tag-triggered release builds match the package version, that `docs/release-notes/` contains notes for the package version with a matching `# Local VTT vX.Y.Z` heading, and that the core `electron-builder` metadata needed for packaged app identity is present. `npm run docs:check` verifies local README/docs markdown links. Both are included in `npm run check`.
 
 5. Commit the release metadata changes:
 
@@ -125,13 +130,24 @@ Package for Windows:
 
 ```bash
 npm run package:win
+npm run package:win:check
 ```
 
 Package for macOS:
 
 ```bash
 npm run package:mac
+npm run package:mac:check
 ```
+
+Package for Linux:
+
+```bash
+npm run package:linux
+npm run package:linux:check
+```
+
+The platform `package:*:check` commands validate the artifact set expected by the release workflow, including that versioned package filenames match `package.json`. Run the matching check after packaging locally; the GitHub release workflow runs the same validators before uploading platform artifacts.
 
 Successful Windows packaging creates:
 
@@ -218,11 +234,14 @@ Before packaging or sharing a build, run through these workflows:
 - Change layer visibility and settings.
 - Draw, rename, reorder, toggle, and delete fog shapes.
 - Select weather and fog masks from the GM canvas and confirm token selection still takes priority.
-- Configure square, hex, and gridless scenes, including grid fit-to-map for static maps.
+- Configure square, hex, and gridless scenes, including Grid & Maps coordinate labels and map fit presets for static maps.
+- Confirm Grid Coordinates can be toggled through the Grid sub-layer, placed inside cells or on grid edges, formatted independently for X/Y axes, recolored, resized separately for GM and Player View, and rendered on square and hex grids.
+- Use Table Display Setup to choose a Player View display, preview no-grid/square/hex/physical test patterns, set the scene grid, import or fit a map, and preview Player View.
 - Replace a scene map asset from the Map layer and confirm dimension warnings are understandable.
 - Run Regenerate Thumbnails from the Campaign panel and confirm map and token previews are rebuilt.
 - Open Restore Revision from the Campaign panel, review available metadata backups, and confirm Open Backups Folder still opens Explorer.
-- Use Player View Setup and Map Calibration Assistant on at least one static image map.
+- Use Player View Setup to save, rename, switch, and delete a display profile; confirm saved display/fullscreen and physical table scale still apply on at least one manual-grid scene.
+- Use Advanced Map Calibration on at least one static image map with a drawn calibration area or printed-grid alignment case.
 - Add, duplicate, move, rename, resize, restyle, and delete tokens.
 - Confirm token presentation and movement sync to Player View.
 - Use the Token Library to import, rename, search, sort, set defaults, add, drag/drop, and delete tokens with usage warnings.
@@ -233,11 +252,18 @@ Before packaging or sharing a build, run through these workflows:
 - Confirm common failure messages are actionable, including missing recent campaigns, missing assets, and disconnected Player View displays.
 - For canvas-sensitive releases, run the representative stress scenes in `docs/canvas-performance-budget.md` and record any warning-threshold misses.
 - Run `npm run check` and `npm run build`.
-- Run `npm run smoke:electron` to launch the built Electron app, confirm the GM preload bridge is available, open Player View through IPC, send a Player View idle state, and verify display enumeration.
+- Run `npm run smoke` to build once, launch the built Electron app, confirm the GM preload bridge is available, open Player View through IPC, send a Player View idle state, verify display enumeration, and run the visual smoke fixture.
+- For targeted reruns, use `npm run smoke:electron` or `npm run smoke:visual`. The visual smoke test checks that the scene canvas is nonblank, verifies Player View dice, turn order, and seat overlays, and writes Player View screenshots to the OS temp folder for failure evidence. Automated video-map visual coverage is deferred, so video maps still need the manual smoke pass above.
+- Run smoke commands sequentially. The Electron and visual smoke scripts both open the app and drive Player View IPC; running them at the same time can leave the visual smoke observing the waiting screen from another smoke run and create a false timeout.
+
+The GitHub release workflow runs `npm run smoke` on the Windows release job before packaging so tag-triggered builds exercise the production Electron GM and Player View paths before installer artifacts are uploaded. macOS and Linux release jobs still run `npm run check` plus platform package validation; add platform smoke coverage there when automated display/window testing is stable on those runners.
+
+Playwright is a good fit for future end-to-end workflow coverage, especially once the app needs click-through tests for GM authoring flows. For now, the Electron visual smoke path stays dependency-light and covers the production Electron renderer/IPC path directly.
 
 For packaged Windows builds, also run:
 
 - `npm run package:win`.
+- `npm run package:win:check`.
 - Open `release/win-unpacked/Local VTT.exe`.
 - Confirm the app gets past the startup splash.
 - Load a campaign and send static and video map scenes to Player View.

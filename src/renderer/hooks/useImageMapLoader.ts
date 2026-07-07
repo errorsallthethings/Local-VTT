@@ -36,6 +36,9 @@ export function useImageMapLoader({ assetId, assetRelativePath, assetUrl, mediaT
     setLoadedMap(null);
     setMapLoadStatus("loading");
     image.onload = () => {
+      if (cancelled) {
+        return;
+      }
       void prepareLoadedImageMap(image, imageAssetPath)
         .then((preparedMap) => {
           if (cancelled) {
@@ -73,6 +76,9 @@ export function useImageMapLoader({ assetId, assetRelativePath, assetUrl, mediaT
     image.src = assetUrl;
     return () => {
       cancelled = true;
+      image.onload = null;
+      image.onerror = null;
+      image.src = "";
     };
   }, [assetId, assetRelativePath, assetUrl, mediaType]);
 

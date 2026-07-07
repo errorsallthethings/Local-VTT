@@ -17,6 +17,7 @@ import {
   DEFAULT_LIGHTNING_EFFECT_TUNING_SETTINGS,
   DEFAULT_MAP_TRANSFORM,
   DEFAULT_MEASUREMENT,
+  DEFAULT_PLAYER_DISPLAY_PROFILE_ID,
   DEFAULT_RADIANT_EFFECT_TUNING_SETTINGS,
   DEFAULT_SCENE_FOLDER_COLOR,
   DEFAULT_TABLE_TOOLS,
@@ -85,6 +86,14 @@ it("normalizeScene fills default settings for older scene files", () => {
   expect(normalized.grid.type).toBe("square");
   expect(normalized.grid.sizePx).toBe(80);
   expect(normalized.grid.measurement).toEqual(DEFAULT_MEASUREMENT);
+  expect(normalized.grid.showCoordinates).toBe(false);
+  expect(normalized.grid.coordinatePlacement).toBe("inline");
+  expect(normalized.grid.coordinateXFormat).toBe("alpha");
+  expect(normalized.grid.coordinateYFormat).toBe("numeric");
+  expect(normalized.grid.coordinateCellPosition).toBe("top-left");
+  expect(normalized.grid.coordinateColor).toBe(DEFAULT_GRID.coordinateColor);
+  expect(normalized.grid.coordinateGmFontSize).toBe(DEFAULT_GRID.coordinateGmFontSize);
+  expect(normalized.grid.coordinatePlayerFontSize).toBe(DEFAULT_GRID.coordinatePlayerFontSize);
   expect(normalized.calibration).toEqual(DEFAULT_CALIBRATION);
   expect(normalized.mapTransform).toEqual(DEFAULT_MAP_TRANSFORM);
   expect(normalized.videoPlayback).toEqual(DEFAULT_VIDEO_PLAYBACK);
@@ -95,6 +104,44 @@ it("normalizeScene fills default settings for older scene files", () => {
   expect(normalized.fog.gmOpacity).toBe(0.5);
   expect(normalized.fog.playerOpacity).toBe(0.8);
   expect(normalized.fog.newShapesVisibleInPlayer).toBe(true);
+});
+
+it("normalizeScene preserves legacy grid coordinate visibility and normalizes coordinate options", () => {
+  const {
+    coordinatePlacement: _coordinatePlacement,
+    coordinateFormat: _coordinateFormat,
+    coordinateXFormat: _coordinateXFormat,
+    coordinateYFormat: _coordinateYFormat,
+    coordinateCellPosition: _coordinateCellPosition,
+    coordinateColor: _coordinateColor,
+    coordinateGmFontSize: _coordinateGmFontSize,
+    coordinatePlayerFontSize: _coordinatePlayerFontSize,
+    ...legacyGrid
+  } = createDefaultScene("Coordinates").grid;
+  const scene = {
+    ...createDefaultScene("Coordinates"),
+    grid: {
+      ...legacyGrid,
+      type: "square",
+      showCoordinates: true,
+      coordinatePlacement: "sideways",
+      coordinateFormat: "numeric",
+      coordinateColor: "bad",
+      coordinateGmFontSize: 500,
+      coordinatePlayerFontSize: -1
+    }
+  } as unknown as Scene;
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.grid.showCoordinates).toBe(true);
+  expect(normalized.grid.coordinatePlacement).toBe("inline");
+  expect(normalized.grid.coordinateXFormat).toBe("numeric");
+  expect(normalized.grid.coordinateYFormat).toBe("numeric");
+  expect(normalized.grid.coordinateCellPosition).toBe("top-left");
+  expect(normalized.grid.coordinateColor).toBe(DEFAULT_GRID.color);
+  expect(normalized.grid.coordinateGmFontSize).toBe(48);
+  expect(normalized.grid.coordinatePlayerFontSize).toBe(8);
 });
 
 it("normalizeScene clamps weather settings", () => {
@@ -803,11 +850,90 @@ it("normalizeCampaign fills portable campaign defaults and empty collections", (
   expect(normalized.defaultMeasurement).toEqual(DEFAULT_MEASUREMENT);
   expect(normalized.defaultCalibration).toEqual(DEFAULT_CALIBRATION);
   expect(normalized.playerDisplay).toEqual(DEFAULT_CALIBRATION);
+  expect(normalized.activePlayerDisplayProfileId).toBe(DEFAULT_PLAYER_DISPLAY_PROFILE_ID);
+  expect(normalized.playerDisplayProfiles).toEqual([
+    {
+      ...DEFAULT_CALIBRATION,
+      id: DEFAULT_PLAYER_DISPLAY_PROFILE_ID,
+      name: "Default",
+      createdAt: now,
+      updatedAt: now
+    }
+  ]);
   expect(normalized.diceSettings).toEqual(DEFAULT_DICE_SETTINGS);
   expect(normalized.sceneLibrary).toEqual({ collapsedFolderIds: [] });
   expect(normalized.sceneFolders).toEqual([]);
   expect(normalized.players).toEqual([]);
   expect(normalized.assets).toEqual([]);
+});
+
+it("normalizeCampaign keeps the active player display profile and falls back when it is missing", () => {
+  const campaign = {
+    ...createDefaultCampaign("Display Profiles"),
+    activePlayerDisplayProfileId: "missing",
+    playerDisplayProfiles: [
+      {
+        ...DEFAULT_CALIBRATION,
+        id: "gaming-table",
+        name: "Gaming Table",
+        createdAt: now,
+        updatedAt: now,
+        selectedDisplayId: 2,
+        selectedDisplayLabel: "TV - 2560x1440",
+        pixelsPerInch: 120
+      },
+      {
+        ...DEFAULT_CALIBRATION,
+        id: "office-monitor",
+        name: "Office Monitor",
+        createdAt: now,
+        updatedAt: now,
+        selectedDisplayId: 3,
+        selectedDisplayLabel: "Monitor - 1920x1080",
+        pixelsPerInch: 96
+      }
+    ]
+  };
+
+  const normalized = normalizeCampaign(campaign);
+
+  expect(normalized.activePlayerDisplayProfileId).toBe("gaming-table");
+  expect(normalized.playerDisplay.selectedDisplayLabel).toBe("TV - 2560x1440");
+  expect(normalized.playerDisplay.pixelsPerInch).toBe(120);
+  expect(normalized.playerDisplayProfiles.map((profile) => profile.name)).toEqual(["Gaming Table", "Office Monitor"]);
+});
+
+it("normalizeCampaign preserves all player display profiles when the active profile is valid", () => {
+  const campaign = {
+    ...createDefaultCampaign("Display Profiles"),
+    activePlayerDisplayProfileId: "office-monitor",
+    playerDisplayProfiles: [
+      {
+        ...DEFAULT_CALIBRATION,
+        id: "gaming-table",
+        name: "Gaming Table",
+        createdAt: now,
+        updatedAt: now,
+        selectedDisplayLabel: "TV - 2560x1440",
+        pixelsPerInch: 120
+      },
+      {
+        ...DEFAULT_CALIBRATION,
+        id: "office-monitor",
+        name: "Office Monitor",
+        createdAt: now,
+        updatedAt: now,
+        selectedDisplayLabel: "Monitor - 1920x1080",
+        pixelsPerInch: 96
+      }
+    ]
+  };
+
+  const normalized = normalizeCampaign(campaign);
+
+  expect(normalized.activePlayerDisplayProfileId).toBe("office-monitor");
+  expect(normalized.playerDisplay.selectedDisplayLabel).toBe("Monitor - 1920x1080");
+  expect(normalized.playerDisplayProfiles.map((profile) => profile.name)).toEqual(["Gaming Table", "Office Monitor"]);
 });
 
 it("normalizeCampaign normalizes campaign dice settings", () => {
@@ -883,8 +1009,43 @@ it("normalizeCampaign preserves valid collapsed scene folders only", () => {
 
 it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   const campaign = createDefaultCampaign("Player Safe Campaign");
-  campaign.assets = [asset("map"), asset("visible-token"), asset("hidden-token"), asset("overlay"), asset("unused")];
+  campaign.assets = [
+    asset("map"),
+    asset("visible-token"),
+    asset("hidden-token"),
+    asset("overlay"),
+    asset("visible-player"),
+    asset("hidden-player"),
+    asset("visible-entry"),
+    asset("hidden-entry"),
+    asset("visible-seat"),
+    asset("hidden-seat"),
+    asset("unused")
+  ];
+  campaign.players = [
+    {
+      id: "visible-player",
+      name: "Visible Player",
+      color: "#7aa2f7",
+      assetId: "visible-player",
+      defaultSeatEdge: "bottom",
+      defaultSeatPosition: 0.5,
+      visibleInPlayer: true
+    },
+    {
+      id: "hidden-player",
+      name: "Hidden Player",
+      color: "#f7768e",
+      assetId: "hidden-player",
+      defaultSeatEdge: "top",
+      defaultSeatPosition: 0.5,
+      visibleInPlayer: false
+    }
+  ];
   campaign.playerDisplay = { ...campaign.playerDisplay, physicalScaleEnabled: true, pixelsPerInch: 120 };
+  campaign.playerDisplayProfiles = campaign.playerDisplayProfiles.map((profile) =>
+    profile.id === campaign.activePlayerDisplayProfileId ? { ...profile, physicalScaleEnabled: true, pixelsPerInch: 120 } : profile
+  );
 
   const scene = createDefaultScene("Scene");
   scene.mapAssetId = "map";
@@ -933,11 +1094,25 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
     { id: "player-fog", operation: "reveal", kind: "rectangle", points: [], visibleInGm: true, visibleInPlayer: true },
     { id: "gm-fog", operation: "hide", kind: "rectangle", points: [], visibleInGm: true, visibleInPlayer: false }
   ];
+  scene.turnOrder = {
+    ...scene.turnOrder,
+    active: true,
+    currentEntryId: "hidden-entry",
+    entries: [
+      { id: "visible-entry", name: "Visible Initiative", initiative: 18, assetId: "visible-entry", visibleInPlayer: true },
+      { id: "hidden-entry", name: "Hidden Initiative", initiative: 17, assetId: "hidden-entry", visibleInPlayer: false }
+    ],
+    seats: [
+      { id: "visible-seat", name: "Visible Seat", edge: "bottom", position: 0.5, color: "#7aa2f7", assetId: "visible-seat", visibleInPlayer: true },
+      { id: "hidden-seat", name: "Hidden Seat", edge: "top", position: 0.5, color: "#f7768e", assetId: "hidden-seat", visibleInPlayer: false }
+    ]
+  };
 
   const projection = projectSceneForPlayer(campaign, scene);
 
   expect(projection.campaignName).toBe(campaign.name);
   expect(projection.playerDisplay.pixelsPerInch).toBe(120);
+  expect(projection.players.map((player) => player.id)).toEqual(["visible-player"]);
   expect(
     projection.scene.layers.map((layer) => layer.id),
   ).toEqual(["fog", "effects", "drawing", "foreground", "object", "lighting", "grid", "map"]);
@@ -956,9 +1131,121 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   ).toEqual(["overlay-visible"]);
   expect(projection.scene.notes).toBe("");
   expect(projection.scene.fog.shapes.map((shape) => shape.id)).toEqual(["player-fog"]);
+  expect(projection.scene.turnOrder.currentEntryId).toBeUndefined();
+  expect(projection.scene.turnOrder.entries.map((entry) => entry.id)).toEqual(["visible-entry"]);
+  expect(projection.scene.turnOrder.seats.map((seat) => seat.id)).toEqual(["visible-seat"]);
   expect(
     projection.assets.map((projectionAsset) => projectionAsset.id).sort(),
-  ).toEqual(["map", "overlay", "visible-token"]);
+  ).toEqual(["map", "overlay", "visible-entry", "visible-player", "visible-seat", "visible-token"]);
+});
+
+it("projectSceneForPlayer preserves visible current turn order entries", () => {
+  const campaign = createDefaultCampaign("Visible Initiative Campaign");
+  const scene = createDefaultScene("Visible Initiative Scene");
+  scene.turnOrder = {
+    ...scene.turnOrder,
+    active: true,
+    currentEntryId: "entry-2",
+    entries: [
+      { id: "entry-1", name: "First", initiative: 18, visibleInPlayer: true },
+      { id: "entry-2", name: "Current", initiative: 17, visibleInPlayer: true }
+    ],
+    seats: []
+  };
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.scene.turnOrder.currentEntryId).toBe("entry-2");
+  expect(projection.scene.turnOrder.entries.map((entry) => entry.id)).toEqual(["entry-1", "entry-2"]);
+});
+
+it("projectSceneForPlayer includes players referenced by visible active turn order entries", () => {
+  const campaign = createDefaultCampaign("Turn Players Campaign");
+  campaign.assets = [asset("hidden-player"), asset("unused-player")];
+  campaign.players = [
+    {
+      id: "hidden-player",
+      name: "Hidden Player",
+      color: "#7aa2f7",
+      assetId: "hidden-player",
+      defaultSeatEdge: "bottom",
+      defaultSeatPosition: 0.5,
+      visibleInPlayer: false
+    },
+    {
+      id: "unused-player",
+      name: "Unused Player",
+      color: "#f7768e",
+      assetId: "unused-player",
+      defaultSeatEdge: "top",
+      defaultSeatPosition: 0.5,
+      visibleInPlayer: false
+    }
+  ];
+  const scene = createDefaultScene("Turn Players Scene");
+  scene.turnOrder = {
+    ...scene.turnOrder,
+    active: true,
+    playerViewVisible: true,
+    currentEntryId: "hidden-player-entry",
+    entries: [
+      {
+        id: "hidden-player-entry",
+        name: "Hidden Player",
+        initiative: 18,
+        playerId: "hidden-player",
+        visibleInPlayer: true
+      },
+      {
+        id: "unused-player-entry",
+        name: "Unused Player",
+        initiative: 17,
+        playerId: "unused-player",
+        visibleInPlayer: false
+      }
+    ],
+    seats: []
+  };
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.players.map((player) => player.id)).toEqual(["hidden-player"]);
+  expect(projection.assets.map((projectionAsset) => projectionAsset.id)).toEqual(["hidden-player"]);
+});
+
+it("projectSceneForPlayer does not include hidden turn order players before Player View turn order is active", () => {
+  const campaign = createDefaultCampaign("Inactive Turn Players Campaign");
+  campaign.players = [
+    {
+      id: "hidden-player",
+      name: "Hidden Player",
+      color: "#7aa2f7",
+      defaultSeatEdge: "bottom",
+      defaultSeatPosition: 0.5,
+      visibleInPlayer: false
+    }
+  ];
+  const scene = createDefaultScene("Inactive Turn Players Scene");
+  scene.turnOrder = {
+    ...scene.turnOrder,
+    active: false,
+    playerViewVisible: true,
+    currentEntryId: "hidden-player-entry",
+    entries: [
+      {
+        id: "hidden-player-entry",
+        name: "Hidden Player",
+        initiative: 18,
+        playerId: "hidden-player",
+        visibleInPlayer: true
+      }
+    ],
+    seats: []
+  };
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.players).toEqual([]);
 });
 
 it("projectSceneForPlayer strips content owned by hidden Player View layers", () => {
@@ -1053,7 +1340,18 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isPlayerIdleState({ type: "idle", title: "Waiting", message: "Preparing scene." })).toBe(true);
   expect(isPlayerIdleState({ type: "idle", variant: "hold", title: "Waiting", message: "Preparing scene." })).toBe(true);
   expect(isPlayerIdleState({ type: "idle", variant: "blackout", title: "", message: "" })).toBe(true);
+  expect(
+    isPlayerIdleState({
+      type: "idle",
+      variant: "test-pattern",
+      title: "Test Pattern",
+      message: "Check display bounds.",
+      testPattern: { gridMode: "physical-square", cellSizePx: 96, displayLabel: "TV", nativeResolution: { width: 1920, height: 1080 } }
+    })
+  ).toBe(true);
+  expect(isPlayerIdleState({ type: "idle", variant: "test-pattern", title: "Hex", message: "Check hex grid.", testPattern: { gridMode: "hex" } })).toBe(true);
   expect(isPlayerIdleState({ type: "idle", variant: "dim", title: "Waiting", message: "Preparing scene." })).toBe(false);
+  expect(isPlayerIdleState({ type: "idle", variant: "test-pattern", title: "Test", message: "Bad", testPattern: { gridMode: "triangle" } })).toBe(false);
   expect(isPlayerIdleState({ type: "idle", title: "Waiting" })).toBe(false);
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, size: 1.5, color: "#ffcc00", createdAt: 1 })).toBe(true);

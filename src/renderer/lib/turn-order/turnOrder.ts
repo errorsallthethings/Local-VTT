@@ -1,9 +1,11 @@
-import type { Asset, CampaignPlayer, Scene, Token, TurnOrderEntry, TurnOrderSettings } from "../../../shared/localvtt";
+import type { Asset, CampaignPlayer, Scene, Token, TurnOrderEntry, TurnOrderSettings, TurnOrderTrackerPlacement } from "../../../shared/localvtt";
 
 export interface TurnOrderTokenIndicator {
   label: string;
   current: boolean;
 }
+
+export type TurnOrderDropPlacement = "before" | "after";
 
 export function createManualTurnOrderEntry(id: string, name: string, initiative = 0): TurnOrderEntry {
   return {
@@ -82,6 +84,27 @@ export function createTurnOrderEntryFromToken(id: string, token: Token, initiati
   };
 }
 
+export interface AddSceneTokenToTurnOrderResult {
+  scene: Scene | null;
+  selectedTokenId: string;
+}
+
+export function addSceneTokenToTurnOrder(
+  scene: Scene,
+  tokenId: string,
+  entryId: string,
+  updatedAt = new Date().toISOString()
+): AddSceneTokenToTurnOrderResult {
+  const token = scene.tokens.find((candidate) => candidate.id === tokenId);
+  if (!token || scene.turnOrder.entries.some((entry) => entry.tokenId === token.id)) {
+    return { scene: null, selectedTokenId: tokenId };
+  }
+  return {
+    scene: addTurnOrderEntry(scene, createTurnOrderEntryFromToken(entryId, token), updatedAt),
+    selectedTokenId: token.id
+  };
+}
+
 export function createTurnOrderEntryFromPlayer(id: string, player: CampaignPlayer, initiative = 0): TurnOrderEntry {
   return {
     id,
@@ -132,6 +155,14 @@ export function addPlayersToTurnOrder(scene: Scene, players: CampaignPlayer[], u
     },
     updatedAt
   );
+}
+
+export function getAddableCampaignPlayerCount(scene: Scene | null | undefined, players: readonly CampaignPlayer[]): number {
+  if (!scene) {
+    return 0;
+  }
+  const existingPlayerIds = new Set(scene.turnOrder.entries.map((entry) => entry.playerId).filter(Boolean));
+  return players.filter((player) => !existingPlayerIds.has(player.id)).length;
 }
 
 export function updateTurnOrderEntry(scene: Scene, entryId: string, patch: Partial<TurnOrderEntry>, updatedAt = new Date().toISOString()): Scene {
@@ -277,15 +308,61 @@ export function reorderTurnOrderEntry(scene: Scene, entryId: string, targetIndex
   return patchTurnOrder(scene, { entries }, updatedAt);
 }
 
+export function getTurnOrderDropTargetIndex(entries: readonly TurnOrderEntry[], sourceEntryId: string, targetEntryId: string, placement: TurnOrderDropPlacement): number | null {
+  if (sourceEntryId === targetEntryId) {
+    return null;
+  }
+  const targetIndex = entries.findIndex((entry) => entry.id === targetEntryId);
+  const sourceIndex = entries.findIndex((entry) => entry.id === sourceEntryId);
+  if (targetIndex < 0 || sourceIndex < 0) {
+    return null;
+  }
+  return targetIndex - (sourceIndex < targetIndex ? 1 : 0) + (placement === "after" ? 1 : 0);
+}
+
+export function getTurnOrderTrackerDisplayPatch(
+  turnOrder: TurnOrderSettings,
+  edge: TurnOrderTrackerPlacement,
+  patch: Partial<TurnOrderSettings["playerViewTrackers"][TurnOrderTrackerPlacement]>
+): Partial<TurnOrderSettings> {
+  const currentTracker = turnOrder.playerViewTrackers[edge];
+  return {
+    playerViewEdge: edge,
+    playerViewFacing: patch.facing ?? currentTracker.facing,
+    playerViewSize: patch.size ?? currentTracker.size,
+    playerViewTrackers: {
+      ...turnOrder.playerViewTrackers,
+      [edge]: {
+        ...currentTracker,
+        ...patch
+      }
+    }
+  };
+}
+
+export function clampTurnOrderRound(value: number): number {
+  return Math.max(1, Math.min(999, Math.floor(Number.isFinite(value) ? value : 1)));
+}
+
+export function clampTurnOrderCountdown(value: number): number {
+  return Math.max(0, Math.min(999, Math.floor(Number.isFinite(value) ? value : 1)));
+}
+
+export function clampTurnOrderVisibleEntryCount(value: number): number {
+  return Math.max(1, Math.min(30, Math.floor(Number.isFinite(value) ? value : 9)));
+}
+
 export function startTurnOrder(scene: Scene, updatedAt = new Date().toISOString()): Scene {
   if (scene.turnOrder.entries.length === 0) {
     return patchTurnOrder(scene, { active: false, currentEntryId: undefined }, updatedAt);
   }
+  const entries = ensureTurnOrderHasPlayerVisibleEntries(scene.turnOrder.entries);
   return patchTurnOrder(
     scene,
     {
       active: true,
-      currentEntryId: getValidCurrentEntryId(scene.turnOrder.entries, scene.turnOrder.currentEntryId) ?? scene.turnOrder.entries[0].id,
+      entries,
+      currentEntryId: getValidCurrentEntryId(entries, scene.turnOrder.currentEntryId) ?? entries[0].id,
       playerViewVisible: true
     },
     updatedAt
@@ -330,7 +407,7 @@ export function advanceTurnOrder(scene: Scene, direction: "next" | "previous", u
     {
       active: true,
       currentEntryId: entries[nextIndex].id,
-      round: completedForwardCycle ? clampRound(scene.turnOrder.round + 1) : scene.turnOrder.round,
+      round: completedForwardCycle ? clampTurnOrderRound(scene.turnOrder.round + 1) : scene.turnOrder.round,
       entries: completedForwardCycle ? decrementCountdownEntries(entries) : entries
     },
     updatedAt
@@ -352,6 +429,13 @@ function getValidCurrentEntryId(entries: TurnOrderEntry[], currentEntryId?: stri
   return currentEntryId && entries.some((entry) => entry.id === currentEntryId) ? currentEntryId : undefined;
 }
 
+function ensureTurnOrderHasPlayerVisibleEntries(entries: TurnOrderEntry[]): TurnOrderEntry[] {
+  if (entries.some((entry) => entry.visibleInPlayer)) {
+    return entries;
+  }
+  return entries.map((entry) => ({ ...entry, visibleInPlayer: true }));
+}
+
 function stripFileExtension(fileName: string): string {
   return fileName.replace(/\.[^/.]+$/, "") || fileName;
 }
@@ -362,10 +446,6 @@ function rollDice(count: number, sides: number, random: () => number): number {
     total += Math.floor(random() * sides) + 1;
   }
   return total;
-}
-
-function clampRound(value: number): number {
-  return Math.max(1, Math.min(999, Math.floor(Number.isFinite(value) ? value : 1)));
 }
 
 function decrementCountdownEntries(entries: TurnOrderEntry[]): TurnOrderEntry[] {

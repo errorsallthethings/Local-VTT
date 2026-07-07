@@ -1,73 +1,62 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, CircleHelp, EllipsisVertical, Eye, GripVertical, Map, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
 import type { Asset, Campaign, DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneRollTarget, DiceSceneSize, LiveTableEvent, Scene } from "../../../shared/localvtt";
+import type { PlayerDisplayMode } from "../../lib/player-view";
 import {
+  addCustomDicePreset,
+  DICE_DISPLAY_OPTIONS,
+  DICE_PANEL_EDGE_OPTIONS,
+  DICE_PANEL_FACING_OPTIONS,
+  DICE_SCENE_SIZE_OPTIONS,
   DICE_TYPES,
+  DEFAULT_DICE_PANEL_EDGE,
+  DEFAULT_DICE_PANEL_FACING,
+  DEFAULT_DICE_PANEL_POSITION,
   formatDieLabel,
-  formatDiceRollBreakdown,
-  formatDiceRollBreakdownTooltip,
+  formatDiceFeedBreakdown,
+  formatDiceFeedBreakdownTooltip,
+  formatDiceFeedLabel,
   formatDiceRollSummary,
-  getDiceRollTone,
+  getCustomDicePresetFormClosedState,
+  getCustomDicePresetFormOpenState,
+  getCustomDicePresetSaveResult,
+  getDicePanelDragPosition,
+  getDicePanelDragStart,
+  getDicePanelPresentation,
+  getDicePanelPositionInViewport,
+  getDiceFeedTone,
+  getDicePlacementAvailable,
+  getDicePlacementFacingAvailable,
+  getDicePlacementHelp,
+  getDiceDisplayModeChangePlan,
+  getDiceDisplaySelectValueForView,
+  getDicePanelAdvancedChangePlan,
+  isPendingRecentDiceRoll,
+  loadCustomDicePresets,
+  removeCustomDicePreset,
   rollDiceExpression,
+  saveCustomDicePresets,
+  type CustomDicePreset,
+  type DicePanelDragState,
+  type DicePanelPosition,
   type DiceType
 } from "../../lib/dice";
 import { getActiveWeatherEffects } from "../../lib/effects";
 import { type ModalSize, useResizableModal } from "../../hooks/useResizableModal";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
-type CustomDicePreset = {
-  id: string;
-  label: string;
-  formula: string;
-};
-
-type DicePanelPosition = {
-  x: number;
-  y: number;
-};
-
-type DicePanelDrag = {
-  pointerId: number;
-  offsetX: number;
-  offsetY: number;
-};
-
-const CUSTOM_DICE_PRESETS_STORAGE_KEY = "localvtt.customDicePresets";
-const DICE_PANEL_REVEAL_DELAY_MS = 2800;
-const DICE_DISPLAY_OPTIONS = [
-  { value: "results", label: "Text Result Only" },
-  { value: "panel", label: "3D Panel" },
-  { value: "scene", label: "3D Scene Roll" },
-  { value: "hidden", label: "Hidden" }
-] as const satisfies Array<{ value: DiceDisplayMode; label: string }>;
-const DICE_SCENE_SIZE_OPTIONS = [
-  { value: "xs", label: "Extra small" },
-  { value: "sm", label: "Small" },
-  { value: "md", label: "Medium" },
-  { value: "lg", label: "Large" },
-  { value: "xl", label: "Extra large" }
-] as const satisfies Array<{ value: DiceSceneSize; label: string }>;
-const DICE_PANEL_EDGE_OPTIONS = [
-  { value: "top", label: "Top" },
-  { value: "right", label: "Right" },
-  { value: "bottom", label: "Bottom" },
-  { value: "left", label: "Left" }
-] as const satisfies Array<{ value: DicePanelEdge; label: string }>;
-const DICE_PANEL_FACING_OPTIONS = [
-  { value: "inward", label: "Inward" },
-  { value: "outward", label: "Outward" }
-] as const satisfies Array<{ value: DicePanelFacing; label: string }>;
 
 interface WorkspaceTopbarProps {
   campaign: Campaign | null;
   activeScene: Scene | null;
   mapAsset: Asset | null;
   playerMenuOpen: boolean;
-  playerDisplayMode: "scene" | "hold" | "blackout";
+  playerDisplayMode: PlayerDisplayMode;
   onSendToPlayer: () => void;
   onTogglePlayerMenu: () => void;
   onShowPlayerHold: () => void;
   onShowPlayerBlackout: () => void;
+  onOpenTableDisplaySetup: () => void;
   onOpenPlayerDisplayScale: () => void;
   onOpenMapCalibrationAssistant: () => void;
   onSetPlayerFullscreen: (fullscreen: boolean) => void;
@@ -118,6 +107,7 @@ export function WorkspaceTopbar({
   onTogglePlayerMenu,
   onShowPlayerHold,
   onShowPlayerBlackout,
+  onOpenTableDisplaySetup,
   onOpenPlayerDisplayScale,
   onOpenMapCalibrationAssistant,
   onSetPlayerFullscreen,
@@ -159,7 +149,7 @@ export function WorkspaceTopbar({
 }: WorkspaceTopbarProps) {
   const [diceExpression, setDiceExpression] = useState("1d20");
   const [diceExpressionError, setDiceExpressionError] = useState<string | null>(null);
-  const [customDicePresets, setCustomDicePresets] = useState<CustomDicePreset[]>(() => loadCustomDicePresets());
+  const [customDicePresets, setCustomDicePresets] = useState<CustomDicePreset[]>(() => loadCustomDicePresets(window.localStorage));
   const [presetFormOpen, setPresetFormOpen] = useState(false);
   const [presetLabel, setPresetLabel] = useState("");
   const [presetFormula, setPresetFormula] = useState("");
@@ -173,7 +163,7 @@ export function WorkspaceTopbar({
   const [dicePanelSize, setDicePanelSize] = useState<ModalSize | null>(null);
   const [dicePanelDragging, setDicePanelDragging] = useState(false);
   const dicePopoverRef = useRef<HTMLDivElement | null>(null);
-  const dicePanelDragRef = useRef<DicePanelDrag | null>(null);
+  const dicePanelDragRef = useRef<DicePanelDragState | null>(null);
   const previousDicePanelOpenRef = useRef(dicePanelOpen);
   const { resize: resizeDicePanel, startResize: startDicePanelResize, stopResize: stopDicePanelResize } = useResizableModal({
     elementRef: dicePopoverRef,
@@ -194,7 +184,7 @@ export function WorkspaceTopbar({
       : "Create a campaign, add a scene, import a map, then send it to Player View.";
 
   useEffect(() => {
-    window.localStorage.setItem(CUSTOM_DICE_PRESETS_STORAGE_KEY, JSON.stringify(customDicePresets));
+    saveCustomDicePresets(window.localStorage, customDicePresets);
   }, [customDicePresets]);
 
   useEffect(() => {
@@ -205,7 +195,7 @@ export function WorkspaceTopbar({
   }, [dicePanelOpen]);
 
   useEffect(() => {
-    if (!diceHistory.some(isPendingRecentDiceRoll)) {
+    if (!diceHistory.some((roll) => isPendingRecentDiceRoll(roll))) {
       return;
     }
     const timer = window.setInterval(() => setDiceRecentTick((tick) => tick + 1), 120);
@@ -243,7 +233,7 @@ export function WorkspaceTopbar({
         if (!position) {
           return position;
         }
-        const nextPosition = clampDicePanelPosition(position.x, position.y, dicePopoverRef.current?.getBoundingClientRect());
+        const nextPosition = getDicePanelPositionInViewport(position.x, position.y, getCurrentViewport(), dicePopoverRef.current?.getBoundingClientRect());
         return nextPosition.x === position.x && nextPosition.y === position.y ? position : nextPosition;
       });
     };
@@ -263,12 +253,8 @@ export function WorkspaceTopbar({
       return;
     }
     const rect = popover.getBoundingClientRect();
-    dicePanelDragRef.current = {
-      pointerId: event.pointerId,
-      offsetX: event.clientX - rect.left,
-      offsetY: event.clientY - rect.top
-    };
-    setDicePanelPosition(clampDicePanelPosition(rect.left, rect.top, rect));
+    dicePanelDragRef.current = getDicePanelDragStart(event.pointerId, event.clientX, event.clientY, rect);
+    setDicePanelPosition(getDicePanelPositionInViewport(rect.left, rect.top, getCurrentViewport(), rect));
     setDicePanelDragging(true);
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
@@ -279,7 +265,7 @@ export function WorkspaceTopbar({
     if (!drag || drag.pointerId !== event.pointerId) {
       return;
     }
-    setDicePanelPosition(clampDicePanelPosition(event.clientX - drag.offsetX, event.clientY - drag.offsetY, dicePopoverRef.current?.getBoundingClientRect()));
+    setDicePanelPosition(getDicePanelDragPosition(drag, event.clientX, event.clientY, getCurrentViewport(), dicePopoverRef.current?.getBoundingClientRect()));
   };
 
   const endDicePanelDrag = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -293,27 +279,29 @@ export function WorkspaceTopbar({
   };
 
   const resetGmDicePanelPlacement = () => {
-    onGmDicePanelEdgeChange("top");
-    onGmDicePanelFacingChange("inward");
-    onGmDicePanelPositionChange(0.5);
+    onGmDicePanelEdgeChange(DEFAULT_DICE_PANEL_EDGE);
+    onGmDicePanelFacingChange(DEFAULT_DICE_PANEL_FACING);
+    onGmDicePanelPositionChange(DEFAULT_DICE_PANEL_POSITION);
   };
 
   const resetPlayerDicePanelPlacement = () => {
-    onPlayerDicePanelEdgeChange("top");
-    onPlayerDicePanelFacingChange("inward");
-    onPlayerDicePanelPositionChange(0.5);
+    onPlayerDicePanelEdgeChange(DEFAULT_DICE_PANEL_EDGE);
+    onPlayerDicePanelFacingChange(DEFAULT_DICE_PANEL_FACING);
+    onPlayerDicePanelPositionChange(DEFAULT_DICE_PANEL_POSITION);
   };
 
   const updateGmDicePanelAdvanced = (advanced: boolean) => {
-    onGmDicePanelAdvancedChange(advanced);
-    if (!advanced) {
+    const plan = getDicePanelAdvancedChangePlan(advanced);
+    onGmDicePanelAdvancedChange(plan.advanced);
+    if (plan.resetPlacement) {
       resetGmDicePanelPlacement();
     }
   };
 
   const updatePlayerDicePanelAdvanced = (advanced: boolean) => {
-    onPlayerDicePanelAdvancedChange(advanced);
-    if (!advanced) {
+    const plan = getDicePanelAdvancedChangePlan(advanced);
+    onPlayerDicePanelAdvancedChange(plan.advanced);
+    if (plan.resetPlacement) {
       resetPlayerDicePanelPlacement();
     }
   };
@@ -324,31 +312,34 @@ export function WorkspaceTopbar({
   const playerPlacementFacingAvailable = getDicePlacementFacingAvailable(playerDiceDisplayMode, diceSceneRollEnabled);
   const gmPlacementHelp = getDicePlacementHelp("GM", gmDiceDisplayMode, diceSceneRollEnabled);
   const playerPlacementHelp = getDicePlacementHelp("Player", playerDiceDisplayMode, diceSceneRollEnabled);
-  const gmDisplaySelectValue = diceSceneRollEnabled ? (diceSceneRollTarget === "gm" ? "scene" : "results") : getDiceDisplaySelectValue(gmDiceDisplayMode);
-  const playerDisplaySelectValue = diceSceneRollEnabled ? (diceSceneRollTarget === "player" ? "scene" : "hidden") : getDiceDisplaySelectValue(playerDiceDisplayMode);
+  const gmDisplaySelectValue = getDiceDisplaySelectValueForView(gmDiceDisplayMode, diceSceneRollTarget, "gm", diceSceneRollEnabled);
+  const playerDisplaySelectValue = getDiceDisplaySelectValueForView(playerDiceDisplayMode, diceSceneRollTarget, "player", diceSceneRollEnabled);
+  const dicePanelPresentation = getDicePanelPresentation(dicePanelPosition, dicePanelSize, dicePanelCollapsed);
 
   const changeGmDiceDisplayMode = (mode: DiceDisplayMode) => {
-    if (mode === "scene") {
-      onDiceSceneRollTargetChange("gm");
-      onDiceSceneRollEnabledChange(true);
-      return;
+    const plan = getDiceDisplayModeChangePlan(mode, "gm", diceSceneRollEnabled);
+    if (plan.sceneRollTarget) {
+      onDiceSceneRollTargetChange(plan.sceneRollTarget);
     }
-    if (diceSceneRollEnabled) {
-      onDiceSceneRollEnabledChange(false);
+    if (plan.sceneRollEnabled !== null) {
+      onDiceSceneRollEnabledChange(plan.sceneRollEnabled);
     }
-    onGmDiceDisplayModeChange(mode);
+    if (plan.displayMode) {
+      onGmDiceDisplayModeChange(plan.displayMode);
+    }
   };
 
   const changePlayerDiceDisplayMode = (mode: DiceDisplayMode) => {
-    if (mode === "scene") {
-      onDiceSceneRollTargetChange("player");
-      onDiceSceneRollEnabledChange(true);
-      return;
+    const plan = getDiceDisplayModeChangePlan(mode, "player", diceSceneRollEnabled);
+    if (plan.sceneRollTarget) {
+      onDiceSceneRollTargetChange(plan.sceneRollTarget);
     }
-    if (diceSceneRollEnabled) {
-      onDiceSceneRollEnabledChange(false);
+    if (plan.sceneRollEnabled !== null) {
+      onDiceSceneRollEnabledChange(plan.sceneRollEnabled);
     }
-    onPlayerDiceDisplayModeChange(mode);
+    if (plan.displayMode) {
+      onPlayerDiceDisplayModeChange(plan.displayMode);
+    }
   };
 
   const rollPreset = (label: string, formula: string) => {
@@ -356,32 +347,40 @@ export function WorkspaceTopbar({
     setDiceExpressionError(onRollExpression(formula, label));
   };
 
+  const applyPresetFormState = (state: ReturnType<typeof getCustomDicePresetFormOpenState>) => {
+    setPresetFormOpen(state.open);
+    setPresetLabel(state.label);
+    setPresetFormula(state.formula);
+    setPresetFormError(state.error);
+  };
+
   const openPresetForm = () => {
-    setPresetFormOpen(true);
-    setPresetLabel("");
-    setPresetFormula(diceExpression);
-    setPresetFormError(null);
+    applyPresetFormState(getCustomDicePresetFormOpenState(diceExpression));
+  };
+
+  const closePresetForm = () => {
+    applyPresetFormState(getCustomDicePresetFormClosedState());
   };
 
   const saveCustomPreset = () => {
-    const label = presetLabel.trim();
-    const formula = presetFormula.trim();
-    if (!label || !formula) {
-      setPresetFormError("Label and formula are required.");
+    const result = getCustomDicePresetSaveResult(presetLabel, presetFormula, crypto.randomUUID(), (formula) => {
+      try {
+        rollDiceExpression(formula, () => 0.5);
+        return null;
+      } catch (caught) {
+        return caught instanceof Error ? caught.message : "Could not save that dice expression.";
+      }
+    });
+    if (!result.ok) {
+      setPresetFormError(result.error);
       return;
     }
-    try {
-      rollDiceExpression(formula, () => 0.5);
-    } catch (caught) {
-      setPresetFormError(caught instanceof Error ? caught.message : "Could not save that dice expression.");
-      return;
-    }
-    const preset = { id: crypto.randomUUID(), label, formula };
-    setCustomDicePresets((presets) => [preset, ...presets].slice(0, 12));
-    setPresetFormOpen(false);
-    setPresetLabel("");
-    setPresetFormula("");
-    setPresetFormError(null);
+    setCustomDicePresets((presets) => addCustomDicePreset(presets, result.preset));
+    closePresetForm();
+  };
+
+  const deleteCustomPreset = (presetId: string) => {
+    setCustomDicePresets((presets) => removeCustomDicePreset(presets, presetId));
   };
 
   return (
@@ -397,14 +396,8 @@ export function WorkspaceTopbar({
         {dicePanelOpen && (
             <div
               ref={dicePopoverRef}
-              className={[
-                dicePanelPosition ? "dice-popover dice-popover-dragged" : "dice-popover dice-popover-floating",
-                dicePanelCollapsed ? "dice-popover-collapsed" : ""
-              ].filter(Boolean).join(" ")}
-              style={{
-                ...(dicePanelPosition ? { left: dicePanelPosition.x, top: dicePanelPosition.y } : {}),
-                ...(dicePanelSize ? { width: dicePanelSize.width, height: dicePanelCollapsed ? undefined : dicePanelSize.height } : {})
-              }}
+              className={dicePanelPresentation.className}
+              style={dicePanelPresentation.style}
               role="dialog"
               aria-label="Dice roller"
             >
@@ -687,7 +680,7 @@ export function WorkspaceTopbar({
                           className="dice-preset-delete"
                           title={`Delete ${preset.label} preset`}
                           aria-label={`Delete ${preset.label} preset`}
-                          onClick={() => setCustomDicePresets((presets) => presets.filter((candidate) => candidate.id !== preset.id))}
+                          onClick={() => deleteCustomPreset(preset.id)}
                         >
                           <X size={10} aria-hidden="true" />
                         </button>
@@ -727,10 +720,7 @@ export function WorkspaceTopbar({
                         className="dice-preset-cancel"
                         aria-label="Cancel preset"
                         title="Cancel preset"
-                        onClick={() => {
-                          setPresetFormOpen(false);
-                          setPresetFormError(null);
-                        }}
+                        onClick={closePresetForm}
                       >
                         <X size={12} aria-hidden="true" />
                       </button>
@@ -804,7 +794,7 @@ export function WorkspaceTopbar({
                 <EllipsisVertical size={16} aria-hidden="true" />
               </button>
               {playerMenuOpen && (
-                <div className="scene-menu toolbar-menu">
+                <div className="scene-menu toolbar-menu player-view-menu">
                   <div className="menu-section-label">Playback</div>
                   <div className="menu-section">
                     <button disabled={!activeScene || playerDisplayMode === "scene"} onClick={onSendToPlayer}>
@@ -837,13 +827,17 @@ export function WorkspaceTopbar({
                   </div>
                   <div className="menu-section-label">Setup</div>
                   <div className="menu-section">
+                    <button disabled={!activeScene} onClick={onOpenTableDisplaySetup}>
+                      <Settings2 size={14} aria-hidden="true" />
+                      Table Display Setup
+                    </button>
                     <button disabled={!activeScene} onClick={onOpenPlayerDisplayScale}>
                       <MonitorUp size={14} aria-hidden="true" />
                       Player View Setup
                     </button>
                     <button disabled={!activeScene} onClick={onOpenMapCalibrationAssistant}>
                       <Map size={14} aria-hidden="true" />
-                      Map Calibration
+                      Advanced Map Calibration
                     </button>
                   </div>
                 </div>
@@ -856,95 +850,8 @@ export function WorkspaceTopbar({
   );
 }
 
-function formatDiceFeedBreakdown(roll: DiceRollEvent, tick = 0): string {
-  if (isPendingRecentDiceRoll(roll, tick)) {
-    return "Waiting for dice to settle";
-  }
-  if (!roll.dice) {
-    return roll.label;
-  }
-  return formatDiceRollBreakdown(roll);
-}
-
-function formatDiceFeedBreakdownTooltip(roll: DiceRollEvent, tick = 0): string | undefined {
-  return isPendingRecentDiceRoll(roll, tick) ? undefined : formatDiceRollBreakdownTooltip(roll);
-}
-
-function formatDiceFeedLabel(roll: DiceRollEvent, tick = 0): string {
-  return isPendingRecentDiceRoll(roll, tick) ? "Rolling" : roll.label;
-}
-
-function getDiceFeedTone(roll: DiceRollEvent, tick = 0) {
-  return isPendingRecentDiceRoll(roll, tick) ? "normal" : getDiceRollTone(roll);
-}
-
-function isPendingRecentDiceRoll(roll: DiceRollEvent, _tick = 0): boolean {
-  return isUnresolvedSceneDiceRoll(roll) || isUnrevealedPanelDiceRoll(roll);
-}
-
-function isUnresolvedSceneDiceRoll(roll: DiceRollEvent): boolean {
-  return (roll.gmDiceDisplay === "scene" || roll.gmDiceDisplay === "scene-result" || roll.playerDiceDisplay === "scene") && !roll.sceneResolvedLabel;
-}
-
-function isUnrevealedPanelDiceRoll(roll: DiceRollEvent): boolean {
-  if (roll.sceneResolvedLabel || (roll.gmDiceDisplay !== "panel" && roll.playerDiceDisplay !== "panel")) {
-    return false;
-  }
-  return Date.now() - roll.createdAt < DICE_PANEL_REVEAL_DELAY_MS;
-}
-
-function clampDicePanelPosition(x: number, y: number, rect?: DOMRect | null): DicePanelPosition {
-  const margin = 8;
-  const width = rect?.width ?? 300;
-  const height = rect?.height ?? 520;
-  const maxX = Math.max(margin, window.innerWidth - width - margin);
-  const maxY = Math.max(margin, window.innerHeight - height - margin);
-  return {
-    x: Math.min(Math.max(margin, x), maxX),
-    y: Math.min(Math.max(margin, y), maxY)
-  };
-}
-
-function getDiceDisplaySelectValue(mode: DiceDisplayMode): DiceDisplayMode {
-  return mode === "panel" || mode === "hidden" || mode === "scene" ? mode : "results";
-}
-
-function getDicePlacementAvailable(mode: DiceDisplayMode, sceneRollEnabled: boolean): boolean {
-  return !sceneRollEnabled && mode !== "hidden" && mode !== "scene" && mode !== "scene-result";
-}
-
-function getDicePlacementFacingAvailable(mode: DiceDisplayMode, sceneRollEnabled: boolean): boolean {
-  return getDicePlacementAvailable(mode, sceneRollEnabled) && mode === "results";
-}
-
-function getDicePlacementHelp(viewLabel: "GM" | "Player", mode: DiceDisplayMode, sceneRollEnabled: boolean): string {
-  if (sceneRollEnabled) {
-    return "3D Scene Roll is always centered on the selected scene view, so display placement is ignored.";
-  }
-  if (mode === "hidden") {
-    return `${viewLabel} display is hidden, so placement is ignored.`;
-  }
-  if (mode === "panel") {
-    return "3D Panel uses Edge and Edge Position. Facing is only used by Text Result Only.";
-  }
-  return "Text Result Only uses Edge, Facing, and Edge Position. Turn placement off to keep it centered.";
-}
-
-function loadCustomDicePresets(): CustomDicePreset[] {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(CUSTOM_DICE_PRESETS_STORAGE_KEY) ?? "[]");
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed
-      .filter(
-        (preset): preset is CustomDicePreset =>
-          typeof preset?.id === "string" && typeof preset.label === "string" && preset.label.trim().length > 0 && typeof preset.formula === "string" && preset.formula.trim().length > 0
-      )
-      .slice(0, 12);
-  } catch {
-    return [];
-  }
+function getCurrentViewport(): { width: number; height: number } {
+  return { width: window.innerWidth, height: window.innerHeight };
 }
 
 function ActiveWeatherIcons({ scene }: { scene: Scene }) {

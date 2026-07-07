@@ -2,6 +2,8 @@
 
 This budget defines the minimum canvas performance expectations for release testing. It is intentionally practical: Local VTT does not yet have automated frame-time telemetry, so the current budget combines repeatable stress-scene fixtures, manual measurement steps, and clear thresholds for when a canvas change needs follow-up work.
 
+The canonical thresholds live in `src/shared/canvasPerformanceBudget.ts`. Use that module for future diagnostics or automated telemetry so docs, tests, and runtime reporting do not drift apart.
+
 ## Target Experience
 
 Local VTT should remain usable on a typical Windows tabletop setup while showing one GM View and one Player View at 1080p. These budgets should be treated as release warning gates until automated telemetry exists.
@@ -29,7 +31,7 @@ Use these scene sizes when validating renderer changes, release candidates, or p
 | Weather masks | 24 weather exclusion masks while weather is enabled |
 | Combined stress | 8192 x 8192 map, 250 tokens, 500 fog shapes, 16 animated effects, and enabled weather |
 
-The Vitest fixture in `tests/shared/canvasPerformanceBudget.test.ts` keeps the representative counts from accidentally drifting downward.
+The Vitest fixture in `tests/shared/canvasPerformanceBudget.test.ts` keeps the representative counts from accidentally drifting downward and verifies the shared budget classifiers.
 
 ## Measurement Strategy
 

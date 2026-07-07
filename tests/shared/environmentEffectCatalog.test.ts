@@ -18,8 +18,25 @@ describe("environment effect catalog", () => {
   });
 
   it("formats environmental effect names used by scene normalization", () => {
-    expect(formatEnvironmentEffectName("poison")).toBe("Poison Cloud");
-    expect(formatEnvironmentEffectName("field")).toBe("Force Field");
-    expect(formatEnvironmentEffectName("fog")).toBe("Mist");
+    expect(Object.fromEntries(ENVIRONMENT_EFFECT_TYPES.map((effect) => [effect, formatEnvironmentEffectName(effect)]))).toEqual({
+      acid: "Acid",
+      cold: "Cold",
+      darkness: "Darkness",
+      poison: "Poison Cloud",
+      water: "Water",
+      lava: "Lava",
+      smoke: "Smoke",
+      fog: "Mist",
+      fire: "Fire",
+      electric: "Electric",
+      arcane: "Arcane",
+      radiant: "Radiant",
+      field: "Force Field",
+      shockwave: "Shockwave",
+      distortion: "Distortion",
+      chaos: "Chaos Field",
+      void: "Void Tendrils",
+      nature: "Nature Growth"
+    });
   });
 });

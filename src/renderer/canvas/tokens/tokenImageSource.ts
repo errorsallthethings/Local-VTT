@@ -5,6 +5,43 @@ export type TokenImageSource = {
   path: string;
 };
 
+export function getReusableTokenImageState<TImage>(
+  previousImages: ReadonlyMap<string, TImage>,
+  previousImagePaths: ReadonlyMap<string, string>,
+  previousFailedIds: ReadonlySet<string>,
+  previousFailedPaths: ReadonlyMap<string, string>,
+  nextSources: readonly TokenImageSource[]
+): {
+  loadedImages: Map<string, TImage>;
+  loadedImagePaths: Map<string, string>;
+  failedIds: Set<string>;
+  failedPaths: Map<string, string>;
+  pendingSources: TokenImageSource[];
+} {
+  const loadedImages = new Map<string, TImage>();
+  const loadedImagePaths = new Map<string, string>();
+  const failedIds = new Set<string>();
+  const failedPaths = new Map<string, string>();
+  const pendingSources: TokenImageSource[] = [];
+
+  for (const source of nextSources) {
+    const previousImage = previousImages.get(source.id);
+    if (previousImage && previousImagePaths.get(source.id) === source.path) {
+      loadedImages.set(source.id, previousImage);
+      loadedImagePaths.set(source.id, source.path);
+      continue;
+    }
+    if (previousFailedIds.has(source.id) && previousFailedPaths.get(source.id) === source.path) {
+      failedIds.add(source.id);
+      failedPaths.set(source.id, source.path);
+      continue;
+    }
+    pendingSources.push(source);
+  }
+
+  return { loadedImages, loadedImagePaths, failedIds, failedPaths, pendingSources };
+}
+
 export function getTokenAssetIds(tokens: readonly Token[] | undefined): string {
   // Keep image loading keyed by asset identity, not token presentation/position changes.
   return [...new Set(tokens?.map((token) => token.assetId).filter(Boolean) ?? [])].join("|");

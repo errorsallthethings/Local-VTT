@@ -1,8 +1,11 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Map as MapIcon } from "lucide-react";
 import {
   CURRENT_CAMPAIGN_SCHEMA_VERSION,
   DEFAULT_DICE_SETTINGS,
+  DEFAULT_PLAYER_DISPLAY_PROFILE_ID,
+  createDefaultScene,
+  createPlayerDisplayProfile,
   isLiveTableEvent,
   isPlayerIdleState,
   isPlayerSceneProjection,
@@ -10,13 +13,14 @@ import {
   type PlayerIdleState,
   type PlayerSceneProjection
 } from "../../shared/localvtt";
-import { SceneCanvas } from "../components/SceneCanvas";
+import { drawHexGrid, drawSquareGrid } from "../canvas/grid/gridRenderer";
 import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/player-view";
 
 const PLAYER_SCENE_SPLASH_FADE_MS = 320;
 const PLAYER_SCENE_SPLASH_MIN_MS = 2000;
 const PLAYER_SCENE_READY_FALLBACK_MS = 3000;
 const DiceRollOverlay = lazy(() => import("../components/dice/DiceRollOverlay").then((module) => ({ default: module.DiceRollOverlay })));
+const SceneCanvas = lazy(() => import("../components/SceneCanvas").then((module) => ({ default: module.SceneCanvas })));
 
 export function PlayerApp() {
   const [projection, setProjection] = useState<PlayerSceneProjection | null>(null);
@@ -33,6 +37,7 @@ export function PlayerApp() {
     title: "Waiting for GM View",
     message: "The next scene will appear here."
   });
+  const visibleIdleDiceOverlayEvents = useMemo(() => liveTableEvents.filter(isVisiblePlayerDiceOverlayEvent), [liveTableEvents]);
 
   useEffect(() => {
     const removeListener = window.localVtt.onPlayerState((state) => {
@@ -95,13 +100,13 @@ export function PlayerApp() {
     setProjection((currentProjection) => {
       if (!currentProjection || currentProjection.scene.id === nextProjection.scene.id) {
         if (!currentProjection) {
-          setPendingProjection(nextProjection);
+          setPendingProjection(null);
           setTransitioning(true);
           setSplashCovered(false);
           setSplashMinimumMet(false);
           setRevealScene(false);
           setCurrentSceneReady(false);
-          return currentProjection;
+          return nextProjection;
         }
         setCurrentSceneReady(true);
         return nextProjection;
@@ -203,9 +208,9 @@ export function PlayerApp() {
       ) : (
         <PlayerEmpty state={idleState} />
       )}
-      {!projection && (
+      {!projection && visibleIdleDiceOverlayEvents.length > 0 && (
         <Suspense fallback={null}>
-          <DiceRollOverlay events={liveTableEvents.filter(isVisiblePlayerDiceOverlayEvent)} mode="player" />
+          <DiceRollOverlay events={visibleIdleDiceOverlayEvents} mode="player" />
         </Suspense>
       )}
     </div>
@@ -215,6 +220,32 @@ export function PlayerApp() {
 function PlayerEmpty({ state }: { state: PlayerIdleState }) {
   if (state.variant === "blackout") {
     return <div className="player-blackout" aria-label="Player View blackout" />;
+  }
+
+  if (state.variant === "test-pattern") {
+    const cellSize = Math.max(24, Math.round(state.testPattern?.cellSizePx ?? 80));
+    const gridMode = state.testPattern?.gridMode ?? "square";
+    return (
+      <div className="player-test-pattern">
+        {gridMode !== "none" && <PlayerTestPatternGrid gridMode={gridMode} cellSize={cellSize} />}
+        <div className="player-test-pattern-corner player-test-pattern-corner-tl" />
+        <div className="player-test-pattern-corner player-test-pattern-corner-tr" />
+        <div className="player-test-pattern-corner player-test-pattern-corner-bl" />
+        <div className="player-test-pattern-corner player-test-pattern-corner-br" />
+        <div className="player-test-pattern-axis player-test-pattern-axis-horizontal" />
+        <div className="player-test-pattern-axis player-test-pattern-axis-vertical" />
+        <div className="player-test-pattern-center">
+          <strong>{state.title}</strong>
+          <span>{state.message}</span>
+          {state.testPattern?.displayLabel && <small>{state.testPattern.displayLabel}</small>}
+          {state.testPattern?.nativeResolution && (
+            <small>
+              {state.testPattern.nativeResolution.width} x {state.testPattern.nativeResolution.height}
+            </small>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -228,6 +259,54 @@ function PlayerEmpty({ state }: { state: PlayerIdleState }) {
       </div>
     </div>
   );
+}
+
+function PlayerTestPatternGrid({ gridMode, cellSize }: { gridMode: NonNullable<PlayerIdleState["testPattern"]>["gridMode"]; cellSize: number }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+    const render = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(1, Math.round(rect.width));
+      const height = Math.max(1, Math.round(rect.height));
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        return;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      const scene = createDefaultScene("Test Pattern");
+      scene.grid = {
+        ...scene.grid,
+        type: gridMode === "hex" ? "hex" : "square",
+        sizePx: cellSize,
+        offsetX: 0,
+        offsetY: 0,
+        color: "#ffffff",
+        opacity: gridMode === "physical-square" ? 0.62 : 0.44,
+        lineThickness: gridMode === "physical-square" ? 2 : 1
+      };
+      const camera = { x: 0, y: 0, zoom: 1 };
+      if (gridMode === "hex") {
+        drawHexGrid(ctx, scene, width, height, camera);
+      } else {
+        drawSquareGrid(ctx, scene, width, height, camera);
+      }
+    };
+    render();
+    const resizeObserver = new ResizeObserver(render);
+    resizeObserver.observe(canvas);
+    return () => resizeObserver.disconnect();
+  }, [cellSize, gridMode]);
+
+  return <canvas ref={canvasRef} className="player-test-pattern-grid-canvas" aria-hidden="true" />;
 }
 
 function PlayerSceneSplash({ leaving }: { leaving: boolean }) {
@@ -258,22 +337,26 @@ function PlayerScene({
       ...emptyCampaign(projection.campaignName),
       assets: projection.assets,
       players: projection.players ?? [],
-      playerDisplay: projection.playerDisplay
+      playerDisplay: projection.playerDisplay,
+      activePlayerDisplayProfileId: DEFAULT_PLAYER_DISPLAY_PROFILE_ID,
+      playerDisplayProfiles: [createPlayerDisplayProfile(DEFAULT_PLAYER_DISPLAY_PROFILE_ID, "Projected Display", projection.playerDisplay, "")]
     }),
     [projection]
   );
 
   return (
     <div className={className}>
-      <SceneCanvas
-        campaign={campaign}
-        scene={projection.scene}
-        mode="player"
-        interactive={false}
-        liveTableEvents={liveTableEvents}
-        showPlayerSeatIndicators={projection.showPlayerSeatIndicators ?? false}
-        onReady={onReady}
-      />
+      <Suspense fallback={null}>
+        <SceneCanvas
+          campaign={campaign}
+          scene={projection.scene}
+          mode="player"
+          interactive={false}
+          liveTableEvents={liveTableEvents}
+          showPlayerSeatIndicators={projection.showPlayerSeatIndicators ?? false}
+          onReady={onReady}
+        />
+      </Suspense>
     </div>
   );
 }
@@ -312,6 +395,14 @@ function emptyCampaign(name: string) {
       color: "#ffffff",
       opacity: 0.4,
       lineThickness: 1,
+      showCoordinates: false,
+      coordinatePlacement: "inline" as const,
+      coordinateXFormat: "alpha" as const,
+      coordinateYFormat: "numeric" as const,
+      coordinateCellPosition: "top-left" as const,
+      coordinateColor: "#ffffff",
+      coordinateGmFontSize: 12,
+      coordinatePlayerFontSize: 12,
       showOnGm: false,
       showOnPlayer: true,
       measurement: {
@@ -338,6 +429,8 @@ function emptyCampaign(name: string) {
       defaultScaleLabel: "1 inch = 5 feet"
     },
     playerDisplay: projectionDisplayFallback(),
+    activePlayerDisplayProfileId: DEFAULT_PLAYER_DISPLAY_PROFILE_ID,
+    playerDisplayProfiles: [createPlayerDisplayProfile(DEFAULT_PLAYER_DISPLAY_PROFILE_ID, "Projected Display", projectionDisplayFallback(), "")],
     diceSettings: { ...DEFAULT_DICE_SETTINGS }
   };
 }

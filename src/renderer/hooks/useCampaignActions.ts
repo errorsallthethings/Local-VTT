@@ -1,18 +1,35 @@
-import type { Asset, Campaign, CampaignSummary, Scene, ThumbnailRegenerationResult } from "../../shared/localvtt";
+import type {
+  Asset,
+  AssetPruneResult,
+  Campaign,
+  CampaignSummary,
+  MetadataBackupRestoreResult,
+  PlayerSceneProjectionOptions,
+  Scene,
+  ThumbnailRegenerationResult,
+  TokenAssetPromotionResult
+} from "../../shared/localvtt";
 import {
   applyMapAssetToCampaign,
   getDuplicateFolderName,
   getDuplicateSceneName,
   getDirtySceneIdsInFolder,
+  getSceneToSaveBeforeClose,
+  getCampaignMaintenanceInitialBusyState,
+  getMapAssetDeleteCompletion,
+  getThumbnailRegenerationBusyState,
+  completeCampaignMaintenance,
+  openSavedCampaignHealth,
   getSceneDraftToSave,
   insertSceneFolderAfterSource,
   moveSceneEntry,
   removeDirtySceneId,
   removeFolderFromCampaign,
-  removeSceneDraft
+  removeSceneDraft,
+  runSavedCampaignMaintenance,
+  type CampaignBusyState
 } from "../lib/campaign";
-import { updatePlayerSceneIfOpen } from "../lib/player-view";
-import { stopActiveTurnOrder } from "../lib/turn-order";
+import { showPlayerBlackout, updatePlayerSceneIfOpenInBackground } from "../lib/player-view";
 import type { useCampaignWorkspace } from "./useCampaignWorkspace";
 
 type CampaignWorkspace = ReturnType<typeof useCampaignWorkspace>;
@@ -35,20 +52,20 @@ interface UseCampaignActionsOptions {
   onSceneDeleteHandled: () => void;
   onFolderDeleteHandled: () => void;
   onThumbnailRegenerationComplete: (result: ThumbnailRegenerationResult) => void;
+  onTokenAssetPromotionComplete: (result: TokenAssetPromotionResult) => void;
+  onAssetPruneComplete: (result: AssetPruneResult) => void;
+  onCampaignHealthOpen: () => void;
+  onMetadataRestoreOpen: () => void;
+  onMetadataRestoreClosed: () => void;
   shouldSyncSceneToPlayer: (sceneId: string) => boolean;
+  playerViewSyncOptions?: PlayerSceneProjectionOptions;
 }
 
-export interface CampaignBusyState {
-  title: string;
-  message: string;
-  current: number;
-  total: number;
-  unitLabel?: string;
-}
+export type { CampaignBusyState };
 
 export interface MapReplacementPreview {
   currentAssetId: string;
-  sourcePath: string;
+  replacementId: string;
   sourceName: string;
   currentAssetName: string;
   currentDimensions?: { width: number; height: number };
@@ -70,7 +87,13 @@ export function useCampaignActions({
   onSceneDeleteHandled,
   onFolderDeleteHandled,
   onThumbnailRegenerationComplete,
-  shouldSyncSceneToPlayer
+  onTokenAssetPromotionComplete,
+  onAssetPruneComplete,
+  onCampaignHealthOpen,
+  onMetadataRestoreOpen,
+  onMetadataRestoreClosed,
+  shouldSyncSceneToPlayer,
+  playerViewSyncOptions = {}
 }: UseCampaignActionsOptions) {
   const {
     campaignPath,
@@ -218,17 +241,17 @@ export function useCampaignActions({
       for (const sceneEntry of campaign.scenes) {
         const localScene = getSceneDraftToSave(sceneEntry.id, sceneDrafts, activeScene);
         if (localScene) {
-          const stoppedScene = stopActiveTurnOrder(localScene, new Date().toISOString());
-          if (dirtySceneIds.has(sceneEntry.id) || stoppedScene !== localScene) {
-            scenesToSave.set(sceneEntry.id, stoppedScene);
+          const sceneToSave = getSceneToSaveBeforeClose(localScene, dirtySceneIds.has(sceneEntry.id), new Date().toISOString());
+          if (sceneToSave) {
+            scenesToSave.set(sceneEntry.id, sceneToSave);
           }
           continue;
         }
 
         const savedScene = await window.localVtt.loadScene(campaignPath, sceneEntry.id);
-        const stoppedScene = stopActiveTurnOrder(savedScene, new Date().toISOString());
-        if (stoppedScene !== savedScene) {
-          scenesToSave.set(sceneEntry.id, stoppedScene);
+        const sceneToSave = getSceneToSaveBeforeClose(savedScene, false, new Date().toISOString());
+        if (sceneToSave) {
+          scenesToSave.set(sceneEntry.id, sceneToSave);
         }
       }
 
@@ -284,7 +307,7 @@ export function useCampaignActions({
       if (!campaignPath || !campaign || !activeScene) {
         return;
       }
-      const result = await window.localVtt.replaceMap(campaignPath, activeScene.id, preview.currentAssetId, preview.sourcePath);
+      const result = await window.localVtt.replaceMap(campaignPath, activeScene.id, preview.currentAssetId, preview.replacementId);
       applySummary(result.campaignSummary);
       setActiveScene(result.scene);
       setSceneClean(result.scene);
@@ -292,7 +315,7 @@ export function useCampaignActions({
       onMapReplacementHandled();
       const syncCampaign = getPlayerSyncCampaignForScene(result.campaignSummary.campaign, result.scene.id, shouldSyncSceneToPlayer);
       if (syncCampaign) {
-        void updatePlayerSceneIfOpen(window.localVtt, syncCampaign, result.scene);
+        updatePlayerSceneIfOpenInBackground(window.localVtt, syncCampaign, result.scene, playerViewSyncOptions);
       }
     });
 
@@ -321,43 +344,91 @@ export function useCampaignActions({
 
   const regenerateThumbnails = () =>
     run(async () => {
-      if (!campaignPath || !campaign) {
+      await runSavedCampaignMaintenance({
+        campaignPath,
+        campaignAvailable: Boolean(campaign),
+        hasUnsavedChanges,
+        initialBusyState: getCampaignMaintenanceInitialBusyState("thumbnail-regeneration"),
+        onBusyChange,
+        saveCampaign,
+        subscribeProgress: () => window.localVtt.onThumbnailRegenerationProgress((progress) => onBusyChange(getThumbnailRegenerationBusyState(progress))),
+        runOperation: (path) => window.localVtt.regenerateThumbnails(path),
+        onComplete: (result) =>
+          completeCampaignMaintenance({ result, applySummary, setCampaignDirty, setError, onComplete: onThumbnailRegenerationComplete })
+      });
+    });
+
+  const promoteTokenAssets = () =>
+    run(async () => {
+      await runSavedCampaignMaintenance({
+        campaignPath,
+        campaignAvailable: Boolean(campaign),
+        hasUnsavedChanges,
+        initialBusyState: getCampaignMaintenanceInitialBusyState("token-asset-promotion"),
+        onBusyChange,
+        saveCampaign,
+        runOperation: (path) => window.localVtt.promoteTokenAssets(path),
+        onComplete: (result) =>
+          completeCampaignMaintenance({ result, applySummary, setCampaignDirty, setError, onComplete: onTokenAssetPromotionComplete })
+      });
+    });
+
+  const pruneUnreferencedAssets = () =>
+    run(async () => {
+      await runSavedCampaignMaintenance({
+        campaignPath,
+        campaignAvailable: Boolean(campaign),
+        hasUnsavedChanges,
+        initialBusyState: getCampaignMaintenanceInitialBusyState("unreferenced-asset-pruning"),
+        onBusyChange,
+        saveCampaign,
+        runOperation: (path) => window.localVtt.pruneUnreferencedAssets(path),
+        onComplete: (result) => completeCampaignMaintenance({ result, applySummary, setCampaignDirty, setError, onComplete: onAssetPruneComplete })
+      });
+    });
+
+  const openCampaignHealthDialog = () =>
+    run(async () => {
+      await openSavedCampaignHealth({
+        campaignPath,
+        campaignAvailable: Boolean(campaign),
+        hasUnsavedChanges,
+        saveCampaign,
+        refreshCampaign: (path) => window.localVtt.refreshCampaign(path),
+        applySummary: (summary) => applySummary(summary, false),
+        onOpen: onCampaignHealthOpen
+      });
+    });
+
+  const openBackupsFolder = () =>
+    run(async () => {
+      if (!campaignPath) {
         return;
       }
-      if (hasUnsavedChanges) {
-        const saved = await saveCampaign();
-        if (!saved) {
-          return;
-        }
-      }
-
-      const removeProgressListener = window.localVtt.onThumbnailRegenerationProgress((progress) => {
-        onBusyChange({
-          title: "Regenerating Thumbnails",
-          message: progress.message,
-          current: progress.current,
-          total: progress.total,
-          unitLabel: "assets"
-        });
-      });
-      onBusyChange({
-        title: "Regenerating Thumbnails",
-        message: "Preparing thumbnail regeneration.",
-        current: 0,
-        total: 0,
-        unitLabel: "assets"
-      });
-      try {
-        const result = await window.localVtt.regenerateThumbnails(campaignPath);
-        applySummary(result.campaignSummary);
-        setCampaignDirty(false);
-        setError(null);
-        onThumbnailRegenerationComplete(result);
-      } finally {
-        removeProgressListener();
-        onBusyChange(null);
-      }
+      await window.localVtt.openBackupsFolder(campaignPath);
     });
+
+  const openMetadataRestoreDialog = () => {
+    if (!campaignPath) {
+      return;
+    }
+    onMetadataRestoreOpen();
+  };
+
+  const handleMetadataRestore = (result: MetadataBackupRestoreResult) => {
+    applySummary(result.campaignSummary, false);
+    setCampaignDirty(false);
+    if (result.scene) {
+      setActiveScene(result.scene);
+      setSceneClean(result.scene);
+    } else {
+      setActiveScene(null);
+      setSceneDrafts({});
+      setDirtySceneIds(new Set());
+    }
+    onMetadataRestoreClosed();
+    void showPlayerBlackout();
+  };
 
   const confirmDeleteMapAsset = () =>
     run(async () => {
@@ -367,13 +438,19 @@ export function useCampaignActions({
       const wasDirty = dirtySceneIds.has(activeScene.id);
       const result = await window.localVtt.deleteMapAsset(campaignPath, activeScene.id, mapAssetToDelete.id);
       applySummary(result.campaignSummary, campaignDirty);
-      const updatedActiveScene = { ...activeScene, mapAssetId: undefined, updatedAt: new Date().toISOString() };
-      setActiveScene(wasDirty ? updatedActiveScene : result.scene);
-      if (wasDirty) {
-        setSceneDrafts((drafts) => ({ ...drafts, [updatedActiveScene.id]: updatedActiveScene }));
-        setDirtySceneIds((ids) => new Set(ids).add(updatedActiveScene.id));
-      } else {
-        setSceneClean(result.scene);
+      const completion = getMapAssetDeleteCompletion({
+        activeScene,
+        savedScene: result.scene,
+        wasDirty,
+        updatedAt: new Date().toISOString(),
+        sceneDrafts,
+        dirtySceneIds
+      });
+      setActiveScene(completion.activeScene);
+      setSceneDrafts(completion.sceneDrafts);
+      setDirtySceneIds(completion.dirtySceneIds);
+      if (completion.cleanScene) {
+        setSceneClean(completion.cleanScene);
       }
       onMapAssetDeleteHandled();
     });
@@ -518,6 +595,12 @@ export function useCampaignActions({
     replaceMap,
     commitMapReplacement,
     regenerateThumbnails,
+    promoteTokenAssets,
+    pruneUnreferencedAssets,
+    openCampaignHealthDialog,
+    openBackupsFolder,
+    openMetadataRestoreDialog,
+    handleMetadataRestore,
     confirmDeleteMapAsset,
     saveFolderScenes,
     duplicateScene,

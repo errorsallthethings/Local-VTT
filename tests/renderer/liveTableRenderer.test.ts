@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { LiveTableEvent, LiveTablePoint } from "../../src/shared/localvtt";
+import { DEFAULT_GRID, DEFAULT_TABLE_TOOLS } from "../../src/shared/localvtt";
+import type { GridSettings, LiveTableEvent, LiveTablePoint, Scene } from "../../src/shared/localvtt";
 import {
+  createLaserDragStart,
+  createLaserLiveTableEvent,
+  createPingLiveTableEvent,
+  createRulerClearEvent,
+  createRulerDrag,
+  createRulerLiveTableEvent,
   getActiveLaserPoints,
   getUpdatedLaserDrag,
   hasActiveLiveTableEvents,
@@ -9,7 +16,98 @@ import {
   RULER_RELEASE_LINGER_MS
 } from "../../src/renderer/canvas/live-table";
 
+const squareGrid: GridSettings = {
+  ...DEFAULT_GRID,
+  type: "square",
+  sizePx: 70,
+  measurement: {
+    unit: "feet",
+    unitsPerGridCell: 5,
+    distanceMode: "manhattan"
+  }
+};
+
+const sceneForMeasurement = {
+  id: "scene-1",
+  name: "Scene",
+  grid: squareGrid
+} as Scene;
+
 describe("liveTableRenderer", () => {
+  it("creates ping events from table tool settings", () => {
+    expect(createPingLiveTableEvent("ping-1", { x: 10, y: 20 }, { ...DEFAULT_TABLE_TOOLS, pingSize: 2, pingColor: "#abcdef" }, false, 123)).toEqual({
+      id: "ping-1",
+      type: "ping",
+      point: { x: 10, y: 20 },
+      size: 2,
+      color: "#abcdef",
+      visibleInPlayer: false,
+      createdAt: 123
+    });
+  });
+
+  it("creates laser drag state and events with a shared id and first point timestamp", () => {
+    const { drag, event } = createLaserDragStart(7, "laser-1", { x: 1, y: 2 }, { ...DEFAULT_TABLE_TOOLS, laserThickness: 12, laserColor: "#123456" }, true, 500);
+
+    expect(drag).toEqual({
+      pointerId: 7,
+      eventId: "laser-1",
+      points: [{ point: { x: 1, y: 2 }, createdAt: 500 }]
+    });
+    expect(event).toEqual({
+      id: "laser-1",
+      type: "laser",
+      createdAt: 500,
+      points: drag.points,
+      thickness: 12,
+      color: "#123456",
+      visibleInPlayer: true
+    });
+  });
+
+  it("keeps laser event creation time anchored to the first drag point", () => {
+    const event = createLaserLiveTableEvent(
+      "laser-1",
+      [
+        { point: { x: 0, y: 0 }, createdAt: 100 },
+        { point: { x: 50, y: 0 }, createdAt: 250 }
+      ],
+      DEFAULT_TABLE_TOOLS,
+      false,
+      999
+    );
+
+    expect(event.createdAt).toBe(100);
+    expect(event.points).toHaveLength(2);
+  });
+
+  it("creates ruler drag and live events with optional expiry", () => {
+    const drag = createRulerDrag(9, { x: 0, y: 0 });
+    const movedDrag = { ...drag, current: { x: 70, y: 0 } };
+
+    expect(drag).toEqual({ pointerId: 9, start: { x: 0, y: 0 }, current: { x: 0, y: 0 }, waypoints: [] });
+    expect(createRulerLiveTableEvent(movedDrag, sceneForMeasurement, true, 1000, 1500)).toMatchObject({
+      id: "ruler-live",
+      type: "ruler",
+      points: [
+        { x: 0, y: 0 },
+        { x: 70, y: 0 }
+      ],
+      primary: "5 feet",
+      visibleInPlayer: true,
+      createdAt: 1000,
+      expiresAt: 1500
+    });
+  });
+
+  it("creates ruler clear events", () => {
+    expect(createRulerClearEvent(321)).toEqual({
+      id: "ruler-clear",
+      type: "ruler-clear",
+      createdAt: 321
+    });
+  });
+
   it("keeps ping events active until their duration expires", () => {
     const now = 10_000;
     const activePing: LiveTableEvent = {

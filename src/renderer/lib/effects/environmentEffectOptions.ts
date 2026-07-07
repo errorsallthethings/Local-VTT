@@ -1,3 +1,4 @@
+import { formatEnvironmentEffectName } from "../../../shared/environmentEffectCatalog";
 import type { EnvironmentEffectType } from "../../../shared/localvtt";
 import {
   ACID_EFFECT_PRESETS,
@@ -45,47 +46,31 @@ export const ENVIRONMENT_EFFECT_FEATHER_OPTIONS = [
   { label: "Wide", value: 1 }
 ] as const;
 
-export const ENVIRONMENT_EFFECT_OPTIONS: Array<{ label: string; value: EnvironmentEffectType }> = [
-  { label: "Acid", value: "acid" },
-  { label: "Arcane", value: "arcane" },
-  { label: "Chaos Field", value: "chaos" },
-  { label: "Cold", value: "cold" },
-  { label: "Darkness", value: "darkness" },
-  { label: "Distortion", value: "distortion" },
-  { label: "Electric", value: "electric" },
-  { label: "Fire", value: "fire" },
-  { label: "Force Field", value: "field" },
-  { label: "Lava", value: "lava" },
-  { label: "Mist", value: "fog" },
-  { label: "Nature Growth", value: "nature" },
-  { label: "Poison Cloud", value: "poison" },
-  { label: "Radiant", value: "radiant" },
-  { label: "Shockwave", value: "shockwave" },
-  { label: "Smoke", value: "smoke" },
-  { label: "Void Tendrils", value: "void" },
-  { label: "Water", value: "water" }
+const ENVIRONMENT_EFFECT_OPTION_ORDER: EnvironmentEffectType[] = [
+  "acid",
+  "arcane",
+  "chaos",
+  "cold",
+  "darkness",
+  "distortion",
+  "electric",
+  "fire",
+  "field",
+  "lava",
+  "fog",
+  "nature",
+  "poison",
+  "radiant",
+  "shockwave",
+  "smoke",
+  "void",
+  "water"
 ];
 
-const ENVIRONMENT_EFFECT_LABELS: Record<EnvironmentEffectType, string> = {
-  acid: "Acid",
-  arcane: "Arcane",
-  chaos: "Chaos Field",
-  cold: "Cold",
-  darkness: "Darkness",
-  distortion: "Distortion",
-  electric: "Electric",
-  field: "Force Field",
-  fire: "Fire",
-  fog: "Mist",
-  lava: "Lava",
-  nature: "Nature Growth",
-  poison: "Poison Cloud",
-  radiant: "Radiant",
-  shockwave: "Shockwave",
-  smoke: "Smoke",
-  void: "Void Tendrils",
-  water: "Water"
-};
+export const ENVIRONMENT_EFFECT_OPTIONS: Array<{ label: string; value: EnvironmentEffectType }> = ENVIRONMENT_EFFECT_OPTION_ORDER.map((value) => ({
+  label: formatEnvironmentEffectName(value),
+  value
+}));
 
 const ENVIRONMENT_EFFECT_PRESET_OPTIONS: Record<EnvironmentEffectType, Array<{ label: string; value: string }>> = {
   acid: [
@@ -231,7 +216,7 @@ export const ENVIRONMENT_EFFECT_REGISTRY: Record<EnvironmentEffectType, Environm
     option.value,
     {
       id: option.value,
-      label: ENVIRONMENT_EFFECT_LABELS[option.value],
+      label: option.label,
       presetOptions: ENVIRONMENT_EFFECT_PRESET_OPTIONS[option.value],
       canvasStyle: ENVIRONMENT_EFFECT_CANVAS_STYLES[option.value]
     }
@@ -319,6 +304,19 @@ export function getEnvironmentEffectPresetSelectValue(
 
 export function getEnvironmentEffectPresetOptions(effect: EnvironmentEffectType): Array<{ label: string; value: string }> {
   return getEnvironmentEffectRegistryEntry(effect).presetOptions;
+}
+
+export function getEnvironmentEffectTuningReadout(tuning: unknown): string {
+  return JSON.stringify(tuning);
+}
+
+export function parseEnvironmentEffectTuningSliderValue(value: string, fallback: number): number {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : fallback;
+}
+
+export function formatEnvironmentEffectTuningNumber(value: number): string {
+  return Number.isInteger(value) ? value.toString() : value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 export function applyEnvironmentEffectPreset(

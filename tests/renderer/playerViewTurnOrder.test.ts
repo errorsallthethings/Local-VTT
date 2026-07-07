@@ -3,6 +3,7 @@ import {
   easeInCubic,
   easeOutCubic,
   getEdgeSlideTransform,
+  getPlayerTurnStatusEntries,
   getPlayerSeatStyle,
   getPlayerTurnStatusLabel,
   getPlayerTurnStatusStyle,
@@ -29,6 +30,27 @@ describe("player view turn order helpers", () => {
     expect(getPlayerTurnStatusLabel("current")).toBe("Turn Now");
     expect(getPlayerTurnStatusLabel("next")).toBe("Up Next");
     expect(getPlayerTurnStatusLabel("waiting")).toBe("Waiting");
+  });
+
+  it("builds player turn status entries from visible player-linked turn order entries", () => {
+    const players = [
+      { id: "player-1", name: "One", color: "#111111", defaultSeatEdge: "bottom", defaultSeatPosition: 0.25, visibleInPlayer: false },
+      { id: "player-2", name: "Two", color: "#222222", defaultSeatEdge: "bottom", defaultSeatPosition: 0.5, visibleInPlayer: false },
+      { id: "player-3", name: "Three", color: "#333333", defaultSeatEdge: "bottom", defaultSeatPosition: 0.75, visibleInPlayer: false },
+      { id: "unused-player", name: "Unused", color: "#444444", defaultSeatEdge: "top", defaultSeatPosition: 0.5, visibleInPlayer: false }
+    ] as const;
+    const entries = [
+      { id: "entry-1", name: "One", initiative: 20, playerId: "player-1", visibleInPlayer: true },
+      { id: "entry-hidden", name: "Hidden", initiative: 18, playerId: "unused-player", visibleInPlayer: false },
+      { id: "entry-2", name: "Two", initiative: 15, playerId: "player-2", visibleInPlayer: true },
+      { id: "entry-3", name: "Three", initiative: 10, playerId: "player-3", visibleInPlayer: true }
+    ];
+
+    expect(getPlayerTurnStatusEntries({ currentEntryId: "entry-1", entries }, players).map(({ player, status }) => [player.id, status])).toEqual([
+      ["player-1", "current"],
+      ["player-2", "next"],
+      ["player-3", "waiting"]
+    ]);
   });
 
   it("builds edge slide transforms with optional rotation", () => {

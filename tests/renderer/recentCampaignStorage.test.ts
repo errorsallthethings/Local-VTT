@@ -22,6 +22,10 @@ describe("recent campaign storage", () => {
     expect(loadRecentCampaigns(createStorage())).toEqual([]);
   });
 
+  it("loads an empty recent campaign list when storage cannot be read", () => {
+    expect(loadRecentCampaigns({ getItem: () => { throw new Error("blocked"); } })).toEqual([]);
+  });
+
   it("saves and reloads recent campaign values", () => {
     const storage = createStorage();
     const recents: RecentCampaign[] = [
@@ -32,5 +36,9 @@ describe("recent campaign storage", () => {
 
     expect(storage.getItem(RECENT_CAMPAIGNS_STORAGE_KEY)).toBe(JSON.stringify(recents));
     expect(loadRecentCampaigns(storage)).toEqual(recents);
+  });
+
+  it("ignores save failures so startup can continue", () => {
+    expect(() => saveRecentCampaigns([], { setItem: () => { throw new Error("quota"); } })).not.toThrow();
   });
 });

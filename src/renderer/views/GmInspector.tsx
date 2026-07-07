@@ -27,7 +27,7 @@ export function GmInspector({
   onUpdateGrid,
   onUpdateFog,
   onUpdateMapTransform,
-  onFitGridToMapDimensions,
+  onApplyMapFitPreset,
   onMoveLayer,
   onImportMap,
   onReplaceMap,
@@ -68,7 +68,7 @@ export function GmInspector({
   onUpdateGrid: (patch: Partial<GridSettings>) => void;
   onUpdateFog: (patch: Partial<FogSettings>) => void;
   onUpdateMapTransform: (patch: Partial<MapTransform>) => void;
-  onFitGridToMapDimensions: () => void;
+  onApplyMapFitPreset: (fitMode: Exclude<MapTransform["fitMode"], "manual">, gridPatch?: Partial<GridSettings>) => void;
   onMoveLayer: (layerId: string, direction: "up" | "down") => void;
   onImportMap: () => void;
   onReplaceMap: (asset: Asset) => void;
@@ -145,7 +145,7 @@ export function GmInspector({
                 onUpdateGrid={onUpdateGrid}
                 onUpdateFog={onUpdateFog}
                 onUpdateMapTransform={onUpdateMapTransform}
-                onFitGridToMapDimensions={onFitGridToMapDimensions}
+                onApplyMapFitPreset={onApplyMapFitPreset}
                 onMoveLayer={onMoveLayer}
                 onImportMap={onImportMap}
                 onReplaceMap={onReplaceMap}

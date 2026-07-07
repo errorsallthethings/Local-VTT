@@ -23,44 +23,31 @@ export type EnvironmentEffectType = (typeof ENVIRONMENT_EFFECT_TYPES)[number];
 
 const ENVIRONMENT_EFFECT_TYPE_SET = new Set<string>(ENVIRONMENT_EFFECT_TYPES);
 
+const ENVIRONMENT_EFFECT_NAMES: Record<EnvironmentEffectType, string> = {
+  acid: "Acid",
+  cold: "Cold",
+  darkness: "Darkness",
+  poison: "Poison Cloud",
+  water: "Water",
+  lava: "Lava",
+  smoke: "Smoke",
+  fog: "Mist",
+  fire: "Fire",
+  electric: "Electric",
+  arcane: "Arcane",
+  radiant: "Radiant",
+  field: "Force Field",
+  shockwave: "Shockwave",
+  distortion: "Distortion",
+  chaos: "Chaos Field",
+  void: "Void Tendrils",
+  nature: "Nature Growth"
+};
+
 export function isEnvironmentEffectType(value: unknown): value is EnvironmentEffectType {
   return typeof value === "string" && ENVIRONMENT_EFFECT_TYPE_SET.has(value);
 }
 
 export function formatEnvironmentEffectName(effect: EnvironmentEffectType): string {
-  return effect === "acid"
-    ? "Acid"
-    : effect === "cold"
-      ? "Cold"
-      : effect === "darkness"
-        ? "Darkness"
-        : effect === "poison"
-          ? "Poison Cloud"
-          : effect === "water"
-            ? "Water"
-            : effect === "lava"
-              ? "Lava"
-              : effect === "fire"
-                ? "Fire"
-                : effect === "electric"
-                  ? "Electric"
-                  : effect === "arcane"
-                    ? "Arcane"
-                    : effect === "distortion"
-                      ? "Distortion"
-                      : effect === "chaos"
-                        ? "Chaos Field"
-                        : effect === "void"
-                          ? "Void Tendrils"
-                          : effect === "nature"
-                            ? "Nature Growth"
-                            : effect === "radiant"
-                              ? "Radiant"
-                              : effect === "field"
-                                ? "Force Field"
-                                : effect === "shockwave"
-                                  ? "Shockwave"
-                                  : effect === "fog"
-                                    ? "Mist"
-                                    : "Smoke";
+  return ENVIRONMENT_EFFECT_NAMES[effect];
 }

@@ -16,6 +16,11 @@ it("preserves summary scene metadata while applying draft sidebar fields", () =>
   draft.updatedAt = "2026-06-05T12:00:00.000Z";
   draft.sceneFolders = [{ id: "folder", name: "Dungeon", color: "#4cbf78", createdAt: "2026-06-05T00:00:00.000Z" }];
   draft.sceneLibrary = { collapsedFolderIds: ["folder"] };
+  draft.activePlayerDisplayProfileId = "profile-2";
+  draft.playerDisplayProfiles = [
+    { ...draft.playerDisplayProfiles[0], id: "profile-1", name: "Table Display" },
+    { ...draft.playerDisplayProfiles[0], id: "profile-2", name: "Office Display", pixelsPerInch: 144 }
+  ];
   const draftWeather = createDefaultScene("Weather Draft").weather;
   draftWeather.enabled = true;
   draftWeather.effects.rain.enabled = true;
@@ -34,6 +39,8 @@ it("preserves summary scene metadata while applying draft sidebar fields", () =>
   expect(merged.sceneFolders).toEqual(draft.sceneFolders);
   expect(merged.sceneLibrary).toEqual({ collapsedFolderIds: ["folder"] });
   expect(merged.playerDisplay.pixelsPerInch).toBe(144);
+  expect(merged.activePlayerDisplayProfileId).toBe("profile-2");
+  expect(merged.playerDisplayProfiles.map((profile) => profile.name)).toEqual(["Table Display", "Office Display"]);
   expect(merged.diceSettings.gmDisplayMode).toBe("panel");
   expect(merged.diceSettings.playerDisplayMode).toBe("scene");
   expect(merged.scenes).toEqual([

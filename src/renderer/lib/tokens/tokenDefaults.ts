@@ -13,6 +13,8 @@ import {
   type Scene,
   type Token,
   type TokenBorderWidthPreset,
+  type TokenBorderStyle,
+  type TokenMask,
   type TokenPresentationDefaults,
   type TokenSizePreset
 } from "../../../shared/localvtt";
@@ -106,6 +108,79 @@ export function getTokenPresentationDefaults(token: Token, gridSize: number): To
     borderWidthPreset: token.borderWidthPreset ?? getBorderWidthPreset(token.borderWidth ?? DEFAULT_TOKEN_BORDER_WIDTH),
     glowColor: token.glowColor ?? DEFAULT_TOKEN_GLOW_COLOR,
     footprintVisible: token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE
+  };
+}
+
+export interface TokenSettingsPresentation {
+  sizePreset: TokenSizePreset;
+  borderColor: string;
+  borderWidth: number;
+  borderWidthPreset: TokenBorderWidthPreset;
+  borderStyle: TokenBorderStyle;
+  glowColor: string;
+  customWidthCells: number;
+  customHeightCells: number;
+  customSizeDisabled: boolean;
+  mask: TokenMask;
+  footprintHidden: boolean;
+}
+
+export function getTokenSettingsPresentation(token: Token, gridSize: number, gridType: GridType): TokenSettingsPresentation {
+  const borderWidth = token.borderWidth ?? DEFAULT_TOKEN_BORDER_WIDTH;
+  const safeGridSize = Math.max(1, gridSize);
+  return {
+    sizePreset: token.sizePreset ?? DEFAULT_TOKEN_SIZE_PRESET,
+    borderColor: token.borderColor ?? DEFAULT_TOKEN_BORDER_COLOR,
+    borderWidth,
+    borderWidthPreset: token.borderWidthPreset ?? getBorderWidthPreset(borderWidth),
+    borderStyle: token.borderStyle ?? DEFAULT_TOKEN_BORDER_STYLE,
+    glowColor: token.glowColor ?? DEFAULT_TOKEN_GLOW_COLOR,
+    customWidthCells: Math.round((token.size.width / safeGridSize) * 100) / 100,
+    customHeightCells: Math.round((token.size.height / safeGridSize) * 100) / 100,
+    customSizeDisabled: gridType === "hex",
+    mask: token.mask ?? DEFAULT_TOKEN_MASK,
+    footprintHidden: !(token.footprintVisible ?? DEFAULT_TOKEN_FOOTPRINT_VISIBLE)
+  };
+}
+
+export function getTokenSizePresetPatch(preset: TokenSizePreset, gridSize: number, gridType: GridType): Partial<Token> {
+  if (preset === "custom") {
+    return { sizePreset: "custom" };
+  }
+  return {
+    sizePreset: preset,
+    size: getTokenSizeForPreset(preset, gridSize, gridType)
+  };
+}
+
+export function getTokenCustomSizePatch(token: Pick<Token, "size">, gridSize: number, axis: "width" | "height", cells: number): Partial<Token> {
+  const safeGridSize = Math.max(1, gridSize);
+  const clampedCells = Math.min(10, Math.max(0.25, cells));
+  return {
+    sizePreset: "custom",
+    size: {
+      width: axis === "width" ? safeGridSize * clampedCells : token.size.width,
+      height: axis === "height" ? safeGridSize * clampedCells : token.size.height
+    }
+  };
+}
+
+export function getTokenBorderWidthPresetPatch(preset: TokenBorderWidthPreset, currentBorderWidth: number): Partial<Token> {
+  return {
+    borderWidthPreset: preset,
+    borderWidth: getBorderWidthForPreset(preset, currentBorderWidth)
+  };
+}
+
+export function getTokenCustomBorderWidthPatch(borderWidth: number): Partial<Token> {
+  return {
+    borderWidth: Math.min(64, Math.max(1, borderWidth))
+  };
+}
+
+export function getTokenFootprintVisibilityPatch(hidden: boolean): Partial<Token> {
+  return {
+    footprintVisible: !hidden
   };
 }
 

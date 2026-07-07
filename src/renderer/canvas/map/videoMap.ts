@@ -1,5 +1,8 @@
 import type { Scene } from "../../../shared/localvtt";
 import type { Camera } from "../core/camera";
+import { getMapScaleX, getMapScaleY } from "./mapRenderer";
+
+export type VideoBufferKeys = [number, number];
 
 export function getVideoTransform(camera: Camera, scene: Scene | null): string {
   if (!scene) {
@@ -12,8 +15,25 @@ export function getVideoTransform(camera: Camera, scene: Scene | null): string {
     `scale(${camera.zoom})`,
     `translate(${transform.x}px, ${transform.y}px)`,
     `rotate(${transform.rotation}deg)`,
-    `scale(${transform.scale})`
+    `scale(${getMapScaleX(transform)}, ${getMapScaleY(transform)})`
   ].join(" ");
+}
+
+export function getVideoBufferUrls(assetUrl: string | null, isVideoMap: boolean, bufferKeys: VideoBufferKeys): string[] {
+  if (!assetUrl || !isVideoMap) {
+    return [];
+  }
+
+  return [
+    getVideoBufferUrl(assetUrl, 0, bufferKeys[0]),
+    getVideoBufferUrl(assetUrl, 1, bufferKeys[1])
+  ];
+}
+
+function getVideoBufferUrl(assetUrl: string, bufferIndex: number, take: number): string {
+  const [urlWithoutHash, hash = ""] = assetUrl.split("#", 2);
+  const separator = urlWithoutHash.includes("?") ? "&" : "?";
+  return `${urlWithoutHash}${separator}buffer=${bufferIndex}&take=${take}${hash ? `#${hash}` : "#t=0.05"}`;
 }
 
 export function shouldRestartVideo(video: HTMLVideoElement): boolean {

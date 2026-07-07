@@ -143,6 +143,18 @@
   min-width: 168px;
 }
 
+.player-view-menu {
+  width: max-content;
+  min-width: 218px;
+  max-width: min(320px, calc(100vw - 24px));
+}
+
+.player-view-menu button svg {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+}
+
 .compact-button.danger:hover:not(:disabled),
 .icon-button.danger:hover:not(:disabled),
 .danger-button:hover:not(:disabled) {

@@ -1,29 +1,12 @@
 import { describe, expect, it } from "vitest";
+import {
+  CANVAS_PERFORMANCE_BUDGET,
+  evaluateCanvasFrameBudget,
+  evaluateCanvasReadyBudget,
+  summarizeCanvasFrameTimes
+} from "../../src/shared/canvasPerformanceBudget";
 import { ENVIRONMENT_EFFECT_TYPES } from "../../src/shared/environmentEffectCatalog";
 import { assertValidScene, createDefaultScene, normalizeScene, type EnvironmentEffectMask, type FogShape, type Scene, type Token, type WeatherMask } from "../../src/shared/localvtt";
-
-const CANVAS_PERFORMANCE_BUDGET = {
-  frameTimeMs: {
-    idleP95Target: 16.7,
-    interactionP95Target: 33.3,
-    interactionP95Warning: 50,
-    longFrameWarning: 100
-  },
-  firstReadyMs: {
-    staticMapTarget: 1500,
-    videoMapTarget: 2500,
-    combinedStressTarget: 3000
-  },
-  representativeLoad: {
-    largeStaticMapPixels: { width: 8192, height: 8192 },
-    largeVideoMapPixels: { width: 3840, height: 2160 },
-    tokenCount: 250,
-    fogShapeCount: 500,
-    environmentEffectCount: 24,
-    weatherMaskCount: 24,
-    combinedEffectCount: 16
-  }
-} as const;
 
 function createRepresentativeStressScenes(): Record<string, Scene> {
   return {
@@ -176,11 +159,38 @@ function gridPosition(index: number, spacing: number): { x: number; y: number } 
 describe("canvas performance budget", () => {
   it("keeps frame and ready-time budgets ordered from target to warning", () => {
     expect(CANVAS_PERFORMANCE_BUDGET.frameTimeMs.idleP95Target).toBeLessThanOrEqual(16.7);
-    expect(CANVAS_PERFORMANCE_BUDGET.frameTimeMs.idleP95Target).toBeLessThan(CANVAS_PERFORMANCE_BUDGET.frameTimeMs.interactionP95Target);
+    expect(CANVAS_PERFORMANCE_BUDGET.frameTimeMs.idleP95Target).toBeLessThan(CANVAS_PERFORMANCE_BUDGET.frameTimeMs.idleP95Warning);
+    expect(CANVAS_PERFORMANCE_BUDGET.frameTimeMs.idleP95Warning).toBeLessThanOrEqual(CANVAS_PERFORMANCE_BUDGET.frameTimeMs.interactionP95Target);
     expect(CANVAS_PERFORMANCE_BUDGET.frameTimeMs.interactionP95Target).toBeLessThan(CANVAS_PERFORMANCE_BUDGET.frameTimeMs.interactionP95Warning);
     expect(CANVAS_PERFORMANCE_BUDGET.frameTimeMs.interactionP95Warning).toBeLessThan(CANVAS_PERFORMANCE_BUDGET.frameTimeMs.longFrameWarning);
     expect(CANVAS_PERFORMANCE_BUDGET.firstReadyMs.staticMapTarget).toBeLessThan(CANVAS_PERFORMANCE_BUDGET.firstReadyMs.combinedStressTarget);
+    expect(CANVAS_PERFORMANCE_BUDGET.firstReadyMs.staticMapTarget).toBeLessThan(CANVAS_PERFORMANCE_BUDGET.firstReadyMs.staticMapWarning);
     expect(CANVAS_PERFORMANCE_BUDGET.firstReadyMs.videoMapTarget).toBeLessThan(CANVAS_PERFORMANCE_BUDGET.firstReadyMs.combinedStressTarget);
+    expect(CANVAS_PERFORMANCE_BUDGET.firstReadyMs.videoMapTarget).toBeLessThan(CANVAS_PERFORMANCE_BUDGET.firstReadyMs.videoMapWarning);
+    expect(CANVAS_PERFORMANCE_BUDGET.firstReadyMs.combinedStressTarget).toBeLessThan(CANVAS_PERFORMANCE_BUDGET.firstReadyMs.combinedStressWarning);
+  });
+
+  it("summarizes frame samples with a nearest-rank p95 and long-frame count", () => {
+    const summary = summarizeCanvasFrameTimes([8, 12, Number.NaN, -1, 14, 16, 18, 20, 22, 24, 110, Number.POSITIVE_INFINITY]);
+
+    expect(summary.sampleCount).toBe(9);
+    expect(summary.p95).toBe(110);
+    expect(summary.max).toBe(110);
+    expect(summary.longFrameCount).toBe(1);
+  });
+
+  it("evaluates frame budgets from shared thresholds", () => {
+    expect(evaluateCanvasFrameBudget(summarizeCanvasFrameTimes([10, 12, 14, 16]), "idle")).toBe("target");
+    expect(evaluateCanvasFrameBudget(summarizeCanvasFrameTimes([20, 22, 24, 30]), "idle")).toBe("warning");
+    expect(evaluateCanvasFrameBudget(summarizeCanvasFrameTimes([34, 40, 42, 55]), "idle")).toBe("over-budget");
+    expect(evaluateCanvasFrameBudget(summarizeCanvasFrameTimes([24, 28, 30, 36]), "interaction")).toBe("warning");
+  });
+
+  it("evaluates first-ready budgets from shared thresholds", () => {
+    expect(evaluateCanvasReadyBudget(1400, "staticMap")).toBe("target");
+    expect(evaluateCanvasReadyBudget(2000, "staticMap")).toBe("warning");
+    expect(evaluateCanvasReadyBudget(2600, "staticMap")).toBe("over-budget");
+    expect(evaluateCanvasReadyBudget(Number.NaN, "videoMap")).toBe("over-budget");
   });
 
   it("defines representative scene loads for release performance checks", () => {

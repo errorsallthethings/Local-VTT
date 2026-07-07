@@ -40,12 +40,33 @@ import type {
   VoidEffectTuningSettings,
   WaterEffectTuningSettings
 } from "./environmentEffectTuning.js";
+import {
+  CURRENT_CAMPAIGN_SCHEMA_VERSION,
+  CURRENT_SCENE_SCHEMA_VERSION,
+  isSupportedSchemaVersion,
+  migrateCampaignToCurrent,
+  migrateSceneToCurrent
+} from "./schemaMigrations.js";
+import type { CampaignHealthReport } from "./campaignHealth.js";
 
 export type { EnvironmentEffectType } from "./environmentEffectCatalog.js";
+export type { CampaignHealthReport } from "./campaignHealth.js";
+export {
+  CURRENT_CAMPAIGN_SCHEMA_VERSION,
+  CURRENT_SCENE_SCHEMA_VERSION,
+  LEGACY_SCHEMA_VERSION,
+  isSupportedSchemaVersion,
+  migrateCampaignToCurrent,
+  migrateSceneToCurrent,
+  normalizeSchemaVersion
+} from "./schemaMigrations.js";
 
 export type AssetKind = "map" | "token" | "overlay" | "effect" | "handout";
 export type AssetMediaType = "image" | "video";
 export type GridType = "square" | "hex" | "gridless";
+export type GridCoordinatePlacement = "inline" | "edge";
+export type GridCoordinateAxisFormat = "numeric" | "alpha";
+export type GridCoordinateCellPosition = "top-left" | "center";
 export type MeasurementUnit = "feet" | "meters" | "miles";
 export type WallType = "wall" | "door" | "window" | "terrain";
 export type DrawingKind = "freehand" | "line" | "rectangle" | "circle" | "ellipse" | "triangle" | "polygon" | "cone" | "text" | "ping" | "laser";
@@ -53,10 +74,6 @@ export type TokenSizePreset = "tiny" | "medium" | "large" | "huge" | "gargantuan
 export type TokenMask = "none" | "circle" | "square";
 export type TokenBorderStyle = "none" | "solid" | "dashed" | "dotted" | "double-line" | "embossed" | "inner-shadow" | "glow";
 export type TokenBorderWidthPreset = "thin" | "medium" | "thick" | "custom";
-
-export const CURRENT_CAMPAIGN_SCHEMA_VERSION = 2;
-export const CURRENT_SCENE_SCHEMA_VERSION = 2;
-const LEGACY_SCHEMA_VERSION = 0;
 
 export interface TokenPresentationDefaults {
   sizePreset?: TokenSizePreset;
@@ -102,6 +119,14 @@ export interface GridSettings {
   color: string;
   opacity: number;
   lineThickness: number;
+  showCoordinates: boolean;
+  coordinatePlacement: GridCoordinatePlacement;
+  coordinateXFormat: GridCoordinateAxisFormat;
+  coordinateYFormat: GridCoordinateAxisFormat;
+  coordinateCellPosition: GridCoordinateCellPosition;
+  coordinateColor: string;
+  coordinateGmFontSize: number;
+  coordinatePlayerFontSize: number;
   showOnGm: boolean;
   showOnPlayer: boolean;
   measurement: MeasurementSettings;
@@ -120,6 +145,13 @@ export interface DisplayCalibration {
   screenResolutionWidth: number;
   screenResolutionHeight: number;
   defaultScaleLabel: string;
+}
+
+export interface PlayerDisplayProfile extends DisplayCalibration {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Layer {
@@ -148,6 +180,8 @@ export interface MapTransform {
   x: number;
   y: number;
   scale: number;
+  scaleX: number;
+  scaleY: number;
   rotation: number;
   fitMode: "manual" | "contain" | "cover" | "actual-size";
 }
@@ -667,6 +701,8 @@ export interface Campaign {
   defaultMeasurement: MeasurementSettings;
   defaultCalibration: DisplayCalibration;
   playerDisplay: DisplayCalibration;
+  activePlayerDisplayProfileId: string;
+  playerDisplayProfiles: PlayerDisplayProfile[];
   diceSettings: DiceSettings;
   sceneLibrary: SceneLibrarySettings;
   sceneFolders: CampaignSceneFolder[];
@@ -679,6 +715,7 @@ export interface CampaignSummary {
   campaignPath: string;
   campaign: Campaign;
   missingAssets: string[];
+  health: CampaignHealthReport;
 }
 
 export type MetadataBackupKind = "campaign" | "scene";
@@ -722,6 +759,21 @@ export interface ThumbnailRegenerationResult {
   failed: ThumbnailRegenerationFailure[];
 }
 
+export interface TokenAssetPromotionResult {
+  campaignSummary: CampaignSummary;
+  promoted: number;
+  skipped: number;
+  failed: ThumbnailRegenerationFailure[];
+}
+
+export interface AssetPruneResult {
+  campaignSummary: CampaignSummary;
+  pruned: number;
+  skipped: number;
+  removedFiles: number;
+  failed: ThumbnailRegenerationFailure[];
+}
+
 export interface ThumbnailRegenerationProgress {
   current: number;
   total: number;
@@ -744,9 +796,17 @@ export interface PlayerSceneProjectionOptions {
 
 export interface PlayerIdleState {
   type: "idle";
-  variant?: "hold" | "blackout";
+  variant?: "hold" | "blackout" | "test-pattern";
   title: string;
   message: string;
+  testPattern?: PlayerViewTestPattern;
+}
+
+export interface PlayerViewTestPattern {
+  gridMode: "none" | "square" | "hex" | "physical-square";
+  cellSizePx?: number;
+  displayLabel?: string;
+  nativeResolution?: { width: number; height: number };
 }
 
 export interface LiveTablePoint {
@@ -886,6 +946,14 @@ export const DEFAULT_GRID: GridSettings = {
   color: "#ffffff",
   opacity: 0.45,
   lineThickness: 1,
+  showCoordinates: false,
+  coordinatePlacement: "inline",
+  coordinateXFormat: "alpha",
+  coordinateYFormat: "numeric",
+  coordinateCellPosition: "top-left",
+  coordinateColor: "#ffffff",
+  coordinateGmFontSize: 12,
+  coordinatePlayerFontSize: 12,
   showOnGm: true,
   showOnPlayer: true,
   measurement: DEFAULT_MEASUREMENT
@@ -904,10 +972,24 @@ export const DEFAULT_CALIBRATION: DisplayCalibration = {
   defaultScaleLabel: "1 inch = 5 feet"
 };
 
+export const DEFAULT_PLAYER_DISPLAY_PROFILE_ID = "default";
+
+export function createPlayerDisplayProfile(id: string, name: string, calibration: DisplayCalibration = DEFAULT_CALIBRATION, timestamp = new Date().toISOString()): PlayerDisplayProfile {
+  return {
+    ...normalizeDisplayCalibration(calibration),
+    id: id.trim() || DEFAULT_PLAYER_DISPLAY_PROFILE_ID,
+    name: name.trim() || "Default",
+    createdAt: timestamp,
+    updatedAt: timestamp
+  };
+}
+
 export const DEFAULT_MAP_TRANSFORM: MapTransform = {
   x: 0,
   y: 0,
   scale: 1,
+  scaleX: 1,
+  scaleY: 1,
   rotation: 0,
   fitMode: "manual"
 };
@@ -1273,6 +1355,7 @@ export const DEFAULT_LAYERS: Layer[] = [
 
 export function createDefaultCampaign(name: string): Campaign {
   const now = new Date().toISOString();
+  const playerDisplay = { ...DEFAULT_CALIBRATION };
   return {
     schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION,
     id: crypto.randomUUID(),
@@ -1283,7 +1366,9 @@ export function createDefaultCampaign(name: string): Campaign {
     defaultGrid: { ...DEFAULT_GRID, measurement: { ...DEFAULT_MEASUREMENT } },
     defaultMeasurement: { ...DEFAULT_MEASUREMENT },
     defaultCalibration: { ...DEFAULT_CALIBRATION },
-    playerDisplay: { ...DEFAULT_CALIBRATION },
+    playerDisplay,
+    activePlayerDisplayProfileId: DEFAULT_PLAYER_DISPLAY_PROFILE_ID,
+    playerDisplayProfiles: [createPlayerDisplayProfile(DEFAULT_PLAYER_DISPLAY_PROFILE_ID, "Default", playerDisplay, now)],
     diceSettings: { ...DEFAULT_DICE_SETTINGS },
     sceneLibrary: { collapsedFolderIds: [] },
     sceneFolders: [],
@@ -1408,9 +1493,21 @@ export function isPlayerIdleState(value: unknown): value is PlayerIdleState {
   return (
     isRecord(value) &&
     value.type === "idle" &&
-    (!("variant" in value) || value.variant === "hold" || value.variant === "blackout") &&
+    (!("variant" in value) || value.variant === "hold" || value.variant === "blackout" || value.variant === "test-pattern") &&
     typeof value.title === "string" &&
-    typeof value.message === "string"
+    typeof value.message === "string" &&
+    (!("testPattern" in value) || isPlayerViewTestPattern(value.testPattern))
+  );
+}
+
+function isPlayerViewTestPattern(value: unknown): value is PlayerViewTestPattern {
+  return (
+    isRecord(value) &&
+    (value.gridMode === "none" || value.gridMode === "square" || value.gridMode === "hex" || value.gridMode === "physical-square") &&
+    (!("cellSizePx" in value) || typeof value.cellSizePx === "number") &&
+    (!("displayLabel" in value) || typeof value.displayLabel === "string") &&
+    (!("nativeResolution" in value) ||
+      (isRecord(value.nativeResolution) && typeof value.nativeResolution.width === "number" && typeof value.nativeResolution.height === "number"))
   );
 }
 
@@ -1572,20 +1669,6 @@ function normalizeSceneOverlays(overlays?: SceneOverlay[]): SceneOverlay[] {
   }));
 }
 
-function migrateSceneToCurrent(scene: Scene): Scene {
-  const schemaVersion = normalizeSchemaVersion(scene.schemaVersion, CURRENT_SCENE_SCHEMA_VERSION);
-  if (schemaVersion === LEGACY_SCHEMA_VERSION) {
-    return {
-      ...scene,
-      schemaVersion: CURRENT_SCENE_SCHEMA_VERSION
-    };
-  }
-  return {
-    ...scene,
-    schemaVersion: CURRENT_SCENE_SCHEMA_VERSION
-  };
-}
-
 function isUnitNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
@@ -1610,7 +1693,7 @@ export function normalizeScene(scene: Scene): Scene {
   return {
     ...migratedScene,
     schemaVersion: CURRENT_SCENE_SCHEMA_VERSION,
-    grid: { ...DEFAULT_GRID, ...(migratedScene.grid ?? {}), measurement: { ...DEFAULT_MEASUREMENT, ...(migratedScene.grid?.measurement ?? {}) } },
+    grid: normalizeGridSettings(migratedScene.grid),
     calibration: { ...DEFAULT_CALIBRATION, ...(migratedScene.calibration ?? {}) },
     layers: [...normalizedLayers, ...customLayers],
     layerOrderLocked: migratedScene.layerOrderLocked ?? true,
@@ -1629,6 +1712,42 @@ export function normalizeScene(scene: Scene): Scene {
     tableTools: normalizeTableTools(migratedScene.tableTools),
     notes: migratedScene.notes ?? "",
     playerView: { ...DEFAULT_PLAYER_VIEW, ...(migratedScene.playerView ?? {}) }
+  };
+}
+
+function normalizeGridSettings(grid: unknown): GridSettings {
+  const source = isRecord(grid) ? grid : {};
+  const showCoordinates = typeof source.showCoordinates === "boolean" ? source.showCoordinates : DEFAULT_GRID.showCoordinates;
+  const coordinatePlacement =
+    source.coordinatePlacement === "inline" || source.coordinatePlacement === "edge" ? source.coordinatePlacement : DEFAULT_GRID.coordinatePlacement;
+  const legacyCoordinateFormat = source.coordinateFormat === "numeric" || source.coordinateFormat === "alpha-numeric" ? source.coordinateFormat : undefined;
+  const coordinateXFormat =
+    source.coordinateXFormat === "numeric" || source.coordinateXFormat === "alpha"
+      ? source.coordinateXFormat
+      : legacyCoordinateFormat === "numeric"
+        ? "numeric"
+        : DEFAULT_GRID.coordinateXFormat;
+  const coordinateYFormat =
+    source.coordinateYFormat === "numeric" || source.coordinateYFormat === "alpha"
+      ? source.coordinateYFormat
+      : legacyCoordinateFormat === "numeric"
+        ? "numeric"
+        : DEFAULT_GRID.coordinateYFormat;
+  const coordinateCellPosition =
+    source.coordinateCellPosition === "top-left" || source.coordinateCellPosition === "center" ? source.coordinateCellPosition : DEFAULT_GRID.coordinateCellPosition;
+
+  return {
+    ...DEFAULT_GRID,
+    ...source,
+    showCoordinates,
+    coordinatePlacement,
+    coordinateXFormat,
+    coordinateYFormat,
+    coordinateCellPosition,
+    coordinateColor: normalizeColor(source.coordinateColor, typeof source.color === "string" ? source.color : DEFAULT_GRID.coordinateColor),
+    coordinateGmFontSize: clampNumber(source.coordinateGmFontSize, 8, 48, DEFAULT_GRID.coordinateGmFontSize),
+    coordinatePlayerFontSize: clampNumber(source.coordinatePlayerFontSize, 8, 72, DEFAULT_GRID.coordinatePlayerFontSize),
+    measurement: { ...DEFAULT_MEASUREMENT, ...(isRecord(source.measurement) ? source.measurement : {}) }
   };
 }
 
@@ -1873,17 +1992,6 @@ function isNonEmptyString(value: unknown): value is string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function isSupportedSchemaVersion(value: unknown, currentVersion: number): boolean {
-  if (value === undefined) {
-    return true;
-  }
-  return typeof value === "number" && Number.isInteger(value) && value >= LEGACY_SCHEMA_VERSION && value <= currentVersion;
-}
-
-function normalizeSchemaVersion(value: unknown, currentVersion: number): number {
-  return isSupportedSchemaVersion(value, currentVersion) && typeof value === "number" ? value : LEGACY_SCHEMA_VERSION;
 }
 
 function normalizeFog(fog?: Partial<FogSettings>): FogSettings {
@@ -2203,20 +2311,6 @@ function normalizeDiceSettings(settings?: Partial<DiceSettings>): DiceSettings {
   };
 }
 
-function migrateCampaignToCurrent(campaign: Campaign): Campaign {
-  const schemaVersion = normalizeSchemaVersion(campaign.schemaVersion, CURRENT_CAMPAIGN_SCHEMA_VERSION);
-  if (schemaVersion === LEGACY_SCHEMA_VERSION) {
-    return {
-      ...campaign,
-      schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION
-    };
-  }
-  return {
-    ...campaign,
-    schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION
-  };
-}
-
 export function normalizeCampaign(campaign: Campaign): Campaign {
   const migratedCampaign = migrateCampaignToCurrent(campaign);
   const sceneFolders = (migratedCampaign.sceneFolders ?? []).map((folder) => ({
@@ -2226,14 +2320,21 @@ export function normalizeCampaign(campaign: Campaign): Campaign {
   const folderIds = new Set(sceneFolders.map((folder) => folder.id));
   // Drop collapsed folder ids that no longer exist so deleted folders do not linger in UI state.
   const collapsedFolderIds = (migratedCampaign.sceneLibrary?.collapsedFolderIds ?? []).filter((folderId) => folderIds.has(folderId));
+  const defaultCalibration = normalizeDisplayCalibration(migratedCampaign.defaultCalibration ?? DEFAULT_CALIBRATION);
+  const playerDisplayProfiles = normalizePlayerDisplayProfiles({
+    ...migratedCampaign,
+    defaultCalibration
+  });
 
   return {
     ...migratedCampaign,
     schemaVersion: CURRENT_CAMPAIGN_SCHEMA_VERSION,
-    defaultGrid: { ...DEFAULT_GRID, ...(migratedCampaign.defaultGrid ?? {}), measurement: { ...DEFAULT_MEASUREMENT, ...(migratedCampaign.defaultGrid?.measurement ?? {}) } },
+    defaultGrid: normalizeGridSettings(migratedCampaign.defaultGrid),
     defaultMeasurement: { ...DEFAULT_MEASUREMENT, ...(migratedCampaign.defaultMeasurement ?? {}) },
-    defaultCalibration: { ...DEFAULT_CALIBRATION, ...(migratedCampaign.defaultCalibration ?? {}) },
-    playerDisplay: { ...DEFAULT_CALIBRATION, ...(migratedCampaign.playerDisplay ?? migratedCampaign.defaultCalibration ?? {}) },
+    defaultCalibration,
+    playerDisplay: playerDisplayProfiles.playerDisplay,
+    activePlayerDisplayProfileId: playerDisplayProfiles.activePlayerDisplayProfileId,
+    playerDisplayProfiles: playerDisplayProfiles.playerDisplayProfiles,
     diceSettings: normalizeDiceSettings(migratedCampaign.diceSettings),
     sceneLibrary: { collapsedFolderIds },
     sceneFolders,
@@ -2299,10 +2400,97 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
   return typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 }
 
+function normalizeDisplayCalibration(calibration: unknown): DisplayCalibration {
+  const source = isRecord(calibration) ? calibration : {};
+  const mode = source.mode === "manual" || source.mode === "screen-size" || source.mode === "grid-cell" ? source.mode : DEFAULT_CALIBRATION.mode;
+  const screenAspectRatio =
+    source.screenAspectRatio === "16:9" || source.screenAspectRatio === "16:10" || source.screenAspectRatio === "4:3" || source.screenAspectRatio === "custom"
+      ? source.screenAspectRatio
+      : DEFAULT_CALIBRATION.screenAspectRatio;
+
+  return {
+    physicalScaleEnabled: typeof source.physicalScaleEnabled === "boolean" ? source.physicalScaleEnabled : DEFAULT_CALIBRATION.physicalScaleEnabled,
+    mode,
+    ...(typeof source.selectedDisplayId === "number" && Number.isFinite(source.selectedDisplayId) ? { selectedDisplayId: source.selectedDisplayId } : {}),
+    ...(typeof source.selectedDisplayLabel === "string" && source.selectedDisplayLabel.trim() ? { selectedDisplayLabel: source.selectedDisplayLabel.trim() } : {}),
+    openPlayerViewFullscreen: typeof source.openPlayerViewFullscreen === "boolean" ? source.openPlayerViewFullscreen : DEFAULT_CALIBRATION.openPlayerViewFullscreen,
+    pixelsPerInch: clampNumber(source.pixelsPerInch, 1, 10000, DEFAULT_CALIBRATION.pixelsPerInch),
+    inchesPerGridCell: clampNumber(source.inchesPerGridCell, 0.1, 1000, DEFAULT_CALIBRATION.inchesPerGridCell),
+    screenDiagonalInches: clampNumber(source.screenDiagonalInches, 1, 1000, DEFAULT_CALIBRATION.screenDiagonalInches),
+    screenAspectRatio,
+    screenResolutionWidth: Math.round(clampNumber(source.screenResolutionWidth, 1, 100000, DEFAULT_CALIBRATION.screenResolutionWidth)),
+    screenResolutionHeight: Math.round(clampNumber(source.screenResolutionHeight, 1, 100000, DEFAULT_CALIBRATION.screenResolutionHeight)),
+    defaultScaleLabel: typeof source.defaultScaleLabel === "string" && source.defaultScaleLabel.trim() ? source.defaultScaleLabel.trim() : DEFAULT_CALIBRATION.defaultScaleLabel
+  };
+}
+
+function normalizePlayerDisplayProfiles(campaign: Campaign): { activePlayerDisplayProfileId: string; playerDisplay: DisplayCalibration; playerDisplayProfiles: PlayerDisplayProfile[] } {
+  const now = typeof campaign.updatedAt === "string" && campaign.updatedAt.trim() ? campaign.updatedAt : new Date().toISOString();
+  const fallbackDisplay = normalizeDisplayCalibration(campaign.playerDisplay ?? campaign.defaultCalibration ?? DEFAULT_CALIBRATION);
+  const rawProfiles = Array.isArray(campaign.playerDisplayProfiles) ? campaign.playerDisplayProfiles : [];
+  const usedIds = new Set<string>();
+  const profiles = rawProfiles
+    .filter(isRecord)
+    .map((profile, index) => {
+      const rawId = typeof profile.id === "string" && profile.id.trim() ? profile.id.trim() : index === 0 ? DEFAULT_PLAYER_DISPLAY_PROFILE_ID : `display-profile-${index + 1}`;
+      const id = getUniqueProfileId(rawId, usedIds);
+      usedIds.add(id);
+      const name = typeof profile.name === "string" && profile.name.trim() ? profile.name.trim() : index === 0 ? "Default" : `Display Profile ${index + 1}`;
+      const createdAt = typeof profile.createdAt === "string" && profile.createdAt.trim() ? profile.createdAt : now;
+      const updatedAt = typeof profile.updatedAt === "string" && profile.updatedAt.trim() ? profile.updatedAt : createdAt;
+      return {
+        ...normalizeDisplayCalibration(profile),
+        id,
+        name,
+        createdAt,
+        updatedAt
+      };
+    });
+
+  if (profiles.length === 0) {
+    profiles.push(createPlayerDisplayProfile(DEFAULT_PLAYER_DISPLAY_PROFILE_ID, "Default", fallbackDisplay, now));
+  }
+
+  const requestedActiveId =
+    typeof campaign.activePlayerDisplayProfileId === "string" && campaign.activePlayerDisplayProfileId.trim() ? campaign.activePlayerDisplayProfileId.trim() : profiles[0].id;
+  const activeProfile = profiles.find((profile) => profile.id === requestedActiveId) ?? profiles[0];
+  return {
+    activePlayerDisplayProfileId: activeProfile.id,
+    playerDisplay: normalizeDisplayCalibration(activeProfile),
+    playerDisplayProfiles: profiles
+  };
+}
+
+function getUniqueProfileId(rawId: string, usedIds: Set<string>): string {
+  const baseId = rawId.trim() || DEFAULT_PLAYER_DISPLAY_PROFILE_ID;
+  if (!usedIds.has(baseId)) {
+    return baseId;
+  }
+  let suffix = 2;
+  while (usedIds.has(`${baseId}-${suffix}`)) {
+    suffix += 1;
+  }
+  return `${baseId}-${suffix}`;
+}
+
 export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options: PlayerSceneProjectionOptions = {}): PlayerSceneProjection {
   const normalizedCampaign = normalizeCampaign(campaign);
   const normalizedScene = normalizeScene(scene);
   const playerLayerIds = new Set(normalizedScene.layers.filter((layer) => layer.visibleInPlayer).map((layer) => layer.id));
+  const projectedTurnOrderEntries = normalizedScene.turnOrder.entries.filter((entry) => entry.visibleInPlayer);
+  const projectedTurnOrderSeats = normalizedScene.turnOrder.seats.filter((seat) => seat.visibleInPlayer);
+  const projectedTurnOrderEntryIds = new Set(projectedTurnOrderEntries.map((entry) => entry.id));
+  const projectedCurrentEntryId =
+    normalizedScene.turnOrder.currentEntryId && projectedTurnOrderEntryIds.has(normalizedScene.turnOrder.currentEntryId) ? normalizedScene.turnOrder.currentEntryId : undefined;
+  const turnOrderPlayerIds = new Set<string>();
+  if (normalizedScene.turnOrder.active && normalizedScene.turnOrder.playerViewVisible) {
+    for (const entry of projectedTurnOrderEntries) {
+      if (entry.playerId) {
+        turnOrderPlayerIds.add(entry.playerId);
+      }
+    }
+  }
+  const projectedPlayers = normalizedCampaign.players.filter((player) => player.visibleInPlayer || turnOrderPlayerIds.has(player.id));
   const usedAssetIds = new Set<string>();
   if (normalizedScene.mapAssetId && playerLayerIds.has("map")) {
     usedAssetIds.add(normalizedScene.mapAssetId);
@@ -2317,12 +2505,17 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
       usedAssetIds.add(overlay.assetId);
     }
   }
-  for (const entry of normalizedScene.turnOrder.entries) {
-    if (entry.visibleInPlayer && entry.assetId) {
+  for (const entry of projectedTurnOrderEntries) {
+    if (entry.assetId) {
       usedAssetIds.add(entry.assetId);
     }
   }
-  for (const player of normalizedCampaign.players) {
+  for (const seat of projectedTurnOrderSeats) {
+    if (seat.assetId) {
+      usedAssetIds.add(seat.assetId);
+    }
+  }
+  for (const player of projectedPlayers) {
     if (player.assetId) {
       usedAssetIds.add(player.assetId);
     }
@@ -2331,7 +2524,7 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
   return {
     campaignName: normalizedCampaign.name,
     playerDisplay: normalizedCampaign.playerDisplay,
-    players: normalizedCampaign.players,
+    players: projectedPlayers,
     showPlayerSeatIndicators: options.showPlayerSeatIndicators ?? false,
     scene: {
       ...normalizedScene,
@@ -2358,6 +2551,12 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
       lights: [],
       drawings: normalizedScene.drawings.filter((drawing) => drawing.visibleInPlayer && playerLayerIds.has("drawing")),
       overlays: normalizedScene.overlays.filter((overlay) => overlay.visibleInPlayer && playerLayerIds.has(overlay.layerId)),
+      turnOrder: {
+        ...normalizedScene.turnOrder,
+        currentEntryId: projectedCurrentEntryId,
+        entries: projectedTurnOrderEntries,
+        seats: projectedTurnOrderSeats
+      },
       notes: ""
     },
     assets: normalizedCampaign.assets.filter((asset) => usedAssetIds.has(asset.id))

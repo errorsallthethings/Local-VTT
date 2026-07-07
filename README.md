@@ -63,9 +63,21 @@ Local VTT Campaign/
       scene-id/
 ```
 
-Assets are stored with relative paths in JSON so campaign folders can be backed up or moved between computers.
+Campaign metadata is stored as readable JSON for transparency, backups, troubleshooting, and lightweight sharing between Local VTT installs. Imported assets are copied into the campaign folder and stored with relative paths in JSON so campaign folders can be backed up or moved between computers.
 
 Imported static image and video maps generate small JPEG thumbnails in `assets/thumbnails/` for the scene list. Video thumbnails are captured from the first frame during import when Electron can decode the source video. Imported token assets also generate square JPEG thumbnails for token sub-layer previews and the Token Library.
+
+### Sharing And Moving Campaigns
+
+To share or move a campaign, close Local VTT and copy the entire campaign folder. Keep `campaign.json`, `scenes/`, and `assets/` together; the JSON metadata references assets with relative paths inside that folder.
+
+Share the folder itself, not only `campaign.json`. A campaign without its `assets/` folder can still open, but maps, videos, token images, and thumbnails that were not copied will be reported as missing.
+
+Avoid editing asset paths in `campaign.json` by hand. Local VTT expects asset and thumbnail paths to be relative paths inside the campaign folder, such as `assets/maps/dungeon.png`. Absolute paths like `C:\Maps\dungeon.png`, paths that climb out of the folder with `..`, or paths to files beside the campaign are rejected or reported as missing.
+
+The JSON files are intentionally readable, but they are not currently a stable manual-editing API. If you edit them outside Local VTT, close the app first, keep a copy of the whole campaign folder, preserve schema versions, and keep asset paths relative to the campaign folder.
+
+If a moved or shared campaign opens with missing assets, use Campaign Health from the Campaign panel to see which files are missing, stale, unreferenced, or referenced by scene metadata.
 
 ## Install Troubleshooting
 
@@ -108,7 +120,7 @@ These options are opt-in because the best combination depends on the compositor,
 
 Local VTT creates metadata-only JSON backups before overwriting `campaign.json` or existing scene JSON files. It keeps the latest 10 campaign backups and latest 10 backups per scene.
 
-Backups intentionally do not copy assets, maps, videos, token images, or thumbnails so campaign folders do not balloon in size.
+Backups intentionally do not copy assets, maps, videos, token images, or thumbnails so campaign folders do not balloon in size. To make a complete backup that can be restored on another computer, copy the entire campaign folder, including `campaign.json`, `scenes/`, `assets/`, and `backups/`.
 
 Use the Campaign panel's Restore Revision option to review and restore available metadata revisions from inside Local VTT. The restore dialog also includes Open Backups Folder for inspecting backup files in Explorer. Manual recovery should still be done while Local VTT is closed: copy a campaign backup over `campaign.json`, or copy a scene backup over the matching file in `scenes/`.
 
@@ -117,6 +129,7 @@ Use the Campaign panel's Restore Revision option to review and restore available
 ### Campaigns And Scenes
 
 - Campaigns are local folders with portable JSON metadata.
+- Campaign portability depends on copying the full folder, including `campaign.json`, `scenes/`, `assets/`, and any backups you want to keep.
 - Recent Campaigns lets the GM reopen recently used campaigns and remove stale entries.
 - Scene cards show compact map thumbnails when available.
 - Scene folders support rename, color, collapse, drag/drop ordering, duplication, deletion, and saving all dirty scenes in a folder.
@@ -131,20 +144,23 @@ Use the Campaign panel's Restore Revision option to review and restore available
 - Video map playback can be paused/resumed, muted/unmuted, and inspected with optional diagnostics from contextual GM canvas controls.
 - Map assets can be replaced from the Map layer while preserving scene fog, tokens, drawings, effects, grid, and Player View setup.
 - If a replacement map has different dimensions than the current map, Local VTT confirms the dimensions before applying the change.
-- Map fit modes include Manual, Fit contain, Fit cover, and Actual size.
-- Static image maps can use known map grid dimensions, such as `44` by `25`, to fit the grid to the map's native pixel size.
-- Map Calibration Assistant can align imported image maps to known grid dimensions or a drawn calibration area.
+- Table Display Setup walks through the common flow for choosing the Player View display, previewing a test pattern, setting the scene grid, fitting the map, and previewing Player View.
+- Map fit presets include Manual, Fit Whole Map, Stretch to Grid, and Image Size.
+- Static image maps can use known map grid dimensions, such as `44` by `25`, or filename hints such as `44x25`, to help fit the map to the scene grid.
+- Advanced Map Calibration can align imported image maps to printed grids, borders, padding, or a drawn calibration area when normal fit presets are not enough.
 - GM View uses adaptive static map rendering quality to keep large maps responsive while Player View can preserve the source image where practical.
 - Player View can be opened, fullscreened, moved to a preferred display, exited from fullscreen, and closed from the Player View menu.
+- Player View Setup can save, rename, switch, and delete named display profiles for different tables, screens, or testing displays.
 - If a preferred Player View display is disconnected, Local VTT opens the Player View normally so the GM can drag it manually.
-- Player View Setup and Map Calibration Assistant are available from the Player View menu.
+- Table Display Setup, Player View Setup, and Advanced Map Calibration are available from the Player View menu.
 
 ### Grid, Measurement, And Ruler
 
 - Grid modes support gridless, square, and hex scenes.
-- Grid controls include quick visibility, opacity reset, reusable color swatches, and fit-to-map helpers for static image maps.
-- Measurement settings are available from the Grid Layer when square or hex grids are active.
-- Player View Setup stores campaign-level calibration for the external player-facing display.
+- Grid & Maps controls include quick grid visibility, configurable coordinate labels, opacity reset, reusable color swatches, map fit presets, and advanced transform controls for static image maps.
+- Grid coordinate labels can be placed inside cells or along grid edges, use independent X/Y alpha or numeric formats, and have configurable GM/Player label sizes and color.
+- Measurement settings are available from Grid & Maps when square or hex grids are active.
+- Player View Setup stores campaign-level calibration for the external player-facing display, including optional physical table scale for manual scene grids.
 - Table Tools include the GM-only ruler, configurable ping, and laser pointer.
 - The ruler supports square, hex, and gridless scenes.
 - Ctrl/Cmd snaps ruler points to square grid centers or hex centers. Gridless measurement stays freeform.
@@ -221,7 +237,7 @@ Use the Campaign panel's Restore Revision option to review and restore available
 - Layer settings are collapsible. Map, Grid, Fog of War, and Tokens expose controls only when relevant.
 - Empty Campaign, Scenes, Layers, and Token Library areas show contextual helper text.
 - Fog and Grid color controls open a modal picker with native color selection and reusable swatches.
-- Player View Setup and Map Calibration use collapsible sections, inline help, readouts, and fixed footer actions.
+- Player View Setup and Advanced Map Calibration use collapsible sections, inline help, readouts, and fixed footer actions.
 - The Tools Menu groups Fog of War Tools, Effects Tools, Drawing Tools, Text Tools, Template Tools, Dynamic Lighting, Dice Bag, Turn Order, and Table Tools.
 
 ## Future Ideas
@@ -235,15 +251,15 @@ Use the Campaign panel's Restore Revision option to review and restore available
 
 ## Architecture
 
-- `electron/main.ts`: application lifecycle, secure window creation, campaign folder IO, asset import/copy, metadata backups, and Player View window control.
+- `electron/main.ts`: application lifecycle, secure window creation, service registration, and Player View window control. Feature-specific filesystem workflows live in focused Electron services and IPC modules.
 - `electron/preload.ts`: typed `contextBridge` API. The renderer never receives unrestricted filesystem access.
-- `src/shared`: TypeScript models, default scene data, validation, and player-safe scene projection.
-- `src/renderer`: React GM View, React Player View, and a Canvas 2D scene renderer.
+- `src/shared`: TypeScript models, default scene data, validation, schema normalization, migrations, and player-safe scene projection.
+- `src/renderer`: React GM View, React Player View, Canvas 2D scene rendering, workflow hooks, and renderer-side domain helpers.
 - `src/renderer/styles`: focused CSS files imported by `src/renderer/styles.css`.
 
-Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog of war, ruler measurement, and lightweight GM tokens. The scene model and renderer boundary are intentionally isolated so future versions can replace or augment the canvas layer with PixiJS/WebGL for very large maps, advanced vision, lighting, and overlays.
+Rendering uses Canvas 2D for static and video maps, pan/zoom, grids, manual fog of war, ruler measurement, tokens, drawings, templates, weather, effects, and scene overlays. Three.js supports 3D dice plus WebGL-backed weather, environment effects, and cached template visuals that are composited back into the Canvas 2D scene.
 
-See [`docs/architecture.md`](docs/architecture.md) for data flow notes and [`docs/layer-ownership-rules.md`](docs/layer-ownership-rules.md) for layer ownership rules.
+See [`docs/architecture.md`](docs/architecture.md) for data flow notes, [`docs/diagrams/README.md`](docs/diagrams/README.md) for PlantUML diagrams, and [`docs/layer-ownership-rules.md`](docs/layer-ownership-rules.md) for layer ownership rules.
 
 ## Development
 
@@ -283,22 +299,34 @@ Run the full local verification pass:
 npm run check
 ```
 
-`npm run check` runs TypeScript typechecking, ESLint, and the Vitest suite.
+`npm run check` runs TypeScript typechecking, release metadata validation, local documentation reference validation, ESLint, and the Vitest suite.
 
-Run the Electron runtime smoke test after a production build:
+Run the Electron smoke checks:
+
+```bash
+npm run smoke
+```
+
+`npm run smoke` builds the app once, prepares Electron, runs the runtime smoke test, and then runs the visual smoke test. The runtime smoke test launches the production Electron entrypoint, verifies the GM preload bridge, opens Player View through IPC, sends a Player View idle state, and checks Electron display enumeration.
+
+Run an individual smoke check when narrowing a failure:
 
 ```bash
 npm run smoke:electron
+npm run smoke:visual
 ```
 
-`npm run smoke:electron` builds the app, launches the production Electron entrypoint, verifies the GM preload bridge, opens Player View through IPC, sends a Player View idle state, and checks Electron display enumeration.
+Run smoke commands sequentially. Both smoke paths launch Electron and exercise Player View IPC, so running them concurrently can make the visual smoke wait on the wrong Player View state and produce a false timeout.
+
+`npm run smoke:visual` launches the production Electron entrypoint with deterministic visual fixtures, sends a rendered scene and a test pattern to Player View, verifies that the scene canvas has nonblank visual output, checks Player View dice, turn order, and seat overlays, and writes Player View screenshots to the OS temp folder for failure evidence. It is the current dependency-light visual smoke path; Playwright remains a good future option for broader click-through workflow tests. Automated video-map visual coverage is deferred, so video maps still need the manual release smoke pass.
 
 ## Project Documentation
 
 - [`docs/architecture.md`](docs/architecture.md): runtime structure, data flow, and layer ownership rules.
 - [`docs/canvas-performance-budget.md`](docs/canvas-performance-budget.md): canvas performance targets, stress scenes, and measurement strategy.
-- [`docs/codebase-audit.md`](docs/codebase-audit.md): audit progress, current hotspots, and recommended refactor sequence.
+- [`docs/diagrams/README.md`](docs/diagrams/README.md): PlantUML architecture diagrams for Wiki and onboarding pages.
 - [`docs/layer-ownership-rules.md`](docs/layer-ownership-rules.md): layer responsibilities, visibility rules, and guidance for placing new scene features.
+- [`docs/project-structure.md`](docs/project-structure.md): React/Electron MVC-style ownership, folder growth rules, and dependency direction.
 - [`docs/release-process.md`](docs/release-process.md): release branch flow, packaging notes, and smoke test checklist.
 
 ## Known Limitations
@@ -307,7 +335,7 @@ npm run smoke:electron
 - Local VTT does not currently include health bars, permissions, character sheets, or combat automation.
 - Dynamic lighting, walls, doors, windows, and vision-aware fog are not implemented yet.
 - Token Library export/import packs are deferred.
-- Backups cover campaign and scene JSON metadata only; map, video, token, and thumbnail assets are not duplicated.
+- Restore Revision backups cover campaign and scene JSON metadata only; map, video, token, and thumbnail assets are not duplicated. Copy the full campaign folder for a complete backup.
 - macOS notarization, auto-update, and release-channel infrastructure are not configured yet.
 
 ## Deferred Ideas

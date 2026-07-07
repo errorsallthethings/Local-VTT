@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { formatVideoDebug, shouldPrepareVideoBuffer, shouldRestartVideo } from "../canvas/map";
+import { formatVideoDebug, getVideoBufferUrls, shouldPrepareVideoBuffer, shouldRestartVideo, type VideoBufferKeys } from "../canvas/map";
 
 interface UseVideoMapPlaybackOptions {
   assetUrl: string | null;
@@ -13,12 +13,10 @@ export function useVideoMapPlayback({ assetUrl, isVideoMap, paused }: UseVideoMa
   const [videoDebug, setVideoDebug] = useState("");
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [preparedVideoIndex, setPreparedVideoIndex] = useState<number | null>(null);
-  const [videoBufferKeys, setVideoBufferKeys] = useState<[number, number]>([0, 0]);
+  const [videoBufferKeys, setVideoBufferKeys] = useState<VideoBufferKeys>([0, 0]);
 
   const videoUrls = useMemo(() => {
-    return isVideoMap && assetUrl
-      ? [`${assetUrl}?buffer=0&take=${videoBufferKeys[0]}#t=0.05`, `${assetUrl}?buffer=1&take=${videoBufferKeys[1]}#t=0.05`]
-      : [];
+    return getVideoBufferUrls(assetUrl, isVideoMap, videoBufferKeys);
   }, [assetUrl, isVideoMap, videoBufferKeys]);
 
   useEffect(() => {
@@ -30,7 +28,8 @@ export function useVideoMapPlayback({ assetUrl, isVideoMap, paused }: UseVideoMa
     activeVideoIndexRef.current = 0;
     setPreparedVideoIndex(null);
     setVideoBufferKeys([0, 0]);
-  }, [assetUrl]);
+    setVideoDebug("");
+  }, [assetUrl, isVideoMap]);
 
   useEffect(() => {
     if (!isVideoMap) {
@@ -74,7 +73,7 @@ export function useVideoMapPlayback({ assetUrl, isVideoMap, paused }: UseVideoMa
       setPreparedVideoIndex(null);
 
       setVideoBufferKeys((keys) => {
-        const nextKeys: [number, number] = [...keys];
+        const nextKeys: VideoBufferKeys = [...keys];
         nextKeys[currentIndex] += 1;
         return nextKeys;
       });

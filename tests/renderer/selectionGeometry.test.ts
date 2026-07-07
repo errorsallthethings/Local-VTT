@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createDefaultScene, type Scene, type Token, type WeatherMask } from "../../src/shared/localvtt";
 import {
   getCompletedSceneMarqueeSelection,
+  getMarqueeSelectionMode,
   getSceneMarqueeSelection,
   getSelectionDragFromPoint,
   getUpdatedSelectionDrag,
@@ -11,7 +12,8 @@ import {
   isPointInSelectionRect,
   isTokenInSelectionRect,
   isWeatherMaskInSelectionRect,
-  pointsToSelectionRect
+  pointsToSelectionRect,
+  shouldAnimateSceneSelection
 } from "../../src/renderer/canvas/selection";
 
 describe("selection geometry", () => {
@@ -41,12 +43,29 @@ describe("selection geometry", () => {
     });
   });
 
+  it("maps keyboard modifiers to marquee selection modes", () => {
+    expect(getMarqueeSelectionMode({})).toBe("replace");
+    expect(getMarqueeSelectionMode({ shiftKey: true })).toBe("add");
+    expect(getMarqueeSelectionMode({ ctrlKey: true })).toBe("subtract");
+    expect(getMarqueeSelectionMode({ metaKey: true })).toBe("subtract");
+    expect(getMarqueeSelectionMode({ ctrlKey: true, shiftKey: true })).toBe("subtract");
+  });
+
   it("detects populated scene item selections", () => {
     expect(hasSelectedSceneItems({ tokenIds: [], drawingIds: [], fogShapeIds: [], weatherMaskIds: [] })).toBe(false);
     expect(hasSelectedSceneItems({ tokenIds: ["token-1"], drawingIds: [], fogShapeIds: [], weatherMaskIds: [] })).toBe(true);
     expect(hasSelectedSceneItems({ tokenIds: [], drawingIds: ["drawing-1"], fogShapeIds: [], weatherMaskIds: [] })).toBe(true);
     expect(hasSelectedSceneItems({ tokenIds: [], drawingIds: [], fogShapeIds: ["fog-1"], weatherMaskIds: [] })).toBe(true);
     expect(hasSelectedSceneItems({ tokenIds: [], drawingIds: [], fogShapeIds: [], weatherMaskIds: ["weather-1"] })).toBe(true);
+  });
+
+  it("animates selected scene item outlines only on the GM canvas", () => {
+    const emptySelection = { tokenIds: [], drawingIds: [], fogShapeIds: [], weatherMaskIds: [] };
+    const tokenSelection = { tokenIds: ["token-1"], drawingIds: [], fogShapeIds: [], weatherMaskIds: [] };
+
+    expect(shouldAnimateSceneSelection("gm", emptySelection)).toBe(false);
+    expect(shouldAnimateSceneSelection("gm", tokenSelection)).toBe(true);
+    expect(shouldAnimateSceneSelection("player", tokenSelection)).toBe(false);
   });
 
   it("treats selection rect edges as inclusive", () => {

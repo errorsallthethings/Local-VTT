@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_WORKSPACE_LAYOUT,
+  DEFAULT_TOKEN_LIBRARY_HEIGHT,
   TOKEN_LIBRARY_HEIGHT_STORAGE_KEY,
   WORKSPACE_LAYOUT_STORAGE_KEY,
   loadTokenLibraryHeight,
@@ -25,6 +26,13 @@ describe("workspace layout storage", () => {
     expect(loadWorkspaceLayout(createStorage())).toEqual(DEFAULT_WORKSPACE_LAYOUT);
   });
 
+  it("loads defaults when workspace storage cannot be read", () => {
+    const throwingStorage = { getItem: () => { throw new Error("blocked"); } };
+
+    expect(loadWorkspaceLayout(throwingStorage)).toEqual(DEFAULT_WORKSPACE_LAYOUT);
+    expect(loadTokenLibraryHeight(throwingStorage)).toBe(DEFAULT_TOKEN_LIBRARY_HEIGHT);
+  });
+
   it("saves and reloads workspace layout values", () => {
     const storage = createStorage();
     const layout = { leftWidth: 320, rightWidth: 360, leftCollapsed: true, rightCollapsed: false };
@@ -33,6 +41,13 @@ describe("workspace layout storage", () => {
 
     expect(storage.getItem(WORKSPACE_LAYOUT_STORAGE_KEY)).toBe(JSON.stringify(layout));
     expect(loadWorkspaceLayout(storage)).toEqual(layout);
+  });
+
+  it("ignores workspace save failures", () => {
+    const throwingStorage = { setItem: () => { throw new Error("quota"); } };
+
+    expect(() => saveWorkspaceLayout(DEFAULT_WORKSPACE_LAYOUT, throwingStorage)).not.toThrow();
+    expect(() => saveTokenLibraryHeight(312, throwingStorage)).not.toThrow();
   });
 
   it("saves and reloads token library height values", () => {

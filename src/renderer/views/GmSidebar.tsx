@@ -32,8 +32,11 @@ export function GmSidebar({
   onRemoveRecentCampaign,
   onSaveCampaign,
   onRenameCampaign,
+  onOpenCampaignHealth,
   onOpenBackupRestore,
   onRegenerateThumbnails,
+  onPromoteTokenAssets,
+  onPruneUnreferencedAssets,
   onAddPlayer,
   onUpdatePlayer,
   onDeletePlayer,
@@ -80,8 +83,11 @@ export function GmSidebar({
   onRemoveRecentCampaign: (campaignPath: string) => void;
   onSaveCampaign: () => void;
   onRenameCampaign: () => void;
+  onOpenCampaignHealth: () => void;
   onOpenBackupRestore: () => void;
   onRegenerateThumbnails: () => void;
+  onPromoteTokenAssets: () => void;
+  onPruneUnreferencedAssets: () => void;
   onAddPlayer: () => void;
   onUpdatePlayer: (playerId: string, patch: Partial<Campaign["players"][number]>) => void;
   onDeletePlayer: (playerId: string) => void;
@@ -158,8 +164,11 @@ export function GmSidebar({
             onRemoveRecentCampaign={onRemoveRecentCampaign}
             onSaveCampaign={onSaveCampaign}
             onRenameCampaign={onRenameCampaign}
+            onOpenCampaignHealth={onOpenCampaignHealth}
             onOpenBackupRestore={onOpenBackupRestore}
             onRegenerateThumbnails={onRegenerateThumbnails}
+            onPromoteTokenAssets={onPromoteTokenAssets}
+            onPruneUnreferencedAssets={onPruneUnreferencedAssets}
             onAddPlayer={onAddPlayer}
             onUpdatePlayer={onUpdatePlayer}
             onDeletePlayer={onDeletePlayer}

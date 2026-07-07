@@ -11,12 +11,12 @@ import {
   type TokenConditionId
 } from "../../../shared/localvtt";
 import { getRulerPathHighlightCells } from "../measurement/measurement";
-import { drawDashedMovementPath, drawPathMarker, hasMeaningfulPath, MOVEMENT_PATH_COLORS } from "../tokens/movementPath";
+import { drawDashedMovementPath, drawPathMarker, hasMeaningfulPath, MOVEMENT_PATH_COLORS } from "./movementPath";
 import {
   getTokenGridFootprint,
   getTokenHexFootprintCenters,
   getVisibleTokens
-} from "../tokens/tokenGeometry";
+} from "./tokenGeometry";
 import { drawSelectionBox, drawSelectionEllipse } from "../selection/selectionRenderer";
 
 export interface TokenTurnOrderIndicator {

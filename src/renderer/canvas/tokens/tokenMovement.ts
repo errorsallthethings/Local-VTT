@@ -1,9 +1,9 @@
 import type { Point, Scene, Token } from "../../../shared/localvtt";
-import { getNearestGridCellCenter, getNearestHexCenter, getSnappedTokenPosition, distanceBetween } from "../tokens/tokenGeometry";
-import { appendWaypoint, getPathDistance, normalizeMovementPath } from "../tokens/movementPath";
+import { getNearestGridCellCenter, getNearestHexCenter, getSnappedTokenPosition, distanceBetween } from "./tokenGeometry";
+import { appendWaypoint, getPathDistance, normalizeMovementPath, removeLastWaypoint } from "./movementPath";
 import { updateSceneTokenPositions } from "../../lib/scene";
 import type { TokenDragState } from "../scene/sceneInteractionTypes";
-import type { TokenDragPreview } from "../tokens/tokenRenderer";
+import type { TokenDragPreview } from "./tokenRenderer";
 
 export type TokenTween = {
   id: string;
@@ -102,6 +102,47 @@ export function getTokenDragWithAppendedWaypoint(scene: Scene, tokenDrag: TokenD
   const waypoint = getTokenWaypointPosition(currentPosition, token, scene);
   const previousRoutePosition = tokenDrag.waypoints[tokenDrag.waypoints.length - 1] ?? tokenDrag.startPosition;
   return appendWaypoint(tokenDrag, waypoint, previousRoutePosition, (previousPosition, nextWaypoint) => isDuplicateTokenWaypoint(previousPosition, nextWaypoint, token, scene));
+}
+
+export type TokenDragWaypointUpdate = {
+  drag: TokenDragState;
+  preview: TokenDragPreview | null;
+};
+
+export function getTokenDragPreviewWithWaypoints(preview: TokenDragPreview | null, tokenId: string, waypoints: Point[]): TokenDragPreview | null {
+  return preview?.tokenId === tokenId ? { ...preview, waypoints } : preview;
+}
+
+export function getTokenDragWaypointAppendUpdate(scene: Scene, tokenDrag: TokenDragState, preview: TokenDragPreview | null): TokenDragWaypointUpdate | null {
+  if (!preview) {
+    return null;
+  }
+  const token = scene.tokens.find((candidate) => candidate.id === preview.tokenId);
+  if (!token || tokenDrag.tokenId !== token.id) {
+    return null;
+  }
+
+  const nextDrag = getTokenDragWithAppendedWaypoint(scene, tokenDrag, token, preview.currentPosition);
+  if (nextDrag === tokenDrag) {
+    return null;
+  }
+
+  return {
+    drag: nextDrag,
+    preview: getTokenDragPreviewWithWaypoints(preview, token.id, nextDrag.waypoints)
+  };
+}
+
+export function getTokenDragWaypointRemovalUpdate(tokenDrag: TokenDragState, preview: TokenDragPreview | null): TokenDragWaypointUpdate | null {
+  const nextDrag = removeLastWaypoint(tokenDrag);
+  if (!nextDrag) {
+    return null;
+  }
+
+  return {
+    drag: nextDrag,
+    preview: getTokenDragPreviewWithWaypoints(preview, nextDrag.tokenId, nextDrag.waypoints)
+  };
 }
 
 export function getTokenMovementTweens(previousTokens: Token[], nextTokens: Token[], scene: Scene): TokenTween[] {

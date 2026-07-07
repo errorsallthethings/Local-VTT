@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildLiveTableDiceClearEvent,
+  buildLiveTableDiceRollEvent,
   DICE_TYPES,
   formatDiceRollBreakdown,
   formatDiceRollBreakdownTooltip,
@@ -518,6 +520,74 @@ describe("dice helpers", () => {
       playerDisplayMode: "scene",
       gmPanelAdvanced: false,
       playerPanelAdvanced: true
+    });
+  });
+
+  it("builds live-table dice roll events with display settings metadata", () => {
+    const event = buildLiveTableDiceRollEvent(
+      {
+        die: "d20",
+        result: 18,
+        label: "18",
+        seed: 0.42
+      },
+      {
+        ...DEFAULT_DICE_SETTINGS,
+        sceneRollEnabled: true,
+        sceneRollTarget: "player",
+        gmSceneSize: "lg",
+        playerSceneSize: "xl",
+        gmPanelEdge: "left",
+        playerPanelEdge: "right",
+        gmPanelFacing: "outward",
+        playerPanelFacing: "inward",
+        gmPanelPosition: 0.25,
+        playerPanelPosition: 0.75,
+        gmPanelAdvanced: true,
+        playerPanelAdvanced: true
+      },
+      "roll-1",
+      1234,
+      "  Sneak Attack  "
+    );
+
+    expect(event).toMatchObject({
+      id: "roll-1",
+      type: "dice",
+      die: "d20",
+      result: 18,
+      label: "18",
+      rollLabel: "Sneak Attack",
+      gmDiceDisplay: "scene-result",
+      playerDiceDisplay: "scene",
+      gmDiceSceneSize: "lg",
+      playerDiceSceneSize: "xl",
+      gmDicePanelEdge: "left",
+      playerDicePanelEdge: "right",
+      gmDicePanelFacing: "outward",
+      playerDicePanelFacing: "inward",
+      gmDicePanelPosition: 0.25,
+      playerDicePanelPosition: 0.75,
+      gmDicePanelAdvanced: false,
+      playerDicePanelAdvanced: true,
+      createdAt: 1234
+    });
+  });
+
+  it("omits blank live-table dice roll labels and builds clear events", () => {
+    const roll = buildLiveTableDiceRollEvent(
+      { die: "d6", result: 4, label: "4", seed: 0.12 },
+      DEFAULT_DICE_SETTINGS,
+      "roll-1",
+      1000,
+      "   "
+    );
+
+    expect(roll.rollLabel).toBeUndefined();
+    expect(buildLiveTableDiceClearEvent("clear-1", 2000)).toEqual({
+      id: "clear-1",
+      type: "dice-clear",
+      createdAt: 2000
     });
   });
 

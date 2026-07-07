@@ -1,4 +1,6 @@
 import path from "node:path";
+import os from "node:os";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { findMissingCampaignAssetFiles } from "../../electron/campaignAssetRecovery";
 import type { Asset } from "../../src/shared/localvtt";
@@ -45,5 +47,18 @@ describe("campaign asset recovery", () => {
     ]);
 
     expect(missing).toEqual([{ assetId: "escape", assetName: "escape", kind: "map", relativePath: "../outside.png" }]);
+  });
+
+  it("treats directories as missing asset files", async () => {
+    const campaignPath = await mkdtemp(path.join(os.tmpdir(), "localvtt-assets-"));
+    await mkdir(path.join(campaignPath, "assets", "maps"), { recursive: true });
+    await writeFile(path.join(campaignPath, "assets", "maps", "keep.png"), "map");
+
+    const missing = await findMissingCampaignAssetFiles(campaignPath, [
+      asset({ id: "directory", kind: "map", relativePath: "assets/maps" }),
+      asset({ id: "file", kind: "map", relativePath: "assets/maps/keep.png" })
+    ]);
+
+    expect(missing).toEqual([{ assetId: "directory", assetName: "directory", kind: "map", relativePath: "assets/maps" }]);
   });
 });

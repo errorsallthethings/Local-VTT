@@ -18,6 +18,21 @@ export interface TokenLayerRow {
   token: Token;
 }
 
+export interface TokenAssetRenameDialogState {
+  assetId: string;
+  name: string;
+}
+
+export interface TokenAssetDeleteDialogState {
+  asset: Asset;
+  usage: TokenAssetUsage[];
+}
+
+export interface TokenLibraryDrawerPresentation {
+  className: string;
+  contentStyle: { "--scene-tools-token-width"?: string } | undefined;
+}
+
 const TOKEN_LABEL_COLLATOR = new Intl.Collator(undefined, { sensitivity: "base" });
 
 export function buildTokenLibraryAssetIndex(assets: Asset[]): TokenLibraryAssetIndexEntry[] {
@@ -50,6 +65,44 @@ export function getSelectedTokenLibraryAssetIds(selectedTokenAssetId: string | u
 
 export function getSelectedTokenLibraryAsset(assets: Asset[], selectedTokenAssetId: string | undefined): Asset | null {
   return selectedTokenAssetId ? (assets.find((asset) => asset.id === selectedTokenAssetId) ?? null) : null;
+}
+
+export function clampTokenLibrarySplitPercent(value: number): number {
+  return Math.min(76, Math.max(38, Number.isFinite(value) ? value : 62));
+}
+
+export function getTokenLibrarySplitPercent(clientX: number, boundsLeft: number, boundsWidth: number): number {
+  if (boundsWidth <= 0) {
+    return 62;
+  }
+  return clampTokenLibrarySplitPercent(((clientX - boundsLeft) / boundsWidth) * 100);
+}
+
+export function getTokenLibraryDrawerPresentation(view: string, expanded: boolean, sidePanelOpen: boolean, splitPercent: number): TokenLibraryDrawerPresentation {
+  return {
+    className: `token-library-drawer token-library-view-${view} ${expanded ? "token-library-expanded" : "token-library-collapsed-click-target"}`,
+    contentStyle: sidePanelOpen ? { "--scene-tools-token-width": `${clampTokenLibrarySplitPercent(splitPercent)}%` } : undefined
+  };
+}
+
+export function getTokenAssetRenameDialogState(asset: Asset): TokenAssetRenameDialogState {
+  return {
+    assetId: asset.id,
+    name: getAssetLabel(asset)
+  };
+}
+
+export function getTokenAssetDeleteDialogState(
+  asset: Asset,
+  savedUsage: TokenAssetUsage[],
+  campaign: Campaign,
+  sceneDrafts: Record<string, Scene>,
+  activeScene: Scene | null
+): TokenAssetDeleteDialogState {
+  return {
+    asset,
+    usage: mergeTokenAssetUsage(savedUsage, campaign, sceneDrafts, activeScene, asset.id)
+  };
 }
 
 export function buildTokenLayerRows(tokens: Token[], tokenAssets: Map<string, Asset>): TokenLayerRow[] {

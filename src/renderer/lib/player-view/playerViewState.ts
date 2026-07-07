@@ -1,6 +1,6 @@
 import { isPlayerIdleState, isPlayerSceneProjection, type CampaignSceneEntry } from "../../../shared/localvtt";
 
-export type PlayerDisplayMode = "scene" | "hold" | "blackout";
+export type PlayerDisplayMode = "scene" | "hold" | "blackout" | "test-pattern";
 
 export interface PlayerViewDisplayState {
   playerSceneId: string | null;

@@ -1,4 +1,4 @@
-import type { CampaignBusyState } from "../../hooks/useCampaignActions";
+import type { CampaignBusyState } from "../../lib/campaign";
 
 interface CampaignBusyOverlayProps {
   busyState: CampaignBusyState;
