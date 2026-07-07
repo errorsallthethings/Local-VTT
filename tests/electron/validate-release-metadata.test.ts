@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 
 const { validateReleaseMetadata } = await import("../../scripts/validate-release-metadata.mjs");
 
+function validateFixtureMetadata(options = {}) {
+  return validateReleaseMetadata({
+    tagName: "",
+    refType: "branch",
+    ...options
+  });
+}
+
 function validPackageJson(overrides = {}) {
   return {
     version: "0.1.15",
@@ -33,7 +41,7 @@ function validPackageLock(overrides = {}) {
 describe("validateReleaseMetadata", () => {
   it("accepts matching package, lockfile, tag, and builder metadata", () => {
     expect(
-      validateReleaseMetadata({
+      validateFixtureMetadata({
         packageJson: validPackageJson(),
         packageLock: validPackageLock(),
         releaseNoteFiles: ["v0.1.15.md"],
@@ -45,7 +53,7 @@ describe("validateReleaseMetadata", () => {
 
   it("reports package-lock version drift", () => {
     expect(
-      validateReleaseMetadata({
+      validateFixtureMetadata({
         packageJson: validPackageJson(),
         packageLock: validPackageLock({ version: "0.1.14" }),
         releaseNoteFiles: ["v0.1.15.md"]
@@ -78,7 +86,7 @@ describe("validateReleaseMetadata", () => {
       }
     });
 
-    expect(validateReleaseMetadata({ packageJson, packageLock: validPackageLock(), releaseNoteFiles: ["v0.1.15.md"] })).toEqual(
+    expect(validateFixtureMetadata({ packageJson, packageLock: validPackageLock(), releaseNoteFiles: ["v0.1.15.md"] })).toEqual(
       expect.arrayContaining([
         "build.productName must be configured.",
         "build.directories.output must be configured.",
@@ -93,7 +101,7 @@ describe("validateReleaseMetadata", () => {
 
   it("reports missing versioned release notes", () => {
     expect(
-      validateReleaseMetadata({
+      validateFixtureMetadata({
         packageJson: validPackageJson(),
         packageLock: validPackageLock(),
         releaseNoteFiles: []
@@ -103,7 +111,7 @@ describe("validateReleaseMetadata", () => {
 
   it("accepts release notes without a v prefix", () => {
     expect(
-      validateReleaseMetadata({
+      validateFixtureMetadata({
         packageJson: validPackageJson(),
         packageLock: validPackageLock(),
         releaseNoteFiles: ["0.1.15.md"]
@@ -113,7 +121,7 @@ describe("validateReleaseMetadata", () => {
 
   it("reports release notes heading drift when contents are available", () => {
     expect(
-      validateReleaseMetadata({
+      validateFixtureMetadata({
         packageJson: validPackageJson(),
         packageLock: validPackageLock(),
         releaseNoteFiles: ["v0.1.15.md"],
@@ -126,7 +134,7 @@ describe("validateReleaseMetadata", () => {
 
   it("accepts release notes content with the matching version heading", () => {
     expect(
-      validateReleaseMetadata({
+      validateFixtureMetadata({
         packageJson: validPackageJson(),
         packageLock: validPackageLock(),
         releaseNoteFiles: ["v0.1.15.md"],
