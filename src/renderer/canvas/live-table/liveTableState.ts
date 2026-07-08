@@ -1,4 +1,4 @@
-import type { Campaign, LiveTableEvent, Point, Scene, TableToolSettings, Token } from "../../../shared/localvtt";
+import type { Campaign, LiveTableEvent, Point, Scene, TableMessageLayout, TableMessagePlacement, TableMessageStyle, TableToolSettings, Token } from "../../../shared/localvtt";
 import type { LaserDragState } from "../scene/sceneInteractionTypes";
 import type { RulerDrag, RulerLabel } from "../measurement/measurement";
 import {
@@ -73,6 +73,15 @@ export function getVisibleCanvasLiveTableEvents(liveTableEvents: LiveTableEvent[
   return mode === "gm" ? liveTableEvents.filter((event) => event.type !== "ruler") : liveTableEvents;
 }
 
+export function getVisibleTableMessageEvents(liveTableEvents: readonly LiveTableEvent[], mode: "gm" | "player"): Array<Extract<LiveTableEvent, { type: "message" }>> {
+  return liveTableEvents.filter((event): event is Extract<LiveTableEvent, { type: "message" }> => {
+    if (event.type !== "message") {
+      return false;
+    }
+    return mode === "gm" ? event.showInGm !== false : event.visibleInPlayer !== false;
+  });
+}
+
 export function shouldShowDiceOverlay(event: Extract<LiveTableEvent, { type: "dice" }>, mode: "gm" | "player"): boolean {
   const displayMode = mode === "gm" ? event.gmDiceDisplay : event.playerDiceDisplay;
   if (displayMode) {
@@ -106,6 +115,39 @@ export function createRulerClearEvent(now = Date.now()): Extract<LiveTableEvent,
   return {
     id: "ruler-clear",
     type: "ruler-clear",
+    createdAt: now
+  };
+}
+
+export function createTableMessageEvent(
+  id: string,
+  text: string,
+  layout: TableMessageLayout,
+  placement: TableMessagePlacement,
+  style: TableMessageStyle,
+  durationMs: number,
+  showInGm: boolean,
+  now = Date.now()
+): Extract<LiveTableEvent, { type: "message" }> {
+  return {
+    id,
+    type: "message",
+    text,
+    layout,
+    placement,
+    style,
+    durationMs,
+    showInGm,
+    visibleInPlayer: true,
+    createdAt: now,
+    expiresAt: now + durationMs
+  };
+}
+
+export function createTableMessageClearEvent(now = Date.now()): Extract<LiveTableEvent, { type: "message-clear" }> {
+  return {
+    id: "message-clear",
+    type: "message-clear",
     createdAt: now
   };
 }

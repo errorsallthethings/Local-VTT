@@ -29,8 +29,10 @@ import {
   createRulerLiveTableEvent,
   getVisibleCanvasLiveTableEvents,
   getVisibleDiceOverlayEvents,
+  getVisibleTableMessageEvents,
   RULER_RELEASE_LINGER_MS
 } from "../canvas/live-table";
+import { TableMessageOverlay } from "./player-view/TableMessageOverlay";
 import { getPlayerDisplayScale } from "../canvas/live-table";
 import {
   type MapCalibrationBox,
@@ -392,6 +394,7 @@ export function SceneCanvas({
     scene
   });
   const visibleDiceOverlayEvents = useMemo(() => getVisibleDiceOverlayEvents(liveTableEvents, mode), [liveTableEvents, mode]);
+  const visibleTableMessageEvents = useMemo(() => getVisibleTableMessageEvents(liveTableEvents, mode), [liveTableEvents, mode]);
   const contextMenuSelectionHandlers = useMemo(() => ({
     onSelectDrawing,
     onSelectEnvironmentEffect,
@@ -1178,6 +1181,7 @@ export function SceneCanvas({
           <DiceRollOverlay events={visibleDiceOverlayEvents} mode={mode} onDiceRollResolved={onDiceRollResolved} />
         </Suspense>
       )}
+      <TableMessageOverlay events={visibleTableMessageEvents} mode={mode} />
       {mode === "player" && scene && <TurnOrderPlayerBar scene={scene} campaign={campaign} />}
       {mode === "player" && scene && showPlayerSeatIndicators && <PlayerSeatIndicators campaign={campaign} />}
       {mode === "player" && scene && <PlayerTurnStatusIndicators scene={scene} campaign={campaign} />}

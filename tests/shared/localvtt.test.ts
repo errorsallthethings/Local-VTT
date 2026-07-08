@@ -1442,6 +1442,8 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isLiveTableEvent({ id: "ruler-optional", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", secondary: undefined, createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ruler-release", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", createdAt: 1, expiresAt: 2501 })).toBe(true);
   expect(isLiveTableEvent({ id: "ruler-clear", type: "ruler-clear", createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "message", type: "message", text: "Hello", layout: "table-edges", placement: "center", style: "notice", durationMs: 5000, showInGm: true, visibleInPlayer: true, createdAt: 1, expiresAt: 5001 })).toBe(true);
+  expect(isLiveTableEvent({ id: "message-clear", type: "message-clear", createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "clear", type: "dice-clear", createdAt: 1 })).toBe(true);
   expect(
     isLiveTableEvent({
@@ -1498,6 +1500,10 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isLiveTableEvent({ id: "dice", type: "dice", die: "d30", result: 30, label: "30", seed: 0.5, createdAt: 1 })).toBe(false);
   expect(isLiveTableEvent({ id: "broken", type: "ping", point: { x: 1, y: 2 }, size: Number.NaN, createdAt: 1 })).toBe(false);
   expect(isLiveTableEvent({ id: "broken", type: "laser", points: [{ point: { x: 1 }, createdAt: 1 }], createdAt: 1 })).toBe(false);
+  expect(isLiveTableEvent({ id: "broken", type: "message", text: "Hello", layout: "screen", placement: "left", style: "notice", durationMs: 5000, createdAt: 1, expiresAt: 5001 })).toBe(false);
+  expect(isLiveTableEvent({ id: "broken", type: "message", text: "Hello", layout: "circle", placement: "center", style: "notice", durationMs: 5000, createdAt: 1, expiresAt: 5001 })).toBe(false);
+  expect(isLiveTableEvent({ id: "broken", type: "message", text: "Hello", layout: "opposite-sides", placement: "center", style: "notice", durationMs: 5000, createdAt: 1, expiresAt: 5001 })).toBe(false);
+  expect(isLiveTableEvent({ id: "broken", type: "message", text: "Hello", layout: "screen", placement: "center", style: "notice", durationMs: 0, createdAt: 1, expiresAt: 1 })).toBe(false);
 });
 
 it("normalizeScene normalizes table tool settings", () => {

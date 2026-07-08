@@ -4,6 +4,9 @@ import type {
   DiceSettings,
   LiveTableEvent,
   Scene,
+  TableMessageLayout,
+  TableMessagePlacement,
+  TableMessageStyle,
 } from "../../shared/localvtt";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import type { DiceType } from "../lib/dice";
@@ -29,6 +32,8 @@ interface GmWorkspaceTopbarProps {
   onOpenMapCalibrationAssistant: () => void;
   onSetPlayerFullscreen: (fullscreen: boolean) => void;
   onClosePlayerView: () => void;
+  onSendTableMessage: (message: { text: string; durationMs: number; layout: TableMessageLayout; placement: TableMessagePlacement; style: TableMessageStyle; showInGm: boolean }) => void;
+  onClearTableMessage: () => void;
   onUpdateDiceSettings: (patch: Partial<DiceSettings>) => void;
   onRollDie: (die: DiceType) => void;
   onRollExpression: (expression: string, rollLabel?: string) => string | null;
@@ -54,6 +59,8 @@ export function GmWorkspaceTopbar({
   onOpenMapCalibrationAssistant,
   onSetPlayerFullscreen,
   onClosePlayerView,
+  onSendTableMessage,
+  onClearTableMessage,
   onUpdateDiceSettings,
   onRollDie,
   onRollExpression,
@@ -76,6 +83,8 @@ export function GmWorkspaceTopbar({
       onOpenMapCalibrationAssistant={onOpenMapCalibrationAssistant}
       onSetPlayerFullscreen={onSetPlayerFullscreen}
       onClosePlayerView={onClosePlayerView}
+      onSendTableMessage={onSendTableMessage}
+      onClearTableMessage={onClearTableMessage}
       gmDiceDisplayMode={diceSettings.gmDisplayMode}
       playerDiceDisplayMode={diceSettings.playerDisplayMode}
       diceSceneRollEnabled={diceSettings.sceneRollEnabled}

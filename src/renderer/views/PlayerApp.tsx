@@ -14,7 +14,9 @@ import {
   type PlayerSceneProjection
 } from "../../shared/localvtt";
 import { drawHexGrid, drawSquareGrid } from "../canvas/grid/gridRenderer";
+import { TableMessageOverlay } from "../components/player-view/TableMessageOverlay";
 import { filterActiveLiveTableEvents, mergeLiveTableEvent } from "../lib/player-view";
+import { getVisibleTableMessageEvents } from "../canvas/live-table";
 
 const PLAYER_SCENE_SPLASH_FADE_MS = 320;
 const PLAYER_SCENE_SPLASH_MIN_MS = 2000;
@@ -39,6 +41,7 @@ export function PlayerApp() {
   });
   const livePlayerStateReceivedRef = useRef(false);
   const visibleIdleDiceOverlayEvents = useMemo(() => liveTableEvents.filter(isVisiblePlayerDiceOverlayEvent), [liveTableEvents]);
+  const visibleTableMessageEvents = useMemo(() => getVisibleTableMessageEvents(liveTableEvents, "player"), [liveTableEvents]);
 
   useEffect(() => {
     let mounted = true;
@@ -222,6 +225,7 @@ export function PlayerApp() {
           <DiceRollOverlay events={visibleIdleDiceOverlayEvents} mode="player" />
         </Suspense>
       )}
+      {!projection && <TableMessageOverlay events={visibleTableMessageEvents} mode="player" />}
     </div>
   );
 }
