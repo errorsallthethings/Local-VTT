@@ -1,4 +1,4 @@
-import { useEffect, type MutableRefObject, type RefObject } from "react";
+import { useEffect, useRef, type MutableRefObject, type RefObject } from "react";
 import type { Asset, DrawingStrokeStyle, LiveTableEvent, Point, Scene, TableToolSettings } from "../../../../shared/localvtt";
 import {
   WEATHER_ONLY_FRAME_INTERVAL_MS,
@@ -159,6 +159,8 @@ interface SceneCanvasRendererOptions {
 }
 
 export function useSceneCanvasRenderer(options: SceneCanvasRendererOptions) {
+  const lastResizeRef = useRef<{ height: number; scale: number; width: number } | null>(null);
+
   useEffect(() => {
     const canvas = options.canvasRef.current;
     const scene = options.scene;
@@ -174,10 +176,19 @@ export function useSceneCanvasRenderer(options: SceneCanvasRendererOptions) {
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       const scale = window.devicePixelRatio || 1;
-      canvas.width = Math.max(1, Math.floor(rect.width * scale));
-      canvas.height = Math.max(1, Math.floor(rect.height * scale));
+      const pixelWidth = Math.max(1, Math.floor(rect.width * scale));
+      const pixelHeight = Math.max(1, Math.floor(rect.height * scale));
+      const lastResize = lastResizeRef.current;
+      const sizeChanged = !lastResize || lastResize.width !== pixelWidth || lastResize.height !== pixelHeight || lastResize.scale !== scale;
+      lastResizeRef.current = { height: pixelHeight, scale, width: pixelWidth };
+      if (canvas.width !== pixelWidth) {
+        canvas.width = pixelWidth;
+      }
+      if (canvas.height !== pixelHeight) {
+        canvas.height = pixelHeight;
+      }
       context.setTransform(scale, 0, 0, scale, 0, 0);
-      if (options.autoFitCameraRef.current) {
+      if (sizeChanged && options.autoFitCameraRef.current) {
         options.fitGmCameraToReadyMap(rect.width, rect.height, true);
       }
       drawScene(context, rect.width, rect.height);
@@ -195,6 +206,7 @@ export function useSceneCanvasRenderer(options: SceneCanvasRendererOptions) {
         mapDrawSource,
         renderCamera,
         showGrid,
+        weatherMapDimensions,
         weatherMapReady,
         weatherMapSource
       } = getSceneCanvasRenderPlan({
@@ -292,7 +304,7 @@ export function useSceneCanvasRenderer(options: SceneCanvasRendererOptions) {
       }
       if (options.canShowWeather && !options.mapOverlayActive) {
         if (weatherMapReady) {
-          drawWeather(ctx, scene, width, height, renderCamera, now, options.weatherLayer?.opacity ?? 1, weatherMapSource);
+          drawWeather(ctx, scene, width, height, renderCamera, now, options.weatherLayer?.opacity ?? 1, weatherMapSource, weatherMapDimensions);
         }
         drawEnvironmentEffects(ctx, options.effectRenderState.environmentEffects, renderCamera, options.mode, now, options.weatherLayer?.opacity ?? 1, options.acidEffectTuning, options.coldEffectTuning, options.darknessEffectTuning, options.poisonEffectTuning, options.waterEffectTuning, options.lavaEffectTuning, options.fireEffectTuning, options.lightningEffectTuning, options.arcaneEffectTuning, options.chaosEffectTuning, options.voidEffectTuning, options.natureEffectTuning, options.distortionEffectTuning, options.radiantEffectTuning, options.forceFieldEffectTuning, options.shockwaveEffectTuning, options.smokeEffectTuning, options.fogEffectTuning);
       }

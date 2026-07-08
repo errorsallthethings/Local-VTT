@@ -1,4 +1,4 @@
-import { CloudFog, Dices, Lightbulb, LineSquiggle, ListOrdered, MousePointer2, Sparkles, Table2, Triangle, Type, type LucideIcon } from "lucide-react";
+import { CloudFog, Dices, Lightbulb, ListOrdered, MousePointer2, Palette, Shapes, Sparkles, Table2, Type, type LucideIcon } from "lucide-react";
 import { getToolCategoryButtonClassName } from "./toolMenuState";
 import { getToolCategoryLabel, type ToolCategory } from "./toolCategoryLabels";
 
@@ -9,9 +9,9 @@ export type ToolCategoryEntry =
 export const TOOL_CATEGORY_RAIL_ENTRIES: ToolCategoryEntry[] = [
   { kind: "category", id: "fog", label: getToolCategoryLabel("fog"), icon: CloudFog, hasPanelTools: true },
   { kind: "category", id: "effects", label: getToolCategoryLabel("effects"), icon: Sparkles, hasPanelTools: true },
-  { kind: "category", id: "drawing", label: getToolCategoryLabel("drawing"), icon: LineSquiggle, hasPanelTools: true },
+  { kind: "category", id: "drawing", label: getToolCategoryLabel("drawing"), icon: Palette, hasPanelTools: true },
   { kind: "category", id: "text", label: getToolCategoryLabel("text"), icon: Type, hasPanelTools: false },
-  { kind: "category", id: "templates", label: getToolCategoryLabel("templates"), icon: Triangle, hasPanelTools: true },
+  { kind: "category", id: "templates", label: getToolCategoryLabel("templates"), icon: Shapes, hasPanelTools: true },
   { kind: "category", id: "lighting", label: getToolCategoryLabel("lighting"), icon: Lightbulb, hasPanelTools: false },
   { kind: "divider", id: "tools-primary-secondary-divider" },
   { kind: "category", id: "dice", label: getToolCategoryLabel("dice"), icon: Dices, hasPanelTools: false },

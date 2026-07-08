@@ -4,7 +4,7 @@ import { RainRenderer } from "./rainRenderer";
 import { FogRenderer } from "./fogRenderer";
 import { SnowRenderer } from "./snowRenderer";
 import { SandRenderer } from "./sandRenderer";
-import { clamp01, getScreenWeatherArea, getWeatherClipPath, type WeatherBounds } from "./weatherCore";
+import { clamp01, getScreenWeatherArea, getWeatherClipPath, type WeatherBounds, type WeatherMapDimensions } from "./weatherCore";
 
 const rainRenderer = new RainRenderer();
 const fogRenderer = new FogRenderer();
@@ -25,13 +25,14 @@ export function drawWeather(
   camera: Camera,
   now: number,
   layerOpacity = 1,
-  mapSource?: CanvasImageSource | null
+  mapSource?: CanvasImageSource | null,
+  mapDimensions?: WeatherMapDimensions | null
 ) {
   const weather = scene.weather;
   if (!weather.enabled || layerOpacity <= 0) {
     return;
   }
-  const area = getScreenWeatherArea(scene, viewportWidth, viewportHeight, camera, mapSource);
+  const area = getScreenWeatherArea(scene, viewportWidth, viewportHeight, camera, mapSource, mapDimensions);
   const opacity = clamp01(layerOpacity);
   const clipPath = getCachedWeatherClipPath(area.clip, weather.masks, camera);
   if (weather.effects.rain.enabled) {

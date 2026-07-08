@@ -8,9 +8,11 @@ import {
   getWeatherEffectSettingsWithCurrent,
   getWeatherIntensityMax,
   getWeatherOpacityMax,
+  getWeatherPresetPack,
   getWeatherWithCategoryToggled,
   getWeatherWithDriftReset,
   getWeatherWithPatch,
+  getWeatherWithPresetPack,
   getWeatherWithSelectedEffect,
   getWeatherWithTuningPatch,
   getWeatherWithTuningReset,
@@ -135,5 +137,50 @@ describe("layer panel weather helpers", () => {
     const driftReset = getWeatherWithDriftReset(tuned, "rain");
     expect(driftReset.effects.rain.settings.directionDegrees).toBe(DEFAULT_WEATHER_EFFECT_SETTINGS["heavy-rain"].directionDegrees);
     expect(driftReset.effects.rain.settings.driftStrength).toBe(DEFAULT_WEATHER_EFFECT_SETTINGS["heavy-rain"].driftStrength);
+  });
+
+  it("applies weather preset packs while preserving weather masks", () => {
+    const scene = createDefaultScene("Weather");
+    scene.weather.effects.sand = {
+      enabled: true,
+      pattern: "sandstorm",
+      settings: { ...DEFAULT_WEATHER_EFFECT_SETTINGS.sandstorm }
+    };
+    scene.weather.masks = [
+      {
+        id: "weather-mask-1",
+        name: "Courtyard",
+        kind: "rectangle",
+        points: [
+          { x: 10, y: 20 },
+          { x: 80, y: 90 }
+        ],
+        visible: true,
+        visibleInPlayer: true
+      }
+    ];
+
+    const weather = getWeatherWithPresetPack(scene.weather, "storm");
+
+    expect(getWeatherPresetPack("storm").label).toBe("Storm");
+    expect(weather.enabled).toBe(true);
+    expect(weather.effect).toBe("rain-storm");
+    expect(weather.effects.rain).toMatchObject({ enabled: true, pattern: "rain-storm" });
+    expect(weather.effects.fog).toMatchObject({ enabled: true, pattern: "light-fog" });
+    expect(weather.effects.sand.enabled).toBe(false);
+    expect(weather.effectSettings["rain-storm"]).toEqual(weather.effects.rain.settings);
+    expect(weather.effectSettings["light-fog"]).toEqual(weather.effects.fog.settings);
+    expect(weather.masks).toBe(scene.weather.masks);
+  });
+
+  it("provides non-weather-color preset packs for ash fall and magical fog", () => {
+    const scene = createDefaultScene("Weather");
+    const ash = getWeatherWithPresetPack(scene.weather, "ash-fall");
+    const magicalFog = getWeatherWithPresetPack(scene.weather, "magical-fog");
+
+    expect(ash.effects.snow).toMatchObject({ enabled: true, pattern: "light-snow" });
+    expect(ash.effects.snow.settings.color).toBe("#8f8a82");
+    expect(magicalFog.effects.fog).toMatchObject({ enabled: true, pattern: "heavy-fog" });
+    expect(magicalFog.effects.fog.settings.color).toBe("#9f7aea");
   });
 });

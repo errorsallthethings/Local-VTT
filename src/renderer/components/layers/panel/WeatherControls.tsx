@@ -1,28 +1,42 @@
 import type { PointerEvent } from "react";
 import { RotateCcw, Settings2 } from "lucide-react";
-import type { WeatherTuningSettings } from "../../../../shared/localvtt";
+import type { WeatherPatternEffectType, WeatherTuningSettings } from "../../../../shared/localvtt";
+import type { WeatherEffectOption } from "../../../lib/effects";
 
 export function WeatherCategoryRow({
   label,
   enabled,
   expanded,
+  pattern,
+  options,
   onEnabledChange,
+  onPatternChange,
   onExpand
 }: {
   label: string;
   enabled: boolean;
   expanded: boolean;
+  pattern: WeatherPatternEffectType;
+  options: WeatherEffectOption[];
   onEnabledChange: (enabled: boolean) => void;
+  onPatternChange: (pattern: WeatherPatternEffectType) => void;
   onExpand: () => void;
 }) {
   return (
     <div className={expanded ? "weather-category-row weather-category-row-active" : "weather-category-row"}>
-      <span>{label}</span>
+      <span className="weather-category-name">{label}</span>
       <label className="fog-operation-switch weather-category-switch" title={`${enabled ? "Disable" : "Enable"} ${label}`}>
         <span>Off</span>
         <input type="checkbox" checked={enabled} onChange={(event) => onEnabledChange(event.target.checked)} />
         <span>On</span>
       </label>
+      <select className="weather-category-type-select" value={pattern} aria-label={`${label} type`} onChange={(event) => onPatternChange(event.target.value as WeatherPatternEffectType)}>
+        {options.map((option) => (
+          <option key={option.effect} value={option.effect}>
+            {option.label}
+          </option>
+        ))}
+      </select>
       <button className={expanded ? "icon-button layer-settings-button layer-settings-active" : "icon-button layer-settings-button"} type="button" title={`${label} settings`} aria-label={`${label} settings`} onClick={onExpand}>
         <Settings2 size={15} aria-hidden="true" />
       </button>

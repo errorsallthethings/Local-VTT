@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { Camera } from "../core/camera";
 import type { RainWeatherEffectType, WeatherSettings } from "../../../shared/localvtt";
-import { createStreak, drawStormFlash, getCycleOffset, getDistanceToQuietArea, getMinimumWeatherDimension, getRainPreset, getWeatherDriftVector, getWeatherParticleCount, hash, smoothstep, type RainPreset, type RainStreak, type WeatherArea, type WeatherBounds } from "./weatherCore";
+import { createStreak, drawStormFlash, getCycleOffset, getDistanceToQuietArea, getMinimumWeatherDimension, getQuietAreaFade, getRainPreset, getWeatherDriftVector, getWeatherParticleCount, hash, smoothstep, type RainPreset, type RainStreak, type WeatherArea, type WeatherBounds } from "./weatherCore";
 
 export class RainRenderer {
   private renderer: THREE.WebGLRenderer | null = null;
@@ -96,6 +96,9 @@ export class RainRenderer {
     if (!this.rain) {
       return;
     }
+    if (this.rain.material instanceof THREE.LineBasicMaterial) {
+      this.rain.material.opacity = opacity * weather.opacity * preset.opacity;
+    }
     const elapsed = now * 0.001;
     const color = new THREE.Color("#d9ecff");
     const centerX = bounds.left + bounds.width / 2;
@@ -135,7 +138,8 @@ export class RainRenderer {
       const sin = Math.sin(jitter);
       const driftX = (directionX * cos - directionY * sin) * screenDrift;
       const driftY = (directionX * sin + directionY * cos) * screenDrift;
-      const alpha = opacity * weather.opacity * preset.opacity * streak.opacity * cycleOpacity * streak.centerFade * fallAlpha * (0.42 + fallProgress * 0.58);
+      const quietFade = getQuietAreaFade(bounds, { x, y }, weather.quietAreaSize, weather.centerStrayDrops);
+      const alpha = streak.opacity * cycleOpacity * streak.centerFade * quietFade * fallAlpha * (0.42 + fallProgress * 0.58);
       const nearZ = 1280 - fallProgress * 1180;
       const farZ = nearZ + length * 6.4;
 

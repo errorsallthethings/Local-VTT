@@ -103,8 +103,9 @@ export function useSceneCanvasMapReadiness({
       viewportWidth: rect?.width ?? 0
     });
     if (action.kind === "reset-empty-map") {
+      const resetCamera = { x: 0, y: 0, zoom: 1 };
       fittedSceneCameraRef.current = action.signature;
-      setCamera({ x: 0, y: 0, zoom: 1 });
+      setCamera((currentCamera) => (areCamerasEqual(currentCamera, resetCamera) ? currentCamera : resetCamera));
       return;
     }
     if (action.kind === "fit-ready-map") {
