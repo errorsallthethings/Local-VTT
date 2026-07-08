@@ -822,6 +822,9 @@ export interface LiveTablePoint {
   createdAt: number;
 }
 
+export type TableMessagePlacement = "top" | "center" | "bottom";
+export type TableMessageLayout = "screen" | "table-edges";
+export type TableMessageStyle = "notice" | "dramatic" | "danger" | "success";
 export type DiceDisplayMode = "results" | "panel" | "scene" | "scene-result" | "hidden";
 export type DiceSceneRollTarget = "gm" | "player";
 export type DiceSceneSize = "xs" | "sm" | "md" | "lg" | "xl";
@@ -894,6 +897,24 @@ export type LiveTableEvent =
   | {
       id: string;
       type: "ruler-clear";
+      createdAt: number;
+    }
+  | {
+      id: string;
+      type: "message";
+      text: string;
+      layout: TableMessageLayout;
+      placement: TableMessagePlacement;
+      style: TableMessageStyle;
+      durationMs: number;
+      showInGm?: boolean;
+      visibleInPlayer?: boolean;
+      createdAt: number;
+      expiresAt: number;
+    }
+  | {
+      id: string;
+      type: "message-clear";
       createdAt: number;
     }
   | {
@@ -1626,6 +1647,24 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
   if (value.type === "ruler-clear") {
     return true;
   }
+  if (value.type === "message") {
+    return (
+      typeof value.text === "string" &&
+      isTableMessageLayout(value.layout) &&
+      isTableMessagePlacement(value.placement) &&
+      isTableMessageStyle(value.style) &&
+      typeof value.durationMs === "number" &&
+      Number.isFinite(value.durationMs) &&
+      value.durationMs > 0 &&
+      isOptionalBoolean(value.showInGm) &&
+      isOptionalBoolean(value.visibleInPlayer) &&
+      typeof value.expiresAt === "number" &&
+      Number.isFinite(value.expiresAt)
+    );
+  }
+  if (value.type === "message-clear") {
+    return true;
+  }
   if (value.type === "dice") {
     return (
       isDiceType(value.die) &&
@@ -1689,6 +1728,18 @@ function isOptionalString(value: unknown): boolean {
 
 function isDiceType(value: unknown): value is Extract<LiveTableEvent, { type: "dice" }>["die"] {
   return value === "coin" || value === "d2" || value === "d4" || value === "d6" || value === "d8" || value === "d10" || value === "d00" || value === "d12" || value === "d20";
+}
+
+function isTableMessagePlacement(value: unknown): value is TableMessagePlacement {
+  return value === "top" || value === "center" || value === "bottom";
+}
+
+function isTableMessageLayout(value: unknown): value is TableMessageLayout {
+  return value === "screen" || value === "table-edges";
+}
+
+function isTableMessageStyle(value: unknown): value is TableMessageStyle {
+  return value === "notice" || value === "dramatic" || value === "danger" || value === "success";
 }
 
 function isDiceDisplayMode(value: unknown): value is DiceDisplayMode {

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Campaign, LiveTableEvent, Scene, Token } from "../../src/shared/localvtt";
 import { createDefaultCampaign, createDefaultScene } from "../../src/shared/localvtt";
 import {
+  createTableMessageClearEvent,
+  createTableMessageEvent,
   getPlayerDisplayScale,
   getRulerDragWithAppendedWaypoint,
   getRulerDragWithRemovedWaypoint,
@@ -10,6 +12,7 @@ import {
   getTokenMoveLabel,
   getVisibleCanvasLiveTableEvents,
   getVisibleDiceOverlayEvents,
+  getVisibleTableMessageEvents,
   isDuplicateRulerWaypoint,
   isVisibleDiceOverlayEvent,
   shouldShowDiceOverlay
@@ -141,6 +144,29 @@ describe("live table state helpers", () => {
 
     expect(getVisibleCanvasLiveTableEvents(events, "gm").map((event) => event.id)).toEqual(["ping", "dice"]);
     expect(getVisibleCanvasLiveTableEvents(events, "player")).toBe(events);
+  });
+
+  it("builds and filters table message overlay events by view", () => {
+    const event = createTableMessageEvent("message-1", "The bridge collapses", "table-edges", "top", "dramatic", 30_000, false, 1_000);
+    const gmEvent = createTableMessageEvent("message-2", "Round 2", "screen", "bottom", "notice", 10_000, true, 2_000);
+    const hiddenPlayerEvent: LiveTableEvent = { ...gmEvent, id: "message-3", visibleInPlayer: false };
+
+    expect(event).toEqual({
+      id: "message-1",
+      type: "message",
+      text: "The bridge collapses",
+      layout: "table-edges",
+      placement: "top",
+      style: "dramatic",
+      durationMs: 30_000,
+      showInGm: false,
+      visibleInPlayer: true,
+      createdAt: 1_000,
+      expiresAt: 31_000
+    });
+    expect(createTableMessageClearEvent(5_000)).toEqual({ id: "message-clear", type: "message-clear", createdAt: 5_000 });
+    expect(getVisibleTableMessageEvents([event, gmEvent], "gm").map((message) => message.id)).toEqual(["message-2"]);
+    expect(getVisibleTableMessageEvents([event, hiddenPlayerEvent], "player").map((message) => message.id)).toEqual(["message-1"]);
   });
 
   it("uses a forgiving duplicate ruler waypoint distance on gridless scenes", () => {

@@ -20,4 +20,16 @@ describe("smoke test plan", () => {
     expect(script.trim()).toMatch(/^\(async \(\) => \{/);
     expect(script.trim()).toMatch(/\}\)\(\)$/);
   });
+
+  it("can build a side-effect-light script for visual smoke tests", () => {
+    const script = createSmokeTestScript({ includePlayerIdle: false });
+
+    expect(script).not.toContain("window.localVtt.openPlayerView");
+    expect(script).not.toContain("window.localVtt.showPlayerIdle");
+    expect(script).not.toContain("window.localVtt.getLastPlayerState");
+    expect(script).toContain("window.localVtt.getDisplays");
+    expect(script).toContain("hasPreloadBridge");
+    expect(script).toContain("hasCreateCampaign");
+    expect(script).toContain("hasPlayerBridge");
+  });
 });

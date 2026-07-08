@@ -15,6 +15,9 @@ import type {
   DiceSettings,
   LiveTableEvent,
   Scene,
+  TableMessageLayout,
+  TableMessagePlacement,
+  TableMessageStyle,
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { ToolsMenu } from "../components/tools";
@@ -56,6 +59,7 @@ import { useSceneTokenTurnOrderActions } from "../hooks/useSceneTokenTurnOrderAc
 import { useTokenDefaultsActions } from "../hooks/useTokenDefaultsActions";
 import { useTokenImportActions } from "../hooks/useTokenImportActions";
 import { getEffectiveDiceSettings, loadDiceSettingsPreference } from "../lib/dice";
+import { createTableMessageClearEvent, createTableMessageEvent } from "../canvas/live-table";
 import { buildSceneSelectionIds } from "../lib/scene";
 import { getSelectedTokenAssetIds } from "../lib/tokens";
 import { GmDialogs } from "./GmDialogs";
@@ -68,6 +72,7 @@ import { GmTurnOrderDock } from "./GmTurnOrderDock";
 import { GmWorkspaceStatusFooter } from "./GmWorkspaceStatusFooter";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
+type TableMessageDraft = { text: string; durationMs: number; layout: TableMessageLayout; placement: TableMessagePlacement; style: TableMessageStyle; showInGm: boolean };
 
 export function GmApp() {
   const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
@@ -686,6 +691,14 @@ export function GmApp() {
     updateScene(nextScene, getPlayerSyncCampaignForScene(nextCampaign, nextScene.id, (sceneId) => sceneId === playerSceneId));
   };
 
+  const sendTableMessage = (message: TableMessageDraft) => {
+    emitLiveTableEvent(createTableMessageEvent(`message-${Date.now()}`, message.text, message.layout, message.placement, message.style, message.durationMs, message.showInGm));
+  };
+
+  const clearTableMessage = () => {
+    emitLiveTableEvent(createTableMessageClearEvent());
+  };
+
   const openRenameMapVariantDialog = (variantId: string, fallbackName: string) => {
     dialogDrafts.setters.setNewMapVariantName(fallbackName);
     setMapVariantDialog({ variantId });
@@ -863,6 +876,8 @@ export function GmApp() {
           onOpenMapCalibrationAssistant={playerViewMenuActions.openMapCalibrationAssistant}
           onSetPlayerFullscreen={(fullscreen) => void setPlayerFullscreen(fullscreen)}
           onClosePlayerView={closePlayerView}
+          onSendTableMessage={sendTableMessage}
+          onClearTableMessage={clearTableMessage}
           diceSettings={diceSettings}
           diceHistory={diceRollHistory}
           onUpdateDiceSettings={updateDiceSettings}
