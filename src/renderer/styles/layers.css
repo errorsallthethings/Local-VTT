@@ -615,6 +615,11 @@
   padding: 6px;
 }
 
+.map-asset-row-active {
+  border-color: color-mix(in srgb, var(--color-accent) 58%, var(--color-border-muted));
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-bg-panel-deep));
+}
+
 .map-asset-thumbnail {
   display: grid;
   place-items: center;

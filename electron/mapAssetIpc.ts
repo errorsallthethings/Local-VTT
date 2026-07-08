@@ -7,7 +7,7 @@ import { mapMediaType } from "./assetImportValidation.js";
 import { requireCampaignAsset } from "./campaignAssetLookup.js";
 import { addImportedAssetToCampaign, createImportedAsset } from "./importedAssets.js";
 import { assertIpcSafeId } from "./ipcPayloadValidation.js";
-import { removeMapAssetFromCampaign, removeMapAssetFromScene, replaceSceneMapAsset } from "./mapAssetMutations.js";
+import { addMapVariantToScene, removeMapAssetFromCampaign, removeMapAssetFromScene, replaceSceneMapAsset } from "./mapAssetMutations.js";
 import { getMapAssetSceneNames, mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
 import { getMapReplacementPreview } from "./mapReplacementPreview.js";
 import {
@@ -90,6 +90,42 @@ export function registerMapAssetIpc(ipcMain: Pick<IpcMain, "handle">, options: R
     };
   });
 
+  ipcMain.handle("asset:previewMapVariant", async (_event: IpcMainInvokeEvent, campaignPath: string, sceneId: string, currentAssetId: string) => {
+    options.assertKnownCampaignPath(campaignPath);
+    assertIpcSafeId(sceneId, "Scene id");
+    assertIpcSafeId(currentAssetId, "Asset id");
+    const sourcePath = await options.dialogs.chooseMapFile(options.getGmWindow());
+    if (!sourcePath) {
+      return null;
+    }
+
+    await assertAssetImportCandidate(sourcePath, "map");
+
+    const summary = await options.loadCampaignFromPath(campaignPath);
+    const currentAsset = requireCurrentMapAsset(summary.campaign, currentAssetId);
+    const currentScene = await options.readSceneMetadata(campaignPath, sceneId);
+    assertSceneUsesMapAsset(currentScene, currentAssetId);
+
+    const currentAssetPath = requireCampaignRelativePath(campaignPath, currentAsset.relativePath);
+    const nextMediaType = mapMediaType(sourcePath);
+    const dimensions = await getMapReplacementPreview(currentAssetPath, currentAsset.mediaType, sourcePath, nextMediaType);
+    const replacementToken = createMapReplacementToken(options.mapReplacementTokens, {
+      campaignPath,
+      sceneId,
+      currentAssetId,
+      sourcePath
+    });
+
+    return {
+      replacementId: replacementToken.id,
+      sourceName: path.basename(sourcePath),
+      currentAssetName: currentAsset.name,
+      currentDimensions: dimensions.currentDimensions,
+      nextDimensions: dimensions.nextDimensions,
+      warning: dimensions.warning
+    };
+  });
+
   ipcMain.handle("asset:replaceMap", async (event: IpcMainInvokeEvent, campaignPath: string, sceneId: string, currentAssetId: string, replacementId: string) => {
     options.assertKnownCampaignPath(campaignPath);
     assertIpcSafeId(sceneId, "Scene id");
@@ -117,6 +153,30 @@ export function registerMapAssetIpc(ipcMain: Pick<IpcMain, "handle">, options: R
     if (!keepCurrentAsset) {
       await options.removeCampaignAssetFiles(campaignPath, currentAsset);
     }
+    return { campaignSummary: await options.loadCampaignFromPath(campaignPath), scene: updatedScene, asset: imported };
+  });
+
+  ipcMain.handle("asset:addMapVariant", async (event: IpcMainInvokeEvent, campaignPath: string, sceneId: string, currentAssetId: string, replacementId: string) => {
+    options.assertKnownCampaignPath(campaignPath);
+    assertIpcSafeId(sceneId, "Scene id");
+    assertIpcSafeId(currentAssetId, "Asset id");
+    assertIpcSafeId(replacementId, "Map variant id");
+    const sourcePath = consumeMapReplacementToken(options.mapReplacementTokens, replacementId, {
+      campaignPath,
+      sceneId,
+      currentAssetId
+    });
+    await assertAssetImportCandidate(sourcePath, "map");
+
+    const summary = await options.loadCampaignFromPath(campaignPath);
+    requireCurrentMapAsset(summary.campaign, currentAssetId);
+    const currentScene = await options.readSceneMetadata(campaignPath, sceneId);
+    assertSceneUsesMapAsset(currentScene, currentAssetId);
+
+    const imported = await createCopiedMapAsset(campaignPath, sourcePath, event.sender, options);
+    const { campaign, scene: updatedScene } = addMapVariantToScene(summary.campaign, currentScene, imported, path.parse(sourcePath).name, options.getTimestamp());
+    await options.writeScene(campaignPath, updatedScene);
+    await options.writeCampaign(campaignPath, campaign);
     return { campaignSummary: await options.loadCampaignFromPath(campaignPath), scene: updatedScene, asset: imported };
   });
 

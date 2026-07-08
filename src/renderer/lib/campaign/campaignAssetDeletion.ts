@@ -1,4 +1,4 @@
-import type { Scene } from "../../../shared/localvtt";
+import { normalizeScene, type Scene } from "../../../shared/localvtt";
 import { removeSceneTokensByAsset } from "../tokens";
 
 export interface TokenAssetDeleteSceneUpdate {
@@ -25,7 +25,7 @@ export function getMapAssetDeleteSceneUpdate(
     };
   }
 
-  const draftScene = { ...activeScene, mapAssetId: undefined, updatedAt };
+  const draftScene = normalizeScene({ ...activeScene, mapAssetId: savedScene.mapAssetId, mapVariants: savedScene.mapVariants, updatedAt });
   return {
     activeScene: draftScene,
     draftScene,

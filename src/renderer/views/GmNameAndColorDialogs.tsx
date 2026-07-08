@@ -5,6 +5,7 @@ import type {
   FogShapeNameDialog,
   FolderColorDialog,
   FolderNameDialog,
+  MapVariantNameDialog,
   SceneColorDialog,
   SceneNameDialog,
   TokenAssetNameDialog,
@@ -18,11 +19,13 @@ interface GmNameAndColorDialogsProps {
   fogShapeDialog: FogShapeNameDialog | null;
   folderColorDialog: FolderColorDialog | null;
   folderDialog: FolderNameDialog | null;
+  mapVariantDialog: MapVariantNameDialog | null;
   newCampaignName: string;
   newEnvironmentEffectName: string;
   newFogShapeName: string;
   newFolderColor: string;
   newFolderName: string;
+  newMapVariantName: string;
   newSceneName: string;
   newTokenBorderColor: string;
   newTokenName: string;
@@ -36,6 +39,7 @@ interface GmNameAndColorDialogsProps {
   onCancelFogShapeDialog: () => void;
   onCancelFolderColorDialog: () => void;
   onCancelFolderDialog: () => void;
+  onCancelMapVariantDialog: () => void;
   onCancelSceneColorDialog: () => void;
   onCancelSceneDialog: () => void;
   onCancelTokenAssetDialog: () => void;
@@ -46,6 +50,7 @@ interface GmNameAndColorDialogsProps {
   onNewFogShapeNameChange: (value: string) => void;
   onNewFolderColorChange: (value: string) => void;
   onNewFolderNameChange: (value: string) => void;
+  onNewMapVariantNameChange: (value: string) => void;
   onNewSceneNameChange: (value: string) => void;
   onNewTokenBorderColorChange: (value: string) => void;
   onNewTokenNameChange: (value: string) => void;
@@ -54,6 +59,7 @@ interface GmNameAndColorDialogsProps {
   onSubmitFogShapeName: () => void;
   onSubmitFolderColor: () => void;
   onSubmitFolderName: () => void;
+  onSubmitMapVariantName: () => void;
   onSubmitSceneColor: () => void;
   onSubmitSceneName: () => void;
   onSubmitTokenAssetName: () => void;
@@ -68,11 +74,13 @@ export function GmNameAndColorDialogs({
   fogShapeDialog,
   folderColorDialog,
   folderDialog,
+  mapVariantDialog,
   newCampaignName,
   newEnvironmentEffectName,
   newFogShapeName,
   newFolderColor,
   newFolderName,
+  newMapVariantName,
   newSceneName,
   newTokenBorderColor,
   newTokenName,
@@ -86,6 +94,7 @@ export function GmNameAndColorDialogs({
   onCancelFogShapeDialog,
   onCancelFolderColorDialog,
   onCancelFolderDialog,
+  onCancelMapVariantDialog,
   onCancelSceneColorDialog,
   onCancelSceneDialog,
   onCancelTokenAssetDialog,
@@ -96,6 +105,7 @@ export function GmNameAndColorDialogs({
   onNewFogShapeNameChange,
   onNewFolderColorChange,
   onNewFolderNameChange,
+  onNewMapVariantNameChange,
   onNewSceneNameChange,
   onNewTokenBorderColorChange,
   onNewTokenNameChange,
@@ -104,6 +114,7 @@ export function GmNameAndColorDialogs({
   onSubmitFogShapeName,
   onSubmitFolderColor,
   onSubmitFolderName,
+  onSubmitMapVariantName,
   onSubmitSceneColor,
   onSubmitSceneName,
   onSubmitTokenAssetName,
@@ -170,6 +181,18 @@ export function GmNameAndColorDialogs({
           onChange={onNewTokenNameChange}
           onCancel={onCancelTokenDialog}
           onSubmit={onSubmitTokenName}
+        />
+      )}
+
+      {mapVariantDialog && (
+        <NameDialog
+          title="Rename Map Variant"
+          label="Variant name"
+          value={newMapVariantName}
+          submitLabel="Save"
+          onChange={onNewMapVariantNameChange}
+          onCancel={onCancelMapVariantDialog}
+          onSubmit={onSubmitMapVariantName}
         />
       )}
 

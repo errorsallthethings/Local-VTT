@@ -29,6 +29,7 @@ export type FolderColorDialog = { folderId: string; folderName: string };
 export type SceneColorDialog = { kind: "fog" | "grid"; title: string; value: string };
 export type FogShapeNameDialog = { shapeId: string };
 export type EnvironmentEffectNameDialog = { effectId: string };
+export type MapVariantNameDialog = { variantId: string };
 export type TokenNameDialog = { tokenId: string };
 export type TokenColorDialog = { tokenId: string; tokenName: string; value: string; kind: "border" | "glow" };
 export type TokenAssetNameDialog = { assetId: string };
@@ -40,6 +41,7 @@ export function GmDialogs({
   folderDialog,
   fogShapeDialog,
   environmentEffectDialog,
+  mapVariantDialog,
   tokenDialog,
   tokenCropDialog,
   tokenAssetDialog,
@@ -68,6 +70,7 @@ export function GmDialogs({
   newFolderName,
   newFogShapeName,
   newEnvironmentEffectName,
+  newMapVariantName,
   newTokenName,
   newFolderColor,
   newTokenBorderColor,
@@ -76,6 +79,7 @@ export function GmDialogs({
   onNewFolderNameChange,
   onNewFogShapeNameChange,
   onNewEnvironmentEffectNameChange,
+  onNewMapVariantNameChange,
   onNewTokenNameChange,
   onNewFolderColorChange,
   onNewTokenBorderColorChange,
@@ -84,6 +88,7 @@ export function GmDialogs({
   onCancelFolderDialog,
   onCancelFogShapeDialog,
   onCancelEnvironmentEffectDialog,
+  onCancelMapVariantDialog,
   onCancelTokenDialog,
   onCancelTokenCropDialog,
   onCancelTokenAssetDialog,
@@ -105,6 +110,7 @@ export function GmDialogs({
   onSubmitFolderName,
   onSubmitFogShapeName,
   onSubmitEnvironmentEffectName,
+  onSubmitMapVariantName,
   onSubmitTokenName,
   onSubmitTokenCrop,
   onSubmitTokenAssetName,
@@ -142,6 +148,7 @@ export function GmDialogs({
   folderDialog: FolderNameDialog | null;
   fogShapeDialog: FogShapeNameDialog | null;
   environmentEffectDialog: EnvironmentEffectNameDialog | null;
+  mapVariantDialog: MapVariantNameDialog | null;
   tokenDialog: TokenNameDialog | null;
   tokenCropDialog: TokenCropDialogState | null;
   tokenAssetDialog: TokenAssetNameDialog | null;
@@ -170,6 +177,7 @@ export function GmDialogs({
   newFolderName: string;
   newFogShapeName: string;
   newEnvironmentEffectName: string;
+  newMapVariantName: string;
   newTokenName: string;
   newFolderColor: string;
   newTokenBorderColor: string;
@@ -178,6 +186,7 @@ export function GmDialogs({
   onNewFolderNameChange: (value: string) => void;
   onNewFogShapeNameChange: (value: string) => void;
   onNewEnvironmentEffectNameChange: (value: string) => void;
+  onNewMapVariantNameChange: (value: string) => void;
   onNewTokenNameChange: (value: string) => void;
   onNewFolderColorChange: (value: string) => void;
   onNewTokenBorderColorChange: (value: string) => void;
@@ -186,6 +195,7 @@ export function GmDialogs({
   onCancelFolderDialog: () => void;
   onCancelFogShapeDialog: () => void;
   onCancelEnvironmentEffectDialog: () => void;
+  onCancelMapVariantDialog: () => void;
   onCancelTokenDialog: () => void;
   onCancelTokenCropDialog: () => void;
   onCancelTokenAssetDialog: () => void;
@@ -207,6 +217,7 @@ export function GmDialogs({
   onSubmitFolderName: () => void;
   onSubmitFogShapeName: () => void;
   onSubmitEnvironmentEffectName: () => void;
+  onSubmitMapVariantName: () => void;
   onSubmitTokenName: () => void;
   onSubmitTokenCrop: (crop: SquareCropRect) => void;
   onSubmitTokenAssetName: () => void;
@@ -253,11 +264,13 @@ export function GmDialogs({
         fogShapeDialog={fogShapeDialog}
         folderColorDialog={folderColorDialog}
         folderDialog={folderDialog}
+        mapVariantDialog={mapVariantDialog}
         newCampaignName={newCampaignName}
         newEnvironmentEffectName={newEnvironmentEffectName}
         newFogShapeName={newFogShapeName}
         newFolderColor={newFolderColor}
         newFolderName={newFolderName}
+        newMapVariantName={newMapVariantName}
         newSceneName={newSceneName}
         newTokenBorderColor={newTokenBorderColor}
         newTokenName={newTokenName}
@@ -271,6 +284,7 @@ export function GmDialogs({
         onCancelFogShapeDialog={onCancelFogShapeDialog}
         onCancelFolderColorDialog={onCancelFolderColorDialog}
         onCancelFolderDialog={onCancelFolderDialog}
+        onCancelMapVariantDialog={onCancelMapVariantDialog}
         onCancelSceneColorDialog={onCancelSceneColorDialog}
         onCancelSceneDialog={onCancelSceneDialog}
         onCancelTokenAssetDialog={onCancelTokenAssetDialog}
@@ -281,6 +295,7 @@ export function GmDialogs({
         onNewFogShapeNameChange={onNewFogShapeNameChange}
         onNewFolderColorChange={onNewFolderColorChange}
         onNewFolderNameChange={onNewFolderNameChange}
+        onNewMapVariantNameChange={onNewMapVariantNameChange}
         onNewSceneNameChange={onNewSceneNameChange}
         onNewTokenBorderColorChange={onNewTokenBorderColorChange}
         onNewTokenNameChange={onNewTokenNameChange}
@@ -289,6 +304,7 @@ export function GmDialogs({
         onSubmitFogShapeName={onSubmitFogShapeName}
         onSubmitFolderColor={onSubmitFolderColor}
         onSubmitFolderName={onSubmitFolderName}
+        onSubmitMapVariantName={onSubmitMapVariantName}
         onSubmitSceneColor={onSubmitSceneColor}
         onSubmitSceneName={onSubmitSceneName}
         onSubmitTokenAssetName={onSubmitTokenAssetName}
@@ -422,16 +438,29 @@ export function GmDialogs({
       )}
 
       {mapReplacementPreview && (
-        <ConfirmDialog title="Replace Map Asset" confirmLabel="Replace Map" onCancel={onCancelMapReplacement} onConfirm={onConfirmMapReplacement}>
+        <ConfirmDialog
+          title={mapReplacementPreview.mode === "variant" ? "Add Map Variant" : "Replace Map Asset"}
+          confirmLabel={mapReplacementPreview.mode === "variant" ? "Add Variant" : "Replace Map"}
+          onCancel={onCancelMapReplacement}
+          onConfirm={onConfirmMapReplacement}
+        >
           <p>
-            Replace <strong>{mapReplacementPreview.currentAssetName}</strong> with <strong>{mapReplacementPreview.sourceName}</strong>?
+            {mapReplacementPreview.mode === "variant" ? (
+              <>
+                Add <strong>{mapReplacementPreview.sourceName}</strong> as a variant for <strong>{mapReplacementPreview.currentAssetName}</strong>?
+              </>
+            ) : (
+              <>
+                Replace <strong>{mapReplacementPreview.currentAssetName}</strong> with <strong>{mapReplacementPreview.sourceName}</strong>?
+              </>
+            )}
           </p>
           {mapReplacementPreview.currentDimensions && mapReplacementPreview.nextDimensions && (
             <p>
-              Current map: {formatDimensions(mapReplacementPreview.currentDimensions)}. Replacement map: {formatDimensions(mapReplacementPreview.nextDimensions)}.
+              Current map: {formatDimensions(mapReplacementPreview.currentDimensions)}. New map: {formatDimensions(mapReplacementPreview.nextDimensions)}.
             </p>
           )}
-          <p>The scene keeps its current grid, calibration, fog, drawings, tokens, and effects. Review alignment after replacing the map.</p>
+          <p>The scene keeps its current grid, calibration, fog, drawings, tokens, and effects. Review alignment after changing the map artwork.</p>
         </ConfirmDialog>
       )}
 

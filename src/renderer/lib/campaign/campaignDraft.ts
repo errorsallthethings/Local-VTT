@@ -16,7 +16,7 @@ export function mergeCampaignDraft(summaryCampaign: Campaign, draftCampaign: Cam
             ...scene,
             folderId: draftScene.folderId,
             mapAssetId: scene.mapAssetId ?? draftScene.mapAssetId,
-            weather: draftScene.weather ?? scene.weather
+            ...((draftScene.weather ?? scene.weather) ? { weather: draftScene.weather ?? scene.weather } : {})
           }
         : scene;
     }),

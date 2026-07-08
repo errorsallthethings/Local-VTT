@@ -5,6 +5,7 @@ import type {
   FogShapeNameDialog,
   FolderColorDialog,
   FolderNameDialog,
+  MapVariantNameDialog,
   SceneColorDialog,
   SceneNameDialog,
   TokenAssetDeleteDialog,
@@ -30,6 +31,7 @@ export function useGmDialogState() {
   const [folderDialog, setFolderDialog] = useState<FolderNameDialog | null>(null);
   const [fogShapeDialog, setFogShapeDialog] = useState<FogShapeNameDialog | null>(null);
   const [environmentEffectDialog, setEnvironmentEffectDialog] = useState<EnvironmentEffectNameDialog | null>(null);
+  const [mapVariantDialog, setMapVariantDialog] = useState<MapVariantNameDialog | null>(null);
   const [tokenDialog, setTokenDialog] = useState<TokenNameDialog | null>(null);
   const [tokenCropDialog, setTokenCropDialog] = useState<TokenCropDialogState | null>(null);
   const [tokenAssetDialog, setTokenAssetDialog] = useState<TokenAssetNameDialog | null>(null);
@@ -57,6 +59,8 @@ export function useGmDialogState() {
     setFogShapeDialog,
     environmentEffectDialog,
     setEnvironmentEffectDialog,
+    mapVariantDialog,
+    setMapVariantDialog,
     tokenDialog,
     setTokenDialog,
     tokenCropDialog,
@@ -113,6 +117,8 @@ export function useGmDialogEscape({
     setFolderDialog,
     fogShapeDialog,
     setFogShapeDialog,
+    mapVariantDialog,
+    setMapVariantDialog,
     tokenDialog,
     setTokenDialog,
     tokenCropDialog,
@@ -153,6 +159,7 @@ export function useGmDialogEscape({
       !sceneDialog &&
       !folderDialog &&
       !fogShapeDialog &&
+      !mapVariantDialog &&
       !tokenDialog &&
       !tokenCropDialog &&
       !tokenAssetDialog &&
@@ -184,6 +191,7 @@ export function useGmDialogEscape({
       setSceneDialog(null);
       setFolderDialog(null);
       setFogShapeDialog(null);
+      setMapVariantDialog(null);
       setTokenDialog(null);
       onCancelTokenCrop();
       setTokenAssetDialog(null);
@@ -214,6 +222,7 @@ export function useGmDialogEscape({
     folderColorDialog,
     folderDialog,
     fogShapeDialog,
+    mapVariantDialog,
     tokenDialog,
     tokenCropDialog,
     tokenAssetDialog,
@@ -239,6 +248,7 @@ export function useGmDialogEscape({
     setCampaignNameDialogOpen,
     setConfirmClearFogOpen,
     setFogShapeDialog,
+    setMapVariantDialog,
     setFolderColorDialog,
     setFolderDialog,
     setFolderToDelete,

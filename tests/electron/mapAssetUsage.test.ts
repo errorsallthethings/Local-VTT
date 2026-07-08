@@ -20,6 +20,21 @@ describe("map asset usage", () => {
     await expect(mapAssetUsedByOtherScenes(campaign, "map-1", "scene-1", async (sceneId) => requiredScene(scenes, sceneId))).resolves.toBe(true);
   });
 
+  it("detects map usage in another scene variant", async () => {
+    const campaign = createCampaignWithScenes(["scene-1", "scene-2"]);
+    const variantScene = sceneWithMap("scene-2", "map-2");
+    variantScene.mapVariants = [
+      { id: "day", name: "Day", assetId: "map-2", createdAt: "2026-07-02T00:00:00.000Z" },
+      { id: "night", name: "Night", assetId: "map-1", createdAt: "2026-07-02T00:00:00.000Z" }
+    ];
+    const scenes = new Map<string, Scene>([
+      ["scene-1", sceneWithMap("scene-1", "map-1")],
+      ["scene-2", variantScene]
+    ]);
+
+    await expect(mapAssetUsedByOtherScenes(campaign, "map-1", "scene-1", async (sceneId) => requiredScene(scenes, sceneId))).resolves.toBe(true);
+  });
+
   it("returns other scene names that use a map asset", async () => {
     const campaign = createCampaignWithScenes(["scene-1", "scene-2", "scene-3"]);
     const scenes = new Map<string, Scene>([

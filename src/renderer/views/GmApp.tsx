@@ -7,6 +7,8 @@ import {
 } from "react";
 import {
   DEFAULT_VIDEO_PLAYBACK,
+  renameSceneMapVariant,
+  switchSceneMapVariant,
 } from "../../shared/localvtt";
 import type {
   Campaign,
@@ -20,7 +22,7 @@ import { getImageMapAssetPath } from "../lib/map";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
 import { useAvailableDisplays } from "../hooks/useAvailableDisplays";
-import { useCampaignActions } from "../hooks/useCampaignActions";
+import { getPlayerSyncCampaignForScene, useCampaignActions } from "../hooks/useCampaignActions";
 import { useCampaignPlayerActions } from "../hooks/useCampaignPlayerActions";
 import { createCampaignWorkflowActions } from "../hooks/campaignWorkflowActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
@@ -104,6 +106,8 @@ export function GmApp() {
     setFogShapeDialog,
     environmentEffectDialog,
     setEnvironmentEffectDialog,
+    mapVariantDialog,
+    setMapVariantDialog,
     tokenDialog,
     setTokenDialog,
     tokenCropDialog,
@@ -296,6 +300,7 @@ export function GmApp() {
   } = workspaceShellState;
   const {
     activeMapIsVideo,
+    assetsById,
     mapAsset,
     sceneThumbnailAssets,
     tokenAssets,
@@ -606,6 +611,7 @@ export function GmApp() {
     saveCampaign,
     saveCampaignBeforeClose,
     importMap,
+    addMapVariant,
     replaceMap,
     commitMapReplacement,
     regenerateThumbnails,
@@ -666,6 +672,32 @@ export function GmApp() {
     clearSceneSelection,
     onClearFogConfirmed: () => setConfirmClearFogOpen(false)
   });
+
+  const switchMapVariant = (variantId: string) => {
+    if (!activeScene || !campaign) {
+      return;
+    }
+    const nextScene = switchSceneMapVariant(activeScene, variantId);
+    const nextCampaign = {
+      ...campaign,
+      scenes: campaign.scenes.map((entry) => (entry.id === nextScene.id ? { ...entry, mapAssetId: nextScene.mapAssetId } : entry))
+    };
+    updateCampaignDraft(nextCampaign, false);
+    updateScene(nextScene, getPlayerSyncCampaignForScene(nextCampaign, nextScene.id, (sceneId) => sceneId === playerSceneId));
+  };
+
+  const openRenameMapVariantDialog = (variantId: string, fallbackName: string) => {
+    dialogDrafts.setters.setNewMapVariantName(fallbackName);
+    setMapVariantDialog({ variantId });
+  };
+
+  const submitMapVariantName = () => {
+    if (!activeScene || !mapVariantDialog) {
+      return;
+    }
+    updateScene(renameSceneMapVariant(activeScene, mapVariantDialog.variantId, dialogDrafts.values.newMapVariantName));
+    setMapVariantDialog(null);
+  };
 
   const {
     openSceneDialog,
@@ -1086,6 +1118,7 @@ export function GmApp() {
 
       <GmInspector
         activeScene={activeScene}
+        assetsById={assetsById}
         mapAsset={mapAsset}
         tokenAssets={tokenAssets}
         selectedFogShapeId={selectedFogShapeId}
@@ -1110,7 +1143,10 @@ export function GmApp() {
         onApplyMapFitPreset={applyMapFitPreset}
         onMoveLayer={moveLayer}
         onImportMap={importMap}
+        onAddMapVariant={addMapVariant}
         onReplaceMap={replaceMap}
+        onRenameMapVariant={openRenameMapVariantDialog}
+        onSwitchMapVariant={switchMapVariant}
         onImportToken={() => void importToken("scene")}
         onDeleteMap={setMapAssetToDelete}
         onSelectFogShape={(shapeId) => selectSceneItems({ fogShapeIds: shapeId ? [shapeId] : [] })}
@@ -1144,6 +1180,7 @@ export function GmApp() {
         folderDialog={folderDialog}
         fogShapeDialog={fogShapeDialog}
         environmentEffectDialog={environmentEffectDialog}
+        mapVariantDialog={mapVariantDialog}
         tokenDialog={tokenDialog}
         tokenCropDialog={tokenCropDialog}
         tokenAssetDialog={tokenAssetDialog}
@@ -1174,6 +1211,7 @@ export function GmApp() {
         onSubmitFolderName={submitFolderName}
         onSubmitFogShapeName={submitFogShapeName}
         onSubmitEnvironmentEffectName={submitEnvironmentEffectName}
+        onSubmitMapVariantName={submitMapVariantName}
         onSubmitTokenName={submitTokenName}
         onSubmitTokenCrop={(crop) => void submitTokenCrop(crop)}
         onSubmitTokenAssetName={submitTokenAssetName}

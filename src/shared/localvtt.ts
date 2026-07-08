@@ -186,6 +186,13 @@ export interface MapTransform {
   fitMode: "manual" | "contain" | "cover" | "actual-size";
 }
 
+export interface MapVariant {
+  id: string;
+  name: string;
+  assetId: string;
+  createdAt: string;
+}
+
 export interface FogSettings {
   mode: "hidden" | "revealed" | "partial";
   color: string;
@@ -633,6 +640,7 @@ export interface Scene {
   id: string;
   name: string;
   mapAssetId?: string;
+  mapVariants: MapVariant[];
   createdAt: string;
   updatedAt: string;
   grid: GridSettings;
@@ -1384,6 +1392,7 @@ export function createDefaultScene(name: string): Scene {
     schemaVersion: CURRENT_SCENE_SCHEMA_VERSION,
     id: crypto.randomUUID(),
     name,
+    mapVariants: [],
     createdAt: now,
     updatedAt: now,
     grid: { ...DEFAULT_GRID, measurement: { ...DEFAULT_MEASUREMENT } },
@@ -1451,6 +1460,77 @@ export function duplicateScene(
     drawings: duplicated.drawings.map((drawing) => ({ ...drawing, id: createId() })),
     overlays: duplicated.overlays.map((overlay) => ({ ...overlay, id: createId() }))
   };
+}
+
+export function getSceneMapAssetIds(scene: Pick<Scene, "mapAssetId" | "mapVariants">): string[] {
+  const assetIds = new Set<string>();
+  if (scene.mapAssetId) {
+    assetIds.add(scene.mapAssetId);
+  }
+  for (const variant of scene.mapVariants ?? []) {
+    assetIds.add(variant.assetId);
+  }
+  return [...assetIds];
+}
+
+export function sceneUsesMapAsset(scene: Pick<Scene, "mapAssetId" | "mapVariants">, assetId: string): boolean {
+  return getSceneMapAssetIds(scene).includes(assetId);
+}
+
+export function addSceneMapVariant(scene: Scene, variant: MapVariant, timestamp = new Date().toISOString()): Scene {
+  const normalizedScene = normalizeScene(scene);
+  const existing = normalizedScene.mapVariants.find((candidate) => candidate.assetId === variant.assetId);
+  if (existing) {
+    return switchSceneMapVariant(normalizedScene, existing.id, timestamp);
+  }
+  const nextMapAssetId = normalizedScene.mapAssetId ?? variant.assetId;
+  return normalizeScene({
+    ...normalizedScene,
+    mapAssetId: nextMapAssetId,
+    mapVariants: [...normalizedScene.mapVariants, variant],
+    updatedAt: timestamp
+  });
+}
+
+export function renameSceneMapVariant(scene: Scene, variantId: string, name: string, timestamp = new Date().toISOString()): Scene {
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return normalizeScene(scene);
+  }
+  return normalizeScene({
+    ...scene,
+    mapVariants: scene.mapVariants.map((variant) => (variant.id === variantId ? { ...variant, name: trimmedName } : variant)),
+    updatedAt: timestamp
+  });
+}
+
+export function removeSceneMapVariant(scene: Scene, variantId: string, timestamp = new Date().toISOString()): Scene {
+  const normalizedScene = normalizeScene(scene);
+  const removedVariant = normalizedScene.mapVariants.find((variant) => variant.id === variantId);
+  if (!removedVariant) {
+    return normalizedScene;
+  }
+  const nextVariants = normalizedScene.mapVariants.filter((variant) => variant.id !== variantId);
+  const nextActiveVariant = normalizedScene.mapAssetId === removedVariant.assetId ? nextVariants[0] : nextVariants.find((variant) => variant.assetId === normalizedScene.mapAssetId);
+  return normalizeScene({
+    ...normalizedScene,
+    mapAssetId: nextActiveVariant?.assetId,
+    mapVariants: nextVariants,
+    updatedAt: timestamp
+  });
+}
+
+export function switchSceneMapVariant(scene: Scene, variantId: string, timestamp = new Date().toISOString()): Scene {
+  const normalizedScene = normalizeScene(scene);
+  const variant = normalizedScene.mapVariants.find((candidate) => candidate.id === variantId);
+  if (!variant || normalizedScene.mapAssetId === variant.assetId) {
+    return normalizedScene;
+  }
+  return normalizeScene({
+    ...normalizedScene,
+    mapAssetId: variant.assetId,
+    updatedAt: timestamp
+  });
 }
 
 export function assertValidCampaign(value: unknown): asserts value is Campaign {
@@ -1669,6 +1749,56 @@ function normalizeSceneOverlays(overlays?: SceneOverlay[]): SceneOverlay[] {
   }));
 }
 
+function normalizeMapVariants(scene: Scene): MapVariant[] {
+  const variants = Array.isArray(scene.mapVariants) ? scene.mapVariants : [];
+  const usedIds = new Set<string>();
+  const usedAssetIds = new Set<string>();
+  const normalizedVariants = variants
+    .filter((variant) => isRecord(variant) && isNonEmptyString(variant.assetId))
+    .map((variant, index) => {
+      const assetId = String(variant.assetId).trim();
+      if (usedAssetIds.has(assetId)) {
+        return null;
+      }
+      usedAssetIds.add(assetId);
+      const rawId = typeof variant.id === "string" && variant.id.trim() ? variant.id.trim() : assetId || `map-variant-${index + 1}`;
+      const id = getUniqueMapVariantId(rawId, usedIds);
+      usedIds.add(id);
+      const name = typeof variant.name === "string" && variant.name.trim() ? variant.name.trim() : index === 0 ? "Primary Map" : `Map Variant ${index + 1}`;
+      const createdAt =
+        typeof variant.createdAt === "string" && variant.createdAt.trim()
+          ? variant.createdAt
+          : typeof scene.createdAt === "string" && scene.createdAt.trim()
+            ? scene.createdAt
+            : new Date().toISOString();
+      return { id, name, assetId, createdAt };
+    })
+    .filter((variant): variant is MapVariant => Boolean(variant));
+
+  if (scene.mapAssetId && !usedAssetIds.has(scene.mapAssetId)) {
+    normalizedVariants.unshift({
+      id: getUniqueMapVariantId("primary-map", usedIds),
+      name: "Primary Map",
+      assetId: scene.mapAssetId,
+      createdAt: typeof scene.createdAt === "string" && scene.createdAt.trim() ? scene.createdAt : new Date().toISOString()
+    });
+  }
+
+  return normalizedVariants;
+}
+
+function getUniqueMapVariantId(rawId: string, usedIds: Set<string>): string {
+  const baseId = rawId.trim() || "map-variant";
+  if (!usedIds.has(baseId)) {
+    return baseId;
+  }
+  let suffix = 2;
+  while (usedIds.has(`${baseId}-${suffix}`)) {
+    suffix += 1;
+  }
+  return `${baseId}-${suffix}`;
+}
+
 function isUnitNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
@@ -1679,6 +1809,8 @@ function isPoint(value: unknown): value is Point {
 
 export function normalizeScene(scene: Scene): Scene {
   const migratedScene = migrateSceneToCurrent(scene);
+  const mapVariants = normalizeMapVariants(migratedScene);
+  const mapAssetId = migratedScene.mapAssetId ?? mapVariants[0]?.assetId;
   const migratedLayers = (migratedScene.layers ?? []).map(normalizeLayerIdentity);
   const layerById = new Map(migratedLayers.map((layer) => [layer.id, layer]));
   // Default layer names/order are application-owned so old scene files pick up current layer labels safely.
@@ -1693,6 +1825,8 @@ export function normalizeScene(scene: Scene): Scene {
   return {
     ...migratedScene,
     schemaVersion: CURRENT_SCENE_SCHEMA_VERSION,
+    mapAssetId,
+    mapVariants,
     grid: normalizeGridSettings(migratedScene.grid),
     calibration: { ...DEFAULT_CALIBRATION, ...(migratedScene.calibration ?? {}) },
     layers: [...normalizedLayers, ...customLayers],
@@ -2528,6 +2662,7 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
     showPlayerSeatIndicators: options.showPlayerSeatIndicators ?? false,
     scene: {
       ...normalizedScene,
+      mapVariants: normalizedScene.mapVariants.filter((variant) => variant.assetId === normalizedScene.mapAssetId),
       fog: {
         ...normalizedScene.fog,
         shapes: normalizedScene.fog.shapes.filter((shape) => shape.visibleInPlayer ?? shape.visible ?? true)

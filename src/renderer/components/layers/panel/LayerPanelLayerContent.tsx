@@ -17,6 +17,7 @@ import { isEffectsLayerId } from "./layerPanelFormat";
 
 export function LayerPanelLayerContent({
   areSettingsExpanded,
+  assetsById,
   isExpanded,
   layer,
   mapAsset,
@@ -33,6 +34,7 @@ export function LayerPanelLayerContent({
   selectedWeatherMaskIds,
   tokenAssets,
   onApplyMapFitPreset,
+  onAddMapVariant,
   onDeleteMap,
   onEditEnvironmentEffect,
   onImportMap,
@@ -42,11 +44,13 @@ export function LayerPanelLayerContent({
   onOpenTokenColor,
   onRenameEnvironmentEffect,
   onRenameFogShape,
+  onRenameMapVariant,
   onRenameToken,
   onReplaceMap,
   onSelectDrawing,
   onSelectEnvironmentEffect,
   onSelectFogShape,
+  onSwitchMapVariant,
   onSelectToken,
   onSelectWeatherMask,
   onUpdateDrawings,
@@ -59,6 +63,7 @@ export function LayerPanelLayerContent({
   onUpdateWeather
 }: {
   areSettingsExpanded: boolean;
+  assetsById: Map<string, Asset>;
   isExpanded: boolean;
   layer: Layer;
   mapAsset: Asset | null;
@@ -75,6 +80,7 @@ export function LayerPanelLayerContent({
   selectedWeatherMaskIds: string[];
   tokenAssets: Map<string, Asset>;
   onApplyMapFitPreset: (fitMode: Exclude<MapTransform["fitMode"], "manual">, gridPatch?: Partial<GridSettings>) => void;
+  onAddMapVariant: (asset: Asset) => void;
   onDeleteMap: (asset: Asset) => void;
   onEditEnvironmentEffect: (effectId: string) => void;
   onImportMap: () => void;
@@ -84,11 +90,13 @@ export function LayerPanelLayerContent({
   onOpenTokenColor: (tokenId: string, value: string, kind: "border" | "glow") => void;
   onRenameEnvironmentEffect: (effectId: string, fallbackName: string) => void;
   onRenameFogShape: (shapeId: string, fallbackName: string) => void;
+  onRenameMapVariant: (variantId: string, fallbackName: string) => void;
   onRenameToken: (tokenId: string, fallbackName: string) => void;
   onReplaceMap: (asset: Asset) => void;
   onSelectDrawing: (drawingId: string | null) => void;
   onSelectEnvironmentEffect: (effectId: string | null) => void;
   onSelectFogShape: (shapeId: string | null) => void;
+  onSwitchMapVariant: (variantId: string) => void;
   onSelectToken: (tokenId: string | null) => void;
   onSelectWeatherMask: (maskId: string | null) => void;
   onUpdateDrawings: (drawings: Scene["drawings"]) => void;
@@ -165,15 +173,19 @@ export function LayerPanelLayerContent({
       {layer.id === "map" && (
         <MapLayerSection
           scene={scene}
+          assetsById={assetsById}
           mapAsset={mapAsset}
           contentsExpanded={isExpanded}
           settingsExpanded={areSettingsExpanded}
           onUpdateGrid={onUpdateGrid}
           onUpdateMapTransform={onUpdateMapTransform}
           onApplyMapFitPreset={onApplyMapFitPreset}
+          onAddMapVariant={onAddMapVariant}
           onOpenGridColor={onOpenGridColor}
           onImportMap={onImportMap}
+          onRenameMapVariant={onRenameMapVariant}
           onReplaceMap={onReplaceMap}
+          onSwitchMapVariant={onSwitchMapVariant}
           onDeleteMap={onDeleteMap}
         />
       )}
