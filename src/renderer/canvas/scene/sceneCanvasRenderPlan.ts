@@ -26,6 +26,7 @@ export interface SceneCanvasRenderPlan {
   renderCamera: Camera;
   showGrid: boolean;
   weatherMapReady: boolean;
+  weatherMapDimensions: { width: number; height: number } | null;
   weatherMapSource: CanvasImageSource | null;
 }
 
@@ -50,11 +51,17 @@ export function getSceneCanvasRenderPlan({
   const readyVideoSource =
     activeVideo && activeVideo.readyState >= MEDIA_HAVE_METADATA_READY_STATE ? activeVideo : null;
   const weatherMapSource = loadedMap?.ready ? loadedMap.originalSource : readyVideoSource;
+  const weatherMapDimensions = loadedMap?.ready
+    ? { width: loadedMap.sourceWidth, height: loadedMap.sourceHeight }
+    : readyVideoSource
+      ? { width: readyVideoSource.videoWidth, height: readyVideoSource.videoHeight }
+      : null;
 
   return {
     mapDrawSource,
     renderCamera,
     showGrid: Boolean(canShowGrid) && (mode === "gm" ? scene.grid.showOnGm : scene.grid.showOnPlayer),
+    weatherMapDimensions,
     weatherMapReady: !canShowMap || !mapAsset || Boolean(weatherMapSource),
     weatherMapSource
   };
