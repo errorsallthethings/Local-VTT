@@ -17,6 +17,7 @@ function makeValues(): GmDialogDraftValues {
     newFogShapeName: "Fog",
     newFolderColor: "#123456",
     newFolderName: "Folder",
+    newMapVariantName: "Variant",
     newSceneName: "Scene",
     newTokenBorderColor: "#abcdef",
     newTokenName: "Token"
@@ -30,6 +31,7 @@ function makeSetters(): GmDialogDraftSetters {
     setNewFogShapeName: vi.fn(),
     setNewFolderColor: vi.fn(),
     setNewFolderName: vi.fn(),
+    setNewMapVariantName: vi.fn(),
     setNewSceneName: vi.fn(),
     setNewTokenBorderColor: vi.fn(),
     setNewTokenName: vi.fn()
@@ -44,6 +46,7 @@ describe("GM dialog draft state", () => {
       newFogShapeName: "",
       newFolderColor: DEFAULT_SCENE_FOLDER_COLOR,
       newFolderName: "New Folder",
+      newMapVariantName: "",
       newSceneName: "New Battle Map",
       newTokenBorderColor: DEFAULT_TOKEN_BORDER_COLOR,
       newTokenName: ""
@@ -58,6 +61,7 @@ describe("GM dialog draft state", () => {
     expect(props).toMatchObject(values);
     props.onNewSceneNameChange("Next Scene");
     props.onNewFolderNameChange("Next Folder");
+    props.onNewMapVariantNameChange("Next Variant");
     props.onNewFogShapeNameChange("Next Fog");
     props.onNewEnvironmentEffectNameChange("Next Effect");
     props.onNewTokenNameChange("Next Token");
@@ -67,6 +71,7 @@ describe("GM dialog draft state", () => {
 
     expect(setters.setNewSceneName).toHaveBeenCalledWith("Next Scene");
     expect(setters.setNewFolderName).toHaveBeenCalledWith("Next Folder");
+    expect(setters.setNewMapVariantName).toHaveBeenCalledWith("Next Variant");
     expect(setters.setNewFogShapeName).toHaveBeenCalledWith("Next Fog");
     expect(setters.setNewEnvironmentEffectName).toHaveBeenCalledWith("Next Effect");
     expect(setters.setNewTokenName).toHaveBeenCalledWith("Next Token");

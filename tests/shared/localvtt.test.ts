@@ -29,6 +29,8 @@ import {
   normalizeCampaign,
   normalizeScene,
   projectSceneForPlayer,
+  renameSceneMapVariant,
+  switchSceneMapVariant,
   type Asset,
   type Campaign,
   type Scene
@@ -104,6 +106,69 @@ it("normalizeScene fills default settings for older scene files", () => {
   expect(normalized.fog.gmOpacity).toBe(0.5);
   expect(normalized.fog.playerOpacity).toBe(0.8);
   expect(normalized.fog.newShapesVisibleInPlayer).toBe(true);
+});
+
+it("normalizeScene backfills a primary map variant for legacy scenes", () => {
+  const scene = createDefaultScene("Legacy Map");
+  scene.mapAssetId = "map-day";
+  scene.mapVariants = undefined as never;
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.mapVariants).toEqual([
+    {
+      id: "primary-map",
+      name: "Primary Map",
+      assetId: "map-day",
+      createdAt: scene.createdAt
+    }
+  ]);
+});
+
+it("normalizes map variants and preserves the active map asset", () => {
+  const scene = createDefaultScene("Variants");
+  scene.mapAssetId = "map-night";
+  scene.mapVariants = [
+    { id: "floor", name: "Ground Floor", assetId: "map-day", createdAt: now },
+    { id: "floor", name: "", assetId: "map-night", createdAt: "" },
+    { id: "duplicate", name: "Duplicate", assetId: "map-day", createdAt: now }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.mapAssetId).toBe("map-night");
+  expect(normalized.mapVariants).toEqual([
+    { id: "floor", name: "Ground Floor", assetId: "map-day", createdAt: now },
+    { id: "floor-2", name: "Map Variant 2", assetId: "map-night", createdAt: scene.createdAt }
+  ]);
+});
+
+it("switches and renames scene map variants without moving scene content", () => {
+  const scene = normalizeScene({
+    ...createDefaultScene("Variants"),
+    mapAssetId: "map-day",
+    mapVariants: [
+      { id: "day", name: "Day", assetId: "map-day", createdAt: now },
+      { id: "night", name: "Night", assetId: "map-night", createdAt: now }
+    ],
+    tokens: [
+      {
+        id: "token-1",
+        name: "Hero",
+        position: { x: 10, y: 20 },
+        size: { width: 100, height: 100 },
+        hidden: false,
+        visibleInPlayer: true
+      }
+    ]
+  });
+
+  const switched = switchSceneMapVariant(scene, "night", "2026-07-07T00:00:00.000Z");
+  const renamed = renameSceneMapVariant(switched, "night", "Moonlit", "2026-07-07T00:05:00.000Z");
+
+  expect(switched.mapAssetId).toBe("map-night");
+  expect(switched.tokens[0].position).toEqual({ x: 10, y: 20 });
+  expect(renamed.mapVariants.find((variant) => variant.id === "night")?.name).toBe("Moonlit");
 });
 
 it("normalizeScene preserves legacy grid coordinate visibility and normalizes coordinate options", () => {
@@ -1137,6 +1202,23 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   expect(
     projection.assets.map((projectionAsset) => projectionAsset.id).sort(),
   ).toEqual(["map", "overlay", "visible-entry", "visible-player", "visible-seat", "visible-token"]);
+});
+
+it("projectSceneForPlayer includes only the active map variant asset", () => {
+  const campaign = createDefaultCampaign("Map Variants Campaign");
+  campaign.assets = [asset("map-day"), asset("map-night")];
+  const scene = createDefaultScene("Map Variants Scene");
+  scene.mapAssetId = "map-night";
+  scene.mapVariants = [
+    { id: "day", name: "Day", assetId: "map-day", createdAt: now },
+    { id: "night", name: "Night", assetId: "map-night", createdAt: now }
+  ];
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.scene.mapAssetId).toBe("map-night");
+  expect(projection.scene.mapVariants.map((variant) => variant.assetId)).toEqual(["map-night"]);
+  expect(projection.assets.map((projectionAsset) => projectionAsset.id)).toEqual(["map-night"]);
 });
 
 it("projectSceneForPlayer preserves visible current turn order entries", () => {

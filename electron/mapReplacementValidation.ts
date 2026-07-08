@@ -1,4 +1,4 @@
-import type { Asset, Campaign, Scene } from "../src/shared/localvtt.js";
+import { sceneUsesMapAsset, type Asset, type Campaign, type Scene } from "../src/shared/localvtt.js";
 
 export function requireCurrentMapAsset(campaign: Campaign, currentAssetId: string): Asset {
   const currentAsset = campaign.assets.find((candidate) => candidate.id === currentAssetId && candidate.kind === "map");
@@ -9,7 +9,7 @@ export function requireCurrentMapAsset(campaign: Campaign, currentAssetId: strin
 }
 
 export function assertSceneUsesMapAsset(scene: Scene, currentAssetId: string): void {
-  if (scene.mapAssetId !== currentAssetId) {
+  if (!sceneUsesMapAsset(scene, currentAssetId)) {
     throw new Error("The selected scene no longer uses this map asset.");
   }
 }

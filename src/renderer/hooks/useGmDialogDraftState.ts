@@ -10,6 +10,7 @@ export interface GmDialogDraftValues {
   newFogShapeName: string;
   newFolderColor: string;
   newFolderName: string;
+  newMapVariantName: string;
   newSceneName: string;
   newTokenBorderColor: string;
   newTokenName: string;
@@ -21,6 +22,7 @@ export interface GmDialogDraftSetters {
   setNewFogShapeName: (name: string) => void;
   setNewFolderColor: (color: string) => void;
   setNewFolderName: (name: string) => void;
+  setNewMapVariantName: (name: string) => void;
   setNewSceneName: (name: string) => void;
   setNewTokenBorderColor: (color: string) => void;
   setNewTokenName: (name: string) => void;
@@ -32,6 +34,7 @@ export interface GmDialogDraftDialogProps extends GmDialogDraftValues {
   onNewFogShapeNameChange: (name: string) => void;
   onNewFolderColorChange: (color: string) => void;
   onNewFolderNameChange: (name: string) => void;
+  onNewMapVariantNameChange: (name: string) => void;
   onNewSceneNameChange: (name: string) => void;
   onNewTokenBorderColorChange: (color: string) => void;
   onNewTokenNameChange: (name: string) => void;
@@ -44,6 +47,7 @@ export function getInitialGmDialogDraftValues(): GmDialogDraftValues {
     newFogShapeName: "",
     newFolderColor: DEFAULT_SCENE_FOLDER_COLOR,
     newFolderName: "New Folder",
+    newMapVariantName: "",
     newSceneName: "New Battle Map",
     newTokenBorderColor: DEFAULT_TOKEN_BORDER_COLOR,
     newTokenName: ""
@@ -61,6 +65,7 @@ export function getGmDialogDraftDialogProps(
     onNewFogShapeNameChange: setters.setNewFogShapeName,
     onNewFolderColorChange: setters.setNewFolderColor,
     onNewFolderNameChange: setters.setNewFolderName,
+    onNewMapVariantNameChange: setters.setNewMapVariantName,
     onNewSceneNameChange: setters.setNewSceneName,
     onNewTokenBorderColorChange: setters.setNewTokenBorderColor,
     onNewTokenNameChange: setters.setNewTokenName
@@ -74,6 +79,7 @@ export function useGmDialogDraftState() {
   const [newFogShapeName, setNewFogShapeName] = useState(initialValues.newFogShapeName);
   const [newFolderColor, setNewFolderColor] = useState(initialValues.newFolderColor);
   const [newFolderName, setNewFolderName] = useState(initialValues.newFolderName);
+  const [newMapVariantName, setNewMapVariantName] = useState(initialValues.newMapVariantName);
   const [newSceneName, setNewSceneName] = useState(initialValues.newSceneName);
   const [newTokenBorderColor, setNewTokenBorderColor] = useState(initialValues.newTokenBorderColor);
   const [newTokenName, setNewTokenName] = useState(initialValues.newTokenName);
@@ -84,6 +90,7 @@ export function useGmDialogDraftState() {
     newFogShapeName,
     newFolderColor,
     newFolderName,
+    newMapVariantName,
     newSceneName,
     newTokenBorderColor,
     newTokenName
@@ -93,6 +100,7 @@ export function useGmDialogDraftState() {
     newFogShapeName,
     newFolderColor,
     newFolderName,
+    newMapVariantName,
     newSceneName,
     newTokenBorderColor,
     newTokenName
@@ -104,6 +112,7 @@ export function useGmDialogDraftState() {
     setNewFogShapeName,
     setNewFolderColor,
     setNewFolderName,
+    setNewMapVariantName,
     setNewSceneName,
     setNewTokenBorderColor,
     setNewTokenName

@@ -64,6 +64,7 @@ interface UseCampaignActionsOptions {
 export type { CampaignBusyState };
 
 export interface MapReplacementPreview {
+  mode?: "replace" | "variant";
   currentAssetId: string;
   replacementId: string;
   sourceName: string;
@@ -307,7 +308,10 @@ export function useCampaignActions({
       if (!campaignPath || !campaign || !activeScene) {
         return;
       }
-      const result = await window.localVtt.replaceMap(campaignPath, activeScene.id, preview.currentAssetId, preview.replacementId);
+      const result =
+        preview.mode === "variant"
+          ? await window.localVtt.addMapVariant(campaignPath, activeScene.id, preview.currentAssetId, preview.replacementId)
+          : await window.localVtt.replaceMap(campaignPath, activeScene.id, preview.currentAssetId, preview.replacementId);
       applySummary(result.campaignSummary);
       setActiveScene(result.scene);
       setSceneClean(result.scene);
@@ -317,6 +321,29 @@ export function useCampaignActions({
       if (syncCampaign) {
         updatePlayerSceneIfOpenInBackground(window.localVtt, syncCampaign, result.scene, playerViewSyncOptions);
       }
+    });
+
+  const addMapVariant = (asset: Asset) =>
+    run(async () => {
+      if (!campaignPath || !campaign || !activeScene) {
+        return;
+      }
+      if (hasUnsavedChanges) {
+        const saved = await saveCampaign();
+        if (!saved) {
+          return;
+        }
+      }
+      const preview = await window.localVtt.previewMapVariant(campaignPath, activeScene.id, asset.id);
+      if (!preview) {
+        return;
+      }
+      const nextPreview = { ...preview, currentAssetId: asset.id, mode: "variant" as const };
+      if (nextPreview.warning) {
+        onMapReplacementPreview(nextPreview);
+        return;
+      }
+      await commitMapReplacement(nextPreview);
     });
 
   const replaceMap = (asset: Asset) =>
@@ -592,6 +619,7 @@ export function useCampaignActions({
     saveCampaign,
     saveCampaignBeforeClose,
     importMap,
+    addMapVariant,
     replaceMap,
     commitMapReplacement,
     regenerateThumbnails,

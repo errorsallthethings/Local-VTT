@@ -1,53 +1,82 @@
-import { Crown, Grid3X3, Image, Import, RotateCcw, Trash2, User } from "lucide-react";
+import { Check, Crown, Grid3X3, Image, Import, Pencil, Plus, RotateCcw, Trash2, User } from "lucide-react";
 import type { Asset, GridSettings, Scene } from "../../../../shared/localvtt";
 import { getAssetThumbnailPreviewMessage } from "../../../lib/assets";
 import { getGridTypeLabel, formatLayerPanelNumber } from "./layerPanelFormat";
 
 export function MapLayerContent({
   scene,
+  assetsById,
   mapAsset,
   onUpdateGrid,
   onImportMap,
+  onAddMapVariant,
+  onRenameMapVariant,
   onReplaceMap,
+  onSwitchMapVariant,
   onDeleteMap
 }: {
   scene: Scene;
+  assetsById: Map<string, Asset>;
   mapAsset: Asset | null;
   onUpdateGrid: (patch: Partial<GridSettings>) => void;
   onImportMap: () => void;
+  onAddMapVariant: (asset: Asset) => void;
+  onRenameMapVariant: (variantId: string, fallbackName: string) => void;
   onReplaceMap: (asset: Asset) => void;
+  onSwitchMapVariant: (variantId: string) => void;
   onDeleteMap: (asset: Asset) => void;
 }) {
+  const variants = scene.mapVariants
+    .map((variant) => ({ variant, asset: assetsById.get(variant.assetId) ?? null }))
+    .filter((entry) => entry.asset);
+  const displayVariants = variants.length > 0 ? variants : mapAsset ? [{ variant: { id: "primary-map", name: "Primary Map", assetId: mapAsset.id, createdAt: mapAsset.createdAt }, asset: mapAsset }] : [];
+
   return (
     <div className="layer-detail-controls map-layer-controls" onClick={(event) => event.stopPropagation()}>
       <GridSubLayerRow scene={scene} onUpdateGrid={onUpdateGrid} />
       {mapAsset ? (
         <>
           <div className="map-asset-header">
-            <span>Map</span>
-            <small>1</small>
+            <span>Map Variants</span>
+            <small>{displayVariants.length}</small>
           </div>
-          <div className="map-asset-row">
-            <span className="map-asset-thumbnail" title={getAssetThumbnailPreviewMessage(mapAsset) ?? mapAsset.name} aria-hidden="true">
-              {mapAsset.thumbnailAbsolutePath ? (
-                <img src={window.localVtt.toAssetUrl(mapAsset.thumbnailAbsolutePath)} alt="" draggable={false} />
-              ) : (
-                <Image size={14} />
-              )}
-            </span>
-            <div className="map-asset-summary">
-              <span title={mapAsset.name}>{mapAsset.name}</span>
-              <small>{mapAsset.mediaType}</small>
-            </div>
-            <div className="map-asset-actions" aria-label="Map asset actions">
-              <button className="icon-button" aria-label="Replace map asset" title="Replace map asset" onClick={() => onReplaceMap(mapAsset)}>
-                <RotateCcw size={15} aria-hidden="true" />
-              </button>
-              <button className="icon-button danger" aria-label="Delete map asset" title="Delete map asset" onClick={() => onDeleteMap(mapAsset)}>
-                <Trash2 size={15} aria-hidden="true" />
-              </button>
-            </div>
-          </div>
+          {displayVariants.map(({ variant, asset }) => {
+            const resolvedAsset = asset ?? mapAsset;
+            const active = variant.assetId === scene.mapAssetId;
+            return (
+              <div className={active ? "map-asset-row map-asset-row-active" : "map-asset-row"} key={variant.id}>
+                <span className="map-asset-thumbnail" title={getAssetThumbnailPreviewMessage(resolvedAsset) ?? resolvedAsset.name} aria-hidden="true">
+                  {resolvedAsset.thumbnailAbsolutePath ? (
+                    <img src={window.localVtt.toAssetUrl(resolvedAsset.thumbnailAbsolutePath)} alt="" draggable={false} />
+                  ) : (
+                    <Image size={14} />
+                  )}
+                </span>
+                <div className="map-asset-summary">
+                  <span title={variant.name}>{variant.name}</span>
+                  <small>{active ? `Active ${resolvedAsset.mediaType}` : resolvedAsset.mediaType}</small>
+                </div>
+                <div className="map-asset-actions" aria-label={`${variant.name} actions`}>
+                  <button className="icon-button" aria-label={`Switch to ${variant.name}`} title="Set active variant" disabled={active} onClick={() => onSwitchMapVariant(variant.id)}>
+                    <Check size={15} aria-hidden="true" />
+                  </button>
+                  <button className="icon-button" aria-label={`Rename ${variant.name}`} title="Rename variant" onClick={() => onRenameMapVariant(variant.id, variant.name)}>
+                    <Pencil size={15} aria-hidden="true" />
+                  </button>
+                  <button className="icon-button" aria-label={`Replace ${variant.name}`} title="Replace map asset" onClick={() => onReplaceMap(resolvedAsset)}>
+                    <RotateCcw size={15} aria-hidden="true" />
+                  </button>
+                  <button className="icon-button danger" aria-label={`Delete ${variant.name}`} title="Delete map asset" onClick={() => onDeleteMap(resolvedAsset)}>
+                    <Trash2 size={15} aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          <button className="import-map-next-step" onClick={() => onAddMapVariant(mapAsset)}>
+            <Plus size={16} aria-hidden="true" />
+            Add Variant
+          </button>
         </>
       ) : (
         <>
