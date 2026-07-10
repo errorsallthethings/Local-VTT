@@ -99,11 +99,18 @@ export function RulerStatusStrip({ rulerDrag, scene }: { rulerDrag: RulerDrag | 
   );
 }
 
-export function TableToolStatusStrip({ canvasTool }: { canvasTool: "ping" | "laser" }) {
+export function TableToolStatusStrip({ canvasTool }: { canvasTool: "ping" | "laser" | "arrow" }) {
+  const label = canvasTool === "ping" ? "Ping" : canvasTool === "arrow" ? "Arrow Pointer" : "Laser Pointer";
+  const hint =
+    canvasTool === "ping"
+      ? "Click the map to send a ping."
+      : canvasTool === "arrow"
+        ? "Drag on the map to draw a temporary arrow."
+        : "Drag on the map to show a fading pointer trail.";
   return (
     <div className="fog-tool-status" aria-live="polite">
-      <strong>{canvasTool === "ping" ? "Ping" : "Laser Pointer"}</strong>
-      <span>{canvasTool === "ping" ? "Click the map to send a ping." : "Drag on the map to show a fading pointer trail."}</span>
+      <strong>{label}</strong>
+      <span>{hint}</span>
     </div>
   );
 }

@@ -50,6 +50,10 @@ export function filterActiveLiveTableEvents(events: LiveTableEvent[], now = Date
       if (points.length > 0) {
         activeEvents.push({ ...event, points });
       }
+    } else if (event.type === "arrow") {
+      if (event.expiresAt === undefined || now <= event.expiresAt) {
+        activeEvents.push(event);
+      }
     } else if (event.type === "ruler") {
       if (now <= (event.expiresAt ?? event.createdAt + RULER_EVENT_LIFETIME_MS)) {
         activeEvents.push(event);

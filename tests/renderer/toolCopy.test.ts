@@ -13,6 +13,7 @@ import {
   getFogToolHint,
   getFogToolLabel,
   getRulerHelpLines,
+  getTableHelpLines,
   getWeatherMaskStatusHint,
   getWeatherMaskStatusLabel
 } from "../../src/renderer/lib/tools";
@@ -36,6 +37,8 @@ describe("tool copy helpers", () => {
     expect(getFogHelpLines()).toContain(`${FOG_GRID_SNAP_HINT} Escape cancels active drawing.`);
     expect(getRulerHelpLines()).toContain(RULER_GRID_SNAP_HINT);
     expect(getRulerHelpLines()).toContain(RULER_CLEAR_HINT);
+    expect(getTableHelpLines()).toContain("Sonar: click the scene to send a visible ping. Settings can switch between Sonar, Radius, and Attention styles.");
+    expect(getTableHelpLines()).toContain("Arrow Pointer: left-drag to draw a temporary arrow; release to start its fade-out timer.");
   });
 
   it("describes drawing tools", () => {

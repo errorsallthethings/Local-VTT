@@ -10,6 +10,7 @@ import type {
   DrawingDragState,
   DrawingResizeState,
   DrawingRotateState,
+  ArrowPointerDragState,
   LaserDragState,
   SelectionDrag,
   SelectionMode,
@@ -21,6 +22,7 @@ import type { EnvironmentEffectMoveState, WeatherMaskMoveState } from "../input/
 import type { MapCalibrationBox, MapCalibrationDrag } from "../../../canvas/map";
 import type { RulerDrag } from "../../../canvas/measurement";
 import type { EnvironmentEffectTool, MouseBehavior, WeatherMaskTool } from "../../tools";
+import { getArrowPointerStart } from "../input/sceneArrowPointer";
 import { getLaserPointerStart } from "../input/sceneLaserPointer";
 import { getMapCalibrationPointerStart } from "../map/sceneMapCalibrationPointer";
 import { getRulerPointerStart } from "../input/sceneRulerPointer";
@@ -39,7 +41,7 @@ interface SceneCanvasPointerDownOptions {
   camera: Camera;
   canShowDrawings: boolean | undefined;
   canShowTokens: boolean | undefined;
-  canvasTool?: "ruler" | "ping" | "laser" | null;
+  canvasTool?: "ruler" | "ping" | "laser" | "arrow" | null;
   clearEnvironmentPolygonDraft: () => void;
   clearSceneSelectionsExcept: (activeKind: "token" | "drawing" | "fogShape" | "weatherMask" | "environmentEffect" | "empty") => void;
   clearWeatherPolygonDraft: () => void;
@@ -70,6 +72,7 @@ interface SceneCanvasPointerDownOptions {
   getRulerPoint: (event: PointerEvent<HTMLCanvasElement>) => Point;
   getToolPoint: (event: PointerEvent<HTMLCanvasElement>, snapEnabled?: boolean) => Point;
   interactive: boolean;
+  arrowDragRef: MutableRefObject<ArrowPointerDragState | null>;
   laserDragRef: MutableRefObject<LaserDragState | null>;
   mapCalibrationBox: MapCalibrationBox | null;
   mapCalibrationDraftBox: MapCalibrationBox | null;
@@ -206,6 +209,25 @@ export function useSceneCanvasPointerDown(options: SceneCanvasPointerDownOptions
         return;
       }
       options.laserDragRef.current = start.drag;
+      options.onLiveTableEvent?.(start.event);
+      return;
+    }
+    if (pointerDownRoute === "arrow") {
+      const start = getArrowPointerStart({
+        button: event.button,
+        canvasTool: options.canvasTool,
+        eventId: crypto.randomUUID(),
+        hasScene: Boolean(options.scene),
+        mode: options.mode,
+        point: eventToWorldPoint(event, cameraState),
+        pointerId: event.pointerId,
+        settings: options.activeTableTools,
+        visibleInPlayer: options.tableToolsVisibleInPlayer
+      });
+      if (!start) {
+        return;
+      }
+      options.arrowDragRef.current = start.drag;
       options.onLiveTableEvent?.(start.event);
       return;
     }

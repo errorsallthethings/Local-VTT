@@ -16,7 +16,7 @@ import {
 
 interface SceneCanvasToolStatusOverlaysProps {
   activeFogBrushSize: number;
-  canvasTool: "ruler" | "ping" | "laser" | null | undefined;
+  canvasTool: "ruler" | "ping" | "laser" | "arrow" | null | undefined;
   drawingTemplateSize: DrawingTemplateSize;
   drawingTool: DrawingTool | null | undefined;
   environmentEffectTool: EnvironmentEffectTool | null | undefined;
@@ -58,7 +58,7 @@ export function SceneCanvasToolStatusOverlays({
       {fogTool && <FogToolStatusStrip fogTool={fogTool} polygonPointCount={fogPolygonPointCount} brushSize={activeFogBrushSize} />}
       {drawingTool && <DrawingToolStatusStrip drawingTool={drawingTool} drawingTemplateSize={drawingTemplateSize} />}
       {canvasTool === "ruler" && <RulerStatusStrip rulerDrag={rulerDrag} scene={scene} />}
-      {(canvasTool === "ping" || canvasTool === "laser") && <TableToolStatusStrip canvasTool={canvasTool} />}
+      {(canvasTool === "ping" || canvasTool === "laser" || canvasTool === "arrow") && <TableToolStatusStrip canvasTool={canvasTool} />}
       {weatherMaskTool && <WeatherMaskStatusStrip weatherMaskTool={weatherMaskTool} pointCount={weatherPolygonPointCount} />}
       {environmentEffectTool && <EnvironmentEffectStatusStrip environmentEffectTool={environmentEffectTool} effect={environmentEffectType} pointCount={environmentPolygonPointCount} />}
       {tokenDragPreview && <TokenMoveStatusStrip scene={scene} tokenDragPreview={tokenDragPreview} />}
@@ -93,7 +93,7 @@ export function getSceneCanvasToolStatusKeys({
   }
   if (canvasTool === "ruler") {
     keys.push("ruler");
-  } else if (canvasTool === "ping" || canvasTool === "laser") {
+  } else if (canvasTool === "ping" || canvasTool === "laser" || canvasTool === "arrow") {
     keys.push("table");
   }
   if (weatherMaskTool) {

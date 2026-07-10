@@ -1,5 +1,5 @@
 import type { Campaign, LiveTableEvent, Point, Scene, TableMessageLayout, TableMessagePlacement, TableMessageStyle, TableToolSettings, Token } from "../../../shared/localvtt";
-import type { LaserDragState } from "../scene/sceneInteractionTypes";
+import type { ArrowPointerDragState, LaserDragState } from "../scene/sceneInteractionTypes";
 import type { RulerDrag, RulerLabel } from "../measurement/measurement";
 import {
   formatMeasurementDistance,
@@ -159,8 +159,52 @@ export function createPingLiveTableEvent(id: string, point: Point, settings: Tab
     point,
     size: settings.pingSize,
     color: settings.pingColor,
+    pingKind: settings.pingKind,
     visibleInPlayer,
     createdAt: now
+  };
+}
+
+export function createArrowPointerDragStart(
+  pointerId: number,
+  eventId: string,
+  point: Point,
+  now = Date.now()
+): ArrowPointerDragState {
+  return {
+    pointerId,
+    eventId,
+    start: point,
+    end: point,
+    createdAt: now
+  };
+}
+
+export function getUpdatedArrowPointerDrag(drag: ArrowPointerDragState, point: Point): ArrowPointerDragState {
+  return {
+    ...drag,
+    end: point
+  };
+}
+
+export function createArrowPointerLiveTableEvent(
+  drag: ArrowPointerDragState,
+  settings: TableToolSettings,
+  visibleInPlayer: boolean,
+  _now = Date.now(),
+  expiresAt?: number,
+  createdAt = drag.createdAt
+): Extract<LiveTableEvent, { type: "arrow" }> {
+  return {
+    id: drag.eventId,
+    type: "arrow",
+    start: drag.start,
+    end: drag.end,
+    thickness: settings.laserThickness,
+    color: settings.laserColor,
+    visibleInPlayer,
+    createdAt,
+    ...(expiresAt === undefined ? {} : { expiresAt })
   };
 }
 

@@ -3,7 +3,7 @@ import { createRulerDrag, type RulerPointerDrag } from "../../../canvas/live-tab
 
 export interface RulerPointerStartOptions {
   button: number;
-  canvasTool: "ruler" | "ping" | "laser" | null | undefined;
+  canvasTool: "ruler" | "ping" | "laser" | "arrow" | null | undefined;
   hasScene: boolean;
   mode: "gm" | "player";
   point: Point;

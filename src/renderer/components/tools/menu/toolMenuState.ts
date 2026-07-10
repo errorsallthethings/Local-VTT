@@ -3,7 +3,7 @@ import type { FogTool } from "../../../canvas/fog";
 import type { ToolCategory } from "./toolCategoryLabels";
 
 export type FogOperation = "reveal" | "hide";
-export type CanvasTool = "ruler" | "ping" | "laser";
+export type CanvasTool = "ruler" | "ping" | "laser" | "arrow";
 export type WeatherMaskTool = "rectangle" | "circle" | "polygon";
 export type EnvironmentEffectTool = "rectangle" | "circle" | "polygon";
 export type FogToolShape = "brush" | "rectangle" | "circle" | "polygon";

@@ -30,8 +30,8 @@ describe("scene lifecycle reset policy", () => {
   });
 
   it("emits ruler clear only when a ruler drag was active", () => {
-    expect(getCanvasToolResetActions(false)).toEqual(["clear-ruler-drag", "clear-released-ruler", "clear-laser-drag"]);
-    expect(getCanvasToolResetActions(true)).toEqual(["emit-ruler-clear", "clear-ruler-drag", "clear-released-ruler", "clear-laser-drag"]);
+    expect(getCanvasToolResetActions(false)).toEqual(["clear-ruler-drag", "clear-released-ruler", "clear-arrow-drag", "clear-laser-drag"]);
+    expect(getCanvasToolResetActions(true)).toEqual(["emit-ruler-clear", "clear-ruler-drag", "clear-released-ruler", "clear-arrow-drag", "clear-laser-drag"]);
   });
 
   it("resets mode and scene interaction state", () => {

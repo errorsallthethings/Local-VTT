@@ -125,8 +125,9 @@ export function getTemplateHelpLines(): string[] {
 export function getTableHelpLines(): string[] {
   return [
     "Ruler: left-drag to measure distance. Shift adds a waypoint.",
-    "Sonar: click the scene to send a visible ping.",
+    "Sonar: click the scene to send a visible ping. Settings can switch between Sonar, Radius, and Attention styles.",
     "Laser Pointer: left-drag to point or trace attention on the scene.",
+    "Arrow Pointer: left-drag to draw a temporary arrow; release to start its fade-out timer.",
     "The Show/Hide setting controls whether table tool output is shared to Player View."
   ];
 }

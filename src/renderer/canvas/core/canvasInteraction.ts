@@ -10,7 +10,7 @@ export type DrawingResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | 
 export type DrawingTransformHover = DrawingResizeHandle | "rotate" | null;
 
 export interface CanvasInteractionState {
-  canvasTool: "ruler" | "ping" | "laser" | null;
+  canvasTool: "ruler" | "ping" | "laser" | "arrow" | null;
   mouseBehavior: "selector" | "grabber";
   drawingTool: string | null;
   fogTool: string | null;
@@ -23,7 +23,7 @@ export interface CanvasInteractionState {
 }
 
 export interface AuthoringToolState {
-  canvasTool: "ruler" | "ping" | "laser" | null;
+  canvasTool: "ruler" | "ping" | "laser" | "arrow" | null;
   drawingTool: string | null;
   fogTool: string | null;
   weatherMaskTool: "rectangle" | "circle" | "polygon" | null;
@@ -81,6 +81,9 @@ export function getCanvasInteractionClass({
   }
   if (canvasTool === "laser") {
     return "scene-canvas-tool-laser";
+  }
+  if (canvasTool === "arrow") {
+    return "scene-canvas-tool-line";
   }
   if (drawingTool === "freehand") {
     return "scene-canvas-tool-brush";

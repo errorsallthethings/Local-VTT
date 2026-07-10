@@ -8,6 +8,7 @@ export type ScenePointerDownRoute =
   | "map-calibration"
   | "ruler"
   | "laser"
+  | "arrow"
   | "drawing-polygon"
   | "drawing"
   | "fog"
@@ -21,7 +22,7 @@ export type ScenePointerDownRoute =
 export interface ScenePointerDownRoutingOptions {
   authoringToolActive: boolean;
   button: number;
-  canvasTool: "ruler" | "ping" | "laser" | null | undefined;
+  canvasTool: "ruler" | "ping" | "laser" | "arrow" | null | undefined;
   drawingTool: DrawingTool | null | undefined;
   environmentEffectTool: EnvironmentEffectTool | null | undefined;
   hasMapCalibrationTool: boolean;
@@ -51,6 +52,9 @@ export function getScenePointerDownRoute(options: ScenePointerDownRoutingOptions
   }
   if (options.mode === "gm" && options.canvasTool === "laser" && options.hasScene) {
     return "laser";
+  }
+  if (options.mode === "gm" && options.canvasTool === "arrow" && options.hasScene) {
+    return "arrow";
   }
   if (options.mode === "gm" && options.drawingTool === "polygon" && options.hasScene && options.onSceneChangeAvailable) {
     return "drawing-polygon";

@@ -240,6 +240,7 @@ export function GmApp() {
     tableTools,
     setPingSize,
     setPingColor,
+    setPingKind,
     setLaserThickness,
     setLaserColor,
     setRulerLinger,
@@ -933,6 +934,7 @@ export function GmApp() {
               templatePreviewVisibleInPlayer={templatePreviewVisibleInPlayer}
               pingSize={tableTools.pingSize}
               pingColor={tableTools.pingColor}
+              pingKind={tableTools.pingKind}
               laserThickness={tableTools.laserThickness}
               laserColor={tableTools.laserColor}
               rulerLinger={tableTools.rulerLinger}
@@ -1007,6 +1009,7 @@ export function GmApp() {
               onTemplatePreviewVisibleInPlayerChange={setTemplatePreviewVisibleInPlayer}
               onPingSizeChange={setPingSize}
               onPingColorChange={setPingColor}
+              onPingKindChange={setPingKind}
               onLaserThicknessChange={setLaserThickness}
               onLaserColorChange={setLaserColor}
               onRulerLingerChange={setRulerLinger}

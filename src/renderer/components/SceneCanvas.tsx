@@ -48,6 +48,7 @@ import {
   getSceneCanvasReadiness
 } from "../canvas/scene";
 import type {
+  ArrowPointerDragState,
   DrawingDragState,
   DrawingResizeState,
   DrawingRotateState,
@@ -134,7 +135,7 @@ interface SceneCanvasProps {
   mode: "gm" | "player";
   className?: string;
   interactive?: boolean;
-  canvasTool?: "ruler" | "ping" | "laser" | null;
+  canvasTool?: "ruler" | "ping" | "laser" | "arrow" | null;
   mouseBehavior?: MouseBehavior;
   drawingTool?: DrawingTool | null;
   drawingColor?: string;
@@ -318,6 +319,7 @@ export function SceneCanvas({
   const drawingRotateRef = useRef<DrawingRotateState | null>(null);
   const weatherMaskMoveRef = useRef<WeatherMaskMoveState | null>(null);
   const environmentEffectMoveRef = useRef<EnvironmentEffectMoveState | null>(null);
+  const arrowDragRef = useRef<ArrowPointerDragState | null>(null);
   const laserDragRef = useRef<LaserDragState | null>(null);
   const fogDragRef = useRef<FogDrag | null>(null);
   const drawingPreviewRef = useRef<DrawingPreview | null>(null);
@@ -721,6 +723,7 @@ export function SceneCanvas({
     drawingTool,
     environmentEffectTool,
     fogTool,
+    arrowDragRef,
     laserDragRef,
     mode,
     onLiveTableEvent,
@@ -943,6 +946,7 @@ export function SceneCanvas({
     getRulerPoint,
     getToolPoint,
     interactive,
+    arrowDragRef,
     laserDragRef,
     mapCalibrationBox,
     mapCalibrationDraftBox,
@@ -991,6 +995,7 @@ export function SceneCanvas({
     autoFitCameraRef,
     camera,
     cancelTokenDrag,
+    arrowDragRef,
     dragRef,
     drawingDragRef,
     drawingPolygonDraftRef,
@@ -1060,6 +1065,8 @@ export function SceneCanvas({
     clearFogPreview,
     clearWeatherMaskPreview,
     currentEnvironmentEffectTuning,
+    activeTableTools,
+    arrowDragRef,
     dragRef,
     drawingDragPreview,
     drawingDragRef,
@@ -1074,6 +1081,7 @@ export function SceneCanvas({
     laserDragRef,
     mapCalibrationDraftBox,
     mapCalibrationDragRef,
+    onLiveTableEvent,
     onSceneChange,
     rulerDragRef,
     scene,
@@ -1085,6 +1093,7 @@ export function SceneCanvas({
     setMapCalibrationDrag,
     setSelectionDrag,
     setSnapPoint,
+    tableToolsVisibleInPlayer,
     tokenDragPreview,
     tokenDragRef,
     weatherMaskDragRef,

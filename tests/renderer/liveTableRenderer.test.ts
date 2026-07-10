@@ -4,6 +4,8 @@ import type { GridSettings, LiveTableEvent, LiveTablePoint, Scene } from "../../
 import {
   createLaserDragStart,
   createLaserLiveTableEvent,
+  createArrowPointerDragStart,
+  createArrowPointerLiveTableEvent,
   createPingLiveTableEvent,
   createRulerClearEvent,
   createRulerDrag,
@@ -35,15 +37,41 @@ const sceneForMeasurement = {
 
 describe("liveTableRenderer", () => {
   it("creates ping events from table tool settings", () => {
-    expect(createPingLiveTableEvent("ping-1", { x: 10, y: 20 }, { ...DEFAULT_TABLE_TOOLS, pingSize: 2, pingColor: "#abcdef" }, false, 123)).toEqual({
+    expect(createPingLiveTableEvent("ping-1", { x: 10, y: 20 }, { ...DEFAULT_TABLE_TOOLS, pingSize: 2, pingColor: "#abcdef", pingKind: "radius" }, false, 123)).toEqual({
       id: "ping-1",
       type: "ping",
       point: { x: 10, y: 20 },
       size: 2,
       color: "#abcdef",
+      pingKind: "radius",
       visibleInPlayer: false,
       createdAt: 123
     });
+  });
+
+  it("creates arrow pointer drag state and events", () => {
+    const drag = createArrowPointerDragStart(7, "arrow-1", { x: 1, y: 2 }, 500);
+    const moved = { ...drag, end: { x: 100, y: 80 } };
+
+    expect(drag).toEqual({
+      pointerId: 7,
+      eventId: "arrow-1",
+      start: { x: 1, y: 2 },
+      end: { x: 1, y: 2 },
+      createdAt: 500
+    });
+    expect(createArrowPointerLiveTableEvent(moved, { ...DEFAULT_TABLE_TOOLS, laserThickness: 12, laserColor: "#123456" }, true, 700, 1200)).toEqual({
+      id: "arrow-1",
+      type: "arrow",
+      start: { x: 1, y: 2 },
+      end: { x: 100, y: 80 },
+      thickness: 12,
+      color: "#123456",
+      visibleInPlayer: true,
+      createdAt: 500,
+      expiresAt: 1200
+    });
+    expect(createArrowPointerLiveTableEvent(moved, DEFAULT_TABLE_TOOLS, true, 700)).not.toHaveProperty("expiresAt");
   });
 
   it("creates laser drag state and events with a shared id and first point timestamp", () => {
@@ -125,6 +153,22 @@ describe("liveTableRenderer", () => {
 
     expect(hasActiveLiveTableEvents([activePing], now)).toBe(true);
     expect(hasActiveLiveTableEvents([expiredPing], now)).toBe(false);
+  });
+
+  it("keeps arrow pointer events active until their expiry", () => {
+    const now = 10_000;
+    const arrow: LiveTableEvent = {
+      id: "arrow-active",
+      type: "arrow",
+      start: { x: 0, y: 0 },
+      end: { x: 40, y: 20 },
+      createdAt: now - 1_000,
+      expiresAt: now
+    };
+
+    expect(hasActiveLiveTableEvents([arrow], now)).toBe(true);
+    expect(hasActiveLiveTableEvents([{ ...arrow, id: "arrow-drag", expiresAt: undefined }], now + 60_000)).toBe(true);
+    expect(hasActiveLiveTableEvents([{ ...arrow, id: "arrow-expired", expiresAt: now - 1 }], now)).toBe(false);
   });
 
   it("keeps laser events active while any trail point is still visible", () => {
