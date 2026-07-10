@@ -36,6 +36,7 @@ interface SceneLifecycleResetOptions {
   drawingTool: unknown;
   environmentEffectTool: unknown;
   fogTool: unknown;
+  arrowDragRef: MutableRef<unknown | null>;
   laserDragRef: MutableRef<unknown | null>;
   mode: "gm" | "player";
   onLiveTableEvent?: (event: LiveTableEvent) => void;
@@ -71,6 +72,7 @@ export function useSceneLifecycleResets({
   drawingTool,
   environmentEffectTool,
   fogTool,
+  arrowDragRef,
   laserDragRef,
   mode,
   onLiveTableEvent,
@@ -158,6 +160,9 @@ export function useSceneLifecycleResets({
           case "clear-laser-drag":
             laserDragRef.current = null;
             break;
+          case "clear-arrow-drag":
+            arrowDragRef.current = null;
+            break;
           case "emit-ruler-clear":
             onLiveTableEvent?.(createRulerClearEvent());
             break;
@@ -176,6 +181,7 @@ export function useSceneLifecycleResets({
       clearWeatherMaskPreview,
       clearWeatherPolygonDraft,
       dragRef,
+      arrowDragRef,
       laserDragRef,
       onLiveTableEvent,
       releasedRulerTimeoutRef,

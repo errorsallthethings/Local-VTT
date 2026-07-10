@@ -11,7 +11,8 @@ describe("tools menu utility panels", () => {
     expect(TABLE_TOOL_BUTTONS.map((button) => [button.tool, button.label])).toEqual([
       ["ruler", "Ruler"],
       ["ping", "Sonar"],
-      ["laser", "Laser Pointer"]
+      ["laser", "Laser Pointer"],
+      ["arrow", "Arrow Pointer"]
     ]);
   });
 

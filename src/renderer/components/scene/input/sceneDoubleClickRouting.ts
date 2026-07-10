@@ -10,7 +10,7 @@ export type SceneDoubleClickAction =
   | "commit-environment-polygon";
 
 export interface SceneDoubleClickRoutingOptions {
-  canvasTool?: "ruler" | "ping" | "laser" | null;
+  canvasTool?: "ruler" | "ping" | "laser" | "arrow" | null;
   drawingTool?: DrawingTool | null;
   environmentEffectTool?: EnvironmentEffectTool | null;
   fogTool?: FogTool | null;

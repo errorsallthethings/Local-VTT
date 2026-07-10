@@ -1450,6 +1450,9 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isPlayerIdleState({ type: "idle", title: "Waiting" })).toBe(false);
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, size: 1.5, color: "#ffcc00", createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, pingKind: "radius", createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "arrow", type: "arrow", start: { x: 1, y: 2 }, end: { x: 3, y: 4 }, thickness: 12, color: "#ffcc00", visibleInPlayer: true, createdAt: 1, expiresAt: 2501 })).toBe(true);
+  expect(isLiveTableEvent({ id: "arrow-drag", type: "arrow", start: { x: 1, y: 2 }, end: { x: 3, y: 4 }, createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "laser", type: "laser", points: [{ point: { x: 1, y: 2 }, createdAt: 1 }], createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ruler", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ruler-optional", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", secondary: undefined, createdAt: 1 })).toBe(true);
@@ -1519,6 +1522,8 @@ it("runtime validators reject invalid files and accept valid projected state", (
   ).toBe(true);
   expect(isLiveTableEvent({ id: "dice", type: "dice", die: "d30", result: 30, label: "30", seed: 0.5, createdAt: 1 })).toBe(false);
   expect(isLiveTableEvent({ id: "broken", type: "ping", point: { x: 1, y: 2 }, size: Number.NaN, createdAt: 1 })).toBe(false);
+  expect(isLiveTableEvent({ id: "broken", type: "ping", point: { x: 1, y: 2 }, pingKind: "flare", createdAt: 1 })).toBe(false);
+  expect(isLiveTableEvent({ id: "broken", type: "arrow", start: { x: 1, y: 2 }, end: { x: 3 }, createdAt: 1 })).toBe(false);
   expect(isLiveTableEvent({ id: "broken", type: "laser", points: [{ point: { x: 1 }, createdAt: 1 }], createdAt: 1 })).toBe(false);
   expect(isLiveTableEvent({ id: "broken", type: "message", text: "Hello", layout: "screen", placement: "left", style: "notice", durationMs: 5000, createdAt: 1, expiresAt: 5001 })).toBe(false);
   expect(isLiveTableEvent({ id: "broken", type: "message", text: "Hello", layout: "circle", placement: "center", style: "notice", durationMs: 5000, createdAt: 1, expiresAt: 5001 })).toBe(false);
@@ -1528,13 +1533,15 @@ it("runtime validators reject invalid files and accept valid projected state", (
 
 it("normalizeScene normalizes table tool settings", () => {
   expect(normalizeScene({ ...createDefaultScene("Legacy"), tableTools: undefined as never }).tableTools).toEqual(DEFAULT_TABLE_TOOLS);
-  expect(normalizeScene({ ...createDefaultScene("Tools"), tableTools: { pingSize: 9, pingColor: "red", laserThickness: 100, laserColor: "nope" } }).tableTools).toEqual({
+  expect(normalizeScene({ ...createDefaultScene("Tools"), tableTools: { pingSize: 9, pingColor: "red", pingKind: "flare", laserThickness: 100, laserColor: "nope" } as never }).tableTools).toEqual({
     pingSize: 3,
     pingColor: DEFAULT_TABLE_TOOLS.pingColor,
+    pingKind: DEFAULT_TABLE_TOOLS.pingKind,
     laserThickness: 80,
     laserColor: DEFAULT_TABLE_TOOLS.laserColor,
     rulerLinger: DEFAULT_TABLE_TOOLS.rulerLinger
   });
+  expect(normalizeScene({ ...createDefaultScene("Ping Kind"), tableTools: { ...DEFAULT_TABLE_TOOLS, pingKind: "attention" } }).tableTools.pingKind).toBe("attention");
   expect(normalizeScene({ ...createDefaultScene("No Linger"), tableTools: { ...DEFAULT_TABLE_TOOLS, rulerLinger: false } }).tableTools.rulerLinger).toBe(false);
 });
 

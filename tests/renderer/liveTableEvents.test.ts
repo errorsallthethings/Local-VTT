@@ -21,6 +21,9 @@ describe("live table event lifecycle", () => {
           { point: { x: 1, y: 0 }, createdAt: now - LASER_POINT_LIFETIME_MS }
         ]
       },
+      { id: "arrow-drag", type: "arrow", start: { x: 0, y: 0 }, end: { x: 20, y: 0 }, createdAt: now - 60_000 },
+      { id: "arrow-active", type: "arrow", start: { x: 0, y: 0 }, end: { x: 20, y: 0 }, createdAt: now - 1_000, expiresAt: now },
+      { id: "arrow-expired", type: "arrow", start: { x: 0, y: 0 }, end: { x: 20, y: 0 }, createdAt: now - 2_000, expiresAt: now - 1 },
       { id: "ruler-active", type: "ruler", points: [], primary: "5 ft", createdAt: now - RULER_EVENT_LIFETIME_MS },
       { id: "ruler-expired", type: "ruler", points: [], primary: "5 ft", createdAt: now - RULER_EVENT_LIFETIME_MS - 1 },
       { id: "message-active", type: "message", text: "Incoming", layout: "screen", placement: "center", style: "notice", durationMs: 5_000, createdAt: now - 5_000, expiresAt: now },
@@ -32,7 +35,9 @@ describe("live table event lifecycle", () => {
       events[2],
       { ...events[4], points: [{ point: { x: 1, y: 0 }, createdAt: now - LASER_POINT_LIFETIME_MS }] },
       events[5],
-      events[7]
+      events[6],
+      events[8],
+      events[10]
     ]);
   });
 

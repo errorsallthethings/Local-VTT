@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { DrawingTool } from "../../../canvas/drawings";
-import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType } from "../../../../shared/localvtt";
+import type { DrawingStrokeStyle, DrawingTemplateEffect, EnvironmentEffectType, PingKind } from "../../../../shared/localvtt";
 import type { FogTool } from "../../../canvas/fog";
 import type { DrawingTemplateSize, DrawingTemplateWidth } from "../settings/DrawingToolSettings";
 import type { SelectorSelectionCounts, SelectorSelectionFilters } from "../settings/SelectorToolControls";
@@ -87,6 +87,7 @@ interface ToolsMenuProps {
   templatePreviewVisibleInPlayer: boolean;
   pingSize: number;
   pingColor: string;
+  pingKind: PingKind;
   laserThickness: number;
   laserColor: string;
   rulerLinger: boolean;
@@ -158,6 +159,7 @@ interface ToolsMenuProps {
   onTemplatePreviewVisibleInPlayerChange: (visible: boolean) => void;
   onPingSizeChange: (pingSize: number) => void;
   onPingColorChange: (pingColor: string) => void;
+  onPingKindChange: (pingKind: PingKind) => void;
   onLaserThicknessChange: (laserThickness: number) => void;
   onLaserColorChange: (laserColor: string) => void;
   onRulerLingerChange: (linger: boolean) => void;
@@ -218,6 +220,7 @@ export function ToolsMenu(props: ToolsMenuProps) {
   templatePreviewVisibleInPlayer,
   pingSize,
   pingColor,
+  pingKind,
   laserThickness,
   laserColor,
   rulerLinger,
@@ -271,6 +274,7 @@ export function ToolsMenu(props: ToolsMenuProps) {
   onTemplatePreviewVisibleInPlayerChange,
   onPingSizeChange,
   onPingColorChange,
+  onPingKindChange,
   onLaserThicknessChange,
   onLaserColorChange,
   onRulerLingerChange,
@@ -585,6 +589,7 @@ export function ToolsMenu(props: ToolsMenuProps) {
     rulerLinger,
     pingSize,
     pingColor,
+    pingKind,
     laserThickness,
     laserColor,
     pingSizeCustomOpen,
@@ -598,6 +603,7 @@ export function ToolsMenu(props: ToolsMenuProps) {
     onRulerLingerChange,
     onPingSizeChange,
     onPingColorChange,
+    onPingKindChange,
     onLaserThicknessChange,
     onLaserColorChange,
     onPingSizeCustomOpenChange: setPingSizeCustomOpen,

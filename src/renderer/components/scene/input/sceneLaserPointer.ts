@@ -4,7 +4,7 @@ import type { LaserDragState } from "../../../canvas/scene";
 
 export interface LaserPointerStartOptions {
   button: number;
-  canvasTool: "ruler" | "ping" | "laser" | null | undefined;
+  canvasTool: "ruler" | "ping" | "laser" | "arrow" | null | undefined;
   eventId: string;
   hasScene: boolean;
   mode: "gm" | "player";

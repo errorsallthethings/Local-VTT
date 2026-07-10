@@ -526,9 +526,12 @@ export interface VideoPlaybackSettings {
   muted: boolean;
 }
 
+export type PingKind = "sonar" | "radius" | "attention";
+
 export interface TableToolSettings {
   pingSize: number;
   pingColor: string;
+  pingKind: PingKind;
   laserThickness: number;
   laserColor: string;
   rulerLinger: boolean;
@@ -887,8 +890,20 @@ export type LiveTableEvent =
       point: Point;
       size?: number;
       color?: string;
+      pingKind?: PingKind;
       visibleInPlayer?: boolean;
       createdAt: number;
+    }
+  | {
+      id: string;
+      type: "arrow";
+      start: Point;
+      end: Point;
+      thickness?: number;
+      color?: string;
+      visibleInPlayer?: boolean;
+      createdAt: number;
+      expiresAt?: number;
     }
   | {
       id: string;
@@ -1054,6 +1069,7 @@ export const DEFAULT_VIDEO_PLAYBACK: VideoPlaybackSettings = {
 export const DEFAULT_TABLE_TOOLS: TableToolSettings = {
   pingSize: 1,
   pingColor: "#ffd84d",
+  pingKind: "sonar",
   laserThickness: 20,
   laserColor: "#ff525e",
   rulerLinger: false
@@ -1643,7 +1659,18 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
       isPoint(value.point) &&
       isOptionalFiniteNumber(value.size) &&
       isOptionalString(value.color) &&
+      (value.pingKind === undefined || isPingKind(value.pingKind)) &&
       isOptionalBoolean(value.visibleInPlayer)
+    );
+  }
+  if (value.type === "arrow") {
+    return (
+      isPoint(value.start) &&
+      isPoint(value.end) &&
+      isOptionalFiniteNumber(value.thickness) &&
+      isOptionalString(value.color) &&
+      isOptionalBoolean(value.visibleInPlayer) &&
+      isOptionalFiniteNumber(value.expiresAt)
     );
   }
   if (value.type === "laser") {
@@ -1805,10 +1832,15 @@ function normalizeTableTools(settings?: Partial<TableToolSettings>): TableToolSe
     ...(settings ?? {}),
     pingSize: clampNumber(settings?.pingSize, 0.5, 3, DEFAULT_TABLE_TOOLS.pingSize),
     pingColor: normalizeColor(settings?.pingColor, DEFAULT_TABLE_TOOLS.pingColor),
+    pingKind: isPingKind(settings?.pingKind) ? settings.pingKind : DEFAULT_TABLE_TOOLS.pingKind,
     laserThickness: clampNumber(settings?.laserThickness, 4, 80, DEFAULT_TABLE_TOOLS.laserThickness),
     laserColor: normalizeColor(settings?.laserColor, DEFAULT_TABLE_TOOLS.laserColor),
     rulerLinger: typeof settings?.rulerLinger === "boolean" ? settings.rulerLinger : DEFAULT_TABLE_TOOLS.rulerLinger
   };
+}
+
+function isPingKind(value: unknown): value is PingKind {
+  return value === "sonar" || value === "radius" || value === "attention";
 }
 
 function normalizeLayerIdentity(layer: Layer): Layer {

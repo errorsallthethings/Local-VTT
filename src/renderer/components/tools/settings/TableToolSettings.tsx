@@ -1,7 +1,8 @@
 import { ColorInput } from "../../controls/ColorPickerField";
 import { getPresetSelectValue, hasPresetValue } from "./toolPresetOptions";
+import type { PingKind } from "../../../../shared/localvtt";
 
-type CanvasTool = "ruler" | "ping" | "laser";
+type CanvasTool = "ruler" | "ping" | "laser" | "arrow";
 
 const PING_SIZE_PRESETS = [
   { label: "Extra Small", value: 0.65 },
@@ -10,6 +11,12 @@ const PING_SIZE_PRESETS = [
   { label: "Large", value: 1.5 },
   { label: "Extra Large", value: 2.25 }
 ];
+
+const PING_KIND_OPTIONS = [
+  { label: "Sonar", value: "sonar" },
+  { label: "Radius", value: "radius" },
+  { label: "Attention", value: "attention" }
+] as const satisfies Array<{ label: string; value: PingKind }>;
 
 const LASER_THICKNESS_PRESETS = [
   { label: "Extra Thin", value: 8 },
@@ -23,12 +30,14 @@ export function TableToolSettings({
   activeCanvasTool,
   pingSize,
   pingColor,
+  pingKind,
   laserThickness,
   laserColor,
   pingSizeCustomOpen,
   laserThicknessCustomOpen,
   onPingSizeChange,
   onPingColorChange,
+  onPingKindChange,
   onLaserThicknessChange,
   onLaserColorChange,
   onPingSizeCustomOpenChange,
@@ -37,12 +46,14 @@ export function TableToolSettings({
   activeCanvasTool: CanvasTool | null;
   pingSize: number;
   pingColor: string;
+  pingKind: PingKind;
   laserThickness: number;
   laserColor: string;
   pingSizeCustomOpen: boolean;
   laserThicknessCustomOpen: boolean;
   onPingSizeChange: (pingSize: number) => void;
   onPingColorChange: (color: string) => void;
+  onPingKindChange: (kind: PingKind) => void;
   onLaserThicknessChange: (thickness: number) => void;
   onLaserColorChange: (color: string) => void;
   onPingSizeCustomOpenChange: (open: boolean) => void;
@@ -56,6 +67,16 @@ export function TableToolSettings({
             <span>Color</span>
             <ColorInput className="tools-ping-color" value={pingColor} aria-label="Ping color" title="Ping color" onChange={onPingColorChange} />
           </label>
+          <div className="tools-strip-select-field">
+            <strong>Type</strong>
+            <div>
+              <select aria-label="Ping type" title="Ping type" value={pingKind} onChange={(event) => onPingKindChange(event.target.value as PingKind)}>
+                {PING_KIND_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
           <div className="tools-strip-select-field">
             <strong>Size</strong>
             <div>
@@ -90,20 +111,21 @@ export function TableToolSettings({
     );
   }
 
-  if (activeCanvasTool === "laser") {
+  if (activeCanvasTool === "laser" || activeCanvasTool === "arrow") {
+    const toolLabel = activeCanvasTool === "arrow" ? "Arrow" : "Laser";
     return (
       <div className="tools-section-tools">
         <div className="tools-ping-settings-panel">
           <label className="tools-strip-field tools-strip-color-field">
             <span>Color</span>
-            <ColorInput className="tools-ping-color" value={laserColor} aria-label="Laser color" title="Laser color" onChange={onLaserColorChange} />
+            <ColorInput className="tools-ping-color" value={laserColor} aria-label={`${toolLabel} color`} title={`${toolLabel} color`} onChange={onLaserColorChange} />
           </label>
           <div className="tools-strip-select-field">
             <strong>Thickness</strong>
             <div>
               <select
-                aria-label="Laser thickness"
-                title="Laser thickness"
+                aria-label={`${toolLabel} thickness`}
+                title={`${toolLabel} thickness`}
                 value={getPresetSelectValue(LASER_THICKNESS_PRESETS, laserThickness, laserThicknessCustomOpen)}
                 onChange={(event) => {
                   if (event.target.value === "custom") {
@@ -123,7 +145,7 @@ export function TableToolSettings({
           </div>
           {(laserThicknessCustomOpen || !hasPresetValue(LASER_THICKNESS_PRESETS, laserThickness)) && (
             <div className="tools-strip-advanced-slider tools-table-slider">
-              <input aria-label="Fine tune laser thickness" title="Fine tune laser thickness" type="range" min={4} max={80} step={2} value={laserThickness} onChange={(event) => onLaserThicknessChange(Number(event.target.value))} />
+              <input aria-label={`Fine tune ${toolLabel.toLowerCase()} thickness`} title={`Fine tune ${toolLabel.toLowerCase()} thickness`} type="range" min={4} max={80} step={2} value={laserThickness} onChange={(event) => onLaserThicknessChange(Number(event.target.value))} />
               <span>{laserThickness}px</span>
             </div>
           )}

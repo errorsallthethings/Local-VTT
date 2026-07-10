@@ -1,5 +1,5 @@
 import { useCallback, type Dispatch, type MutableRefObject, type PointerEvent, type SetStateAction } from "react";
-import type { EnvironmentEffectMask, Point, Scene } from "../../../../shared/localvtt";
+import type { EnvironmentEffectMask, LiveTableEvent, Point, Scene, TableToolSettings } from "../../../../shared/localvtt";
 import type { DrawingPointOverrides, DrawingPreview } from "../../../canvas/drawings";
 import type { EnvironmentEffectDrag } from "../../../canvas/effects";
 import type { FogDrag } from "../../../canvas/fog";
@@ -7,6 +7,7 @@ import type { MapCalibrationBox, MapCalibrationDrag } from "../../../canvas/map"
 import type { RulerDrag } from "../../../canvas/measurement";
 import type { CameraPanDrag } from "../../../canvas/core";
 import type {
+  ArrowPointerDragState,
   DrawingDragState,
   DrawingResizeState,
   DrawingRotateState,
@@ -40,6 +41,8 @@ import {
 } from "../input/scenePointerCompleteScenes";
 import { getScenePointerUpRoute } from "../input/scenePointerUpRouting";
 import { shouldEndLaserPointer } from "../input/sceneLaserPointer";
+import { shouldEndArrowPointer } from "../input/sceneArrowPointer";
+import { createArrowPointerLiveTableEvent } from "../../../canvas/live-table";
 
 interface SceneCanvasPointerUpOptions {
   cancelEnvironmentEffectMove: () => void;
@@ -50,6 +53,8 @@ interface SceneCanvasPointerUpOptions {
   clearFogPreview: () => void;
   clearWeatherMaskPreview: () => void;
   currentEnvironmentEffectTuning: Partial<EnvironmentEffectMask>;
+  activeTableTools: TableToolSettings;
+  arrowDragRef: MutableRefObject<ArrowPointerDragState | null>;
   dragRef: MutableRefObject<(CameraPanDrag & { pointerId: number }) | null>;
   drawingDragPreview: DrawingPointOverrides | null;
   drawingDragRef: MutableRefObject<DrawingDragState | null>;
@@ -64,6 +69,7 @@ interface SceneCanvasPointerUpOptions {
   laserDragRef: MutableRefObject<LaserDragState | null>;
   mapCalibrationDraftBox: MapCalibrationBox | null;
   mapCalibrationDragRef: MutableRefObject<MapCalibrationDrag | null>;
+  onLiveTableEvent?: (event: LiveTableEvent) => void;
   onSceneChange?: (scene: Scene, syncScene?: Scene) => void;
   rulerDragRef: MutableRefObject<(RulerDrag & { pointerId: number }) | null>;
   scene: Scene | null;
@@ -75,6 +81,7 @@ interface SceneCanvasPointerUpOptions {
   setMapCalibrationDrag: Dispatch<SetStateAction<MapCalibrationDrag | null>>;
   setSelectionDrag: Dispatch<SetStateAction<SelectionDrag | null>>;
   setSnapPoint: Dispatch<SetStateAction<Point | null>>;
+  tableToolsVisibleInPlayer: boolean;
   tokenDragPreview: TokenDragPreview | null;
   tokenDragRef: MutableRefObject<TokenDragState | null>;
   weatherMaskDragRef: MutableRefObject<WeatherMaskDrag | null>;
@@ -98,6 +105,7 @@ export function useSceneCanvasPointerUp(options: SceneCanvasPointerUpOptions) {
       drawingRotateDrag: options.drawingRotateRef.current,
       weatherMaskMove: options.weatherMaskMoveRef.current,
       environmentEffectMove: options.environmentEffectMoveRef.current,
+      arrowDrag: options.arrowDragRef.current,
       laserDrag: options.laserDragRef.current
     });
 
@@ -251,6 +259,14 @@ export function useSceneCanvasPointerUp(options: SceneCanvasPointerUpOptions) {
 
     if (pointerUpRoute === "laser" && shouldEndLaserPointer(options.laserDragRef.current, event.pointerId)) {
       options.laserDragRef.current = null;
+      return;
+    }
+
+    if (pointerUpRoute === "arrow" && shouldEndArrowPointer(options.arrowDragRef.current, event.pointerId)) {
+      const completedArrow = options.arrowDragRef.current;
+      const now = Date.now();
+      options.arrowDragRef.current = null;
+      options.onLiveTableEvent?.(createArrowPointerLiveTableEvent(completedArrow, options.activeTableTools, options.tableToolsVisibleInPlayer, now, now + 2500, now));
       return;
     }
 
