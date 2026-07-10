@@ -62,6 +62,7 @@ export function normalizeDiceSettingsPreference(settings?: Partial<DiceSettings>
     sceneRollTarget: settings?.sceneRollTarget === "gm" || settings?.sceneRollTarget === "player" ? settings.sceneRollTarget : DEFAULT_DICE_SETTINGS.sceneRollTarget,
     gmSceneSize: isDiceSceneSizePreference(settings?.gmSceneSize) ? settings.gmSceneSize : DEFAULT_DICE_SETTINGS.gmSceneSize,
     playerSceneSize: isDiceSceneSizePreference(settings?.playerSceneSize) ? settings.playerSceneSize : DEFAULT_DICE_SETTINGS.playerSceneSize,
+    sceneThrowDirection: isDiceSceneThrowDirectionPreference(settings?.sceneThrowDirection) ? settings.sceneThrowDirection : DEFAULT_DICE_SETTINGS.sceneThrowDirection,
     gmPanelEdge: isDicePanelEdgePreference(settings?.gmPanelEdge) ? settings.gmPanelEdge : DEFAULT_DICE_SETTINGS.gmPanelEdge,
     playerPanelEdge: isDicePanelEdgePreference(settings?.playerPanelEdge) ? settings.playerPanelEdge : DEFAULT_DICE_SETTINGS.playerPanelEdge,
     gmPanelFacing: settings?.gmPanelFacing === "inward" || settings?.gmPanelFacing === "outward" ? settings.gmPanelFacing : DEFAULT_DICE_SETTINGS.gmPanelFacing,
@@ -69,7 +70,13 @@ export function normalizeDiceSettingsPreference(settings?: Partial<DiceSettings>
     gmPanelPosition: clampUnitPreference(settings?.gmPanelPosition, DEFAULT_DICE_SETTINGS.gmPanelPosition),
     playerPanelPosition: clampUnitPreference(settings?.playerPanelPosition, DEFAULT_DICE_SETTINGS.playerPanelPosition),
     gmPanelAdvanced: typeof settings?.gmPanelAdvanced === "boolean" ? settings.gmPanelAdvanced : DEFAULT_DICE_SETTINGS.gmPanelAdvanced,
-    playerPanelAdvanced: typeof settings?.playerPanelAdvanced === "boolean" ? settings.playerPanelAdvanced : DEFAULT_DICE_SETTINGS.playerPanelAdvanced
+    playerPanelAdvanced: typeof settings?.playerPanelAdvanced === "boolean" ? settings.playerPanelAdvanced : DEFAULT_DICE_SETTINGS.playerPanelAdvanced,
+    impactVolume: clampUnitPreference(settings?.impactVolume, DEFAULT_DICE_SETTINGS.impactVolume),
+    impactBody: clampUnitPreference(settings?.impactBody, DEFAULT_DICE_SETTINGS.impactBody),
+    impactClick: clampUnitPreference(settings?.impactClick, DEFAULT_DICE_SETTINGS.impactClick),
+    impactBrightness: clampUnitPreference(settings?.impactBrightness, DEFAULT_DICE_SETTINGS.impactBrightness),
+    impactDecay: clampUnitPreference(settings?.impactDecay, DEFAULT_DICE_SETTINGS.impactDecay),
+    impactPitch: clampUnitPreference(settings?.impactPitch, DEFAULT_DICE_SETTINGS.impactPitch)
   };
 }
 
@@ -79,6 +86,10 @@ function isDiceDisplayModePreference(value: unknown): value is DiceSettings["gmD
 
 function isDiceSceneSizePreference(value: unknown): value is DiceSettings["gmSceneSize"] {
   return value === "xs" || value === "sm" || value === "md" || value === "lg" || value === "xl";
+}
+
+function isDiceSceneThrowDirectionPreference(value: unknown): value is DiceSettings["sceneThrowDirection"] {
+  return value === "random" || value === "left" || value === "top" || value === "right" || value === "bottom";
 }
 
 function isDicePanelEdgePreference(value: unknown): value is DiceSettings["gmPanelEdge"] {

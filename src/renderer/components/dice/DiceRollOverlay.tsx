@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import RAPIER from "@dimforge/rapier3d-compat";
 import * as THREE from "three";
-import type { DiceDisplayMode, LiveTableEvent } from "../../../shared/localvtt";
+import { DEFAULT_DICE_SETTINGS, type DiceDisplayMode, type LiveTableEvent } from "../../../shared/localvtt";
 import {
   DICE_SCENE_MAX_ROLL_MS,
   DICE_SCENE_MIN_ROLL_MS,
@@ -14,8 +14,11 @@ import {
   getDicePanelPlacement,
   getDicePoolLayout,
   getDiceRevealDelay,
+  getDiceSceneThrowDirection,
   getDiceSceneSize,
   getDiceSettleDuration,
+  getSceneDiceImpact,
+  disposeDiceImpactAudioPlayer,
   getDieColor,
   getDieFaceTextColor,
   getDieFaceLabelPlacements,
@@ -52,10 +55,15 @@ import {
   shouldNudgeCoinOffEdge,
   getVisualDice,
   getVisualResultFaceLabel,
+  createDiceImpactAudioPlayer,
+  playDiceImpactSound,
   shouldUnderlineResultLabel,
+  type DiceImpactAudioPlayer,
+  type DiceImpactSoundOptions,
   type DicePanelPlacement,
   type FaceLabelPlacement,
   type SceneRollBounds,
+  type Vector3Like,
   type DiceVisualRoll,
   type ResolvedDiceResult
 } from "../../lib/dice";
@@ -196,14 +204,17 @@ function DiceRollCard({ event, mode, onDiceRollResolved }: { event: DiceRollEven
     const layout = getDicePoolLayout(visuals.length, sceneRoll ? "scene" : "panel", getDiceSceneSize(event, mode));
     const visibleBounds = getVisibleWorldBounds(mount, camera);
     const sceneBounds = sceneRoll ? getSceneRollBounds(visibleBounds) : null;
+    const sceneThrowDirection = getDiceSceneThrowDirection(event);
     let physicsWorld: RAPIER.World | null = null;
     let physicsReady = !sceneRoll;
     let physicsAccumulator = 0;
     let resolvedPhysics = false;
     let disposed = false;
+    const impactAudioPlayer = sceneRoll ? createDiceImpactAudioPlayer() : null;
+    const impactSound = getDiceImpactSoundOptions(event);
     const dice = visuals.map((visual, index) => {
       const die = createDieMesh(visual);
-      const landing = sceneRoll ? getSceneDiceLanding(index, layout, visual, visibleBounds) : getPanelDiceLanding(index, layout);
+      const landing = sceneRoll ? getSceneDiceLanding(index, layout, visual, visibleBounds, sceneThrowDirection) : getPanelDiceLanding(index, layout);
       die.position.set(landing.startX, landing.startY, 0);
       die.scale.setScalar(layout.scale);
       die.rotation.set(seedRange(visual.seed, 0, Math.PI), seedRange(visual.seed, 1, Math.PI), seedRange(visual.seed, 2, Math.PI));
@@ -219,6 +230,7 @@ function DiceRollCard({ event, mode, onDiceRollResolved }: { event: DiceRollEven
         y: landing.startY,
         vx: sceneRoll ? getSceneThrowVelocity(landing.startX, landing.baseX, visual.seed, index, visual) : 0,
         vy: sceneRoll ? getSceneThrowVelocity(landing.startY, landing.baseY, visual.seed, index + 8, visual) : 0,
+        previousVelocity: { x: 0, y: 0, z: 0 },
         radius: layout.scale * 0.94,
         body: null as RAPIER.RigidBody | null,
         baseScale: die.scale.x,
@@ -228,6 +240,7 @@ function DiceRollCard({ event, mode, onDiceRollResolved }: { event: DiceRollEven
         stableStartedAt: 0,
         coinEdgeNudgeCount: 0,
         coinEdgeLastNudgedAt: 0,
+        lastImpactAt: 0,
         highlight: null as THREE.Object3D | null,
         highlightStartedAt: 0
       };
@@ -263,8 +276,12 @@ function DiceRollCard({ event, mode, onDiceRollResolved }: { event: DiceRollEven
           frame = window.requestAnimationFrame(animate);
           return;
         }
+        dice.forEach(captureSceneDiceImpactVelocity);
         physicsAccumulator = stepScenePhysicsWorld(physicsWorld, physicsAccumulator + delta);
         dice.forEach(syncSceneDiceFromPhysics);
+        if (impactAudioPlayer) {
+          dice.forEach((entry) => playSceneDiceImpact(entry, now, sceneBounds, impactAudioPlayer, impactSound));
+        }
         dice.forEach((entry, index) => nudgeCoinOffEdge(entry, index, now, sceneBounds));
         const settledResult = elapsed >= DICE_SCENE_MIN_ROLL_MS ? getSettledSceneRollResult(event, dice, now) : null;
         if (settledResult && !resolvedPhysics) {
@@ -340,6 +357,9 @@ function DiceRollCard({ event, mode, onDiceRollResolved }: { event: DiceRollEven
         scene.remove(die);
         disposeObjectMaterialsAndGeometry(die);
       });
+      if (impactAudioPlayer) {
+        disposeDiceImpactAudioPlayer(impactAudioPlayer);
+      }
       releaseDiceRenderer(renderer);
     };
   }, [event, mode, revealDelay, sceneRoll, show3d]);
@@ -544,6 +564,66 @@ function syncSceneDiceFromPhysics(entry: {
   entry.vy = velocity.y;
   entry.die.position.set(translation.x, translation.y, translation.z);
   entry.die.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+}
+
+function captureSceneDiceImpactVelocity(entry: {
+  body: RAPIER.RigidBody | null;
+  previousVelocity: Vector3Like;
+}): void {
+  if (!entry.body) {
+    return;
+  }
+  const velocity = entry.body.linvel();
+  entry.previousVelocity = { x: velocity.x, y: velocity.y, z: velocity.z };
+}
+
+function playSceneDiceImpact(
+  entry: {
+    body: RAPIER.RigidBody | null;
+    lastImpactAt: number;
+    previousVelocity: Vector3Like;
+    radius: number;
+    visual: DiceVisual;
+  },
+  now: number,
+  bounds: SceneRollBounds,
+  player: DiceImpactAudioPlayer,
+  impactSound: DiceImpactSoundOptions
+): void {
+  if (!entry.body) {
+    return;
+  }
+  const currentVelocity = entry.body.linvel();
+  const translation = entry.body.translation();
+  const impact = getSceneDiceImpact({
+    bounds,
+    currentVelocity,
+    lastImpactAt: entry.lastImpactAt,
+    now,
+    previousVelocity: entry.previousVelocity,
+    radius: entry.radius,
+    translation
+  });
+  if (!impact) {
+    return;
+  }
+  entry.lastImpactAt = now;
+  playDiceImpactSound(player, impact, entry.visual.seed + now, impactSound);
+}
+
+function getDiceImpactSoundOptions(event: DiceRollEvent): DiceImpactSoundOptions {
+  return {
+    body: clampUnit(event.diceImpactBody, DEFAULT_DICE_SETTINGS.impactBody),
+    brightness: clampUnit(event.diceImpactBrightness, DEFAULT_DICE_SETTINGS.impactBrightness),
+    click: clampUnit(event.diceImpactClick, DEFAULT_DICE_SETTINGS.impactClick),
+    decay: clampUnit(event.diceImpactDecay, DEFAULT_DICE_SETTINGS.impactDecay),
+    pitch: clampUnit(event.diceImpactPitch, DEFAULT_DICE_SETTINGS.impactPitch),
+    volume: clampUnit(event.diceImpactVolume, DEFAULT_DICE_SETTINGS.impactVolume)
+  };
+}
+
+function clampUnit(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
 }
 
 function getSettledSceneRollResult(

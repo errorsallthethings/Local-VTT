@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, CircleHelp, EllipsisVertical, Eye, GripVertical, Map, Maximize2, MessageSquare, Minimize2, MonitorOff, MonitorUp, Pause, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
-import type { Asset, Campaign, DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneRollTarget, DiceSceneSize, LiveTableEvent, Scene, TableMessageLayout, TableMessagePlacement, TableMessageStyle } from "../../../shared/localvtt";
+import { DEFAULT_DICE_SETTINGS, type Asset, type Campaign, type DiceDisplayMode, type DicePanelEdge, type DicePanelFacing, type DiceSceneRollTarget, type DiceSceneSize, type DiceSceneThrowDirection, type LiveTableEvent, type Scene, type TableMessageLayout, type TableMessagePlacement, type TableMessageStyle } from "../../../shared/localvtt";
 import type { PlayerDisplayMode } from "../../lib/player-view";
 import {
   addCustomDicePreset,
@@ -8,6 +8,7 @@ import {
   DICE_PANEL_EDGE_OPTIONS,
   DICE_PANEL_FACING_OPTIONS,
   DICE_SCENE_SIZE_OPTIONS,
+  DICE_SCENE_THROW_DIRECTION_OPTIONS,
   DICE_TYPES,
   DEFAULT_DICE_PANEL_EDGE,
   DEFAULT_DICE_PANEL_FACING,
@@ -91,6 +92,7 @@ interface WorkspaceTopbarProps {
   diceSceneRollTarget: DiceSceneRollTarget;
   gmDiceSceneSize: DiceSceneSize;
   playerDiceSceneSize: DiceSceneSize;
+  diceSceneThrowDirection: DiceSceneThrowDirection;
   gmDicePanelEdge: DicePanelEdge;
   playerDicePanelEdge: DicePanelEdge;
   gmDicePanelFacing: DicePanelFacing;
@@ -99,6 +101,12 @@ interface WorkspaceTopbarProps {
   playerDicePanelPosition: number;
   gmDicePanelAdvanced: boolean;
   playerDicePanelAdvanced: boolean;
+  diceImpactVolume: number;
+  diceImpactBody: number;
+  diceImpactClick: number;
+  diceImpactBrightness: number;
+  diceImpactDecay: number;
+  diceImpactPitch: number;
   diceHistory: DiceRollEvent[];
   onGmDiceDisplayModeChange: (mode: DiceDisplayMode) => void;
   onPlayerDiceDisplayModeChange: (mode: DiceDisplayMode) => void;
@@ -106,6 +114,7 @@ interface WorkspaceTopbarProps {
   onDiceSceneRollTargetChange: (target: DiceSceneRollTarget) => void;
   onGmDiceSceneSizeChange: (size: DiceSceneSize) => void;
   onPlayerDiceSceneSizeChange: (size: DiceSceneSize) => void;
+  onDiceSceneThrowDirectionChange: (direction: DiceSceneThrowDirection) => void;
   onGmDicePanelEdgeChange: (edge: DicePanelEdge) => void;
   onPlayerDicePanelEdgeChange: (edge: DicePanelEdge) => void;
   onGmDicePanelFacingChange: (facing: DicePanelFacing) => void;
@@ -114,6 +123,12 @@ interface WorkspaceTopbarProps {
   onPlayerDicePanelPositionChange: (position: number) => void;
   onGmDicePanelAdvancedChange: (advanced: boolean) => void;
   onPlayerDicePanelAdvancedChange: (advanced: boolean) => void;
+  onDiceImpactVolumeChange: (volume: number) => void;
+  onDiceImpactBodyChange: (body: number) => void;
+  onDiceImpactClickChange: (click: number) => void;
+  onDiceImpactBrightnessChange: (brightness: number) => void;
+  onDiceImpactDecayChange: (decay: number) => void;
+  onDiceImpactPitchChange: (pitch: number) => void;
   onRollDie: (die: DiceType) => void;
   onRollExpression: (expression: string, rollLabel?: string) => string | null;
   onClearDiceRolls: () => void;
@@ -144,6 +159,7 @@ export function WorkspaceTopbar({
   diceSceneRollTarget,
   gmDiceSceneSize,
   playerDiceSceneSize,
+  diceSceneThrowDirection,
   gmDicePanelEdge,
   playerDicePanelEdge,
   gmDicePanelFacing,
@@ -152,6 +168,12 @@ export function WorkspaceTopbar({
   playerDicePanelPosition,
   gmDicePanelAdvanced,
   playerDicePanelAdvanced,
+  diceImpactVolume,
+  diceImpactBody,
+  diceImpactClick,
+  diceImpactBrightness,
+  diceImpactDecay,
+  diceImpactPitch,
   diceHistory,
   onGmDiceDisplayModeChange,
   onPlayerDiceDisplayModeChange,
@@ -159,6 +181,7 @@ export function WorkspaceTopbar({
   onDiceSceneRollTargetChange,
   onGmDiceSceneSizeChange,
   onPlayerDiceSceneSizeChange,
+  onDiceSceneThrowDirectionChange,
   onGmDicePanelEdgeChange,
   onPlayerDicePanelEdgeChange,
   onGmDicePanelFacingChange,
@@ -167,6 +190,12 @@ export function WorkspaceTopbar({
   onPlayerDicePanelPositionChange,
   onGmDicePanelAdvancedChange,
   onPlayerDicePanelAdvancedChange,
+  onDiceImpactVolumeChange,
+  onDiceImpactBodyChange,
+  onDiceImpactClickChange,
+  onDiceImpactBrightnessChange,
+  onDiceImpactDecayChange,
+  onDiceImpactPitchChange,
   onRollDie,
   onRollExpression,
   onClearDiceRolls,
@@ -181,6 +210,7 @@ export function WorkspaceTopbar({
   const [presetFormula, setPresetFormula] = useState("");
   const [presetFormError, setPresetFormError] = useState<string | null>(null);
   const [diceSettingsOpen, setDiceSettingsOpen] = useState(false);
+  const [diceSoundOpen, setDiceSoundOpen] = useState(false);
   const [dicePlacementOpen, setDicePlacementOpen] = useState(false);
   const [diceFormulaHelpOpen, setDiceFormulaHelpOpen] = useState(false);
   const [diceRecentTick, setDiceRecentTick] = useState(0);
@@ -238,6 +268,7 @@ export function WorkspaceTopbar({
 
   useEffect(() => {
     if (!diceSettingsOpen) {
+      setDiceSoundOpen(false);
       setDicePlacementOpen(false);
     }
   }, [diceSettingsOpen]);
@@ -445,6 +476,19 @@ export function WorkspaceTopbar({
     setCustomDicePresets((presets) => removeCustomDicePreset(presets, presetId));
   };
 
+  const renderDiceSoundSlider = (label: string, value: number, defaultValue: number, onChange: (value: number) => void) => (
+    <label className="dice-settings-row">
+      <span>{label}</span>
+      <div className="dice-volume-control">
+        <input type="range" min="0" max="100" value={Math.round(value * 100)} aria-label={`Dice impact ${label.toLowerCase()}`} onChange={(event) => onChange(Number(event.target.value) / 100)} />
+        <output>{Math.round(value * 100)}%</output>
+        <button type="button" className="icon-button dice-position-reset" title={`Reset dice impact ${label.toLowerCase()}`} aria-label={`Reset dice impact ${label.toLowerCase()}`} onClick={() => onChange(defaultValue)}>
+          <RotateCcw size={13} aria-hidden="true" />
+        </button>
+      </div>
+    </label>
+  );
+
   return (
     <>
     <div className="topbar">
@@ -546,6 +590,30 @@ export function WorkspaceTopbar({
                               ))}
                             </select>
                           </div>
+                          <div className="dice-settings-row">
+                            <span>Throw From</span>
+                            <select value={diceSceneThrowDirection} aria-label="Dice scene throw direction" onChange={(event) => onDiceSceneThrowDirectionChange(event.target.value as DiceSceneThrowDirection)}>
+                              {DICE_SCENE_THROW_DIRECTION_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          {renderDiceSoundSlider("Volume", diceImpactVolume, DEFAULT_DICE_SETTINGS.impactVolume, onDiceImpactVolumeChange)}
+                          <button type="button" className="dice-settings-group-heading dice-settings-group-toggle dice-subsection-toggle" aria-expanded={diceSoundOpen} onClick={() => setDiceSoundOpen((open) => !open)}>
+                            {diceSoundOpen ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+                            <strong>Advanced Sound</strong>
+                          </button>
+                          {diceSoundOpen && (
+                            <div className="dice-sound-settings">
+                              {renderDiceSoundSlider("Body", diceImpactBody, DEFAULT_DICE_SETTINGS.impactBody, onDiceImpactBodyChange)}
+                              {renderDiceSoundSlider("Click", diceImpactClick, DEFAULT_DICE_SETTINGS.impactClick, onDiceImpactClickChange)}
+                              {renderDiceSoundSlider("Brightness", diceImpactBrightness, DEFAULT_DICE_SETTINGS.impactBrightness, onDiceImpactBrightnessChange)}
+                              {renderDiceSoundSlider("Decay", diceImpactDecay, DEFAULT_DICE_SETTINGS.impactDecay, onDiceImpactDecayChange)}
+                              {renderDiceSoundSlider("Pitch", diceImpactPitch, DEFAULT_DICE_SETTINGS.impactPitch, onDiceImpactPitchChange)}
+                            </div>
+                          )}
                         </div>
                       )}
 

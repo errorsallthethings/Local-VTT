@@ -828,6 +828,7 @@ export type TableMessageStyle = "notice" | "dramatic" | "danger" | "success";
 export type DiceDisplayMode = "results" | "panel" | "scene" | "scene-result" | "hidden";
 export type DiceSceneRollTarget = "gm" | "player";
 export type DiceSceneSize = "xs" | "sm" | "md" | "lg" | "xl";
+export type DiceSceneThrowDirection = "random" | "left" | "top" | "right" | "bottom";
 export type DicePanelEdge = "top" | "right" | "bottom" | "left";
 export type DicePanelFacing = "inward" | "outward";
 
@@ -838,6 +839,7 @@ export interface DiceSettings {
   sceneRollTarget: DiceSceneRollTarget;
   gmSceneSize: DiceSceneSize;
   playerSceneSize: DiceSceneSize;
+  sceneThrowDirection: DiceSceneThrowDirection;
   gmPanelEdge: DicePanelEdge;
   playerPanelEdge: DicePanelEdge;
   gmPanelFacing: DicePanelFacing;
@@ -846,6 +848,12 @@ export interface DiceSettings {
   playerPanelPosition: number;
   gmPanelAdvanced: boolean;
   playerPanelAdvanced: boolean;
+  impactVolume: number;
+  impactBody: number;
+  impactClick: number;
+  impactBrightness: number;
+  impactDecay: number;
+  impactPitch: number;
 }
 
 export const DEFAULT_DICE_SETTINGS: DiceSettings = {
@@ -855,6 +863,7 @@ export const DEFAULT_DICE_SETTINGS: DiceSettings = {
   sceneRollTarget: "gm",
   gmSceneSize: "md",
   playerSceneSize: "md",
+  sceneThrowDirection: "random",
   gmPanelEdge: "top",
   playerPanelEdge: "top",
   gmPanelFacing: "inward",
@@ -862,7 +871,13 @@ export const DEFAULT_DICE_SETTINGS: DiceSettings = {
   gmPanelPosition: 0.5,
   playerPanelPosition: 0.5,
   gmPanelAdvanced: false,
-  playerPanelAdvanced: false
+  playerPanelAdvanced: false,
+  impactVolume: 0.8,
+  impactBody: 0.13,
+  impactClick: 0.98,
+  impactBrightness: 0.13,
+  impactDecay: 0.17,
+  impactPitch: 0.39
 };
 
 export type LiveTableEvent =
@@ -933,6 +948,7 @@ export type LiveTableEvent =
       playerDiceDisplay?: DiceDisplayMode;
       gmDiceSceneSize?: DiceSceneSize;
       playerDiceSceneSize?: DiceSceneSize;
+      diceSceneThrowDirection?: DiceSceneThrowDirection;
       gmDicePanelEdge?: DicePanelEdge;
       playerDicePanelEdge?: DicePanelEdge;
       gmDicePanelFacing?: DicePanelFacing;
@@ -941,6 +957,12 @@ export type LiveTableEvent =
       playerDicePanelPosition?: number;
       gmDicePanelAdvanced?: boolean;
       playerDicePanelAdvanced?: boolean;
+      diceImpactVolume?: number;
+      diceImpactBody?: number;
+      diceImpactClick?: number;
+      diceImpactBrightness?: number;
+      diceImpactDecay?: number;
+      diceImpactPitch?: number;
       gmPresentation?: "3d" | "result";
       playerPresentation?: "3d" | "result";
       presentation?: "3d" | "result";
@@ -1682,6 +1704,7 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
       (value.playerDiceDisplay === undefined || isDiceDisplayMode(value.playerDiceDisplay)) &&
       (value.gmDiceSceneSize === undefined || isDiceSceneSize(value.gmDiceSceneSize)) &&
       (value.playerDiceSceneSize === undefined || isDiceSceneSize(value.playerDiceSceneSize)) &&
+      (value.diceSceneThrowDirection === undefined || isDiceSceneThrowDirection(value.diceSceneThrowDirection)) &&
       (value.gmDicePanelEdge === undefined || isDicePanelEdge(value.gmDicePanelEdge)) &&
       (value.playerDicePanelEdge === undefined || isDicePanelEdge(value.playerDicePanelEdge)) &&
       (value.gmDicePanelFacing === undefined || isDicePanelFacing(value.gmDicePanelFacing)) &&
@@ -1690,6 +1713,12 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
       (value.playerDicePanelPosition === undefined || isUnitNumber(value.playerDicePanelPosition)) &&
       isOptionalBoolean(value.gmDicePanelAdvanced) &&
       isOptionalBoolean(value.playerDicePanelAdvanced) &&
+      (value.diceImpactVolume === undefined || isUnitNumber(value.diceImpactVolume)) &&
+      (value.diceImpactBody === undefined || isUnitNumber(value.diceImpactBody)) &&
+      (value.diceImpactClick === undefined || isUnitNumber(value.diceImpactClick)) &&
+      (value.diceImpactBrightness === undefined || isUnitNumber(value.diceImpactBrightness)) &&
+      (value.diceImpactDecay === undefined || isUnitNumber(value.diceImpactDecay)) &&
+      (value.diceImpactPitch === undefined || isUnitNumber(value.diceImpactPitch)) &&
       (value.gmPresentation === undefined || value.gmPresentation === "3d" || value.gmPresentation === "result") &&
       (value.playerPresentation === undefined || value.playerPresentation === "3d" || value.playerPresentation === "result") &&
       (value.presentation === undefined || value.presentation === "3d" || value.presentation === "result") &&
@@ -1748,6 +1777,10 @@ function isDiceDisplayMode(value: unknown): value is DiceDisplayMode {
 
 function isDiceSceneSize(value: unknown): value is DiceSceneSize {
   return value === "xs" || value === "sm" || value === "md" || value === "lg" || value === "xl";
+}
+
+function isDiceSceneThrowDirection(value: unknown): value is DiceSceneThrowDirection {
+  return value === "random" || value === "left" || value === "top" || value === "right" || value === "bottom";
 }
 
 function isDiceSceneRollTarget(value: unknown): value is DiceSceneRollTarget {
@@ -2485,6 +2518,7 @@ function normalizeDiceSettings(settings?: Partial<DiceSettings>): DiceSettings {
     sceneRollTarget: isDiceSceneRollTarget(settings?.sceneRollTarget) ? settings.sceneRollTarget : DEFAULT_DICE_SETTINGS.sceneRollTarget,
     gmSceneSize: isDiceSceneSize(settings?.gmSceneSize) ? settings.gmSceneSize : DEFAULT_DICE_SETTINGS.gmSceneSize,
     playerSceneSize: isDiceSceneSize(settings?.playerSceneSize) ? settings.playerSceneSize : DEFAULT_DICE_SETTINGS.playerSceneSize,
+    sceneThrowDirection: isDiceSceneThrowDirection(settings?.sceneThrowDirection) ? settings.sceneThrowDirection : DEFAULT_DICE_SETTINGS.sceneThrowDirection,
     gmPanelEdge: isDicePanelEdge(settings?.gmPanelEdge) ? settings.gmPanelEdge : DEFAULT_DICE_SETTINGS.gmPanelEdge,
     playerPanelEdge: isDicePanelEdge(settings?.playerPanelEdge) ? settings.playerPanelEdge : DEFAULT_DICE_SETTINGS.playerPanelEdge,
     gmPanelFacing: isDicePanelFacing(settings?.gmPanelFacing) ? settings.gmPanelFacing : DEFAULT_DICE_SETTINGS.gmPanelFacing,
@@ -2492,7 +2526,13 @@ function normalizeDiceSettings(settings?: Partial<DiceSettings>): DiceSettings {
     gmPanelPosition: clampNumber(settings?.gmPanelPosition, 0, 1, DEFAULT_DICE_SETTINGS.gmPanelPosition),
     playerPanelPosition: clampNumber(settings?.playerPanelPosition, 0, 1, DEFAULT_DICE_SETTINGS.playerPanelPosition),
     gmPanelAdvanced: typeof settings?.gmPanelAdvanced === "boolean" ? settings.gmPanelAdvanced : DEFAULT_DICE_SETTINGS.gmPanelAdvanced,
-    playerPanelAdvanced: typeof settings?.playerPanelAdvanced === "boolean" ? settings.playerPanelAdvanced : DEFAULT_DICE_SETTINGS.playerPanelAdvanced
+    playerPanelAdvanced: typeof settings?.playerPanelAdvanced === "boolean" ? settings.playerPanelAdvanced : DEFAULT_DICE_SETTINGS.playerPanelAdvanced,
+    impactVolume: clampNumber(settings?.impactVolume, 0, 1, DEFAULT_DICE_SETTINGS.impactVolume),
+    impactBody: clampNumber(settings?.impactBody, 0, 1, DEFAULT_DICE_SETTINGS.impactBody),
+    impactClick: clampNumber(settings?.impactClick, 0, 1, DEFAULT_DICE_SETTINGS.impactClick),
+    impactBrightness: clampNumber(settings?.impactBrightness, 0, 1, DEFAULT_DICE_SETTINGS.impactBrightness),
+    impactDecay: clampNumber(settings?.impactDecay, 0, 1, DEFAULT_DICE_SETTINGS.impactDecay),
+    impactPitch: clampNumber(settings?.impactPitch, 0, 1, DEFAULT_DICE_SETTINGS.impactPitch)
   };
 }
 

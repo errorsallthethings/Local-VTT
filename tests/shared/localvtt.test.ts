@@ -1009,6 +1009,7 @@ it("normalizeCampaign normalizes campaign dice settings", () => {
       playerDisplayMode: "bad",
       gmSceneSize: "xl",
       playerSceneSize: "huge",
+      sceneThrowDirection: "top",
       gmPanelEdge: "right",
       playerPanelEdge: "corner",
       gmPanelFacing: "outward",
@@ -1016,7 +1017,13 @@ it("normalizeCampaign normalizes campaign dice settings", () => {
       gmPanelPosition: 2,
       playerPanelPosition: 0.25,
       gmPanelAdvanced: true,
-      playerPanelAdvanced: "yes"
+      playerPanelAdvanced: "yes",
+      impactVolume: 1.25,
+      impactBody: -0.25,
+      impactClick: 0.35,
+      impactBrightness: 1.25,
+      impactDecay: "long",
+      impactPitch: 0.5
     }
   } as unknown as Campaign;
 
@@ -1024,11 +1031,17 @@ it("normalizeCampaign normalizes campaign dice settings", () => {
     ...DEFAULT_DICE_SETTINGS,
     gmDisplayMode: "scene",
     gmSceneSize: "xl",
+    sceneThrowDirection: "top",
     gmPanelEdge: "right",
     gmPanelFacing: "outward",
     gmPanelPosition: 1,
     playerPanelPosition: 0.25,
-    gmPanelAdvanced: true
+    gmPanelAdvanced: true,
+    impactVolume: 1,
+    impactBody: 0,
+    impactClick: 0.35,
+    impactBrightness: 1,
+    impactPitch: 0.5
   });
 });
 
@@ -1460,6 +1473,7 @@ it("runtime validators reject invalid files and accept valid projected state", (
       playerDiceDisplay: "panel",
       gmDiceSceneSize: "md",
       playerDiceSceneSize: "lg",
+      diceSceneThrowDirection: "bottom",
       gmDicePanelEdge: "top",
       playerDicePanelEdge: "right",
       gmDicePanelFacing: "inward",
@@ -1468,6 +1482,12 @@ it("runtime validators reject invalid files and accept valid projected state", (
       playerDicePanelPosition: 0.5,
       gmDicePanelAdvanced: true,
       playerDicePanelAdvanced: true,
+      diceImpactVolume: 0.65,
+      diceImpactBody: 0.45,
+      diceImpactClick: 0.35,
+      diceImpactBrightness: 0.25,
+      diceImpactDecay: 0.75,
+      diceImpactPitch: 0.5,
       createdAt: 1
     })
   ).toBe(true);

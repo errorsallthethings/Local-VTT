@@ -65,6 +65,7 @@ export function buildLiveTableDiceRollEvent(
     playerDiceDisplay: diceDisplayModes.playerDisplayMode,
     gmDiceSceneSize: settings.gmSceneSize,
     playerDiceSceneSize: settings.playerSceneSize,
+    diceSceneThrowDirection: settings.sceneThrowDirection,
     gmDicePanelEdge: settings.gmPanelEdge,
     playerDicePanelEdge: settings.playerPanelEdge,
     gmDicePanelFacing: settings.gmPanelFacing,
@@ -73,6 +74,12 @@ export function buildLiveTableDiceRollEvent(
     playerDicePanelPosition: settings.playerPanelPosition,
     gmDicePanelAdvanced: diceDisplayModes.gmPanelAdvanced,
     playerDicePanelAdvanced: diceDisplayModes.playerPanelAdvanced,
+    diceImpactVolume: settings.impactVolume,
+    diceImpactBody: settings.impactBody,
+    diceImpactClick: settings.impactClick,
+    diceImpactBrightness: settings.impactBrightness,
+    diceImpactDecay: settings.impactDecay,
+    diceImpactPitch: settings.impactPitch,
     createdAt
   };
 }

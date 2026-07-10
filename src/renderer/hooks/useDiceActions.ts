@@ -53,14 +53,14 @@ export function useDiceActions({
   const rollTableDie = (die: DiceType) => {
     const roll = rollDiceEvent(die);
     setError(null);
-    emitLiveTableEvent(buildLiveTableDiceRollEvent(roll, diceSettings, createId(), getNowMs()));
+    emitLiveTableEvent(buildLiveTableDiceRollEvent(roll, diceSettingsDraftRef.current, createId(), getNowMs()));
   };
 
   const rollTableExpression = (expression: string, rollLabel?: string) => {
     try {
       const roll = rollDiceExpression(expression);
       setError(null);
-      emitLiveTableEvent(buildLiveTableDiceRollEvent(roll, diceSettings, createId(), getNowMs(), rollLabel));
+      emitLiveTableEvent(buildLiveTableDiceRollEvent(roll, diceSettingsDraftRef.current, createId(), getNowMs(), rollLabel));
       return null;
     } catch (caught) {
       return caught instanceof Error ? caught.message : "Could not roll that dice expression.";

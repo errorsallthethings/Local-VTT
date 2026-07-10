@@ -1,4 +1,4 @@
-import type { DiceSceneSize } from "../../../shared/localvtt";
+import type { DiceSceneSize, DiceSceneThrowDirection } from "../../../shared/localvtt";
 import type { DiceVisualRoll } from "./dice";
 
 export type DicePoolDisplayMode = "panel" | "scene";
@@ -76,7 +76,7 @@ export function getPanelDiceLanding(index: number, layout: DicePoolLayout): Dice
   };
 }
 
-export function getSceneDiceLanding(index: number, layout: DicePoolLayout, visual: DiceVisualRoll, bounds: SceneVisibleBounds): DiceLanding {
+export function getSceneDiceLanding(index: number, layout: DicePoolLayout, visual: DiceVisualRoll, bounds: SceneVisibleBounds, throwDirection: DiceSceneThrowDirection = "random"): DiceLanding {
   const arranged = getDicePoolPosition(index, layout);
   const margin = Math.max(0.62, layout.scale * 1.85);
   const landingWidth = Math.max(margin * 2, bounds.width - margin * 2);
@@ -87,7 +87,7 @@ export function getSceneDiceLanding(index: number, layout: DicePoolLayout, visua
   const jitterY = (seedRange(visual.seed, 21, 1) - 0.5) * Math.min(bounds.height * 0.2, 1.5);
   const baseX = clampNumber(arranged.x + jitterX, -landingWidth / 2 + margin, landingWidth / 2 - margin);
   const baseY = clampNumber(arranged.y + jitterY, -landingHeight / 2 + margin, landingHeight / 2 - margin);
-  const edge = Math.floor(seedRange(visual.seed, 22, 4));
+  const edge = getSceneThrowEdge(throwDirection, visual.seed);
   const sideOffset = seedRange(visual.seed, 23, 1) - 0.5;
   if (edge === 0) {
     return { baseX, baseY, startX: sideOffset * startMaxX * 2, startY: startMaxY };
@@ -99,6 +99,22 @@ export function getSceneDiceLanding(index: number, layout: DicePoolLayout, visua
     return { baseX, baseY, startX: sideOffset * startMaxX * 2, startY: -startMaxY };
   }
   return { baseX, baseY, startX: -startMaxX, startY: sideOffset * startMaxY * 2 };
+}
+
+function getSceneThrowEdge(direction: DiceSceneThrowDirection, seed: number): number {
+  if (direction === "top") {
+    return 0;
+  }
+  if (direction === "right") {
+    return 1;
+  }
+  if (direction === "bottom") {
+    return 2;
+  }
+  if (direction === "left") {
+    return 3;
+  }
+  return Math.floor(seedRange(seed, 22, 4));
 }
 
 export function getSceneRollBounds(bounds: SceneVisibleBounds): SceneRollBounds {
