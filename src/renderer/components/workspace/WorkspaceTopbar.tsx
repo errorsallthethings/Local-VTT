@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, CircleHelp, EllipsisVertical, Eye, GripVertical, Map, Maximize2, Minimize2, MonitorOff, MonitorUp, Pause, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
-import type { Asset, Campaign, DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneRollTarget, DiceSceneSize, LiveTableEvent, Scene } from "../../../shared/localvtt";
+import { ChevronDown, ChevronRight, CircleHelp, EllipsisVertical, Eye, GripVertical, Map, Maximize2, MessageSquare, Minimize2, MonitorOff, MonitorUp, Pause, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
+import { DEFAULT_DICE_SETTINGS, type Asset, type Campaign, type DiceDisplayMode, type DicePanelEdge, type DicePanelFacing, type DiceSceneRollTarget, type DiceSceneSize, type DiceSceneThrowDirection, type LiveTableEvent, type Scene, type TableMessageLayout, type TableMessagePlacement, type TableMessageStyle } from "../../../shared/localvtt";
 import type { PlayerDisplayMode } from "../../lib/player-view";
 import {
   addCustomDicePreset,
@@ -8,6 +8,7 @@ import {
   DICE_PANEL_EDGE_OPTIONS,
   DICE_PANEL_FACING_OPTIONS,
   DICE_SCENE_SIZE_OPTIONS,
+  DICE_SCENE_THROW_DIRECTION_OPTIONS,
   DICE_TYPES,
   DEFAULT_DICE_PANEL_EDGE,
   DEFAULT_DICE_PANEL_FACING,
@@ -45,6 +46,28 @@ import { getActiveWeatherEffects } from "../../lib/effects";
 import { type ModalSize, useResizableModal } from "../../hooks/useResizableModal";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
+const TABLE_MESSAGE_DURATIONS = [
+  { label: "5 seconds", value: 5_000 },
+  { label: "10 seconds", value: 10_000 },
+  { label: "30 seconds", value: 30_000 },
+  { label: "1 minute", value: 60_000 },
+  { label: "5 minutes", value: 300_000 }
+];
+const TABLE_MESSAGE_PLACEMENTS: Array<{ label: string; value: TableMessagePlacement }> = [
+  { label: "Top", value: "top" },
+  { label: "Center", value: "center" },
+  { label: "Bottom", value: "bottom" }
+];
+const TABLE_MESSAGE_LAYOUTS: Array<{ label: string; value: TableMessageLayout }> = [
+  { label: "Screen", value: "screen" },
+  { label: "Table edges", value: "table-edges" }
+];
+const TABLE_MESSAGE_STYLES: Array<{ label: string; value: TableMessageStyle }> = [
+  { label: "Notice", value: "notice" },
+  { label: "Dramatic", value: "dramatic" },
+  { label: "Danger", value: "danger" },
+  { label: "Success", value: "success" }
+];
 
 interface WorkspaceTopbarProps {
   campaign: Campaign | null;
@@ -61,12 +84,15 @@ interface WorkspaceTopbarProps {
   onOpenMapCalibrationAssistant: () => void;
   onSetPlayerFullscreen: (fullscreen: boolean) => void;
   onClosePlayerView: () => void;
+  onSendTableMessage: (message: { text: string; durationMs: number; layout: TableMessageLayout; placement: TableMessagePlacement; style: TableMessageStyle; showInGm: boolean }) => void;
+  onClearTableMessage: () => void;
   gmDiceDisplayMode: DiceDisplayMode;
   playerDiceDisplayMode: DiceDisplayMode;
   diceSceneRollEnabled: boolean;
   diceSceneRollTarget: DiceSceneRollTarget;
   gmDiceSceneSize: DiceSceneSize;
   playerDiceSceneSize: DiceSceneSize;
+  diceSceneThrowDirection: DiceSceneThrowDirection;
   gmDicePanelEdge: DicePanelEdge;
   playerDicePanelEdge: DicePanelEdge;
   gmDicePanelFacing: DicePanelFacing;
@@ -75,6 +101,12 @@ interface WorkspaceTopbarProps {
   playerDicePanelPosition: number;
   gmDicePanelAdvanced: boolean;
   playerDicePanelAdvanced: boolean;
+  diceImpactVolume: number;
+  diceImpactBody: number;
+  diceImpactClick: number;
+  diceImpactBrightness: number;
+  diceImpactDecay: number;
+  diceImpactPitch: number;
   diceHistory: DiceRollEvent[];
   onGmDiceDisplayModeChange: (mode: DiceDisplayMode) => void;
   onPlayerDiceDisplayModeChange: (mode: DiceDisplayMode) => void;
@@ -82,6 +114,7 @@ interface WorkspaceTopbarProps {
   onDiceSceneRollTargetChange: (target: DiceSceneRollTarget) => void;
   onGmDiceSceneSizeChange: (size: DiceSceneSize) => void;
   onPlayerDiceSceneSizeChange: (size: DiceSceneSize) => void;
+  onDiceSceneThrowDirectionChange: (direction: DiceSceneThrowDirection) => void;
   onGmDicePanelEdgeChange: (edge: DicePanelEdge) => void;
   onPlayerDicePanelEdgeChange: (edge: DicePanelEdge) => void;
   onGmDicePanelFacingChange: (facing: DicePanelFacing) => void;
@@ -90,6 +123,12 @@ interface WorkspaceTopbarProps {
   onPlayerDicePanelPositionChange: (position: number) => void;
   onGmDicePanelAdvancedChange: (advanced: boolean) => void;
   onPlayerDicePanelAdvancedChange: (advanced: boolean) => void;
+  onDiceImpactVolumeChange: (volume: number) => void;
+  onDiceImpactBodyChange: (body: number) => void;
+  onDiceImpactClickChange: (click: number) => void;
+  onDiceImpactBrightnessChange: (brightness: number) => void;
+  onDiceImpactDecayChange: (decay: number) => void;
+  onDiceImpactPitchChange: (pitch: number) => void;
   onRollDie: (die: DiceType) => void;
   onRollExpression: (expression: string, rollLabel?: string) => string | null;
   onClearDiceRolls: () => void;
@@ -112,12 +151,15 @@ export function WorkspaceTopbar({
   onOpenMapCalibrationAssistant,
   onSetPlayerFullscreen,
   onClosePlayerView,
+  onSendTableMessage,
+  onClearTableMessage,
   gmDiceDisplayMode,
   playerDiceDisplayMode,
   diceSceneRollEnabled,
   diceSceneRollTarget,
   gmDiceSceneSize,
   playerDiceSceneSize,
+  diceSceneThrowDirection,
   gmDicePanelEdge,
   playerDicePanelEdge,
   gmDicePanelFacing,
@@ -126,6 +168,12 @@ export function WorkspaceTopbar({
   playerDicePanelPosition,
   gmDicePanelAdvanced,
   playerDicePanelAdvanced,
+  diceImpactVolume,
+  diceImpactBody,
+  diceImpactClick,
+  diceImpactBrightness,
+  diceImpactDecay,
+  diceImpactPitch,
   diceHistory,
   onGmDiceDisplayModeChange,
   onPlayerDiceDisplayModeChange,
@@ -133,6 +181,7 @@ export function WorkspaceTopbar({
   onDiceSceneRollTargetChange,
   onGmDiceSceneSizeChange,
   onPlayerDiceSceneSizeChange,
+  onDiceSceneThrowDirectionChange,
   onGmDicePanelEdgeChange,
   onPlayerDicePanelEdgeChange,
   onGmDicePanelFacingChange,
@@ -141,6 +190,12 @@ export function WorkspaceTopbar({
   onPlayerDicePanelPositionChange,
   onGmDicePanelAdvancedChange,
   onPlayerDicePanelAdvancedChange,
+  onDiceImpactVolumeChange,
+  onDiceImpactBodyChange,
+  onDiceImpactClickChange,
+  onDiceImpactBrightnessChange,
+  onDiceImpactDecayChange,
+  onDiceImpactPitchChange,
   onRollDie,
   onRollExpression,
   onClearDiceRolls,
@@ -155,6 +210,7 @@ export function WorkspaceTopbar({
   const [presetFormula, setPresetFormula] = useState("");
   const [presetFormError, setPresetFormError] = useState<string | null>(null);
   const [diceSettingsOpen, setDiceSettingsOpen] = useState(false);
+  const [diceSoundOpen, setDiceSoundOpen] = useState(false);
   const [dicePlacementOpen, setDicePlacementOpen] = useState(false);
   const [diceFormulaHelpOpen, setDiceFormulaHelpOpen] = useState(false);
   const [diceRecentTick, setDiceRecentTick] = useState(0);
@@ -162,6 +218,13 @@ export function WorkspaceTopbar({
   const [dicePanelPosition, setDicePanelPosition] = useState<DicePanelPosition | null>(null);
   const [dicePanelSize, setDicePanelSize] = useState<ModalSize | null>(null);
   const [dicePanelDragging, setDicePanelDragging] = useState(false);
+  const [tableMessageDialogOpen, setTableMessageDialogOpen] = useState(false);
+  const [tableMessageText, setTableMessageText] = useState("");
+  const [tableMessageDurationMs, setTableMessageDurationMs] = useState(10_000);
+  const [tableMessageLayout, setTableMessageLayout] = useState<TableMessageLayout>("screen");
+  const [tableMessagePlacement, setTableMessagePlacement] = useState<TableMessagePlacement>("center");
+  const [tableMessageStyle, setTableMessageStyle] = useState<TableMessageStyle>("notice");
+  const [tableMessageShowInGm, setTableMessageShowInGm] = useState(true);
   const dicePopoverRef = useRef<HTMLDivElement | null>(null);
   const dicePanelDragRef = useRef<DicePanelDragState | null>(null);
   const previousDicePanelOpenRef = useRef(dicePanelOpen);
@@ -182,6 +245,7 @@ export function WorkspaceTopbar({
     : campaign
       ? "Choose a scene from the Scenes panel or add a new scene to start building."
       : "Create a campaign, add a scene, import a map, then send it to Player View.";
+  const tableMessageCanSend = tableMessageText.trim().length > 0;
 
   useEffect(() => {
     saveCustomDicePresets(window.localStorage, customDicePresets);
@@ -204,6 +268,7 @@ export function WorkspaceTopbar({
 
   useEffect(() => {
     if (!diceSettingsOpen) {
+      setDiceSoundOpen(false);
       setDicePlacementOpen(false);
     }
   }, [diceSettingsOpen]);
@@ -258,6 +323,34 @@ export function WorkspaceTopbar({
     setDicePanelDragging(true);
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
+  };
+
+  const openTableMessageDialog = () => {
+    setTableMessageDialogOpen(true);
+    if (playerMenuOpen) {
+      onTogglePlayerMenu();
+    }
+  };
+
+  const submitTableMessage = () => {
+    const text = tableMessageText.trim();
+    if (!text) {
+      return;
+    }
+    onSendTableMessage({
+      text,
+      durationMs: tableMessageDurationMs,
+      layout: tableMessageLayout,
+      placement: tableMessagePlacement,
+      style: tableMessageStyle,
+      showInGm: tableMessageShowInGm
+    });
+    setTableMessageDialogOpen(false);
+  };
+
+  const clearTableMessage = () => {
+    onClearTableMessage();
+    setTableMessageDialogOpen(false);
   };
 
   const moveDicePanelDrag = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -383,7 +476,21 @@ export function WorkspaceTopbar({
     setCustomDicePresets((presets) => removeCustomDicePreset(presets, presetId));
   };
 
+  const renderDiceSoundSlider = (label: string, value: number, defaultValue: number, onChange: (value: number) => void) => (
+    <label className="dice-settings-row">
+      <span>{label}</span>
+      <div className="dice-volume-control">
+        <input type="range" min="0" max="100" value={Math.round(value * 100)} aria-label={`Dice impact ${label.toLowerCase()}`} onChange={(event) => onChange(Number(event.target.value) / 100)} />
+        <output>{Math.round(value * 100)}%</output>
+        <button type="button" className="icon-button dice-position-reset" title={`Reset dice impact ${label.toLowerCase()}`} aria-label={`Reset dice impact ${label.toLowerCase()}`} onClick={() => onChange(defaultValue)}>
+          <RotateCcw size={13} aria-hidden="true" />
+        </button>
+      </div>
+    </label>
+  );
+
   return (
+    <>
     <div className="topbar">
       <div>
         <div className="topbar-title-row">
@@ -483,6 +590,30 @@ export function WorkspaceTopbar({
                               ))}
                             </select>
                           </div>
+                          <div className="dice-settings-row">
+                            <span>Throw From</span>
+                            <select value={diceSceneThrowDirection} aria-label="Dice scene throw direction" onChange={(event) => onDiceSceneThrowDirectionChange(event.target.value as DiceSceneThrowDirection)}>
+                              {DICE_SCENE_THROW_DIRECTION_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          {renderDiceSoundSlider("Volume", diceImpactVolume, DEFAULT_DICE_SETTINGS.impactVolume, onDiceImpactVolumeChange)}
+                          <button type="button" className="dice-settings-group-heading dice-settings-group-toggle dice-subsection-toggle" aria-expanded={diceSoundOpen} onClick={() => setDiceSoundOpen((open) => !open)}>
+                            {diceSoundOpen ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+                            <strong>Advanced Sound</strong>
+                          </button>
+                          {diceSoundOpen && (
+                            <div className="dice-sound-settings">
+                              {renderDiceSoundSlider("Body", diceImpactBody, DEFAULT_DICE_SETTINGS.impactBody, onDiceImpactBodyChange)}
+                              {renderDiceSoundSlider("Click", diceImpactClick, DEFAULT_DICE_SETTINGS.impactClick, onDiceImpactClickChange)}
+                              {renderDiceSoundSlider("Brightness", diceImpactBrightness, DEFAULT_DICE_SETTINGS.impactBrightness, onDiceImpactBrightnessChange)}
+                              {renderDiceSoundSlider("Decay", diceImpactDecay, DEFAULT_DICE_SETTINGS.impactDecay, onDiceImpactDecayChange)}
+                              {renderDiceSoundSlider("Pitch", diceImpactPitch, DEFAULT_DICE_SETTINGS.impactPitch, onDiceImpactPitchChange)}
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -809,6 +940,10 @@ export function WorkspaceTopbar({
                       <MonitorOff size={14} aria-hidden="true" />
                       Blackout
                     </button>
+                    <button onClick={openTableMessageDialog}>
+                      <MessageSquare size={14} aria-hidden="true" />
+                      Message Overlay
+                    </button>
                   </div>
                   <div className="menu-section-label">Window</div>
                   <div className="menu-section">
@@ -847,6 +982,67 @@ export function WorkspaceTopbar({
         </div>
       </div>
     </div>
+    {tableMessageDialogOpen && (
+      <div className="modal-backdrop" onMouseDown={() => setTableMessageDialogOpen(false)}>
+        <div className="modal table-message-dialog" onMouseDown={(event) => event.stopPropagation()}>
+          <h2>Table Message Overlay</h2>
+          <label className="table-message-field">
+            <span>Message</span>
+            <textarea
+              value={tableMessageText}
+              maxLength={180}
+              rows={4}
+              autoFocus
+              onChange={(event) => setTableMessageText(event.target.value)}
+            />
+          </label>
+          <div className="table-message-grid">
+            <label className="table-message-field">
+              <span>Duration</span>
+              <select value={tableMessageDurationMs} onChange={(event) => setTableMessageDurationMs(Number(event.target.value))}>
+                {TABLE_MESSAGE_DURATIONS.map((duration) => (
+                  <option key={duration.value} value={duration.value}>{duration.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="table-message-field">
+              <span>Layout</span>
+              <select value={tableMessageLayout} onChange={(event) => setTableMessageLayout(event.target.value as TableMessageLayout)}>
+                {TABLE_MESSAGE_LAYOUTS.map((layout) => (
+                  <option key={layout.value} value={layout.value}>{layout.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="table-message-field">
+              <span>Placement</span>
+              <select value={tableMessagePlacement} disabled={tableMessageLayout !== "screen"} onChange={(event) => setTableMessagePlacement(event.target.value as TableMessagePlacement)}>
+                {TABLE_MESSAGE_PLACEMENTS.map((placement) => (
+                  <option key={placement.value} value={placement.value}>{placement.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="table-message-field">
+              <span>Style</span>
+              <select value={tableMessageStyle} onChange={(event) => setTableMessageStyle(event.target.value as TableMessageStyle)}>
+                {TABLE_MESSAGE_STYLES.map((style) => (
+                  <option key={style.value} value={style.value}>{style.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label className="table-message-check">
+            <input type="checkbox" checked={tableMessageShowInGm} onChange={(event) => setTableMessageShowInGm(event.target.checked)} />
+            <span>Show in GM View</span>
+          </label>
+          <div className="button-row modal-actions">
+            <button type="button" onClick={clearTableMessage}>Clear</button>
+            <button type="button" onClick={() => setTableMessageDialogOpen(false)}>Cancel</button>
+            <button type="button" disabled={!tableMessageCanSend} onClick={submitTableMessage}>Send</button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

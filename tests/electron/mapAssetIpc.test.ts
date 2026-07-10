@@ -117,7 +117,9 @@ describe("map asset IPC", () => {
 
     expect(harness.ipc.ipcMain.handle).toHaveBeenCalledWith("asset:importMap", expect.any(Function));
     expect(harness.ipc.ipcMain.handle).toHaveBeenCalledWith("asset:previewMapReplacement", expect.any(Function));
+    expect(harness.ipc.ipcMain.handle).toHaveBeenCalledWith("asset:previewMapVariant", expect.any(Function));
     expect(harness.ipc.ipcMain.handle).toHaveBeenCalledWith("asset:replaceMap", expect.any(Function));
+    expect(harness.ipc.ipcMain.handle).toHaveBeenCalledWith("asset:addMapVariant", expect.any(Function));
     expect(harness.ipc.ipcMain.handle).toHaveBeenCalledWith("asset:deleteMap", expect.any(Function));
   });
 
@@ -171,6 +173,31 @@ describe("map asset IPC", () => {
     expect(harness.options.writeScene).toHaveBeenCalledWith(campaignPath, expect.objectContaining({ id: scene.id, mapAssetId: "map-new" }));
     expect(harness.options.removeCampaignAssetFiles).toHaveBeenCalledWith(campaignPath, currentMap);
     expect(harness.getCampaign().assets.map((asset) => asset.id)).toEqual(["map-new"]);
+  });
+
+  it("adds a selected map as a scene variant without changing the active map", async () => {
+    const currentMap = mapAsset();
+    const scene = { ...createDefaultScene("Scene One"), id: "scene-1", mapAssetId: currentMap.id };
+    const campaign = createDefaultCampaign("Campaign");
+    campaign.assets = [currentMap];
+    campaign.scenes = [{ id: scene.id, name: scene.name, file: "scenes/scene-1.scene.json", mapAssetId: currentMap.id }];
+    const harness = createMapHarness(campaign, [scene]);
+    harness.mapReplacementTokens.set("variant-1", {
+      id: "variant-1",
+      campaignPath: path.resolve(campaignPath),
+      sceneId: scene.id,
+      currentAssetId: currentMap.id,
+      sourcePath: path.resolve(sourcePath),
+      createdAt: Date.now()
+    });
+
+    const result = await harness.ipc.invoke("asset:addMapVariant", campaignPath, scene.id, currentMap.id, "variant-1") as { asset: Asset; scene: Scene };
+
+    expect(result.asset.id).toBe("map-new");
+    expect(result.scene.mapAssetId).toBe(currentMap.id);
+    expect(result.scene.mapVariants.map((variant) => variant.assetId)).toEqual([currentMap.id, "map-new"]);
+    expect(harness.options.writeScene).toHaveBeenCalledWith(campaignPath, expect.objectContaining({ id: scene.id, mapAssetId: currentMap.id }));
+    expect(harness.getCampaign().assets.map((asset) => asset.id)).toEqual([currentMap.id, "map-new"]);
   });
 
   it("deletes a map asset when it is not used by other scenes", async () => {

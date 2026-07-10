@@ -1,9 +1,10 @@
-import { Circle, LineSquiggle, Paintbrush, Pentagon, Ruler, Square, Target, Trash2, Undo2, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, Circle, LineSquiggle, Paintbrush, Pentagon, Ruler, Square, Target, Trash2, Undo2, type LucideIcon } from "lucide-react";
 import { FogBrushSettings } from "../settings/FogBrushSettings";
 import { TableToolSettings } from "../settings/TableToolSettings";
 import { ToolHelpCard, type ToolHelpTopic } from "../settings/ToolHelpCard";
 import { HelpButton, SettingsToggle, ToolButton } from "./ToolsMenuPrimitives";
 import type { CanvasTool, FogOperation, FogToolShape } from "./toolMenuState";
+import type { PingKind } from "../../../../shared/localvtt";
 
 export interface TableToolButtonDefinition {
   tool: CanvasTool;
@@ -20,7 +21,8 @@ export interface FogToolButtonDefinition {
 export const TABLE_TOOL_BUTTONS: TableToolButtonDefinition[] = [
   { tool: "ruler", label: "Ruler", icon: Ruler },
   { tool: "ping", label: "Sonar", icon: Target },
-  { tool: "laser", label: "Laser Pointer", icon: LineSquiggle }
+  { tool: "laser", label: "Laser Pointer", icon: LineSquiggle },
+  { tool: "arrow", label: "Arrow Pointer", icon: ArrowUpRight }
 ];
 
 export const FOG_TOOL_BUTTONS: FogToolButtonDefinition[] = [
@@ -45,6 +47,7 @@ export interface TableToolsPanelState {
   rulerLinger: boolean;
   pingSize: number;
   pingColor: string;
+  pingKind: PingKind;
   laserThickness: number;
   laserColor: string;
   pingSizeCustomOpen: boolean;
@@ -59,6 +62,7 @@ export interface TableToolsPanelActions {
   onRulerLingerChange: (linger: boolean) => void;
   onPingSizeChange: (pingSize: number) => void;
   onPingColorChange: (color: string) => void;
+  onPingKindChange: (kind: PingKind) => void;
   onLaserThicknessChange: (thickness: number) => void;
   onLaserColorChange: (color: string) => void;
   onPingSizeCustomOpenChange: (open: boolean) => void;
@@ -105,6 +109,7 @@ export function TableToolsPanel({ state, actions }: TableToolsPanelProps) {
     rulerLinger,
     pingSize,
     pingColor,
+    pingKind,
     laserThickness,
     laserColor,
     pingSizeCustomOpen,
@@ -118,6 +123,7 @@ export function TableToolsPanel({ state, actions }: TableToolsPanelProps) {
     onRulerLingerChange,
     onPingSizeChange,
     onPingColorChange,
+    onPingKindChange,
     onLaserThicknessChange,
     onLaserColorChange,
     onPingSizeCustomOpenChange,
@@ -173,12 +179,14 @@ export function TableToolsPanel({ state, actions }: TableToolsPanelProps) {
           activeCanvasTool={activeCanvasTool}
           pingSize={pingSize}
           pingColor={pingColor}
+          pingKind={pingKind}
           laserThickness={laserThickness}
           laserColor={laserColor}
           pingSizeCustomOpen={pingSizeCustomOpen}
           laserThicknessCustomOpen={laserThicknessCustomOpen}
           onPingSizeChange={onPingSizeChange}
           onPingColorChange={onPingColorChange}
+          onPingKindChange={onPingKindChange}
           onLaserThicknessChange={onLaserThicknessChange}
           onLaserColorChange={onLaserColorChange}
           onPingSizeCustomOpenChange={onPingSizeCustomOpenChange}

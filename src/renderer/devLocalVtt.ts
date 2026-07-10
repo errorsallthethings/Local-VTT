@@ -156,6 +156,10 @@ export function installDevLocalVtt() {
     replaceMap: async () => {
       throw new Error("Map replacement is unavailable in the dev fallback.");
     },
+    previewMapVariant: async () => null,
+    addMapVariant: async () => {
+      throw new Error("Map variants are unavailable in the dev fallback.");
+    },
     importToken: async () => null,
     updateTokenThumbnail: async (_campaignPath: string, assetId: string, _crop: SquareCropRect) => {
       const asset = campaign.assets.find((candidate) => candidate.id === assetId);

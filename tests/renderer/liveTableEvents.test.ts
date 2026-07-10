@@ -21,27 +21,37 @@ describe("live table event lifecycle", () => {
           { point: { x: 1, y: 0 }, createdAt: now - LASER_POINT_LIFETIME_MS }
         ]
       },
+      { id: "arrow-drag", type: "arrow", start: { x: 0, y: 0 }, end: { x: 20, y: 0 }, createdAt: now - 60_000 },
+      { id: "arrow-active", type: "arrow", start: { x: 0, y: 0 }, end: { x: 20, y: 0 }, createdAt: now - 1_000, expiresAt: now },
+      { id: "arrow-expired", type: "arrow", start: { x: 0, y: 0 }, end: { x: 20, y: 0 }, createdAt: now - 2_000, expiresAt: now - 1 },
       { id: "ruler-active", type: "ruler", points: [], primary: "5 ft", createdAt: now - RULER_EVENT_LIFETIME_MS },
-      { id: "ruler-expired", type: "ruler", points: [], primary: "5 ft", createdAt: now - RULER_EVENT_LIFETIME_MS - 1 }
+      { id: "ruler-expired", type: "ruler", points: [], primary: "5 ft", createdAt: now - RULER_EVENT_LIFETIME_MS - 1 },
+      { id: "message-active", type: "message", text: "Incoming", layout: "screen", placement: "center", style: "notice", durationMs: 5_000, createdAt: now - 5_000, expiresAt: now },
+      { id: "message-expired", type: "message", text: "Gone", layout: "screen", placement: "center", style: "notice", durationMs: 5_000, createdAt: now - 5_001, expiresAt: now - 1 }
     ];
 
     expect(filterActiveLiveTableEvents(events, now)).toEqual([
       events[0],
       events[2],
       { ...events[4], points: [{ point: { x: 1, y: 0 }, createdAt: now - LASER_POINT_LIFETIME_MS }] },
-      events[5]
+      events[5],
+      events[6],
+      events[8],
+      events[10]
     ]);
   });
 
-  it("replaces existing events by id and clears dice or ruler event groups", () => {
+  it("replaces existing events by id and clears dice, ruler, or message event groups", () => {
     const now = 10_000;
     const dice: LiveTableEvent = { id: "dice", type: "dice", die: "d20", result: 12, label: "12", seed: 1, createdAt: now };
     const ruler: LiveTableEvent = { id: "ruler", type: "ruler", points: [], primary: "5 ft", createdAt: now };
+    const message: LiveTableEvent = { id: "message", type: "message", text: "Watch out", layout: "table-edges", placement: "top", style: "danger", durationMs: 10_000, createdAt: now, expiresAt: now + 10_000 };
     const replacement: LiveTableEvent = { id: "dice", type: "dice", die: "d20", result: 18, label: "18", seed: 2, createdAt: now + 1 };
 
     expect(mergeLiveTableEvent([dice], replacement, { now })).toEqual([replacement]);
     expect(mergeLiveTableEvent([dice, ruler], { id: "clear", type: "dice-clear", createdAt: now }, { now })).toEqual([ruler]);
     expect(mergeLiveTableEvent([dice, ruler], { id: "clear", type: "ruler-clear", createdAt: now }, { now })).toEqual([dice]);
+    expect(mergeLiveTableEvent([dice, message], { id: "clear", type: "message-clear", createdAt: now }, { now })).toEqual([dice]);
   });
 
   it("removes hidden player events when player visibility is respected", () => {
@@ -71,9 +81,22 @@ describe("live table event lifecycle", () => {
     };
     const dice: LiveTableEvent = { id: "dice", type: "dice", die: "d20", result: 20, label: "20", seed: 1, createdAt: now };
     const hiddenPing: LiveTableEvent = { id: "ping", type: "ping", point: { x: 0, y: 0 }, createdAt: now, visibleInPlayer: false };
+    const hiddenMessage: LiveTableEvent = {
+      id: "message",
+      type: "message",
+      text: "GM only",
+      layout: "screen",
+      placement: "bottom",
+      style: "notice",
+      durationMs: 10_000,
+      visibleInPlayer: false,
+      createdAt: now,
+      expiresAt: now + 10_000
+    };
 
     expect(mergeLiveTableEvent([visibleLaser, dice], hiddenLaser, { now, respectPlayerVisibility: true })).toEqual([dice]);
     expect(mergeLiveTableEvent([dice], hiddenPing, { now, respectPlayerVisibility: true })).toEqual([dice]);
+    expect(mergeLiveTableEvent([dice], hiddenMessage, { now, respectPlayerVisibility: true })).toEqual([dice]);
     expect(mergeLiveTableEvent([visibleLaser], dice, { now, respectPlayerVisibility: true })).toEqual([dice, visibleLaser]);
   });
 

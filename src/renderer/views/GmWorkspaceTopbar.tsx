@@ -4,6 +4,9 @@ import type {
   DiceSettings,
   LiveTableEvent,
   Scene,
+  TableMessageLayout,
+  TableMessagePlacement,
+  TableMessageStyle,
 } from "../../shared/localvtt";
 import { WorkspaceTopbar } from "../components/workspace/WorkspaceTopbar";
 import type { DiceType } from "../lib/dice";
@@ -29,6 +32,8 @@ interface GmWorkspaceTopbarProps {
   onOpenMapCalibrationAssistant: () => void;
   onSetPlayerFullscreen: (fullscreen: boolean) => void;
   onClosePlayerView: () => void;
+  onSendTableMessage: (message: { text: string; durationMs: number; layout: TableMessageLayout; placement: TableMessagePlacement; style: TableMessageStyle; showInGm: boolean }) => void;
+  onClearTableMessage: () => void;
   onUpdateDiceSettings: (patch: Partial<DiceSettings>) => void;
   onRollDie: (die: DiceType) => void;
   onRollExpression: (expression: string, rollLabel?: string) => string | null;
@@ -54,6 +59,8 @@ export function GmWorkspaceTopbar({
   onOpenMapCalibrationAssistant,
   onSetPlayerFullscreen,
   onClosePlayerView,
+  onSendTableMessage,
+  onClearTableMessage,
   onUpdateDiceSettings,
   onRollDie,
   onRollExpression,
@@ -76,12 +83,15 @@ export function GmWorkspaceTopbar({
       onOpenMapCalibrationAssistant={onOpenMapCalibrationAssistant}
       onSetPlayerFullscreen={onSetPlayerFullscreen}
       onClosePlayerView={onClosePlayerView}
+      onSendTableMessage={onSendTableMessage}
+      onClearTableMessage={onClearTableMessage}
       gmDiceDisplayMode={diceSettings.gmDisplayMode}
       playerDiceDisplayMode={diceSettings.playerDisplayMode}
       diceSceneRollEnabled={diceSettings.sceneRollEnabled}
       diceSceneRollTarget={diceSettings.sceneRollTarget}
       gmDiceSceneSize={diceSettings.gmSceneSize}
       playerDiceSceneSize={diceSettings.playerSceneSize}
+      diceSceneThrowDirection={diceSettings.sceneThrowDirection}
       gmDicePanelEdge={diceSettings.gmPanelEdge}
       playerDicePanelEdge={diceSettings.playerPanelEdge}
       gmDicePanelFacing={diceSettings.gmPanelFacing}
@@ -90,6 +100,12 @@ export function GmWorkspaceTopbar({
       playerDicePanelPosition={diceSettings.playerPanelPosition}
       gmDicePanelAdvanced={diceSettings.gmPanelAdvanced}
       playerDicePanelAdvanced={diceSettings.playerPanelAdvanced}
+      diceImpactVolume={diceSettings.impactVolume}
+      diceImpactBody={diceSettings.impactBody}
+      diceImpactClick={diceSettings.impactClick}
+      diceImpactBrightness={diceSettings.impactBrightness}
+      diceImpactDecay={diceSettings.impactDecay}
+      diceImpactPitch={diceSettings.impactPitch}
       diceHistory={diceHistory}
       onGmDiceDisplayModeChange={(gmDisplayMode) => onUpdateDiceSettings({ gmDisplayMode })}
       onPlayerDiceDisplayModeChange={(playerDisplayMode) => onUpdateDiceSettings({ playerDisplayMode })}
@@ -97,6 +113,7 @@ export function GmWorkspaceTopbar({
       onDiceSceneRollTargetChange={(sceneRollTarget) => onUpdateDiceSettings({ sceneRollTarget })}
       onGmDiceSceneSizeChange={(gmSceneSize) => onUpdateDiceSettings({ gmSceneSize })}
       onPlayerDiceSceneSizeChange={(playerSceneSize) => onUpdateDiceSettings({ playerSceneSize })}
+      onDiceSceneThrowDirectionChange={(sceneThrowDirection) => onUpdateDiceSettings({ sceneThrowDirection })}
       onGmDicePanelEdgeChange={(gmPanelEdge) => onUpdateDiceSettings({ gmPanelEdge })}
       onPlayerDicePanelEdgeChange={(playerPanelEdge) => onUpdateDiceSettings({ playerPanelEdge })}
       onGmDicePanelFacingChange={(gmPanelFacing) => onUpdateDiceSettings({ gmPanelFacing })}
@@ -105,6 +122,12 @@ export function GmWorkspaceTopbar({
       onPlayerDicePanelPositionChange={(playerPanelPosition) => onUpdateDiceSettings({ playerPanelPosition })}
       onGmDicePanelAdvancedChange={(gmPanelAdvanced) => onUpdateDiceSettings({ gmPanelAdvanced })}
       onPlayerDicePanelAdvancedChange={(playerPanelAdvanced) => onUpdateDiceSettings({ playerPanelAdvanced })}
+      onDiceImpactVolumeChange={(impactVolume) => onUpdateDiceSettings({ impactVolume })}
+      onDiceImpactBodyChange={(impactBody) => onUpdateDiceSettings({ impactBody })}
+      onDiceImpactClickChange={(impactClick) => onUpdateDiceSettings({ impactClick })}
+      onDiceImpactBrightnessChange={(impactBrightness) => onUpdateDiceSettings({ impactBrightness })}
+      onDiceImpactDecayChange={(impactDecay) => onUpdateDiceSettings({ impactDecay })}
+      onDiceImpactPitchChange={(impactPitch) => onUpdateDiceSettings({ impactPitch })}
       onRollDie={onRollDie}
       onRollExpression={onRollExpression}
       onClearDiceRolls={onClearDiceRolls}

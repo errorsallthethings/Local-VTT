@@ -7,12 +7,17 @@ import {
 } from "react";
 import {
   DEFAULT_VIDEO_PLAYBACK,
+  renameSceneMapVariant,
+  switchSceneMapVariant,
 } from "../../shared/localvtt";
 import type {
   Campaign,
   DiceSettings,
   LiveTableEvent,
   Scene,
+  TableMessageLayout,
+  TableMessagePlacement,
+  TableMessageStyle,
 } from "../../shared/localvtt";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { ToolsMenu } from "../components/tools";
@@ -20,7 +25,7 @@ import { getImageMapAssetPath } from "../lib/map";
 import { TokenLibraryDrawer } from "../components/tokens/TokenLibraryDrawer";
 import { VideoMapControls } from "../components/workspace/VideoMapControls";
 import { useAvailableDisplays } from "../hooks/useAvailableDisplays";
-import { useCampaignActions } from "../hooks/useCampaignActions";
+import { getPlayerSyncCampaignForScene, useCampaignActions } from "../hooks/useCampaignActions";
 import { useCampaignPlayerActions } from "../hooks/useCampaignPlayerActions";
 import { createCampaignWorkflowActions } from "../hooks/campaignWorkflowActions";
 import { useCampaignWorkspace } from "../hooks/useCampaignWorkspace";
@@ -54,6 +59,7 @@ import { useSceneTokenTurnOrderActions } from "../hooks/useSceneTokenTurnOrderAc
 import { useTokenDefaultsActions } from "../hooks/useTokenDefaultsActions";
 import { useTokenImportActions } from "../hooks/useTokenImportActions";
 import { getEffectiveDiceSettings, loadDiceSettingsPreference } from "../lib/dice";
+import { createTableMessageClearEvent, createTableMessageEvent } from "../canvas/live-table";
 import { buildSceneSelectionIds } from "../lib/scene";
 import { getSelectedTokenAssetIds } from "../lib/tokens";
 import { GmDialogs } from "./GmDialogs";
@@ -66,6 +72,7 @@ import { GmTurnOrderDock } from "./GmTurnOrderDock";
 import { GmWorkspaceStatusFooter } from "./GmWorkspaceStatusFooter";
 
 type DiceRollEvent = Extract<LiveTableEvent, { type: "dice" }>;
+type TableMessageDraft = { text: string; durationMs: number; layout: TableMessageLayout; placement: TableMessagePlacement; style: TableMessageStyle; showInGm: boolean };
 
 export function GmApp() {
   const [playersPanelOpen, setPlayersPanelOpen] = useState(false);
@@ -104,6 +111,8 @@ export function GmApp() {
     setFogShapeDialog,
     environmentEffectDialog,
     setEnvironmentEffectDialog,
+    mapVariantDialog,
+    setMapVariantDialog,
     tokenDialog,
     setTokenDialog,
     tokenCropDialog,
@@ -231,6 +240,7 @@ export function GmApp() {
     tableTools,
     setPingSize,
     setPingColor,
+    setPingKind,
     setLaserThickness,
     setLaserColor,
     setRulerLinger,
@@ -296,6 +306,7 @@ export function GmApp() {
   } = workspaceShellState;
   const {
     activeMapIsVideo,
+    assetsById,
     mapAsset,
     sceneThumbnailAssets,
     tokenAssets,
@@ -606,6 +617,7 @@ export function GmApp() {
     saveCampaign,
     saveCampaignBeforeClose,
     importMap,
+    addMapVariant,
     replaceMap,
     commitMapReplacement,
     regenerateThumbnails,
@@ -666,6 +678,40 @@ export function GmApp() {
     clearSceneSelection,
     onClearFogConfirmed: () => setConfirmClearFogOpen(false)
   });
+
+  const switchMapVariant = (variantId: string) => {
+    if (!activeScene || !campaign) {
+      return;
+    }
+    const nextScene = switchSceneMapVariant(activeScene, variantId);
+    const nextCampaign = {
+      ...campaign,
+      scenes: campaign.scenes.map((entry) => (entry.id === nextScene.id ? { ...entry, mapAssetId: nextScene.mapAssetId } : entry))
+    };
+    updateCampaignDraft(nextCampaign, false);
+    updateScene(nextScene, getPlayerSyncCampaignForScene(nextCampaign, nextScene.id, (sceneId) => sceneId === playerSceneId));
+  };
+
+  const sendTableMessage = (message: TableMessageDraft) => {
+    emitLiveTableEvent(createTableMessageEvent(`message-${Date.now()}`, message.text, message.layout, message.placement, message.style, message.durationMs, message.showInGm));
+  };
+
+  const clearTableMessage = () => {
+    emitLiveTableEvent(createTableMessageClearEvent());
+  };
+
+  const openRenameMapVariantDialog = (variantId: string, fallbackName: string) => {
+    dialogDrafts.setters.setNewMapVariantName(fallbackName);
+    setMapVariantDialog({ variantId });
+  };
+
+  const submitMapVariantName = () => {
+    if (!activeScene || !mapVariantDialog) {
+      return;
+    }
+    updateScene(renameSceneMapVariant(activeScene, mapVariantDialog.variantId, dialogDrafts.values.newMapVariantName));
+    setMapVariantDialog(null);
+  };
 
   const {
     openSceneDialog,
@@ -831,6 +877,8 @@ export function GmApp() {
           onOpenMapCalibrationAssistant={playerViewMenuActions.openMapCalibrationAssistant}
           onSetPlayerFullscreen={(fullscreen) => void setPlayerFullscreen(fullscreen)}
           onClosePlayerView={closePlayerView}
+          onSendTableMessage={sendTableMessage}
+          onClearTableMessage={clearTableMessage}
           diceSettings={diceSettings}
           diceHistory={diceRollHistory}
           onUpdateDiceSettings={updateDiceSettings}
@@ -886,6 +934,7 @@ export function GmApp() {
               templatePreviewVisibleInPlayer={templatePreviewVisibleInPlayer}
               pingSize={tableTools.pingSize}
               pingColor={tableTools.pingColor}
+              pingKind={tableTools.pingKind}
               laserThickness={tableTools.laserThickness}
               laserColor={tableTools.laserColor}
               rulerLinger={tableTools.rulerLinger}
@@ -960,6 +1009,7 @@ export function GmApp() {
               onTemplatePreviewVisibleInPlayerChange={setTemplatePreviewVisibleInPlayer}
               onPingSizeChange={setPingSize}
               onPingColorChange={setPingColor}
+              onPingKindChange={setPingKind}
               onLaserThicknessChange={setLaserThickness}
               onLaserColorChange={setLaserColor}
               onRulerLingerChange={setRulerLinger}
@@ -1086,6 +1136,7 @@ export function GmApp() {
 
       <GmInspector
         activeScene={activeScene}
+        assetsById={assetsById}
         mapAsset={mapAsset}
         tokenAssets={tokenAssets}
         selectedFogShapeId={selectedFogShapeId}
@@ -1110,7 +1161,10 @@ export function GmApp() {
         onApplyMapFitPreset={applyMapFitPreset}
         onMoveLayer={moveLayer}
         onImportMap={importMap}
+        onAddMapVariant={addMapVariant}
         onReplaceMap={replaceMap}
+        onRenameMapVariant={openRenameMapVariantDialog}
+        onSwitchMapVariant={switchMapVariant}
         onImportToken={() => void importToken("scene")}
         onDeleteMap={setMapAssetToDelete}
         onSelectFogShape={(shapeId) => selectSceneItems({ fogShapeIds: shapeId ? [shapeId] : [] })}
@@ -1144,6 +1198,7 @@ export function GmApp() {
         folderDialog={folderDialog}
         fogShapeDialog={fogShapeDialog}
         environmentEffectDialog={environmentEffectDialog}
+        mapVariantDialog={mapVariantDialog}
         tokenDialog={tokenDialog}
         tokenCropDialog={tokenCropDialog}
         tokenAssetDialog={tokenAssetDialog}
@@ -1174,6 +1229,7 @@ export function GmApp() {
         onSubmitFolderName={submitFolderName}
         onSubmitFogShapeName={submitFogShapeName}
         onSubmitEnvironmentEffectName={submitEnvironmentEffectName}
+        onSubmitMapVariantName={submitMapVariantName}
         onSubmitTokenName={submitTokenName}
         onSubmitTokenCrop={(crop) => void submitTokenCrop(crop)}
         onSubmitTokenAssetName={submitTokenAssetName}

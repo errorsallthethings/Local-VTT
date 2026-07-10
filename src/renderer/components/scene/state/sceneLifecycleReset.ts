@@ -17,6 +17,7 @@ export type SceneLifecycleResetAction =
   | "clear-scene-item-hover"
   | "clear-ruler-drag"
   | "clear-released-ruler"
+  | "clear-arrow-drag"
   | "clear-laser-drag"
   | "emit-ruler-clear";
 
@@ -43,6 +44,7 @@ export function getCanvasToolResetActions(hasRulerDrag: boolean): SceneLifecycle
     ...(hasRulerDrag ? (["emit-ruler-clear"] as const) : []),
     "clear-ruler-drag",
     "clear-released-ruler",
+    "clear-arrow-drag",
     "clear-laser-drag"
   ];
 }

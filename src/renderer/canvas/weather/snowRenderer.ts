@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { Camera } from "../core/camera";
 import type { WeatherSettings } from "../../../shared/localvtt";
-import { SNOW_PRESETS, createFrostEdgeMesh, createSnowParticle, getCycleOffset, getDistanceToQuietArea, getMinimumWeatherDimension, getQuietAreaBounds, getWeatherDriftVector, getWeatherParticleCount, hash, isSnowEffect, smoothstep, updateFrostEdgeMesh, type SnowParticle, type SnowPreset, type WeatherArea, type WeatherBounds } from "./weatherCore";
+import { SNOW_PRESETS, createFrostEdgeMesh, createSnowParticle, getCycleOffset, getDistanceToBoundsExit, getDistanceToQuietArea, getMinimumWeatherDimension, getQuietAreaBounds, getQuietAreaFade, getWeatherDriftVector, getWeatherParticleCount, hash, isSnowEffect, smoothstep, updateFrostEdgeMesh, type SnowParticle, type SnowPreset, type WeatherArea, type WeatherBounds } from "./weatherCore";
 
 export class SnowRenderer {
   private renderer: THREE.WebGLRenderer | null = null;
@@ -36,6 +36,8 @@ export class SnowRenderer {
       weather.quietAreaSize.toFixed(2),
       weather.centerStrayDrops.toFixed(2),
       weather.streakLength.toFixed(2),
+      Math.round(weather.directionDegrees),
+      weather.driftStrength.toFixed(2),
       weather.quality
     ].join(":");
     if (signature !== this.signature) {
@@ -162,23 +164,32 @@ export class SnowRenderer {
       const toCenterX = centerX - anchorX;
       const toCenterY = centerY - anchorY;
       const distanceToCenter = Math.max(1, Math.hypot(toCenterX, toCenterY));
-      const directionX = toCenterX / distanceToCenter;
-      const directionY = toCenterY / distanceToCenter;
-      const distanceToQuietArea = particle.quietTravel ?? getDistanceToQuietArea(bounds, anchorX, anchorY, directionX, directionY, weather.quietAreaSize);
-      const travel = Math.max(0, distanceToQuietArea) * Math.pow(fallProgress, 1.14);
+      const centerDirectionX = toCenterX / distanceToCenter;
+      const centerDirectionY = toCenterY / distanceToCenter;
+      const flowStrength = smoothstep(0.2, 0.85, drift.strength);
+      const blendedDirectionX = centerDirectionX * (1 - flowStrength) + drift.x * flowStrength;
+      const blendedDirectionY = centerDirectionY * (1 - flowStrength) + drift.y * flowStrength;
+      const blendedDistance = Math.max(1, Math.hypot(blendedDirectionX, blendedDirectionY));
+      const directionX = blendedDirectionX / blendedDistance;
+      const directionY = blendedDirectionY / blendedDistance;
+      const distanceToQuietArea = particle.quietTravel ?? getDistanceToQuietArea(bounds, anchorX, anchorY, centerDirectionX, centerDirectionY, weather.quietAreaSize);
+      const distanceToExit = getDistanceToBoundsExit(bounds, anchorX, anchorY, directionX, directionY, baseSize * 0.18);
+      const travelDistance = distanceToQuietArea * (1 - flowStrength) + distanceToExit * flowStrength;
+      const travel = Math.max(0, travelDistance) * Math.pow(fallProgress, 1.14);
       const wave = Math.sin(elapsed * (1.75 + hash(particle.seed + 730) * 1.25) + particle.phase * Math.PI * 2);
       const secondaryWave = Math.cos(elapsed * (0.65 + hash(particle.seed + 735) * 0.8) + particle.drift * Math.PI * 2);
       const crossX = -directionY;
       const crossY = directionX;
       const lateralDistance = baseSize * (0.018 + preset.streak * 0.018 + drift.strength * 0.018) * wave;
       const swayDistance = baseSize * 0.012 * drift.strength * secondaryWave;
-      const driftDistance = maxDriftDistance * Math.pow(fallProgress, 1.04) * (0.72 + hash(particle.seed + 746) * 0.48);
+      const driftDistance = maxWindDistanceForSecondarySway(maxDriftDistance, flowStrength) * Math.pow(fallProgress, 1.04) * (0.72 + hash(particle.seed + 746) * 0.48);
       const x = anchorX + directionX * travel + drift.x * driftDistance + crossX * (lateralDistance + swayDistance);
       const y = anchorY + directionY * travel + drift.y * driftDistance + crossY * (lateralDistance + swayDistance);
       const fadeIn = smoothstep(0, 0.06, fallProgress);
       const fadeOut = 1 - smoothstep(0.82, 1, fallProgress);
       const depthScale = 1.24 - fallProgress * 0.46;
-      const alpha = (0.46 + hash(particle.seed + 750) * 0.36) * particle.centerFade * fadeIn * fadeOut * (0.9 - fallProgress * 0.24);
+      const quietFade = getQuietAreaFade(bounds, { x, y }, weather.quietAreaSize, weather.centerStrayDrops);
+      const alpha = (0.46 + hash(particle.seed + 750) * 0.36) * particle.centerFade * quietFade * fadeIn * fadeOut * (0.9 - fallProgress * 0.24);
       const size = Math.max(1.4, 3.2 * preset.size * weather.streakLength * particle.size * depthScale);
       const z = 1260 - fallProgress * 1160;
       const vertexOffset = index * 3;
@@ -198,5 +209,9 @@ export class SnowRenderer {
     this.snow.geometry.attributes.particleSize.needsUpdate = true;
     this.snow.geometry.attributes.particleAlpha.needsUpdate = true;
   }
+}
+
+function maxWindDistanceForSecondarySway(maxDriftDistance: number, flowStrength: number): number {
+  return maxDriftDistance * (1 - flowStrength * 0.82);
 }
 

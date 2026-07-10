@@ -9,7 +9,14 @@ export interface MergeLiveTableEventOptions {
 
 export function mergeLiveTableEvent(events: LiveTableEvent[], event: LiveTableEvent, options: MergeLiveTableEventOptions = {}): LiveTableEvent[] {
   const filteredEvents = filterActiveLiveTableEvents(events, options.now);
-  if (options.respectPlayerVisibility && event.type !== "dice" && event.type !== "dice-clear" && "visibleInPlayer" in event && event.visibleInPlayer === false) {
+  if (
+    options.respectPlayerVisibility &&
+    event.type !== "dice" &&
+    event.type !== "dice-clear" &&
+    event.type !== "message-clear" &&
+    "visibleInPlayer" in event &&
+    event.visibleInPlayer === false
+  ) {
     if (event.type === "ruler") {
       return filteredEvents.filter((candidate) => candidate.type !== "ruler");
     }
@@ -20,6 +27,9 @@ export function mergeLiveTableEvent(events: LiveTableEvent[], event: LiveTableEv
   }
   if (event.type === "ruler-clear") {
     return filteredEvents.filter((candidate) => candidate.type !== "ruler");
+  }
+  if (event.type === "message-clear") {
+    return filteredEvents.filter((candidate) => candidate.type !== "message");
   }
   return [event, ...filteredEvents.filter((candidate) => candidate.id !== event.id)];
 }
@@ -40,8 +50,16 @@ export function filterActiveLiveTableEvents(events: LiveTableEvent[], now = Date
       if (points.length > 0) {
         activeEvents.push({ ...event, points });
       }
+    } else if (event.type === "arrow") {
+      if (event.expiresAt === undefined || now <= event.expiresAt) {
+        activeEvents.push(event);
+      }
     } else if (event.type === "ruler") {
       if (now <= (event.expiresAt ?? event.createdAt + RULER_EVENT_LIFETIME_MS)) {
+        activeEvents.push(event);
+      }
+    } else if (event.type === "message") {
+      if (now <= event.expiresAt) {
         activeEvents.push(event);
       }
     }

@@ -55,4 +55,15 @@ describe("dice pool layout helpers", () => {
     expect(landing.baseY).toBeLessThanOrEqual(landingHeight / 2 - margin);
     expect(Math.abs(landing.startX) >= margin || Math.abs(landing.startY) >= margin).toBe(true);
   });
+
+  it("can force scene dice to throw from a chosen edge", () => {
+    const layout = getDicePoolLayout(1, "scene", "md");
+    const visual = { die: "d20", result: 17, label: "17", seed: 0.371 } as const;
+    const bounds = { width: 10, height: 6 };
+
+    expect(getSceneDiceLanding(0, layout, visual, bounds, "left").startX).toBeLessThan(0);
+    expect(getSceneDiceLanding(0, layout, visual, bounds, "right").startX).toBeGreaterThan(0);
+    expect(getSceneDiceLanding(0, layout, visual, bounds, "top").startY).toBeGreaterThan(0);
+    expect(getSceneDiceLanding(0, layout, visual, bounds, "bottom").startY).toBeLessThan(0);
+  });
 });

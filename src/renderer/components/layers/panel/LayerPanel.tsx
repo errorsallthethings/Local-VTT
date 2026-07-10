@@ -31,6 +31,7 @@ const EMPTY_SELECTED_IDS: string[] = [];
 
 export function LayerPanel({
   scene,
+  assetsById,
   mapAsset,
   tokenAssets,
   selectedFogShapeId,
@@ -49,7 +50,10 @@ export function LayerPanel({
   onApplyMapFitPreset,
   onMoveLayer,
   onImportMap,
+  onAddMapVariant,
   onReplaceMap,
+  onRenameMapVariant,
+  onSwitchMapVariant,
   onImportToken,
   onDeleteMap,
   onSelectFogShape,
@@ -66,6 +70,7 @@ export function LayerPanel({
   onOpenTokenColor
 }: {
   scene: Scene;
+  assetsById: Map<string, Asset>;
   mapAsset: Asset | null;
   tokenAssets: Map<string, Asset>;
   selectedFogShapeId: string | null;
@@ -84,7 +89,10 @@ export function LayerPanel({
   onApplyMapFitPreset: (fitMode: Exclude<MapTransform["fitMode"], "manual">, gridPatch?: Partial<GridSettings>) => void;
   onMoveLayer: (layerId: string, direction: "up" | "down") => void;
   onImportMap: () => void;
+  onAddMapVariant: (asset: Asset) => void;
   onReplaceMap: (asset: Asset) => void;
+  onRenameMapVariant: (variantId: string, fallbackName: string) => void;
+  onSwitchMapVariant: (variantId: string) => void;
   onImportToken: () => void;
   onDeleteMap: (asset: Asset) => void;
   onSelectFogShape: (shapeId: string | null) => void;
@@ -159,6 +167,7 @@ export function LayerPanel({
                 areSettingsExpanded={areSettingsExpanded}
                 isExpanded={isExpanded}
                 layer={layer}
+                assetsById={assetsById}
                 mapAsset={mapAsset}
                 reservedLayerGuidance={reservedLayerGuidance}
                 scene={scene}
@@ -173,6 +182,7 @@ export function LayerPanel({
                 selectedWeatherMaskIds={selectedWeatherMaskIds}
                 tokenAssets={tokenAssets}
                 onApplyMapFitPreset={onApplyMapFitPreset}
+                onAddMapVariant={onAddMapVariant}
                 onDeleteMap={onDeleteMap}
                 onEditEnvironmentEffect={onEditEnvironmentEffect}
                 onImportMap={onImportMap}
@@ -182,11 +192,13 @@ export function LayerPanel({
                 onOpenTokenColor={onOpenTokenColor}
                 onRenameEnvironmentEffect={onRenameEnvironmentEffect}
                 onRenameFogShape={onRenameFogShape}
+                onRenameMapVariant={onRenameMapVariant}
                 onRenameToken={onRenameToken}
                 onReplaceMap={onReplaceMap}
                 onSelectDrawing={onSelectDrawing}
                 onSelectEnvironmentEffect={onSelectEnvironmentEffect}
                 onSelectFogShape={onSelectFogShape}
+                onSwitchMapVariant={onSwitchMapVariant}
                 onSelectToken={onSelectToken}
                 onSelectWeatherMask={onSelectWeatherMask}
                 onUpdateDrawings={updateDrawings}

@@ -1,8 +1,8 @@
 import { RotateCcw } from "lucide-react";
-import type { WeatherPatternEffectType, WeatherSettings, WeatherTuningSettings } from "../../../../shared/localvtt";
+import type { WeatherSettings, WeatherTuningSettings } from "../../../../shared/localvtt";
 import {
   getWeatherCategoryLabel,
-  getWeatherEffectOptions,
+  getWeatherPatternLabel,
   type ActiveWeatherCategory
 } from "../../../lib/effects";
 import { ColorInput } from "../../controls/ColorPickerField";
@@ -19,20 +19,17 @@ import { WeatherDirectionDial, WeatherRangeRow } from "./WeatherControls";
 export function WeatherCategorySettingsPanel({
   category,
   slot,
-  onSelectWeatherEffect,
   onUpdateWeatherTuning,
   onResetWeatherTuning,
   onResetWeatherDrift
 }: {
   category: ActiveWeatherCategory;
   slot: WeatherSettings["effects"][ActiveWeatherCategory];
-  onSelectWeatherEffect: (category: ActiveWeatherCategory, effect: WeatherPatternEffectType) => void;
   onUpdateWeatherTuning: (category: ActiveWeatherCategory, patch: Partial<WeatherTuningSettings>) => void;
   onResetWeatherTuning: (category: ActiveWeatherCategory, key: WeatherTuningKey) => void;
   onResetWeatherDrift: (category: ActiveWeatherCategory) => void;
 }) {
   const settings = slot.enabled ? slot.settings : null;
-  const weatherOptions = getWeatherEffectOptions(category);
   const advancedLabels = getWeatherAdvancedLabels(category);
   const intensityMax = getWeatherIntensityMax(category);
   const opacityMax = getWeatherOpacityMax(category);
@@ -42,25 +39,7 @@ export function WeatherCategorySettingsPanel({
     <div className="weather-category-settings">
       <div className="weather-settings-heading">
         <span>{getWeatherCategoryLabel(category)} Settings</span>
-      </div>
-      <div className="weather-preset-group" role="group" aria-label={`${category} type`}>
-        {weatherOptions.map((option) => {
-          const Icon = option.icon;
-          const isActive = slot.enabled && slot.pattern === option.effect;
-          return (
-            <button
-              key={option.effect}
-              type="button"
-              className={isActive ? "weather-preset-button weather-preset-active" : "weather-preset-button"}
-              aria-pressed={isActive}
-              title={option.label}
-              onClick={() => onSelectWeatherEffect(category, option.effect)}
-            >
-              <Icon size={16} aria-hidden="true" />
-              <span>{option.label}</span>
-            </button>
-          );
-        })}
+        <small>{getWeatherPatternLabel(slot.pattern)}</small>
       </div>
       {settings ? (
         <>
@@ -70,6 +49,7 @@ export function WeatherCategorySettingsPanel({
               value={settings.intensity}
               min={0.1}
               max={intensityMax}
+              format={formatLayerPanelPercent}
               onChange={(intensity) => onUpdateWeatherTuning(category, { intensity })}
               onReset={() => onResetWeatherTuning(category, "intensity")}
             />
@@ -78,6 +58,7 @@ export function WeatherCategorySettingsPanel({
               value={settings.opacity}
               min={0.05}
               max={opacityMax}
+              format={formatLayerPanelPercent}
               onChange={(opacity) => onUpdateWeatherTuning(category, { opacity })}
               onReset={() => onResetWeatherTuning(category, "opacity")}
             />
@@ -97,6 +78,7 @@ export function WeatherCategorySettingsPanel({
               value={settings.speed}
               min={0.1}
               max={2}
+              format={formatLayerPanelMultiplier}
               onChange={(speed) => onUpdateWeatherTuning(category, { speed })}
               onReset={() => onResetWeatherTuning(category, "speed")}
             />
@@ -146,6 +128,7 @@ function WeatherBasicRangeRow({
   value,
   min,
   max,
+  format,
   onChange,
   onReset
 }: {
@@ -153,14 +136,16 @@ function WeatherBasicRangeRow({
   value: number;
   min: number;
   max: number;
+  format: (value: number) => string;
   onChange: (value: number) => void;
   onReset: () => void;
 }) {
   return (
     <div className="setting-row">
       <span>{label}</span>
-      <div className="weather-setting-control">
+      <div className="weather-setting-control weather-setting-control-with-value">
         <input type="range" min={min} max={max} step={0.05} value={value} onChange={(event) => onChange(Number(event.target.value))} />
+        <output>{format(value)}</output>
         <button className="icon-button weather-reset-button" type="button" title={`Reset ${label.toLowerCase()}`} aria-label={`Reset weather ${label.toLowerCase()}`} onClick={onReset}>
           <RotateCcw size={13} aria-hidden="true" />
         </button>

@@ -376,19 +376,43 @@ export function getQuietAreaBounds(bounds: WeatherBounds, quietAreaSize: number)
   };
 }
 
-export function getScreenWeatherArea(scene: Scene, viewportWidth: number, viewportHeight: number, camera: Camera, mapSource?: CanvasImageSource | null): WeatherArea {
+export function getQuietAreaFade(bounds: WeatherBounds, point: { x: number; y: number }, quietAreaSize: number, centerStrayDrops: number): number {
+  const quiet = getQuietAreaBounds(bounds, quietAreaSize);
+  const insideX = point.x >= quiet.left && point.x <= quiet.right;
+  const insideY = point.y >= quiet.top && point.y <= quiet.bottom;
+  const strayAlpha = clamp(centerStrayDrops, 0, 1) * 0.42;
+  if (insideX && insideY) {
+    return strayAlpha;
+  }
+
+  const distanceX = point.x < quiet.left ? quiet.left - point.x : point.x > quiet.right ? point.x - quiet.right : 0;
+  const distanceY = point.y < quiet.top ? quiet.top - point.y : point.y > quiet.bottom ? point.y - quiet.bottom : 0;
+  const distance = Math.hypot(distanceX, distanceY);
+  const fadeRange = Math.max(8, getMinimumWeatherDimension(bounds) * 0.08);
+  return strayAlpha + (1 - strayAlpha) * smoothstep(0, fadeRange, distance);
+}
+
+export interface WeatherMapDimensions {
+  width: number;
+  height: number;
+}
+
+export function getScreenWeatherArea(
+  scene: Scene,
+  viewportWidth: number,
+  viewportHeight: number,
+  camera: Camera,
+  mapSource?: CanvasImageSource | null,
+  mapDimensions?: WeatherMapDimensions | null
+): WeatherArea {
   if (mapSource) {
-    const sourceWidth = getSourceWidth(mapSource);
-    const sourceHeight = getSourceHeight(mapSource);
+    const sourceWidth = mapDimensions?.width && mapDimensions.width > 0 ? mapDimensions.width : getSourceWidth(mapSource);
+    const sourceHeight = mapDimensions?.height && mapDimensions.height > 0 ? mapDimensions.height : getSourceHeight(mapSource);
     if (sourceWidth > 0 && sourceHeight > 0) {
-      const transform = resolveMapTransform(scene, sourceWidth, sourceHeight, viewportWidth, viewportHeight);
-      const left = camera.x + transform.x * camera.zoom;
-      const top = camera.y + transform.y * camera.zoom;
-      const width = sourceWidth * getMapScaleX(transform) * camera.zoom;
-      const height = sourceHeight * getMapScaleY(transform) * camera.zoom;
-      const padding = Math.min(width, height) * 0.16;
+      const bounds = getTransformedMapWeatherBounds(scene, sourceWidth, sourceHeight, viewportWidth, viewportHeight, camera);
+      const padding = Math.min(bounds.width, bounds.height) * 0.16;
       return {
-        clip: { left, top, width, height },
+        clip: bounds,
         spawnPadding: padding
       };
     }
@@ -396,6 +420,45 @@ export function getScreenWeatherArea(scene: Scene, viewportWidth: number, viewpo
   return {
     clip: { left: 0, top: 0, width: viewportWidth, height: viewportHeight },
     spawnPadding: Math.min(viewportWidth, viewportHeight) * 0.12
+  };
+}
+
+export function getTransformedMapWeatherBounds(
+  scene: Scene,
+  sourceWidth: number,
+  sourceHeight: number,
+  viewportWidth: number,
+  viewportHeight: number,
+  camera: Camera
+): WeatherBounds {
+  const transform = resolveMapTransform(scene, sourceWidth, sourceHeight, viewportWidth, viewportHeight);
+  const scaleX = getMapScaleX(transform);
+  const scaleY = getMapScaleY(transform);
+  const rotation = (transform.rotation * Math.PI) / 180;
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  const corners = [
+    { x: 0, y: 0 },
+    { x: sourceWidth, y: 0 },
+    { x: sourceWidth, y: sourceHeight },
+    { x: 0, y: sourceHeight }
+  ].map((corner) => {
+    const scaledX = corner.x * scaleX;
+    const scaledY = corner.y * scaleY;
+    return {
+      x: camera.x + (transform.x + scaledX * cos - scaledY * sin) * camera.zoom,
+      y: camera.y + (transform.y + scaledX * sin + scaledY * cos) * camera.zoom
+    };
+  });
+  const left = Math.min(...corners.map((corner) => corner.x));
+  const right = Math.max(...corners.map((corner) => corner.x));
+  const top = Math.min(...corners.map((corner) => corner.y));
+  const bottom = Math.max(...corners.map((corner) => corner.y));
+  return {
+    left,
+    top,
+    width: Math.max(1, right - left),
+    height: Math.max(1, bottom - top)
   };
 }
 
@@ -433,6 +496,40 @@ export function getQuietAreaPoint(bounds: WeatherBounds, index: number, quietAre
     default:
       return { x: quiet.left + inset, y: quiet.top + hash(index + 98) * quiet.height };
   }
+}
+
+export function getDriftEntryPoint(bounds: WeatherBounds, directionX: number, directionY: number, index: number): { x: number; y: number } {
+  const diagonal = Math.hypot(bounds.width, bounds.height);
+  const centerX = bounds.left + bounds.width / 2;
+  const centerY = bounds.top + bounds.height / 2;
+  const crossX = -directionY;
+  const crossY = directionX;
+  const startOffset = diagonal * (0.58 + hash(index + 611) * 0.18);
+  const crossSpan = diagonal * (0.52 + hash(index + 613) * 0.22);
+  const crossOffset = (hash(index + 617) - 0.5) * crossSpan;
+  return {
+    x: centerX - directionX * startOffset + crossX * crossOffset,
+    y: centerY - directionY * startOffset + crossY * crossOffset
+  };
+}
+
+export function getDistanceToBoundsExit(bounds: WeatherBounds, x: number, y: number, directionX: number, directionY: number, padding = 0): number {
+  const left = bounds.left - padding;
+  const right = bounds.left + bounds.width + padding;
+  const top = bounds.top - padding;
+  const bottom = bounds.top + bounds.height + padding;
+  const candidates: number[] = [];
+  if (directionX > 0) {
+    candidates.push((right - x) / directionX);
+  } else if (directionX < 0) {
+    candidates.push((left - x) / directionX);
+  }
+  if (directionY > 0) {
+    candidates.push((bottom - y) / directionY);
+  } else if (directionY < 0) {
+    candidates.push((top - y) / directionY);
+  }
+  return Math.max(0, candidates.filter((candidate) => Number.isFinite(candidate) && candidate > 0).sort((a, b) => a - b)[0] ?? 0);
 }
 
 export function createSandVeilMesh(bounds: WeatherBounds): THREE.Mesh {
@@ -967,9 +1064,13 @@ export function updateFrostEdgeMesh(mesh: THREE.Group | null, weather: WeatherSe
 export function createSnowParticle(bounds: WeatherBounds, weather: WeatherSettings, preset: SnowPreset, index: number): SnowParticle {
   const quietDropChance = 0.005 + weather.centerStrayDrops * 0.08;
   const quietDrop = hash(index + 681) > 1 - quietDropChance;
+  const drift = getWeatherDriftVector(weather);
+  const useDriftEntry = !quietDrop && drift.strength > 0.35;
   const point = quietDrop
     ? getQuietAreaPoint(bounds, index + 682, weather.quietAreaSize)
-    : getEdgePoint(bounds, Math.min(bounds.width, bounds.height) * 0.12, 2 + weather.edgeBias * 3, index + 690);
+    : useDriftEntry
+      ? getDriftEntryPoint(bounds, drift.x, drift.y, index + 690)
+      : getEdgePoint(bounds, Math.min(bounds.width, bounds.height) * 0.12, 2 + weather.edgeBias * 3, index + 690);
   return {
     seed: index + hash(index + 701) * 1000,
     baseX: point.x,

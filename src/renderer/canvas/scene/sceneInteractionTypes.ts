@@ -39,6 +39,14 @@ export type LaserDragState = {
   points: LiveTablePoint[];
 };
 
+export type ArrowPointerDragState = {
+  pointerId: number;
+  eventId: string;
+  start: Point;
+  end: Point;
+  createdAt: number;
+};
+
 export type SelectionMode = "replace" | "add" | "subtract";
 
 export type SelectionDrag = {

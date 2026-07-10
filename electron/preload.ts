@@ -58,6 +58,10 @@ const api: LocalVttApi = {
     } | null>,
   replaceMap: (campaignPath: string, sceneId: string, currentAssetId: string, replacementId: string) =>
     ipcRenderer.invoke("asset:replaceMap", campaignPath, sceneId, currentAssetId, replacementId) as Promise<{ campaignSummary: CampaignSummary; scene: Scene; asset: Asset }>,
+  previewMapVariant: (campaignPath: string, sceneId: string, currentAssetId: string) =>
+    ipcRenderer.invoke("asset:previewMapVariant", campaignPath, sceneId, currentAssetId) as ReturnType<LocalVttApi["previewMapVariant"]>,
+  addMapVariant: (campaignPath: string, sceneId: string, currentAssetId: string, replacementId: string) =>
+    ipcRenderer.invoke("asset:addMapVariant", campaignPath, sceneId, currentAssetId, replacementId) as Promise<{ campaignSummary: CampaignSummary; scene: Scene; asset: Asset }>,
   importToken: (campaignPath: string) =>
     ipcRenderer.invoke("asset:importToken", campaignPath) as Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>,
   updateTokenThumbnail: (campaignPath: string, assetId: string, crop: SquareCropRect) =>

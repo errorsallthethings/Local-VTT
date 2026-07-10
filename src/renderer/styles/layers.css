@@ -467,6 +467,7 @@
 
 .layer-detail-controls {
   grid-column: 1 / -1;
+  container-type: inline-size;
   display: grid;
   gap: 8px;
   border-top: 1px solid var(--color-border-muted);
@@ -613,6 +614,11 @@
   border-radius: var(--radius-control);
   background: var(--color-bg-panel-deep);
   padding: 6px;
+}
+
+.map-asset-row-active {
+  border-color: color-mix(in srgb, var(--color-accent) 58%, var(--color-border-muted));
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-bg-panel-deep));
 }
 
 .map-asset-thumbnail {

@@ -27,6 +27,7 @@ export function useGmDialogCancelActions({
     setFolderDialog,
     setFolderToDelete,
     setMapAssetToDelete,
+    setMapVariantDialog,
     setSceneColorDialog,
     setSceneDialog,
     setSceneToDelete,
@@ -42,6 +43,7 @@ export function useGmDialogCancelActions({
   const cancelFolderDialog = useCallback(() => setFolderDialog(null), [setFolderDialog]);
   const cancelFogShapeDialog = useCallback(() => setFogShapeDialog(null), [setFogShapeDialog]);
   const cancelEnvironmentEffectDialog = useCallback(() => setEnvironmentEffectDialog(null), [setEnvironmentEffectDialog]);
+  const cancelMapVariantDialog = useCallback(() => setMapVariantDialog(null), [setMapVariantDialog]);
   const cancelTokenDialog = useCallback(() => setTokenDialog(null), [setTokenDialog]);
   const cancelTokenAssetDialog = useCallback(() => setTokenAssetDialog(null), [setTokenAssetDialog]);
   const cancelTokenDefaultsDialog = useCallback(() => setTokenDefaultsDialog(null), [setTokenDefaultsDialog]);
@@ -60,6 +62,7 @@ export function useGmDialogCancelActions({
     onCancelFolderDialog: cancelFolderDialog,
     onCancelFogShapeDialog: cancelFogShapeDialog,
     onCancelEnvironmentEffectDialog: cancelEnvironmentEffectDialog,
+    onCancelMapVariantDialog: cancelMapVariantDialog,
     onCancelTokenDialog: cancelTokenDialog,
     onCancelTokenCropDialog: cancelTokenCropDialog,
     onCancelTokenAssetDialog: cancelTokenAssetDialog,
@@ -86,6 +89,7 @@ export function useGmDialogCancelActions({
     cancelFolderDelete,
     cancelFolderDialog,
     cancelMapAssetDelete,
+    cancelMapVariantDialog,
     cancelSceneColorDialog,
     cancelSceneDelete,
     cancelSceneDialog,

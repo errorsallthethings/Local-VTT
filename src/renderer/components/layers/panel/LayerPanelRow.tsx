@@ -9,7 +9,7 @@ import {
   Image,
   Layers,
   Lightbulb,
-  Paintbrush,
+  Palette,
   Settings2,
   Shield,
   Sparkles,
@@ -147,7 +147,7 @@ function getLayerIcon(layer: Layer) {
     case "effects":
       return <Sparkles size={16} />;
     case "drawing":
-      return <Paintbrush size={16} />;
+      return <Palette size={16} />;
     case "token":
       return <UsersRound size={16} />;
     case "foreground":

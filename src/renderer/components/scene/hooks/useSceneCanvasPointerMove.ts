@@ -9,6 +9,7 @@ import type { MapCalibrationBox, MapCalibrationDrag } from "../../../canvas/map"
 import type { RulerDrag } from "../../../canvas/measurement";
 import { getUpdatedSelectionDrag } from "../../../canvas/selection";
 import type {
+  ArrowPointerDragState,
   DrawingDragState,
   DrawingResizeState,
   DrawingRotateState,
@@ -19,6 +20,7 @@ import type {
 import type { TokenDragPreview } from "../../../canvas/tokens";
 import type { WeatherMaskDrag, WeatherPolygonDraft } from "../../../canvas/weather";
 import type { DrawingTemplateSize, EnvironmentEffectTool, WeatherMaskTool } from "../../tools";
+import { getArrowPointerMove, getArrowPointerMoveAction } from "../input/sceneArrowPointer";
 import { getDrawingPointerMove, getDrawingPointerMoveAction } from "../input/sceneDrawingPointer";
 import { getDrawingTransformPointerMove, getDrawingTransformPointerMoveAction } from "../input/sceneDrawingTransformPointer";
 import { getEnvironmentEffectPointerMove, getEnvironmentEffectPointerMoveAction } from "../input/sceneEnvironmentEffectPointer";
@@ -32,13 +34,14 @@ import { getScenePointerMoveRoute } from "../input/scenePointerMoveRouting";
 import { getRulerPointerMoveAction, getUpdatedRulerPointerDrag } from "../input/sceneRulerPointer";
 import { getTokenPointerMove, getTokenPointerMoveAction } from "../input/sceneTokenPointer";
 import { getWeatherMaskPointerMove, getWeatherMaskPointerMoveAction } from "../input/sceneWeatherMaskPointer";
-import { createLaserLiveTableEvent } from "../../../canvas/live-table";
+import { createArrowPointerLiveTableEvent, createLaserLiveTableEvent } from "../../../canvas/live-table";
 
 interface SceneCanvasPointerMoveOptions {
   activeTableTools: TableToolSettings;
   autoFitCameraRef: MutableRefObject<boolean>;
   camera: Camera;
   cancelTokenDrag: () => void;
+  arrowDragRef: MutableRefObject<ArrowPointerDragState | null>;
   drawingDragRef: MutableRefObject<DrawingDragState | null>;
   drawingPolygonDraftRef: MutableRefObject<{ points: Point[]; current?: Point } | null>;
   drawingPreviewRef: MutableRefObject<DrawingPreview | null>;
@@ -107,6 +110,7 @@ export function useSceneCanvasPointerMove(options: SceneCanvasPointerMoveOptions
     const drawingRotateValue = options.drawingRotateRef.current;
     const weatherMaskMoveValue = options.weatherMaskMoveRef.current;
     const environmentEffectMoveValue = options.environmentEffectMoveRef.current;
+    const arrowDrag = options.arrowDragRef.current;
     const laserDrag = options.laserDragRef.current;
     const drawingDrag = options.drawingPreviewRef.current;
     const rulerDragValue = options.rulerDragRef.current;
@@ -115,6 +119,7 @@ export function useSceneCanvasPointerMove(options: SceneCanvasPointerMoveOptions
     const pointerMoveRoute = getScenePointerMoveRoute({
       pointerId: event.pointerId,
       mapCalibrationDrag: mapCalibrationDragValue,
+      arrowDrag,
       laserDrag,
       rulerDrag: rulerDragValue,
       selectionDrag: selectionDragValue,
@@ -147,6 +152,15 @@ export function useSceneCanvasPointerMove(options: SceneCanvasPointerMoveOptions
       if (action.kind === "emit") {
         options.laserDragRef.current = action.drag;
         options.onLiveTableEvent?.(createLaserLiveTableEvent(laserDrag.eventId, action.drag.points, options.activeTableTools, options.tableToolsVisibleInPlayer));
+      }
+      return;
+    }
+    if (pointerMoveRoute === "arrow" && arrowDrag) {
+      const point = eventToWorldPoint(event, getRenderCamera(options.camera, options.playerDisplayScale));
+      const action = getArrowPointerMoveAction(getArrowPointerMove(arrowDrag, event.pointerId, point));
+      if (action.kind === "emit") {
+        options.arrowDragRef.current = action.drag;
+        options.onLiveTableEvent?.(createArrowPointerLiveTableEvent(action.drag, options.activeTableTools, options.tableToolsVisibleInPlayer));
       }
       return;
     }

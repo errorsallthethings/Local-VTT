@@ -24,13 +24,14 @@ describe("scene canvas render plan", () => {
     expect(plan.renderCamera).toEqual({ x: 10, y: 20, zoom: 2 });
     expect(plan.mapDrawSource).toBe(source);
     expect(plan.weatherMapSource).toBe(source);
+    expect(plan.weatherMapDimensions).toEqual({ width: 800, height: 600 });
     expect(plan.weatherMapReady).toBe(true);
     expect(plan.showGrid).toBe(true);
   });
 
   it("uses ready video maps for weather sampling while image map drawing stays empty", () => {
     const scene = createDefaultScene("Render Plan");
-    const activeVideo = { readyState: 1 } as HTMLVideoElement;
+    const activeVideo = { readyState: 1, videoWidth: 1920, videoHeight: 1080 } as HTMLVideoElement;
     const plan = getSceneCanvasRenderPlan({
       activeVideo,
       camera: { x: 0, y: 0, zoom: 1 },
@@ -47,6 +48,7 @@ describe("scene canvas render plan", () => {
 
     expect(plan.mapDrawSource).toBeNull();
     expect(plan.weatherMapSource).toBe(activeVideo);
+    expect(plan.weatherMapDimensions).toEqual({ width: 1920, height: 1080 });
     expect(plan.weatherMapReady).toBe(true);
   });
 

@@ -8,6 +8,7 @@ export type ScenePointerUpRoute =
   | "selection"
   | "drawing-transform"
   | "mask-effect"
+  | "arrow"
   | "laser"
   | "none";
 
@@ -29,6 +30,7 @@ export interface ScenePointerUpRoutingOptions {
   drawingRotateDrag?: PointerTrackedInteraction | null;
   weatherMaskMove?: PointerTrackedInteraction | null;
   environmentEffectMove?: PointerTrackedInteraction | null;
+  arrowDrag?: PointerTrackedInteraction | null;
   laserDrag?: PointerTrackedInteraction | null;
 }
 
@@ -64,6 +66,9 @@ export function getScenePointerUpRoute(options: ScenePointerUpRoutingOptions): S
   }
   if (matchesPointer(options.weatherMaskMove, pointerId) || matchesPointer(options.environmentEffectMove, pointerId)) {
     return "mask-effect";
+  }
+  if (matchesPointer(options.arrowDrag, pointerId)) {
+    return "arrow";
   }
   if (matchesPointer(options.laserDrag, pointerId)) {
     return "laser";

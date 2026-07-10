@@ -72,6 +72,8 @@ export interface LocalVttApi {
   importMap: (campaignPath: string) => Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>;
   previewMapReplacement: (campaignPath: string, sceneId: string, currentAssetId: string) => Promise<MapReplacementPreview | null>;
   replaceMap: (campaignPath: string, sceneId: string, currentAssetId: string, replacementId: string) => Promise<{ campaignSummary: CampaignSummary; scene: Scene; asset: Asset }>;
+  previewMapVariant: (campaignPath: string, sceneId: string, currentAssetId: string) => Promise<MapReplacementPreview | null>;
+  addMapVariant: (campaignPath: string, sceneId: string, currentAssetId: string, replacementId: string) => Promise<{ campaignSummary: CampaignSummary; scene: Scene; asset: Asset }>;
   importToken: (campaignPath: string) => Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>;
   updateTokenThumbnail: (campaignPath: string, assetId: string, crop: SquareCropRect) => Promise<{ campaignSummary: CampaignSummary; asset: Asset }>;
   regenerateThumbnails: (campaignPath: string) => Promise<ThumbnailRegenerationResult>;

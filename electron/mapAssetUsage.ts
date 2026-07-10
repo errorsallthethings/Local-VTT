@@ -1,4 +1,4 @@
-import type { Campaign, Scene } from "../src/shared/localvtt.js";
+import { sceneUsesMapAsset, type Campaign, type Scene } from "../src/shared/localvtt.js";
 
 export type ReadMapUsageScene = (sceneId: string) => Promise<Scene>;
 
@@ -14,7 +14,7 @@ export async function getMapAssetSceneNames(campaign: Campaign, assetId: string,
     }
     try {
       const scene = await readScene(entry.id);
-      if (scene.mapAssetId === assetId) {
+      if (sceneUsesMapAsset(scene, assetId)) {
         sceneNames.push(entry.name);
       }
     } catch {

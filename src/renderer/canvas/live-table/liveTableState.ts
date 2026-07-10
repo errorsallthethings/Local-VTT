@@ -1,5 +1,5 @@
-import type { Campaign, LiveTableEvent, Point, Scene, TableToolSettings, Token } from "../../../shared/localvtt";
-import type { LaserDragState } from "../scene/sceneInteractionTypes";
+import type { Campaign, LiveTableEvent, Point, Scene, TableMessageLayout, TableMessagePlacement, TableMessageStyle, TableToolSettings, Token } from "../../../shared/localvtt";
+import type { ArrowPointerDragState, LaserDragState } from "../scene/sceneInteractionTypes";
 import type { RulerDrag, RulerLabel } from "../measurement/measurement";
 import {
   formatMeasurementDistance,
@@ -73,6 +73,15 @@ export function getVisibleCanvasLiveTableEvents(liveTableEvents: LiveTableEvent[
   return mode === "gm" ? liveTableEvents.filter((event) => event.type !== "ruler") : liveTableEvents;
 }
 
+export function getVisibleTableMessageEvents(liveTableEvents: readonly LiveTableEvent[], mode: "gm" | "player"): Array<Extract<LiveTableEvent, { type: "message" }>> {
+  return liveTableEvents.filter((event): event is Extract<LiveTableEvent, { type: "message" }> => {
+    if (event.type !== "message") {
+      return false;
+    }
+    return mode === "gm" ? event.showInGm !== false : event.visibleInPlayer !== false;
+  });
+}
+
 export function shouldShowDiceOverlay(event: Extract<LiveTableEvent, { type: "dice" }>, mode: "gm" | "player"): boolean {
   const displayMode = mode === "gm" ? event.gmDiceDisplay : event.playerDiceDisplay;
   if (displayMode) {
@@ -110,6 +119,39 @@ export function createRulerClearEvent(now = Date.now()): Extract<LiveTableEvent,
   };
 }
 
+export function createTableMessageEvent(
+  id: string,
+  text: string,
+  layout: TableMessageLayout,
+  placement: TableMessagePlacement,
+  style: TableMessageStyle,
+  durationMs: number,
+  showInGm: boolean,
+  now = Date.now()
+): Extract<LiveTableEvent, { type: "message" }> {
+  return {
+    id,
+    type: "message",
+    text,
+    layout,
+    placement,
+    style,
+    durationMs,
+    showInGm,
+    visibleInPlayer: true,
+    createdAt: now,
+    expiresAt: now + durationMs
+  };
+}
+
+export function createTableMessageClearEvent(now = Date.now()): Extract<LiveTableEvent, { type: "message-clear" }> {
+  return {
+    id: "message-clear",
+    type: "message-clear",
+    createdAt: now
+  };
+}
+
 export function createPingLiveTableEvent(id: string, point: Point, settings: TableToolSettings, visibleInPlayer: boolean, now = Date.now()): Extract<LiveTableEvent, { type: "ping" }> {
   return {
     id,
@@ -117,8 +159,52 @@ export function createPingLiveTableEvent(id: string, point: Point, settings: Tab
     point,
     size: settings.pingSize,
     color: settings.pingColor,
+    pingKind: settings.pingKind,
     visibleInPlayer,
     createdAt: now
+  };
+}
+
+export function createArrowPointerDragStart(
+  pointerId: number,
+  eventId: string,
+  point: Point,
+  now = Date.now()
+): ArrowPointerDragState {
+  return {
+    pointerId,
+    eventId,
+    start: point,
+    end: point,
+    createdAt: now
+  };
+}
+
+export function getUpdatedArrowPointerDrag(drag: ArrowPointerDragState, point: Point): ArrowPointerDragState {
+  return {
+    ...drag,
+    end: point
+  };
+}
+
+export function createArrowPointerLiveTableEvent(
+  drag: ArrowPointerDragState,
+  settings: TableToolSettings,
+  visibleInPlayer: boolean,
+  _now = Date.now(),
+  expiresAt?: number,
+  createdAt = drag.createdAt
+): Extract<LiveTableEvent, { type: "arrow" }> {
+  return {
+    id: drag.eventId,
+    type: "arrow",
+    start: drag.start,
+    end: drag.end,
+    thickness: settings.laserThickness,
+    color: settings.laserColor,
+    visibleInPlayer,
+    createdAt,
+    ...(expiresAt === undefined ? {} : { expiresAt })
   };
 }
 

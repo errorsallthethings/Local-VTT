@@ -186,6 +186,13 @@ export interface MapTransform {
   fitMode: "manual" | "contain" | "cover" | "actual-size";
 }
 
+export interface MapVariant {
+  id: string;
+  name: string;
+  assetId: string;
+  createdAt: string;
+}
+
 export interface FogSettings {
   mode: "hidden" | "revealed" | "partial";
   color: string;
@@ -519,9 +526,12 @@ export interface VideoPlaybackSettings {
   muted: boolean;
 }
 
+export type PingKind = "sonar" | "radius" | "attention";
+
 export interface TableToolSettings {
   pingSize: number;
   pingColor: string;
+  pingKind: PingKind;
   laserThickness: number;
   laserColor: string;
   rulerLinger: boolean;
@@ -633,6 +643,7 @@ export interface Scene {
   id: string;
   name: string;
   mapAssetId?: string;
+  mapVariants: MapVariant[];
   createdAt: string;
   updatedAt: string;
   grid: GridSettings;
@@ -814,9 +825,13 @@ export interface LiveTablePoint {
   createdAt: number;
 }
 
+export type TableMessagePlacement = "top" | "center" | "bottom";
+export type TableMessageLayout = "screen" | "table-edges";
+export type TableMessageStyle = "notice" | "dramatic" | "danger" | "success";
 export type DiceDisplayMode = "results" | "panel" | "scene" | "scene-result" | "hidden";
 export type DiceSceneRollTarget = "gm" | "player";
 export type DiceSceneSize = "xs" | "sm" | "md" | "lg" | "xl";
+export type DiceSceneThrowDirection = "random" | "left" | "top" | "right" | "bottom";
 export type DicePanelEdge = "top" | "right" | "bottom" | "left";
 export type DicePanelFacing = "inward" | "outward";
 
@@ -827,6 +842,7 @@ export interface DiceSettings {
   sceneRollTarget: DiceSceneRollTarget;
   gmSceneSize: DiceSceneSize;
   playerSceneSize: DiceSceneSize;
+  sceneThrowDirection: DiceSceneThrowDirection;
   gmPanelEdge: DicePanelEdge;
   playerPanelEdge: DicePanelEdge;
   gmPanelFacing: DicePanelFacing;
@@ -835,6 +851,12 @@ export interface DiceSettings {
   playerPanelPosition: number;
   gmPanelAdvanced: boolean;
   playerPanelAdvanced: boolean;
+  impactVolume: number;
+  impactBody: number;
+  impactClick: number;
+  impactBrightness: number;
+  impactDecay: number;
+  impactPitch: number;
 }
 
 export const DEFAULT_DICE_SETTINGS: DiceSettings = {
@@ -844,6 +866,7 @@ export const DEFAULT_DICE_SETTINGS: DiceSettings = {
   sceneRollTarget: "gm",
   gmSceneSize: "md",
   playerSceneSize: "md",
+  sceneThrowDirection: "random",
   gmPanelEdge: "top",
   playerPanelEdge: "top",
   gmPanelFacing: "inward",
@@ -851,7 +874,13 @@ export const DEFAULT_DICE_SETTINGS: DiceSettings = {
   gmPanelPosition: 0.5,
   playerPanelPosition: 0.5,
   gmPanelAdvanced: false,
-  playerPanelAdvanced: false
+  playerPanelAdvanced: false,
+  impactVolume: 0.8,
+  impactBody: 0.13,
+  impactClick: 0.98,
+  impactBrightness: 0.13,
+  impactDecay: 0.17,
+  impactPitch: 0.39
 };
 
 export type LiveTableEvent =
@@ -861,8 +890,20 @@ export type LiveTableEvent =
       point: Point;
       size?: number;
       color?: string;
+      pingKind?: PingKind;
       visibleInPlayer?: boolean;
       createdAt: number;
+    }
+  | {
+      id: string;
+      type: "arrow";
+      start: Point;
+      end: Point;
+      thickness?: number;
+      color?: string;
+      visibleInPlayer?: boolean;
+      createdAt: number;
+      expiresAt?: number;
     }
   | {
       id: string;
@@ -890,6 +931,24 @@ export type LiveTableEvent =
     }
   | {
       id: string;
+      type: "message";
+      text: string;
+      layout: TableMessageLayout;
+      placement: TableMessagePlacement;
+      style: TableMessageStyle;
+      durationMs: number;
+      showInGm?: boolean;
+      visibleInPlayer?: boolean;
+      createdAt: number;
+      expiresAt: number;
+    }
+  | {
+      id: string;
+      type: "message-clear";
+      createdAt: number;
+    }
+  | {
+      id: string;
       type: "dice";
       die: "coin" | "d2" | "d4" | "d6" | "d8" | "d10" | "d00" | "d12" | "d20";
       result: number;
@@ -904,6 +963,7 @@ export type LiveTableEvent =
       playerDiceDisplay?: DiceDisplayMode;
       gmDiceSceneSize?: DiceSceneSize;
       playerDiceSceneSize?: DiceSceneSize;
+      diceSceneThrowDirection?: DiceSceneThrowDirection;
       gmDicePanelEdge?: DicePanelEdge;
       playerDicePanelEdge?: DicePanelEdge;
       gmDicePanelFacing?: DicePanelFacing;
@@ -912,6 +972,12 @@ export type LiveTableEvent =
       playerDicePanelPosition?: number;
       gmDicePanelAdvanced?: boolean;
       playerDicePanelAdvanced?: boolean;
+      diceImpactVolume?: number;
+      diceImpactBody?: number;
+      diceImpactClick?: number;
+      diceImpactBrightness?: number;
+      diceImpactDecay?: number;
+      diceImpactPitch?: number;
       gmPresentation?: "3d" | "result";
       playerPresentation?: "3d" | "result";
       presentation?: "3d" | "result";
@@ -1003,6 +1069,7 @@ export const DEFAULT_VIDEO_PLAYBACK: VideoPlaybackSettings = {
 export const DEFAULT_TABLE_TOOLS: TableToolSettings = {
   pingSize: 1,
   pingColor: "#ffd84d",
+  pingKind: "sonar",
   laserThickness: 20,
   laserColor: "#ff525e",
   rulerLinger: false
@@ -1384,6 +1451,7 @@ export function createDefaultScene(name: string): Scene {
     schemaVersion: CURRENT_SCENE_SCHEMA_VERSION,
     id: crypto.randomUUID(),
     name,
+    mapVariants: [],
     createdAt: now,
     updatedAt: now,
     grid: { ...DEFAULT_GRID, measurement: { ...DEFAULT_MEASUREMENT } },
@@ -1453,6 +1521,77 @@ export function duplicateScene(
   };
 }
 
+export function getSceneMapAssetIds(scene: Pick<Scene, "mapAssetId" | "mapVariants">): string[] {
+  const assetIds = new Set<string>();
+  if (scene.mapAssetId) {
+    assetIds.add(scene.mapAssetId);
+  }
+  for (const variant of scene.mapVariants ?? []) {
+    assetIds.add(variant.assetId);
+  }
+  return [...assetIds];
+}
+
+export function sceneUsesMapAsset(scene: Pick<Scene, "mapAssetId" | "mapVariants">, assetId: string): boolean {
+  return getSceneMapAssetIds(scene).includes(assetId);
+}
+
+export function addSceneMapVariant(scene: Scene, variant: MapVariant, timestamp = new Date().toISOString()): Scene {
+  const normalizedScene = normalizeScene(scene);
+  const existing = normalizedScene.mapVariants.find((candidate) => candidate.assetId === variant.assetId);
+  if (existing) {
+    return switchSceneMapVariant(normalizedScene, existing.id, timestamp);
+  }
+  const nextMapAssetId = normalizedScene.mapAssetId ?? variant.assetId;
+  return normalizeScene({
+    ...normalizedScene,
+    mapAssetId: nextMapAssetId,
+    mapVariants: [...normalizedScene.mapVariants, variant],
+    updatedAt: timestamp
+  });
+}
+
+export function renameSceneMapVariant(scene: Scene, variantId: string, name: string, timestamp = new Date().toISOString()): Scene {
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return normalizeScene(scene);
+  }
+  return normalizeScene({
+    ...scene,
+    mapVariants: scene.mapVariants.map((variant) => (variant.id === variantId ? { ...variant, name: trimmedName } : variant)),
+    updatedAt: timestamp
+  });
+}
+
+export function removeSceneMapVariant(scene: Scene, variantId: string, timestamp = new Date().toISOString()): Scene {
+  const normalizedScene = normalizeScene(scene);
+  const removedVariant = normalizedScene.mapVariants.find((variant) => variant.id === variantId);
+  if (!removedVariant) {
+    return normalizedScene;
+  }
+  const nextVariants = normalizedScene.mapVariants.filter((variant) => variant.id !== variantId);
+  const nextActiveVariant = normalizedScene.mapAssetId === removedVariant.assetId ? nextVariants[0] : nextVariants.find((variant) => variant.assetId === normalizedScene.mapAssetId);
+  return normalizeScene({
+    ...normalizedScene,
+    mapAssetId: nextActiveVariant?.assetId,
+    mapVariants: nextVariants,
+    updatedAt: timestamp
+  });
+}
+
+export function switchSceneMapVariant(scene: Scene, variantId: string, timestamp = new Date().toISOString()): Scene {
+  const normalizedScene = normalizeScene(scene);
+  const variant = normalizedScene.mapVariants.find((candidate) => candidate.id === variantId);
+  if (!variant || normalizedScene.mapAssetId === variant.assetId) {
+    return normalizedScene;
+  }
+  return normalizeScene({
+    ...normalizedScene,
+    mapAssetId: variant.assetId,
+    updatedAt: timestamp
+  });
+}
+
 export function assertValidCampaign(value: unknown): asserts value is Campaign {
   if (!isRecord(value) || !isNonEmptyString(value.id) || !isNonEmptyString(value.name) || !Array.isArray(value.scenes)) {
     throw new Error("Invalid campaign.json file.");
@@ -1520,7 +1659,18 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
       isPoint(value.point) &&
       isOptionalFiniteNumber(value.size) &&
       isOptionalString(value.color) &&
+      (value.pingKind === undefined || isPingKind(value.pingKind)) &&
       isOptionalBoolean(value.visibleInPlayer)
+    );
+  }
+  if (value.type === "arrow") {
+    return (
+      isPoint(value.start) &&
+      isPoint(value.end) &&
+      isOptionalFiniteNumber(value.thickness) &&
+      isOptionalString(value.color) &&
+      isOptionalBoolean(value.visibleInPlayer) &&
+      isOptionalFiniteNumber(value.expiresAt)
     );
   }
   if (value.type === "laser") {
@@ -1546,6 +1696,24 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
   if (value.type === "ruler-clear") {
     return true;
   }
+  if (value.type === "message") {
+    return (
+      typeof value.text === "string" &&
+      isTableMessageLayout(value.layout) &&
+      isTableMessagePlacement(value.placement) &&
+      isTableMessageStyle(value.style) &&
+      typeof value.durationMs === "number" &&
+      Number.isFinite(value.durationMs) &&
+      value.durationMs > 0 &&
+      isOptionalBoolean(value.showInGm) &&
+      isOptionalBoolean(value.visibleInPlayer) &&
+      typeof value.expiresAt === "number" &&
+      Number.isFinite(value.expiresAt)
+    );
+  }
+  if (value.type === "message-clear") {
+    return true;
+  }
   if (value.type === "dice") {
     return (
       isDiceType(value.die) &&
@@ -1563,6 +1731,7 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
       (value.playerDiceDisplay === undefined || isDiceDisplayMode(value.playerDiceDisplay)) &&
       (value.gmDiceSceneSize === undefined || isDiceSceneSize(value.gmDiceSceneSize)) &&
       (value.playerDiceSceneSize === undefined || isDiceSceneSize(value.playerDiceSceneSize)) &&
+      (value.diceSceneThrowDirection === undefined || isDiceSceneThrowDirection(value.diceSceneThrowDirection)) &&
       (value.gmDicePanelEdge === undefined || isDicePanelEdge(value.gmDicePanelEdge)) &&
       (value.playerDicePanelEdge === undefined || isDicePanelEdge(value.playerDicePanelEdge)) &&
       (value.gmDicePanelFacing === undefined || isDicePanelFacing(value.gmDicePanelFacing)) &&
@@ -1571,6 +1740,12 @@ export function isLiveTableEvent(value: unknown): value is LiveTableEvent {
       (value.playerDicePanelPosition === undefined || isUnitNumber(value.playerDicePanelPosition)) &&
       isOptionalBoolean(value.gmDicePanelAdvanced) &&
       isOptionalBoolean(value.playerDicePanelAdvanced) &&
+      (value.diceImpactVolume === undefined || isUnitNumber(value.diceImpactVolume)) &&
+      (value.diceImpactBody === undefined || isUnitNumber(value.diceImpactBody)) &&
+      (value.diceImpactClick === undefined || isUnitNumber(value.diceImpactClick)) &&
+      (value.diceImpactBrightness === undefined || isUnitNumber(value.diceImpactBrightness)) &&
+      (value.diceImpactDecay === undefined || isUnitNumber(value.diceImpactDecay)) &&
+      (value.diceImpactPitch === undefined || isUnitNumber(value.diceImpactPitch)) &&
       (value.gmPresentation === undefined || value.gmPresentation === "3d" || value.gmPresentation === "result") &&
       (value.playerPresentation === undefined || value.playerPresentation === "3d" || value.playerPresentation === "result") &&
       (value.presentation === undefined || value.presentation === "3d" || value.presentation === "result") &&
@@ -1611,12 +1786,28 @@ function isDiceType(value: unknown): value is Extract<LiveTableEvent, { type: "d
   return value === "coin" || value === "d2" || value === "d4" || value === "d6" || value === "d8" || value === "d10" || value === "d00" || value === "d12" || value === "d20";
 }
 
+function isTableMessagePlacement(value: unknown): value is TableMessagePlacement {
+  return value === "top" || value === "center" || value === "bottom";
+}
+
+function isTableMessageLayout(value: unknown): value is TableMessageLayout {
+  return value === "screen" || value === "table-edges";
+}
+
+function isTableMessageStyle(value: unknown): value is TableMessageStyle {
+  return value === "notice" || value === "dramatic" || value === "danger" || value === "success";
+}
+
 function isDiceDisplayMode(value: unknown): value is DiceDisplayMode {
   return value === "results" || value === "panel" || value === "scene" || value === "scene-result" || value === "hidden";
 }
 
 function isDiceSceneSize(value: unknown): value is DiceSceneSize {
   return value === "xs" || value === "sm" || value === "md" || value === "lg" || value === "xl";
+}
+
+function isDiceSceneThrowDirection(value: unknown): value is DiceSceneThrowDirection {
+  return value === "random" || value === "left" || value === "top" || value === "right" || value === "bottom";
 }
 
 function isDiceSceneRollTarget(value: unknown): value is DiceSceneRollTarget {
@@ -1641,10 +1832,15 @@ function normalizeTableTools(settings?: Partial<TableToolSettings>): TableToolSe
     ...(settings ?? {}),
     pingSize: clampNumber(settings?.pingSize, 0.5, 3, DEFAULT_TABLE_TOOLS.pingSize),
     pingColor: normalizeColor(settings?.pingColor, DEFAULT_TABLE_TOOLS.pingColor),
+    pingKind: isPingKind(settings?.pingKind) ? settings.pingKind : DEFAULT_TABLE_TOOLS.pingKind,
     laserThickness: clampNumber(settings?.laserThickness, 4, 80, DEFAULT_TABLE_TOOLS.laserThickness),
     laserColor: normalizeColor(settings?.laserColor, DEFAULT_TABLE_TOOLS.laserColor),
     rulerLinger: typeof settings?.rulerLinger === "boolean" ? settings.rulerLinger : DEFAULT_TABLE_TOOLS.rulerLinger
   };
+}
+
+function isPingKind(value: unknown): value is PingKind {
+  return value === "sonar" || value === "radius" || value === "attention";
 }
 
 function normalizeLayerIdentity(layer: Layer): Layer {
@@ -1669,6 +1865,56 @@ function normalizeSceneOverlays(overlays?: SceneOverlay[]): SceneOverlay[] {
   }));
 }
 
+function normalizeMapVariants(scene: Scene): MapVariant[] {
+  const variants = Array.isArray(scene.mapVariants) ? scene.mapVariants : [];
+  const usedIds = new Set<string>();
+  const usedAssetIds = new Set<string>();
+  const normalizedVariants = variants
+    .filter((variant) => isRecord(variant) && isNonEmptyString(variant.assetId))
+    .map((variant, index) => {
+      const assetId = String(variant.assetId).trim();
+      if (usedAssetIds.has(assetId)) {
+        return null;
+      }
+      usedAssetIds.add(assetId);
+      const rawId = typeof variant.id === "string" && variant.id.trim() ? variant.id.trim() : assetId || `map-variant-${index + 1}`;
+      const id = getUniqueMapVariantId(rawId, usedIds);
+      usedIds.add(id);
+      const name = typeof variant.name === "string" && variant.name.trim() ? variant.name.trim() : index === 0 ? "Primary Map" : `Map Variant ${index + 1}`;
+      const createdAt =
+        typeof variant.createdAt === "string" && variant.createdAt.trim()
+          ? variant.createdAt
+          : typeof scene.createdAt === "string" && scene.createdAt.trim()
+            ? scene.createdAt
+            : new Date().toISOString();
+      return { id, name, assetId, createdAt };
+    })
+    .filter((variant): variant is MapVariant => Boolean(variant));
+
+  if (scene.mapAssetId && !usedAssetIds.has(scene.mapAssetId)) {
+    normalizedVariants.unshift({
+      id: getUniqueMapVariantId("primary-map", usedIds),
+      name: "Primary Map",
+      assetId: scene.mapAssetId,
+      createdAt: typeof scene.createdAt === "string" && scene.createdAt.trim() ? scene.createdAt : new Date().toISOString()
+    });
+  }
+
+  return normalizedVariants;
+}
+
+function getUniqueMapVariantId(rawId: string, usedIds: Set<string>): string {
+  const baseId = rawId.trim() || "map-variant";
+  if (!usedIds.has(baseId)) {
+    return baseId;
+  }
+  let suffix = 2;
+  while (usedIds.has(`${baseId}-${suffix}`)) {
+    suffix += 1;
+  }
+  return `${baseId}-${suffix}`;
+}
+
 function isUnitNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
@@ -1679,6 +1925,8 @@ function isPoint(value: unknown): value is Point {
 
 export function normalizeScene(scene: Scene): Scene {
   const migratedScene = migrateSceneToCurrent(scene);
+  const mapVariants = normalizeMapVariants(migratedScene);
+  const mapAssetId = migratedScene.mapAssetId ?? mapVariants[0]?.assetId;
   const migratedLayers = (migratedScene.layers ?? []).map(normalizeLayerIdentity);
   const layerById = new Map(migratedLayers.map((layer) => [layer.id, layer]));
   // Default layer names/order are application-owned so old scene files pick up current layer labels safely.
@@ -1693,6 +1941,8 @@ export function normalizeScene(scene: Scene): Scene {
   return {
     ...migratedScene,
     schemaVersion: CURRENT_SCENE_SCHEMA_VERSION,
+    mapAssetId,
+    mapVariants,
     grid: normalizeGridSettings(migratedScene.grid),
     calibration: { ...DEFAULT_CALIBRATION, ...(migratedScene.calibration ?? {}) },
     layers: [...normalizedLayers, ...customLayers],
@@ -2300,6 +2550,7 @@ function normalizeDiceSettings(settings?: Partial<DiceSettings>): DiceSettings {
     sceneRollTarget: isDiceSceneRollTarget(settings?.sceneRollTarget) ? settings.sceneRollTarget : DEFAULT_DICE_SETTINGS.sceneRollTarget,
     gmSceneSize: isDiceSceneSize(settings?.gmSceneSize) ? settings.gmSceneSize : DEFAULT_DICE_SETTINGS.gmSceneSize,
     playerSceneSize: isDiceSceneSize(settings?.playerSceneSize) ? settings.playerSceneSize : DEFAULT_DICE_SETTINGS.playerSceneSize,
+    sceneThrowDirection: isDiceSceneThrowDirection(settings?.sceneThrowDirection) ? settings.sceneThrowDirection : DEFAULT_DICE_SETTINGS.sceneThrowDirection,
     gmPanelEdge: isDicePanelEdge(settings?.gmPanelEdge) ? settings.gmPanelEdge : DEFAULT_DICE_SETTINGS.gmPanelEdge,
     playerPanelEdge: isDicePanelEdge(settings?.playerPanelEdge) ? settings.playerPanelEdge : DEFAULT_DICE_SETTINGS.playerPanelEdge,
     gmPanelFacing: isDicePanelFacing(settings?.gmPanelFacing) ? settings.gmPanelFacing : DEFAULT_DICE_SETTINGS.gmPanelFacing,
@@ -2307,7 +2558,13 @@ function normalizeDiceSettings(settings?: Partial<DiceSettings>): DiceSettings {
     gmPanelPosition: clampNumber(settings?.gmPanelPosition, 0, 1, DEFAULT_DICE_SETTINGS.gmPanelPosition),
     playerPanelPosition: clampNumber(settings?.playerPanelPosition, 0, 1, DEFAULT_DICE_SETTINGS.playerPanelPosition),
     gmPanelAdvanced: typeof settings?.gmPanelAdvanced === "boolean" ? settings.gmPanelAdvanced : DEFAULT_DICE_SETTINGS.gmPanelAdvanced,
-    playerPanelAdvanced: typeof settings?.playerPanelAdvanced === "boolean" ? settings.playerPanelAdvanced : DEFAULT_DICE_SETTINGS.playerPanelAdvanced
+    playerPanelAdvanced: typeof settings?.playerPanelAdvanced === "boolean" ? settings.playerPanelAdvanced : DEFAULT_DICE_SETTINGS.playerPanelAdvanced,
+    impactVolume: clampNumber(settings?.impactVolume, 0, 1, DEFAULT_DICE_SETTINGS.impactVolume),
+    impactBody: clampNumber(settings?.impactBody, 0, 1, DEFAULT_DICE_SETTINGS.impactBody),
+    impactClick: clampNumber(settings?.impactClick, 0, 1, DEFAULT_DICE_SETTINGS.impactClick),
+    impactBrightness: clampNumber(settings?.impactBrightness, 0, 1, DEFAULT_DICE_SETTINGS.impactBrightness),
+    impactDecay: clampNumber(settings?.impactDecay, 0, 1, DEFAULT_DICE_SETTINGS.impactDecay),
+    impactPitch: clampNumber(settings?.impactPitch, 0, 1, DEFAULT_DICE_SETTINGS.impactPitch)
   };
 }
 
@@ -2528,6 +2785,7 @@ export function projectSceneForPlayer(campaign: Campaign, scene: Scene, options:
     showPlayerSeatIndicators: options.showPlayerSeatIndicators ?? false,
     scene: {
       ...normalizedScene,
+      mapVariants: normalizedScene.mapVariants.filter((variant) => variant.assetId === normalizedScene.mapAssetId),
       fog: {
         ...normalizedScene.fog,
         shapes: normalizedScene.fog.shapes.filter((shape) => shape.visibleInPlayer ?? shape.visible ?? true)

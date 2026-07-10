@@ -6,6 +6,7 @@ import type { WorkspaceLayout } from "../lib/workspace";
 
 export function GmInspector({
   activeScene,
+  assetsById,
   mapAsset,
   tokenAssets,
   selectedFogShapeId,
@@ -30,7 +31,10 @@ export function GmInspector({
   onApplyMapFitPreset,
   onMoveLayer,
   onImportMap,
+  onAddMapVariant,
   onReplaceMap,
+  onRenameMapVariant,
+  onSwitchMapVariant,
   onImportToken,
   onDeleteMap,
   onSelectFogShape,
@@ -47,6 +51,7 @@ export function GmInspector({
   onOpenTokenColor
 }: {
   activeScene: Scene | null;
+  assetsById: Map<string, Asset>;
   mapAsset: Asset | null;
   tokenAssets: Map<string, Asset>;
   selectedFogShapeId: string | null;
@@ -71,7 +76,10 @@ export function GmInspector({
   onApplyMapFitPreset: (fitMode: Exclude<MapTransform["fitMode"], "manual">, gridPatch?: Partial<GridSettings>) => void;
   onMoveLayer: (layerId: string, direction: "up" | "down") => void;
   onImportMap: () => void;
+  onAddMapVariant: (asset: Asset) => void;
   onReplaceMap: (asset: Asset) => void;
+  onRenameMapVariant: (variantId: string, fallbackName: string) => void;
+  onSwitchMapVariant: (variantId: string) => void;
   onImportToken: () => void;
   onDeleteMap: (asset: Asset) => void;
   onSelectFogShape: (shapeId: string | null) => void;
@@ -130,6 +138,7 @@ export function GmInspector({
             <>
               <LayerPanel
                 scene={activeScene}
+                assetsById={assetsById}
                 mapAsset={mapAsset}
                 tokenAssets={tokenAssets}
                 selectedFogShapeId={selectedFogShapeId}
@@ -148,7 +157,10 @@ export function GmInspector({
                 onApplyMapFitPreset={onApplyMapFitPreset}
                 onMoveLayer={onMoveLayer}
                 onImportMap={onImportMap}
+                onAddMapVariant={onAddMapVariant}
                 onReplaceMap={onReplaceMap}
+                onRenameMapVariant={onRenameMapVariant}
+                onSwitchMapVariant={onSwitchMapVariant}
                 onImportToken={onImportToken}
                 onDeleteMap={onDeleteMap}
                 onSelectFogShape={onSelectFogShape}

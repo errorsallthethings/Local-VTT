@@ -29,6 +29,8 @@ import {
   normalizeCampaign,
   normalizeScene,
   projectSceneForPlayer,
+  renameSceneMapVariant,
+  switchSceneMapVariant,
   type Asset,
   type Campaign,
   type Scene
@@ -104,6 +106,69 @@ it("normalizeScene fills default settings for older scene files", () => {
   expect(normalized.fog.gmOpacity).toBe(0.5);
   expect(normalized.fog.playerOpacity).toBe(0.8);
   expect(normalized.fog.newShapesVisibleInPlayer).toBe(true);
+});
+
+it("normalizeScene backfills a primary map variant for legacy scenes", () => {
+  const scene = createDefaultScene("Legacy Map");
+  scene.mapAssetId = "map-day";
+  scene.mapVariants = undefined as never;
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.mapVariants).toEqual([
+    {
+      id: "primary-map",
+      name: "Primary Map",
+      assetId: "map-day",
+      createdAt: scene.createdAt
+    }
+  ]);
+});
+
+it("normalizes map variants and preserves the active map asset", () => {
+  const scene = createDefaultScene("Variants");
+  scene.mapAssetId = "map-night";
+  scene.mapVariants = [
+    { id: "floor", name: "Ground Floor", assetId: "map-day", createdAt: now },
+    { id: "floor", name: "", assetId: "map-night", createdAt: "" },
+    { id: "duplicate", name: "Duplicate", assetId: "map-day", createdAt: now }
+  ];
+
+  const normalized = normalizeScene(scene);
+
+  expect(normalized.mapAssetId).toBe("map-night");
+  expect(normalized.mapVariants).toEqual([
+    { id: "floor", name: "Ground Floor", assetId: "map-day", createdAt: now },
+    { id: "floor-2", name: "Map Variant 2", assetId: "map-night", createdAt: scene.createdAt }
+  ]);
+});
+
+it("switches and renames scene map variants without moving scene content", () => {
+  const scene = normalizeScene({
+    ...createDefaultScene("Variants"),
+    mapAssetId: "map-day",
+    mapVariants: [
+      { id: "day", name: "Day", assetId: "map-day", createdAt: now },
+      { id: "night", name: "Night", assetId: "map-night", createdAt: now }
+    ],
+    tokens: [
+      {
+        id: "token-1",
+        name: "Hero",
+        position: { x: 10, y: 20 },
+        size: { width: 100, height: 100 },
+        hidden: false,
+        visibleInPlayer: true
+      }
+    ]
+  });
+
+  const switched = switchSceneMapVariant(scene, "night", "2026-07-07T00:00:00.000Z");
+  const renamed = renameSceneMapVariant(switched, "night", "Moonlit", "2026-07-07T00:05:00.000Z");
+
+  expect(switched.mapAssetId).toBe("map-night");
+  expect(switched.tokens[0].position).toEqual({ x: 10, y: 20 });
+  expect(renamed.mapVariants.find((variant) => variant.id === "night")?.name).toBe("Moonlit");
 });
 
 it("normalizeScene preserves legacy grid coordinate visibility and normalizes coordinate options", () => {
@@ -944,6 +1009,7 @@ it("normalizeCampaign normalizes campaign dice settings", () => {
       playerDisplayMode: "bad",
       gmSceneSize: "xl",
       playerSceneSize: "huge",
+      sceneThrowDirection: "top",
       gmPanelEdge: "right",
       playerPanelEdge: "corner",
       gmPanelFacing: "outward",
@@ -951,7 +1017,13 @@ it("normalizeCampaign normalizes campaign dice settings", () => {
       gmPanelPosition: 2,
       playerPanelPosition: 0.25,
       gmPanelAdvanced: true,
-      playerPanelAdvanced: "yes"
+      playerPanelAdvanced: "yes",
+      impactVolume: 1.25,
+      impactBody: -0.25,
+      impactClick: 0.35,
+      impactBrightness: 1.25,
+      impactDecay: "long",
+      impactPitch: 0.5
     }
   } as unknown as Campaign;
 
@@ -959,11 +1031,17 @@ it("normalizeCampaign normalizes campaign dice settings", () => {
     ...DEFAULT_DICE_SETTINGS,
     gmDisplayMode: "scene",
     gmSceneSize: "xl",
+    sceneThrowDirection: "top",
     gmPanelEdge: "right",
     gmPanelFacing: "outward",
     gmPanelPosition: 1,
     playerPanelPosition: 0.25,
-    gmPanelAdvanced: true
+    gmPanelAdvanced: true,
+    impactVolume: 1,
+    impactBody: 0,
+    impactClick: 0.35,
+    impactBrightness: 1,
+    impactPitch: 0.5
   });
 });
 
@@ -1137,6 +1215,23 @@ it("projectSceneForPlayer removes GM-only scene data and unused assets", () => {
   expect(
     projection.assets.map((projectionAsset) => projectionAsset.id).sort(),
   ).toEqual(["map", "overlay", "visible-entry", "visible-player", "visible-seat", "visible-token"]);
+});
+
+it("projectSceneForPlayer includes only the active map variant asset", () => {
+  const campaign = createDefaultCampaign("Map Variants Campaign");
+  campaign.assets = [asset("map-day"), asset("map-night")];
+  const scene = createDefaultScene("Map Variants Scene");
+  scene.mapAssetId = "map-night";
+  scene.mapVariants = [
+    { id: "day", name: "Day", assetId: "map-day", createdAt: now },
+    { id: "night", name: "Night", assetId: "map-night", createdAt: now }
+  ];
+
+  const projection = projectSceneForPlayer(campaign, scene);
+
+  expect(projection.scene.mapAssetId).toBe("map-night");
+  expect(projection.scene.mapVariants.map((variant) => variant.assetId)).toEqual(["map-night"]);
+  expect(projection.assets.map((projectionAsset) => projectionAsset.id)).toEqual(["map-night"]);
 });
 
 it("projectSceneForPlayer preserves visible current turn order entries", () => {
@@ -1355,11 +1450,16 @@ it("runtime validators reject invalid files and accept valid projected state", (
   expect(isPlayerIdleState({ type: "idle", title: "Waiting" })).toBe(false);
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, size: 1.5, color: "#ffcc00", createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "ping", type: "ping", point: { x: 1, y: 2 }, pingKind: "radius", createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "arrow", type: "arrow", start: { x: 1, y: 2 }, end: { x: 3, y: 4 }, thickness: 12, color: "#ffcc00", visibleInPlayer: true, createdAt: 1, expiresAt: 2501 })).toBe(true);
+  expect(isLiveTableEvent({ id: "arrow-drag", type: "arrow", start: { x: 1, y: 2 }, end: { x: 3, y: 4 }, createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "laser", type: "laser", points: [{ point: { x: 1, y: 2 }, createdAt: 1 }], createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ruler", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ruler-optional", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", secondary: undefined, createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "ruler-release", type: "ruler", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }], primary: "10 ft", createdAt: 1, expiresAt: 2501 })).toBe(true);
   expect(isLiveTableEvent({ id: "ruler-clear", type: "ruler-clear", createdAt: 1 })).toBe(true);
+  expect(isLiveTableEvent({ id: "message", type: "message", text: "Hello", layout: "table-edges", placement: "center", style: "notice", durationMs: 5000, showInGm: true, visibleInPlayer: true, createdAt: 1, expiresAt: 5001 })).toBe(true);
+  expect(isLiveTableEvent({ id: "message-clear", type: "message-clear", createdAt: 1 })).toBe(true);
   expect(isLiveTableEvent({ id: "clear", type: "dice-clear", createdAt: 1 })).toBe(true);
   expect(
     isLiveTableEvent({
@@ -1376,6 +1476,7 @@ it("runtime validators reject invalid files and accept valid projected state", (
       playerDiceDisplay: "panel",
       gmDiceSceneSize: "md",
       playerDiceSceneSize: "lg",
+      diceSceneThrowDirection: "bottom",
       gmDicePanelEdge: "top",
       playerDicePanelEdge: "right",
       gmDicePanelFacing: "inward",
@@ -1384,6 +1485,12 @@ it("runtime validators reject invalid files and accept valid projected state", (
       playerDicePanelPosition: 0.5,
       gmDicePanelAdvanced: true,
       playerDicePanelAdvanced: true,
+      diceImpactVolume: 0.65,
+      diceImpactBody: 0.45,
+      diceImpactClick: 0.35,
+      diceImpactBrightness: 0.25,
+      diceImpactDecay: 0.75,
+      diceImpactPitch: 0.5,
       createdAt: 1
     })
   ).toBe(true);
@@ -1415,18 +1522,26 @@ it("runtime validators reject invalid files and accept valid projected state", (
   ).toBe(true);
   expect(isLiveTableEvent({ id: "dice", type: "dice", die: "d30", result: 30, label: "30", seed: 0.5, createdAt: 1 })).toBe(false);
   expect(isLiveTableEvent({ id: "broken", type: "ping", point: { x: 1, y: 2 }, size: Number.NaN, createdAt: 1 })).toBe(false);
+  expect(isLiveTableEvent({ id: "broken", type: "ping", point: { x: 1, y: 2 }, pingKind: "flare", createdAt: 1 })).toBe(false);
+  expect(isLiveTableEvent({ id: "broken", type: "arrow", start: { x: 1, y: 2 }, end: { x: 3 }, createdAt: 1 })).toBe(false);
   expect(isLiveTableEvent({ id: "broken", type: "laser", points: [{ point: { x: 1 }, createdAt: 1 }], createdAt: 1 })).toBe(false);
+  expect(isLiveTableEvent({ id: "broken", type: "message", text: "Hello", layout: "screen", placement: "left", style: "notice", durationMs: 5000, createdAt: 1, expiresAt: 5001 })).toBe(false);
+  expect(isLiveTableEvent({ id: "broken", type: "message", text: "Hello", layout: "circle", placement: "center", style: "notice", durationMs: 5000, createdAt: 1, expiresAt: 5001 })).toBe(false);
+  expect(isLiveTableEvent({ id: "broken", type: "message", text: "Hello", layout: "opposite-sides", placement: "center", style: "notice", durationMs: 5000, createdAt: 1, expiresAt: 5001 })).toBe(false);
+  expect(isLiveTableEvent({ id: "broken", type: "message", text: "Hello", layout: "screen", placement: "center", style: "notice", durationMs: 0, createdAt: 1, expiresAt: 1 })).toBe(false);
 });
 
 it("normalizeScene normalizes table tool settings", () => {
   expect(normalizeScene({ ...createDefaultScene("Legacy"), tableTools: undefined as never }).tableTools).toEqual(DEFAULT_TABLE_TOOLS);
-  expect(normalizeScene({ ...createDefaultScene("Tools"), tableTools: { pingSize: 9, pingColor: "red", laserThickness: 100, laserColor: "nope" } }).tableTools).toEqual({
+  expect(normalizeScene({ ...createDefaultScene("Tools"), tableTools: { pingSize: 9, pingColor: "red", pingKind: "flare", laserThickness: 100, laserColor: "nope" } as never }).tableTools).toEqual({
     pingSize: 3,
     pingColor: DEFAULT_TABLE_TOOLS.pingColor,
+    pingKind: DEFAULT_TABLE_TOOLS.pingKind,
     laserThickness: 80,
     laserColor: DEFAULT_TABLE_TOOLS.laserColor,
     rulerLinger: DEFAULT_TABLE_TOOLS.rulerLinger
   });
+  expect(normalizeScene({ ...createDefaultScene("Ping Kind"), tableTools: { ...DEFAULT_TABLE_TOOLS, pingKind: "attention" } }).tableTools.pingKind).toBe("attention");
   expect(normalizeScene({ ...createDefaultScene("No Linger"), tableTools: { ...DEFAULT_TABLE_TOOLS, rulerLinger: false } }).tableTools.rulerLinger).toBe(false);
 });
 

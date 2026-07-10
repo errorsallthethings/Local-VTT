@@ -537,6 +537,7 @@ describe("dice helpers", () => {
         sceneRollTarget: "player",
         gmSceneSize: "lg",
         playerSceneSize: "xl",
+        sceneThrowDirection: "right",
         gmPanelEdge: "left",
         playerPanelEdge: "right",
         gmPanelFacing: "outward",
@@ -544,7 +545,13 @@ describe("dice helpers", () => {
         gmPanelPosition: 0.25,
         playerPanelPosition: 0.75,
         gmPanelAdvanced: true,
-        playerPanelAdvanced: true
+        playerPanelAdvanced: true,
+        impactVolume: 0.45,
+        impactBody: 0.51,
+        impactClick: 0.52,
+        impactBrightness: 0.53,
+        impactDecay: 0.54,
+        impactPitch: 0.55
       },
       "roll-1",
       1234,
@@ -562,6 +569,7 @@ describe("dice helpers", () => {
       playerDiceDisplay: "scene",
       gmDiceSceneSize: "lg",
       playerDiceSceneSize: "xl",
+      diceSceneThrowDirection: "right",
       gmDicePanelEdge: "left",
       playerDicePanelEdge: "right",
       gmDicePanelFacing: "outward",
@@ -570,6 +578,12 @@ describe("dice helpers", () => {
       playerDicePanelPosition: 0.75,
       gmDicePanelAdvanced: false,
       playerDicePanelAdvanced: true,
+      diceImpactVolume: 0.45,
+      diceImpactBody: 0.51,
+      diceImpactClick: 0.52,
+      diceImpactBrightness: 0.53,
+      diceImpactDecay: 0.54,
+      diceImpactPitch: 0.55,
       createdAt: 1234
     });
   });

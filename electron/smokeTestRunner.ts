@@ -53,7 +53,7 @@ export function runSmokeTest({
     }
     completed = true;
     void win.webContents
-      .executeJavaScript(createSmokeTestScript())
+      .executeJavaScript(createSmokeTestScript({ includePlayerIdle: !isVisualSmokeTest }))
       .then(async (result: unknown) => {
         if (isVisualSmokeTest) {
           const visualSmokeRunner = runVisualSmokeTest ?? (await import("./visualSmokeTest.js")).runVisualSmokeTest;

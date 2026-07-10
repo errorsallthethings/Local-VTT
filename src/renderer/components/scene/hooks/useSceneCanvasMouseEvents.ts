@@ -29,7 +29,7 @@ interface SceneCanvasMouseEventsOptions {
   camera: Camera;
   canShowDrawings: boolean | undefined;
   canShowTokens: boolean | undefined;
-  canvasTool?: "ruler" | "ping" | "laser" | null;
+  canvasTool?: "ruler" | "ping" | "laser" | "arrow" | null;
   commitDrawingPolygonDraft: () => void;
   commitEnvironmentPolygonDraft: () => void;
   commitFogPolygonDraft: () => void;

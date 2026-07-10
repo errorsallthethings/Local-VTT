@@ -14,26 +14,34 @@ export function getMapLayerSectionMode(contentsExpanded: boolean, settingsExpand
 
 export function MapLayerSection({
   scene,
+  assetsById,
   mapAsset,
   contentsExpanded,
   settingsExpanded,
   onApplyMapFitPreset,
+  onAddMapVariant,
   onDeleteMap,
   onImportMap,
   onOpenGridColor,
+  onRenameMapVariant,
   onReplaceMap,
+  onSwitchMapVariant,
   onUpdateGrid,
   onUpdateMapTransform
 }: {
   scene: Scene;
+  assetsById: Map<string, Asset>;
   mapAsset: Asset | null;
   contentsExpanded: boolean;
   settingsExpanded: boolean;
   onApplyMapFitPreset: (fitMode: Exclude<MapTransform["fitMode"], "manual">, gridPatch?: Partial<GridSettings>) => void;
+  onAddMapVariant: (asset: Asset) => void;
   onDeleteMap: (asset: Asset) => void;
   onImportMap: () => void;
   onOpenGridColor: () => void;
+  onRenameMapVariant: (variantId: string, fallbackName: string) => void;
   onReplaceMap: (asset: Asset) => void;
+  onSwitchMapVariant: (variantId: string) => void;
   onUpdateGrid: (patch: Partial<GridSettings>) => void;
   onUpdateMapTransform: (patch: Partial<MapTransform>) => void;
 }) {
@@ -66,10 +74,14 @@ export function MapLayerSection({
   return (
     <MapLayerContent
       scene={scene}
+      assetsById={assetsById}
       mapAsset={mapAsset}
       onUpdateGrid={onUpdateGrid}
       onImportMap={onImportMap}
+      onAddMapVariant={onAddMapVariant}
+      onRenameMapVariant={onRenameMapVariant}
       onReplaceMap={onReplaceMap}
+      onSwitchMapVariant={onSwitchMapVariant}
       onDeleteMap={onDeleteMap}
     />
   );

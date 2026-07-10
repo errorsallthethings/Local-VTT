@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { DEFAULT_FOG, DEFAULT_TABLE_TOOLS } from "../../shared/localvtt";
-import type { DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect } from "../../shared/localvtt";
+import type { DrawingElement, DrawingStrokeStyle, DrawingTemplateEffect, PingKind } from "../../shared/localvtt";
 import type { DrawingTemplateSize, DrawingTemplateWidth, FogOperation } from "../components/tools";
 
 export function useGmToolOptions() {
@@ -22,6 +22,7 @@ export function useGmToolOptions() {
 
   const setPingSize = (pingSize: number) => setTableTools((current) => ({ ...current, pingSize }));
   const setPingColor = (pingColor: string) => setTableTools((current) => ({ ...current, pingColor }));
+  const setPingKind = (pingKind: PingKind) => setTableTools((current) => ({ ...current, pingKind }));
   const setLaserThickness = (laserThickness: number) => setTableTools((current) => ({ ...current, laserThickness }));
   const setLaserColor = (laserColor: string) => setTableTools((current) => ({ ...current, laserColor }));
   const setRulerLinger = (rulerLinger: boolean) => setTableTools((current) => ({ ...current, rulerLinger }));
@@ -32,6 +33,7 @@ export function useGmToolOptions() {
     tableTools,
     setPingSize,
     setPingColor,
+    setPingKind,
     setLaserThickness,
     setLaserColor,
     setRulerLinger,

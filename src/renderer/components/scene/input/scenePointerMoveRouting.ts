@@ -1,5 +1,6 @@
 export type ScenePointerMoveRoute =
   | "map-calibration"
+  | "arrow"
   | "laser"
   | "ruler"
   | "selection"
@@ -21,6 +22,7 @@ export interface ScenePointerMoveRoutingOptions {
   pointerId: number;
   mapCalibrationDrag?: PointerTrackedInteraction | null;
   laserDrag?: PointerTrackedInteraction | null;
+  arrowDrag?: PointerTrackedInteraction | null;
   rulerDrag?: PointerTrackedInteraction | null;
   selectionDrag?: PointerTrackedInteraction | null;
   drawingDrag?: PointerTrackedInteraction | null;
@@ -40,6 +42,9 @@ export function getScenePointerMoveRoute(options: ScenePointerMoveRoutingOptions
   const pointerId = options.pointerId;
   if (matchesPointer(options.mapCalibrationDrag, pointerId)) {
     return "map-calibration";
+  }
+  if (matchesPointer(options.arrowDrag, pointerId)) {
+    return "arrow";
   }
   if (matchesPointer(options.laserDrag, pointerId)) {
     return "laser";

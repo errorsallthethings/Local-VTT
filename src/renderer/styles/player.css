@@ -280,3 +280,166 @@
   letter-spacing: 0;
   line-height: 1.35;
 }
+
+.table-message-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  display: flex;
+  justify-content: center;
+  padding: 28px;
+  pointer-events: none;
+}
+
+.table-message-overlay-top {
+  align-items: flex-start;
+}
+
+.table-message-overlay-center {
+  align-items: center;
+}
+
+.table-message-overlay-bottom {
+  align-items: flex-end;
+}
+
+.table-message-overlay-gm {
+  z-index: 18;
+  padding: 18px;
+}
+
+.table-message-table-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  pointer-events: none;
+}
+
+.table-message-table-overlay-gm {
+  z-index: 18;
+}
+
+.table-message-table-slot {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+}
+
+.table-message-table-slot-bottom {
+  right: 18%;
+  bottom: 28px;
+  left: 18%;
+}
+
+.table-message-table-slot-top {
+  top: 28px;
+  right: 18%;
+  left: 18%;
+  transform: rotate(180deg);
+}
+
+.table-message-table-slot-left {
+  top: 50%;
+  left: 28px;
+  width: min(620px, 58vh);
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center;
+}
+
+.table-message-table-slot-right {
+  top: 50%;
+  right: 28px;
+  width: min(620px, 58vh);
+  transform: translate(50%, -50%) rotate(-90deg);
+  transform-origin: center;
+}
+
+.table-message-table-overlay-gm .table-message-table-slot-bottom {
+  right: 24%;
+  bottom: 18px;
+  left: 24%;
+}
+
+.table-message-table-overlay-gm .table-message-table-slot-top {
+  top: 18px;
+  right: 24%;
+  left: 24%;
+}
+
+.table-message-table-overlay-gm .table-message-table-slot-left {
+  left: 18px;
+}
+
+.table-message-table-overlay-gm .table-message-table-slot-right {
+  right: 18px;
+}
+
+.table-message-card {
+  max-width: min(900px, calc(100vw - 56px));
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: var(--radius-panel);
+  background: rgb(5 8 12 / 0.86);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.42);
+  color: #f8fbff;
+  padding: 18px 24px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+
+.table-message-overlay-gm .table-message-card {
+  max-width: min(520px, calc(100vw - 36px));
+  padding: 12px 16px;
+}
+
+.table-message-table-overlay .table-message-card {
+  max-width: min(640px, 64vw);
+  padding: 14px 20px;
+}
+
+.table-message-table-overlay-gm .table-message-card {
+  max-width: min(360px, 42vw);
+  padding: 10px 14px;
+}
+
+.table-message-card span {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 28px;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.table-message-overlay-gm .table-message-card span {
+  font-size: 16px;
+}
+
+.table-message-table-overlay .table-message-card span {
+  font-size: 21px;
+}
+
+.table-message-table-overlay-gm .table-message-card span {
+  font-size: 13px;
+}
+
+.table-message-card-notice {
+  border-color: rgb(122 162 247 / 0.45);
+}
+
+.table-message-card-dramatic {
+  border-color: rgb(238 198 92 / 0.58);
+  background: rgb(18 14 7 / 0.88);
+  color: #fff3ca;
+}
+
+.table-message-card-danger {
+  border-color: rgb(248 113 113 / 0.6);
+  background: rgb(24 8 10 / 0.88);
+  color: #ffe4e6;
+}
+
+.table-message-card-success {
+  border-color: rgb(74 222 128 / 0.52);
+  background: rgb(5 20 14 / 0.88);
+  color: #dcfce7;
+}
