@@ -15,10 +15,14 @@ export const PLAYER_BLACKOUT_STATE: PlayerIdleState = {
 };
 
 type PlayerIdleApi = {
+  isVisualSmokeTest?: boolean;
   showPlayerIdle: (title: string, message: string, variant?: PlayerIdleState["variant"]) => Promise<unknown>;
 };
 
 export async function showDefaultPlayerHold(api: PlayerIdleApi = window.localVtt): Promise<void> {
+  if (api.isVisualSmokeTest) {
+    return;
+  }
   await api.showPlayerIdle(DEFAULT_PLAYER_HOLD_STATE.title, DEFAULT_PLAYER_HOLD_STATE.message, DEFAULT_PLAYER_HOLD_STATE.variant);
 }
 

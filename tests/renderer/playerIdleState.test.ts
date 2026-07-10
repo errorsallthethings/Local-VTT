@@ -16,6 +16,14 @@ describe("player idle state helpers", () => {
     );
   });
 
+  it("does not override visual smoke fixture state with the default hold state", async () => {
+    const api = { isVisualSmokeTest: true, showPlayerIdle: vi.fn().mockResolvedValue(undefined) };
+
+    await showDefaultPlayerHold(api);
+
+    expect(api.showPlayerIdle).not.toHaveBeenCalled();
+  });
+
   it("shows the blackout state", async () => {
     const api = { showPlayerIdle: vi.fn().mockResolvedValue(undefined) };
 

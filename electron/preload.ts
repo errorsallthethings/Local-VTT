@@ -20,6 +20,7 @@ import type {
 } from "../src/shared/localvtt.js";
 
 const api: LocalVttApi = {
+  isVisualSmokeTest: process.env.LOCALVTT_VISUAL_SMOKE_TEST === "1",
   createCampaign: () => ipcRenderer.invoke("campaign:create") as Promise<CampaignSummary | null>,
   openCampaign: () => ipcRenderer.invoke("campaign:open") as Promise<CampaignSummary | null>,
   openRecentCampaign: (campaignPath: string) => ipcRenderer.invoke("campaign:openRecent", campaignPath) as Promise<CampaignSummary>,
