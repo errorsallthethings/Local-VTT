@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.17
+
+### Added
+
+- Added scene map variants for multiple same-size map versions, including floors, lighting changes, and time-of-day swaps.
+- Added a table message overlay for short GM-authored player-facing messages.
+- Added weather preset packs and a refreshed Effects layer weather settings layout.
+- Added dice impact audio controls, tunable dice sound settings, and scene-roll throw direction options.
+- Added an Arrow Pointer table tool for temporary directional callouts.
+
+### Changed
+
+- Improved weather rendering alignment on smaller maps, snow drift behavior, and rain opacity handling.
+- Updated Drawing and Template tool icons for clearer tool navigation.
+- Refined expanded ping behavior by separating sonar-style pings from arrow pointer callouts.
+
 ## 0.1.14
 
 ### Added

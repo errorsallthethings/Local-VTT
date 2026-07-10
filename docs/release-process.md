@@ -64,6 +64,7 @@ git status
 - `CHANGELOG.md` release notes.
 - `docs/release-notes/vX.Y.Z.md` generated from the matching GitHub milestone, then reviewed for human-readable wording.
 - README known limitations or smoke checklist updates.
+- GitHub Wiki page updates for user-facing workflows changed by the release.
 
 3. Generate release notes from the GitHub milestone:
 
@@ -227,7 +228,7 @@ Before packaging or sharing a build, run through these workflows:
 - Reopen a campaign from Recent Campaigns and remove an entry from Recents.
 - Create, rename, delete, duplicate, reorder, and save scenes.
 - Rename, color, delete, duplicate, collapse, and reorder scene folders.
-- Import static image maps, video maps, and token assets.
+- Import static image maps, video maps, map variants, and token assets.
 - Send scenes to Player View and confirm Player View fullscreen behavior remains stable.
 - Delete the scene currently shown to players and confirm Player View switches to the waiting screen instead of closing.
 - Resize/collapse GM side panels and the Token Library drawer.
@@ -245,9 +246,9 @@ Before packaging or sharing a build, run through these workflows:
 - Add, duplicate, move, rename, resize, restyle, and delete tokens.
 - Confirm token presentation and movement sync to Player View.
 - Use the Token Library to import, rename, search, sort, set defaults, add, drag/drop, and delete tokens with usage warnings.
-- Use Table Tools: ruler on square, hex, and gridless scenes; ping by clicking after changing size/color; laser pointer by dragging.
+- Use Table Tools: ruler on square, hex, and gridless scenes; ping by clicking after changing size/color/style; arrow pointer by drag-release; laser pointer by dragging.
 - Open the Turn Order modal from Tools; build, clear, rebuild, play, pause, collapse, drag, and advance a turn order; confirm Player View indicators update correctly.
-- Open the Dice Bag from Tools; roll dice with quick dice, formulas with modifiers, custom presets, GM/Player Hidden display modes, 3D Panel, and 3D Scene Roll.
+- Open the Dice Bag from Tools; roll dice with quick dice, formulas with modifiers, custom presets, GM/Player Hidden display modes, 3D Panel, 3D Scene Roll, impact audio, and each scene-roll throw direction.
 - Close with unsaved scene changes, campaign-only changes, and both; confirm Save preserves changes and Close Without Saving discards them.
 - Confirm common failure messages are actionable, including missing recent campaigns, missing assets, and disconnected Player View displays.
 - For canvas-sensitive releases, run the representative stress scenes in `docs/canvas-performance-budget.md` and record any warning-threshold misses.

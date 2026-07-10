@@ -25,7 +25,7 @@ The Windows installer is not code signed, and macOS builds are not notarized yet
 
 - Create, open, save, and quickly reopen portable local campaigns.
 - Manage scenes, scene folders, scene thumbnails, and folder colors.
-- Import static image maps, animated GIF maps, video maps, and reusable token assets.
+- Import static image maps, animated GIF maps, video maps, map variants, and reusable token assets.
 - Use a private GM View with pan/zoom, resizable panels, layer controls, Token Library, and GM tools.
 - Open a separate Player View, send scenes to it, target a saved display, and preserve fullscreen behavior during scene changes.
 - Keep Player View open on a friendly waiting screen when the shown scene is deleted or unavailable.
@@ -36,9 +36,9 @@ The Windows installer is not code signed, and macOS builds are not notarized yet
 - Add lightweight tokens, style them, reorder them, duplicate them, and animate visible Player View movement along waypoint paths.
 - Assign token conditions with GM-only or Player View-visible ring indicators.
 - Measure distance with a GM-only ruler, including waypoints, snapped grid points, crossed-cell highlights, and distance-mode readouts.
-- Use live Table Tools for configurable click pings and a fading laser pointer trail.
+- Use live Table Tools for configurable sonar pings, temporary arrow pointers, and a fading laser pointer trail.
 - Run turn orders with campaign players, initiative values, Player View turn indicators, and display placement controls.
-- Roll dice from the GM toolbar with formulas, custom presets, recent history, text results, 3D Panels, and scene-based 3D physics rolls.
+- Roll dice from the GM toolbar with formulas, custom presets, recent history, text results, 3D Panels, scene-based 3D physics rolls, impact audio, and throw direction controls.
 - Add per-scene weather effects and localized animated effects from the Effects layer.
 - Regenerate campaign thumbnails for imported maps and token assets when previews need to be rebuilt.
 - Store metadata-only backups for campaign and scene JSON before overwrites.
@@ -140,6 +140,7 @@ Use the Campaign panel's Restore Revision option to review and restore available
 ### Maps And Player View
 
 - Static image, animated GIF, `.mp4`, and `.webm` maps can be imported.
+- Scene map variants let the GM keep multiple same-size map versions on one scene, such as floors, day/night lighting, weathered versions, or other map-maker exports that should share the same grid, fog, tokens, drawings, templates, and effects.
 - Video maps render muted and looped in GM View and Player View.
 - Video map playback can be paused/resumed, muted/unmuted, and inspected with optional diagnostics from contextual GM canvas controls.
 - Map assets can be replaced from the Map layer while preserving scene fog, tokens, drawings, effects, grid, and Player View setup.
@@ -161,7 +162,7 @@ Use the Campaign panel's Restore Revision option to review and restore available
 - Grid coordinate labels can be placed inside cells or along grid edges, use independent X/Y alpha or numeric formats, and have configurable GM/Player label sizes and color.
 - Measurement settings are available from Grid & Maps when square or hex grids are active.
 - Player View Setup stores campaign-level calibration for the external player-facing display, including optional physical table scale for manual scene grids.
-- Table Tools include the GM-only ruler, configurable ping, and laser pointer.
+- Table Tools include the GM-only ruler, configurable sonar pings, a temporary arrow pointer, and laser pointer.
 - The ruler supports square, hex, and gridless scenes.
 - Ctrl/Cmd snaps ruler points to square grid centers or hex centers. Gridless measurement stays freeform.
 - Drawing, template, and mask placement can snap to square grid centers, corners, and side centers, or hex centers/corners where applicable.
@@ -169,7 +170,8 @@ Use the Campaign panel's Restore Revision option to review and restore available
 - Escape clears the active ruler measurement.
 - The ruler highlights crossed squares/hexes and displays total path distance using the scene's Measurement settings.
 - When the selected distance mode is not Euclidean, the ruler also shows a straight-line comparison.
-- Ping sends a configurable live attention marker to GM View and Player View when the GM clicks the map.
+- Ping sends configurable live attention markers to GM View and Player View when the GM clicks the map.
+- Arrow Pointer lets the GM drag out a temporary directional arrow that remains visible until release, then fades from GM View and Player View.
 - Laser Pointer shows a live fading trail in GM View and Player View while the GM drags on the map.
 
 ### Dice And Turn Order
@@ -177,6 +179,7 @@ Use the Campaign panel's Restore Revision option to review and restore available
 - Dice rolls support standard polyhedral dice, coin flips, percentile rolls, arithmetic modifiers, advantage/disadvantage, quick dice buttons, and custom presets.
 - The Tools menu opens the Dice Bag and Turn Order as draggable modals for live-session workflows.
 - Dice display settings are campaign-specific and can independently show or hide GM View and Player View results.
+- Dice settings include impact audio volume, sound-shaping controls, and the side of the scene where 3D Scene Roll dice enter from.
 - Dice results can render as text-only results, a 3D Panel, or a 3D Scene Roll with physics and delayed result reveal.
 - Recent dice roll history is capped and keeps delayed 3D/scene roll results in sync with the final visible result.
 - Turn orders can be built from campaign players or tokens, sorted by initiative, reset between encounters, and played/paused for Player View display.
@@ -188,7 +191,7 @@ Use the Campaign panel's Restore Revision option to review and restore available
 - Effects are configured per scene from the Effects layer.
 - Weather effects render as lightweight map-bound canvas overlays and respect GM View and Player View layer visibility.
 - Weather effects currently include rain, snow, fog, and sand patterns.
-- Weather controls include effect, enabled state, intensity, opacity, speed, drift, masks, and advanced pattern tuning.
+- Weather controls include preset packs, active effects, enabled state, intensity, opacity, speed, drift, masks, and advanced pattern tuning.
 - Weather masks exclude per-scene weather effects from specific map areas.
 - Animated Effects are localized drawn areas for environmental visuals such as water, fire, smoke, fog, lava, electric, arcane, radiant, field, chaos, void, and nature effects.
 - Animated Effects are drawn from the Effects Tools menu, appear as sub-layers under Effects, and can be selected, hidden, edited, or deleted from the GM canvas and layer list.
