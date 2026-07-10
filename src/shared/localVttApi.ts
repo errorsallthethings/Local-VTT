@@ -47,6 +47,7 @@ export interface PlayerDisplaySummary {
 }
 
 export interface LocalVttApi {
+  isVisualSmokeTest: boolean;
   createCampaign: () => Promise<CampaignSummary | null>;
   openCampaign: () => Promise<CampaignSummary | null>;
   openRecentCampaign: (campaignPath: string) => Promise<CampaignSummary>;

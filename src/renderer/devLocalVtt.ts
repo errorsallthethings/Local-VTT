@@ -75,6 +75,7 @@ export function installDevLocalVtt() {
   };
 
   const api: LocalVttApi = {
+    isVisualSmokeTest: false,
     createCampaign: async () => {
       campaign = createDevCampaign();
       scenes.clear();
