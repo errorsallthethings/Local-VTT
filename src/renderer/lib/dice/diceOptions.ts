@@ -1,4 +1,4 @@
-import type { DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneRollTarget, DiceSceneSize } from "../../../shared/localvtt";
+import type { DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneRollTarget, DiceSceneSize, DiceSceneThrowDirection } from "../../../shared/localvtt";
 
 export interface DiceDisplayModeChangePlan {
   sceneRollEnabled: boolean | null;
@@ -29,6 +29,14 @@ export const DICE_SCENE_SIZE_OPTIONS = [
   { value: "lg", label: "Large" },
   { value: "xl", label: "Extra large" }
 ] as const satisfies Array<{ value: DiceSceneSize; label: string }>;
+
+export const DICE_SCENE_THROW_DIRECTION_OPTIONS = [
+  { value: "random", label: "Random" },
+  { value: "left", label: "Left" },
+  { value: "top", label: "Top" },
+  { value: "right", label: "Right" },
+  { value: "bottom", label: "Bottom" }
+] as const satisfies Array<{ value: DiceSceneThrowDirection; label: string }>;
 
 export const DICE_PANEL_EDGE_OPTIONS = [
   { value: "top", label: "Top" },

@@ -45,6 +45,7 @@ describe("dice settings preferences", () => {
       sceneRollTarget: "player",
       gmSceneSize: "xl",
       playerSceneSize: "xs",
+      sceneThrowDirection: "left",
       gmPanelEdge: "left",
       playerPanelEdge: "bottom",
       gmPanelFacing: "outward",
@@ -52,7 +53,13 @@ describe("dice settings preferences", () => {
       gmPanelPosition: 0.25,
       playerPanelPosition: 0.75,
       gmPanelAdvanced: true,
-      playerPanelAdvanced: true
+      playerPanelAdvanced: true,
+      impactVolume: 0.35,
+      impactBody: 0.4,
+      impactClick: 0.5,
+      impactBrightness: 0.6,
+      impactDecay: 0.7,
+      impactPitch: 0.8
     });
 
     expect(settings).toMatchObject({
@@ -62,6 +69,7 @@ describe("dice settings preferences", () => {
       sceneRollTarget: "player",
       gmSceneSize: "xl",
       playerSceneSize: "xs",
+      sceneThrowDirection: "left",
       gmPanelEdge: "left",
       playerPanelEdge: "bottom",
       gmPanelFacing: "outward",
@@ -69,7 +77,13 @@ describe("dice settings preferences", () => {
       gmPanelPosition: 0.25,
       playerPanelPosition: 0.75,
       gmPanelAdvanced: true,
-      playerPanelAdvanced: true
+      playerPanelAdvanced: true,
+      impactVolume: 0.35,
+      impactBody: 0.4,
+      impactClick: 0.5,
+      impactBrightness: 0.6,
+      impactDecay: 0.7,
+      impactPitch: 0.8
     });
   });
 
@@ -81,6 +95,7 @@ describe("dice settings preferences", () => {
       sceneRollTarget: "table",
       gmSceneSize: "huge",
       playerSceneSize: "tiny",
+      sceneThrowDirection: "corner",
       gmPanelEdge: "center",
       playerPanelEdge: "middle",
       gmPanelFacing: "sideways",
@@ -88,16 +103,25 @@ describe("dice settings preferences", () => {
       gmPanelPosition: Number.NaN,
       playerPanelPosition: "0.5",
       gmPanelAdvanced: "true",
-      playerPanelAdvanced: null
+      playerPanelAdvanced: null,
+      impactVolume: "loud",
+      impactBody: "heavy",
+      impactClick: null,
+      impactBrightness: Number.NaN,
+      impactDecay: "long",
+      impactPitch: "low"
     } as Partial<DiceSettings>);
 
     expect(settings).toEqual(DEFAULT_DICE_SETTINGS);
   });
 
-  it("clamps panel positions from stored preferences", () => {
-    expect(normalizeDiceSettingsPreference({ gmPanelPosition: -1, playerPanelPosition: 2 })).toMatchObject({
+  it("clamps panel positions and impact sound controls from stored preferences", () => {
+    expect(normalizeDiceSettingsPreference({ gmPanelPosition: -1, playerPanelPosition: 2, impactVolume: 1.4, impactBody: -0.5, impactClick: 2 })).toMatchObject({
       gmPanelPosition: 0,
-      playerPanelPosition: 1
+      playerPanelPosition: 1,
+      impactVolume: 1,
+      impactBody: 0,
+      impactClick: 1
     });
   });
 

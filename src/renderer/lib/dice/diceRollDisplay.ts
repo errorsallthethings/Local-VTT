@@ -1,4 +1,4 @@
-import type { DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneSize, LiveTableEvent } from "../../../shared/localvtt";
+import type { DiceDisplayMode, DicePanelEdge, DicePanelFacing, DiceSceneSize, DiceSceneThrowDirection, LiveTableEvent } from "../../../shared/localvtt";
 import { DICE_EVENT_DURATION_MS, getDiceRollTone, getDieSides, type DiceRollTone } from "./dice";
 import { getVisualDice, type ResolvedDiceResult } from "./diceRollLabels";
 
@@ -54,6 +54,10 @@ export function getDiceEventDuration(event: DiceRollEvent, mode: DiceViewMode): 
 
 export function getDiceSceneSize(event: DiceRollEvent, mode: DiceViewMode): DiceSceneSize {
   return (mode === "gm" ? event.gmDiceSceneSize : event.playerDiceSceneSize) ?? "md";
+}
+
+export function getDiceSceneThrowDirection(event: DiceRollEvent): DiceSceneThrowDirection {
+  return event.diceSceneThrowDirection ?? "random";
 }
 
 export function getDicePanelPlacement(event: DiceRollEvent, mode: DiceViewMode): DicePanelPlacement {

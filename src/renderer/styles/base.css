@@ -137,6 +137,14 @@ select {
   padding: 7px 8px;
 }
 
+input[type="range"] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  line-height: normal;
+  padding: 0;
+}
+
 input[type="color"] {
   min-height: 36px;
   padding: 4px;
