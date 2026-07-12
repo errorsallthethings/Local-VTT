@@ -1,5 +1,6 @@
 import type {
   Asset,
+  AssetCleanupPreviewResult,
   AssetPruneResult,
   Campaign,
   CampaignSummary,
@@ -54,6 +55,7 @@ interface UseCampaignActionsOptions {
   onThumbnailRegenerationComplete: (result: ThumbnailRegenerationResult) => void;
   onTokenAssetPromotionComplete: (result: TokenAssetPromotionResult) => void;
   onAssetPruneComplete: (result: AssetPruneResult) => void;
+  onAssetCleanupPreview: (preview: AssetCleanupPreviewResult) => void;
   onCampaignHealthOpen: () => void;
   onMetadataRestoreOpen: () => void;
   onMetadataRestoreClosed: () => void;
@@ -90,6 +92,7 @@ export function useCampaignActions({
   onThumbnailRegenerationComplete,
   onTokenAssetPromotionComplete,
   onAssetPruneComplete,
+  onAssetCleanupPreview,
   onCampaignHealthOpen,
   onMetadataRestoreOpen,
   onMetadataRestoreClosed,
@@ -428,6 +431,23 @@ export function useCampaignActions({
       });
     });
 
+  const previewAssetCleanup = () =>
+    run(async () => {
+      if (!campaignPath || !campaign) {
+        return;
+      }
+      if (hasUnsavedChanges) {
+        const saved = await saveCampaign();
+        if (!saved) {
+          return;
+        }
+      }
+      const preview = await window.localVtt.previewAssetCleanup(campaignPath);
+      applySummary(preview.campaignSummary, false);
+      setCampaignDirty(false);
+      onAssetCleanupPreview(preview);
+    });
+
   const pruneUnreferencedAssets = () =>
     run(async () => {
       await runSavedCampaignMaintenance({
@@ -653,6 +673,7 @@ export function useCampaignActions({
     commitMapReplacement,
     regenerateThumbnails,
     promoteTokenAssets,
+    previewAssetCleanup,
     pruneUnreferencedAssets,
     openCampaignHealthDialog,
     openBackupsFolder,

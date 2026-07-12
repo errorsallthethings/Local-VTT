@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useReducer } from "react";
-import type { AssetPruneResult, ThumbnailRegenerationResult, TokenAssetPromotionResult } from "../../shared/localvtt";
+import type { AssetCleanupPreviewResult, AssetPruneResult, ThumbnailRegenerationResult, TokenAssetPromotionResult } from "../../shared/localvtt";
 import type { CampaignBusyState, MapReplacementPreview } from "./useCampaignActions";
 
 export interface GmMaintenanceState {
-  assetPruneConfirmOpen: boolean;
+  assetCleanupPreview: AssetCleanupPreviewResult | null;
   assetPruneResult: AssetPruneResult | null;
   busyState: CampaignBusyState | null;
   campaignHealthOpen: boolean;
@@ -14,8 +14,8 @@ export interface GmMaintenanceState {
 }
 
 export type GmMaintenanceAction =
-  | { type: "assetPruneConfirmOpened" }
-  | { type: "assetPruneConfirmClosed" }
+  | { type: "assetCleanupPreviewed"; preview: AssetCleanupPreviewResult }
+  | { type: "assetCleanupPreviewClosed" }
   | { type: "assetPruneCompleted"; result: AssetPruneResult }
   | { type: "assetPruneResultClosed" }
   | { type: "busyChanged"; busyState: CampaignBusyState | null }
@@ -31,7 +31,7 @@ export type GmMaintenanceAction =
   | { type: "tokenAssetPromotionResultClosed" };
 
 export const INITIAL_GM_MAINTENANCE_STATE: GmMaintenanceState = {
-  assetPruneConfirmOpen: false,
+  assetCleanupPreview: null,
   assetPruneResult: null,
   busyState: null,
   campaignHealthOpen: false,
@@ -43,10 +43,10 @@ export const INITIAL_GM_MAINTENANCE_STATE: GmMaintenanceState = {
 
 export function gmMaintenanceReducer(state: GmMaintenanceState, action: GmMaintenanceAction): GmMaintenanceState {
   switch (action.type) {
-    case "assetPruneConfirmOpened":
-      return { ...state, assetPruneConfirmOpen: true };
-    case "assetPruneConfirmClosed":
-      return { ...state, assetPruneConfirmOpen: false };
+    case "assetCleanupPreviewed":
+      return { ...state, assetCleanupPreview: action.preview };
+    case "assetCleanupPreviewClosed":
+      return { ...state, assetCleanupPreview: null };
     case "assetPruneCompleted":
       return { ...state, assetPruneResult: action.result };
     case "assetPruneResultClosed":
@@ -81,8 +81,7 @@ export function gmMaintenanceReducer(state: GmMaintenanceState, action: GmMainte
 export function useGmMaintenanceState() {
   const [state, dispatch] = useReducer(gmMaintenanceReducer, INITIAL_GM_MAINTENANCE_STATE);
 
-  const openAssetPruneConfirm = useCallback(() => dispatch({ type: "assetPruneConfirmOpened" }), []);
-  const closeAssetPruneConfirm = useCallback(() => dispatch({ type: "assetPruneConfirmClosed" }), []);
+  const closeAssetCleanupPreview = useCallback(() => dispatch({ type: "assetCleanupPreviewClosed" }), []);
   const closeAssetPruneResult = useCallback(() => dispatch({ type: "assetPruneResultClosed" }), []);
   const closeCampaignHealth = useCallback(() => dispatch({ type: "campaignHealthClosed" }), []);
   const closeMapReplacementPreview = useCallback(() => dispatch({ type: "mapReplacementHandled" }), []);
@@ -92,6 +91,7 @@ export function useGmMaintenanceState() {
 
   const campaignActionCallbacks = useMemo(() => ({
     onAssetPruneComplete: (result: AssetPruneResult) => dispatch({ type: "assetPruneCompleted", result }),
+    onAssetCleanupPreview: (preview: AssetCleanupPreviewResult) => dispatch({ type: "assetCleanupPreviewed", preview }),
     onBusyChange: (busyState: CampaignBusyState | null) => dispatch({ type: "busyChanged", busyState }),
     onCampaignHealthOpen: () => dispatch({ type: "campaignHealthOpened" }),
     onMapReplacementHandled: () => dispatch({ type: "mapReplacementHandled" }),
@@ -103,14 +103,14 @@ export function useGmMaintenanceState() {
   }), []);
 
   const dialogActions = useMemo(() => ({
-    onCloseAssetPruneConfirm: closeAssetPruneConfirm,
+    onCloseAssetCleanupPreview: closeAssetCleanupPreview,
     onCloseAssetPruneResult: closeAssetPruneResult,
     onCloseCampaignHealth: closeCampaignHealth,
     onCloseMetadataRestore: closeMetadataRestore,
     onCloseThumbnailRegenerationResult: closeThumbnailRegenerationResult,
     onCloseTokenAssetPromotionResult: closeTokenAssetPromotionResult
   }), [
-    closeAssetPruneConfirm,
+    closeAssetCleanupPreview,
     closeAssetPruneResult,
     closeCampaignHealth,
     closeMetadataRestore,
@@ -123,6 +123,5 @@ export function useGmMaintenanceState() {
     campaignActionCallbacks,
     closeMapReplacementPreview,
     dialogActions,
-    openAssetPruneConfirm
   };
 }

@@ -238,6 +238,7 @@ Use the Campaign panel's Restore Revision option to review and restore available
 ### Interface Notes
 
 - GM side panels and the Token Library drawer can be resized and collapsed.
+- Campaign maintenance includes asset cleanup with a dry-run preview for unreferenced assets, orphaned campaign asset files, and stale thumbnail references.
 - Layer settings are collapsible. Map, Grid, Fog of War, and Tokens expose controls only when relevant.
 - Empty Campaign, Scenes, Layers, and Token Library areas show contextual helper text.
 - Fog and Grid color controls open a modal picker with native color selection and reusable swatches.

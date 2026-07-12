@@ -176,7 +176,7 @@ export function CampaignPanel({
                     }}
                   >
                     <Trash2 size={16} aria-hidden="true" />
-                    <span>Prune Unreferenced Assets</span>
+                    <span>Asset Cleanup</span>
                   </button>
                 </FloatingCampaignMaintenanceMenu>,
                 document.body

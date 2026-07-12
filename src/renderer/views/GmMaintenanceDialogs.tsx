@@ -1,9 +1,9 @@
-import type { AssetPruneResult, ThumbnailRegenerationResult, TokenAssetPromotionResult } from "../../shared/localvtt";
+import type { AssetCleanupPreviewResult, AssetPruneResult, ThumbnailRegenerationResult, TokenAssetPromotionResult } from "../../shared/localvtt";
 import type { CampaignHealthReport } from "../../shared/campaignHealth";
+import { AssetCleanupPreviewDialog } from "../components/modals/AssetCleanupPreviewDialog";
 import { AssetPruneResultDialog } from "../components/modals/AssetPruneResultDialog";
 import { CampaignBusyOverlay } from "../components/modals/CampaignBusyOverlay";
 import { CampaignHealthDialog } from "../components/modals/CampaignHealthDialog";
-import { ConfirmDialog } from "../components/modals/ConfirmDialog";
 import { MetadataBackupRestoreDialog } from "../components/modals/MetadataBackupRestoreDialog";
 import { ThumbnailRegenerationResultDialog } from "../components/modals/ThumbnailRegenerationResultDialog";
 import { TokenAssetPromotionResultDialog } from "../components/modals/TokenAssetPromotionResultDialog";
@@ -12,7 +12,7 @@ import { formatUserFacingError } from "../lib/errors";
 import { logRendererError } from "../lib/rendererDiagnostics";
 
 interface GmMaintenanceDialogsProps {
-  assetPruneConfirmOpen: boolean;
+  assetCleanupPreview: AssetCleanupPreviewResult | null;
   assetPruneResult: AssetPruneResult | null;
   busyState: CampaignBusyState | null;
   campaignHealth: CampaignHealthReport;
@@ -21,7 +21,7 @@ interface GmMaintenanceDialogsProps {
   metadataRestoreOpen: boolean;
   thumbnailRegenerationResult: ThumbnailRegenerationResult | null;
   tokenAssetPromotionResult: TokenAssetPromotionResult | null;
-  onCloseAssetPruneConfirm: () => void;
+  onCloseAssetCleanupPreview: () => void;
   onCloseAssetPruneResult: () => void;
   onCloseCampaignHealth: () => void;
   onCloseMetadataRestore: () => void;
@@ -34,8 +34,8 @@ interface GmMaintenanceDialogsProps {
 }
 
 export function GmMaintenanceDialogs({
-  assetPruneConfirmOpen,
   assetPruneResult,
+  assetCleanupPreview,
   busyState,
   campaignHealth,
   campaignHealthOpen,
@@ -43,7 +43,7 @@ export function GmMaintenanceDialogs({
   metadataRestoreOpen,
   thumbnailRegenerationResult,
   tokenAssetPromotionResult,
-  onCloseAssetPruneConfirm,
+  onCloseAssetCleanupPreview,
   onCloseAssetPruneResult,
   onCloseCampaignHealth,
   onCloseMetadataRestore,
@@ -54,8 +54,6 @@ export function GmMaintenanceDialogs({
   onPruneUnreferencedAssets,
   onSetError
 }: GmMaintenanceDialogsProps) {
-  const pruneCopy = getAssetPruneConfirmCopy(campaignHealth.unreferencedAssets.length);
-
   return (
     <>
       {metadataRestoreOpen && campaignPath && (
@@ -71,19 +69,15 @@ export function GmMaintenanceDialogs({
         />
       )}
       {campaignHealthOpen && <CampaignHealthDialog health={campaignHealth} onClose={onCloseCampaignHealth} />}
-      {assetPruneConfirmOpen && (
-        <ConfirmDialog
-          title="Prune Unreferenced Assets?"
-          confirmLabel="Prune Assets"
-          onCancel={onCloseAssetPruneConfirm}
+      {assetCleanupPreview && (
+        <AssetCleanupPreviewDialog
+          preview={assetCleanupPreview}
+          onCancel={onCloseAssetCleanupPreview}
           onConfirm={() => {
-            onCloseAssetPruneConfirm();
+            onCloseAssetCleanupPreview();
             onPruneUnreferencedAssets();
           }}
-        >
-          <p>{pruneCopy.summary}</p>
-          <p>{pruneCopy.retention}</p>
-        </ConfirmDialog>
+        />
       )}
       {busyState && <CampaignBusyOverlay busyState={busyState} />}
       {thumbnailRegenerationResult && <ThumbnailRegenerationResultDialog result={thumbnailRegenerationResult} onClose={onCloseThumbnailRegenerationResult} />}
@@ -91,12 +85,4 @@ export function GmMaintenanceDialogs({
       {assetPruneResult && <AssetPruneResultDialog result={assetPruneResult} onClose={onCloseAssetPruneResult} />}
     </>
   );
-}
-
-export function getAssetPruneConfirmCopy(unreferencedAssetCount: number): { summary: string; retention: string } {
-  const assetLabel = unreferencedAssetCount === 1 ? "asset" : "assets";
-  return {
-    summary: `This will remove ${unreferencedAssetCount} unreferenced ${assetLabel} from the campaign and delete their unused files from the campaign folder.`,
-    retention: "Referenced maps, tokens, player portraits, scene overlays, and turn-order assets will be kept."
-  };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createEmptyCampaignHealthReport } from "../../src/shared/campaignHealth";
-import { createDefaultCampaign, type AssetPruneResult, type CampaignSummary, type ThumbnailRegenerationResult, type TokenAssetPromotionResult } from "../../src/shared/localvtt";
+import { createDefaultCampaign, type AssetCleanupPreviewResult, type AssetPruneResult, type CampaignSummary, type ThumbnailRegenerationResult, type TokenAssetPromotionResult } from "../../src/shared/localvtt";
 import {
   gmMaintenanceReducer,
   INITIAL_GM_MAINTENANCE_STATE
@@ -34,11 +34,24 @@ describe("GM maintenance state", () => {
 
   it("stores and clears campaign maintenance operation results", () => {
     const summary = makeCampaignSummary();
+    const cleanupPreview: AssetCleanupPreviewResult = {
+      campaignSummary: summary,
+      unreferencedAssets: [],
+      staleThumbnailReferences: [],
+      orphanedFiles: [],
+      retainedAssetCount: 2,
+      totalFilesToRemove: 0,
+      totalBytesToRemove: 0
+    };
     const thumbnailResult: ThumbnailRegenerationResult = { campaignSummary: summary, regenerated: 4, skipped: 1, failed: [] };
     const promotionResult: TokenAssetPromotionResult = { campaignSummary: summary, promoted: 2, skipped: 3, failed: [] };
     const pruneResult: AssetPruneResult = { campaignSummary: summary, pruned: 5, skipped: 1, removedFiles: 10, failed: [] };
 
-    const withThumbnail = gmMaintenanceReducer(INITIAL_GM_MAINTENANCE_STATE, {
+    const withPreview = gmMaintenanceReducer(INITIAL_GM_MAINTENANCE_STATE, {
+      type: "assetCleanupPreviewed",
+      preview: cleanupPreview
+    });
+    const withThumbnail = gmMaintenanceReducer(withPreview, {
       type: "thumbnailRegenerationCompleted",
       result: thumbnailResult
     });
@@ -51,10 +64,12 @@ describe("GM maintenance state", () => {
       result: pruneResult
     });
 
+    expect(withPrune.assetCleanupPreview).toBe(cleanupPreview);
     expect(withPrune.thumbnailRegenerationResult).toBe(thumbnailResult);
     expect(withPrune.tokenAssetPromotionResult).toBe(promotionResult);
     expect(withPrune.assetPruneResult).toBe(pruneResult);
 
+    expect(gmMaintenanceReducer(withPrune, { type: "assetCleanupPreviewClosed" }).assetCleanupPreview).toBeNull();
     expect(gmMaintenanceReducer(withPrune, { type: "assetPruneResultClosed" }).assetPruneResult).toBeNull();
     expect(gmMaintenanceReducer(withPrune, { type: "thumbnailRegenerationResultClosed" }).thumbnailRegenerationResult).toBeNull();
     expect(gmMaintenanceReducer(withPrune, { type: "tokenAssetPromotionResultClosed" }).tokenAssetPromotionResult).toBeNull();

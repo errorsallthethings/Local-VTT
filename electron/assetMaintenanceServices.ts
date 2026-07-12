@@ -1,6 +1,7 @@
 import type { WebContents } from "electron";
 import type {
-  AssetPruneResult,
+  AssetCleanupPreviewResult,
+  AssetCleanupResult,
   Campaign,
   CampaignSummary,
   ThumbnailRegenerationProgress,
@@ -8,6 +9,7 @@ import type {
   TokenAssetPromotionResult
 } from "../src/shared/localvtt.js";
 import { requireCampaignRelativePath } from "./assetFiles.js";
+import { createAssetCleanupPlan, removeOrphanedAssetFiles } from "./assetCleanupPlanning.js";
 import { inspectCampaignHealth } from "./campaignHealth.js";
 import { unlinkIfExists } from "./fileOperations.js";
 import type { MapThumbnailResult } from "./mapThumbnailRepair.js";
@@ -17,8 +19,9 @@ import { promoteTokenAssetThumbnails } from "./tokenAssetPromotion.js";
 import { pruneUnreferencedAssets } from "./unreferencedAssetPruning.js";
 
 export interface AssetMaintenanceServices {
+  previewCampaignAssetCleanup: (campaignPath: string) => Promise<AssetCleanupPreviewResult>;
   promoteCampaignTokenAssets: (campaignPath: string) => Promise<TokenAssetPromotionResult>;
-  pruneCampaignUnreferencedAssets: (campaignPath: string) => Promise<AssetPruneResult>;
+  pruneCampaignUnreferencedAssets: (campaignPath: string) => Promise<AssetCleanupResult>;
   regenerateCampaignThumbnails: (
     campaignPath: string,
     onProgress?: (progress: ThumbnailRegenerationProgress) => void,
@@ -30,7 +33,9 @@ export interface CreateAssetMaintenanceServicesOptions {
   createMapThumbnail: (campaignPath: string, sourcePath: string, assetId: string, rendererWebContents?: WebContents) => Promise<MapThumbnailResult>;
   createTokenThumbnail: (campaignPath: string, sourcePath: string, assetId: string) => Promise<MapThumbnailResult>;
   inspectCampaignHealth?: typeof inspectCampaignHealth;
+  createAssetCleanupPlan?: typeof createAssetCleanupPlan;
   loadCampaignFromPath: (campaignPath: string) => Promise<CampaignSummary>;
+  removeOrphanedAssetFiles?: typeof removeOrphanedAssetFiles;
   promoteTokenAssetThumbnails?: typeof promoteTokenAssetThumbnails;
   pruneUnreferencedAssets?: typeof pruneUnreferencedAssets;
   regenerateThumbnailAssets?: typeof regenerateThumbnailAssets;
@@ -43,17 +48,32 @@ export interface CreateAssetMaintenanceServicesOptions {
 export function createAssetMaintenanceServices({
   createMapThumbnail,
   createTokenThumbnail,
+  createAssetCleanupPlan: createCleanupPlan = createAssetCleanupPlan,
   inspectCampaignHealth: inspectHealth = inspectCampaignHealth,
   loadCampaignFromPath,
   promoteTokenAssetThumbnails: promoteTokens = promoteTokenAssetThumbnails,
   pruneUnreferencedAssets: pruneAssets = pruneUnreferencedAssets,
   regenerateThumbnailAssets: regenerateThumbnails = regenerateThumbnailAssets,
+  removeOrphanedAssetFiles: removeOrphans = removeOrphanedAssetFiles,
   removeThumbnailIfUnused: removeUnusedThumbnail = removeThumbnailIfUnused,
   requireCampaignRelativePath: requireRelativePath = requireCampaignRelativePath,
   unlinkIfExists: unlinkPathIfExists = unlinkIfExists,
   writeCampaign
 }: CreateAssetMaintenanceServicesOptions): AssetMaintenanceServices {
   return {
+    async previewCampaignAssetCleanup(campaignPath) {
+      const summary = await loadCampaignFromPath(campaignPath);
+      const health = await inspectHealth(campaignPath, summary.campaign);
+      const plan = await createCleanupPlan(campaignPath, summary.campaign, health);
+      return {
+        campaignSummary: {
+          ...summary,
+          health
+        },
+        ...plan
+      };
+    },
+
     async regenerateCampaignThumbnails(campaignPath, onProgress, rendererWebContents) {
       const summary = await loadCampaignFromPath(campaignPath);
       const plan = await regenerateThumbnails(
@@ -107,8 +127,10 @@ export function createAssetMaintenanceServices({
     async pruneCampaignUnreferencedAssets(campaignPath) {
       const summary = await loadCampaignFromPath(campaignPath);
       const health = await inspectHealth(campaignPath, summary.campaign);
+      const cleanupPlan = await createCleanupPlan(campaignPath, summary.campaign, health);
       const unreferencedAssetIds = new Set(health.unreferencedAssets.map((asset) => asset.assetId));
       const plan = await pruneAssets(campaignPath, summary.campaign, unreferencedAssetIds);
+      const orphanedRemoval = await removeOrphans(campaignPath, cleanupPlan.orphanedFiles);
       if (plan.pruned > 0) {
         await writeCampaign(campaignPath, plan.campaign);
       }
@@ -117,8 +139,10 @@ export function createAssetMaintenanceServices({
         campaignSummary: await loadCampaignFromPath(campaignPath),
         pruned: plan.pruned,
         skipped: plan.skipped,
-        removedFiles: plan.removedFiles,
-        failed: plan.failed
+        removedFiles: plan.removedFiles + orphanedRemoval.removed,
+        failed: plan.failed,
+        removedOrphanedFiles: orphanedRemoval.removed,
+        failedOrphanedFiles: orphanedRemoval.failed
       };
     }
   };

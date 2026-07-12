@@ -1,5 +1,7 @@
 import type { IpcMain, IpcMainInvokeEvent, WebContents } from "electron";
 import type {
+  AssetCleanupPreviewResult,
+  AssetCleanupResult,
   AssetPruneResult,
   ThumbnailRegenerationProgress,
   ThumbnailRegenerationResult,
@@ -8,8 +10,9 @@ import type {
 
 export interface RegisterAssetMaintenanceIpcOptions {
   assertKnownCampaignPath: (campaignPath: string) => void;
+  previewCampaignAssetCleanup: (campaignPath: string) => Promise<AssetCleanupPreviewResult>;
   promoteCampaignTokenAssets: (campaignPath: string) => Promise<TokenAssetPromotionResult>;
-  pruneCampaignUnreferencedAssets: (campaignPath: string) => Promise<AssetPruneResult>;
+  pruneCampaignUnreferencedAssets: (campaignPath: string) => Promise<AssetCleanupResult | AssetPruneResult>;
   regenerateCampaignThumbnails: (
     campaignPath: string,
     onProgress?: (progress: ThumbnailRegenerationProgress) => void,
@@ -28,6 +31,11 @@ export function registerAssetMaintenanceIpc(ipcMain: Pick<IpcMain, "handle">, op
   ipcMain.handle("asset:promoteTokenAssets", async (_event: IpcMainInvokeEvent, campaignPath: string) => {
     options.assertKnownCampaignPath(campaignPath);
     return options.promoteCampaignTokenAssets(campaignPath);
+  });
+
+  ipcMain.handle("asset:previewCleanup", async (_event: IpcMainInvokeEvent, campaignPath: string) => {
+    options.assertKnownCampaignPath(campaignPath);
+    return options.previewCampaignAssetCleanup(campaignPath);
   });
 
   ipcMain.handle("asset:pruneUnreferencedAssets", async (_event: IpcMainInvokeEvent, campaignPath: string) => {

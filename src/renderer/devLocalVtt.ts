@@ -192,12 +192,23 @@ export function installDevLocalVtt() {
       skipped: campaign.assets.filter((asset) => asset.kind !== "map").length,
       failed: []
     }),
+    previewAssetCleanup: async () => ({
+      campaignSummary: getSummary(),
+      unreferencedAssets: [],
+      staleThumbnailReferences: [],
+      orphanedFiles: [],
+      retainedAssetCount: campaign.assets.length,
+      totalFilesToRemove: 0,
+      totalBytesToRemove: 0
+    }),
     pruneUnreferencedAssets: async () => ({
       campaignSummary: getSummary(),
       pruned: 0,
       skipped: campaign.assets.length,
       removedFiles: 0,
-      failed: []
+      failed: [],
+      removedOrphanedFiles: 0,
+      failedOrphanedFiles: []
     }),
     onThumbnailRegenerationProgress: (callback: (progress: ThumbnailRegenerationProgress) => void) => {
       thumbnailProgressListeners.add(callback);
