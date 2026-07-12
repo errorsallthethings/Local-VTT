@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { LocalVttApi } from "../src/shared/localVttApi.js";
 import type {
   Asset,
+  AssetCleanupPreviewResult,
+  AssetCleanupResult,
   AssetPruneResult,
   Campaign,
   CampaignSummary,
@@ -72,8 +74,10 @@ const api: LocalVttApi = {
     ipcRenderer.invoke("asset:regenerateThumbnails", campaignPath) as Promise<ThumbnailRegenerationResult>,
   promoteTokenAssets: (campaignPath: string) =>
     ipcRenderer.invoke("asset:promoteTokenAssets", campaignPath) as Promise<TokenAssetPromotionResult>,
+  previewAssetCleanup: (campaignPath: string) =>
+    ipcRenderer.invoke("asset:previewCleanup", campaignPath) as Promise<AssetCleanupPreviewResult>,
   pruneUnreferencedAssets: (campaignPath: string) =>
-    ipcRenderer.invoke("asset:pruneUnreferencedAssets", campaignPath) as Promise<AssetPruneResult>,
+    ipcRenderer.invoke("asset:pruneUnreferencedAssets", campaignPath) as Promise<AssetCleanupResult | AssetPruneResult>,
   onThumbnailRegenerationProgress: (callback: (progress: ThumbnailRegenerationProgress) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, progress: ThumbnailRegenerationProgress) => callback(progress);
     ipcRenderer.on("asset:thumbnailRegenerationProgress", listener);

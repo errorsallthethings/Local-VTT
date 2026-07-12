@@ -364,6 +364,7 @@ registerTokenAssetIpc(ipcMain, {
 
 registerAssetMaintenanceIpc(ipcMain, {
   assertKnownCampaignPath: campaignRuntimeServices.assertKnownCampaignPath,
+  previewCampaignAssetCleanup: assetMaintenanceServices.previewCampaignAssetCleanup,
   promoteCampaignTokenAssets: assetMaintenanceServices.promoteCampaignTokenAssets,
   pruneCampaignUnreferencedAssets: assetMaintenanceServices.pruneCampaignUnreferencedAssets,
   regenerateCampaignThumbnails: assetMaintenanceServices.regenerateCampaignThumbnails

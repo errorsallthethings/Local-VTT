@@ -1,6 +1,8 @@
 import type {
   Asset,
   AssetPruneResult,
+  AssetCleanupPreviewResult,
+  AssetCleanupResult,
   Campaign,
   CampaignSummary,
   LiveTableEvent,
@@ -91,7 +93,8 @@ export interface LocalVttApi {
   updateTokenThumbnail: (campaignPath: string, assetId: string, crop: SquareCropRect) => Promise<{ campaignSummary: CampaignSummary; asset: Asset }>;
   regenerateThumbnails: (campaignPath: string) => Promise<ThumbnailRegenerationResult>;
   promoteTokenAssets: (campaignPath: string) => Promise<TokenAssetPromotionResult>;
-  pruneUnreferencedAssets: (campaignPath: string) => Promise<AssetPruneResult>;
+  previewAssetCleanup: (campaignPath: string) => Promise<AssetCleanupPreviewResult>;
+  pruneUnreferencedAssets: (campaignPath: string) => Promise<AssetCleanupResult | AssetPruneResult>;
   onThumbnailRegenerationProgress: (callback: (progress: ThumbnailRegenerationProgress) => void) => () => void;
   discardTokenImport: (campaignPath: string, assetId: string) => Promise<CampaignSummary>;
   getTokenAssetUsage: (campaignPath: string, assetId: string) => Promise<Array<{ sceneId: string; sceneName: string; count: number }>>;

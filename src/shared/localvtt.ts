@@ -785,6 +785,43 @@ export interface AssetPruneResult {
   failed: ThumbnailRegenerationFailure[];
 }
 
+export interface AssetCleanupPreviewAsset {
+  assetId: string;
+  assetName: string;
+  kind: Asset["kind"];
+  relativePath: string;
+  fileRelativePaths: string[];
+  usageCount: number;
+}
+
+export interface AssetCleanupPreviewOrphanedFile {
+  relativePath: string;
+  kind: Asset["kind"] | "thumbnail";
+  sizeBytes: number;
+}
+
+export interface AssetCleanupPreviewResult {
+  campaignSummary: CampaignSummary;
+  unreferencedAssets: AssetCleanupPreviewAsset[];
+  staleThumbnailReferences: Array<{
+    assetId: string;
+    assetName: string;
+    relativePath: string;
+  }>;
+  orphanedFiles: AssetCleanupPreviewOrphanedFile[];
+  retainedAssetCount: number;
+  totalFilesToRemove: number;
+  totalBytesToRemove: number;
+}
+
+export interface AssetCleanupResult extends AssetPruneResult {
+  removedOrphanedFiles: number;
+  failedOrphanedFiles: Array<{
+    relativePath: string;
+    reason: string;
+  }>;
+}
+
 export interface ThumbnailRegenerationProgress {
   current: number;
   total: number;

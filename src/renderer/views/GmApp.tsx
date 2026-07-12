@@ -623,6 +623,7 @@ export function GmApp() {
     commitMapReplacement,
     regenerateThumbnails,
     promoteTokenAssets,
+    previewAssetCleanup,
     pruneUnreferencedAssets,
     openCampaignHealthDialog,
     openBackupsFolder,
@@ -832,7 +833,7 @@ export function GmApp() {
         onOpenBackupRestore={openMetadataRestoreDialog}
         onRegenerateThumbnails={() => void regenerateThumbnails()}
         onPromoteTokenAssets={() => void promoteTokenAssets()}
-        onPruneUnreferencedAssets={maintenanceState.openAssetPruneConfirm}
+        onPruneUnreferencedAssets={() => void previewAssetCleanup()}
         onAddPlayer={addCampaignPlayer}
         onUpdatePlayer={updateCampaignPlayer}
         onDeletePlayer={deleteCampaignPlayer}
@@ -1261,7 +1262,7 @@ export function GmApp() {
         {...gmDialogConfirmActions}
       />
       <GmMaintenanceDialogs
-        assetPruneConfirmOpen={maintenanceState.assetPruneConfirmOpen}
+        assetCleanupPreview={maintenanceState.assetCleanupPreview}
         assetPruneResult={maintenanceState.assetPruneResult}
         busyState={maintenanceState.busyState}
         campaignHealth={campaignHealth}

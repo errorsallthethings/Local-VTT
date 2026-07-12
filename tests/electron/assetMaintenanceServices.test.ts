@@ -118,16 +118,66 @@ describe("asset maintenance services", () => {
       createMapThumbnail: vi.fn(),
       createTokenThumbnail: vi.fn(),
       inspectCampaignHealth: vi.fn().mockResolvedValue({
+        missingAssetFiles: [],
+        staleThumbnailReferences: [],
+        sceneFileIssues: [],
+        unknownAssetReferences: [],
         unreferencedAssets: [{ assetId: "asset-1" }]
       }),
       loadCampaignFromPath: vi.fn().mockResolvedValue(campaignSummary("campaign-root", campaign)),
+      createAssetCleanupPlan: vi.fn().mockResolvedValue({
+        unreferencedAssets: [],
+        staleThumbnailReferences: [],
+        orphanedFiles: [{ relativePath: "assets/maps/orphan.png", kind: "map", sizeBytes: 12 }],
+        retainedAssetCount: 0,
+        totalFilesToRemove: 1,
+        totalBytesToRemove: 12
+      }),
       pruneUnreferencedAssets,
+      removeOrphanedAssetFiles: vi.fn().mockResolvedValue({ removed: 1, failed: [] }),
       writeCampaign
     });
 
-    await expect(services.pruneCampaignUnreferencedAssets("campaign-root")).resolves.toMatchObject({ pruned: 1, removedFiles: 2 });
+    await expect(services.pruneCampaignUnreferencedAssets("campaign-root")).resolves.toMatchObject({ pruned: 1, removedFiles: 3, removedOrphanedFiles: 1 });
 
     expect(pruneUnreferencedAssets).toHaveBeenCalledWith("campaign-root", campaign, new Set(["asset-1"]));
     expect(writeCampaign).toHaveBeenCalledWith("campaign-root", prunedCampaign);
+  });
+
+  it("previews campaign asset cleanup without writing metadata or deleting files", async () => {
+    const campaign = createDefaultCampaign("Preview");
+    const health = {
+      missingAssetFiles: [],
+      staleThumbnailReferences: [],
+      sceneFileIssues: [],
+      unknownAssetReferences: [],
+      unreferencedAssets: [{ assetId: "asset-1" }]
+    };
+    const previewPlan = {
+      unreferencedAssets: [],
+      staleThumbnailReferences: [],
+      orphanedFiles: [],
+      retainedAssetCount: 3,
+      totalFilesToRemove: 0,
+      totalBytesToRemove: 0
+    };
+    const writeCampaign = vi.fn();
+    const createAssetCleanupPlan = vi.fn().mockResolvedValue(previewPlan);
+    const services = createAssetMaintenanceServices({
+      createMapThumbnail: vi.fn(),
+      createTokenThumbnail: vi.fn(),
+      inspectCampaignHealth: vi.fn().mockResolvedValue(health),
+      createAssetCleanupPlan,
+      loadCampaignFromPath: vi.fn().mockResolvedValue(campaignSummary("campaign-root", campaign)),
+      writeCampaign
+    });
+
+    await expect(services.previewCampaignAssetCleanup("campaign-root")).resolves.toMatchObject({
+      retainedAssetCount: 3,
+      campaignSummary: { health }
+    });
+
+    expect(createAssetCleanupPlan).toHaveBeenCalledWith("campaign-root", campaign, health);
+    expect(writeCampaign).not.toHaveBeenCalled();
   });
 });
