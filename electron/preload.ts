@@ -45,6 +45,8 @@ const api: LocalVttApi = {
     ipcRenderer.invoke("scene:rename", campaignPath, sceneId, sceneName) as Promise<{ campaignSummary: CampaignSummary; scene: Scene }>,
   deleteScene: (campaignPath: string, sceneId: string) =>
     ipcRenderer.invoke("scene:delete", campaignPath, sceneId) as Promise<CampaignSummary>,
+  bulkImportMapScenes: (campaignPath: string) =>
+    ipcRenderer.invoke("scene:bulkImportMaps", campaignPath) as ReturnType<LocalVttApi["bulkImportMapScenes"]>,
   importMap: (campaignPath: string) =>
     ipcRenderer.invoke("asset:importMap", campaignPath) as Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>,
   previewMapReplacement: (campaignPath: string, sceneId: string, currentAssetId: string) =>

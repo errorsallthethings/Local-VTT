@@ -228,7 +228,7 @@ Before packaging or sharing a build, run through these workflows:
 - Reopen a campaign from Recent Campaigns and remove an entry from Recents.
 - Create, rename, delete, duplicate, reorder, and save scenes.
 - Rename, color, delete, duplicate, collapse, and reorder scene folders.
-- Import static image maps, video maps, map variants, and token assets.
+- Import static image maps, video maps, map variants, bulk map scenes, and token assets.
 - Send scenes to Player View and confirm Player View fullscreen behavior remains stable.
 - Delete the scene currently shown to players and confirm Player View switches to the waiting screen instead of closing.
 - Resize/collapse GM side panels and the Token Library drawer.

@@ -140,6 +140,7 @@ Use the Campaign panel's Restore Revision option to review and restore available
 ### Maps And Player View
 
 - Static image, animated GIF, `.mp4`, and `.webm` maps can be imported.
+- Bulk scene import can create one new scene per selected map file when the GM is adding several encounters at once.
 - Scene map variants let the GM keep multiple same-size map versions on one scene, such as floors, day/night lighting, weathered versions, or other map-maker exports that should share the same grid, fog, tokens, drawings, templates, and effects.
 - Video maps render muted and looped in GM View and Player View.
 - Video map playback can be paused/resumed, muted/unmuted, and inspected with optional diagnostics from contextual GM canvas controls.

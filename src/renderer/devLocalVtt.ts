@@ -131,6 +131,7 @@ export function installDevLocalVtt() {
       campaign = { ...campaign, scenes: campaign.scenes.filter((scene) => scene.id !== sceneId), updatedAt: new Date().toISOString() };
       return getSummary();
     },
+    bulkImportMapScenes: async () => null,
     importMap: async () => {
       const now = new Date().toISOString();
       const asset: Asset = {

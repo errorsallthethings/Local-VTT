@@ -1,5 +1,5 @@
 import { type PointerEvent as ReactPointerEvent, useState } from "react";
-import { CircleHelp, FilePlus, FolderPlus, GripVertical, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { CircleHelp, FilePlus, FolderPlus, GripVertical, Images, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import type { Asset, Campaign, CampaignSceneEntry, CampaignSceneFolder, Scene } from "../../shared/localvtt";
 import { CampaignPanel } from "../components/campaign/CampaignPanel";
 import { SceneLibraryPanel } from "../components/scenes/SceneLibraryPanel";
@@ -42,6 +42,7 @@ export function GmSidebar({
   onDeletePlayer,
   onPlayersPanelOpenChange,
   onOpenSceneDialog,
+  onBulkImportMapScenes,
   onOpenFolderDialog,
   onLoadScene,
   onSaveScene,
@@ -93,6 +94,7 @@ export function GmSidebar({
   onDeletePlayer: (playerId: string) => void;
   onPlayersPanelOpenChange: (open: boolean) => void;
   onOpenSceneDialog: () => void;
+  onBulkImportMapScenes: () => void;
   onOpenFolderDialog: () => void;
   onLoadScene: (sceneId: string) => void;
   onSaveScene: (sceneId: string) => void;
@@ -180,6 +182,9 @@ export function GmSidebar({
             <div className="section-actions">
               <button className="icon-button" disabled={!campaignPath} aria-label="Add Scene" title="Add Scene" onClick={onOpenSceneDialog}>
                 <FilePlus size={16} aria-hidden="true" />
+              </button>
+              <button className="icon-button" disabled={!campaignPath} aria-label="Import Maps as Scenes" title="Import Maps as Scenes" onClick={onBulkImportMapScenes}>
+                <Images size={16} aria-hidden="true" />
               </button>
               <button className="icon-button" disabled={!campaign} aria-label="Add Scene Folder" title="Add Scene Folder" onClick={onOpenFolderDialog}>
                 <FolderPlus size={16} aria-hidden="true" />

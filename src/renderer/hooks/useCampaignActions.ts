@@ -303,6 +303,34 @@ export function useCampaignActions({
       updateScene(nextScene, getPlayerSyncCampaignForScene(nextCampaign, nextScene.id, shouldSyncSceneToPlayer));
     });
 
+  const bulkImportMapScenes = () =>
+    run(async () => {
+      if (!campaignPath || !campaign) {
+        return;
+      }
+      if (hasUnsavedChanges) {
+        const saved = await saveCampaign();
+        if (!saved) {
+          return;
+        }
+      }
+      const result = await window.localVtt.bulkImportMapScenes(campaignPath);
+      if (!result) {
+        return;
+      }
+      applySummary(result.campaignSummary, false);
+      setCampaignDirty(false);
+      const firstImportedScene = result.scenes[0];
+      if (firstImportedScene) {
+        setActiveScene(firstImportedScene);
+        setSceneClean(firstImportedScene);
+      }
+      onResetSceneLibraryUi();
+      if (result.failures.length > 0) {
+        setError(`Imported ${result.scenes.length} scene(s). ${result.failures.length} map file(s) could not be imported.`);
+      }
+    });
+
   const commitMapReplacement = (preview: MapReplacementPreview) =>
     run(async () => {
       if (!campaignPath || !campaign || !activeScene) {
@@ -619,6 +647,7 @@ export function useCampaignActions({
     saveCampaign,
     saveCampaignBeforeClose,
     importMap,
+    bulkImportMapScenes,
     addMapVariant,
     replaceMap,
     commitMapReplacement,

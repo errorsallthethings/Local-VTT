@@ -1,4 +1,7 @@
 import type { IpcMainInvokeEvent } from "electron";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { registerSceneIpc, type RegisterSceneIpcOptions } from "../../electron/sceneIpc";
 import { createCampaignSceneEntry } from "../../electron/sceneEntries";
@@ -26,7 +29,7 @@ function createIpcRegistry() {
       if (!handler) {
         throw new Error(`No handler registered for ${channel}.`);
       }
-      return handler({} as IpcMainInvokeEvent, ...args);
+      return handler({ sender: {} } as IpcMainInvokeEvent, ...args);
     }
   };
 }
@@ -47,19 +50,28 @@ function campaignSummary(campaignPath: string, campaign: Campaign): CampaignSumm
   };
 }
 
-function createSceneHarness(initialCampaign = createDefaultCampaign("Scene IPC Campaign")) {
-  const campaignPath = "C:\\Campaigns\\One";
+function createSceneHarness(initialCampaign = createDefaultCampaign("Scene IPC Campaign"), campaignPath = "C:\\Campaigns\\One") {
   let campaign = initialCampaign;
   const scenes = new Map<string, Scene>();
   for (const entry of campaign.scenes) {
     scenes.set(entry.id, createDefaultScene(entry.name));
   }
+  let assetIndex = 0;
   const options: RegisterSceneIpcOptions = {
     assertInsideCampaign: vi.fn(),
     assertKnownCampaignPath: vi.fn(),
     backupSceneBeforeDelete: vi.fn().mockResolvedValue(undefined),
+    createAssetId: vi.fn(() => `asset-${++assetIndex}`),
+    createMapThumbnail: vi.fn(async () => ({ thumbnailRelativePath: "assets/thumbnails/map.png" })),
+    dialogs: {
+      chooseMapFiles: vi.fn(async () => [])
+    },
+    getGmWindow: vi.fn(() => null),
+    getTimestamp: vi.fn(() => "2026-01-01T00:00:00.000Z"),
     loadCampaignFromPath: vi.fn(async () => campaignSummary(campaignPath, campaign)),
+    logThumbnailImportFailure: vi.fn(),
     readSceneMetadata: vi.fn(async (_campaignPath: string, sceneId: string) => scenes.get(sceneId) ?? { ...createDefaultScene("Loaded"), id: sceneId }),
+    registerAssetPath: vi.fn(),
     unlinkIfExists: vi.fn().mockResolvedValue(undefined),
     writeCampaign: vi.fn(async (_campaignPath: string, nextCampaign: Campaign) => {
       campaign = nextCampaign;
@@ -79,6 +91,7 @@ describe("scene IPC", () => {
     registerSceneIpc(ipc.ipcMain, createSceneHarness().options);
 
     expect(ipc.ipcMain.handle).toHaveBeenCalledWith("scene:create", expect.any(Function));
+    expect(ipc.ipcMain.handle).toHaveBeenCalledWith("scene:bulkImportMaps", expect.any(Function));
     expect(ipc.ipcMain.handle).toHaveBeenCalledWith("scene:duplicate", expect.any(Function));
     expect(ipc.ipcMain.handle).toHaveBeenCalledWith("scene:load", expect.any(Function));
     expect(ipc.ipcMain.handle).toHaveBeenCalledWith("scene:save", expect.any(Function));
@@ -96,6 +109,72 @@ describe("scene IPC", () => {
     expect(harness.options.writeCampaign).toHaveBeenCalledWith(harness.campaignPath, expect.objectContaining({ scenes: expect.any(Array) }));
     expect(result.scene.name).toBe("First Scene");
     expect(result.campaignSummary.campaign.scenes).toHaveLength(1);
+  });
+
+  it("cancels bulk map scene import when no files are selected", async () => {
+    const harness = createSceneHarness();
+    vi.mocked(harness.options.dialogs.chooseMapFiles).mockResolvedValue([]);
+
+    const result = await harness.ipc.invoke("scene:bulkImportMaps", harness.campaignPath);
+
+    expect(result).toBeNull();
+    expect(harness.options.writeScene).not.toHaveBeenCalled();
+    expect(harness.options.writeCampaign).not.toHaveBeenCalled();
+  });
+
+  it("bulk imports selected map files as one scene per map", async () => {
+    const tempRoot = await mkdtemp(path.join(tmpdir(), "local-vtt-scene-ipc-"));
+    try {
+      const campaignPath = path.join(tempRoot, "campaign");
+      const firstMap = path.join(tempRoot, "Forest.png");
+      const secondMap = path.join(tempRoot, "Forest.jpg");
+      await writeFile(firstMap, "first map");
+      await writeFile(secondMap, "second map");
+      const harness = createSceneHarness(createDefaultCampaign("Campaign"), campaignPath);
+      vi.mocked(harness.options.dialogs.chooseMapFiles).mockResolvedValue([firstMap, secondMap]);
+
+      const result = await harness.ipc.invoke("scene:bulkImportMaps", harness.campaignPath) as {
+        campaignSummary: CampaignSummary;
+        scenes: Scene[];
+      };
+
+      expect(result.scenes.map((scene) => scene.name)).toEqual(["Forest", "Forest 2"]);
+      expect(result.scenes.map((scene) => scene.mapAssetId)).toEqual(["asset-1", "asset-2"]);
+      expect(result.campaignSummary.campaign.scenes).toHaveLength(2);
+      expect(result.campaignSummary.campaign.assets).toHaveLength(2);
+      expect(harness.options.writeScene).toHaveBeenCalledTimes(2);
+      expect(harness.options.writeCampaign).toHaveBeenCalledTimes(1);
+      expect(harness.options.registerAssetPath).toHaveBeenCalledTimes(2);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps valid bulk imports when one selected map fails validation", async () => {
+    const tempRoot = await mkdtemp(path.join(tmpdir(), "local-vtt-scene-ipc-"));
+    try {
+      const campaignPath = path.join(tempRoot, "campaign");
+      const validMap = path.join(tempRoot, "Cave.webp");
+      const invalidMap = path.join(tempRoot, "notes.txt");
+      await writeFile(validMap, "valid map");
+      await writeFile(invalidMap, "not a map");
+      const harness = createSceneHarness(createDefaultCampaign("Campaign"), campaignPath);
+      vi.mocked(harness.options.dialogs.chooseMapFiles).mockResolvedValue([validMap, invalidMap]);
+
+      const result = await harness.ipc.invoke("scene:bulkImportMaps", harness.campaignPath) as {
+        scenes: Scene[];
+        failures: Array<{ sourcePath: string; reason: string }>;
+      };
+
+      expect(result.scenes).toHaveLength(1);
+      expect(result.scenes[0].name).toBe("Cave");
+      expect(result.failures).toHaveLength(1);
+      expect(result.failures[0].sourcePath).toBe(invalidMap);
+      expect(harness.options.writeScene).toHaveBeenCalledTimes(1);
+      expect(harness.options.writeCampaign).toHaveBeenCalledTimes(1);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
   });
 
   it("loads scenes through scene defaults preparation", async () => {
