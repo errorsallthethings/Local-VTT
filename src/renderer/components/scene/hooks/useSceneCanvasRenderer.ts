@@ -163,14 +163,37 @@ export function useSceneCanvasRenderer(options: SceneCanvasRendererOptions) {
 
   useEffect(() => {
     const canvas = options.canvasRef.current;
-    const scene = options.scene;
-    if (!canvas || !scene) {
+    if (!canvas) {
       return;
     }
 
     const context = canvas.getContext("2d");
     if (!context) {
       return;
+    }
+
+    const scene = options.scene;
+    if (!scene) {
+      const resizeEmptyCanvas = () => {
+        const rect = canvas.getBoundingClientRect();
+        const scale = window.devicePixelRatio || 1;
+        const pixelWidth = Math.max(1, Math.floor(rect.width * scale));
+        const pixelHeight = Math.max(1, Math.floor(rect.height * scale));
+        lastResizeRef.current = { height: pixelHeight, scale, width: pixelWidth };
+        if (canvas.width !== pixelWidth) {
+          canvas.width = pixelWidth;
+        }
+        if (canvas.height !== pixelHeight) {
+          canvas.height = pixelHeight;
+        }
+        context.setTransform(scale, 0, 0, scale, 0, 0);
+        drawEmptyScenePrompt(context, rect.width, rect.height);
+      };
+
+      resizeEmptyCanvas();
+      const observer = new ResizeObserver(resizeEmptyCanvas);
+      observer.observe(canvas);
+      return () => observer.disconnect();
     }
 
     const resize = () => {
@@ -405,4 +428,17 @@ export function useSceneCanvasRenderer(options: SceneCanvasRendererOptions) {
       }
     };
   }, [options]);
+}
+
+function drawEmptyScenePrompt(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#111720";
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = "#8792a2";
+  ctx.font = "24px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("Select a scene to view", width / 2, height / 2);
+  ctx.textAlign = "start";
+  ctx.textBaseline = "alphabetic";
 }

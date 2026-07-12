@@ -2,11 +2,12 @@ import type { BrowserWindow, IpcMain, IpcMainInvokeEvent, WebContents } from "el
 import path from "node:path";
 import type { Asset, Campaign, CampaignSummary, Scene } from "../src/shared/localvtt.js";
 import { requireCampaignRelativePath } from "./assetFiles.js";
-import { assertAssetImportCandidate, copyAssetImportToCampaign } from "./assetImportFiles.js";
+import { assertAssetImportCandidate } from "./assetImportFiles.js";
 import { mapMediaType } from "./assetImportValidation.js";
 import { requireCampaignAsset } from "./campaignAssetLookup.js";
-import { addImportedAssetToCampaign, createImportedAsset } from "./importedAssets.js";
+import { addImportedAssetToCampaign } from "./importedAssets.js";
 import { assertIpcSafeId } from "./ipcPayloadValidation.js";
+import { createCopiedMapAsset } from "./mapAssetImport.js";
 import { addMapVariantToScene, removeMapAssetFromCampaign, removeMapAssetFromScene, replaceSceneMapAsset } from "./mapAssetMutations.js";
 import { getMapAssetSceneNames, mapAssetUsedByOtherScenes } from "./mapAssetUsage.js";
 import { getMapReplacementPreview } from "./mapReplacementPreview.js";
@@ -219,31 +220,3 @@ async function importMapAsset(
   return imported;
 }
 
-async function createCopiedMapAsset(
-  campaignPath: string,
-  sourcePath: string,
-  rendererWebContents: WebContents,
-  options: RegisterMapAssetIpcOptions
-): Promise<Asset> {
-  const { relativePath, destination } = await copyAssetImportToCampaign(campaignPath, sourcePath, "map");
-  options.registerAssetPath(destination);
-
-  const assetId = options.createAssetId();
-  const thumbnailResult = await options.createMapThumbnail(campaignPath, destination, assetId, rendererWebContents);
-  const thumbnailRelativePath = thumbnailResult.thumbnailRelativePath;
-  if (!thumbnailRelativePath) {
-    options.logThumbnailImportFailure("map", sourcePath, thumbnailResult.failureReason);
-  }
-  const updatedAt = options.getTimestamp();
-  return createImportedAsset({
-    assetId,
-    kind: "map",
-    mediaType: mapMediaType(sourcePath),
-    sourcePath,
-    relativePath,
-    destination,
-    campaignPath,
-    thumbnailRelativePath,
-    createdAt: updatedAt
-  });
-}

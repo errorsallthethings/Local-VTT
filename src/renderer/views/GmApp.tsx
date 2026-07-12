@@ -617,6 +617,7 @@ export function GmApp() {
     saveCampaign,
     saveCampaignBeforeClose,
     importMap,
+    bulkImportMapScenes,
     addMapVariant,
     replaceMap,
     commitMapReplacement,
@@ -837,6 +838,7 @@ export function GmApp() {
         onDeletePlayer={deleteCampaignPlayer}
         onPlayersPanelOpenChange={setPlayersPanelOpen}
         onOpenSceneDialog={openSceneDialog}
+        onBulkImportMapScenes={() => void bulkImportMapScenes()}
         onOpenFolderDialog={openFolderDialog}
         onLoadScene={(sceneId) => void loadScene(sceneId)}
         onSaveScene={(sceneId) => void saveSceneById(sceneId)}

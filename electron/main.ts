@@ -21,6 +21,7 @@ import { removeCampaignAssetFiles } from "./assetFileRemoval.js";
 import {
   chooseDirectory,
   chooseMapFile,
+  chooseMapFiles,
   chooseTokenFile
 } from "./fileDialogOptions.js";
 import { unlinkIfExists } from "./fileOperations.js";
@@ -286,8 +287,17 @@ registerSceneIpc(ipcMain, {
   assertInsideCampaign,
   assertKnownCampaignPath: campaignRuntimeServices.assertKnownCampaignPath,
   backupSceneBeforeDelete,
+  createAssetId: randomUUID,
+  createMapThumbnail: thumbnailServices.createMapThumbnail,
+  dialogs: {
+    chooseMapFiles: (owner) => chooseMapFiles(dialog, owner)
+  },
+  getGmWindow: () => gmWindow,
+  getTimestamp: () => new Date().toISOString(),
   loadCampaignFromPath: campaignRuntimeServices.loadCampaignFromPath,
+  logThumbnailImportFailure,
   readSceneMetadata,
+  registerAssetPath: campaignRuntimeServices.registerAssetPath,
   unlinkIfExists,
   writeCampaign,
   writeScene

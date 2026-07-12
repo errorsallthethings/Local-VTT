@@ -26,6 +26,18 @@ export interface MapReplacementPreview {
   warning?: string;
 }
 
+export interface BulkSceneImportFailure {
+  sourcePath: string;
+  reason: string;
+}
+
+export interface BulkSceneImportResult {
+  campaignSummary: CampaignSummary;
+  scenes: Scene[];
+  assets: Asset[];
+  failures: BulkSceneImportFailure[];
+}
+
 export interface PlayerViewOpenOptions {
   displayId?: number;
   fullscreen?: boolean;
@@ -69,6 +81,7 @@ export interface LocalVttApi {
   saveScene: (campaignPath: string, scene: Scene) => Promise<{ campaignSummary: CampaignSummary; scene: Scene }>;
   renameScene: (campaignPath: string, sceneId: string, sceneName: string) => Promise<{ campaignSummary: CampaignSummary; scene: Scene }>;
   deleteScene: (campaignPath: string, sceneId: string) => Promise<CampaignSummary>;
+  bulkImportMapScenes: (campaignPath: string) => Promise<BulkSceneImportResult | null>;
   importMap: (campaignPath: string) => Promise<{ campaignSummary: CampaignSummary; asset: Asset } | null>;
   previewMapReplacement: (campaignPath: string, sceneId: string, currentAssetId: string) => Promise<MapReplacementPreview | null>;
   replaceMap: (campaignPath: string, sceneId: string, currentAssetId: string, replacementId: string) => Promise<{ campaignSummary: CampaignSummary; scene: Scene; asset: Asset }>;

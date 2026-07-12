@@ -5,7 +5,7 @@ export interface FileDialogFilter {
 
 export interface FileDialogOptions {
   title: string;
-  properties: Array<"openFile" | "openDirectory" | "createDirectory">;
+  properties: Array<"openFile" | "openDirectory" | "createDirectory" | "multiSelections">;
   filters?: FileDialogFilter[];
 }
 
@@ -40,6 +40,14 @@ export function mapFileDialogOptions(): FileDialogOptions {
   };
 }
 
+export function mapFilesDialogOptions(): FileDialogOptions {
+  return {
+    ...mapFileDialogOptions(),
+    title: "Import battle maps as scenes",
+    properties: ["openFile", "multiSelections"]
+  };
+}
+
 export function tokenFileDialogOptions(): FileDialogOptions {
   return {
     title: "Import a token image",
@@ -55,6 +63,10 @@ export function selectedDialogPath(result: FileDialogResult): string | null {
   return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
 }
 
+export function selectedDialogPaths(result: FileDialogResult): string[] {
+  return result.canceled ? [] : result.filePaths;
+}
+
 export async function chooseDirectory(
   dialog: FileDialogAdapter,
   ownerWindow: FileDialogWindow | null,
@@ -66,6 +78,11 @@ export async function chooseDirectory(
 
 export async function chooseMapFile(dialog: FileDialogAdapter, ownerWindow: FileDialogWindow | null): Promise<string | null> {
   return showOpenDialogAndSelectPath(dialog, ownerWindow, mapFileDialogOptions());
+}
+
+export async function chooseMapFiles(dialog: FileDialogAdapter, ownerWindow: FileDialogWindow | null): Promise<string[]> {
+  const result = ownerWindow ? await dialog.showOpenDialog(ownerWindow, mapFilesDialogOptions()) : await dialog.showOpenDialog(mapFilesDialogOptions());
+  return selectedDialogPaths(result);
 }
 
 export async function chooseTokenFile(dialog: FileDialogAdapter, ownerWindow: FileDialogWindow | null): Promise<string | null> {
